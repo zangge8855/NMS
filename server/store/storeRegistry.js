@@ -9,7 +9,7 @@ import userPolicyStore from './userPolicyStore.js';
 import clientEntitlementOverrideStore from './clientEntitlementOverrideStore.js';
 import inviteCodeStore from './inviteCodeStore.js';
 import { loadStoreSnapshot, writeStoreSnapshotNow } from './dbMirror.js';
-import { shouldApplySnapshotPrivacyRedaction } from '../db/snapshots.js';
+import { readSnapshot, shouldApplySnapshotPrivacyRedaction } from '../db/snapshots.js';
 
 function safeClone(value) {
     try {
@@ -17,6 +17,53 @@ function safeClone(value) {
     } catch {
         return null;
     }
+}
+
+function hashSnapshot(value) {
+    try {
+        const serialized = JSON.stringify(value);
+        let hash = 0;
+        for (let index = 0; index < serialized.length; index += 1) {
+            hash = ((hash << 5) - hash) + serialized.charCodeAt(index);
+            hash |= 0;
+        }
+        return `${serialized.length}:${Math.abs(hash).toString(16)}`;
+    } catch {
+        return 'unhashable';
+    }
+}
+
+export function buildStoreSnapshotComparison(key, filePayload, dbPayload, options = {}) {
+    if (dbPayload === null || dbPayload === undefined) {
+        return {
+            key,
+            ok: false,
+            status: 'missing-db-snapshot',
+            fileHash: hashSnapshot(filePayload),
+            dbHash: '',
+        };
+    }
+
+    if (shouldApplySnapshotPrivacyRedaction(key, { redact: options.redact })) {
+        return {
+            key,
+            ok: true,
+            status: 'comparison-skipped-redacted',
+            fileHash: hashSnapshot(filePayload),
+            dbHash: hashSnapshot(dbPayload),
+        };
+    }
+
+    const fileText = JSON.stringify(filePayload);
+    const dbText = JSON.stringify(dbPayload);
+    const ok = fileText === dbText;
+    return {
+        key,
+        ok,
+        status: ok ? 'match' : 'mismatch',
+        fileHash: hashSnapshot(filePayload),
+        dbHash: hashSnapshot(dbPayload),
+    };
 }
 
 const STORE_REGISTRY = [
@@ -143,6 +190,43 @@ export async function backfillStoresToDatabase(options = {}) {
         total: details.length,
         success: details.filter((item) => item.success).length,
         failed: details.filter((item) => !item.success).length,
+        details,
+    };
+}
+
+export async function verifyStoresAgainstDatabase(options = {}) {
+    const redact = options.redact === true;
+    const items = resolveKeys(options.keys);
+    const details = [];
+
+    for (const { key, store } of items) {
+        if (typeof store?.exportState !== 'function') {
+            details.push({ key, ok: false, status: 'exportState-not-implemented' });
+            continue;
+        }
+        const filePayload = safeClone(store.exportState());
+        if (filePayload === null) {
+            details.push({ key, ok: false, status: 'file-snapshot-unserializable' });
+            continue;
+        }
+
+        try {
+            const dbPayload = await readSnapshot(key);
+            details.push(buildStoreSnapshotComparison(key, filePayload, dbPayload, { redact }));
+        } catch (error) {
+            details.push({
+                key,
+                ok: false,
+                status: 'db-read-failed',
+                msg: String(error?.message || error),
+            });
+        }
+    }
+
+    return {
+        total: details.length,
+        ok: details.filter((item) => item.ok).length,
+        failed: details.filter((item) => !item.ok).length,
         details,
     };
 }

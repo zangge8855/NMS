@@ -40,23 +40,27 @@
   top: 0;
 }
 
+:root {
+  --mobile-bottom-nav-height: 78px;
+}
+
 .mobile-bottom-nav {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 45;
-  padding: 0 12px calc(env(safe-area-inset-bottom, 0px) + 10px);
+  padding: 0 10px calc(env(safe-area-inset-bottom, 0px) + 8px);
   pointer-events: none;
 }
 
 .mobile-bottom-nav-track {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 8px;
-  padding: 10px;
+  gap: 6px;
+  padding: 8px;
   border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 24px;
+  border-radius: 20px;
   background:
     linear-gradient(180deg, rgba(24, 24, 27, 0.96), rgba(15, 23, 42, 0.96));
   backdrop-filter: blur(18px);
@@ -69,11 +73,11 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  min-height: 58px;
-  padding: 8px 6px;
+  gap: 4px;
+  min-height: 50px;
+  padding: 6px 4px;
   border: 0;
-  border-radius: 18px;
+  border-radius: 14px;
   background: transparent;
   color: var(--text-muted);
   text-decoration: none;
@@ -92,7 +96,7 @@
 }
 
 .mobile-bottom-nav-label {
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.2;
   white-space: nowrap;
 }
@@ -919,7 +923,7 @@
   --page-gutter-y: clamp(14px, 1.35vw, 18px);
   --toolbar-row-gap: 10px;
   --detail-hero-min-height: 132px;
-  --mobile-bottom-nav-height: 84px;
+  --mobile-bottom-nav-height: 78px;
   --page-shell-max: 1500px;
   --page-shell-wide-max: 1700px;
 }
@@ -5285,7 +5289,7 @@
 
 @media (max-width: 768px) {
   :root {
-    --mobile-bottom-nav-height: 92px;
+    --mobile-bottom-nav-height: 78px;
   }
 
   .main-content {
@@ -5298,7 +5302,7 @@
   }
 
   .mobile-bottom-nav-track {
-    min-height: 68px;
+    min-height: 62px;
   }
 
   .subscriptions-page .subscription-user-danger-row,

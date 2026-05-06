@@ -12,22 +12,12 @@ import {
     HiOutlineArrowDownTray,
     HiOutlineXMark,
 } from 'react-icons/hi2';
-import {
-    LineChart,
-    Line,
-    XAxis,
-    YAxis,
-    Tooltip,
-    ResponsiveContainer,
-    CartesianGrid,
-} from 'recharts';
 import Header from '../Layout/Header.jsx';
 import api from '../../api/client.js';
 import { formatBytes, formatDateOnly, formatDateTime as formatDateTimeValue, getErrorMessage } from '../../utils/format.js';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import toast from 'react-hot-toast';
 import Tasks from '../Tasks/Tasks.jsx';
-const Logs = lazy(() => import('../Logs/Logs.jsx'));
 import SkeletonTable from '../UI/SkeletonTable.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
@@ -38,6 +28,9 @@ import useMediaQuery from '../../hooks/useMediaQuery.js';
 import MiniSparkline from '../UI/MiniSparkline.jsx';
 import useTrafficLeaderboardTrends from '../../hooks/useTrafficLeaderboardTrends.js';
 import { readSessionSnapshot, SESSION_SNAPSHOT_EVENT, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
+
+const Logs = lazy(() => import('../Logs/Logs.jsx'));
+const TrafficLineChart = lazy(() => import('./TrafficLineChart.jsx'));
 
 const AUDIT_TRAFFIC_TOP_LIMIT = 10;
 const AUDIT_TRAFFIC_DEFAULT_WINDOW = 'month';
@@ -2270,15 +2263,20 @@ export default function AuditCenter() {
                                     </span>
                                 </div>
                                 <div className="dashboard-chart audit-chart-body">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <LineChart data={userTrend.points || []} margin={AUDIT_TRAFFIC_CHART_MARGIN}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
-                                            <XAxis dataKey="ts" tickFormatter={(value) => trendLabel(value, userTrend.granularity, locale)} />
-                                            <YAxis width={AUDIT_TRAFFIC_CHART_Y_AXIS_WIDTH} tickFormatter={formatTrafficAxisBytes} />
-                                            <Tooltip formatter={(v) => formatBytes(v)} labelFormatter={(value) => formatDateTime(value, locale)} />
-                                            <Line type="monotone" dataKey="totalBytes" stroke="#6366f1" strokeWidth={2} dot={false} />
-                                        </LineChart>
-                                    </ResponsiveContainer>
+                                    <Suspense fallback={<div className="skeleton w-full h-full opacity-10" />}>
+                                        <TrafficLineChart
+                                            data={userTrend.points || []}
+                                            color="#6366f1"
+                                            granularity={userTrend.granularity}
+                                            locale={locale}
+                                            margin={AUDIT_TRAFFIC_CHART_MARGIN}
+                                            yAxisWidth={AUDIT_TRAFFIC_CHART_Y_AXIS_WIDTH}
+                                            formatAxis={formatTrafficAxisBytes}
+                                            formatValue={formatBytes}
+                                            formatLabel={formatDateTime}
+                                            trendLabel={trendLabel}
+                                        />
+                                    </Suspense>
                                 </div>
                             </div>
 
@@ -2319,15 +2317,20 @@ export default function AuditCenter() {
                                     </div>
                                 ) : (
                                     <div className="dashboard-chart audit-chart-body">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <LineChart data={serverTrend.points || []} margin={AUDIT_TRAFFIC_CHART_MARGIN}>
-                                                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
-                                                <XAxis dataKey="ts" tickFormatter={(value) => trendLabel(value, serverTrend.granularity, locale)} />
-                                                <YAxis width={AUDIT_TRAFFIC_CHART_Y_AXIS_WIDTH} tickFormatter={formatTrafficAxisBytes} />
-                                                <Tooltip formatter={(v) => formatBytes(v)} labelFormatter={(value) => formatDateTime(value, locale)} />
-                                                <Line type="monotone" dataKey="totalBytes" stroke="#10b981" strokeWidth={2} dot={false} />
-                                            </LineChart>
-                                        </ResponsiveContainer>
+                                        <Suspense fallback={<div className="skeleton w-full h-full opacity-10" />}>
+                                            <TrafficLineChart
+                                                data={serverTrend.points || []}
+                                                color="#10b981"
+                                                granularity={serverTrend.granularity}
+                                                locale={locale}
+                                                margin={AUDIT_TRAFFIC_CHART_MARGIN}
+                                                yAxisWidth={AUDIT_TRAFFIC_CHART_Y_AXIS_WIDTH}
+                                                formatAxis={formatTrafficAxisBytes}
+                                                formatValue={formatBytes}
+                                                formatLabel={formatDateTime}
+                                                trendLabel={trendLabel}
+                                            />
+                                        </Suspense>
                                     </div>
                                 )}
                             </div>

@@ -47,6 +47,16 @@ function parseStringList(value) {
         .filter(Boolean);
 }
 
+function parseTrustProxy(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return ['loopback'];
+    const lower = raw.toLowerCase();
+    if (['false', '0', 'off', 'no'].includes(lower)) return false;
+    if (['true', '1', 'on', 'yes'].includes(lower)) return true;
+    const list = parseStringList(raw);
+    return list.length > 0 ? list : ['loopback'];
+}
+
 function parseHttpUrl(value) {
     const text = String(value || '').trim();
     if (!text) return '';
@@ -151,6 +161,7 @@ const config = {
     },
     security: {
         enforceStrictSecurity,
+        trustProxy: parseTrustProxy(process.env.TRUST_PROXY),
     },
     credentials: {
         secret: credentialsSecret,

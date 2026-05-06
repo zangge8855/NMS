@@ -20,13 +20,15 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends fonts-noto-cjk \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=server-deps /app/server/node_modules ./server/node_modules
-COPY server/ ./server/
-COPY --from=client-build /app/client/dist ./client/dist
+COPY --from=server-deps --chown=node:node /app/server/node_modules ./server/node_modules
+COPY --chown=node:node server/ ./server/
+COPY --from=client-build --chown=node:node /app/client/dist ./client/dist
 
-RUN mkdir -p /app/data /app/logs
+RUN mkdir -p /app/data /app/logs \
+    && chown -R node:node /app/data /app/logs
 
 VOLUME ["/app/data", "/app/logs"]
 
 EXPOSE 3001
+USER node
 CMD ["node", "server/index.js"]

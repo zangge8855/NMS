@@ -2,11 +2,14 @@
 
 ## 中文
 
+### 已完成
+
+- 2026-05-06: 补齐集中浏览器安全响应头、订阅公开 URL 与敏感查询参数日志脱敏、可配置 `TRUST_PROXY`、Docker 非 root 运行、数据库一致性校验 CLI、移动端 Toast/底部导航调整、图表懒加载，以及部署/数据库文档更新。
+
 ### P0
 
 - 完整梳理剩余页面的表格外壳与空状态，消除最后一批零散样式（2026-05-05 已补一层跨页面布局兜底，后续继续向共享组件迁移）
 - 为 Sidebar、Modal、Dropdown 再补一轮端到端交互回归
-- 为数据库模式补充更完整的迁移、回滚和一致性检查脚本
 - 公开伪装首页持续保持内容隔离，新增模板或资源时必须通过敏感业务词断言
 
 ### P1
@@ -25,15 +28,18 @@
 
 - 继续减少页面级样式覆盖，优先回收到共享组件与样式层
 - 数据存储层继续保持 route / service / repository 边界清晰
-- 完善 Docker、PM2 和数据库模式下的自动化验证
+- 完善 Docker、PM2 和数据库切换/回滚演练下的自动化验证
 
 ## English
+
+### Completed
+
+- 2026-05-06: Added centralized browser security headers, public subscription URL and sensitive query redaction in request logs, configurable `TRUST_PROXY`, non-root Docker runtime, database consistency CLI, mobile toast/bottom-nav adjustments, lazy chart loading, and deployment/database documentation updates.
 
 ### P0
 
 - Finish converging remaining table shells and empty states across less-polished pages (a cross-page layout guardrail was added on 2026-05-05; future work should keep migrating toward shared components)
 - Add another round of end-to-end interaction regression for Sidebar, Modal, and Dropdown behavior
-- Expand migration, rollback, and consistency tooling for database mode
 - Keep public camouflage content isolated; any new template or asset path must pass the sensitive product-language assertions
 
 ### P1
@@ -52,4 +58,4 @@
 
 - Continue reducing page-level style overrides in favor of shared components and style layers
 - Keep route / service / repository boundaries explicit in the data layer
-- Improve automated validation across Docker, PM2, and database-backed runtime modes
+- Improve automated validation across Docker, PM2, and database cutover/rollback rehearsals

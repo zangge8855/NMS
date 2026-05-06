@@ -237,6 +237,7 @@ function ProtectedLayout() {
 
 export default function App() {
     const { isAuthenticated, loading } = useAuth();
+    const isMobile = useMediaQuery('(max-width: 768px)');
 
     if (loading) {
         return (
@@ -256,7 +257,12 @@ export default function App() {
         <ErrorBoundary>
         <ThemeProvider>
             <Toaster
-                position="top-right"
+                position={isMobile ? 'bottom-center' : 'top-right'}
+                containerStyle={isMobile ? {
+                    bottom: 'calc(var(--mobile-bottom-nav-height, 78px) + env(safe-area-inset-bottom, 0px) + 14px)',
+                    left: '12px',
+                    right: '12px',
+                } : undefined}
                 toastOptions={{
                     style: {
                         background: 'var(--bg-secondary)',

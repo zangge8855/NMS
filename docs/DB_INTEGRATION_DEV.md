@@ -39,7 +39,8 @@ DB_BACKFILL_DRY_RUN=true
 2. 启动服务，让自动建表完成 schema 初始化
 3. 在 `dual` 模式下完成基础功能联调
 4. 运行回填命令检查历史数据同步情况
-5. 确认数据一致后，再切换到 `STORE_READ_MODE=db`
+5. 执行一致性校验，确认文件快照与 DB 快照一致
+6. 确认数据一致后，再切换到 `STORE_READ_MODE=db`
 
 ### 回填命令
 
@@ -53,6 +54,21 @@ npm run db:backfill
 - 演练模式：`DB_BACKFILL_DRY_RUN=true`
 - 实际执行：`DB_BACKFILL_DRY_RUN=false`
 - 脱敏迁移：`DB_BACKFILL_REDACT=true`
+- 只处理部分 store：`npm run db:backfill -- --keys=users,servers`
+
+### 一致性校验命令
+
+```bash
+cd server
+npm run db:verify
+```
+
+常用组合：
+
+- 只校验部分 store：`npm run db:verify -- --keys=users,servers`
+- 如果回填时启用了脱敏流量快照：`npm run db:verify -- --redact`
+
+校验通过后会返回 `OK` 数量；任何缺失、读取失败或快照不一致都会以非零状态码退出。切换 `STORE_READ_MODE=db` 之前必须先让该命令通过。若需要回滚，先把 `STORE_READ_MODE=file`、`STORE_WRITE_MODE=file` 恢复为文件模式，再通过系统备份恢复之前导出的 `.nmsbak`，或直接恢复上线前保留的 `data/` 与 PostgreSQL 备份。
 
 ### 模式说明
 
@@ -69,6 +85,7 @@ npm run db:backfill
 - 节点列表、用户列表、订阅列表数据一致
 - 审计与流量页面可正常翻页
 - 新增、编辑、删除操作在 DB 中有对应结果
+- `npm run db:verify` 通过
 - 服务重启后数据仍可正确恢复
 
 ### 常见问题
@@ -129,7 +146,8 @@ Start with `dual` mode:
 2. Start the server and let automatic schema bootstrap finish
 3. Exercise the application in `dual` mode
 4. Run the backfill command to inspect historical sync results
-5. Switch `STORE_READ_MODE` to `db` only after data consistency is confirmed
+5. Run consistency verification and confirm file snapshots match DB snapshots
+6. Switch `STORE_READ_MODE` to `db` only after data consistency is confirmed
 
 ### Backfill command
 
@@ -143,6 +161,21 @@ Useful combinations:
 - rehearsal: `DB_BACKFILL_DRY_RUN=true`
 - actual execution: `DB_BACKFILL_DRY_RUN=false`
 - privacy-preserving migration: `DB_BACKFILL_REDACT=true`
+- selected stores only: `npm run db:backfill -- --keys=users,servers`
+
+### Consistency command
+
+```bash
+cd server
+npm run db:verify
+```
+
+Useful combinations:
+
+- selected stores only: `npm run db:verify -- --keys=users,servers`
+- if backfill used redacted traffic snapshots: `npm run db:verify -- --redact`
+
+The command reports OK counts and exits non-zero on missing snapshots, read failures, or mismatches. Run it successfully before switching `STORE_READ_MODE=db`. To roll back, return `STORE_READ_MODE=file` and `STORE_WRITE_MODE=file`, then restore the previously exported `.nmsbak` from System backups or restore the pre-cutover `data/` and PostgreSQL backups.
 
 ### Mode summary
 
@@ -159,6 +192,7 @@ Useful combinations:
 - Servers, users, and subscriptions render the expected records
 - Audit and traffic pages paginate correctly
 - Create, update, and delete operations appear in PostgreSQL
+- `npm run db:verify` passes
 - Restarting the service preserves data integrity
 
 ### Common issues

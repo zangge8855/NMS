@@ -29,6 +29,7 @@ import { registerClientBuildRoutes } from './lib/clientBuild.js';
 import { createCamouflageAssetMiddleware } from './lib/siteCamouflage.js';
 import { createCamouflageNotFoundMiddleware } from './middleware/siteCamouflage.js';
 import { createSearchBotProtectionMiddleware } from './middleware/searchBotProtection.js';
+import { createSecurityHeadersMiddleware, redactRequestUrl } from './lib/httpSecurity.js';
 import serverHealthMonitor from './lib/serverHealthMonitor.js';
 import { startServerPanelSnapshotWarmLoop, stopServerPanelSnapshotWarmLoop } from './lib/serverPanelSnapshotService.js';
 import { startClusterStatusWarmLoop, stopClusterStatusWarmLoop } from './lib/serverStatusService.js';
@@ -47,9 +48,9 @@ export function createApp(options = {}) {
     const serveClientBuild = options.serveClientBuild ?? shouldServeClientBuild();
 
     // Middleware
-    // Trust reverse proxies on loopback/private networks so req.ip reflects real client IP.
-    app.set('trust proxy', ['loopback', 'linklocal', 'uniquelocal']);
+    app.set('trust proxy', config.security.trustProxy);
     app.disable('x-powered-by');
+    app.use(createSecurityHeadersMiddleware({ nodeEnv: config.nodeEnv }));
     app.use(createSearchBotProtectionMiddleware());
     app.use(cors({
         origin: config.nodeEnv === 'development' ? 'http://localhost:5173' : false,
@@ -76,8 +77,9 @@ export function createApp(options = {}) {
             // Skip noisy health/check/static asset polling
             if (req.path === '/api/health' || req.path === '/api/auth/check') return;
             const level = res.statusCode >= 500 ? 'error' : (res.statusCode >= 400 ? 'warn' : 'log');
+            const safeUrl = redactRequestUrl(req.originalUrl);
             console[level](
-                `[${req.id?.slice(0, 8)}] ${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms`,
+                `[${req.id?.slice(0, 8)}] ${req.method} ${safeUrl} ${res.statusCode} ${duration}ms`,
             );
         });
         _next();

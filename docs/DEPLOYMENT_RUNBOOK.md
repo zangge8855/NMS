@@ -13,6 +13,7 @@ This runbook is for single-host deployments, PM2-managed processes, Docker packa
 - Store `.env` outside the repository lifecycle and back it up with the deployment
 - Keep `.env`, `data/*.json`, `logs/`, and build output outside Git; only templates and documentation should be committed
 - Set `SUB_PUBLIC_BASE_URL` to the real external domain before sharing subscription links
+- Set `TRUST_PROXY` only to the reverse-proxy sources that can legitimately send `X-Forwarded-*`; the default trusts `loopback` only
 - The UI homepage defaults to `/`; if you later move it to a custom path in `Settings`, keep `/api`, `/ws`, and subscription public routes reachable
 - If you enable the camouflage landing page, keep the real UI access path documented internally; only the public-facing fallback page should remain visible on `/` or other non-matching document paths
 - Enable SMTP only when you need registration, verification, or password reset mail
@@ -21,6 +22,7 @@ This runbook is for single-host deployments, PM2-managed processes, Docker packa
 
 - `.env` exists and all default passwords or secrets have been replaced
 - `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `JWT_SECRET`, and `CREDENTIALS_SECRET` are set
+- `TRUST_PROXY` matches the deployment topology if NMS sits behind a private reverse proxy
 - The target host has Node.js `20+` or Docker installed
 - The reverse proxy is ready to forward `Upgrade` and `Connection` headers
 - A backup plan exists for `data/`, `.env`, and any PostgreSQL database used by the deployment
@@ -54,7 +56,7 @@ The production startup entry now runs a preflight that fails fast when `.env` is
 
 ### Source Install Verification Status
 
-The source deployment path was re-verified on March 24, 2026 with:
+The source deployment path was re-verified on May 6, 2026 with:
 
 ```bash
 cd client
@@ -69,8 +71,8 @@ npm test
 
 Recorded result:
 
-- `client`: install, production build, and full tests passed (`197/197`)
-- `server`: install and full tests passed (`271/271`)
+- `client`: install, production build, and full tests passed (`232/232`)
+- `server`: install and full tests passed (`313/313`)
 - `client`: `npm audit` reports `0` vulnerabilities after refreshing the Vite toolchain and transitive overrides
 - `server`: `npm audit` reports `0` vulnerabilities after moving `multer` to `2.x` and pinning `qs`
 
@@ -96,7 +98,7 @@ docker run -d \
 
 ### Option 2: Docker Deployment
 
-The root `Dockerfile` already builds the client, installs server production dependencies, and starts the runtime on port `3001`.
+The root `Dockerfile` already builds the client, installs server production dependencies, and starts the runtime on port `3001` as the non-root `node` user.
 
 Keep `/app/data` and `/app/logs` mounted to named or host volumes. The image declares both paths as volumes, but explicit mounts are still the operationally clear choice. Without a persistent `/app/data` mount, file-backed users, settings, telemetry, audits, invite codes, subscription tokens, backups, and runtime logs can be lost when the container is recreated. Do not set `DATA_DIR` to `/tmp` or `/var/tmp` in production; startup preflight now reports that as volatile storage. The System Settings backup workspace also shows runtime storage health, including `DATA_DIR`, the local backup directory, read/write status, and corrupted JSON counts.
 
@@ -124,6 +126,7 @@ Recommended proxy behavior:
 
 - Force HTTPS on the public endpoint
 - Forward `X-Forwarded-For` and `X-Forwarded-Proto`
+- Configure `TRUST_PROXY` to the actual proxy hop, CIDR, or built-in trust value; avoid `true` on public direct deployments
 - Preserve `Upgrade` and `Connection` headers
 - Keep the public hostname aligned with `SUB_PUBLIC_BASE_URL`
 - If you change the homepage path in `Settings`, update bookmarks and proxy rules, but do not rewrite the subscription public API path
@@ -152,9 +155,11 @@ NMS is easier to operate in production because it already includes:
 - SMTP connectivity diagnostics
 - health monitoring and notification stats
 - file / dual-write / database runtime modes
+- database consistency verification with `npm run db:verify`
 - admin-side audit records for sensitive system actions
 - search bot and scanner protection middleware
 - dedicated public subscription rate limiter (60 req/min)
+- centralized browser security headers and redacted request logging for public subscription secrets
 - persistent audit write stream and in-memory ring buffer for pattern detection
 - task queue capacity management with auto-pruning
 
@@ -168,6 +173,7 @@ NMS is easier to operate in production because it already includes:
 - Node health status refreshes correctly
 - Subscription links can be generated
 - Audit and traffic pages open normally
+- `npm run db:verify` reports matching snapshots before switching `STORE_READ_MODE=db`
 - Users, notifications, audit traffic, system settings, and server telemetry stay on fresh live data after login instead of jumping back to stale bootstrap previews
 - WebSocket-driven status areas work behind the proxy
 
@@ -213,6 +219,7 @@ NMS is easier to operate in production because it already includes:
 - 将 `.env` 放在仓库生命周期之外管理，并和部署一起备份
 - `.env`、`data/*.json`、`logs/` 和构建产物不要提交进 Git，仓库里只保留模板和文档
 - 在对外发放订阅链接前，先把 `SUB_PUBLIC_BASE_URL` 设置成真实公网域名
+- 只有在 NMS 确实位于可信反向代理后方时，才按实际来源配置 `TRUST_PROXY`；默认只信任 `loopback`
 - 后台首页默认走 `/`；如果后续在 `系统设置` 里改成自定义路径，也要继续保留 `/api`、`/ws` 和订阅公开地址可访问
 - 只有在需要注册、验证邮件或找回密码时才开启 SMTP
 - 登录页的“忘记密码”接口默认会隐藏邮箱是否存在的结果；上线前只需要确认 SMTP 可用，不需要额外暴露用户是否已注册
@@ -221,6 +228,7 @@ NMS is easier to operate in production because it already includes:
 
 - 已创建 `.env`，并替换掉所有默认口令和默认密钥
 - 已设置 `ADMIN_USERNAME`、`ADMIN_PASSWORD`、`JWT_SECRET`、`CREDENTIALS_SECRET`
+- 如果部署在私网反向代理后方，`TRUST_PROXY` 已与真实代理拓扑一致
 - 目标机器已安装 Node.js `20+` 或 Docker
 - 反向代理已经支持 `Upgrade` 与 `Connection` 头
 - 已准备 `data/`、`.env` 和 PostgreSQL 的备份方案
@@ -254,7 +262,7 @@ pm2 save
 
 ### 源码安装验证状态
 
-已在 2026 年 3 月 24 日重新验证源码部署链路:
+已在 2026 年 5 月 6 日重新验证源码部署链路:
 
 ```bash
 cd client
@@ -269,14 +277,14 @@ npm test
 
 记录结果:
 
-- `client`: 依赖安装、生产构建和全量测试均通过（`197/197`）
-- `server`: 依赖安装和全量测试均通过（`271/271`）
+- `client`: 依赖安装、生产构建和全量测试均通过（`232/232`）
+- `server`: 依赖安装和全量测试均通过（`313/313`）
 - `client`: 刷新 Vite 工具链及其传递依赖覆盖后，`npm audit` 为 `0` 告警
 - `server`: 升级 `multer` 到 `2.x` 并固定 `qs` 后，`npm audit` 为 `0` 告警
 
 ### 方式二: Docker 部署
 
-仓库根目录的 `Dockerfile` 已经包含前端构建、后端生产依赖安装和运行镜像组装，默认监听 `3001` 端口。
+仓库根目录的 `Dockerfile` 已经包含前端构建、后端生产依赖安装和运行镜像组装，默认监听 `3001` 端口，并使用非 root 的 `node` 用户运行。
 
 请始终把 `/app/data` 和 `/app/logs` 挂载到命名卷或宿主机目录。镜像已声明这两个运行时卷，但显式挂载更利于运维和备份。否则文件模式下的用户、系统设置、遥测、审计、邀请码、订阅 Token、备份和运行日志可能在容器重建后丢失。生产环境不要把 `DATA_DIR` 指向 `/tmp` 或 `/var/tmp`；启动预检会把这类路径报告为易失存储。系统设置的备份工作区也会展示运行存储健康状态，包括 `DATA_DIR`、本机备份目录、读写状态和损坏 JSON 数量。
 
@@ -304,6 +312,7 @@ docker run -d \
 
 - 公网入口统一强制 HTTPS
 - 透传 `X-Forwarded-For` 和 `X-Forwarded-Proto`
+- 将 `TRUST_PROXY` 配成真实代理来源、CIDR 或内置可信值；公网直连部署不要设置为 `true`
 - 保留 `Upgrade` 与 `Connection` 头
 - 让外部访问域名与 `SUB_PUBLIC_BASE_URL` 保持一致
 - 如果你在 `Settings` 里修改了首页访问路径，要同步更新书签和代理规则，但不要去改订阅公开接口路径
@@ -331,9 +340,11 @@ NMS 自带了一些生产环境里很实用的能力:
 - SMTP 连通性诊断
 - 节点健康巡检与通知统计
 - 文件 / 双写 / 数据库运行模式
+- 使用 `npm run db:verify` 做数据库一致性校验
 - 关键系统操作的管理员审计记录
 - 搜索引擎与扫描器探测拦截中间件
 - 公开订阅端点独立限流（60 次/分钟）
+- 浏览器安全响应头和公开订阅密钥的请求日志脱敏
 - 审计日志持久化写入流与内存环形缓冲模式匹配
 - 任务队列容量管理与自动清理
 
@@ -347,6 +358,7 @@ NMS 自带了一些生产环境里很实用的能力:
 - 可以生成订阅链接
 - 调整服务器顺序或入站顺序后，订阅内容顺序会变化，但订阅链接地址本身不变
 - 审计页和流量页能正常打开
+- 切换到 `STORE_READ_MODE=db` 前，`npm run db:verify` 报告文件快照与 DB 快照一致
 - 登录后的用户列表、通知、审计流量、系统设置和节点遥测不会再回跳到旧的 bootstrap 首屏数据
 - 经过代理后 WebSocket 相关区域工作正常
 
