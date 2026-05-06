@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{{pageTitle}}</title>
     <meta name="description" content="{{description}}" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f3ece2" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#141211" />
     <link rel="icon" href="{{asset:favicon}}" type="image/svg+xml" />
     <style>
         :root {
@@ -16,6 +18,9 @@
             --line: rgba(65, 45, 32, 0.14);
             --accent: #9c5845;
             --shadow: 0 24px 70px rgba(64, 42, 29, 0.14);
+            --hero-scrim: transparent;
+            --image-scrim: transparent;
+            --image-filter: saturate(0.98) contrast(1);
         }
 
         * { box-sizing: border-box; }
@@ -127,6 +132,8 @@
         }
 
         .{{class:hero-copy}} {
+            position: relative;
+            isolation: isolate;
             min-height: 580px;
             display: flex;
             flex-direction: column;
@@ -136,6 +143,20 @@
             background:
                 linear-gradient(180deg, rgba(18, 15, 14, 0.06), rgba(18, 15, 14, 0.72)),
                 url("{{asset:coverImage}}") center / cover;
+        }
+
+        .{{class:hero-copy}}::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            background: var(--hero-scrim);
+            pointer-events: none;
+        }
+
+        .{{class:hero-copy}} > * {
+            position: relative;
+            z-index: 1;
         }
 
         .{{class:eyebrow}} {
@@ -179,9 +200,20 @@
         }
 
         .{{class:image-frame}} {
+            position: relative;
+            isolation: isolate;
             overflow: hidden;
             border-radius: 22px;
             background: #e4d2bf;
+        }
+
+        .{{class:image-frame}}::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            background: var(--image-scrim);
+            pointer-events: none;
         }
 
         .{{class:hero-image}} {
@@ -189,6 +221,7 @@
             width: 100%;
             min-height: 230px;
             object-fit: cover;
+            filter: var(--image-filter);
         }
 
         .{{class:card-title}} {
@@ -239,6 +272,9 @@
                 --line: rgba(243, 234, 223, 0.15);
                 --accent: #df9076;
                 --shadow: 0 24px 76px rgba(0, 0, 0, 0.34);
+                --hero-scrim: linear-gradient(180deg, rgba(12, 10, 9, 0.18), rgba(12, 10, 9, 0.4));
+                --image-scrim: linear-gradient(180deg, rgba(20, 18, 17, 0.08), rgba(20, 18, 17, 0.28));
+                --image-filter: saturate(0.82) brightness(0.78) contrast(1.08);
             }
 
             body {

@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{{pageTitle}}</title>
     <meta name="description" content="{{description}}" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f7efe4" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#15130f" />
     <link rel="icon" href="{{asset:favicon}}" type="image/svg+xml" />
     <style>
         :root {
@@ -17,6 +19,9 @@
             --accent: #c76652;
             --accent-deep: #6f3d2f;
             --shadow: 0 28px 80px rgba(92, 58, 37, 0.18);
+            --hero-scrim: transparent;
+            --image-scrim: transparent;
+            --image-filter: saturate(0.98) contrast(1);
         }
 
         * { box-sizing: border-box; }
@@ -119,7 +124,17 @@
             box-shadow: var(--shadow);
         }
 
+        .{{class:hero}}::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: var(--hero-scrim);
+            pointer-events: none;
+        }
+
         .{{class:hero-copy}} {
+            position: relative;
+            z-index: 1;
             width: min(680px, 100%);
             padding: clamp(26px, 6vw, 72px);
             color: #fffaf1;
@@ -172,10 +187,21 @@
         }
 
         .{{class:image-frame}} {
+            position: relative;
+            isolation: isolate;
             overflow: hidden;
             border-radius: 24px;
             background: #ead9c2;
             min-height: 260px;
+        }
+
+        .{{class:image-frame}}::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            background: var(--image-scrim);
+            pointer-events: none;
         }
 
         .{{class:hero-image}} {
@@ -184,6 +210,7 @@
             height: 100%;
             min-height: 260px;
             object-fit: cover;
+            filter: var(--image-filter);
         }
 
         .{{class:card-title}} {
@@ -268,6 +295,9 @@
                 --accent: #e59a7f;
                 --accent-deep: #f0c69f;
                 --shadow: 0 28px 82px rgba(0, 0, 0, 0.36);
+                --hero-scrim: linear-gradient(90deg, rgba(10, 8, 7, 0.24), rgba(10, 8, 7, 0.04) 42%, rgba(10, 8, 7, 0.26));
+                --image-scrim: linear-gradient(180deg, rgba(20, 17, 13, 0.1), rgba(20, 17, 13, 0.26));
+                --image-filter: saturate(0.82) brightness(0.78) contrast(1.08);
             }
 
             body {

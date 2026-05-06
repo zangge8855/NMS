@@ -89,6 +89,9 @@ describe('site camouflage renderer', () => {
 
             assert.match(html, /color-scheme:\s*light dark/);
             assert.match(html, /@media\s*\(prefers-color-scheme:\s*dark\)/);
+            assert.match(html, /<meta name="theme-color" media="\(prefers-color-scheme:\s*light\)"/);
+            assert.match(html, /<meta name="theme-color" media="\(prefers-color-scheme:\s*dark\)"/);
+            assert.match(html, /--(?:hero|image)-scrim:/);
             assert.doesNotMatch(html, FORBIDDEN_PUBLIC_CONTENT);
         }
     });

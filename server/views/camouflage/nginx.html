@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{{pageTitle}}</title>
     <meta name="description" content="{{description}}" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f5ede0" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#11161a" />
     <link rel="icon" href="{{asset:favicon}}" type="image/svg+xml" />
     <style>
         :root {
@@ -17,6 +19,7 @@
             --accent: #bf6a4d;
             --blue: #455d6c;
             --shadow: 0 26px 78px rgba(40, 31, 24, 0.16);
+            --image-scrim: transparent;
         }
 
         * { box-sizing: border-box; }
@@ -126,10 +129,21 @@
         }
 
         .{{class:image-frame}} {
+            position: relative;
+            isolation: isolate;
             min-height: 100%;
             background:
                 linear-gradient(90deg, rgba(25, 32, 42, 0.12), rgba(25, 32, 42, 0)),
                 url("{{asset:coverImage}}") center / cover;
+        }
+
+        .{{class:image-frame}}::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            background: var(--image-scrim);
+            pointer-events: none;
         }
 
         .{{class:eyebrow}} {
@@ -244,6 +258,7 @@
                 --accent: #dc9073;
                 --blue: #8bb1bd;
                 --shadow: 0 26px 80px rgba(0, 0, 0, 0.34);
+                --image-scrim: linear-gradient(90deg, rgba(17, 22, 26, 0.24), rgba(17, 22, 26, 0.08) 46%, rgba(17, 22, 26, 0.3));
             }
 
             body {
@@ -277,6 +292,10 @@
 
             .{{class:section-card}} {
                 box-shadow: 0 18px 52px rgba(0, 0, 0, 0.26);
+            }
+
+            .{{class:hero}} {
+                background: rgba(18, 24, 29, 0.94);
             }
         }
 

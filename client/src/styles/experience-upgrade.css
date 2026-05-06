@@ -5179,3 +5179,130 @@
     min-height: 116px;
   }
 }
+
+/* Final workspace refinement: shared management/user surfaces and mobile safe area. */
+:root {
+  --workspace-surface: rgba(18, 18, 20, 0.96);
+  --workspace-surface-muted: rgba(15, 23, 42, 0.54);
+  --workspace-border: rgba(148, 163, 184, 0.14);
+  --workspace-border-strong: rgba(148, 163, 184, 0.2);
+  --workspace-shadow: 0 18px 42px -32px rgba(2, 6, 23, 0.78);
+}
+
+[data-theme="light"] {
+  --workspace-surface: rgba(255, 255, 255, 0.94);
+  --workspace-surface-muted: rgba(248, 250, 252, 0.9);
+  --workspace-border: rgba(15, 23, 42, 0.08);
+  --workspace-border-strong: rgba(15, 23, 42, 0.12);
+  --workspace-shadow: 0 18px 34px -30px rgba(15, 23, 42, 0.22);
+}
+
+.page-content:is(
+  .dashboard-page,
+  .users-page,
+  .servers-page,
+  .inbounds-page,
+  .settings-page,
+  .subscriptions-page,
+  .user-detail-page,
+  .account-page,
+  .audit-page
+) :is(
+  .card,
+  .glass-panel,
+  .table-container,
+  .page-toolbar,
+  .users-toolbar,
+  .servers-toolbar,
+  .inbounds-toolbar,
+  .subscriptions-toolbar,
+  .settings-nav,
+  .settings-panel,
+  .settings-form-cluster,
+  .subscription-primary-card,
+  .subscription-downloads-page-card,
+  .subscription-link-card,
+  .subscription-device-card,
+  .subscription-inline-qr
+) {
+  border-color: var(--workspace-border);
+  box-shadow: var(--workspace-shadow);
+}
+
+.page-content:is(
+  .dashboard-page,
+  .users-page,
+  .servers-page,
+  .inbounds-page,
+  .settings-page,
+  .subscriptions-page,
+  .user-detail-page,
+  .account-page,
+  .audit-page
+) :is(.table-container, .page-toolbar, .users-toolbar, .servers-toolbar, .inbounds-toolbar, .subscriptions-toolbar, .settings-nav) {
+  background:
+    linear-gradient(180deg, var(--workspace-surface), var(--workspace-surface-muted));
+}
+
+.page-content:is(.dashboard-page, .users-page, .servers-page, .inbounds-page, .settings-page, .subscriptions-page, .user-detail-page, .account-page, .audit-page)
+  :is(.btn, .form-input, .form-select, .form-textarea) {
+  border-radius: 8px;
+}
+
+.page-content:is(.dashboard-page, .users-page, .servers-page, .inbounds-page, .settings-page, .subscriptions-page, .user-detail-page, .account-page, .audit-page)
+  :is(.form-input, .form-select, .form-textarea) {
+  border-color: var(--workspace-border-strong);
+  background-color: var(--bg-input);
+}
+
+.settings-page .settings-form-cluster,
+.settings-page .settings-panel,
+.subscriptions-page .subscription-user-workbench,
+.subscriptions-page .subscription-downloads-page-card--user,
+.user-detail-page .user-detail-subscription-card {
+  border-color: var(--workspace-border-strong);
+}
+
+.subscriptions-page .subscription-device-card,
+.user-detail-page .subscription-device-card,
+.subscriptions-page .subscription-link-card,
+.user-detail-page .subscription-link-card {
+  min-width: 0;
+}
+
+.subscriptions-page .subscription-device-actions,
+.subscriptions-page .subscription-user-address-actions,
+.user-detail-page .subscription-device-actions {
+  align-items: stretch;
+}
+
+.subscriptions-page .subscription-device-actions .btn,
+.subscriptions-page .subscription-user-address-actions .btn,
+.user-detail-page .subscription-device-actions .btn {
+  min-width: 0;
+  justify-content: center;
+}
+
+@media (max-width: 768px) {
+  :root {
+    --mobile-bottom-nav-height: 92px;
+  }
+
+  .main-content {
+    padding-bottom: calc(var(--mobile-bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 28px) !important;
+  }
+
+  .page-content,
+  .page-content--wide {
+    padding-bottom: calc(var(--mobile-bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 42px) !important;
+  }
+
+  .mobile-bottom-nav-track {
+    min-height: 68px;
+  }
+
+  .subscriptions-page .subscription-user-danger-row,
+  .user-detail-page .subscription-user-address-foot {
+    margin-bottom: 8px;
+  }
+}
