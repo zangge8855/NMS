@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import Header from '../Layout/Header.jsx';
-import { copyToClipboard } from '../../utils/format.js';
+import { copyToClipboard, getErrorMessage } from '../../utils/format.js';
 import toast from 'react-hot-toast';
 import api from '../../api/client.js';
 import {
@@ -121,7 +121,7 @@ export default function Tools() {
             setTools(entries);
         } catch (error) {
             if (requestId !== toolsCatalogRequestIdRef.current) return;
-            const msg = error.response?.data?.msg || error.message || copy.catalogLoadFailed;
+            const msg = getErrorMessage(error, copy.catalogLoadFailed, locale);
             toast.error(msg);
             if (!preserveCurrent) {
                 setTools([]);
@@ -184,7 +184,7 @@ export default function Tools() {
             }));
         } catch (error) {
             if (requestId !== toolExecutionRequestIdRef.current) return;
-            toast.error(error.response?.data?.msg || error.message || copy.executeFailed);
+            toast.error(getErrorMessage(error, copy.executeFailed, locale));
         }
         if (requestId === toolExecutionRequestIdRef.current) {
             setLoading((prev) => ({ ...prev, [tool.key]: false }));

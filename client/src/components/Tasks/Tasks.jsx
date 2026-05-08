@@ -16,6 +16,7 @@ import BatchResultModal from '../Batch/BatchResultModal.jsx';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import PageToolbar from '../UI/PageToolbar.jsx';
+import ListToolbar, { ListPagination } from '../UI/ListToolbar.jsx';
 import { formatDateTime } from '../../utils/format.js';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
 import { readSessionSnapshot, SESSION_SNAPSHOT_EVENT, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
@@ -54,6 +55,7 @@ const TASKS_COPY = {
         pageSubtitle: '记录批量用户/入站操作的执行结果',
         refresh: '刷新',
         clear: '清空',
+        resetFilters: '重置筛选',
         noFilters: '未设置筛选',
         filtersActive: '已启用 {count} 项',
         allTypes: '全部类型',
@@ -87,6 +89,7 @@ const TASKS_COPY = {
         pageSubtitle: 'Execution results for bulk user and inbound operations',
         refresh: 'Refresh',
         clear: 'Clear',
+        resetFilters: 'Reset Filters',
         noFilters: 'No filters',
         filtersActive: '{count} active',
         allTypes: 'All Types',
@@ -350,6 +353,14 @@ export default function Tasks({ embedded = false }) {
     const filterSelectClassName = 'form-select rounded-lg';
     const failedOnlyCheckboxClassName = 'rounded';
 
+    const resetTaskFilters = () => {
+        setTypeFilter('all');
+        setActionFilter('all');
+        setServerFilter('all');
+        setFailedOnlyFilter(false);
+        setRetryGroupBy('none');
+    };
+
     const handleView = async (id) => {
         try {
             const res = await api.get(`/jobs/${id}`);
@@ -491,7 +502,10 @@ export default function Tasks({ embedded = false }) {
                             </div>
                         </>
                     ) : (
-                        <div className="tasks-filter-row audit-filter-bar">
+                        <ListToolbar
+                            className="tasks-filter-row audit-filter-bar"
+                            filters={(
+                                <>
                             {/* Keep native controls on the shared form surface and focus ring rules. */}
                             <select className={`${filterSelectClassName} w-140`} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
                                 <option value="all">{copy.allTypes}</option>
@@ -520,10 +534,14 @@ export default function Tasks({ embedded = false }) {
                                 <option value="error">{formatRetryGroupLabel('error', locale)}</option>
                                 <option value="server_error">{formatRetryGroupLabel('server_error', locale)}</option>
                             </select>
-                            <div className="text-sm text-muted tasks-filter-meta">
+                                </>
+                            )}
+                            meta={(
+                                <div className="text-sm text-muted tasks-filter-meta">
                                 {copy.total.replace('{count}', String(filteredTasks.length))}
                             </div>
-                        </div>
+                            )}
+                        />
                     )}
                 </div>
 
@@ -533,7 +551,19 @@ export default function Tasks({ embedded = false }) {
                     </div>
                 ) : filteredTasks.length === 0 ? (
                     <div className={`${tableShellClassName} p-4`}>
-                        <EmptyState title={copy.emptyTitle} subtitle={copy.emptySubtitle} />
+                        <EmptyState
+                            title={copy.emptyTitle}
+                            subtitle={copy.emptySubtitle}
+                            action={activeTaskFilterCount > 0 ? (
+                                <button type="button" className="btn btn-secondary btn-sm" onClick={resetTaskFilters}>
+                                    {copy.resetFilters}
+                                </button>
+                            ) : (
+                                <button type="button" className="btn btn-secondary btn-sm" onClick={fetchTasks}>
+                                    <HiOutlineArrowPath /> {copy.refresh}
+                                </button>
+                            )}
+                        />
                     </div>
                 ) : isCompactLayout ? (
                     <div className={mobileListShellClassName}>
@@ -596,9 +626,10 @@ export default function Tasks({ embedded = false }) {
                     </div>
                 )}
 
-                <div className={paginationClassName}>
-                    <div className="page-pagination-meta">{copy.retained.replace('{count}', String(filteredTasks.length))}</div>
-                </div>
+                <ListPagination
+                    className={paginationClassName}
+                    meta={copy.retained.replace('{count}', String(filteredTasks.length))}
+                />
             </div>
 
             <BatchResultModal

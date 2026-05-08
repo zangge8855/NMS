@@ -4,7 +4,7 @@ import { useServer } from '../../contexts/ServerContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import api from '../../api/client.js';
 import Header from '../Layout/Header.jsx';
-import { copyToClipboard, formatBytes } from '../../utils/format.js';
+import { copyToClipboard, formatBytes, getErrorMessage } from '../../utils/format.js';
 import { attachBatchRiskToken } from '../../utils/riskConfirm.js';
 import { getClientIdentifier } from '../../utils/protocol.js';
 import { bytesToGigabytesInput, gigabytesInputToBytes, normalizeLimitIp } from '../../utils/entitlements.js';
@@ -46,6 +46,7 @@ import ClientModal from '../Clients/ClientModal.jsx';
 import BatchResultModal from '../Batch/BatchResultModal.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
+import ListToolbar from '../UI/ListToolbar.jsx';
 import SkeletonTable from '../UI/SkeletonTable.jsx';
 import InboundRemarkPill from '../UI/InboundRemarkPill.jsx';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
@@ -157,7 +158,7 @@ function buildClientOnlineKeys(client, protocol) {
 
 export default function Inbounds() {
     const { servers, activeServerId } = useServer();
-    const { t } = useI18n();
+    const { locale, t } = useI18n();
     const isCompactLayout = useMediaQuery('(max-width: 768px)');
     const navigate = useNavigate();
     const confirmAction = useConfirm();
@@ -454,7 +455,7 @@ export default function Inbounds() {
             fetchAllInbounds();
         } catch (err) {
             console.error(err);
-            const msg = err.response?.data?.msg || err.message || t('comp.inbounds.batchDeleteFailed');
+            const msg = getErrorMessage(err, t('comp.inbounds.batchDeleteFailed'), locale);
             toast.error(msg);
         }
     };
@@ -496,7 +497,7 @@ export default function Inbounds() {
             fetchAllInbounds();
         } catch (err) {
             console.error(err);
-            const msg = err.response?.data?.msg || err.message || t('comp.inbounds.batchResetFailed');
+            const msg = getErrorMessage(err, t('comp.inbounds.batchResetFailed'), locale);
             toast.error(msg);
         }
     };
@@ -548,7 +549,7 @@ export default function Inbounds() {
             fetchAllInbounds();
         } catch (err) {
             console.error(err);
-            const msg = err.response?.data?.msg || err.message || t('comp.inbounds.batchSyncUsersFailed');
+            const msg = getErrorMessage(err, t('comp.inbounds.batchSyncUsersFailed'), locale);
             toast.error(msg);
         }
     };
@@ -598,7 +599,7 @@ export default function Inbounds() {
             fetchAllInbounds();
         } catch (err) {
             console.error(err);
-            const msg = err.response?.data?.msg || err.message || t('comp.inbounds.batchToggleFailed');
+            const msg = getErrorMessage(err, t('comp.inbounds.batchToggleFailed'), locale);
             toast.error(msg);
         }
     };
@@ -646,7 +647,7 @@ export default function Inbounds() {
             setInbounds((prev) => sortVisibleInbounds(prev, nextOrder));
             toast.success(t('comp.inbounds.orderSaved'));
         } catch (err) {
-            toast.error(err.response?.data?.msg || err.message || t('comp.inbounds.orderSaveFailed'));
+            toast.error(getErrorMessage(err, t('comp.inbounds.orderSaveFailed'), locale));
             fetchAllInbounds();
         }
         setSavingOrderServerId('');
@@ -663,7 +664,7 @@ export default function Inbounds() {
             setInbounds((prev) => sortVisibleInbounds(prev, inboundOrder, savedIds));
             toast.success('节点顺序已保存');
         } catch (err) {
-            toast.error(err.response?.data?.msg || err.message || '节点顺序保存失败');
+            toast.error(getErrorMessage(err, '节点顺序保存失败', locale));
             fetchAllInbounds();
         }
         setSavingOrderServerId('');
@@ -774,7 +775,7 @@ export default function Inbounds() {
             fetchAllInbounds();
         } catch (err) {
             console.error(err);
-            toast.error(err.response?.data?.msg || err.message || t('comp.common.deleteFailed'));
+            toast.error(getErrorMessage(err, t('comp.common.deleteFailed'), locale));
         }
     };
 
@@ -869,7 +870,7 @@ export default function Inbounds() {
             fetchAllInbounds();
         } catch (err) {
             console.error(err);
-            toast.error(err.response?.data?.msg || err.message || t('comp.inbounds.batchDeleteFailed'));
+            toast.error(getErrorMessage(err, t('comp.inbounds.batchDeleteFailed'), locale));
         }
     };
 
@@ -905,7 +906,7 @@ export default function Inbounds() {
             fetchAllInbounds();
         } catch (err) {
             console.error(err);
-            toast.error(err.response?.data?.msg || err.message || t('comp.inbounds.toggleFailed'));
+            toast.error(getErrorMessage(err, t('comp.inbounds.toggleFailed'), locale));
         } finally {
             setClientActionKey('');
         }
@@ -953,7 +954,7 @@ export default function Inbounds() {
             closeEntitlementModal();
             fetchAllInbounds();
         } catch (err) {
-            toast.error(err.response?.data?.msg || err.message || t('comp.inbounds.entitlementSaveFailed'));
+            toast.error(getErrorMessage(err, t('comp.inbounds.entitlementSaveFailed'), locale));
             setEntitlementSaving(false);
         }
     };
@@ -974,7 +975,7 @@ export default function Inbounds() {
             closeEntitlementModal();
             fetchAllInbounds();
         } catch (err) {
-            toast.error(err.response?.data?.msg || err.message || t('comp.inbounds.policyRestoreFailed'));
+            toast.error(getErrorMessage(err, t('comp.inbounds.policyRestoreFailed'), locale));
             setEntitlementSaving(false);
         }
     };
@@ -1171,8 +1172,10 @@ export default function Inbounds() {
                 eyebrow={t('pages.inbounds.eyebrow')}
             />
             <div className="page-content page-content--wide page-enter inbounds-page">
-                <div className="inbounds-toolbar glass-panel mb-6">
-                    <div className="inbounds-toolbar-main">
+                <ListToolbar
+                    className="inbounds-toolbar glass-panel mb-6"
+                    filters={(
+                        <>
                         <select
                             className="form-select inbounds-filter-select"
                             value={filterServerId}
@@ -1184,36 +1187,37 @@ export default function Inbounds() {
                                 <option key={s.id} value={s.id}>{s.name}</option>
                             ))}
                         </select>
-                        <span className="text-sm text-muted inbounds-toolbar-summary">共 {filteredInbounds.length} 条规则</span>
-                    </div>
-                    <div className="inbounds-toolbar-actions">
-                        {selectedVisibleCount > 0 ? (
-                            <div className="flex gap-2 items-center animate-fade-in inbounds-selection-bar">
-                                <span className="text-sm font-bold px-2 text-primary">已选 {selectedVisibleCount} 项</span>
-                                <button className={bulkToggleClassName} onClick={() => handleBulkSetEnable(bulkToggleEnable)}>
-                                    {bulkToggleIcon}
-                                    {bulkToggleLabel}
-                                </button>
-                                <button className="btn btn-danger btn-sm" onClick={handleBulkDelete}>
-                                    <HiOutlineTrash /> 删除
-                                </button>
-                                <button className="btn btn-secondary btn-sm" onClick={handleBulkReset}>
-                                    <HiOutlineArrowPath /> 重置
-                                </button>
-                                <button className="btn btn-secondary btn-sm" onClick={handleBulkSyncExistingUsers}>
-                                    <HiOutlineArrowPath /> {t('comp.inbounds.syncExistingUsersButton')}
-                                </button>
-                            </div>
-                        ) : (
-                            <button className="btn btn-primary btn-sm" onClick={handleAdd}>
-                                <HiOutlinePlusCircle /> 添加入站
+                        </>
+                    )}
+                    summary={<span className="text-sm text-muted inbounds-toolbar-summary">共 {filteredInbounds.length} 条规则</span>}
+                    actions={selectedVisibleCount > 0 ? (
+                        <div className="flex gap-2 items-center animate-fade-in inbounds-selection-bar">
+                            <span className="text-sm font-bold px-2 text-primary">已选 {selectedVisibleCount} 项</span>
+                            <button className={bulkToggleClassName} onClick={() => handleBulkSetEnable(bulkToggleEnable)}>
+                                {bulkToggleIcon}
+                                {bulkToggleLabel}
                             </button>
-                        )}
+                            <button className="btn btn-danger btn-sm" onClick={handleBulkDelete}>
+                                <HiOutlineTrash /> 删除
+                            </button>
+                            <button className="btn btn-secondary btn-sm" onClick={handleBulkReset}>
+                                <HiOutlineArrowPath /> 重置
+                            </button>
+                            <button className="btn btn-secondary btn-sm" onClick={handleBulkSyncExistingUsers}>
+                                <HiOutlineArrowPath /> {t('comp.inbounds.syncExistingUsersButton')}
+                            </button>
+                        </div>
+                    ) : (
+                        <>
+                        <button className="btn btn-primary btn-sm" onClick={handleAdd}>
+                            <HiOutlinePlusCircle /> 添加入站
+                        </button>
                         <button className="btn btn-secondary btn-sm" onClick={fetchAllInbounds} title="刷新">
                             <HiOutlineArrowPath />
                         </button>
-                    </div>
-                </div>
+                        </>
+                    )}
+                />
 
                 {savingOrderServerId && (
                     <div className="text-xs text-muted mb-3 inbounds-saving-note">
@@ -1224,11 +1228,11 @@ export default function Inbounds() {
                 )}
 
                 {loading ? (
-                    <div className="table-container glass-panel inbounds-table-shell p-4">
+                    <div className="table-container p-4">
                         <SkeletonTable rows={5} cols={tableColSpan} />
                     </div>
                 ) : filteredInbounds.length === 0 ? (
-                    <div className="table-container glass-panel inbounds-table-shell p-6">
+                    <div className="table-container p-6">
                         <EmptyState
                             icon={<HiOutlineInbox />}
                             title={t('pages.inbounds.emptyTitle')}
@@ -1241,7 +1245,7 @@ export default function Inbounds() {
                         />
                     </div>
                 ) : (
-                    <div className="table-container glass-panel inbounds-table-shell">
+                    <div className="table-container">
                         <table className="table inbounds-table">
                             <thead>
                                 <tr>
@@ -1754,7 +1758,7 @@ export default function Inbounds() {
                         <div className="modal modal-md" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
                                 <h3 className="modal-title">单独限制</h3>
-                                <button className="modal-close" onClick={closeEntitlementModal}>
+                                <button className="modal-close" onClick={closeEntitlementModal} aria-label="关闭" title="关闭">
                                     <HiOutlineXMark />
                                 </button>
                             </div>

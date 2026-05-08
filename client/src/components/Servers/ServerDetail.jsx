@@ -7,7 +7,7 @@ import EmptyState from '../UI/EmptyState.jsx';
 import ClientIpModal from '../UI/ClientIpModal.jsx';
 import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
-import { formatBytes, formatDateTime, formatUptime } from '../../utils/format.js';
+import { formatBytes, formatDateTime, formatUptime, getErrorMessage } from '../../utils/format.js';
 import { isUnsupportedPanelClientIpsError, normalizePanelClientIps } from '../../utils/panelClientIps.js';
 import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
 import toast from 'react-hot-toast';
@@ -197,7 +197,7 @@ export default function ServerDetail() {
         } catch (err) {
             if (requestId !== snapshotRequestIdRef.current) return;
             if (!preserveCurrent) {
-                toast.error(err.response?.data?.msg || '加载服务器快照失败');
+                toast.error(getErrorMessage(err, '加载服务器快照失败', locale));
                 setServer(null);
                 setStatus(null);
                 setInbounds([]);
@@ -344,7 +344,7 @@ export default function ServerDetail() {
             }));
         } catch (err) {
             if (requestId !== clientIpRequestIdRef.current) return;
-            const msg = err.response?.data?.msg || err.message || '加载节点访问 IP 失败';
+            const msg = getErrorMessage(err, '加载节点访问 IP 失败', locale);
             if (isUnsupportedPanelClientIpsError(err)) {
                 setClientIpSupport({
                     supported: false,
@@ -383,7 +383,7 @@ export default function ServerDetail() {
             toast.success('节点访问 IP 记录已清空');
             await loadClientIps(clientIpModal.email, { preserveOpen: true });
         } catch (err) {
-            const msg = err.response?.data?.msg || err.message || '清空节点访问 IP 失败';
+            const msg = getErrorMessage(err, '清空节点访问 IP 失败', locale);
             setClientIpModal((prev) => ({
                 ...prev,
                 clearing: false,
@@ -558,7 +558,15 @@ export default function ServerDetail() {
                         {activeTab === 'inbounds' && (
                             <div>
                                 {inbounds.length === 0 ? (
-                                    <EmptyState title="暂无入站规则" subtitle="该服务器未配置入站" />
+                                    <EmptyState
+                                        title="暂无入站规则"
+                                        subtitle="该服务器未配置入站"
+                                        action={(
+                                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchSnapshot({ preserveCurrent: true, force: true })}>
+                                                <HiOutlineArrowPath /> 刷新后重试
+                                            </button>
+                                        )}
+                                    />
                                 ) : isCompactLayout ? (
                                     <ServerDetailInboundMobileList inbounds={inbounds} />
                                 ) : (
@@ -621,7 +629,15 @@ export default function ServerDetail() {
                                 {onlinesLoading ? (
                                     <SkeletonTable rows={4} cols={3} />
                                 ) : onlineUsers.length === 0 ? (
-                                    <EmptyState title="当前无在线用户" subtitle="该服务器暂无活跃连接" />
+                                    <EmptyState
+                                        title="当前无在线用户"
+                                        subtitle="该服务器暂无活跃连接"
+                                        action={(
+                                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchSnapshot({ preserveCurrent: true, force: true })}>
+                                                <HiOutlineArrowPath /> 刷新后重试
+                                            </button>
+                                        )}
+                                    />
                                 ) : isCompactLayout ? (
                                     <ServerDetailOnlineMobileList
                                         onlineUsers={onlineUsers}
@@ -662,7 +678,15 @@ export default function ServerDetail() {
                         {activeTab === 'audit' && (
                             <div>
                                 {auditEvents.length === 0 ? (
-                                    <EmptyState title="暂无审计记录" subtitle="该服务器相关的审计事件将在此显示" />
+                                    <EmptyState
+                                        title="暂无审计记录"
+                                        subtitle="该服务器相关的审计事件将在此显示"
+                                        action={(
+                                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchSnapshot({ preserveCurrent: true, force: true })}>
+                                                <HiOutlineArrowPath /> 刷新后重试
+                                            </button>
+                                        )}
+                                    />
                                 ) : (
                                     <div className="timeline-list">
                                         {auditEvents.map((e, i) => (

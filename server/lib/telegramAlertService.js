@@ -267,9 +267,9 @@ export function computeDailyBackupSchedule(options = {}) {
 
 function severityLabel(severity = 'info') {
     const normalized = String(severity || 'info').trim().toLowerCase();
-    if (normalized === 'critical') return '紧急';
-    if (normalized === 'warning') return '告警';
-    return '信息';
+    if (normalized === 'critical') return 'Critical';
+    if (normalized === 'warning') return 'Warning';
+    return 'Info';
 }
 
 function formatDateTime(value) {
@@ -1655,8 +1655,8 @@ export function createTelegramAlertService(options = {}) {
         const blocks = [];
         appendHtmlSection(blocks, '关键信息', [
             formatHtmlKeyValueRow('命中事件', enriched.length),
-            formatHtmlKeyValueRow('紧急事件', criticalCount),
-            formatHtmlKeyValueRow('告警事件', warningCount),
+            formatHtmlKeyValueRow('Critical 事件', criticalCount),
+            formatHtmlKeyValueRow('Warning 事件', warningCount),
             formatHtmlKeyValueRow('最近时间', formatDateTime(enriched[0]?.ts)),
         ], { rawRows: true });
         appendHtmlSection(blocks, '事件分布', formatCounterHtmlRows(eventCounter, { limit: 4, suffix: ' 次' }), { rawRows: true });

@@ -3,6 +3,7 @@ import { HiOutlineXMark, HiOutlineCheck } from 'react-icons/hi2';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import api from '../../api/client.js';
 import { attachBatchRiskToken } from '../../utils/riskConfirm.js';
+import { getErrorMessage } from '../../utils/format.js';
 import ModalShell from '../UI/ModalShell.jsx';
 import toast from 'react-hot-toast';
 
@@ -1448,7 +1449,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
             onClose();
         } catch (err) {
             console.error(err);
-            const msg = err.response?.data?.msg || err.message || '未知错误';
+            const msg = getErrorMessage(err, '未知错误');
             toast.error(editingInbound ? `更新失败: ${msg}` : `添加失败: ${msg}`);
         }
         setLoading(false);
@@ -1470,7 +1471,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                             />
                             专家模式 (JSON)
                         </label>
-                        <button type="button" className="modal-close" onClick={onClose}><HiOutlineXMark /></button>
+                        <button type="button" className="modal-close" onClick={onClose} aria-label="关闭" title="关闭">
+                            <HiOutlineXMark />
+                        </button>
                     </div>
                 </div>
 
@@ -1586,8 +1589,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     <input className="form-input" value="永不过期" readOnly />
                                 )}
                             </div>
-                            <div className="form-group" style={{ display: 'flex', alignItems: 'center', paddingTop: '24px' }}>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                            <div className="form-group inbound-inline-checkbox-group">
+                                <label className="inbound-inline-checkbox-label">
                                     <input type="checkbox" checked={inboundEnabled} onChange={(e) => setInboundEnabled(e.target.checked)} />
                                     启用入站
                                 </label>
@@ -2009,7 +2012,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </div>
                                             <div className="form-group">
                                                 <label className="form-label">TCP 高级开关</label>
-                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer" style={{ width: 'fit-content' }}>
+                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
                                                     <input
                                                         type="checkbox"
                                                         checked={!!simpleStream.tcpAcceptProxyProtocol}
@@ -2195,7 +2198,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         </div>
                                         <div className="form-group">
                                             <label className="form-label">Congestion</label>
-                                            <label className="badge badge-neutral flex items-center gap-2 cursor-pointer" style={{ width: 'fit-content' }}>
+                                            <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
                                                 <input
                                                     type="checkbox"
                                                     checked={!!simpleStream.kcpCongestion}
@@ -2220,7 +2223,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </div>
                                             <div className="form-group">
                                                 <label className="form-label">WS 高级开关</label>
-                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer" style={{ width: 'fit-content' }}>
+                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
                                                     <input
                                                         type="checkbox"
                                                         checked={!!simpleStream.wsAcceptProxyProtocol}
@@ -2285,7 +2288,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         </div>
                                         <div className="form-group">
                                             <label className="form-label">Multi Mode</label>
-                                            <label className="badge badge-neutral flex items-center gap-2 cursor-pointer" style={{ width: 'fit-content' }}>
+                                            <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
                                                 <input
                                                     type="checkbox"
                                                     checked={!!streamObj?.grpcSettings?.multiMode}
@@ -2313,7 +2316,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </div>
                                             <div className="form-group">
                                                 <label className="form-label">HTTPUpgrade 高级开关</label>
-                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer" style={{ width: 'fit-content' }}>
+                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
                                                     <input
                                                         type="checkbox"
                                                         checked={!!simpleStream.httpupgradeAcceptProxyProtocol}
@@ -2410,7 +2413,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </div>
                                             <div className="form-group">
                                                 <label className="form-label">No SSE Header</label>
-                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer" style={{ width: 'fit-content' }}>
+                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
                                                     <input
                                                         type="checkbox"
                                                         checked={!!streamObj?.xhttpSettings?.noSSEHeader}
@@ -2424,7 +2427,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </div>
                                             <div className="form-group">
                                                 <label className="form-label">Padding Obfs Mode</label>
-                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer" style={{ width: 'fit-content' }}>
+                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
                                                     <input
                                                         type="checkbox"
                                                         checked={!!streamObj?.xhttpSettings?.xPaddingObfsMode}
@@ -2711,7 +2714,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         <div className="grid grid-cols-3 gap-4 mt-2">
                                             <div className="form-group">
                                                 <label className="form-label">Reject Unknown SNI</label>
-                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer" style={{ width: 'fit-content' }}>
+                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
                                                     <input
                                                         type="checkbox"
                                                         checked={!!streamObj?.tlsSettings?.rejectUnknownSni}
@@ -2725,7 +2728,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </div>
                                             <div className="form-group">
                                                 <label className="form-label">Disable System Root</label>
-                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer" style={{ width: 'fit-content' }}>
+                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
                                                     <input
                                                         type="checkbox"
                                                         checked={!!streamObj?.tlsSettings?.disableSystemRoot}
@@ -2739,7 +2742,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </div>
                                             <div className="form-group">
                                                 <label className="form-label">Session Resumption</label>
-                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer" style={{ width: 'fit-content' }}>
+                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
                                                     <input
                                                         type="checkbox"
                                                         checked={!!streamObj?.tlsSettings?.enableSessionResumption}
@@ -2832,7 +2835,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </div>
                                             </div>
                                             <div className="flex gap-4 mt-2">
-                                                <div className="form-group" style={{ flex: 1 }}>
+                                                <div className="form-group flex-1">
                                                     <label className="form-label">证书用途</label>
                                                     <select className="form-select"
                                                         value={String(streamObj?.tlsSettings?.certificates?.[0]?.usage || 'encipherment')}
@@ -2850,7 +2853,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     </select>
                                                 </div>
                                                 <div className="flex items-center gap-4">
-                                                    <label className="badge badge-neutral flex items-center gap-2 cursor-pointer" style={{ width: 'fit-content' }}>
+                                                    <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
                                                         <input
                                                             type="checkbox"
                                                             checked={!!streamObj?.tlsSettings?.certificates?.[0]?.oneTimeLoading}
@@ -2865,7 +2868,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         一次性加载
                                                     </label>
                                                     {String(streamObj?.tlsSettings?.certificates?.[0]?.usage || 'encipherment') === 'issue' && (
-                                                        <label className="badge badge-neutral flex items-center gap-2 cursor-pointer" style={{ width: 'fit-content' }}>
+                                                        <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
                                                             <input
                                                                 type="checkbox"
                                                                 checked={!!streamObj?.tlsSettings?.certificates?.[0]?.buildChain}
@@ -2896,7 +2899,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="form-group">
                                                 <label className="form-label">Show</label>
-                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer" style={{ width: 'fit-content' }}>
+                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
                                                     <input
                                                         type="checkbox"
                                                         checked={!!simpleStream.realityShow}
@@ -3132,7 +3135,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                 {STREAM_PROTOCOLS.has(normalizedProtocol) && (
                                     <div className="border-t border-stroke-soft pt-4 mt-4">
                                         <h4 className="text-secondary text-sm font-bold uppercase tracking-wider mb-2">Sockopt</h4>
-                                        <label className="badge badge-neutral flex items-center gap-2 cursor-pointer mb-3" style={{ width: 'fit-content' }}>
+                                        <label className="badge badge-neutral flex items-center gap-2 cursor-pointer mb-3 w-fit">
                                             <input
                                                 type="checkbox"
                                                 checked={!!streamObj?.sockopt}

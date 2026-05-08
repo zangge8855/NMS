@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import EmptyState from '../UI/EmptyState.jsx';
 import PageToolbar from '../UI/PageToolbar.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
+import { getErrorMessage } from '../../utils/format.js';
 import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
 
 const CAPABILITIES_SNAPSHOT_TTL_MS = 2 * 60_000;
@@ -210,7 +211,7 @@ export default function Capabilities() {
             setData(res.data?.obj || null);
         } catch (err) {
             if (requestId !== capabilitiesRequestIdRef.current) return;
-            const msg = err.response?.data?.msg || err.message || copy.fetchFailed;
+            const msg = getErrorMessage(err, copy.fetchFailed, locale);
             toast.error(msg);
             if (!preserveCurrent) {
                 setData(null);
@@ -297,6 +298,11 @@ export default function Capabilities() {
                         title={loading ? copy.loadingTitle : copy.noDataTitle}
                         subtitle={copy.noDataSubtitle}
                         surface
+                        action={(
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={fetchCapabilities} disabled={loading}>
+                                <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> {copy.refresh}
+                            </button>
+                        )}
                     />
                 ) : (
                     <>
@@ -339,6 +345,11 @@ export default function Capabilities() {
                                         subtitle={copy.noMatrixSubtitle}
                                         size="compact"
                                         hideIcon
+                                        action={(
+                                            <button type="button" className="btn btn-secondary btn-sm" onClick={fetchCapabilities} disabled={loading}>
+                                                <HiOutlineArrowPath /> {copy.refresh}
+                                            </button>
+                                        )}
                                     />
                                 </div>
                             ) : (
@@ -390,6 +401,11 @@ export default function Capabilities() {
                                         subtitle={copy.noToolsSubtitle}
                                         size="compact"
                                         hideIcon
+                                        action={(
+                                            <button type="button" className="btn btn-secondary btn-sm" onClick={fetchCapabilities} disabled={loading}>
+                                                <HiOutlineArrowPath /> {copy.refresh}
+                                            </button>
+                                        )}
                                     />
                                 </div>
                             ) : (

@@ -5,6 +5,7 @@ import { useI18n } from '../../contexts/LanguageContext.jsx';
 import Header from '../Layout/Header.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
+import ListToolbar from '../UI/ListToolbar.jsx';
 import ServerTelemetryCell from './ServerTelemetryCell.jsx';
 import { showAggregateToast } from '../UI/AggregateToast.jsx';
 import toast from 'react-hot-toast';
@@ -82,7 +83,7 @@ export default function Servers() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const {
-        servers, activeServerId, selectServer,
+        servers,
         addServer, addServersBatch, updateServer, removeServer, testConnection, fetchServers,
     } = useServer();
 
@@ -686,17 +687,13 @@ export default function Servers() {
     }, [orderedServers, deferredSearchKeyword, filterGroup, telemetryByServerId, statusFilter, credentialFilter, latencyFilter]);
     const allVisibleSelected = filteredServers.length > 0 && filteredServers.every((item) => selectedIds.has(item.id));
     const repairTargetServer = servers.find((item) => item.id === credentialRepair.serverId) || null;
-    const activeServer = useMemo(
-        () => servers.find((item) => item.id === activeServerId) || null,
-        [servers, activeServerId]
-    );
     const uiText = useMemo(() => (
         locale === 'zh-CN'
             ? {
                 total: '服务器',
                 groups: '分组',
-                current: '当前视角',
-                global: '全局视角',
+                current: '运维视角',
+                global: '全局运维',
                 filterSummary: `显示 ${filteredServers.length} / ${servers.length}`,
                 searchPlaceholder: '搜索名称 / URL / 标签',
                 allGroups: '全部分组',
@@ -725,8 +722,8 @@ export default function Servers() {
             : {
                 total: 'Servers',
                 groups: 'Groups',
-                current: 'Current scope',
-                global: 'Global scope',
+                current: 'Ops scope',
+                global: 'Global operations',
                 filterSummary: `Showing ${filteredServers.length} / ${servers.length}`,
                 searchPlaceholder: 'Search by name / URL / tag',
                 allGroups: 'All groups',
@@ -753,7 +750,7 @@ export default function Servers() {
                 toastClose: 'Close',
             }
     ), [filteredServers.length, locale, servers.length]);
-    const activeScopeLabel = activeServer ? activeServer.name : uiText.global;
+    const activeScopeLabel = uiText.global;
     const orderedServerIds = useMemo(
         () => orderedServers.map((item) => String(item?.id || '').trim()).filter(Boolean),
         [orderedServers]
@@ -794,7 +791,7 @@ export default function Servers() {
 
     const renderMobileServerCard = (server, index) => {
         const isSelected = selectedIds.has(server.id);
-        const isActive = server.id === activeServerId;
+        const isActive = false;
         const telemetry = telemetryByServerId[String(server.id || '').trim()] || null;
         const rowBusy = isServerBusy(server.id);
         const credentialStatus = String(server.credentialStatus || 'configured');
@@ -812,7 +809,7 @@ export default function Servers() {
             : testState === 'error'
                 ? 'badge-danger'
                 : 'badge-neutral';
-        const serverStateText = isActive ? '当前节点' : '已接入';
+        const serverStateText = locale === 'en-US' ? 'Registered' : '已接入';
         const credentialBadge = credentialStatus === 'unreadable'
             ? { cls: 'badge-danger', text: t('comp.servers.credBroken') }
             : (credentialStatus === 'missing'
@@ -825,7 +822,7 @@ export default function Servers() {
                 className={`card servers-mobile-card${isSelected ? ' is-selected' : ''}${isActive ? ' is-active' : ''}${rowBusy ? ' is-pending' : ''}`}
                 onClick={() => {
                     if (!rowBusy) {
-                        selectServer(server.id);
+                        toggleSelect(server.id);
                     }
                 }}
                 aria-busy={rowBusy}
@@ -943,8 +940,41 @@ export default function Servers() {
                 eyebrow={t('pages.servers.eyebrow')}
             />
             <div className="page-content page-content--wide page-enter servers-page">
-                <div className="servers-toolbar glass-panel mb-6">
-                    {selectedIds.size > 0 ? (
+                <ListToolbar
+                    className="servers-toolbar glass-panel mb-6"
+                    filters={(
+                        <>
+                            <input
+                                className="form-input servers-filter-search"
+                                placeholder={uiText.searchPlaceholder}
+                                value={searchKeyword}
+                                onChange={(e) => setSearchKeyword(e.target.value)}
+                            />
+                            <select className="form-select servers-filter-select" value={filterGroup} onChange={(e) => setFilterGroup(e.target.value)}>
+                                <option value="all">{uiText.allGroups}</option>
+                                {groupOptions.map((group) => <option key={group} value={group}>{group}</option>)}
+                            </select>
+                            <select className="form-select servers-filter-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                                <option value="all">{uiText.allStatus}</option>
+                                <option value="online">{uiText.statusOnline}</option>
+                                <option value="offline">{uiText.statusOffline}</option>
+                                <option value="maintenance">{uiText.statusMaintenance}</option>
+                                <option value="unknown">{uiText.statusUnknown}</option>
+                            </select>
+                            <select className="form-select servers-filter-select" value={credentialFilter} onChange={(e) => setCredentialFilter(e.target.value)}>
+                                <option value="all">{uiText.allCredentials}</option>
+                                <option value="configured">{uiText.credentialReady}</option>
+                                <option value="missing">{uiText.credentialMissing}</option>
+                                <option value="unreadable">{uiText.credentialBroken}</option>
+                            </select>
+                            <select className="form-select servers-filter-select" value={latencyFilter} onChange={(e) => setLatencyFilter(e.target.value)}>
+                                <option value="all">{uiText.allLatency}</option>
+                                <option value="slow">{uiText.latencySlow}</option>
+                                <option value="critical">{uiText.latencyCritical}</option>
+                            </select>
+                        </>
+                    )}
+                    summary={selectedIds.size > 0 ? (
                         <div className="flex gap-2 items-center animate-fade-in servers-selection-bar servers-selection-bar-takeover">
                             <span className="text-sm font-bold px-2 bulk-toolbar-count">已选 {selectedIds.size} 项</span>
                             <button className="btn btn-secondary btn-sm" onClick={handleBulkTest} disabled={bulkActionBusy}>
@@ -958,74 +988,39 @@ export default function Servers() {
                             </button>
                         </div>
                     ) : (
+                        <div className="servers-toolbar-summary" aria-label={uiText.current}>
+                            <div className="servers-summary-pill">
+                                <span className="servers-summary-label">{uiText.total}</span>
+                                <span className="servers-summary-value">{servers.length}</span>
+                            </div>
+                            <div className="servers-summary-pill">
+                                <span className="servers-summary-label">{uiText.groups}</span>
+                                <span className="servers-summary-value">{groupOptions.length}</span>
+                            </div>
+                            <div className="servers-summary-pill servers-summary-pill--wide">
+                                <span className="servers-summary-label">{uiText.current}</span>
+                                <span className="servers-summary-value" title={activeScopeLabel}>{activeScopeLabel}</span>
+                            </div>
+                            <span className="text-sm text-muted servers-filter-summary">{uiText.filterSummary}</span>
+                        </div>
+                    )}
+                    actions={selectedIds.size > 0 ? null : (
                         <>
-                            <div className="servers-toolbar-summary" aria-label={uiText.current}>
-                                <div className="servers-summary-pill">
-                                    <span className="servers-summary-label">{uiText.total}</span>
-                                    <span className="servers-summary-value">{servers.length}</span>
-                                </div>
-                                <div className="servers-summary-pill">
-                                    <span className="servers-summary-label">{uiText.groups}</span>
-                                    <span className="servers-summary-value">{groupOptions.length}</span>
-                                </div>
-                                <div className="servers-summary-pill servers-summary-pill--wide">
-                                    <span className="servers-summary-label">{uiText.current}</span>
-                                    <span className="servers-summary-value" title={activeScopeLabel}>{activeScopeLabel}</span>
-                                </div>
-                            </div>
-                            <div className="servers-toolbar-actions">
-                                <button
-                                    className="btn btn-secondary btn-sm"
-                                    onClick={() => { setBatchResult(null); setShowBatchForm(true); }}
-                                >
-                                    <HiOutlinePlusCircle /> 批量添加
-                                </button>
-                                <button className="btn btn-primary btn-sm" onClick={openCreateServerModal}>
-                                    <HiOutlinePlusCircle /> 添加服务器
-                                </button>
-                                <button type="button" className="btn btn-secondary btn-sm servers-select-all-btn" onClick={toggleSelectAll}>
-                                    {allVisibleSelected ? t('comp.common.deselectAll') : t('comp.common.selectAll')}
-                                </button>
-                            </div>
+                            <button
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => { setBatchResult(null); setShowBatchForm(true); }}
+                            >
+                                <HiOutlinePlusCircle /> 批量添加
+                            </button>
+                            <button className="btn btn-primary btn-sm" onClick={openCreateServerModal}>
+                                <HiOutlinePlusCircle /> 添加服务器
+                            </button>
+                            <button type="button" className="btn btn-secondary btn-sm servers-select-all-btn" onClick={toggleSelectAll}>
+                                {allVisibleSelected ? t('comp.common.deselectAll') : t('comp.common.selectAll')}
+                            </button>
                         </>
                     )}
-                </div>
-
-                <div className="card mb-4 p-3 servers-filter-card">
-                    <div className="flex items-center gap-3 servers-filter-bar">
-                        <input
-                            className="form-input servers-filter-search"
-                            placeholder={uiText.searchPlaceholder}
-                            value={searchKeyword}
-                            onChange={(e) => setSearchKeyword(e.target.value)}
-                        />
-                        <select className="form-select servers-filter-select" value={filterGroup} onChange={(e) => setFilterGroup(e.target.value)}>
-                            <option value="all">{uiText.allGroups}</option>
-                            {groupOptions.map((group) => <option key={group} value={group}>{group}</option>)}
-                        </select>
-                        <select className="form-select servers-filter-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                            <option value="all">{uiText.allStatus}</option>
-                            <option value="online">{uiText.statusOnline}</option>
-                            <option value="offline">{uiText.statusOffline}</option>
-                            <option value="maintenance">{uiText.statusMaintenance}</option>
-                            <option value="unknown">{uiText.statusUnknown}</option>
-                        </select>
-                        <select className="form-select servers-filter-select" value={credentialFilter} onChange={(e) => setCredentialFilter(e.target.value)}>
-                            <option value="all">{uiText.allCredentials}</option>
-                            <option value="configured">{uiText.credentialReady}</option>
-                            <option value="missing">{uiText.credentialMissing}</option>
-                            <option value="unreadable">{uiText.credentialBroken}</option>
-                        </select>
-                        <select className="form-select servers-filter-select" value={latencyFilter} onChange={(e) => setLatencyFilter(e.target.value)}>
-                            <option value="all">{uiText.allLatency}</option>
-                            <option value="slow">{uiText.latencySlow}</option>
-                            <option value="critical">{uiText.latencyCritical}</option>
-                        </select>
-                        <div className="text-sm text-muted servers-filter-summary">
-                            {uiText.filterSummary}
-                        </div>
-                    </div>
-                </div>
+                />
 
                 {/* Server List */}
                 {servers.length === 0 ? (
@@ -1041,13 +1036,28 @@ export default function Servers() {
                         icon={<HiOutlineServerStack />}
                         size="compact"
                         surface
+                        action={(
+                            <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => {
+                                    setSearchKeyword('');
+                                    setFilterGroup('all');
+                                    setStatusFilter('all');
+                                    setCredentialFilter('all');
+                                    setLatencyFilter('all');
+                                }}
+                            >
+                                清空筛选
+                            </button>
+                        )}
                     />
                 ) : isCompactLayout ? (
                     <div className="servers-mobile-list">
                         {filteredServers.map((server, index) => renderMobileServerCard(server, index))}
                     </div>
                 ) : (
-                    <div className="table-container servers-table-shell">
+                    <div className="table-container">
                         <table className="table servers-table">
                             <thead>
                                 <tr>
@@ -1066,7 +1076,7 @@ export default function Servers() {
                             <tbody>
                                 {filteredServers.map((server, index) => {
                             const isSelected = selectedIds.has(server.id);
-                            const isActive = server.id === activeServerId;
+                            const isActive = false;
                             const telemetry = telemetryByServerId[String(server.id || '').trim()] || null;
                             const rowBusy = isServerBusy(server.id);
                             const credentialStatus = String(server.credentialStatus || 'configured');
@@ -1084,7 +1094,7 @@ export default function Servers() {
                                 : testState === 'error'
                                     ? 'badge-danger'
                                     : 'badge-neutral';
-                            const serverStateText = isActive ? '当前节点' : '已接入';
+                            const serverStateText = locale === 'en-US' ? 'Registered' : '已接入';
                             const credentialBadge = credentialStatus === 'unreadable'
                                 ? { cls: 'badge-danger', text: t('comp.servers.credBroken') }
                                 : (credentialStatus === 'missing'
@@ -1096,7 +1106,7 @@ export default function Servers() {
                                     className={`servers-table-row ${isSelected ? 'server-card-selected' : ''} ${isActive ? 'active' : ''}${rowBusy ? ' is-pending' : ''}`}
                                     onClick={() => {
                                         if (!rowBusy) {
-                                            selectServer(server.id);
+                                            toggleSelect(server.id);
                                         }
                                     }}
                                     aria-busy={rowBusy}
@@ -1241,7 +1251,7 @@ export default function Servers() {
                         <div className="modal glass-panel" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
                                 <h3 className="modal-title text-glow">{editingId ? t('comp.servers.editServer') : t('comp.servers.addServer')}</h3>
-                                <button type="button" className="modal-close" onClick={resetForm}><HiOutlineXMark /></button>
+                                <button type="button" className="modal-close" onClick={resetForm} aria-label="关闭" title="关闭"><HiOutlineXMark /></button>
                             </div>
                             <form onSubmit={handleSubmit}>
                                 <div className="modal-body">
@@ -1305,7 +1315,7 @@ export default function Servers() {
                         <div className="modal modal-lg glass-panel servers-batch-modal" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
                                 <h3 className="modal-title text-glow">批量添加服务器</h3>
-                                <button type="button" className="modal-close" onClick={resetBatchForm}><HiOutlineXMark /></button>
+                                <button type="button" className="modal-close" onClick={resetBatchForm} aria-label="关闭" title="关闭"><HiOutlineXMark /></button>
                             </div>
                             <form onSubmit={handleBatchSubmit}>
                                 <div className="modal-body">
@@ -1435,7 +1445,7 @@ export default function Servers() {
                         <div className="modal glass-panel" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
                                 <h3 className="modal-title text-glow">修复节点登录凭据</h3>
-                                <button type="button" className="modal-close" onClick={closeCredentialRepair}><HiOutlineXMark /></button>
+                                <button type="button" className="modal-close" onClick={closeCredentialRepair} aria-label="关闭" title="关闭"><HiOutlineXMark /></button>
                             </div>
                             <form onSubmit={handleCredentialRepairSubmit}>
                                 <div className="modal-body">

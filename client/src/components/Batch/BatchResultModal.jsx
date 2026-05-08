@@ -4,6 +4,7 @@ import ModalShell from '../UI/ModalShell.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import { formatTaskActionLabel } from '../../utils/taskLabels.js';
 import EmptyState from '../UI/EmptyState.jsx';
+import { getErrorMessage } from '../../utils/format.js';
 
 const BATCH_RESULT_COPY = {
     'zh-CN': {
@@ -86,7 +87,12 @@ export default function BatchResultModal({ isOpen, onClose, title = null, data =
 
                     {results.length === 0 ? (
                         <div className="card p-4">
-                            <EmptyState title={copy.empty} size="compact" hideIcon />
+                            <EmptyState
+                                title={copy.empty}
+                                size="compact"
+                                hideIcon
+                                action={<button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>{copy.close}</button>}
+                            />
                         </div>
                     ) : (
                         <div className="table-container table-scroll table-scroll-md batch-result-table">
@@ -113,8 +119,8 @@ export default function BatchResultModal({ isOpen, onClose, title = null, data =
                                             <td data-label={copy.node}>{item.serverName || item.serverId || '-'}</td>
                                             <td data-label={copy.inbound}>{formatInboundLabel(item)}</td>
                                             <td data-label={copy.target}>{formatTargetLabel(item)}</td>
-                                            <td data-label={copy.result} style={{ maxWidth: '320px', wordBreak: 'break-word' }}>
-                                                {item.msg || '-'}
+                                            <td data-label={copy.result} className="batch-result-message-cell">
+                                                {item.msg ? getErrorMessage({ message: item.msg }, item.msg, locale) : '-'}
                                             </td>
                                         </tr>
                                     ))}

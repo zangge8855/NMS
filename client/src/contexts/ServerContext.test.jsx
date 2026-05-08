@@ -33,7 +33,7 @@ describe('ServerContext', () => {
         api.delete.mockReset();
     });
 
-    it('keeps the persisted server selection when the bootstrap snapshot defaults to global', async () => {
+    it('migrates persisted node selection back to global operations scope', async () => {
         window.localStorage.setItem('nms_active_server', 'server-a');
         api.get.mockReturnValue(new Promise(() => {}));
 
@@ -55,7 +55,7 @@ describe('ServerContext', () => {
         });
 
         await waitFor(() => {
-            expect(screen.getByTestId('active-server')).toHaveTextContent('server-a');
+            expect(screen.getByTestId('active-server')).toHaveTextContent('global');
             expect(screen.getByTestId('server-count')).toHaveTextContent('2');
         });
     });

@@ -4,48 +4,13 @@
  * 显示在顶部 Header 中，点击展开未读通知列表。
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { HiOutlineBell, HiOutlineCheckCircle } from 'react-icons/hi2';
 import { useNotifications } from '../../contexts/NotificationContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import useFloatingPanel from '../../hooks/useFloatingPanel.js';
 import { formatRelativeTime } from '../../utils/format.js';
-
-const NOTIFICATION_COPY = {
-    'zh-CN': {
-        title: '通知',
-        markAllRead: '全部已读',
-        empty: '暂无通知',
-        triggerTitle: '通知',
-        labels: {
-            node: '节点',
-            sourceIp: '来源 IP',
-            locationCarrier: '归属地 / 运营商',
-            request: '请求',
-            reason: '原因',
-            event: '事件',
-        },
-    },
-    'en-US': {
-        title: 'Notifications',
-        markAllRead: 'Mark all read',
-        empty: 'No notifications',
-        triggerTitle: 'Notifications',
-        labels: {
-            node: 'Node',
-            sourceIp: 'Source IP',
-            locationCarrier: 'Geo / Carrier',
-            request: 'Request',
-            reason: 'Reason',
-            event: 'Event',
-        },
-    },
-};
-
-function getNotificationCopy(locale = 'zh-CN') {
-    return NOTIFICATION_COPY[locale === 'en-US' ? 'en-US' : 'zh-CN'];
-}
 
 function severityTone(severity) {
     if (severity === 'critical') return 'critical';
@@ -58,34 +23,34 @@ function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max);
 }
 
-function buildNotificationMetaRows(notification = {}, locale = 'zh-CN') {
-    const copy = getNotificationCopy(locale);
+function buildNotificationMetaRows(notification = {}, copy = {}) {
+    const labels = copy.labels || {};
     const meta = notification.meta || {};
     const rows = [];
 
     if (meta.serverId) {
-        rows.push({ label: copy.labels.node, value: String(meta.serverId) });
+        rows.push({ label: labels.node, value: String(meta.serverId) });
     }
     if (meta.ip) {
-        rows.push({ label: copy.labels.sourceIp, value: String(meta.ip) });
+        rows.push({ label: labels.sourceIp, value: String(meta.ip) });
     }
     if (meta.ipLocation || meta.ipCarrier) {
         rows.push({
-            label: copy.labels.locationCarrier,
+            label: labels.locationCarrier,
             value: [meta.ipLocation, meta.ipCarrier].filter(Boolean).join(' · '),
         });
     }
     if (meta.method || meta.path) {
         rows.push({
-            label: copy.labels.request,
+            label: labels.request,
             value: `${meta.method || '-'} ${meta.path || '-'}`.trim(),
         });
     }
     if (meta.reasonCode) {
-        rows.push({ label: copy.labels.reason, value: String(meta.reasonCode) });
+        rows.push({ label: labels.reason, value: String(meta.reasonCode) });
     }
     if (meta.event) {
-        rows.push({ label: copy.labels.event, value: String(meta.event) });
+        rows.push({ label: labels.event, value: String(meta.event) });
     }
 
     return rows
@@ -108,10 +73,10 @@ export default function NotificationBell() {
     const triggerRef = useRef(null);
     const dropdownRef = useRef(null);
     const { notifications, unreadCount, markRead, markAllRead, ensureExpandedNotifications } = useNotifications();
-    const { locale } = useI18n();
-    const copy = getNotificationCopy(locale);
+    const { locale, tm } = useI18n();
+    const copy = tm('comp.notifications');
+    const dropdownId = useId();
 
-    // 点击外部关闭
     useEffect(() => {
         if (!open) return;
         void ensureExpandedNotifications();
@@ -120,8 +85,19 @@ export default function NotificationBell() {
             const clickedInsideDropdown = dropdownRef.current?.contains(e.target);
             if (!clickedInsideTrigger && !clickedInsideDropdown) setOpen(false);
         };
+        const keyHandler = (e) => {
+            if (e.key === 'Escape') {
+                setOpen(false);
+                triggerRef.current?.focus();
+            }
+        };
         document.addEventListener('mousedown', handler);
-        return () => document.removeEventListener('mousedown', handler);
+        document.addEventListener('keydown', keyHandler);
+        requestAnimationFrame(() => dropdownRef.current?.focus({ preventScroll: true }));
+        return () => {
+            document.removeEventListener('mousedown', handler);
+            document.removeEventListener('keydown', keyHandler);
+        };
     }, [open, ensureExpandedNotifications]);
 
     const computeDropdownPosition = useCallback(({ anchorRect, panelRect, viewport }) => {
@@ -157,12 +133,22 @@ export default function NotificationBell() {
         deps: [notifications.length, unreadCount],
     });
 
+    const activateNotification = (notification) => {
+        if (!notification?.readAt) {
+            markRead(notification.id);
+        }
+    };
+
     const dropdown = open && typeof document !== 'undefined'
         ? createPortal(
             <div
                 ref={dropdownRef}
+                id={dropdownId}
                 className={`notification-dropdown${isReady ? ' is-ready' : ''}`}
                 style={panelStyle}
+                role="dialog"
+                aria-label={copy.panelLabel || copy.title}
+                tabIndex={-1}
             >
                 <div className="notification-dropdown-head">
                         <span className="notification-dropdown-title">
@@ -175,10 +161,12 @@ export default function NotificationBell() {
                     </span>
                     {unreadCount > 0 && (
                         <button
+                            type="button"
                             className="btn btn-ghost btn-sm notification-mark-all"
                             onClick={markAllRead}
+                            aria-label={copy.markAllRead}
                         >
-                            <HiOutlineCheckCircle style={{ fontSize: '14px' }} />
+                            <HiOutlineCheckCircle className="notification-action-icon" aria-hidden="true" />
                             {copy.markAllRead}
                         </button>
                     )}
@@ -191,13 +179,22 @@ export default function NotificationBell() {
                         </div>
                     ) : (
                         notifications.slice(0, 30).map((n) => {
-                            const metaRows = buildNotificationMetaRows(n, locale);
+                            const metaRows = buildNotificationMetaRows(n, copy);
                             return (
                             <div
                                 key={n.id}
-                                onClick={() => !n.readAt && markRead(n.id)}
+                                onClick={() => activateNotification(n)}
+                                onKeyDown={(event) => {
+                                    if (event.key === 'Enter' || event.key === ' ') {
+                                        event.preventDefault();
+                                        activateNotification(n);
+                                    }
+                                }}
                                 className={`notification-item${n.readAt ? '' : ' is-unread'}`}
                                 data-severity={severityTone(n.severity)}
+                                role="button"
+                                tabIndex={0}
+                                aria-label={`${copy.openItem || copy.title}: ${n.title}`}
                             >
                                 <div className="notification-item-head">
                                     <span className={`notification-item-title${n.readAt ? '' : ' is-unread'}`}>
@@ -242,10 +239,11 @@ export default function NotificationBell() {
                 title={copy.triggerTitle}
                 aria-label={copy.triggerTitle}
                 aria-expanded={open}
+                aria-controls={dropdownId}
             >
-                <HiOutlineBell style={{ fontSize: '18px' }} />
+                <HiOutlineBell className="notification-trigger-icon" aria-hidden="true" />
                 {unreadCount > 0 && (
-                    <span className="notification-count-badge">
+                    <span className="notification-count-badge" aria-hidden="true">
                         {unreadCount > 99 ? '99+' : unreadCount}
                     </span>
                 )}

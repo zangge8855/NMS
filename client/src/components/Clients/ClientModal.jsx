@@ -563,7 +563,7 @@ export default function ClientModal({
                             ? (editTargets.length > 0 ? `批量编辑用户 (${editTargets.length} 个实例)` : '编辑用户')
                             : (targets.length > 0 ? `批量添加用户 (${filteredTargets.length}/${targets.length} 个目标)` : '添加用户')}
                     </h3>
-                    <button className="modal-close" onClick={onClose}><HiOutlineXMark /></button>
+                    <button type="button" className="modal-close" onClick={onClose} aria-label="关闭" title="关闭"><HiOutlineXMark /></button>
                 </div>
 
                 <form onSubmit={handleSubmit}>
@@ -695,7 +695,7 @@ export default function ClientModal({
                         {requiresUuidCredential && (
                             <div className="form-group">
                                 <label className="form-label">UUID</label>
-                                <div style={{ display: 'flex', gap: '8px' }}>
+                                <div className="flex gap-2">
                                     <input className="form-input font-mono" value={uuid} onChange={e => setUuid(e.target.value)} required={requiresUuidCredential} />
                                     <button type="button" className="btn btn-secondary btn-icon" onClick={generateUUID} title="生成 UUID">
                                         <HiOutlineArrowPath />
@@ -707,7 +707,7 @@ export default function ClientModal({
                         {requiresPasswordCredential && (
                             <div className="form-group">
                                 <label className="form-label">密码</label>
-                                <div style={{ display: 'flex', gap: '8px' }}>
+                                <div className="flex gap-2">
                                     <input className="form-input font-mono" value={password} onChange={e => setPassword(e.target.value)} required={requiresPasswordCredential} />
                                     <button
                                         type="button"
@@ -729,7 +729,7 @@ export default function ClientModal({
 
                         <div className="form-group">
                             <label className="form-label">订阅 ID (SubId)</label>
-                            <div style={{ display: 'flex', gap: '8px' }}>
+                            <div className="flex gap-2">
                                 <input
                                     className="form-input font-mono text-xs text-muted"
                                     value={subId || '(自动生成)'}

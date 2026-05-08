@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useMemo, useState, useCallback, useEffect } from 'react';
-import { DEFAULT_LOCALE, VALID_LOCALES, getLocaleMessage } from '../i18n/messages.js';
+import { DEFAULT_LOCALE, VALID_LOCALES, getLocaleMessage, getLocaleMessageObject } from '../i18n/messages.js';
 
 const LanguageContext = createContext(null);
 const STORAGE_KEY = 'nms_locale';
@@ -41,6 +41,7 @@ export function LanguageProvider({ children }) {
     setLocale,
     toggleLocale,
     t: (path, params = {}) => getLocaleMessage(locale, path, params),
+    tm: (path) => getLocaleMessageObject(locale, path),
   }), [locale, setLocale, toggleLocale]);
 
   return (

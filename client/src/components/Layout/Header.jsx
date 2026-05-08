@@ -393,6 +393,7 @@ export default function Header({
                 className={`header-search-results${isSearchResultsReady ? ' is-ready' : ''}`}
                 id={searchResultsId}
                 role="listbox"
+                aria-label={t('shell.searchAriaLabel')}
                 style={searchResultsStyle}
             >
                 {filteredItems.length === 0 ? (
@@ -453,7 +454,7 @@ export default function Header({
                         aria-haspopup="listbox"
                         aria-controls={searchResultsId}
                     >
-                        <HiOutlineMagnifyingGlass className="header-search-icon" />
+                        <HiOutlineMagnifyingGlass className="header-search-icon" aria-hidden="true" />
                         <input
                             ref={inputRef}
                             placeholder={t('shell.searchPlaceholder')}

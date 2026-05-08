@@ -25,7 +25,7 @@ describe('BatchResultModal', () => {
                             inboundRemark: 'Inbound A',
                             username: 'review-user',
                             subscriptionEmail: 'review-user@example.com',
-                            msg: 'Auth failed',
+                            msg: 'PANEL_LOGIN_FAILED',
                         },
                     ],
                 }}
@@ -35,7 +35,7 @@ describe('BatchResultModal', () => {
         expect(screen.getByText('启停同步')).toBeInTheDocument();
         expect(screen.getByText('101 · Inbound A')).toBeInTheDocument();
         expect(screen.getByText('review-user (review-user@example.com)')).toBeInTheDocument();
-        expect(screen.getByText('Auth failed')).toBeInTheDocument();
+        expect(screen.getByText('节点认证失败，请重新输入并保存面板用户名/密码')).toBeInTheDocument();
     });
 
     it('switches summary and empty-state copy with the selected locale', () => {

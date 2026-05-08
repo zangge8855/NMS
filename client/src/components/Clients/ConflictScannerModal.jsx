@@ -214,10 +214,10 @@ export default function ConflictScannerModal({
 
     return (
         <ModalShell isOpen={isOpen} onClose={onClose}>
-            <div className="modal modal-wide glass-panel" style={{ maxWidth: '1200px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal modal-wide glass-panel conflict-scanner-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="modal-header">
                     <h3 className="modal-title">冲突扫描与修复</h3>
-                    <button className="modal-close" onClick={onClose}><HiOutlineXMark /></button>
+                    <button type="button" className="modal-close" onClick={onClose} aria-label="关闭" title="关闭"><HiOutlineXMark /></button>
                 </div>
 
                 <div className="modal-body">
@@ -243,6 +243,11 @@ export default function ConflictScannerModal({
                             icon={<HiOutlineCheckCircle />}
                             size="compact"
                             surface
+                            action={(
+                                <button type="button" className="btn btn-secondary btn-sm" onClick={refreshFromServer} disabled={scanning}>
+                                    <HiOutlineArrowPath /> 重新扫描
+                                </button>
+                            )}
                         />
                     ) : (
                         <div className="flex flex-col gap-4">
@@ -285,7 +290,7 @@ export default function ConflictScannerModal({
                                                         </div>
                                                     </div>
 
-                                                    <div className="grid-auto-220 mb-3" style={{ alignItems: 'center' }}>
+                                                    <div className="grid-auto-220 mb-3 conflict-resolution-row">
                                                         <select
                                                             className="form-select"
                                                             value={selectedSourceKey}

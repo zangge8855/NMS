@@ -3,7 +3,7 @@ import { useServer } from '../../contexts/ServerContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import api from '../../api/client.js';
 import Header from '../Layout/Header.jsx';
-import { copyToClipboard } from '../../utils/format.js';
+import { copyToClipboard, getErrorMessage } from '../../utils/format.js';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import {
@@ -24,7 +24,7 @@ import SectionHeader from '../UI/SectionHeader.jsx';
 
 export default function ServerManagement({ embedded = false }) {
     const { activeServerId, panelApi, servers } = useServer();
-    const { t } = useI18n();
+    const { locale, t } = useI18n();
     const isGlobalView = activeServerId === 'global';
     const activeServerMeta = useMemo(
         () => servers.find((item) => item.id === activeServerId) || null,
@@ -146,7 +146,7 @@ export default function ServerManagement({ embedded = false }) {
             setCapabilities(res.data?.obj || null);
         } catch (error) {
             if (requestId !== capabilitiesRequestIdRef.current) return;
-            toast.error(error.response?.data?.msg || error.message || '加载节点能力失败');
+            toast.error(getErrorMessage(error, '加载节点能力失败', locale));
         } finally {
             if (requestId === capabilitiesRequestIdRef.current) {
                 setCapabilitiesLoading(false);
@@ -354,7 +354,7 @@ export default function ServerManagement({ embedded = false }) {
             toast.success(`${tool.label || tool.key} 已生成`);
         } catch (error) {
             if (requestId !== toolRunRequestIdRef.current) return;
-            toast.error(error.response?.data?.msg || error.message || '执行失败');
+            toast.error(getErrorMessage(error, '执行失败', locale));
         }
         if (requestId === toolRunRequestIdRef.current) {
             setActionLoading(`tool-${tool.key}`, false);
@@ -377,6 +377,11 @@ export default function ServerManagement({ embedded = false }) {
                         subtitle="节点控制台支持单节点操作，也支持在全局视图下执行批量控制。"
                         icon={<HiOutlineWrenchScrewdriver style={{ fontSize: '48px' }} />}
                         surface
+                        action={(
+                            <button type="button" className="btn btn-primary" onClick={() => { window.location.href = '/servers'; }}>
+                                前往服务器管理
+                            </button>
+                        )}
                     />
                 </div>
             </>
@@ -630,7 +635,7 @@ export default function ServerManagement({ embedded = false }) {
                     <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title">Xray 配置</h3>
-                            <button className="modal-close" onClick={() => setShowConfig(false)}><HiOutlineXMark /></button>
+                            <button type="button" className="modal-close" onClick={() => setShowConfig(false)} aria-label="关闭" title="关闭"><HiOutlineXMark /></button>
                         </div>
                         <div className="modal-body">
                             <pre className="log-viewer server-console-log server-console-log--modal">

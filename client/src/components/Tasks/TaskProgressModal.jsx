@@ -126,7 +126,7 @@ export default function TaskProgressModal({ taskId, title, onClose }) {
                 <div className="modal-header">
                     <h3 className="modal-title">{title || copy.title}</h3>
                     {isTerminal && (
-                        <button className="modal-close" onClick={onClose}>
+                        <button type="button" className="modal-close" onClick={onClose} aria-label="关闭" title="关闭">
                             <HiOutlineXMark />
                         </button>
                     )}

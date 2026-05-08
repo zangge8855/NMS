@@ -5,14 +5,14 @@ import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
 import api from '../../api/client.js';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
-import { formatBytes, formatDateOnly } from '../../utils/format.js';
+import { formatBytes, formatDateOnly, getErrorMessage } from '../../utils/format.js';
 import { buildSubscriptionProfileBundle, findSubscriptionProfile } from '../../utils/subscriptionProfiles.js';
 import Header from '../Layout/Header.jsx';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
-import PageToolbar from '../UI/PageToolbar.jsx';
+import ListToolbar from '../UI/ListToolbar.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
@@ -512,7 +512,7 @@ export default function Subscriptions() {
                 setUsers([]);
                 setUsersAccessDenied(true);
             } else {
-                const msg = error.response?.data?.msg || error.message || t('comp.subscriptions.userListFailed');
+                const msg = getErrorMessage(error, t('comp.subscriptions.userListFailed'), locale);
                 toast.error(msg);
                 if (!preserveCurrent) {
                     setUsers([]);
@@ -572,7 +572,7 @@ export default function Subscriptions() {
             if (!preserveCurrent) {
                 setResult(null);
             }
-            const msg = error.response?.data?.msg || error.message || t('comp.subscriptions.subLoadFailed');
+            const msg = getErrorMessage(error, t('comp.subscriptions.subLoadFailed'), locale);
             toast.error(msg);
         } finally {
             if (requestId === subscriptionRequestIdRef.current) {
@@ -670,7 +670,7 @@ export default function Subscriptions() {
                 serverId: selectedServerId,
             });
         } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || t('comp.subscriptions.resetSubFailed'));
+            toast.error(getErrorMessage(error, t('comp.subscriptions.resetSubFailed'), locale));
         }
         setResetLoading(false);
     };
@@ -893,10 +893,10 @@ export default function Subscriptions() {
             <Header title={t('pages.subscriptions.title')} />
             <div className="page-content page-content--wide page-enter subscriptions-page">
                 {isAdmin && (
-                    <PageToolbar
+                    <ListToolbar
                         className="card mb-8 subscriptions-toolbar"
                         stackOnTablet
-                        main={(
+                        filters={(
                             <>
                                 <div className="form-group subscriptions-toolbar-field">
                                     <label className="form-label">{ui.userEmail}</label>
@@ -971,6 +971,15 @@ export default function Subscriptions() {
                                     title={isUserOnly ? (defaultIdentity ? ui.loadingAddress : ui.noAssignedLink) : ui.inputEmailHint}
                                     icon={<HiOutlineLink style={{ fontSize: '48px' }} />}
                                     surface
+                                    action={isUserOnly ? (
+                                        <button type="button" className="btn btn-secondary" onClick={() => loadSubscription()} disabled={subscriptionBusy || !defaultIdentity}>
+                                            <HiOutlineArrowPath /> {ui.reload}
+                                        </button>
+                                    ) : (
+                                        <button type="button" className="btn btn-secondary" onClick={loadUsers} disabled={usersLoading}>
+                                            <HiOutlineArrowPath /> {ui.refreshUsers}
+                                        </button>
+                                    )}
                                 />
                             </div>
                         ) : (
@@ -1260,7 +1269,7 @@ export default function Subscriptions() {
                     <div className="modal subscription-qr-modal" onClick={(event) => event.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title">{ui.scanImport}</h3>
-                            <button type="button" className="modal-close" onClick={() => setQrModalOpen(false)}>
+                            <button type="button" className="modal-close" onClick={() => setQrModalOpen(false)} aria-label="关闭" title="关闭">
                                 <HiOutlineXMark />
                             </button>
                         </div>

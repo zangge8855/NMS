@@ -1294,12 +1294,14 @@ export default function Dashboard() {
                                     title={t('pages.dashboardCommon.onlineUsersPending')}
                                     size="compact"
                                     hideIcon
+                                    action={<button type="button" className="btn btn-secondary btn-sm" onClick={refresh}><HiOutlineArrowPath /> {t('pages.dashboardCommon.refresh')}</button>}
                                 />
                             ) : globalOnlineUsers.length === 0 ? (
                                 <EmptyState
                                     title={t('pages.dashboardCommon.onlineEmpty')}
                                     size="compact"
                                     hideIcon
+                                    action={<button type="button" className="btn btn-secondary btn-sm" onClick={refresh}><HiOutlineArrowPath /> {t('pages.dashboardCommon.refresh')}</button>}
                                 />
                             ) : (
                                 isCompactLayout ? (
@@ -1498,6 +1500,7 @@ export default function Dashboard() {
                                 title={t('pages.dashboardCommon.onlineEmpty')}
                                 size="compact"
                                 hideIcon
+                                action={<button type="button" className="btn btn-secondary btn-sm" onClick={refresh}><HiOutlineArrowPath /> {t('pages.dashboardCommon.refresh')}</button>}
                             />
                         ) : (
                             isCompactLayout ? (
@@ -1557,6 +1560,7 @@ export default function Dashboard() {
                                 title={t('pages.dashboardNode.inboundsEmpty')}
                                 subtitle={t('pages.dashboardNode.inboundsEmptySubtitle')}
                                 size="compact"
+                                action={<button type="button" className="btn btn-secondary btn-sm" onClick={refresh}><HiOutlineArrowPath /> {t('pages.dashboardCommon.refresh')}</button>}
                             />
                         </div>
                     ) : isCompactLayout ? (

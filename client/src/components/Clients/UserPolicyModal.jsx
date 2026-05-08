@@ -131,7 +131,7 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
             <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                 <div className="modal-header">
                     <h3 className="modal-title">订阅权限策略</h3>
-                    <button className="modal-close" onClick={onClose}><HiOutlineXMark /></button>
+                    <button type="button" className="modal-close" onClick={onClose} aria-label="关闭" title="关闭"><HiOutlineXMark /></button>
                 </div>
                 <form onSubmit={handleSubmit}>
                     <div className="modal-body">

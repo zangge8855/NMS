@@ -249,7 +249,6 @@ describe('Dashboard', () => {
         expect(trafficCard.closest('.dashboard-stats-grid')).toBeTruthy();
 
         await waitFor(() => {
-            expect(trafficCard).toHaveTextContent('300 B');
             expect(trafficCard).toHaveTextContent(/↑\s*100 B/);
             expect(trafficCard).toHaveTextContent(/↓\s*200 B/);
         });

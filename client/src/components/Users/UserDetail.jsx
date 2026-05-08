@@ -8,7 +8,7 @@ import ClientIpModal from '../UI/ClientIpModal.jsx';
 import CopyFeedbackButton from '../UI/CopyFeedbackButton.jsx';
 import VirtualList from '../UI/VirtualList.jsx';
 import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
-import { formatBytes, formatDateOnly, formatDateTime } from '../../utils/format.js';
+import { formatBytes, formatDateOnly, formatDateTime, getErrorMessage } from '../../utils/format.js';
 import { resolveAccessGeoDisplay } from '../../utils/accessGeo.js';
 import { mergeInboundClientStats } from '../../utils/inboundClients.js';
 import { buildOnlineMatchMap, countClientOnlineSessions } from '../../utils/clientPresence.js';
@@ -1291,7 +1291,7 @@ export default function UserDetail() {
                 error: '',
             }));
         } catch (err) {
-            const msg = err.response?.data?.msg || err.message || copy.labels.clientIpLoadFailed;
+            const msg = getErrorMessage(err, copy.labels.clientIpLoadFailed, locale);
             if (isUnsupportedPanelClientIpsError(err)) {
                 setClientIpSupportByServer((prev) => ({
                     ...prev,
@@ -1341,7 +1341,7 @@ export default function UserDetail() {
                 inboundId: '',
             }, { preserveOpen: true });
         } catch (err) {
-            const msg = err.response?.data?.msg || err.message || copy.labels.clearClientIpFailed;
+            const msg = getErrorMessage(err, copy.labels.clearClientIpFailed, locale);
             setClientIpModal((prev) => ({
                 ...prev,
                 clearing: false,
@@ -1559,7 +1559,15 @@ export default function UserDetail() {
                                 {subscriptionLoading && !subscriptionResult ? (
                                     <SkeletonTable rows={3} cols={3} />
                                 ) : !subscriptionResult ? (
-                                    <EmptyState title={copy.labels.noSubscriptionTitle} subtitle={copy.labels.noSubscriptionSubtitle} />
+                                    <EmptyState
+                                        title={copy.labels.noSubscriptionTitle}
+                                        subtitle={copy.labels.noSubscriptionSubtitle}
+                                        action={(
+                                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => loadSubscription()}>
+                                                <HiOutlineArrowPath /> {copy.labels.refresh}
+                                            </button>
+                                        )}
+                                    />
                                 ) : (
                                     <div className="user-detail-subscription-layout">
                                         <div className="subscription-link-with-qr user-detail-subscription-main">
@@ -1700,7 +1708,15 @@ export default function UserDetail() {
                                 {clientsPanelLoading ? (
                                     <SkeletonTable rows={4} cols={6} />
                                 ) : clientData.length === 0 ? (
-                                    <EmptyState title={copy.labels.noClientsTitle} subtitle={copy.labels.noClientsSubtitle} />
+                                    <EmptyState
+                                        title={copy.labels.noClientsTitle}
+                                        subtitle={copy.labels.noClientsSubtitle}
+                                        action={(
+                                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchClients({ force: true })}>
+                                                <HiOutlineArrowPath /> {copy.labels.refresh}
+                                            </button>
+                                        )}
+                                    />
                                 ) : isCompactLayout ? (
                                     <div className="user-detail-client-list">
                                         {clientData.map((client, index) => {
@@ -1805,7 +1821,15 @@ export default function UserDetail() {
                         {activeTab === 'activity' && (
                             <div>
                                 {timeline.length === 0 ? (
-                                    <EmptyState title={copy.labels.noActivityTitle} subtitle={copy.labels.noActivitySubtitle} />
+                                    <EmptyState
+                                        title={copy.labels.noActivityTitle}
+                                        subtitle={copy.labels.noActivitySubtitle}
+                                        action={(
+                                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchDetail({ preserveCurrent: true })}>
+                                                <HiOutlineArrowPath /> {copy.labels.refresh}
+                                            </button>
+                                        )}
+                                    />
                                 ) : (
                                     <div className={`timeline-list${shouldVirtualizeTimeline ? ' timeline-list--virtualized' : ''}`}>
                                         {shouldVirtualizeTimeline ? (

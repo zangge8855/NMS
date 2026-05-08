@@ -318,12 +318,12 @@ router.get('/:serverId', async (req, res) => {
         if (String(error.message || '').toLowerCase().includes('server not found')) {
             return res.status(404).json({
                 success: false,
-                msg: 'Server not found',
+                msg: '节点不存在，请刷新节点列表后重试',
             });
         }
         return res.status(500).json({
             success: false,
-            msg: `Failed to detect capabilities: ${error.message}`,
+            msg: '节点能力探测失败，请确认节点在线并重试',
         });
     }
 });

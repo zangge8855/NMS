@@ -189,6 +189,7 @@ function ProtectedLayout() {
                 <div
                     className={`sidebar-backdrop ${sidebarOpen ? 'show' : ''}`}
                     onClick={() => setSidebarOpen(false)}
+                    aria-hidden="true"
                 />
                 <Suspense fallback={null}>
                     <Sidebar

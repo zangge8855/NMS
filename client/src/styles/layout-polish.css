@@ -1485,14 +1485,6 @@
   justify-content: center;
 }
 
-.audit-tab-loading-shell {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 168px;
-  padding: 20px;
-}
-
 .node-health-empty-shell {
   padding: 16px;
 }
@@ -1509,11 +1501,6 @@
 }
 
 @media (max-width: 768px) {
-  .audit-tab-loading-shell {
-    min-height: 144px;
-    padding: 16px;
-  }
-
   .node-health-empty-shell {
     padding: 14px;
   }
@@ -1784,17 +1771,6 @@
   border-radius: 12px;
 }
 
-.servers-table-shell {
-  overflow: auto;
-  max-width: 100%;
-}
-
-.users-table-shell,
-.audit-table-shell,
-.settings-table-shell,
-.inbounds-table-shell,
-.servers-table-shell,
-.audit-nested-table-shell,
 .batch-result-table {
   border: 1px solid var(--surface-card-border);
   background: var(--surface-card-bg);
@@ -2004,7 +1980,7 @@
 }
 
 @media (max-width: 768px) {
-  .servers-table-shell {
+  .servers-page .table-container {
     overflow: visible;
   }
 
@@ -4520,19 +4496,6 @@
   overflow-wrap: anywhere;
 }
 
-.settings-table-shell {
-  margin-top: 4px;
-  overflow: auto;
-  border-radius: 16px;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
-  touch-action: pan-x pan-y;
-}
-
-.settings-table-shell .table {
-  min-width: 680px;
-}
-
 .settings-snapshot-section {
   padding-top: 12px;
   border-top: 1px solid var(--stroke-soft);
@@ -5826,17 +5789,6 @@
     min-width: 0;
   }
 
-  .settings-snapshot-section .settings-table-shell,
-  .settings-snapshot-section .settings-table-shell .table {
-    min-width: 0;
-    width: 100%;
-  }
-
-  .settings-table-shell .table {
-    min-width: 0;
-    width: 100%;
-  }
-
   .settings-tab-hero-grid,
   .settings-backup-summary-grid,
   .settings-backup-actions--triple,
@@ -6271,15 +6223,12 @@ p, .empty-state-body, td {
     flex: none;
   }
 
-  .users-table-shell,
-  .servers-table-shell,
-  .inbounds-table-shell {
+  .table-container {
     overflow: visible;
   }
 
   .users-table,
   .servers-table,
-  .inbounds-table-shell .table,
   .inbounds-clients-table {
     min-width: 0 !important;
     width: 100%;
@@ -8232,11 +8181,10 @@ p, .empty-state-body, td {
     gap: 12px;
   }
 
-  .users-page .users-table-shell,
-  .servers-page .servers-table-shell,
-  .audit-page .audit-table-shell,
-  .audit-page .audit-nested-table-shell,
-  .inbounds-page .inbounds-table-shell,
+  .users-page .table-container,
+  .servers-page .table-container,
+  .audit-page .table-container,
+  .inbounds-page .table-container,
   .tasks-page .table-container,
   .capabilities-page .table-container,
   .user-detail-page .table-container {
@@ -8559,9 +8507,8 @@ p, .empty-state-body, td {
     width: 100%;
   }
 
-  .servers-page .servers-table-shell,
-  .audit-page .audit-table-shell,
-  .audit-page .audit-nested-table-shell,
+  .servers-page .table-container,
+  .audit-page .table-container,
   .inbounds-page .inbounds-row,
   .users-page .users-row,
   .tasks-page .table tr,
@@ -8896,7 +8843,7 @@ p, .empty-state-body, td {
 
   .servers-page .servers-toolbar,
   .servers-page .servers-filter-bar,
-  .servers-page .servers-table-shell,
+  .servers-page .table-container,
   .servers-page .servers-table,
   .servers-page .servers-table tr,
   .servers-page .servers-table td,
@@ -12111,11 +12058,6 @@ p, .empty-state-body, td {
   justify-content: flex-end;
 }
 
-.users-table-shell,
-.audit-table-shell,
-.audit-nested-table-shell,
-.servers-table-shell,
-.inbounds-table-shell,
 .tasks-page .table-container,
 .capabilities-page .table-container,
 .server-detail-page .table-container,
@@ -12127,18 +12069,11 @@ p, .empty-state-body, td {
   overflow: auto;
 }
 
-.users-table-shell > .empty-state,
-.audit-table-shell > .empty-state,
-.servers-table-shell > .empty-state,
-.inbounds-table-shell > .empty-state {
+.table-container > .empty-state {
   margin: 0;
 }
 
-.table-container table,
-.users-table-shell table,
-.audit-table-shell table,
-.servers-table-shell table,
-.inbounds-table-shell table {
+.table-container table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
@@ -12863,5 +12798,127 @@ input[type="radio"] {
   .login-brand-mark {
     width: 40px;
     height: 40px;
+  }
+}
+
+/* Shared list controls: compact filter/action rows for operational pages. */
+.list-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.list-toolbar .page-toolbar-main,
+.list-toolbar .page-toolbar-actions,
+.list-toolbar .page-toolbar-summary,
+.list-toolbar .page-toolbar-meta {
+  min-width: 0;
+}
+
+.list-toolbar-filters,
+.list-toolbar-actions-inner,
+.list-toolbar-meta-inner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+
+.list-toolbar-filters {
+  flex: 1 1 auto;
+}
+
+.list-toolbar-filters :is(.form-input, .form-select) {
+  min-width: min(100%, 180px);
+}
+
+.list-toolbar-actions-inner {
+  justify-content: flex-end;
+}
+
+.list-toolbar-meta-inner {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.list-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.batch-result-message-cell {
+  max-width: 320px;
+  word-break: break-word;
+}
+
+.client-ip-error-card {
+  border-color: var(--accent-danger);
+}
+
+.client-ip-address-cell,
+.audit-access-ip-cell {
+  word-break: break-all;
+}
+
+.audit-access-time-cell {
+  white-space: nowrap;
+}
+
+.notification-action-icon {
+  font-size: 14px;
+}
+
+.notification-trigger-icon {
+  font-size: 18px;
+}
+
+.conflict-scanner-modal {
+  max-width: 1200px;
+}
+
+.conflict-resolution-row {
+  align-items: center;
+}
+
+.inbound-inline-checkbox-group {
+  display: flex;
+  align-items: center;
+  padding-top: 24px;
+}
+
+.inbound-inline-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .list-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .list-toolbar-filters,
+  .list-toolbar-actions-inner,
+  .list-toolbar-meta-inner {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+    width: 100%;
+  }
+
+  .list-toolbar-filters :is(.form-input, .form-select),
+  .list-toolbar-actions-inner > *,
+  .list-pagination .page-pagination-actions,
+  .list-pagination .page-pagination-actions > * {
+    width: 100%;
+  }
+
+  .list-pagination {
+    align-items: stretch;
+    flex-direction: column;
   }
 }

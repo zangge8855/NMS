@@ -200,19 +200,48 @@ export async function copyToClipboard(text) {
  * Extract a user-friendly error message from an Axios error or generic Error.
  */
 export function getErrorMessage(err, fallback = '操作失败', locale = 'zh-CN') {
-    const apiMsg = err?.response?.data?.msg;
+    const language = resolveLocaleTag(locale);
+    const messages = language === 'en-US'
+        ? {
+            dns: 'Node hostname cannot be resolved. Check the node URL or DNS settings.',
+            refused: 'The node refused the connection. Confirm the panel port and 3x-ui service are listening.',
+            timeout: 'Request timed out. Check the network path or node status.',
+            network: 'Connection failed. Check the management backend, network path, and node availability.',
+            auth: 'Node authentication failed. Re-enter and save the panel username and password.',
+            inbounds: 'Failed to read the node inbound list. Verify node availability and retry.',
+            panel: 'Node panel connection failed. Check the panel URL, port, and access policy.',
+            notFound: 'Node not found. Refresh the node list and retry.',
+        }
+        : {
+            dns: '节点域名无法解析，请检查节点 URL 或 DNS 配置',
+            refused: '节点拒绝连接，请确认面板端口和 3x-ui 服务正在监听',
+            timeout: '请求超时，请检查网络路径或节点状态',
+            network: '连接失败，请检查管理后端、网络路径和节点可用性',
+            auth: '节点认证失败，请重新输入并保存面板用户名/密码',
+            inbounds: '节点入站列表读取失败，请确认节点可用后重试',
+            panel: '节点面板连接失败，请检查面板地址、端口和访问策略',
+            notFound: '节点不存在，请刷新节点列表后重试',
+        };
+    const apiMsg = String(err?.response?.data?.msg || '').trim();
+    const rawMessage = String(err?.message || '').trim();
+    const raw = `${apiMsg} ${rawMessage} ${err?.code || ''}`.toLowerCase();
+
+    if (/getaddrinfo|enotfound|eai_again|dns|resolve/.test(raw)) return messages.dns;
+    if (/econnrefused/.test(raw)) return messages.refused;
+    if (/timeout|etimedout|econnaborted/.test(raw)) return messages.timeout;
+    if (/panel_login_failed|failed to authenticate|auth failed|login failed|401|403|用户名|密码|unauthorized|forbidden/.test(raw)) return messages.auth;
+    if (/panel_inbound_list_failed|list inbounds failed|inbound list/.test(raw)) return messages.inbounds;
+    if (/connection failed|failed to connect to panel|panel connection/.test(raw)) return messages.panel;
+    if (/network error|err_network|econnreset|ehostunreach|enetunreach/.test(raw)) return messages.network;
+    if (/server not found|node not found/.test(raw)) return messages.notFound;
+
     if (apiMsg) return apiMsg;
     if (err?.code === 'ECONNABORTED') {
-        return resolveLocaleTag(locale) === 'en-US'
-            ? 'Request timed out. Check the network path or node status.'
-            : '请求超时，请检查网络或节点状态';
+        return messages.timeout;
     }
     if (err?.message === 'Network Error') {
-        return resolveLocaleTag(locale) === 'en-US'
-            ? 'Connection failed: the management backend is unreachable.'
-            : '连接失败：管理后端不可达，请确认后端服务已启动';
+        return messages.network;
     }
-    const rawMessage = String(err?.message || '').trim();
     if (err?.response && /^Request failed with status code \d{3}$/i.test(rawMessage)) {
         return fallback;
     }

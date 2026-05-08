@@ -65,7 +65,9 @@ export default function ClientIpModal({
                         <h3 className="modal-title">{title || copy.title}</h3>
                         {subtitle && <div className="text-sm text-muted mt-1">{subtitle}</div>}
                     </div>
-                    <button className="modal-close" onClick={onClose}><HiOutlineXMark /></button>
+                    <button className="modal-close" onClick={onClose} aria-label={copy.close} title={copy.close}>
+                        <HiOutlineXMark />
+                    </button>
                 </div>
                 <div className="modal-body">
                     <div className="flex items-center justify-between gap-2 flex-wrap mb-4">
@@ -81,7 +83,7 @@ export default function ClientIpModal({
                     </div>
 
                     {error && (
-                        <div className="card p-3 mb-4" style={{ borderColor: 'var(--accent-danger)' }}>
+                        <div className="card p-3 mb-4 client-ip-error-card">
                             <div className="text-sm font-medium text-danger">{copy.loadFailed}</div>
                             <div className="text-sm text-muted mt-1">{error}</div>
                         </div>
@@ -98,6 +100,11 @@ export default function ClientIpModal({
                                 subtitle={copy.emptySubtitle}
                                 size="compact"
                                 hideIcon
+                                action={onRefresh ? (
+                                    <button type="button" className="btn btn-secondary btn-sm" onClick={onRefresh}>
+                                        <HiOutlineArrowPath /> {copy.refresh}
+                                    </button>
+                                ) : null}
                             />
                         </div>
                     ) : (
@@ -114,7 +121,7 @@ export default function ClientIpModal({
                                 <tbody>
                                     {items.map((item) => (
                                         <tr key={item.ip}>
-                                            <td data-label={copy.ip} className="font-mono" style={{ wordBreak: 'break-all' }}>{item.ip}</td>
+                                            <td data-label={copy.ip} className="font-mono client-ip-address-cell">{item.ip}</td>
                                             <td data-label={copy.count} className="table-cell-center client-ip-count-cell">{item.count > 0 ? item.count : '-'}</td>
                                             <td data-label={copy.lastSeen} className="table-cell-center client-ip-last-seen-cell">{formatDateTime(item.lastSeen, locale)}</td>
                                             <td data-label={copy.note} className="text-xs text-muted client-ip-note-cell">

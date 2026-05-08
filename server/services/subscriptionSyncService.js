@@ -189,7 +189,11 @@ function ensurePersistentSubscriptionToken(email, actor = 'admin', deps = {}) {
 }
 
 function buildPanelListFailureMessage(error) {
-    return `${error?.code === 'PANEL_INBOUND_LIST_FAILED' ? 'List inbounds failed' : 'Auth failed'}: ${error.message}`;
+    const reason = String(error?.message || '').trim();
+    const prefix = error?.code === 'PANEL_INBOUND_LIST_FAILED'
+        ? '节点入站列表读取失败，请确认节点在线并重试'
+        : '节点认证失败，请重新保存面板用户名/密码';
+    return reason ? `${prefix}：${reason}` : prefix;
 }
 
 function createEmailMigrationResult(sourceEmail = '', targetEmail = '') {

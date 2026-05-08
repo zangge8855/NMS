@@ -3169,6 +3169,11 @@ export default function SystemSettings() {
                         subtitle="请使用管理员账号登录后再修改系统参数、备份或监控配置。"
                         icon={<HiOutlineCog6Tooth style={{ fontSize: '48px' }} />}
                         surface
+                        action={(
+                            <button type="button" className="btn btn-secondary" onClick={() => { window.location.href = '/account'; }}>
+                                前往账户中心
+                            </button>
+                        )}
                     />
                 </div>
             </>
@@ -3288,7 +3293,7 @@ export default function SystemSettings() {
                 <div className="modal modal-wide settings-notice-modal" onClick={(event) => event.stopPropagation()}>
                     <div className="modal-header">
                         <h3 className="modal-title">发送注册用户变更通知</h3>
-                        <button type="button" className="modal-close" onClick={() => setNoticeModalOpen(false)}>
+                        <button type="button" className="modal-close" onClick={() => setNoticeModalOpen(false)} aria-label="关闭" title="关闭">
                             <HiOutlineXMark />
                         </button>
                     </div>
@@ -3434,7 +3439,7 @@ export default function SystemSettings() {
                 <div className="modal modal-wide settings-restore-modal" onClick={(event) => event.stopPropagation()}>
                     <div className="modal-header">
                         <h3 className="modal-title">恢复系统备份</h3>
-                        <button type="button" className="modal-close" onClick={() => setBackupRestoreModalOpen(false)}>
+                        <button type="button" className="modal-close" onClick={() => setBackupRestoreModalOpen(false)} aria-label="关闭" title="关闭">
                             <HiOutlineXMark />
                         </button>
                     </div>

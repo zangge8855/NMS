@@ -28,6 +28,6 @@ describe('validateServerUrl', () => {
 
     it('rejects private ipv6 literal urls when private addresses are disallowed', async () => {
         const err = await validateServerUrl('https://[fd00::1]:2053', { allowPrivate: false });
-        assert.equal(err, 'Private/internal IP addresses are not allowed');
+        assert.equal(err, '节点面板地址不能使用私有或内部 IP');
     });
 });

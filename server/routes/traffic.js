@@ -144,7 +144,7 @@ router.get('/servers/:serverId/trend', async (req, res) => {
     if (!serverStore.getAll().some((item) => item.id === serverId)) {
         return res.status(404).json({
             success: false,
-            msg: 'Server not found',
+            msg: '节点不存在，请刷新节点列表后重试',
         });
     }
     const forceRefresh = normalizeBoolean(req.query.refresh, false);

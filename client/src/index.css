@@ -873,8 +873,9 @@ a:hover {
 .form-input:focus-visible,
 .form-select:focus-visible,
 .form-textarea:focus-visible {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 2px;
+  outline: none;
+  border-color: var(--focus-ring-border);
+  box-shadow: var(--focus-ring-shadow);
 }
 
 /* .btn-primary base + hover — defined in interaction-polish.css */
@@ -2857,9 +2858,8 @@ input[type="radio"]:focus {
 .server-chip:focus-visible,
 input[type="checkbox"]:focus-visible,
 input[type="radio"]:focus-visible {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 2px;
-  box-shadow: none !important;
+  outline: none;
+  box-shadow: var(--focus-ring-shadow) !important;
   border-color: var(--accent-primary);
 }
 
@@ -5962,8 +5962,8 @@ body::before {
 }
 
 .dashboard-stat-card.clickable:focus-visible {
-  outline: 2px solid rgba(99, 102, 241, 0.4);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: var(--focus-ring-shadow);
 }
 
 .dashboard-chart {
@@ -6303,24 +6303,24 @@ body::before {
   width: fit-content;
 }
 
-.inbounds-table-shell {
+.inbounds-page .table-container {
   overflow-x: auto;
   overflow-y: hidden;
   border-color: rgba(255, 255, 255, 0.06);
   background: rgba(17, 17, 19, 0.8);
 }
 
-.inbounds-table-shell .table {
+.inbounds-table {
   min-width: 920px;
   table-layout: auto;
 }
 
-.inbounds-table-shell .table th {
+.inbounds-table th {
   background: rgba(255, 255, 255, 0.03);
   padding: 11px 7px;
 }
 
-.inbounds-table-shell .table td {
+.inbounds-table td {
   padding: 11px 7px;
 }
 
@@ -7441,18 +7441,16 @@ body::before {
   box-shadow: none;
 }
 
-.users-table-shell,
-.audit-table-shell,
-.settings-table-shell {
+.users-page .table-container,
+.audit-page .table-container {
   overflow-x: auto;
   overflow-y: hidden;
   border-color: rgba(255, 255, 255, 0.06);
   background: var(--surface-panel);
 }
 
-.users-table-shell .table th,
-.audit-table-shell .table th,
-.settings-table-shell .table th {
+.users-page .table-container .table th,
+.audit-page .table-container .table th {
   background: rgba(255, 255, 255, 0.03);
 }
 
@@ -8641,7 +8639,7 @@ body::before {
   overflow-wrap: anywhere;
 }
 
-.audit-nested-table-shell {
+.audit-page .table-container {
   margin-top: 10px;
   border-color: var(--stroke-soft);
   background: rgba(255, 255, 255, 0.025);
@@ -9577,13 +9575,6 @@ body::before {
 .settings-toggle-card.is-active .settings-toggle-thumb {
   transform: translateX(18px);
   background: #eff6ff;
-}
-
-.settings-table-shell {
-  overflow: hidden;
-  border-radius: 18px;
-  border: 1px solid var(--stroke-soft);
-  background: var(--surface-panel-soft);
 }
 
 .settings-code-list {
@@ -10628,10 +10619,9 @@ body::before {
 
 [data-theme="light"] .servers-filter-card,
 [data-theme="light"] .server-card,
-[data-theme="light"] .inbounds-table-shell,
-[data-theme="light"] .users-table-shell,
-[data-theme="light"] .audit-table-shell,
-[data-theme="light"] .settings-table-shell {
+[data-theme="light"] .inbounds-page .table-container,
+[data-theme="light"] .users-page .table-container,
+[data-theme="light"] .audit-page .table-container {
   background: rgba(255, 255, 255, 0.95);
 }
 
@@ -10842,7 +10832,7 @@ body::before {
   border-color: rgba(15, 23, 42, 0.1);
 }
 
-[data-theme="light"] .inbounds-table-shell .table th {
+[data-theme="light"] .inbounds-table th {
   background: rgba(15, 23, 42, 0.045);
 }
 
@@ -10940,8 +10930,7 @@ body::before {
 }
 
 [data-theme="light"] .settings-toolbar-copy,
-[data-theme="light"] .settings-mini-card,
-[data-theme="light"] .audit-nested-table-shell {
+[data-theme="light"] .settings-mini-card {
   background: rgba(255, 255, 255, 0.86);
   border-color: rgba(15, 23, 42, 0.08);
   box-shadow: var(--shadow-sm);
@@ -10991,7 +10980,7 @@ body::before {
     width: auto;
   }
 
-  .users-table-shell {
+  .users-page .table-container {
     overflow: visible;
   }
 
@@ -11360,8 +11349,9 @@ body::before {
 .notification-trigger:focus-visible,
 .btn-icon:focus-visible,
 .theme-toggle-btn:focus-visible {
-  outline: 2px solid rgba(99, 102, 241, 0.38);
-  outline-offset: 2px;
+  outline: none;
+  border-color: var(--focus-ring-border);
+  box-shadow: var(--focus-ring-shadow);
 }
 
 .badge-success {
@@ -12323,7 +12313,7 @@ input[type="radio"]:focus-visible {
     top: 82px;
   }
 
-  .inbounds-table-shell .table {
+  .inbounds-table {
     min-width: 980px;
   }
 
@@ -12459,9 +12449,8 @@ input[type="radio"]:focus-visible {
 .server-chip:focus-visible,
 input[type="checkbox"]:focus-visible,
 input[type="radio"]:focus-visible {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 2px;
-  box-shadow: none !important;
+  outline: none;
+  box-shadow: var(--focus-ring-shadow) !important;
   border-color: var(--accent-primary);
 }
 
@@ -12791,7 +12780,7 @@ input[type="radio"]:focus-visible {
     display: none !important;
   }
 
-  .inbounds-table-shell .table,
+  .inbounds-table,
   .inbounds-clients-table {
     min-width: 0;
   }
@@ -15551,7 +15540,7 @@ input[type="radio"]:focus-visible {
     gap: 10px;
   }
 
-  .audit-nested-table-shell {
+  .audit-page .table-container {
     overflow: visible;
   }
 }
@@ -15978,14 +15967,11 @@ input[type="radio"]:focus-visible {
 [data-theme="light"] .form-textarea:focus {
   background: #ffffff !important;
   border-color: rgba(99, 102, 241, 0.24) !important;
-  outline: 2px solid rgba(99, 102, 241, 0.22) !important;
-  outline-offset: 2px !important;
-  box-shadow: none !important;
+  outline: none !important;
+  box-shadow: var(--focus-ring-shadow) !important;
 }
 
-[data-theme="light"] .table tr:hover td,
-[data-theme="light"] .audit-table-shell .table tr:hover td,
-[data-theme="light"] .users-table-shell .table tr:hover td {
+[data-theme="light"] .table tr:hover td {
   background: rgba(243, 244, 246, 0.95) !important;
 }
 
@@ -16352,8 +16338,9 @@ input[type="radio"]:focus-visible {
 
 .login-card :is(.form-input, .form-textarea, .verify-code-input):focus,
 .login-card :is(.form-input, .form-textarea, .verify-code-input):focus-visible {
-  outline: 2px solid rgba(99, 102, 241, 0.22);
-  outline-offset: 2px;
+  outline: none;
+  border-color: var(--focus-ring-border);
+  box-shadow: var(--focus-ring-shadow);
 }
 
 .verify-header {
@@ -16665,7 +16652,7 @@ input[type="radio"]:focus-visible {
   -webkit-backdrop-filter: none !important;
 }
 
-[data-theme="light"] :is(.card .card, .modal .card, .settings-mini-card, .settings-table-shell, .audit-nested-table-shell) {
+[data-theme="light"] :is(.card .card, .modal .card, .settings-mini-card) {
   box-shadow: 0 4px 6px -1px rgba(226, 232, 240, 0.24), 0 2px 4px -1px rgba(226, 232, 240, 0.14) !important;
   background: linear-gradient(180deg, rgba(248, 250, 252, 0.98) 0%, rgba(241, 245, 249, 0.98) 100%) !important;
   border-color: rgba(148, 163, 184, 0.15) !important;

@@ -374,6 +374,22 @@ const messages = {
         errorBoundaryAction: '刷新页面',
         goDownloads: '去下载客户端',
       },
+      notifications: {
+        title: '通知',
+        markAllRead: '全部已读',
+        empty: '暂无通知',
+        triggerTitle: '通知',
+        panelLabel: '通知列表',
+        openItem: '查看通知',
+        labels: {
+          node: '节点',
+          sourceIp: '来源 IP',
+          locationCarrier: '归属地 / 运营商',
+          request: '请求',
+          reason: '原因',
+          event: '事件',
+        },
+      },
       servers: {
         fillComplete: '请填写完整信息',
         serverUpdated: '服务器已更新',
@@ -997,6 +1013,22 @@ const messages = {
         errorBoundaryAction: 'Refresh Page',
         goDownloads: 'Download Clients',
       },
+      notifications: {
+        title: 'Notifications',
+        markAllRead: 'Mark all read',
+        empty: 'No notifications',
+        triggerTitle: 'Notifications',
+        panelLabel: 'Notification list',
+        openItem: 'Open notification',
+        labels: {
+          node: 'Node',
+          sourceIp: 'Source IP',
+          locationCarrier: 'Geo / Carrier',
+          request: 'Request',
+          reason: 'Reason',
+          event: 'Event',
+        },
+      },
       servers: {
         fillComplete: 'Please fill in all required fields',
         serverUpdated: 'Server updated',
@@ -1033,7 +1065,7 @@ const messages = {
         addBtn: 'Add',
         startBatchAdd: 'Start batch add',
         saveAndTest: 'Save & test connection',
-        serverNotFound: 'Server not found',
+        serverNotFound: 'Node not found',
       },
       inbounds: {
         batchDeleteTitle: 'Batch Delete Inbounds',
@@ -1271,6 +1303,14 @@ export function getLocaleMessage(locale, path, params = {}) {
   const fallback = walkMessageTree(messages[DEFAULT_LOCALE], path);
   const picked = localized ?? fallback ?? '';
   return interpolateMessage(picked, params);
+}
+
+export function getLocaleMessageObject(locale, path) {
+  const language = VALID_LOCALES.includes(locale) ? locale : DEFAULT_LOCALE;
+  const localized = walkMessageTree(messages[language], path);
+  const fallback = walkMessageTree(messages[DEFAULT_LOCALE], path);
+  const picked = localized ?? fallback;
+  return picked && typeof picked === 'object' && !Array.isArray(picked) ? picked : {};
 }
 
 export default messages;

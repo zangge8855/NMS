@@ -2161,7 +2161,7 @@
 .audit-page .audit-chart-card,
 .audit-page .audit-leaderboard-card,
 .audit-page .audit-stat-card,
-.audit-page .audit-table-shell {
+.audit-page .table-container {
   border-radius: var(--audit-card-radius);
 }
 
@@ -2412,7 +2412,7 @@
   padding: 0 14px;
 }
 
-.audit-page .audit-nested-table-shell {
+.audit-page .table-container {
   border-radius: 12px;
 }
 
@@ -2920,7 +2920,7 @@
 }
 
 /* Server management: keep row actions visible when the sidebar is expanded. */
-.servers-page .servers-table-shell {
+.servers-page .table-container {
   overflow-x: auto;
   scrollbar-gutter: stable;
 }
@@ -4089,7 +4089,7 @@
   font-size: clamp(20px, 2vw, 28px);
 }
 
-.audit-page .audit-table-shell {
+.audit-page .table-container {
   overflow: hidden;
 }
 

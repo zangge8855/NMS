@@ -123,7 +123,7 @@ router.all('/:serverId/*', upload.any(), async (req, res) => {
         if (error?.message === 'Server not found') {
             return res.status(404).json({
                 success: false,
-                msg: `Server not found: ${serverId}`,
+                msg: '节点不存在，请刷新节点列表后重试',
             });
         }
 

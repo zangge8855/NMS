@@ -305,6 +305,11 @@ export default function NodeHealthGrid({ servers, serverStatuses, trendHistory =
                     title={t('pages.nodeHealth.empty')}
                     size="compact"
                     icon={<HiOutlineServerStack className="node-health-empty-icon" />}
+                    action={(
+                        <button type="button" className="btn btn-primary btn-sm" onClick={() => { window.location.href = '/servers'; }}>
+                            {locale === 'en-US' ? 'Add Node' : '前往添加节点'}
+                        </button>
+                    )}
                 />
             </div>
         );
@@ -365,7 +370,12 @@ export default function NodeHealthGrid({ servers, serverStatuses, trendHistory =
                         ))
                     ) : (
                         <div className="card node-health-empty-shell">
-                            <EmptyState title={copy.noMatch} size="compact" hideIcon />
+                            <EmptyState
+                                title={copy.noMatch}
+                                size="compact"
+                                hideIcon
+                                action={<button type="button" className="btn btn-secondary btn-sm" onClick={() => setQuery('')}>{locale === 'en-US' ? 'Clear filter' : '清空筛选'}</button>}
+                            />
                         </div>
                     )
                 ) : (

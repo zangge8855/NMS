@@ -203,31 +203,31 @@ function buildGovernanceSummary(servers) {
 
 async function validateServerUrl(url, options = {}) {
     const allowPrivate = options.allowPrivate === true;
-    if (!url || typeof url !== 'string') return 'URL is required';
+    if (!url || typeof url !== 'string') return '请填写节点面板地址';
 
     let parsed;
     try {
         parsed = new URL(url);
     } catch {
-        return 'Invalid URL format';
+        return '节点面板地址格式无效，请使用完整 http/https URL';
     }
 
     if (!['http:', 'https:'].includes(parsed.protocol)) {
-        return 'Only http/https URLs are allowed';
+        return '节点面板地址仅支持 http/https 协议';
     }
 
     if (parsed.username || parsed.password) {
-        return 'URL must not include credentials';
+        return '节点面板地址不能包含用户名或密码，请在凭据字段单独填写';
     }
 
     const hostname = normalizeHostname(parsed.hostname);
     if (!allowPrivate) {
         if (isBlockedHostname(hostname)) {
-            return 'localhost/internal hostnames are not allowed';
+            return '节点面板地址不能使用 localhost 或内部保留主机名';
         }
 
         if (isPrivateAddress(hostname)) {
-            return 'Private/internal IP addresses are not allowed';
+            return '节点面板地址不能使用私有或内部 IP';
         }
 
         if (net.isIP(hostname) !== 0) return null;
@@ -235,13 +235,13 @@ async function validateServerUrl(url, options = {}) {
         try {
             const lookupResults = await dns.lookup(hostname, { all: true, verbatim: true });
             if (!Array.isArray(lookupResults) || lookupResults.length === 0) {
-                return 'Server hostname cannot be resolved';
+                return '节点域名无法解析，请检查 URL 或 DNS 配置';
             }
             if (lookupResults.some((item) => isPrivateAddress(item.address))) {
-                return 'Server resolves to private/internal IP addresses';
+                return '节点域名解析到私有或内部 IP，请更换可访问地址';
             }
         } catch {
-            return 'Failed to resolve server hostname';
+            return '节点域名解析失败，请检查 URL 或 DNS 配置';
         }
     }
 
@@ -340,7 +340,7 @@ router.get('/:id/logs', async (req, res) => {
     if (!server) {
         return res.status(404).json({
             success: false,
-            msg: 'Server not found',
+            msg: '节点不存在，请刷新节点列表后重试',
         });
     }
 
@@ -662,7 +662,7 @@ router.post('/batch', async (req, res) => {
 router.put('/:id', async (req, res) => {
     const current = serverStore.getById(req.params.id);
     if (!current) {
-        return res.status(404).json({ success: false, msg: 'Server not found' });
+        return res.status(404).json({ success: false, msg: '节点不存在，请刷新节点列表后重试' });
     }
 
     if (req.body.url) {
@@ -701,7 +701,7 @@ router.delete('/:id', (req, res) => {
     const serverId = String(req.params.id || '').trim();
     const removed = serverStore.remove(serverId);
     if (!removed) {
-        return res.status(404).json({ success: false, msg: 'Server not found' });
+        return res.status(404).json({ success: false, msg: '节点不存在，请刷新节点列表后重试' });
     }
     const affectedPolicies = userPolicyStore.removeServerId(serverId, String(req.user?.username || req.user?.role || 'admin'));
     appendSecurityAudit('server_deleted', req, { serverId, affectedPolicies });
@@ -775,14 +775,18 @@ router.post('/:id/test', async (req, res) => {
             return res.status(401).json({
                 success: false,
                 code: e.code,
-                msg: `连接失败：${e.message || '3x-ui 用户名或密码错误'}`,
+                msg: '节点认证失败，请检查并重新保存面板用户名/密码',
             });
         }
         appendSecurityAudit('server_test_failed', req, {
             serverId: req.params.id,
             error: e.message,
         });
-        res.status(500).json({ success: false, msg: `Connection failed: ${e.message}` });
+        res.status(500).json({
+            success: false,
+            code: e?.code || 'PANEL_CONNECTION_FAILED',
+            msg: '节点面板连接失败，请检查面板地址、端口和网络访问策略',
+        });
     }
 });
 
@@ -812,7 +816,7 @@ router.patch('/batch', (req, res) => {
             if (updated) {
                 results.updated.push({ id, name: updated.name });
             } else {
-                results.failed.push({ id, msg: 'Server not found' });
+                results.failed.push({ id, msg: '节点不存在，请刷新节点列表后重试' });
             }
         } catch (err) {
             results.failed.push({ id, msg: String(err?.message || err) });

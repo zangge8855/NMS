@@ -19,6 +19,22 @@ vi.mock('../../contexts/NotificationContext.jsx', () => ({
 vi.mock('../../contexts/LanguageContext.jsx', () => ({
     useI18n: () => ({
         locale: 'zh-CN',
+        tm: () => ({
+            title: '通知',
+            markAllRead: '全部已读',
+            empty: '暂无通知',
+            triggerTitle: '通知',
+            panelLabel: '通知列表',
+            openItem: '查看通知',
+            labels: {
+                node: '节点',
+                sourceIp: '来源 IP',
+                locationCarrier: '归属地 / 运营商',
+                request: '请求',
+                reason: '原因',
+                event: '事件',
+            },
+        }),
     }),
 }));
 

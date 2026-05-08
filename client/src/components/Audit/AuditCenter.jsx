@@ -21,6 +21,7 @@ import Tasks from '../Tasks/Tasks.jsx';
 import SkeletonTable from '../UI/SkeletonTable.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
+import { ListPagination } from '../UI/ListToolbar.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
 import { resolveAccessGeoDisplay } from '../../utils/accessGeo.js';
@@ -2059,12 +2060,33 @@ export default function AuditCenter() {
                             </div>
 
                             {eventsLoading && eventsData.items.length === 0 ? (
-                                <div className="glass-panel audit-table-shell audit-events-table-shell p-4">
+                                <div className="table-container p-4">
                                     <SkeletonTable rows={5} cols={7} />
                                 </div>
                             ) : eventsData.items.length === 0 ? (
-                                <div className="glass-panel audit-table-shell audit-events-table-shell p-4">
-                                    <EmptyState title={copy.states.noAudit} subtitle={copy.states.noAuditSubtitle} />
+                                <div className="table-container p-4">
+                                    <EmptyState
+                                        title={copy.states.noAudit}
+                                        subtitle={copy.states.noAuditSubtitle}
+                                        action={activeEventFilterCount > 0 ? (
+                                            <button
+                                                type="button"
+                                                className="btn btn-secondary btn-sm"
+                                                onClick={() => {
+                                                    const nextFilters = { ...EMPTY_EVENT_FILTERS };
+                                                    setEventFilters(nextFilters);
+                                                    setEventsPage(1);
+                                                    fetchEvents(1, nextFilters);
+                                                }}
+                                            >
+                                                {copy.actions.resetFilters}
+                                            </button>
+                                        ) : (
+                                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchEvents(1)}>
+                                                <HiOutlineArrowPath /> {copy.actions.query}
+                                            </button>
+                                        )}
+                                    />
                                 </div>
                             ) : isCompactLayout ? (
                                 <AuditEventsMobileList
@@ -2074,7 +2096,7 @@ export default function AuditCenter() {
                                     onSelect={setSelectedEvent}
                                 />
                             ) : (
-                                <div className="table-container glass-panel audit-table-shell audit-events-table-shell">
+                                <div className="table-container">
                                     <table className="table audit-events-table">
                                         <thead>
                                             <tr>
@@ -2123,16 +2145,17 @@ export default function AuditCenter() {
                                 </div>
                             )}
 
-                            <div className="audit-pagination page-pagination">
-                                <div className="page-pagination-meta">{copy.states.total.replace('{count}', String(eventsData.total || 0))}</div>
-                                <div className="audit-pagination-actions page-pagination-actions">
-                                    <button className="btn btn-secondary btn-sm" disabled={eventsPage <= 1 || eventsLoading} onClick={() => fetchEvents(eventsPage - 1)}>{copy.actions.previous}</button>
-                                    <span className="text-sm text-muted self-center">
-                                        {eventsPage} / {eventsData.totalPages || 1}
-                                    </span>
-                                    <button className="btn btn-secondary btn-sm" disabled={eventsPage >= (eventsData.totalPages || 1) || eventsLoading} onClick={() => fetchEvents(eventsPage + 1)}>{copy.actions.next}</button>
-                                </div>
-                            </div>
+                            <ListPagination
+                                className="audit-pagination"
+                                meta={copy.states.total.replace('{count}', String(eventsData.total || 0))}
+                                page={eventsPage}
+                                totalPages={eventsData.totalPages || 1}
+                                loading={eventsLoading}
+                                previousLabel={copy.actions.previous}
+                                nextLabel={copy.actions.next}
+                                onPrevious={() => fetchEvents(eventsPage - 1)}
+                                onNext={() => fetchEvents(eventsPage + 1)}
+                            />
                         </div>
                     </div>
                 )}
@@ -2313,6 +2336,7 @@ export default function AuditCenter() {
                                             subtitle={copy.traffic.serverTrendPending}
                                             size="compact"
                                             hideIcon
+                                            action={<button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchTrafficOverview(true)}><HiOutlineArrowPath /> {copy.actions.refreshSample}</button>}
                                         />
                                     </div>
                                 ) : (
@@ -2350,10 +2374,15 @@ export default function AuditCenter() {
                                 )}
                                 {topUsers.length === 0 ? (
                                     <div className="p-4">
-                                        <EmptyState title={copy.states.noData} size="compact" hideIcon />
+                                        <EmptyState
+                                            title={copy.states.noData}
+                                            size="compact"
+                                            hideIcon
+                                            action={<button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchTrafficOverview(true)}><HiOutlineArrowPath /> {copy.actions.refreshSample}</button>}
+                                        />
                                     </div>
                                 ) : (
-                                    <div className="table-container audit-nested-table-shell">
+                                    <div className="table-container">
                                         <table className="table audit-leaderboard-table audit-top-users-table">
                                             <thead>
                                                 <tr>
@@ -2395,10 +2424,11 @@ export default function AuditCenter() {
                                             subtitle={topServersPending ? copy.traffic.topServersPendingSubtitle : undefined}
                                             size="compact"
                                             hideIcon
+                                            action={<button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchTrafficOverview(true)}><HiOutlineArrowPath /> {copy.actions.refreshSample}</button>}
                                         />
                                     </div>
                                 ) : (
-                                    <div className="table-container audit-nested-table-shell">
+                                    <div className="table-container">
                                         <table className="table audit-leaderboard-table audit-top-servers-table">
                                             <thead>
                                                 <tr>
@@ -2557,17 +2587,38 @@ export default function AuditCenter() {
                         </div>
 
                         {accessLoading && accessData.items.length === 0 ? (
-                            <div className="glass-panel audit-table-shell audit-subscriptions-table-shell p-4">
+                            <div className="table-container p-4">
                                 <SkeletonTable rows={5} cols={6} />
                             </div>
                         ) : accessData.items.length === 0 ? (
-                            <div className="glass-panel audit-table-shell audit-subscriptions-table-shell p-4">
-                                <EmptyState title={copy.states.noAccess} subtitle={copy.states.noAccessSubtitle} />
+                            <div className="table-container p-4">
+                                <EmptyState
+                                    title={copy.states.noAccess}
+                                    subtitle={copy.states.noAccessSubtitle}
+                                    action={activeAccessFilterCount > 0 ? (
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary btn-sm"
+                                            onClick={() => {
+                                                const nextFilters = { ...EMPTY_ACCESS_FILTERS };
+                                                setAccessFilters(nextFilters);
+                                                setAccessPage(1);
+                                                fetchAccess(1, nextFilters);
+                                            }}
+                                        >
+                                            {copy.actions.resetFilters}
+                                        </button>
+                                    ) : (
+                                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchAccess(1)}>
+                                            <HiOutlineArrowPath /> {copy.actions.query}
+                                        </button>
+                                    )}
+                                />
                             </div>
                         ) : isCompactLayout ? (
                             <AuditAccessMobileList items={accessData.items} copy={copy} locale={locale} />
                         ) : (
-                            <div className="table-container glass-panel audit-table-shell audit-subscriptions-table-shell">
+                            <div className="table-container">
                                 <table className="table audit-subscriptions-table">
                                     <thead>
                                         <tr>
@@ -2587,7 +2638,7 @@ export default function AuditCenter() {
                                             const userAgentLabel = formatAuditUserAgent(item.userAgent, locale, item.userAgentMasked === true);
                                             return (
                                             <tr key={item.id}>
-                                                <td data-label={copy.tables.time} className="cell-mono audit-access-time-cell" style={{ whiteSpace: 'nowrap' }}>{formatDateTime(item.ts, locale)}</td>
+                                                <td data-label={copy.tables.time} className="cell-mono audit-access-time-cell">{formatDateTime(item.ts, locale)}</td>
                                                 <td data-label={copy.tables.user}>
                                                     <div className="audit-access-user">
                                                         <span className="audit-access-user-label">{userLabel}</span>
@@ -2597,7 +2648,7 @@ export default function AuditCenter() {
                                                     </div>
                                                 </td>
                                                 <td data-label={copy.tables.result} className="table-cell-center audit-access-result-cell"><span className={`badge ${statusBadgeClass(item.status)}`}>{formatAuditStatusLabel(item.status, locale)}</span></td>
-                                                <td data-label={copy.tables.realIp} className="audit-access-ip-cell" style={{ wordBreak: 'break-all' }}>
+                                                <td data-label={copy.tables.realIp} className="audit-access-ip-cell">
                                                     <div className="flex flex-col gap-1">
                                                         <span className="font-mono">{formatAuditIp(item.clientIp || item.ip, locale, item.ipMasked === true)}</span>
                                                         {item.ipSource && <span className="badge badge-neutral text-xs w-fit">{item.ipSource}</span>}
@@ -2622,22 +2673,23 @@ export default function AuditCenter() {
                             </div>
                         )}
 
-                        <div className="audit-pagination page-pagination">
-                            <div className="page-pagination-meta">{copy.states.total.replace('{count}', String(accessData.total || 0))}</div>
-                            <div className="page-pagination-actions">
-                                <button className="btn btn-secondary btn-sm" disabled={accessPage <= 1 || accessLoading} onClick={() => fetchAccess(accessPage - 1)}>{copy.actions.previous}</button>
-                                <span className="text-sm text-muted self-center">
-                                    {accessPage} / {accessData.totalPages || 1}
-                                </span>
-                                <button className="btn btn-secondary btn-sm" disabled={accessPage >= (accessData.totalPages || 1) || accessLoading} onClick={() => fetchAccess(accessPage + 1)}>{copy.actions.next}</button>
-                            </div>
-                        </div>
+                        <ListPagination
+                            className="audit-pagination"
+                            meta={copy.states.total.replace('{count}', String(accessData.total || 0))}
+                            page={accessPage}
+                            totalPages={accessData.totalPages || 1}
+                            loading={accessLoading}
+                            previousLabel={copy.actions.previous}
+                            nextLabel={copy.actions.next}
+                            onPrevious={() => fetchAccess(accessPage - 1)}
+                            onNext={() => fetchAccess(accessPage + 1)}
+                        />
                     </>
                 )}
 
                 {tab === 'logs' && (
                     <Suspense fallback={(
-                        <div className="glass-panel audit-table-shell audit-tab-loading-shell">
+                        <div className="table-container audit-tab-loading">
                             <span className="spinner spinner-20" />
                         </div>
                     )}>
@@ -2654,7 +2706,7 @@ export default function AuditCenter() {
                     <div className="modal modal-lg audit-event-modal" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title">{copy.detail.title}</h3>
-                            <button className="modal-close" onClick={() => setSelectedEvent(null)}><HiOutlineXMark /></button>
+                            <button type="button" className="modal-close" onClick={() => setSelectedEvent(null)} aria-label="关闭" title="关闭"><HiOutlineXMark /></button>
                         </div>
                         <div className="modal-body">
                             {/* 事件摘要 */}

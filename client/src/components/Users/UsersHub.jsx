@@ -44,6 +44,7 @@ import {
 } from 'react-icons/hi2';
 import SkeletonTable from '../UI/SkeletonTable.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
+import ListToolbar from '../UI/ListToolbar.jsx';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
 
 const PROTOCOL_OPTIONS = [
@@ -1486,8 +1487,10 @@ export default function UsersHub() {
                 eyebrow={t('pages.usersHub.eyebrow')}
             />
             <div className="page-content page-enter page-content--wide users-page">
-                <div className="users-toolbar glass-panel mb-6">
-                    <div className="users-toolbar-main">
+                <ListToolbar
+                    className="users-toolbar glass-panel mb-6"
+                    filters={(
+                        <>
                         <div className="account-search-shell flex-1 max-w-sm">
                             <HiOutlineMagnifyingGlass className="account-search-icon" />
                             <input
@@ -1504,13 +1507,17 @@ export default function UsersHub() {
                             <option value="disabled">已停用</option>
                             <option value="pending">待审核</option>
                         </select>
-                    </div>
-                    <div className="users-toolbar-actions">
+                        </>
+                    )}
+                    summary={(
                         <div className="text-sm text-muted users-toolbar-summary">
                             {statsLoading
                                 ? `${syncingCopy.summary} · 显示 ${enrichedUsers.length} / ${users.length} 位账号`
                                 : `显示 ${enrichedUsers.length} / ${users.length} 位账号`}
                         </div>
+                    )}
+                    actions={(
+                        <>
                         <button className="btn btn-secondary btn-sm" onClick={handleExportCSV} title="导出CSV">
                             <HiOutlineArrowDownTray /> 导出
                         </button>
@@ -1520,8 +1527,9 @@ export default function UsersHub() {
                         <button className="btn btn-primary btn-sm" onClick={openCreateModal} title="添加账号">
                             <HiOutlineUserPlus /> 添加账号
                         </button>
-                    </div>
-                </div>
+                        </>
+                    )}
+                />
 
                 {partialErrors.length > 0 && !primaryError && !loading && (
                     <div className="glass-panel mb-4" role="status">
@@ -1569,14 +1577,21 @@ export default function UsersHub() {
                         {loading ? (
                             <div className="glass-panel p-4"><SkeletonTable rows={5} cols={1} /></div>
                         ) : primaryError ? (
-                            <div className="glass-panel p-4">
-                                <EmptyState title={copy.userListLoadFailedTitle} subtitle={primaryError} />
+                            <div className="table-container p-4">
+                                <EmptyState
+                                    title={copy.userListLoadFailedTitle}
+                                    subtitle={primaryError}
+                                    action={<button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchData({ forceUsers: true })}><HiOutlineArrowPath /> 刷新后重试</button>}
+                                />
                             </div>
                         ) : enrichedUsers.length === 0 ? (
-                            <div className="glass-panel p-4">
+                            <div className="table-container p-4">
                                 <EmptyState
                                     title={searchTerm ? copy.noMatchUsersTitle : copy.noUsersTitle}
                                     subtitle={searchTerm ? copy.noMatchUsersSubtitle : copy.noUsersSubtitle}
+                                    action={searchTerm || statusFilter !== 'all'
+                                        ? <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setSearchTerm(''); setStatusFilter('all'); }}>清空筛选</button>
+                                        : <button type="button" className="btn btn-primary btn-sm" onClick={openCreateModal}><HiOutlineUserPlus /> 添加账号</button>}
                                 />
                             </div>
                         ) : (
@@ -1584,22 +1599,29 @@ export default function UsersHub() {
                         )}
                     </div>
                 ) : loading ? (
-                    <div className="glass-panel p-4 users-table-shell">
+                    <div className="table-container p-4">
                         <SkeletonTable rows={8} cols={9} colTemplate="40px 88px 236px 120px 170px 90px 120px 144px 144px" />
                     </div>
                 ) : primaryError ? (
-                    <div className="glass-panel p-4 users-table-shell">
-                        <EmptyState title={copy.userListLoadFailedTitle} subtitle={primaryError} />
+                    <div className="table-container p-4">
+                        <EmptyState
+                            title={copy.userListLoadFailedTitle}
+                            subtitle={primaryError}
+                            action={<button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchData({ forceUsers: true })}><HiOutlineArrowPath /> 刷新后重试</button>}
+                        />
                     </div>
                 ) : enrichedUsers.length === 0 ? (
-                    <div className="glass-panel p-4 users-table-shell">
+                    <div className="table-container p-4">
                         <EmptyState
                             title={searchTerm ? copy.noMatchUsersTitle : copy.noUsersTitle}
                             subtitle={searchTerm ? copy.noMatchUsersSubtitle : copy.noUsersSubtitle}
+                            action={searchTerm || statusFilter !== 'all'
+                                ? <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setSearchTerm(''); setStatusFilter('all'); }}>清空筛选</button>
+                                : <button type="button" className="btn btn-primary btn-sm" onClick={openCreateModal}><HiOutlineUserPlus /> 添加账号</button>}
                         />
                     </div>
                 ) : (
-                    <div className="table-container glass-panel users-table-shell">
+                    <div className="table-container">
                         <table className="table users-table">
                             <thead>
                                 <tr>
@@ -1722,7 +1744,7 @@ export default function UsersHub() {
                     <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title">添加用户账号</h3>
-                            <button type="button" className="modal-close" onClick={closeCreateModal}><HiOutlineXMark /></button>
+                            <button type="button" className="modal-close" onClick={closeCreateModal} aria-label="关闭" title="关闭"><HiOutlineXMark /></button>
                         </div>
                         <form onSubmit={submitCreate}>
                             <div className="modal-body">
@@ -1814,7 +1836,7 @@ export default function UsersHub() {
                     <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title">编辑用户 - {editUser.username}</h3>
-                            <button type="button" className="modal-close" onClick={closeEditModal}><HiOutlineXMark /></button>
+                            <button type="button" className="modal-close" onClick={closeEditModal} aria-label="关闭" title="关闭"><HiOutlineXMark /></button>
                         </div>
                         <form onSubmit={submitEdit}>
                             <div className="modal-body">
@@ -2042,7 +2064,7 @@ export default function UsersHub() {
                     <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title">{copy.provisionModalTitle} - {provisionTargetUser.username}</h3>
-                            <button type="button" className="modal-close" onClick={closeProvisionModal}><HiOutlineXMark /></button>
+                            <button type="button" className="modal-close" onClick={closeProvisionModal} aria-label="关闭" title="关闭"><HiOutlineXMark /></button>
                         </div>
                         <form onSubmit={submitProvision}>
                             <div className="modal-body">

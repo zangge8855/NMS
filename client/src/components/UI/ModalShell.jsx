@@ -114,6 +114,8 @@ export default function ModalShell({
     onClose,
     children,
     closeOnOverlayClick = true,
+    ariaLabel,
+    ariaLabelledBy,
 }) {
     const overlayRef = useRef(null);
     const overlayPressedRef = useRef(false);
@@ -164,6 +166,13 @@ export default function ModalShell({
             if (!dialog) return;
             dialog.setAttribute('role', dialog.getAttribute('role') || 'dialog');
             dialog.setAttribute('aria-modal', 'true');
+            if (ariaLabelledBy) {
+                dialog.setAttribute('aria-labelledby', ariaLabelledBy);
+                dialog.removeAttribute('aria-label');
+            } else if (ariaLabel) {
+                dialog.setAttribute('aria-label', ariaLabel);
+                dialog.removeAttribute('aria-labelledby');
+            }
             if (!dialog.hasAttribute('tabindex')) {
                 dialog.setAttribute('tabindex', '-1');
             }
@@ -179,7 +188,7 @@ export default function ModalShell({
             unlockScroll();
             restoreAppRootIsolation();
         };
-    }, [isOpen]);
+    }, [ariaLabel, ariaLabelledBy, isOpen]);
 
     useEffect(() => {
         if (!isOpen) return undefined;

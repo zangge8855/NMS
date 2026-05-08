@@ -875,19 +875,19 @@ router.put('/inbounds/order', adminOnly, (req, res) => {
     if (!serverId) {
         return res.status(400).json({
             success: false,
-            msg: 'serverId is required',
+            msg: '请选择需要调整的节点',
         });
     }
     if (!serverStore.getById(serverId)) {
         return res.status(404).json({
             success: false,
-            msg: 'Server not found',
+            msg: '节点不存在，请刷新节点列表后重试',
         });
     }
     if (!inboundIds) {
         return res.status(400).json({
             success: false,
-            msg: 'inboundIds must be an array',
+            msg: '请选择需要排序的入站列表',
         });
     }
 

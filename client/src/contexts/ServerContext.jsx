@@ -17,23 +17,24 @@ function readServerContextSnapshot() {
     if (!snapshot || typeof snapshot !== 'object') return null;
 
     const servers = Array.isArray(snapshot?.servers) ? snapshot.servers : [];
-    const activeServerId = String(snapshot?.activeServerId || '').trim() || null;
 
     return {
         servers,
-        activeServerId: activeServerId || (servers.length > 0 ? 'global' : null),
+        activeServerId: servers.length > 0 ? 'global' : null,
     };
 }
 
 function getStoredActiveServerId() {
     const value = localStorage.getItem(ACTIVE_SERVER_KEY);
-    if (value) return value;
+    if (value) {
+        persistActiveServerId('global');
+        return 'global';
+    }
 
     const legacyValue = localStorage.getItem(LEGACY_ACTIVE_SERVER_KEY);
     if (legacyValue) {
-        localStorage.setItem(ACTIVE_SERVER_KEY, legacyValue);
-        localStorage.removeItem(LEGACY_ACTIVE_SERVER_KEY);
-        return legacyValue;
+        persistActiveServerId('global');
+        return 'global';
     }
 
     return null;
@@ -50,18 +51,8 @@ function persistActiveServerId(value) {
     localStorage.removeItem(LEGACY_ACTIVE_SERVER_KEY);
 }
 
-function resolvePreferredServerId(serverList = [], ...candidates) {
+function resolvePreferredServerId(serverList = []) {
     const hasServers = Array.isArray(serverList) && serverList.length > 0;
-    for (const candidate of candidates) {
-        const normalized = String(candidate || '').trim();
-        if (!normalized) continue;
-        if (normalized === 'global') {
-            return hasServers ? 'global' : null;
-        }
-        if (serverList.some((server) => server?.id === normalized)) {
-            return normalized;
-        }
-    }
     return hasServers ? 'global' : null;
 }
 
@@ -114,15 +105,8 @@ export function ServerProvider({ children, enabled = true }) {
                 serversStateRef.current = serverList;
                 setServers(serverList);
 
-                setActiveServerId((prevId) => {
-                    const persistedId = getStoredActiveServerId();
-                    const preferredId = prevId || persistedId;
-
-                    if (preferredId === 'global') return 'global';
-
-                    const exists = preferredId && serverList.some(s => s.id === preferredId);
-                    const nextId = exists ? preferredId : 'global';
-
+                setActiveServerId(() => {
+                    const nextId = serverList.length > 0 ? 'global' : null;
                     persistActiveServerId(nextId);
                     return nextId;
                 });
@@ -210,9 +194,10 @@ export function ServerProvider({ children, enabled = true }) {
         });
     }, [activeServerId, enabled, servers]);
 
-    const selectServer = (id) => {
-        setActiveServerId(id);
-        persistActiveServerId(id);
+    const selectServer = () => {
+        const nextId = serversStateRef.current.length > 0 ? 'global' : null;
+        setActiveServerId(nextId);
+        persistActiveServerId(nextId);
     };
 
     const activeServer = servers.find(s => s.id === activeServerId) || null;
@@ -221,9 +206,7 @@ export function ServerProvider({ children, enabled = true }) {
         const res = await api.post('/servers', serverData);
         if (res.data.success) {
             await fetchServers({ force: true });
-            if (!activeServerId) {
-                selectServer(res.data.obj.id);
-            }
+            selectServer();
         }
         return res.data;
     };

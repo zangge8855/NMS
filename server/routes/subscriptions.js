@@ -3415,7 +3415,7 @@ router.get('/users', authMiddleware, adminOnly, async (req, res) => {
         : allServers;
 
     if (requestedServerId && targetServers.length === 0) {
-        return res.status(404).json({ success: false, msg: 'Server not found' });
+        return res.status(404).json({ success: false, msg: '节点不存在，请刷新节点列表后重试' });
     }
 
     const emails = new Set();
@@ -3682,7 +3682,7 @@ router.get('/:email/raw', authMiddleware, ensureEmailAccess, async (req, res) =>
     const serverId = normalizeServerId(req.query.serverId);
     const { links, serverNotFound, inactiveReason } = await buildMergedLinksByEmail(email, { mode, serverId });
     if (serverNotFound) {
-        return res.status(404).json({ success: false, msg: 'Server not found' });
+        return res.status(404).json({ success: false, msg: '节点不存在，请刷新节点列表后重试' });
     }
     if (links.length === 0) {
         return res.status(410).json({
@@ -3724,7 +3724,7 @@ router.get('/:email', authMiddleware, ensureEmailAccess, async (req, res) => {
     } = await buildMergedLinksByEmail(email, { mode, serverId });
 
     if (serverNotFound) {
-        return res.status(404).json({ success: false, msg: 'Server not found' });
+        return res.status(404).json({ success: false, msg: '节点不存在，请刷新节点列表后重试' });
     }
 
     const { raw, encoded } = buildSubscriptionPayload(links);

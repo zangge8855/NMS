@@ -268,8 +268,8 @@ describe('Servers', () => {
 
         const nameTrigger = screen.getByRole('button', { name: longName });
         expect(nameTrigger).toHaveAttribute('title', longName);
-        expect(screen.getByText('当前节点')).toBeInTheDocument();
-        expect(screen.getByText('当前视角')).toBeInTheDocument();
+        expect(screen.getByText('已接入')).toBeInTheDocument();
+        expect(screen.getByText('运维视角')).toBeInTheDocument();
         expect(screen.getByText('环境：生产')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: '复制面板地址' })).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: '编辑' })).toBeInTheDocument();

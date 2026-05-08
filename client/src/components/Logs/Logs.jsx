@@ -731,6 +731,11 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                 subtitle={t('pages.logs.emptySubtitle')}
                                 size="compact"
                                 icon={<HiOutlineDocumentText />}
+                                action={(
+                                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchLogs({ preserveCurrent: false })} disabled={logRequestPending}>
+                                        <HiOutlineArrowPath /> {t('pages.logs.refresh')}
+                                    </button>
+                                )}
                             />
                         ) : shouldVirtualizeLogs ? (
                             <VirtualList
