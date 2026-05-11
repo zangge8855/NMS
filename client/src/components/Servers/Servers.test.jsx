@@ -393,6 +393,37 @@ describe('Servers', () => {
         expect(screen.getByText('请调整搜索关键词或分组筛选条件')).toBeInTheDocument();
     });
 
+    it('allows adding a server with API token instead of username and password', async () => {
+        const user = userEvent.setup();
+        const addServer = vi.fn().mockResolvedValue({ success: true, msg: 'ok' });
+        useServer.mockReturnValue({
+            servers: [],
+            activeServerId: null,
+            selectServer: vi.fn(),
+            addServer,
+            addServersBatch: vi.fn(),
+            updateServer: vi.fn(),
+            removeServer: vi.fn(),
+            testConnection: vi.fn(),
+            fetchServers: vi.fn(),
+        });
+
+        renderWithRouter(<Servers />);
+        await waitForServerOrderLoad();
+
+        await user.click(screen.getByRole('button', { name: /添加服务器/ }));
+        await user.type(screen.getByPlaceholderText('例如: https://192.168.1.1:2053/Raw1UQnS7B23ivwIKI'), 'https://panel.example.com/raw');
+        await user.type(screen.getByPlaceholderText('可填写 3x-ui 设置页中的 API Token'), 'panel-token-123');
+        await user.click(screen.getByRole('button', { name: '添加' }));
+
+        await waitFor(() => {
+            expect(addServer).toHaveBeenCalledWith(expect.objectContaining({
+                url: 'https://panel.example.com/raw',
+                apiToken: 'panel-token-123',
+            }));
+        });
+    });
+
     it('supports live status filters backed by telemetry summaries', async () => {
         const user = userEvent.setup();
         useServer.mockReturnValue({

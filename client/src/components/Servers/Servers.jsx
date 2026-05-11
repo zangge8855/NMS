@@ -95,6 +95,7 @@ export default function Servers() {
         url: '',
         username: '',
         password: '',
+        apiToken: '',
         group: '',
         tags: '',
         environment: 'unknown',
@@ -103,6 +104,7 @@ export default function Servers() {
     const [batchForm, setBatchForm] = useState({
         username: '',
         password: '',
+        apiToken: '',
         group: '',
         environment: 'unknown',
         health: 'unknown',
@@ -118,6 +120,7 @@ export default function Servers() {
         serverId: '',
         username: '',
         password: '',
+        apiToken: '',
         applyToSelected: false,
         reason: '',
     });
@@ -159,6 +162,7 @@ export default function Servers() {
             url: '',
             username: '',
             password: '',
+            apiToken: '',
             group: '',
             tags: '',
             environment: 'unknown',
@@ -174,6 +178,7 @@ export default function Servers() {
             url: '',
             username: '',
             password: '',
+            apiToken: '',
             group: '',
             tags: '',
             environment: 'unknown',
@@ -187,6 +192,7 @@ export default function Servers() {
         setBatchForm({
             username: '',
             password: '',
+            apiToken: '',
             group: '',
             environment: 'unknown',
             health: 'unknown',
@@ -203,6 +209,7 @@ export default function Servers() {
             serverId: '',
             username: '',
             password: '',
+            apiToken: '',
             applyToSelected: false,
             reason: '',
         });
@@ -264,6 +271,7 @@ export default function Servers() {
             serverId,
             username: String(target?.username || '').trim(),
             password: '',
+            apiToken: '',
             applyToSelected: selectedIds.size > 1 && selectedIds.has(serverId),
             reason: String(reason || ''),
         });
@@ -312,7 +320,9 @@ export default function Servers() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!form.url || !form.username || (!editingId && !form.password)) {
+        const hasApiToken = String(form.apiToken || '').trim() !== '';
+        const hasPasswordAuth = String(form.username || '').trim() !== '' && (editingId || String(form.password || '') !== '');
+        if (!form.url || (!hasApiToken && !hasPasswordAuth)) {
             toast.error(t('comp.servers.fillComplete'));
             return;
         }
@@ -348,7 +358,8 @@ export default function Servers() {
         e.preventDefault();
         const username = String(batchForm.username || '').trim();
         const password = String(batchForm.password || '').trim();
-        if (!username || !password) {
+        const apiToken = String(batchForm.apiToken || '').trim();
+        if ((!username || !password) && !apiToken) {
             toast.error(t('comp.servers.fillCredentials'));
             return;
         }
@@ -373,6 +384,7 @@ export default function Servers() {
                 common: {
                     username,
                     password,
+                    apiToken,
                     group: String(batchForm.group || '').trim(),
                     environment: batchForm.environment,
                     health: batchForm.health,
@@ -394,6 +406,7 @@ export default function Servers() {
             name: server.name, url: getPanelUrl(server),
             username: server.username,
             password: '',
+            apiToken: '',
             group: server.group || '',
             tags: Array.isArray(server.tags) ? server.tags.join(', ') : '',
             environment: server.environment || 'unknown',
@@ -551,7 +564,8 @@ export default function Servers() {
         e.preventDefault();
         const username = String(credentialRepair.username || '').trim();
         const password = String(credentialRepair.password || '');
-        if (!username || !password) {
+        const apiToken = String(credentialRepair.apiToken || '').trim();
+        if ((!username || !password) && !apiToken) {
             toast.error(t('comp.servers.enterCredentials'));
             return;
         }
@@ -573,8 +587,7 @@ export default function Servers() {
         for (const id of targetIds) {
             try {
                 const res = await testConnection(id, {
-                    username,
-                    password,
+                    ...(apiToken ? { apiToken } : { username, password }),
                     persistCredentials: true,
                 });
                 if (res?.success) {
@@ -673,6 +686,7 @@ export default function Servers() {
                 server.name,
                 server.url,
                 server.username,
+                server.apiTokenConfigured ? 'api token bearer' : '',
                 server.group,
                 server.environment,
                 server.health,
@@ -798,6 +812,7 @@ export default function Servers() {
         const serverGroup = server.group || t('comp.servers.ungrouped');
         const serverTags = Array.isArray(server.tags) ? server.tags.slice(0, 3) : [];
         const serverEnvironment = formatServerEnvironment(server.environment, locale);
+        const authLabel = server.apiTokenConfigured ? 'API Token' : (server.username || '-');
         const testState = testResults[server.id];
         const testStateText = testState === 'success'
             ? t('comp.servers.testOk')
@@ -892,7 +907,7 @@ export default function Servers() {
                 <div className="servers-mobile-meta">
                     <div className="servers-mobile-meta-item">
                         <span className="servers-mobile-meta-label">账号</span>
-                        <span className="servers-mobile-meta-value">{server.username}</span>
+                        <span className="servers-mobile-meta-value">{authLabel}</span>
                     </div>
                 </div>
 
@@ -1083,6 +1098,7 @@ export default function Servers() {
                             const serverGroup = server.group || t('comp.servers.ungrouped');
                             const serverTags = Array.isArray(server.tags) ? server.tags.slice(0, 3) : [];
                             const serverEnvironment = formatServerEnvironment(server.environment, locale);
+                            const authLabel = server.apiTokenConfigured ? 'API Token' : (server.username || '-');
                             const testState = testResults[server.id];
                             const testStateText = testState === 'success'
                                 ? t('comp.servers.testOk')
@@ -1171,7 +1187,7 @@ export default function Servers() {
                                                         ))}
                                                     </div>
                                                     <div className="servers-mobile-summary-row servers-mobile-summary-row--account">
-                                                        <span className="servers-mobile-account-name">{server.username}</span>
+                                                        <span className="servers-mobile-account-name">{authLabel}</span>
                                                         <span className={`badge ${credentialBadge.cls}`}>{credentialBadge.text}</span>
                                                     </div>
                                                     <div className="servers-mobile-summary-row">
@@ -1199,7 +1215,7 @@ export default function Servers() {
                                     </td>
                                     <td className="servers-account-cell" data-label="账号">
                                         <div className="servers-account-stack">
-                                            <span className="font-medium text-primary">{server.username}</span>
+                                            <span className="font-medium text-primary">{authLabel}</span>
                                             {serverEnvironment ? <span className="text-xs text-muted">环境：{serverEnvironment}</span> : null}
                                         </div>
                                     </td>
@@ -1287,15 +1303,26 @@ export default function Servers() {
                                     </div>
                                     <div className="grid-auto-220">
                                         <div className="form-group">
-                                            <label className="form-label">用户名 *</label>
+                                            <label className="form-label">用户名</label>
                                             <input className="form-input" placeholder="admin"
-                                                value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} required />
+                                                value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">密码 *</label>
+                                            <label className="form-label">密码</label>
                                             <input className="form-input" type="password" placeholder="密码"
-                                                value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required={!editingId} />
+                                                value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
                                         </div>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">API Token</label>
+                                        <input
+                                            className="form-input"
+                                            type="password"
+                                            placeholder={editingId ? '留空保留已有 Token' : '可填写 3x-ui 设置页中的 API Token'}
+                                            value={form.apiToken}
+                                            onChange={(e) => setForm({ ...form, apiToken: e.target.value })}
+                                        />
+                                        <div className="text-xs text-muted mt-1">用户名/密码与 API Token 二选一；配置 Token 后优先使用 Bearer 调用 3x-ui API。</div>
                                     </div>
                                 </div>
                                 <div className="modal-footer">
@@ -1322,26 +1349,35 @@ export default function Servers() {
                                     <div className="server-batch-form-shell">
                                         <div className="grid-auto-220">
                                             <div className="form-group">
-                                                <label className="form-label">公共用户名 *</label>
+                                                <label className="form-label">公共用户名</label>
                                                 <input
                                                     className="form-input"
                                                     placeholder="例如: root"
                                                     value={batchForm.username}
                                                     onChange={(e) => setBatchForm((prev) => ({ ...prev, username: e.target.value }))}
-                                                    required
                                                 />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">公共密码 *</label>
+                                                <label className="form-label">公共密码</label>
                                                 <input
                                                     className="form-input"
                                                     type="password"
                                                     placeholder="密码"
                                                     value={batchForm.password}
                                                     onChange={(e) => setBatchForm((prev) => ({ ...prev, password: e.target.value }))}
-                                                    required
                                                 />
                                             </div>
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">公共 API Token</label>
+                                            <input
+                                                className="form-input"
+                                                type="password"
+                                                placeholder="所有节点使用同一个 3x-ui API Token 时填写"
+                                                value={batchForm.apiToken}
+                                                onChange={(e) => setBatchForm((prev) => ({ ...prev, apiToken: e.target.value }))}
+                                            />
+                                            <div className="text-xs text-muted mt-1">用户名/密码与 API Token 二选一；逐行仍只填写节点地址。</div>
                                         </div>
                                         <div className="form-group">
                                             <label className="form-label">默认分组</label>
@@ -1456,25 +1492,34 @@ export default function Servers() {
                                         <div className="badge badge-danger mb-3 w-fit">{credentialRepair.reason}</div>
                                     )}
                                     <div className="form-group">
-                                        <label className="form-label">3x-ui 用户名 *</label>
+                                        <label className="form-label">3x-ui 用户名</label>
                                         <input
                                             className="form-input"
                                             value={credentialRepair.username}
                                             onChange={(e) => setCredentialRepair((prev) => ({ ...prev, username: e.target.value }))}
                                             placeholder="例如: root"
-                                            required
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">3x-ui 密码 *</label>
+                                        <label className="form-label">3x-ui 密码</label>
                                         <input
                                             className="form-input"
                                             type="password"
                                             value={credentialRepair.password}
                                             onChange={(e) => setCredentialRepair((prev) => ({ ...prev, password: e.target.value }))}
                                             placeholder="输入并自动保存到节点"
-                                            required
                                         />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">API Token</label>
+                                        <input
+                                            className="form-input"
+                                            type="password"
+                                            value={credentialRepair.apiToken}
+                                            onChange={(e) => setCredentialRepair((prev) => ({ ...prev, apiToken: e.target.value }))}
+                                            placeholder="也可以改用 3x-ui API Token 修复"
+                                        />
+                                        <div className="text-xs text-muted mt-1">填 API Token 时将优先保存并使用 Bearer 调用；否则保存用户名/密码。</div>
                                     </div>
                                     {selectedIds.size > 1 && (
                                         <label className="form-check-label w-fit mt-2">

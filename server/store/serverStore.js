@@ -181,6 +181,10 @@ class ServerStore {
                 changed = true;
                 updated.password = this._encryptPassword(server.password);
             }
+            if (server.apiToken && !this._isEncryptedPassword(server.apiToken)) {
+                changed = true;
+                updated.apiToken = this._encryptPassword(server.apiToken);
+            }
             if (server.sshPassword && !this._isEncryptedPassword(server.sshPassword)) {
                 changed = true;
                 updated.sshPassword = this._encryptPassword(server.sshPassword);
@@ -306,10 +310,16 @@ class ServerStore {
         console.error(`Failed to decrypt server password: ${reason}`);
     }
 
-    _resolveCredentialStatus(rawPassword) {
-        const decrypted = this._decryptPasswordDetailed(rawPassword);
-        if (decrypted.status === 'unreadable') return 'unreadable';
-        if (!decrypted.value) return 'missing';
+    _resolveCredentialStatus(rawPassword, rawApiToken = '') {
+        const decryptedPassword = this._decryptPasswordDetailed(rawPassword);
+        const decryptedApiToken = this._decryptPasswordDetailed(rawApiToken);
+        if (
+            (decryptedPassword.status === 'unreadable' && !decryptedApiToken.value)
+            || (decryptedApiToken.status === 'unreadable' && !decryptedPassword.value)
+        ) {
+            return 'unreadable';
+        }
+        if (!decryptedPassword.value && !decryptedApiToken.value) return 'missing';
         return 'configured';
     }
 
@@ -324,11 +334,12 @@ class ServerStore {
             sshUsername: this._normalizeSshUsername(server.sshUsername),
             sshAuthMethod: this._normalizeSshAuthMethod(server.sshAuthMethod),
             sshConfigured: this._hasSshCredentials(server),
+            apiTokenConfigured: this._resolveCredentialStatus('', server.apiToken) === 'configured',
             group: this._normalizeGovernanceGroup(server.group),
             tags: this._normalizeGovernanceTags(server.tags),
             environment: this._normalizeGovernanceEnvironment(server.environment),
             health: this._normalizeGovernanceHealth(server.health),
-            credentialStatus: this._resolveCredentialStatus(server.password),
+            credentialStatus: this._resolveCredentialStatus(server.password, server.apiToken),
             createdAt: server.createdAt,
         };
     }
@@ -342,9 +353,8 @@ class ServerStore {
         const server = this.servers.find(s => s.id === id);
         if (!server) return null;
         const panelPassword = this._decryptPasswordDetailed(server.password);
-        const credentialStatus = panelPassword.status === 'unreadable'
-            ? 'unreadable'
-            : (panelPassword.value ? 'configured' : 'missing');
+        const apiToken = this._decryptPasswordDetailed(server.apiToken);
+        const credentialStatus = this._resolveCredentialStatus(server.password, server.apiToken);
         return {
             ...server,
             group: this._normalizeGovernanceGroup(server.group),
@@ -352,8 +362,11 @@ class ServerStore {
             environment: this._normalizeGovernanceEnvironment(server.environment),
             health: this._normalizeGovernanceHealth(server.health),
             password: panelPassword.value,
+            apiToken: apiToken.value,
+            apiTokenConfigured: apiToken.status !== 'unreadable' && Boolean(apiToken.value),
             credentialStatus,
             credentialUnreadable: panelPassword.status === 'unreadable',
+            apiTokenUnreadable: apiToken.status === 'unreadable',
             sshPort: this._normalizeSshPort(server.sshPort, 22),
             sshUsername: this._normalizeSshUsername(server.sshUsername),
             sshAuthMethod: this._normalizeSshAuthMethod(server.sshAuthMethod),
@@ -378,6 +391,7 @@ class ServerStore {
         basePath,
         username,
         password,
+        apiToken,
         group,
         tags,
         environment,
@@ -402,6 +416,7 @@ class ServerStore {
             username,
             ...governance,
             password: this._encryptPassword(password),
+            apiToken: this._encryptPassword(apiToken || ''),
             sshPort: this._normalizeSshPort(sshPort, 22),
             sshUsername: this._normalizeSshUsername(sshUsername),
             sshAuthMethod: this._normalizeSshAuthMethod(sshAuthMethod),
@@ -417,12 +432,13 @@ class ServerStore {
     update(id, data) {
         const idx = this.servers.findIndex(s => s.id === id);
         if (idx === -1) return null;
-        const encryptedFields = new Set(['password', 'sshPassword', 'sshPrivateKey']);
+        const encryptedFields = new Set(['password', 'apiToken', 'sshPassword', 'sshPrivateKey']);
         const allowed = [
             'name',
             'url',
             'basePath',
             'username',
+            'apiToken',
             'group',
             'tags',
             'environment',
@@ -511,7 +527,7 @@ class ServerStore {
 
     rotateCredentials(options = {}) {
         const dryRun = options?.dryRun === true;
-        const encryptedFields = ['password', 'sshPassword', 'sshPrivateKey'];
+        const encryptedFields = ['password', 'apiToken', 'sshPassword', 'sshPrivateKey'];
         let scannedFields = 0;
         let rotatedFields = 0;
         let failedFields = 0;

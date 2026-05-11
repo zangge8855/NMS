@@ -45,6 +45,7 @@ function closeServer(server) {
 async function startFakePanel(options = {}) {
     const requireCsrf = options.requireCsrf !== false;
     const credentials = options.credentials || { username: 'admin', password: 'secret' };
+    const apiToken = String(options.apiToken || '').trim();
     const state = {
         nextSession: 0,
         sessions: new Map(),
@@ -83,6 +84,11 @@ async function startFakePanel(options = {}) {
     function hasValidCsrf(req, session) {
         if (!requireCsrf) return true;
         return String(req.headers['x-csrf-token'] || '') === session?.csrf;
+    }
+
+    function hasValidApiToken(req) {
+        if (!apiToken) return false;
+        return String(req.headers.authorization || '') === `Bearer ${apiToken}`;
     }
 
     const initialSessionId = options.initialLoggedIn ? createSession(true) : '';
@@ -137,6 +143,17 @@ async function startFakePanel(options = {}) {
         }
 
         if (url.pathname === '/panel/api/server/status') {
+            if (hasValidApiToken(req)) {
+                return sendJson(res, 200, {
+                    success: true,
+                    obj: {
+                        xray: {
+                            state: 'running',
+                            errorMsg: '',
+                        },
+                    },
+                });
+            }
             const resolved = resolveSession(req);
             if (!resolved?.session?.loggedIn) {
                 return sendJson(res, 401, { success: false, msg: 'login required' });
@@ -156,6 +173,10 @@ async function startFakePanel(options = {}) {
         }
 
         if (url.pathname === '/panel/api/inbounds/addClient' && req.method === 'POST') {
+            if (hasValidApiToken(req)) {
+                await readBody(req);
+                return sendJson(res, 200, { success: true, obj: null });
+            }
             const resolved = resolveSession(req);
             if (!resolved?.session?.loggedIn) {
                 return sendJson(res, 401, { success: false, msg: 'login required' });
@@ -199,8 +220,10 @@ function mockPanelServerStore(t, serverConfig, initialSession = '') {
             basePath: '/',
             username: serverConfig.username || 'admin',
             password: serverConfig.password || 'secret',
+            apiToken: serverConfig.apiToken || '',
             credentialStatus: 'configured',
             credentialUnreadable: false,
+            apiTokenUnreadable: false,
         };
     });
     t.mock.method(serverStore, 'getSession', (id) => sessions.get(id) || null);
@@ -233,6 +256,30 @@ test('ensureAuthenticated logs into 3x-ui v3 panels with CSRF protection', async
         'GET /panel/csrf-token',
     ]);
     assert.ok(panel.calls.includes('POST /panel/api/inbounds/addClient'));
+});
+
+test('ensureAuthenticated uses 3x-ui API token without login or CSRF bootstrap', async (t) => {
+    const panel = await startFakePanel({ apiToken: 'panel-token-123' });
+    t.after(panel.close);
+
+    mockPanelServerStore(t, {
+        id: 'srv-api-token',
+        url: panel.url,
+        username: '',
+        password: '',
+        apiToken: 'panel-token-123',
+    });
+
+    const client = await ensureAuthenticated('srv-api-token');
+    const res = await client.post('/panel/api/inbounds/addClient', 'id=1');
+
+    assert.equal(res.data.success, true);
+    assert.deepEqual(panel.calls.slice(0, 2), [
+        'GET /panel/api/server/status',
+        'POST /panel/api/inbounds/addClient',
+    ]);
+    assert.equal(panel.calls.includes('GET /csrf-token'), false);
+    assert.equal(panel.calls.includes('POST /login'), false);
 });
 
 test('ensureAuthenticated keeps legacy 3x-ui login compatibility when CSRF endpoints are absent', async (t) => {
@@ -288,6 +335,28 @@ test('ensureAuthenticated still reports invalid panel credentials as auth failur
         (error) => {
             assert.equal(error.code, 'PANEL_LOGIN_FAILED');
             assert.match(error.message, /wrong username or password/);
+            return true;
+        }
+    );
+});
+
+test('ensureAuthenticated reports invalid panel API token as auth failure', async (t) => {
+    const panel = await startFakePanel({ apiToken: 'valid-panel-token' });
+    t.after(panel.close);
+
+    mockPanelServerStore(t, {
+        id: 'srv-bad-token',
+        url: panel.url,
+        username: '',
+        password: '',
+        apiToken: 'wrong-panel-token',
+    });
+
+    await assert.rejects(
+        () => ensureAuthenticated('srv-bad-token'),
+        (error) => {
+            assert.equal(error.code, 'PANEL_LOGIN_FAILED');
+            assert.match(error.message, /login required|API token/i);
             return true;
         }
     );

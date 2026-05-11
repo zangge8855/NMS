@@ -430,9 +430,11 @@ router.get('/:id', (req, res) => {
  * Register a new 3x-ui panel server.
  */
 router.post('/', async (req, res) => {
-    const { name, url, basePath, username, password, group, tags, environment, health } = req.body;
-    if (!url || !username || !password) {
-        return res.status(400).json({ success: false, msg: 'url, username, and password are required' });
+    const { name, url, basePath, username, password, apiToken, group, tags, environment, health } = req.body;
+    const hasPasswordAuth = String(username || '').trim() && String(password || '');
+    const hasApiTokenAuth = String(apiToken || '').trim();
+    if (!url || (!hasPasswordAuth && !hasApiTokenAuth)) {
+        return res.status(400).json({ success: false, msg: 'url and panel credentials or apiToken are required' });
     }
 
     const splitTarget = splitPanelUrlAndBasePath(url, basePath, { preferPathFromUrl: true });
@@ -449,6 +451,7 @@ router.post('/', async (req, res) => {
         basePath: splitTarget.basePath,
         username,
         password,
+        apiToken,
         group,
         tags,
         environment,
@@ -476,8 +479,8 @@ router.post('/', async (req, res) => {
  *
  * body:
  * {
- *   common: { username, password, basePath },
- *   items: [{ name, url, basePath, username, password, line }],
+ *   common: { username, password, apiToken, basePath },
+ *   items: [{ name, url, basePath, username, password, apiToken, line }],
  *   testConnection: true|false
  * }
  */
@@ -495,6 +498,7 @@ router.post('/batch', async (req, res) => {
 
     const commonUsername = String(common.username || '').trim();
     const commonPassword = String(common.password || '').trim();
+    const commonApiToken = String(common.apiToken || '').trim();
     const commonBasePath = common.basePath;
     const commonGroup = common.group;
     const commonTags = common.tags;
@@ -514,6 +518,7 @@ router.post('/batch', async (req, res) => {
         const rawUrl = String(item.url || '').trim();
         const username = String(item.username || commonUsername || '').trim();
         const password = String(item.password || commonPassword || '').trim();
+        const apiToken = String(item.apiToken || commonApiToken || '').trim();
         const requestedBasePath = item.basePath !== undefined ? item.basePath : commonBasePath;
         const group = item.group !== undefined ? item.group : commonGroup;
         const tags = item.tags !== undefined ? item.tags : commonTags;
@@ -529,12 +534,12 @@ router.post('/batch', async (req, res) => {
             continue;
         }
 
-        if (!username || !password) {
+        if ((!username || !password) && !apiToken) {
             results.push({
                 line,
                 success: false,
                 url: rawUrl,
-                msg: '缺少用户名或密码',
+                msg: '缺少用户名/密码或 API Token',
             });
             continue;
         }
@@ -580,6 +585,7 @@ router.post('/batch', async (req, res) => {
                 basePath: normalizedBasePath,
                 username,
                 password,
+                apiToken,
                 group,
                 tags,
                 environment,
@@ -723,29 +729,37 @@ router.delete('/:id', (req, res) => {
  * {
  *   username?: string,
  *   password?: string,
- *   persistCredentials?: boolean // default true when username+password provided
+ *   apiToken?: string,
+ *   persistCredentials?: boolean // default true when username+password or apiToken provided
  * }
  */
 router.post('/:id/test', async (req, res) => {
     try {
         const rawUsername = req.body?.username;
         const rawPassword = req.body?.password;
+        const rawApiToken = req.body?.apiToken;
         const hasUsername = rawUsername !== undefined && rawUsername !== null && String(rawUsername).trim() !== '';
         const hasPassword = rawPassword !== undefined && rawPassword !== null && String(rawPassword) !== '';
-        const hasManualCredentials = hasUsername || hasPassword;
+        const hasApiToken = rawApiToken !== undefined && rawApiToken !== null && String(rawApiToken).trim() !== '';
+        const hasManualCredentials = hasUsername || hasPassword || hasApiToken;
 
-        if (hasManualCredentials && (!hasUsername || !hasPassword)) {
+        if ((hasUsername || hasPassword) && (!hasUsername || !hasPassword)) {
             return res.status(400).json({
                 success: false,
                 code: 'PANEL_CREDENTIAL_INPUT_INVALID',
-                msg: 'username and password must both be provided',
+                msg: 'username and password must both be provided, or use apiToken alone',
             });
         }
 
         const authOptions = hasManualCredentials
             ? {
-                username: String(rawUsername).trim(),
-                password: String(rawPassword),
+                ...(hasUsername || hasPassword ? {
+                    username: String(rawUsername).trim(),
+                    password: String(rawPassword),
+                } : {}),
+                ...(hasApiToken ? {
+                    apiToken: String(rawApiToken).trim(),
+                } : {}),
                 forceLogin: true,
             }
             : undefined;
@@ -753,8 +767,13 @@ router.post('/:id/test', async (req, res) => {
         const client = await ensureAuthenticated(req.params.id, authOptions);
         if (hasManualCredentials && parseBoolean(req.body?.persistCredentials, true)) {
             serverStore.update(req.params.id, {
-                username: String(rawUsername).trim(),
-                password: String(rawPassword),
+                ...(hasUsername || hasPassword ? {
+                    username: String(rawUsername).trim(),
+                    password: String(rawPassword),
+                } : {}),
+                ...(hasApiToken ? {
+                    apiToken: String(rawApiToken).trim(),
+                } : {}),
             });
             appendSecurityAudit('server_credentials_updated_via_test', req, {
                 serverId: req.params.id,

@@ -2,6 +2,7 @@ import axios from 'axios';
 import serverStore from '../store/serverStore.js';
 
 const CSRF_HEADER_NAME = 'X-CSRF-Token';
+const AUTH_HEADER_NAME = 'Authorization';
 
 export function createPanelAuthError(code, message, cause) {
     const error = new Error(message);
@@ -75,6 +76,15 @@ function setPanelClientHeader(client, name, value) {
     if (client.defaults.headers.common) {
         client.defaults.headers.common[name] = value;
     }
+}
+
+function setPanelApiToken(client, token) {
+    const normalizedToken = String(token || '').trim();
+    if (!normalizedToken) {
+        setPanelClientHeader(client, AUTH_HEADER_NAME, '');
+        return;
+    }
+    setPanelClientHeader(client, AUTH_HEADER_NAME, `Bearer ${normalizedToken}`);
 }
 
 async function refreshPanelCsrfToken(client, path, options = {}) {
@@ -264,6 +274,7 @@ export async function createPanelClient(serverId, options = {}) {
         ...storedServer,
         username: options.username !== undefined ? String(options.username || '').trim() : storedServer.username,
         password: options.password !== undefined ? String(options.password || '') : storedServer.password,
+        apiToken: options.apiToken !== undefined ? String(options.apiToken || '').trim() : storedServer.apiToken,
     };
 
     const baseURL = `${server.url}${server.basePath === '/' ? '' : server.basePath}`;
@@ -280,6 +291,9 @@ export async function createPanelClient(serverId, options = {}) {
     const sessionCookie = serverStore.getSession(serverId);
     if (sessionCookie) {
         client.defaults.headers.Cookie = sessionCookie;
+    }
+    if (String(server.apiToken || '').trim()) {
+        setPanelApiToken(client, server.apiToken);
     }
 
     // Intercept responses to capture Set-Cookie headers
@@ -307,6 +321,30 @@ export async function createPanelClient(serverId, options = {}) {
     return { client, server, baseURL };
 }
 
+async function ensurePanelApiTokenAuthenticated(client) {
+    try {
+        const res = await client.get('/panel/api/server/status');
+        if (res.data && res.data.success !== false) {
+            return client;
+        }
+        throw createPanelAuthError('PANEL_LOGIN_FAILED', res.data?.msg || 'API token authentication failed');
+    } catch (error) {
+        if (error?.isPanelAuthError) {
+            throw error;
+        }
+        const status = Number(error?.response?.status || 0);
+        const panelMessage = normalizePanelErrorMessage(error, 'API token authentication failed');
+        if ([401, 403, 404].includes(status)) {
+            throw createPanelAuthError(
+                'PANEL_LOGIN_FAILED',
+                panelMessage || 'API token authentication failed',
+                error
+            );
+        }
+        throw error;
+    }
+}
+
 /**
  * Ensure authenticated session with the panel.
  * Logs in if no session exists.
@@ -314,6 +352,13 @@ export async function createPanelClient(serverId, options = {}) {
 export async function ensureAuthenticated(serverId, options = {}) {
     const forceLogin = options?.forceLogin === true;
     const { client, server } = await createPanelClient(serverId, options);
+    const hasManualPasswordCredentials = options.username !== undefined || options.password !== undefined;
+    const shouldUseApiToken = String(server.apiToken || '').trim()
+        && !(forceLogin && options.apiToken === undefined && hasManualPasswordCredentials);
+
+    if (shouldUseApiToken) {
+        return ensurePanelApiTokenAuthenticated(client);
+    }
 
     // Check if current session is valid by trying to get status
     const existingSession = serverStore.getSession(serverId);
@@ -330,6 +375,12 @@ export async function ensureAuthenticated(serverId, options = {}) {
     }
 
     if (!String(server.username || '').trim()) {
+        if (server.apiTokenUnreadable) {
+            throw createPanelAuthError(
+                'PANEL_CREDENTIAL_UNREADABLE',
+                'Stored panel API token cannot be decrypted, please re-enter and save credentials.'
+            );
+        }
         throw createPanelAuthError(
             'PANEL_CREDENTIAL_MISSING',
             'Panel username is missing, please update server credentials.'
@@ -338,9 +389,11 @@ export async function ensureAuthenticated(serverId, options = {}) {
     if (!String(server.password || '').trim()) {
         const reason = server.credentialUnreadable
             ? 'Stored panel credentials cannot be decrypted, please re-enter and save credentials.'
-            : 'Panel password is missing, please update server credentials.';
+            : (server.apiTokenUnreadable
+                ? 'Stored panel API token cannot be decrypted, please re-enter and save credentials.'
+                : 'Panel password is missing, please update server credentials.');
         throw createPanelAuthError(
-            server.credentialUnreadable ? 'PANEL_CREDENTIAL_UNREADABLE' : 'PANEL_CREDENTIAL_MISSING',
+            (server.credentialUnreadable || server.apiTokenUnreadable) ? 'PANEL_CREDENTIAL_UNREADABLE' : 'PANEL_CREDENTIAL_MISSING',
             reason
         );
     }
