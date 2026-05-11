@@ -1,6 +1,8 @@
 import axios from 'axios';
 import serverStore from '../store/serverStore.js';
 
+const CSRF_HEADER_NAME = 'X-CSRF-Token';
+
 export function createPanelAuthError(code, message, cause) {
     const error = new Error(message);
     error.code = code;
@@ -34,6 +36,61 @@ export function isUnsupportedPanelStatusError(error) {
         || message.includes('unsupported')
         || message.includes('not support')
         || message.includes('not implemented');
+}
+
+function isUnsupportedPanelCsrfError(error) {
+    const status = Number(error?.response?.status || 0);
+    if ([404, 405, 410, 501].includes(status)) return true;
+    const message = normalizePanelErrorMessage(error, '').toLowerCase();
+    return message.includes('method not allowed')
+        || message.includes('not found')
+        || message.includes('unsupported')
+        || message.includes('not support')
+        || message.includes('not implemented');
+}
+
+function extractPanelCsrfToken(payload) {
+    const candidates = [
+        payload?.obj,
+        payload?.token,
+        payload?.csrfToken,
+        payload?.csrf,
+        typeof payload === 'string' ? payload : '',
+    ];
+    return candidates
+        .map((item) => String(item || '').trim())
+        .find(Boolean) || '';
+}
+
+function setPanelClientHeader(client, name, value) {
+    if (!client?.defaults?.headers) return;
+    if (!value) {
+        delete client.defaults.headers[name];
+        if (client.defaults.headers.common) {
+            delete client.defaults.headers.common[name];
+        }
+        return;
+    }
+    client.defaults.headers[name] = value;
+    if (client.defaults.headers.common) {
+        client.defaults.headers.common[name] = value;
+    }
+}
+
+async function refreshPanelCsrfToken(client, path, options = {}) {
+    try {
+        const res = await client.get(path);
+        const token = extractPanelCsrfToken(res.data);
+        if (token) {
+            setPanelClientHeader(client, CSRF_HEADER_NAME, token);
+        }
+        return token;
+    } catch (error) {
+        if (options.ignoreUnsupported === true && isUnsupportedPanelCsrfError(error)) {
+            return '';
+        }
+        throw error;
+    }
 }
 
 export function derivePanelHealthFromStatus(statusPayload) {
@@ -262,6 +319,7 @@ export async function ensureAuthenticated(serverId, options = {}) {
     const existingSession = serverStore.getSession(serverId);
     if (existingSession && !forceLogin) {
         try {
+            await refreshPanelCsrfToken(client, '/panel/csrf-token', { ignoreUnsupported: true });
             const res = await fetchPanelServerStatus(client);
             if (res.data && res.data.success !== false) {
                 return client;
@@ -289,8 +347,10 @@ export async function ensureAuthenticated(serverId, options = {}) {
 
     // Login
     try {
+        await refreshPanelCsrfToken(client, '/csrf-token', { ignoreUnsupported: true });
         const loginRes = await client.post('/login', `username=${encodeURIComponent(server.username)}&password=${encodeURIComponent(server.password)}`);
         if (loginRes.data && loginRes.data.success) {
+            await refreshPanelCsrfToken(client, '/panel/csrf-token', { ignoreUnsupported: true }).catch(() => '');
             return client;
         }
         throw createPanelAuthError('PANEL_LOGIN_FAILED', loginRes.data?.msg || 'Login failed');
