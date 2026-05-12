@@ -17,6 +17,8 @@ const PROTOCOL_SCHEMA_FALLBACK = [
     { key: 'mixed', label: 'Mixed', legacyKeys: ['socks'], supports: { transports: [], securities: [] } },
     { key: 'wireguard', label: 'WireGuard', legacyKeys: [], supports: { transports: [], securities: [] } },
     { key: 'tun', label: 'TUN', legacyKeys: [], supports: { transports: [], securities: [] } },
+    { key: 'hysteria', label: 'Hysteria', legacyKeys: [], supports: { transports: [], securities: ['tls'] } },
+    { key: 'hysteria2', label: 'Hysteria2', legacyKeys: ['hy2'], supports: { transports: [], securities: ['tls'] } },
 ];
 const _PROTOCOL_FALLBACK = PROTOCOL_SCHEMA_FALLBACK.map((item) => item.key);
 
@@ -293,6 +295,35 @@ function createDefaultSettings(protocolKey = 'vmess') {
 
     if (protocol === 'tun') {
         return { name: 'xray0', mtu: 1500, userLevel: 0 };
+    }
+
+    if (protocol === 'hysteria') {
+        return {
+            up_mbps: 100,
+            down_mbps: 100,
+            obfs: '',
+            alpn: ['h3'],
+            recv_window_conn: 0,
+            recv_window: 0,
+            disable_mtu_discovery: false,
+            clients: [{
+                auth_str: randomString(16, ALPHA_NUM_CHARS),
+                ...createBaseClient(),
+            }],
+        };
+    }
+
+    if (protocol === 'hysteria2' || protocol === 'hy2') {
+        return {
+            up_mbps: 100,
+            down_mbps: 100,
+            ignore_client_bandwidth: false,
+            obfs: { type: '', password: '' },
+            clients: [{
+                password: randomString(16, ALPHA_NUM_CHARS),
+                ...createBaseClient(),
+            }],
+        };
     }
 
     return {};

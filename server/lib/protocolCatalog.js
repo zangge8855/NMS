@@ -1,6 +1,7 @@
 const LEGACY_PROTOCOL_ALIASES = {
     'dokodemo-door': 'tunnel',
     socks: 'mixed',
+    hy2: 'hysteria2',
 };
 
 const PROTOCOL_SCHEMAS = [
@@ -186,6 +187,63 @@ const PROTOCOL_SCHEMAS = [
         supports: {
             transports: [],
             securities: [],
+        },
+    },
+    {
+        key: 'hysteria',
+        label: 'Hysteria',
+        legacyKeys: [],
+        defaultSettings: {
+            up_mbps: 100,
+            down_mbps: 100,
+            obfs: '',
+            alpn: ['h3'],
+            recv_window_conn: 0,
+            recv_window: 0,
+            disable_mtu_discovery: false,
+            clients: [{
+                auth_str: '',
+                email: '',
+                limitIp: 0,
+                totalGB: 0,
+                expiryTime: 0,
+                enable: true,
+                tgId: '',
+                subId: '',
+                comment: '',
+                reset: 0,
+            }],
+        },
+        supports: {
+            transports: [],
+            securities: ['tls'],
+        },
+    },
+    {
+        key: 'hysteria2',
+        label: 'Hysteria2',
+        legacyKeys: ['hy2'],
+        defaultSettings: {
+            up_mbps: 100,
+            down_mbps: 100,
+            ignore_client_bandwidth: false,
+            obfs: { type: '', password: '' },
+            clients: [{
+                password: '',
+                email: '',
+                limitIp: 0,
+                totalGB: 0,
+                expiryTime: 0,
+                enable: true,
+                tgId: '',
+                subId: '',
+                comment: '',
+                reset: 0,
+            }],
+        },
+        supports: {
+            transports: [],
+            securities: ['tls'],
         },
     },
 ];

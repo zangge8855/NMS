@@ -24,6 +24,15 @@ const LINK_REQUIREMENTS = {
     shadowsocks: {
         required: ['method', 'password', 'host', 'port'],
     },
+    hysteria: {
+        required: ['auth_str', 'host', 'port'],
+        tlsRequired: ['security=tls', 'sni'],
+    },
+    hysteria2: {
+        required: ['password', 'host', 'port'],
+        tlsRequired: ['security=tls', 'sni'],
+        recommended: ['obfs=salamander', 'obfs-password'],
+    },
 };
 
 const STREAM_DEFAULTS = {
