@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { randomInt } from 'crypto';
 import config from '../config.js';
 
 let transporter = null;
@@ -352,7 +353,7 @@ async function sendTrackedEmail({ type, toEmail, subject, html }) {
  * 生成 6 位数字验证码
  */
 export function generateVerifyCode() {
-    return String(Math.floor(100000 + Math.random() * 900000));
+    return String(randomInt(100000, 1000000));
 }
 
 /**
