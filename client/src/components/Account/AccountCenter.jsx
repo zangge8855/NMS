@@ -6,6 +6,7 @@ import api from '../../api/client.js';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import { getPasswordPolicyError, getPasswordPolicyHint } from '../../utils/passwordPolicy.js';
+import TwoFactorPanel from './TwoFactorPanel.jsx';
 
 function getAccountCopy(locale = 'zh-CN') {
     if (locale === 'en-US') {
@@ -405,6 +406,7 @@ export default function AccountCenter() {
                     </div>
                 </div>
             </div>
+            <TwoFactorPanel locale={locale} />
         </>
     );
 }

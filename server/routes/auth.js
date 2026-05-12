@@ -20,6 +20,11 @@ import {
     requestOwnProfileUpdateVerification,
     updateOwnProfile,
     validateSession,
+    completeTwoFactorLogin,
+    beginTwoFactorEnrollment,
+    enableTwoFactor,
+    disableTwoFactor,
+    getTwoFactorStatus,
 } from '../services/authSessionService.js';
 import { buildAppBootstrapPayload } from '../lib/appBootstrapService.js';
 import {
@@ -309,6 +314,20 @@ router.post('/login', (req, res) => {
                 success: false,
                 msg: '邮箱尚未验证，请先完成邮箱验证',
                 needVerify: true,
+                email: result.email,
+            });
+        }
+        if (result.reason === 'two_factor_required') {
+            clearLoginRate(clientIp, loginIdentifier);
+            appendSecurityAudit('login_two_factor_challenge_issued', req, {
+                ...auditBase,
+                ...(result.audit || {}),
+            });
+            return res.status(200).json({
+                success: false,
+                msg: '请输入 2FA 验证码完成登录',
+                needTwoFactor: true,
+                challengeToken: result.challengeToken,
                 email: result.email,
             });
         }
@@ -989,6 +1008,88 @@ router.put('/profile', authMiddleware, (req, res) => {
     } catch (err) {
         const error = toHttpError(err, 400, '更新账号信息失败');
         res.status(error.status).json({ success: false, msg: error.message });
+    }
+});
+
+/**
+ * POST /api/auth/login/2fa — 完成 2FA 登录
+ */
+router.post('/login/2fa', (req, res) => {
+    try {
+        const result = completeTwoFactorLogin(req.body);
+        if (!result.success) {
+            appendSecurityAudit('login_two_factor_failed', req, result.audit || {});
+            return res.status(401).json({ success: false, msg: '2FA 验证码不正确或已过期' });
+        }
+        appendSecurityAudit('login_two_factor_success', req, result.audit || {});
+        return res.json({ success: true, token: result.token, user: result.user });
+    } catch (err) {
+        const error = toHttpError(err, 401, '2FA 验证失败');
+        return res.status(error.status).json({ success: false, msg: error.message });
+    }
+});
+
+/**
+ * GET /api/auth/2fa/status — 查询当前账号 2FA 状态
+ */
+router.get('/2fa/status', authMiddleware, (req, res) => {
+    try {
+        return res.json({ success: true, obj: getTwoFactorStatus(req.user) });
+    } catch (err) {
+        const error = toHttpError(err, 400, '获取 2FA 状态失败');
+        return res.status(error.status).json({ success: false, msg: error.message });
+    }
+});
+
+/**
+ * POST /api/auth/2fa/setup — 生成新的 2FA 密钥(尚未启用)
+ */
+router.post('/2fa/setup', authMiddleware, (req, res) => {
+    try {
+        const result = beginTwoFactorEnrollment(req.user);
+        appendSecurityAudit('account_2fa_setup_started', req, { username: req.user?.username || '' });
+        return res.json({ success: true, obj: result });
+    } catch (err) {
+        const error = toHttpError(err, 400, '生成 2FA 密钥失败');
+        return res.status(error.status).json({ success: false, msg: error.message });
+    }
+});
+
+/**
+ * POST /api/auth/2fa/enable — 校验首个验证码并启用 2FA
+ */
+router.post('/2fa/enable', authMiddleware, (req, res) => {
+    try {
+        const result = enableTwoFactor(req.body, req.user);
+        appendSecurityAudit('account_2fa_enabled', req, {
+            username: req.user?.username || '',
+            ...(result.audit || {}),
+        });
+        return res.json({
+            success: true,
+            msg: '2FA 已启用,请妥善保存备用码',
+            obj: { enabled: true, backupCodes: result.backupCodes },
+        });
+    } catch (err) {
+        const error = toHttpError(err, 400, '启用 2FA 失败');
+        return res.status(error.status).json({ success: false, msg: error.message });
+    }
+});
+
+/**
+ * POST /api/auth/2fa/disable — 关闭 2FA
+ */
+router.post('/2fa/disable', authMiddleware, (req, res) => {
+    try {
+        const result = disableTwoFactor(req.body, req.user);
+        appendSecurityAudit('account_2fa_disabled', req, {
+            username: req.user?.username || '',
+            ...(result.audit || {}),
+        });
+        return res.json({ success: true, msg: '2FA 已关闭', obj: { enabled: false } });
+    } catch (err) {
+        const error = toHttpError(err, 400, '关闭 2FA 失败');
+        return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
 

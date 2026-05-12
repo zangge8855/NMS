@@ -465,6 +465,9 @@ export class SystemSettingsStore {
                 converterSingboxConfigUrl: String(config.subscription?.converter?.singboxConfigUrl || '').trim(),
                 converterSurgeConfigUrl: String(config.subscription?.converter?.surgeConfigUrl || '').trim(),
             },
+            geofiles: {
+                customSources: [],
+            },
             auditIpGeo: {
                 enabled: true,
                 provider: MODERN_AUDIT_IP_GEO_PROVIDER,
@@ -613,6 +616,7 @@ export class SystemSettingsStore {
         const subscriptionFallback = mergeSection(defaults.subscription, fallbackRoot.subscription);
         const auditIpGeoFallback = mergeSection(defaults.auditIpGeo, fallbackRoot.auditIpGeo);
         const telegramFallback = mergeSection(defaults.telegram, fallbackRoot.telegram);
+        const geofilesFallback = mergeSection(defaults.geofiles, fallbackRoot.geofiles);
         const serverOrderFallback = normalizeIdList(fallbackRoot.serverOrder);
         const inboundOrderFallback = normalizeInboundOrderMap(fallbackRoot.inboundOrder);
         const userOrderFallback = normalizeIdList(fallbackRoot.userOrder);
@@ -625,6 +629,7 @@ export class SystemSettingsStore {
         const subscriptionInput = mergeSection(defaults.subscription, input.subscription);
         const auditIpGeoInput = mergeSection(defaults.auditIpGeo, input.auditIpGeo);
         const telegramInput = mergeSection(defaults.telegram, input.telegram);
+        const geofilesInput = mergeSection(defaults.geofiles, input.geofiles);
         const serverOrderInput = normalizeIdList(input.serverOrder);
         const inboundOrderInput = normalizeInboundOrderMap(input.inboundOrder);
         const userOrderInput = normalizeIdList(input.userOrder);
@@ -638,11 +643,36 @@ export class SystemSettingsStore {
             subscription: this._normalizeSubscription(subscriptionInput, subscriptionFallback),
             auditIpGeo: this._normalizeAuditIpGeo(auditIpGeoInput, auditIpGeoFallback),
             telegram: this._normalizeTelegram(telegramInput, telegramFallback),
+            geofiles: this._normalizeGeofiles(geofilesInput, geofilesFallback),
             serverOrder: serverOrderInput.length > 0 ? serverOrderInput : serverOrderFallback,
             inboundOrder: Object.keys(inboundOrderInput).length > 0 ? inboundOrderInput : inboundOrderFallback,
             userOrder: userOrderInput.length > 0 ? userOrderInput : userOrderFallback,
             updatedAt: String(input.updatedAt || '').trim() || new Date().toISOString(),
         };
+    }
+
+    _normalizeGeofiles(input = {}, fallback = {}) {
+        const sources = Array.isArray(input?.customSources) ? input.customSources : (fallback?.customSources || []);
+        const seen = new Set();
+        const cleaned = [];
+        sources.forEach((entry) => {
+            if (!entry || typeof entry !== 'object') return;
+            const name = String(entry.name || '').trim();
+            const url = String(entry.url || '').trim();
+            const type = String(entry.type || 'geosite').trim().toLowerCase();
+            if (!name || !url) return;
+            if (!/^[a-z0-9_-]+$/.test(name)) return;
+            if (!['geoip', 'geosite'].includes(type)) return;
+            try {
+                const parsed = new URL(url);
+                if (!['http:', 'https:'].includes(parsed.protocol)) return;
+            } catch { return; }
+            const key = `${type}:${name}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            cleaned.push({ name, url, type });
+        });
+        return { customSources: cleaned };
     }
 
     _save() {
@@ -699,6 +729,16 @@ export class SystemSettingsStore {
 
     getSubscription() {
         return { ...this.settings.subscription };
+    }
+
+    getGeofiles() {
+        const fallback = this._defaults().geofiles;
+        const section = this.settings?.geofiles || fallback;
+        return {
+            customSources: Array.isArray(section.customSources)
+                ? section.customSources.map((item) => ({ ...item }))
+                : [],
+        };
     }
 
     getAuditIpGeo() {

@@ -76,6 +76,22 @@ const userRepository = {
     setPasswordResetCode(id, code, expiresAt) {
         return userStore.setPasswordResetCode(id, code, expiresAt);
     },
+
+    setTwoFactor(id, payload) {
+        return userStore.setTwoFactor(id, payload);
+    },
+
+    clearTwoFactor(id) {
+        return userStore.clearTwoFactor(id);
+    },
+
+    getTwoFactor(id) {
+        return userStore.getTwoFactor(id);
+    },
+
+    consumeTwoFactorBackupCode(id, remainingHashes) {
+        return userStore.consumeTwoFactorBackupCode(id, remainingHashes);
+    },
 };
 
 export default userRepository;

@@ -7,6 +7,8 @@ import { saveObjectAtomic } from './fileUtils.js';
 const USER_POLICY_FILE = path.join(config.dataDir, 'user_policies.json');
 const ALLOWED_PROTOCOLS = new Set(['vmess', 'vless', 'trojan', 'shadowsocks']);
 const POLICY_SCOPE_MODES = new Set(['all', 'selected', 'none']);
+const TRAFFIC_RESET_CYCLES = new Set(['none', 'hourly', 'daily', 'weekly', 'monthly']);
+const IP_LIMIT_POLICIES = new Set(['first-wins', 'last-wins']);
 
 function normalizeEmail(email) {
     return String(email || '').trim().toLowerCase();
@@ -66,6 +68,12 @@ function sanitizePolicy(input = {}) {
         expiryTime: normalizeNonNegativeInt(input.expiryTime, 0),
         limitIp: normalizeNonNegativeInt(input.limitIp, 0),
         trafficLimitBytes: normalizeNonNegativeInt(input.trafficLimitBytes, 0),
+        trafficResetCycle: TRAFFIC_RESET_CYCLES.has(String(input.trafficResetCycle || '').trim().toLowerCase())
+            ? String(input.trafficResetCycle).trim().toLowerCase()
+            : 'none',
+        ipLimitPolicy: IP_LIMIT_POLICIES.has(String(input.ipLimitPolicy || '').trim().toLowerCase())
+            ? String(input.ipLimitPolicy).trim().toLowerCase()
+            : 'first-wins',
     };
 }
 
@@ -111,6 +119,8 @@ class UserPolicyStore {
                 expiryTime: 0,
                 limitIp: 0,
                 trafficLimitBytes: 0,
+                trafficResetCycle: 'none',
+                ipLimitPolicy: 'first-wins',
                 updatedAt: null,
                 updatedBy: '',
             };

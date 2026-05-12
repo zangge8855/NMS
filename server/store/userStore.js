@@ -511,6 +511,54 @@ class UserStore {
         return true;
     }
 
+    /** 启用/更新二步验证 */
+    setTwoFactor(id, { secret, backupCodeHashes }) {
+        const idx = this.users.findIndex(u => u.id === id);
+        if (idx === -1) return false;
+        const trimmedSecret = String(secret || '').trim();
+        if (!trimmedSecret) return false;
+        this.users[idx].twoFactor = {
+            enabled: true,
+            secret: trimmedSecret,
+            backupCodeHashes: Array.isArray(backupCodeHashes) ? backupCodeHashes.slice() : [],
+            enabledAt: new Date().toISOString(),
+        };
+        this._save();
+        return true;
+    }
+
+    /** 关闭二步验证 */
+    clearTwoFactor(id) {
+        const idx = this.users.findIndex(u => u.id === id);
+        if (idx === -1) return false;
+        if (!this.users[idx].twoFactor) return true;
+        this.users[idx].twoFactor = null;
+        this._save();
+        return true;
+    }
+
+    /** 读取二步验证状态(含 secret 供登录校验) */
+    getTwoFactor(id) {
+        const user = this.users.find(u => u.id === id);
+        if (!user || !user.twoFactor || user.twoFactor.enabled !== true) return null;
+        return {
+            enabled: true,
+            secret: String(user.twoFactor.secret || ''),
+            backupCodeHashes: Array.isArray(user.twoFactor.backupCodeHashes) ? user.twoFactor.backupCodeHashes.slice() : [],
+            enabledAt: user.twoFactor.enabledAt || '',
+        };
+    }
+
+    /** 消耗一个备用码,返回剩余的 hash 列表 */
+    consumeTwoFactorBackupCode(id, remainingHashes) {
+        const idx = this.users.findIndex(u => u.id === id);
+        if (idx === -1) return false;
+        if (!this.users[idx].twoFactor) return false;
+        this.users[idx].twoFactor.backupCodeHashes = Array.isArray(remainingHashes) ? remainingHashes.slice() : [];
+        this._save();
+        return true;
+    }
+
     remove(id) {
         const idx = this.users.findIndex(u => u.id === id);
         if (idx === -1) return false;

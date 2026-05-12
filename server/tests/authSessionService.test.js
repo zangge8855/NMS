@@ -6,7 +6,13 @@ import {
     requestOwnProfileUpdateVerification,
     updateOwnProfile,
     validateSession,
+    completeTwoFactorLogin,
+    beginTwoFactorEnrollment,
+    enableTwoFactor,
+    disableTwoFactor,
+    getTwoFactorStatus,
 } from '../services/authSessionService.js';
+import { generateTotp, generateTotpSecret } from '../lib/totp.js';
 
 test('createLoginSession supports legacy admin password login', () => {
     const repo = {
@@ -503,4 +509,215 @@ test('updateOwnProfile rejects updates without a verified current-email code', (
             return true;
         }
     );
+});
+
+test('createLoginSession returns a 2FA challenge when the user has 2FA enabled', () => {
+    const totpSecret = generateTotpSecret();
+    const repo = {
+        authenticate() {
+            return { id: 'admin-2fa', username: 'root', role: 'admin' };
+        },
+        getByUsername(username) {
+            if (username === 'root') {
+                return {
+                    id: 'admin-2fa',
+                    username: 'root',
+                    role: 'admin',
+                    email: 'root@example.com',
+                    subscriptionEmail: 'root@example.com',
+                    emailVerified: true,
+                    enabled: true,
+                };
+            }
+            return null;
+        },
+        getTwoFactor() {
+            return { enabled: true, secret: totpSecret, backupCodeHashes: [] };
+        },
+        list() {
+            return [];
+        },
+    };
+
+    const result = createLoginSession(
+        { username: 'root', password: 'irrelevant' },
+        {
+            userRepository: repo,
+            authConfig: { allowLegacyPasswordLogin: false, adminPassword: '' },
+            jwtSign(payload, _secret, options = {}) {
+                return options.audience === 'nms-2fa-challenge'
+                    ? `challenge:${payload.userId}`
+                    : `session:${payload.userId}`;
+            },
+            jwtConfig: { secret: 'ignored', expiresIn: '1d' },
+        }
+    );
+
+    assert.equal(result.success, false);
+    assert.equal(result.reason, 'two_factor_required');
+    assert.equal(result.challengeToken, 'challenge:admin-2fa');
+});
+
+test('completeTwoFactorLogin succeeds with a valid TOTP code', () => {
+    const totpSecret = generateTotpSecret();
+    const now = Date.now();
+    const code = generateTotp(totpSecret, now);
+    const repo = {
+        getById(id) {
+            if (id === 'admin-2fa') {
+                return { id: 'admin-2fa', username: 'root', role: 'admin', email: 'root@example.com', subscriptionEmail: 'root@example.com' };
+            }
+            return null;
+        },
+        getTwoFactor() {
+            return { enabled: true, secret: totpSecret, backupCodeHashes: [] };
+        },
+        consumeTwoFactorBackupCode() {
+            return true;
+        },
+    };
+
+    const result = completeTwoFactorLogin(
+        { challengeToken: 'fake-challenge', code },
+        {
+            userRepository: repo,
+            jwtSign(payload) {
+                return `session:${payload.userId}`;
+            },
+            jwtVerify() {
+                return { type: '2fa_challenge', userId: 'admin-2fa', username: 'root', role: 'admin' };
+            },
+            jwtConfig: { secret: 'ignored', expiresIn: '1d' },
+        }
+    );
+
+    assert.equal(result.success, true);
+    assert.equal(result.token, 'session:admin-2fa');
+    assert.equal(result.audit.twoFactor, true);
+});
+
+test('completeTwoFactorLogin rejects wrong codes without throwing', () => {
+    const totpSecret = generateTotpSecret();
+    const repo = {
+        getById() {
+            return { id: 'admin-2fa', username: 'root', role: 'admin', email: 'root@example.com' };
+        },
+        getTwoFactor() {
+            return { enabled: true, secret: totpSecret, backupCodeHashes: [] };
+        },
+        consumeTwoFactorBackupCode() {
+            return true;
+        },
+    };
+
+    const result = completeTwoFactorLogin(
+        { challengeToken: 'fake-challenge', code: '000000' },
+        {
+            userRepository: repo,
+            jwtVerify() {
+                return { type: '2fa_challenge', userId: 'admin-2fa', username: 'root', role: 'admin' };
+            },
+            jwtConfig: { secret: 'ignored', expiresIn: '1d' },
+        }
+    );
+
+    assert.equal(result.success, false);
+    assert.equal(result.reason, 'invalid_code');
+});
+
+test('enableTwoFactor stores hashed backup codes after verifying the first TOTP', () => {
+    const totpSecret = generateTotpSecret();
+    const now = Date.now();
+    const code = generateTotp(totpSecret, now);
+    let saved = null;
+    const repo = {
+        getById() {
+            return { id: 'admin-2fa', username: 'root', role: 'admin' };
+        },
+        getByUsername() {
+            return { id: 'admin-2fa', username: 'root', role: 'admin' };
+        },
+        getTwoFactor() {
+            return saved ? { ...saved, enabled: true } : null;
+        },
+        setTwoFactor(_id, payload) {
+            saved = payload;
+            return true;
+        },
+    };
+
+    const result = enableTwoFactor(
+        { secret: totpSecret, code },
+        { userId: 'admin-2fa', username: 'root' },
+        { userRepository: repo }
+    );
+    assert.equal(result.enabled, true);
+    assert.equal(result.backupCodes.length, 10);
+    assert.ok(saved && saved.backupCodeHashes.length === 10);
+});
+
+test('disableTwoFactor requires the current password', () => {
+    const repo = {
+        getById() {
+            return { id: 'admin-2fa', username: 'root', role: 'admin' };
+        },
+        getByUsername() {
+            return { id: 'admin-2fa', username: 'root', role: 'admin' };
+        },
+        authenticate(_id, password) {
+            return password === 'goodpass' ? { id: 'admin-2fa', username: 'root', role: 'admin' } : null;
+        },
+        clearTwoFactor() {
+            return true;
+        },
+    };
+
+    assert.throws(
+        () => disableTwoFactor({ password: 'badpass' }, { userId: 'admin-2fa', username: 'root' }, { userRepository: repo }),
+        (error) => {
+            assert.equal(error.status, 401);
+            return true;
+        }
+    );
+
+    const ok = disableTwoFactor({ password: 'goodpass' }, { userId: 'admin-2fa', username: 'root' }, { userRepository: repo });
+    assert.equal(ok.enabled, false);
+});
+
+test('beginTwoFactorEnrollment refuses when 2FA already enabled', () => {
+    const repo = {
+        getById() {
+            return { id: 'admin-2fa', username: 'root', role: 'admin', email: 'root@example.com' };
+        },
+        getByUsername() {
+            return { id: 'admin-2fa', username: 'root', role: 'admin', email: 'root@example.com' };
+        },
+        getTwoFactor() {
+            return { enabled: true, secret: 'KQXG', backupCodeHashes: [] };
+        },
+    };
+    assert.throws(
+        () => beginTwoFactorEnrollment({ userId: 'admin-2fa', username: 'root' }, { userRepository: repo }),
+        (err) => {
+            assert.equal(err.status, 409);
+            return true;
+        }
+    );
+});
+
+test('getTwoFactorStatus reports backupCodesRemaining', () => {
+    const repo = {
+        getById() {
+            return { id: 'admin-2fa', username: 'root' };
+        },
+        getByUsername() {
+            return { id: 'admin-2fa', username: 'root' };
+        },
+        getTwoFactor() {
+            return { enabled: true, secret: 'KQXG', backupCodeHashes: ['a'.repeat(64), 'b'.repeat(64), 'c'.repeat(64)] };
+        },
+    };
+    const status = getTwoFactorStatus({ userId: 'admin-2fa', username: 'root' }, { userRepository: repo });
+    assert.equal(status.enabled, true);
+    assert.equal(status.backupCodesRemaining, 3);
 });
