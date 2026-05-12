@@ -424,6 +424,30 @@ function buildHealthyPanelState() {
             { email: REVIEW_CREDENTIALS.admin.subscriptionEmail },
             { email: REVIEW_CREDENTIALS.operator.subscriptionEmail },
         ],
+        xrayTemplate: buildReviewXrayTemplate(),
+    };
+}
+
+function buildReviewXrayTemplate() {
+    return {
+        log: { loglevel: 'warning' },
+        api: { tag: 'api', services: ['HandlerService', 'LoggerService', 'StatsService'] },
+        routing: {
+            domainStrategy: 'AsIs',
+            rules: [
+                { inboundTag: ['api'], outboundTag: 'api', type: 'field' },
+                { type: 'field', ip: ['geoip:private'], outboundTag: 'blocked' },
+            ],
+            balancers: [],
+        },
+        outbounds: [
+            { tag: 'direct', protocol: 'freedom' },
+            { tag: 'blocked', protocol: 'blackhole' },
+        ],
+        dns: {
+            servers: ['1.1.1.1', 'https+local://dns.google/dns-query'],
+            queryStrategy: 'UseIP',
+        },
     };
 }
 
@@ -523,6 +547,7 @@ function buildLegacyPanelState() {
         onlineSessions: [
             { email: REVIEW_CREDENTIALS.user.subscriptionEmail },
         ],
+        xrayTemplate: buildReviewXrayTemplate(),
     };
 }
 

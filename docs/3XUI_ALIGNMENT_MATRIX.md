@@ -14,10 +14,13 @@
 | 能力探测 | 不同版本面板字段差异 | 已对齐 | `Capabilities` 页面用于显式展示探测结果 |
 | 入站读取 | 入站列表与详情 | 已对齐 | 主要差异由协议目录与 schema 处理 |
 | 用户 / 客户端管理 | client 增删改查 | 基本对齐 | 字段命名和协议细节仍可能因面板版本不同而有差异 |
+| 入站协议覆盖 | vmess/vless/trojan/ss/http/tunnel/mixed/wireguard/tun/hysteria/hysteria2 | 已对齐 | 自 3x-ui v2.9.x 起 hysteria/hysteria2 在协议目录中可选 |
+| Xray 路由 / 出站 / DNS / 负载均衡 | v3.0 Xray Settings 页 | 已对齐 | 通过 `server/services/xrayConfigService.js` + `/xray` 页面读写，api 规则强制保持第一条 |
 | 订阅生成 | 节点信息、用户映射、token 访问 | 已扩展 | NMS 在 3x-ui 之上增加了独立 token 与公开订阅入口 |
 | 日志与审计 | 面板日志、系统操作日志 | 已扩展 | NMS 增加了独立审计中心，不仅依赖面板原生日志 |
 | 流量统计 | 节点与用户流量 | 基本对齐 | 展示聚合维度由 NMS 自定义 |
 | 批量任务 | 面板原生无统一批量模型 | NMS 自建 | 批量任务与结果持久化完全由 NMS 提供 |
+| 多节点部署 | v3.0 `runtime/{local,manager,remote}` | NMS 自建 | NMS 沿用自有多节点架构，不跟随上游协议 |
 
 ### 重点差异
 
@@ -46,10 +49,13 @@ This matrix describes how NMS aligns with 3x-ui panel capabilities. It helps dev
 | Capability detection | version-specific field differences | aligned | surfaced explicitly in the `Capabilities` page |
 | Inbound reads | inbound list and detail | aligned | protocol catalog and schema mapping absorb most differences |
 | User / client admin | client CRUD | mostly aligned | field naming and protocol detail can still vary by panel version |
+| Inbound protocol coverage | vmess/vless/trojan/ss/http/tunnel/mixed/wireguard/tun/hysteria/hysteria2 | aligned | hysteria/hysteria2 became selectable in the protocol catalog as of the 3x-ui v2.9.x catch-up |
+| Xray routing / outbounds / DNS / balancers | v3.0 Xray Settings page | aligned | reads and writes via `server/services/xrayConfigService.js` and the `/xray` console; the api rule is forced first |
 | Subscription generation | node info, user mapping, token access | extended | NMS adds independent tokenized public subscription access |
 | Logs and audit | panel logs and system actions | extended | NMS adds its own audit center beyond panel-native logs |
 | Traffic analytics | node and user traffic | mostly aligned | aggregation and presentation are defined by NMS |
 | Batch jobs | no consistent native batch model | NMS-owned | job orchestration and persistence are native NMS features |
+| Multi-node deployment | v3.0 `runtime/{local,manager,remote}` | NMS-owned | NMS keeps its own multi-node design rather than adopting the upstream protocol |
 
 ### Key differences
 

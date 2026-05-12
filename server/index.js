@@ -21,6 +21,7 @@ import wsAuthRoutes from './routes/wsAuth.js';
 import systemRoutes from './routes/system.js';
 import usersRoutes from './routes/users.js';
 import clientsRoutes from './routes/clients.js';
+import xrayConfigRoutes from './routes/xrayConfig.js';
 import { bootstrapDatabase } from './db/bootstrap.js';
 import { getStoreModes } from './db/runtimeModes.js';
 import { backfillStoresToDatabase, hydrateStoresFromDatabase } from './store/storeRegistry.js';
@@ -142,6 +143,7 @@ export function createApp(options = {}) {
     app.use('/api/users', authMiddleware, adminOnly, usersRoutes);
     app.use('/api/clients', authMiddleware, adminOnly, clientsRoutes);
     app.use('/api/system', authMiddleware, adminOnly, systemRoutes);
+    app.use('/api/xray', authMiddleware, adminOnly, xrayConfigRoutes);
 
     // Subscriptions: public /sub/ endpoint has its own token auth, management is admin-only
     app.use('/api/subscriptions', subscriptionRoutes);

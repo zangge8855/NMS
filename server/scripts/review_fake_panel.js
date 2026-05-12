@@ -574,6 +574,33 @@ function createPanelApp(definition) {
         return makeSuccess(res, []);
     });
 
+    app.get('/panel/setting/all', (_req, res) => {
+        return makeSuccess(res, {
+            webPort: 2053,
+            webDomain: definition.host,
+            xrayTemplateConfig: JSON.stringify(state.xrayTemplate),
+        });
+    });
+
+    app.post('/panel/setting/all', (_req, res) => {
+        return makeSuccess(res, {
+            webPort: 2053,
+            webDomain: definition.host,
+            xrayTemplateConfig: JSON.stringify(state.xrayTemplate),
+        });
+    });
+
+    app.post('/panel/setting/update', (req, res) => {
+        if (typeof req.body?.xrayTemplateConfig === 'string') {
+            try {
+                state.xrayTemplate = JSON.parse(req.body.xrayTemplateConfig);
+            } catch {
+                return res.status(400).json({ success: false, msg: 'invalid xrayTemplateConfig' });
+            }
+        }
+        return makeSuccess(res, { updated: true });
+    });
+
     return app;
 }
 

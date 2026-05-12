@@ -29,6 +29,7 @@ const ServerDetail = lazy(() => import('./components/Servers/ServerDetail.jsx'))
 const Capabilities = lazy(() => import('./components/Capabilities/Capabilities.jsx'));
 const AuditCenter = lazy(() => import('./components/Audit/AuditCenter.jsx'));
 const SystemSettings = lazy(() => import('./components/System/SystemSettings.jsx'));
+const XrayConsole = lazy(() => import('./components/Xray/XrayConsole.jsx'));
 
 
 class ErrorBoundary extends Component {
@@ -219,6 +220,7 @@ function ProtectedLayout() {
                         <Route path="/server" element={isAdmin ? <Navigate to="/settings?tab=console" replace /> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/tools" element={isAdmin ? <LazyPage><Tools /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/capabilities" element={isAdmin ? <LazyPage><Capabilities /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                        <Route path="/xray" element={isAdmin ? <LazyPage><XrayConsole /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/tasks" element={isAdmin ? <Navigate to="/audit" replace /> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/audit" element={isAdmin ? <LazyPage><AuditCenter /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                         <Route path="/servers" element={isAdmin ? <LazyPage><Servers /></LazyPage> : <Navigate to="/subscriptions" replace />} />
