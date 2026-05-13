@@ -5287,22 +5287,194 @@
   justify-content: center;
 }
 
+.main-scroll-region {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.main-scroll-region > .page-content {
+  flex: 1 0 auto;
+}
+
+.login-page {
+  overflow-x: clip;
+  contain: paint;
+}
+
+.login-bg-glow {
+  position: fixed;
+  width: min(600px, 72vw);
+  height: min(600px, 72vw);
+  animation: none;
+}
+
+.login-bg-glow.one {
+  left: 0;
+}
+
+.login-bg-glow.two {
+  right: 24px;
+}
+
+.login-bg-glow.three {
+  left: auto;
+  right: clamp(24px, 8vw, 120px);
+  width: min(400px, 58vw);
+  height: min(400px, 58vw);
+}
+
+.users-page .users-sequence-sort-button {
+  min-height: 32px;
+  min-width: 48px;
+  padding: 5px 8px;
+}
+
+.servers-page .server-card-name-trigger,
+.servers-page .servers-mobile-title {
+  min-height: 32px;
+  padding-block: 3px;
+}
+
 @media (max-width: 768px) {
   :root {
     --mobile-bottom-nav-height: 78px;
+    --mobile-bottom-nav-clearance: calc(var(--mobile-bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 10px);
+  }
+
+  .app-layout {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: hidden;
   }
 
   .main-content {
-    padding-bottom: calc(var(--mobile-bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 28px) !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    padding-bottom: 0 !important;
+  }
+
+  .main-scroll-region {
+    flex: 0 0 calc(100vh - var(--mobile-bottom-nav-clearance));
+    flex-basis: calc(100dvh - var(--mobile-bottom-nav-clearance));
+    height: calc(100vh - var(--mobile-bottom-nav-clearance));
+    height: calc(100dvh - var(--mobile-bottom-nav-clearance));
+    max-height: calc(100vh - var(--mobile-bottom-nav-clearance));
+    max-height: calc(100dvh - var(--mobile-bottom-nav-clearance));
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scroll-padding-bottom: 24px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .main-scroll-region > .header {
+    flex: 0 0 auto;
+    align-items: stretch;
+  }
+
+  .header .header-shell {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .header .header-left,
+  .header .header-actions,
+  .header .header-controls,
+  .header .header-primary-actions {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .header .header-left,
+  .header .header-search {
+    display: none;
+  }
+
+  .header .header-actions {
+    display: grid;
+    flex: 0 0 auto;
+    grid-template-columns: minmax(0, 1fr);
+    justify-content: flex-start;
+    gap: 8px;
+  }
+
+  .header .header-controls,
+  .header .header-primary-actions {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    margin-left: 0;
+    min-width: 0;
   }
 
   .page-content,
   .page-content--wide {
-    padding-bottom: calc(var(--mobile-bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 42px) !important;
+    padding-bottom: 42px !important;
+  }
+
+  .mobile-bottom-nav {
+    height: calc(var(--mobile-bottom-nav-height) + env(safe-area-inset-bottom, 0px));
   }
 
   .mobile-bottom-nav-track {
     min-height: 62px;
+  }
+
+  .audit-page .audit-leaderboard-table thead {
+    display: none !important;
+  }
+
+  .audit-page .audit-leaderboard-table,
+  .audit-page .audit-leaderboard-table tbody,
+  .audit-page .audit-leaderboard-table tr,
+  .audit-page .audit-leaderboard-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .audit-page .audit-leaderboard-table tr {
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .audit-page .audit-leaderboard-table td {
+    display: grid;
+    grid-template-columns: minmax(74px, 30%) minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    padding: 0;
+    text-align: left;
+  }
+
+  .audit-page .audit-leaderboard-table td::before {
+    width: auto;
+    max-width: none;
+    margin: 0;
+    letter-spacing: 0;
+    white-space: normal;
+  }
+
+  .audit-page .audit-leaderboard-table .audit-leaderboard-trend-cell > * {
+    min-width: 0;
+    justify-self: stretch;
+  }
+
+  .audit-page .audit-leaderboard-table .audit-leaderboard-traffic-cell {
+    text-align: left;
+  }
+
+  .servers-page .servers-mobile-title {
+    min-height: 34px;
   }
 
   .subscriptions-page .subscription-user-danger-row,

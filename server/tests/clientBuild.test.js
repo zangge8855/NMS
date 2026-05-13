@@ -220,6 +220,16 @@ describe('client build helpers', () => {
         assert.match(output, /src=\"\/portal\/assets\/index\.js\"/);
     });
 
+    it('rewrites relative Vite build entry assets to root absolute urls at the root access path', () => {
+        const output = rewriteClientAssetPaths(
+            '<link rel=\"icon\" href=\"./nms-logo.png\"><link href=\"./assets/index.css\"><script type=\"module\" src=\"assets/index.js\"></script>',
+            '/',
+        );
+        assert.match(output, /href=\"\/nms-logo\.png\"/);
+        assert.match(output, /href=\"\/assets\/index\.css\"/);
+        assert.match(output, /src=\"\/assets\/index\.js\"/);
+    });
+
     it('disables static index auto-serving so root requests still honor the access-path gate', () => {
         assert.equal(CLIENT_STATIC_OPTIONS.index, false);
     });

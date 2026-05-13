@@ -61,15 +61,16 @@ export function shouldServeCamouflageRequest(req = {}) {
 
 export function rewriteClientAssetPaths(html, basePath = '/') {
     const normalizedBasePath = normalizeClientBasePath(basePath, '/');
-    if (normalizedBasePath === '/') return html;
-    const assetPath = `${normalizedBasePath}/assets/`;
+    const assetRoot = normalizedBasePath === '/' ? '' : normalizedBasePath;
+    const assetPath = `${assetRoot}/assets/`;
+    const logoPath = `${assetRoot}/nms-logo.png`;
 
     return html
         .replace(/((?:src|href)=["'])\/assets\//g, `$1${assetPath}`)
         .replace(/((?:src|href)=["'])\.\/assets\//g, `$1${assetPath}`)
         .replace(/((?:src|href)=["'])assets\//g, `$1${assetPath}`)
-        .replace(/((?:href)=["'])\.\/nms-logo\.png/g, `$1${normalizedBasePath}/nms-logo.png`)
-        .replace(/((?:href)=["'])nms-logo\.png/g, `$1${normalizedBasePath}/nms-logo.png`);
+        .replace(/((?:href)=["'])\.\/nms-logo\.png/g, `$1${logoPath}`)
+        .replace(/((?:href)=["'])nms-logo\.png/g, `$1${logoPath}`);
 }
 
 export function injectClientBasePath(html, basePath = '/') {
