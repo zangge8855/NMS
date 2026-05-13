@@ -150,48 +150,52 @@ export default function TwoFactorPanel({ locale = 'zh-CN' }) {
     const enabled = status?.enabled === true;
 
     return (
-        <div className="bg-surface-soft border border-stroke-soft rounded-xl p-4 space-y-3 mt-6">
-            <div className="flex items-start justify-between gap-3">
-                <div>
-                    <h3 className="text-base font-bold text-primary flex items-center gap-2">
+        <div className="card account-twofactor-card">
+            <div className="account-twofactor-head">
+                <div className="account-twofactor-copy">
+                    <h3 className="account-twofactor-title">
                         <HiOutlineShieldCheck /> {copy.title}
                     </h3>
-                    <p className="text-sm text-secondary mt-1">{copy.subtitle}</p>
+                    <p className="account-twofactor-subtitle">{copy.subtitle}</p>
                 </div>
-                <span className={`badge ${enabled ? 'badge-success' : 'badge-neutral'} text-xs`}>
+                <span className={`badge ${enabled ? 'badge-success' : 'badge-neutral'}`}>
                     {statusLoading ? '...' : (enabled ? copy.statusEnabled : copy.statusDisabled)}
                 </span>
             </div>
 
             {enabled && !disableMode ? (
-                <div className="space-y-2">
-                    <div className="text-xs text-secondary">
+                <div className="account-twofactor-section">
+                    <div className="account-twofactor-meta">
                         {copy.enabledAt(status?.enabledAt || '')}
                         {' · '}
                         {copy.backupRemaining(Number(status?.backupCodesRemaining || 0))}
                     </div>
-                    <button type="button" className="btn btn-secondary btn-sm rounded-md" onClick={() => setDisableMode(true)}>
-                        <HiOutlineLockClosed className="inline-block mr-1" /> {copy.disable}
-                    </button>
+                    <div className="account-twofactor-actions">
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => setDisableMode(true)}>
+                            <HiOutlineLockClosed /> {copy.disable}
+                        </button>
+                    </div>
                 </div>
             ) : null}
 
             {enabled && disableMode ? (
-                <div className="space-y-2">
-                    <div className="text-sm text-warning">{copy.disableConfirm}</div>
-                    <input
-                        type="password"
-                        className="form-input"
-                        placeholder={copy.currentPassword}
-                        value={disablePassword}
-                        onChange={(e) => setDisablePassword(e.target.value)}
-                        autoComplete="current-password"
-                    />
-                    <div className="flex gap-2">
-                        <button type="button" className="btn btn-primary btn-sm rounded-md" onClick={confirmDisable} disabled={busy || !disablePassword}>
+                <div className="account-twofactor-section">
+                    <div className="account-twofactor-warn">{copy.disableConfirm}</div>
+                    <div className="form-group mb-0">
+                        <input
+                            type="password"
+                            className="form-input"
+                            placeholder={copy.currentPassword}
+                            value={disablePassword}
+                            onChange={(e) => setDisablePassword(e.target.value)}
+                            autoComplete="current-password"
+                        />
+                    </div>
+                    <div className="account-twofactor-actions">
+                        <button type="button" className="btn btn-danger btn-sm" onClick={confirmDisable} disabled={busy || !disablePassword}>
                             {copy.disable}
                         </button>
-                        <button type="button" className="btn btn-secondary btn-sm rounded-md" onClick={() => { setDisableMode(false); setDisablePassword(''); }}>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setDisableMode(false); setDisablePassword(''); }}>
                             {copy.cancel}
                         </button>
                     </div>
@@ -199,23 +203,25 @@ export default function TwoFactorPanel({ locale = 'zh-CN' }) {
             ) : null}
 
             {!enabled && !enrollment ? (
-                <button type="button" className="btn btn-primary btn-sm rounded-md" onClick={startSetup} disabled={busy}>
-                    <HiOutlineKey className="inline-block mr-1" /> {copy.enable}
-                </button>
+                <div className="account-twofactor-actions">
+                    <button type="button" className="btn btn-primary btn-sm" onClick={startSetup} disabled={busy}>
+                        <HiOutlineKey /> {copy.enable}
+                    </button>
+                </div>
             ) : null}
 
             {enrollment ? (
-                <div className="space-y-3">
-                    <div className="text-sm text-secondary">{copy.setupStarted}</div>
-                    <div className="bg-surface p-3 rounded-lg inline-block">
+                <div className="account-twofactor-section account-twofactor-enroll">
+                    <div className="account-twofactor-meta">{copy.setupStarted}</div>
+                    <div className="account-twofactor-qr">
                         <QRCodeSVG value={enrollment.otpauth} size={160} aria-label={copy.qrAlt} />
                     </div>
-                    <div className="text-xs">
-                        <span className="text-secondary mr-2">{copy.secret}:</span>
-                        <code className="font-mono break-all">{enrollment.secret}</code>
+                    <div className="account-twofactor-secret">
+                        <span className="account-twofactor-secret-label">{copy.secret}:</span>
+                        <code className="account-twofactor-secret-value">{enrollment.secret}</code>
                         <button
                             type="button"
-                            className="ml-2 text-primary inline-flex items-center gap-1"
+                            className="btn btn-ghost btn-sm"
                             onClick={() => copyText(enrollment.secret, copy.secretCopied)}
                         >
                             <HiOutlineClipboard /> {locale === 'en-US' ? 'Copy' : '复制'}
@@ -224,18 +230,18 @@ export default function TwoFactorPanel({ locale = 'zh-CN' }) {
                     <div className="form-group mb-0">
                         <label className="form-label">{copy.verifyCode}</label>
                         <input
-                            className="form-input font-mono tracking-widest"
+                            className="form-input cell-mono account-twofactor-code-input"
                             inputMode="numeric"
                             maxLength={6}
                             value={code}
                             onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, ''))}
                         />
                     </div>
-                    <div className="flex gap-2">
-                        <button type="button" className="btn btn-primary btn-sm rounded-md" onClick={confirmEnable} disabled={busy || code.length !== 6}>
+                    <div className="account-twofactor-actions">
+                        <button type="button" className="btn btn-primary btn-sm" onClick={confirmEnable} disabled={busy || code.length !== 6}>
                             {copy.verify}
                         </button>
-                        <button type="button" className="btn btn-secondary btn-sm rounded-md" onClick={cancelSetup}>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={cancelSetup}>
                             {copy.cancel}
                         </button>
                     </div>
@@ -243,17 +249,17 @@ export default function TwoFactorPanel({ locale = 'zh-CN' }) {
             ) : null}
 
             {backupCodes && backupCodes.length > 0 ? (
-                <div className="mt-3 p-3 border border-warning rounded-md bg-warning-soft">
-                    <div className="font-bold text-warning mb-1">{copy.backupTitle}</div>
-                    <div className="text-xs text-secondary mb-2">{copy.backupHint}</div>
-                    <div className="grid grid-cols-2 gap-1 font-mono text-sm">
+                <div className="account-twofactor-backup">
+                    <div className="account-twofactor-backup-title">{copy.backupTitle}</div>
+                    <div className="account-twofactor-backup-hint">{copy.backupHint}</div>
+                    <div className="account-twofactor-backup-grid">
                         {backupCodes.map((c) => (<span key={c}>{c}</span>))}
                     </div>
-                    <div className="flex gap-2 mt-2">
-                        <button type="button" className="btn btn-secondary btn-sm rounded-md" onClick={() => copyText(backupCodes.join('\n'), copy.backupCopied)}>
-                            <HiOutlineClipboard className="inline-block mr-1" /> {locale === 'en-US' ? 'Copy' : '复制'}
+                    <div className="account-twofactor-actions">
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => copyText(backupCodes.join('\n'), copy.backupCopied)}>
+                            <HiOutlineClipboard /> {locale === 'en-US' ? 'Copy' : '复制'}
                         </button>
-                        <button type="button" className="btn btn-primary btn-sm rounded-md" onClick={() => setBackupCodes(null)}>
+                        <button type="button" className="btn btn-primary btn-sm" onClick={() => setBackupCodes(null)}>
                             {copy.done}
                         </button>
                     </div>

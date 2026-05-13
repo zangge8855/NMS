@@ -249,6 +249,150 @@ a:hover {
   justify-content: flex-start;
 }
 
+.account-twofactor-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.account-twofactor-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.account-twofactor-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.account-twofactor-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.account-twofactor-title > svg {
+  width: 18px;
+  height: 18px;
+  color: var(--accent-primary);
+  flex: 0 0 18px;
+}
+
+.account-twofactor-subtitle {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.account-twofactor-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.account-twofactor-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.account-twofactor-warn {
+  font-size: 13px;
+  color: var(--accent-warning);
+  background: var(--accent-warning-bg);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+}
+
+.account-twofactor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.account-twofactor-enroll {
+  gap: 14px;
+}
+
+.account-twofactor-qr {
+  align-self: flex-start;
+  padding: 12px;
+  background: var(--surface-soft);
+  border: 1px solid var(--stroke-soft);
+  border-radius: var(--radius-md);
+  line-height: 0;
+}
+
+.account-twofactor-secret {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.account-twofactor-secret-label {
+  color: var(--text-muted);
+}
+
+.account-twofactor-secret-value {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  word-break: break-all;
+  color: var(--text-secondary);
+}
+
+.account-twofactor-code-input {
+  letter-spacing: 0.4em;
+  text-align: center;
+}
+
+.account-twofactor-backup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--accent-warning-bg);
+  border: 1px solid rgba(245, 158, 11, 0.22);
+  border-radius: var(--radius-md);
+}
+
+.account-twofactor-backup-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-warning);
+}
+
+.account-twofactor-backup-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.account-twofactor-backup-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 12px;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.xray-json-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 /* --- Keyframe Animations --- */
 @keyframes fadeIn {
   from {
@@ -1794,6 +1938,10 @@ input[type="radio"]:focus {
 
 .text-success {
   color: var(--accent-success);
+}
+
+.text-warning {
+  color: var(--accent-warning);
 }
 
 .text-info {

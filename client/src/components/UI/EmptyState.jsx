@@ -1,4 +1,5 @@
 import React from 'react';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
 
 function EmptyIcon() {
     return (
@@ -15,7 +16,7 @@ function EmptyIcon() {
 }
 
 export default function EmptyState({
-    title = '暂无数据',
+    title,
     subtitle,
     action,
     icon,
@@ -24,6 +25,8 @@ export default function EmptyState({
     hideIcon = false,
     className = '',
 }) {
+    const { t } = useI18n();
+    const resolvedTitle = title ?? t('comp.common.noData');
     const classes = [
         'empty-state',
         size !== 'default' ? `empty-state--${size}` : '',
@@ -40,7 +43,7 @@ export default function EmptyState({
                 </div>
             )}
             <div className="empty-state-body">
-                <h3 className="empty-state-title">{title}</h3>
+                <h3 className="empty-state-title">{resolvedTitle}</h3>
                 {subtitle && <p className="empty-state-sub">{subtitle}</p>}
             </div>
             {action && <div className="empty-state-action mt-4">{action}</div>}

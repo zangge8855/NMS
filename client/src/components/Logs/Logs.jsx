@@ -570,7 +570,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                         <>
                             <div className="logs-toolbar-toggle-group" role="group" aria-label={locale === 'en-US' ? 'Viewer controls' : '查看控制'}>
                                 <button
-                                    className="btn btn-ghost btn-sm rounded-lg"
+                                    className="btn btn-ghost btn-sm"
                                     onClick={() => setAutoScrollEnabled((value) => !value)}
                                     title={autoScrollEnabled ? t('pages.logs.pauseScrollTitle') : t('pages.logs.resumeScrollTitle')}
                                 >
@@ -578,14 +578,14 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                     {autoScrollEnabled ? t('pages.logs.pauseScroll') : t('pages.logs.resumeScroll')}
                                 </button>
                                 <button
-                                    className={`btn btn-sm rounded-lg ${wrapLines ? 'btn-secondary' : 'btn-ghost'}`}
+                                    className={`btn btn-sm ${wrapLines ? 'btn-secondary' : 'btn-ghost'}`}
                                     onClick={() => setWrapLines((value) => !value)}
                                     title={wrapLines ? t('pages.logs.wrapDisableTitle') : t('pages.logs.wrapEnableTitle')}
                                 >
                                     {wrapLines ? t('pages.logs.wrapEnabled') : t('pages.logs.wrapDisabled')}
                                 </button>
                                 <button
-                                    className={`btn btn-sm rounded-lg ${immersiveMode ? 'btn-secondary' : 'btn-ghost'}`}
+                                    className={`btn btn-sm ${immersiveMode ? 'btn-secondary' : 'btn-ghost'}`}
                                     onClick={() => setImmersiveMode((value) => !value)}
                                     title={immersiveMode ? t('pages.logs.immersiveExitTitle') : t('pages.logs.immersiveEnterTitle')}
                                 >
@@ -594,11 +594,11 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                 </button>
                             </div>
                             <div className="logs-toolbar-primary-group">
-                                <button className="btn btn-ghost btn-sm rounded-lg" onClick={clearViewer} title={t('pages.logs.clearViewTitle')}>
+                                <button className="btn btn-ghost btn-sm" onClick={clearViewer} title={t('pages.logs.clearViewTitle')}>
                                     <HiOutlineTrash /> {t('pages.logs.clearView')}
                                 </button>
                                 <CopyFeedbackButton
-                                    className="btn btn-secondary btn-sm rounded-lg"
+                                    className="btn btn-secondary btn-sm"
                                     text={copiedLogText}
                                     successText={t('pages.logs.copySuccess')}
                                     errorText={t('pages.logs.copyError')}
@@ -606,7 +606,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                 >
                                     {t('pages.logs.copy')}
                                 </CopyFeedbackButton>
-                                <button className="btn btn-primary btn-sm rounded-lg" onClick={fetchLogs} disabled={logRequestPending}>
+                                <button className="btn btn-primary btn-sm" onClick={fetchLogs} disabled={logRequestPending}>
                                     <HiOutlineArrowPath className={logRequestPending ? 'spinning' : ''} />
                                     {logRequestPending ? t('pages.logs.loading') : t('pages.logs.refresh')}
                                 </button>
@@ -640,8 +640,8 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                             )}
                             actions={(
                                 <>
-                                    <button className="btn btn-ghost btn-sm rounded-lg" onClick={selectAllServers}>{t('pages.logs.selectAll')}</button>
-                                    <button className="btn btn-ghost btn-sm rounded-lg" onClick={selectNoneServers}>{t('pages.logs.clearSelection')}</button>
+                                    <button className="btn btn-ghost btn-sm" onClick={selectAllServers}>{t('pages.logs.selectAll')}</button>
+                                    <button className="btn btn-ghost btn-sm" onClick={selectNoneServers}>{t('pages.logs.clearSelection')}</button>
                                 </>
                             )}
                         />

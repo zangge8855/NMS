@@ -818,13 +818,13 @@ export default function Servers() {
             ? t('comp.servers.testOk')
             : testState === 'error'
                 ? t('comp.servers.testFail')
-                : '未测试';
+                : t('pages.servers.notTested');
         const testStateBadge = testState === 'success'
             ? 'badge-success'
             : testState === 'error'
                 ? 'badge-danger'
                 : 'badge-neutral';
-        const serverStateText = locale === 'en-US' ? 'Registered' : '已接入';
+        const serverStateText = t('pages.servers.registered');
         const credentialBadge = credentialStatus === 'unreadable'
             ? { cls: 'badge-danger', text: t('comp.servers.credBroken') }
             : (credentialStatus === 'missing'
@@ -858,8 +858,8 @@ export default function Servers() {
                             <button
                                 type="button"
                                 className="btn btn-ghost btn-xs btn-icon"
-                                aria-label={`上移服务器 ${server.name}`}
-                                title="上移"
+                                aria-label={t('pages.servers.moveUp') + ' ' + server.name}
+                                title={t('pages.servers.moveUp')}
                                 disabled={index === 0 || loading.serverOrder || rowBusy}
                                 onClick={(e) => {
                                     e.stopPropagation();
@@ -871,8 +871,8 @@ export default function Servers() {
                             <button
                                 type="button"
                                 className="btn btn-ghost btn-xs btn-icon"
-                                aria-label={`下移服务器 ${server.name}`}
-                                title="下移"
+                                aria-label={t('pages.servers.moveDown') + ' ' + server.name}
+                                title={t('pages.servers.moveDown')}
                                 disabled={index === filteredServers.length - 1 || loading.serverOrder || rowBusy}
                                 onClick={(e) => {
                                     e.stopPropagation();
@@ -952,7 +952,6 @@ export default function Servers() {
         <>
             <Header
                 title={t('pages.servers.title')}
-                eyebrow={t('pages.servers.eyebrow')}
             />
             <div className="page-content page-content--wide page-enter servers-page">
                 <ListToolbar
@@ -991,15 +990,15 @@ export default function Servers() {
                     )}
                     summary={selectedIds.size > 0 ? (
                         <div className="flex gap-2 items-center animate-fade-in servers-selection-bar servers-selection-bar-takeover">
-                            <span className="text-sm font-bold px-2 bulk-toolbar-count">已选 {selectedIds.size} 项</span>
+                            <span className="text-sm font-bold px-2 bulk-toolbar-count">{t('pages.servers.toolbar.selectedItems', { count: selectedIds.size })}</span>
                             <button className="btn btn-secondary btn-sm" onClick={handleBulkTest} disabled={bulkActionBusy}>
-                                {bulkTestAction.pendingIds.length > 0 ? <span className="spinner" /> : <HiOutlineSignal />} 批量测试
+                                {bulkTestAction.pendingIds.length > 0 ? <span className="spinner" /> : <HiOutlineSignal />} {t('pages.servers.toolbar.bulkTest')}
                             </button>
                             <button className="btn btn-danger btn-sm" onClick={handleBulkDelete} disabled={bulkActionBusy}>
-                                <HiOutlineTrash /> 批量删除
+                                <HiOutlineTrash /> {t('pages.servers.toolbar.bulkDelete')}
                             </button>
                             <button className="btn btn-secondary btn-sm" onClick={() => setSelectedIds(new Set())} disabled={bulkActionBusy}>
-                                取消全选
+                                {t('pages.servers.toolbar.cancelSelectAll')}
                             </button>
                         </div>
                     ) : (
@@ -1025,10 +1024,10 @@ export default function Servers() {
                                 className="btn btn-secondary btn-sm"
                                 onClick={() => { setBatchResult(null); setShowBatchForm(true); }}
                             >
-                                <HiOutlinePlusCircle /> 批量添加
+                                <HiOutlinePlusCircle /> {t('pages.servers.toolbar.bulkAdd')}
                             </button>
                             <button className="btn btn-primary btn-sm" onClick={openCreateServerModal}>
-                                <HiOutlinePlusCircle /> 添加服务器
+                                <HiOutlinePlusCircle /> {t('pages.servers.toolbar.addServer')}
                             </button>
                             <button type="button" className="btn btn-secondary btn-sm servers-select-all-btn" onClick={toggleSelectAll}>
                                 {allVisibleSelected ? t('comp.common.deselectAll') : t('comp.common.selectAll')}
@@ -1040,9 +1039,9 @@ export default function Servers() {
                 {/* Server List */}
                 {servers.length === 0 ? (
                     <EmptyState
-                        title="暂无服务器"
-                        subtitle="点击下方按钮添加您的第一台 3x-ui 面板"
-                        action={<button type="button" className="btn btn-primary" onClick={openCreateServerModal}><HiOutlinePlusCircle /> 新增服务器</button>}
+                        title={t('pages.servers.empty.noServersTitle')}
+                        subtitle={t('pages.servers.empty.noServersSubtitle')}
+                        action={<button type="button" className="btn btn-primary" onClick={openCreateServerModal}><HiOutlinePlusCircle /> {t('pages.servers.empty.addAction')}</button>}
                     />
                 ) : filteredServers.length === 0 ? (
                     <EmptyState
@@ -1063,7 +1062,7 @@ export default function Servers() {
                                     setLatencyFilter('all');
                                 }}
                             >
-                                清空筛选
+                                {t('pages.servers.empty.clearFilters')}
                             </button>
                         )}
                     />
@@ -1076,16 +1075,16 @@ export default function Servers() {
                         <table className="table servers-table">
                             <thead>
                                 <tr>
-                                    <th className="table-cell-center servers-select-column">选择</th>
-                                    <th className="table-cell-center servers-move-column">移动</th>
-                                    <th className="table-cell-center servers-order-column">序号</th>
-                                    <th className="servers-name-column">服务器</th>
-                                    <th className="servers-telemetry-column">24h RTT</th>
-                                    <th className="servers-group-column">分组 / 标签</th>
-                                    <th className="servers-account-column">账号</th>
-                                    <th className="servers-credential-column">凭据</th>
-                                    <th className="servers-status-column">状态</th>
-                                    <th className="table-cell-actions servers-actions-column">操作</th>
+                                    <th className="table-cell-center servers-select-column">{t('pages.servers.cols.select')}</th>
+                                    <th className="table-cell-center servers-move-column">{t('pages.servers.cols.move')}</th>
+                                    <th className="table-cell-center servers-order-column">{t('pages.servers.cols.sequence')}</th>
+                                    <th className="servers-name-column">{t('pages.servers.cols.server')}</th>
+                                    <th className="servers-telemetry-column">{t('pages.servers.cols.telemetry')}</th>
+                                    <th className="servers-group-column">{t('pages.servers.cols.group')}</th>
+                                    <th className="servers-account-column">{t('pages.servers.cols.account')}</th>
+                                    <th className="servers-credential-column">{t('pages.servers.cols.credential')}</th>
+                                    <th className="servers-status-column">{t('pages.servers.cols.status')}</th>
+                                    <th className="table-cell-actions servers-actions-column">{t('pages.servers.cols.actions')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1104,13 +1103,13 @@ export default function Servers() {
                                 ? t('comp.servers.testOk')
                                 : testState === 'error'
                                     ? t('comp.servers.testFail')
-                                    : '未测试';
+                                    : t('pages.servers.notTested');
                             const testStateBadge = testState === 'success'
                                 ? 'badge-success'
                                 : testState === 'error'
                                     ? 'badge-danger'
                                     : 'badge-neutral';
-                            const serverStateText = locale === 'en-US' ? 'Registered' : '已接入';
+                            const serverStateText = t('pages.servers.registered');
                             const credentialBadge = credentialStatus === 'unreadable'
                                 ? { cls: 'badge-danger', text: t('comp.servers.credBroken') }
                                 : (credentialStatus === 'missing'
@@ -1136,13 +1135,13 @@ export default function Servers() {
                                             onChange={() => toggleSelect(server.id)}
                                         />
                                     </td>
-                                    <td className="table-cell-center servers-move-cell" data-label="移动" onClick={(e) => e.stopPropagation()}>
+                                    <td className="table-cell-center servers-move-cell" data-label={t('pages.servers.cols.move')} onClick={(e) => e.stopPropagation()}>
                                         <div className="servers-order-actions">
                                             <button
                                                 type="button"
                                                 className="btn btn-ghost btn-xs btn-icon"
-                                                aria-label={`上移服务器 ${server.name}`}
-                                                title="上移"
+                                                aria-label={t('pages.servers.moveUp') + ' ' + server.name}
+                                                title={t('pages.servers.moveUp')}
                                                 disabled={index === 0 || loading.serverOrder || rowBusy}
                                                 onClick={() => moveServer(server.id, -1)}
                                             >
@@ -1151,8 +1150,8 @@ export default function Servers() {
                                             <button
                                                 type="button"
                                                 className="btn btn-ghost btn-xs btn-icon"
-                                                aria-label={`下移服务器 ${server.name}`}
-                                                title="下移"
+                                                aria-label={t('pages.servers.moveDown') + ' ' + server.name}
+                                                title={t('pages.servers.moveDown')}
                                                 disabled={index === filteredServers.length - 1 || loading.serverOrder || rowBusy}
                                                 onClick={() => moveServer(server.id, 1)}
                                             >
@@ -1160,12 +1159,12 @@ export default function Servers() {
                                             </button>
                                         </div>
                                     </td>
-                                    <td className="table-cell-center servers-order-cell" data-label="序号" onClick={(e) => e.stopPropagation()}>
+                                    <td className="table-cell-center servers-order-cell" data-label={t('pages.servers.cols.sequence')} onClick={(e) => e.stopPropagation()}>
                                         <div className="servers-order-stack">
                                             <span className="servers-order-number">{index + 1}</span>
                                         </div>
                                     </td>
-                                    <td className="servers-name-cell" data-label="服务器">
+                                    <td className="servers-name-cell" data-label={t('pages.servers.cols.server')}>
                                         <div className="servers-name-stack">
                                             <div className="servers-name-head">
                                                 <button
@@ -1198,14 +1197,14 @@ export default function Servers() {
                                             ) : null}
                                         </div>
                                     </td>
-                                    <td className="servers-telemetry-column" data-label="24h RTT">
+                                    <td className="servers-telemetry-column" data-label={t('pages.servers.cols.telemetry')}>
                                         <ServerTelemetryCell
                                             telemetry={telemetry}
                                             loading={telemetryLoading}
                                             locale={locale}
                                         />
                                     </td>
-                                    <td className="servers-tags-cell" data-label="分组 / 标签">
+                                    <td className="servers-tags-cell" data-label={t('pages.servers.cols.group')}>
                                         <div className="flex flex-wrap gap-2 text-xs server-card-tags">
                                         <span className="badge badge-neutral">{t('comp.servers.groupPrefix')}: {serverGroup}</span>
                                         {serverTags.map((tag) => (
@@ -1213,16 +1212,16 @@ export default function Servers() {
                                         ))}
                                         </div>
                                     </td>
-                                    <td className="servers-account-cell" data-label="账号">
+                                    <td className="servers-account-cell" data-label={t('pages.servers.cols.account')}>
                                         <div className="servers-account-stack">
                                             <span className="font-medium text-primary">{authLabel}</span>
-                                            {serverEnvironment ? <span className="text-xs text-muted">环境：{serverEnvironment}</span> : null}
+                                            {serverEnvironment ? <span className="text-xs text-muted">{t('comp.servers.environmentLabel', { value: serverEnvironment })}</span> : null}
                                         </div>
                                     </td>
-                                    <td className="servers-credential-cell" data-label="凭据">
+                                    <td className="servers-credential-cell" data-label={t('pages.servers.cols.credential')}>
                                         <span className={`badge ${credentialBadge.cls}`}>{credentialBadge.text}</span>
                                     </td>
-                                    <td className="servers-status-cell" data-label="状态">
+                                    <td className="servers-status-cell" data-label={t('pages.servers.cols.status')}>
                                         <div className="servers-status-stack">
                                             <span className={`badge ${isActive ? 'badge-success' : 'badge-neutral'}`}>{serverStateText}</span>
                                             <span className="text-xs text-muted servers-status-meta">
@@ -1230,7 +1229,7 @@ export default function Servers() {
                                             </span>
                                         </div>
                                     </td>
-                                    <td className="table-cell-actions servers-actions-cell" data-label="操作" onClick={(e) => e.stopPropagation()}>
+                                    <td className="table-cell-actions servers-actions-cell" data-label={t('pages.servers.cols.actions')} onClick={(e) => e.stopPropagation()}>
                                         <div className="table-row-actions servers-row-actions">
                                             <button className="btn btn-secondary btn-sm servers-row-action-main" onClick={() => navigate(`/servers/${server.id}`)} title="详情" disabled={rowBusy}>
                                             <HiOutlineEye /> 详情

@@ -67,7 +67,7 @@ export default function XrayJsonEditor({
     };
 
     return (
-        <div className="space-y-3">
+        <div className="xray-json-editor">
             <div className="flex items-start justify-between gap-3">
                 <div>
                     <h3 className="text-base font-bold text-primary">{label}</h3>
@@ -77,13 +77,13 @@ export default function XrayJsonEditor({
                 </div>
                 <div className="flex items-center gap-2">
                     {dirty ? (
-                        <button type="button" className="btn btn-secondary btn-sm rounded-md flex items-center gap-1" onClick={handleReset}>
+                        <button type="button" className="btn btn-secondary btn-sm flex items-center gap-1" onClick={handleReset}>
                             <HiOutlineXMark /> {locale === 'en-US' ? 'Reset' : '撤销'}
                         </button>
                     ) : null}
                     <button
                         type="button"
-                        className="btn btn-primary btn-sm rounded-md flex items-center gap-1"
+                        className="btn btn-primary btn-sm flex items-center gap-1"
                         onClick={handleSubmit}
                         disabled={saving || !dirty}
                     >
@@ -108,7 +108,7 @@ export default function XrayJsonEditor({
             />
 
             {error ? (
-                <div className="text-sm text-error">{error}</div>
+                <div className="text-sm text-danger">{error}</div>
             ) : (
                 dirty ? (
                     <div className="text-xs text-warning">

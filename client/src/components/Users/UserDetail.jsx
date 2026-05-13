@@ -1362,7 +1362,6 @@ export default function UserDetail() {
             <>
                 <Header
                     title={t('pages.userDetail.title')}
-                    eyebrow={t('pages.userDetail.eyebrow')}
                 />
                 <div className="page-content page-content--wide page-enter user-detail-page">
                     <div className="glass-panel p-6">
@@ -1378,7 +1377,6 @@ export default function UserDetail() {
             <>
                 <Header
                     title={t('pages.userDetail.title')}
-                    eyebrow={t('pages.userDetail.eyebrow')}
                 />
                 <div className="page-content page-content--wide page-enter user-detail-page">
                     <EmptyState title={copy.userMissingTitle} subtitle={copy.userMissingSubtitle} action={
@@ -1422,7 +1420,6 @@ export default function UserDetail() {
         <>
             <Header
                 title={t('pages.userDetail.titleWithName', { name: user.username })}
-                eyebrow={t('pages.userDetail.eyebrow')}
                 allowTitleWrap
             />
             <div className="page-content page-content--wide page-enter user-detail-page">

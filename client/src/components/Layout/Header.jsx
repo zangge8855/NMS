@@ -98,7 +98,6 @@ function createRefreshCommand(copy, pathname) {
 
 export default function Header({
     title,
-    eyebrow: _eyebrow = '',
     subtitle = '',
     icon,
     children,

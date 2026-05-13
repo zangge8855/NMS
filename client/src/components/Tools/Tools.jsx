@@ -207,7 +207,7 @@ export default function Tools() {
                         icon={<HiOutlineWrench style={{ fontSize: '48px' }} />}
                         surface
                         action={(
-                            <button type="button" className="btn btn-primary rounded-lg" onClick={() => navigate('/servers')}>
+                            <button type="button" className="btn btn-primary" onClick={() => navigate('/servers')}>
                                 {copy.goToServers}
                             </button>
                         )}
@@ -231,7 +231,7 @@ export default function Tools() {
                         </div>
                     )}
                     actions={(
-                        <button className="btn btn-secondary btn-sm rounded-lg" onClick={fetchCatalog} disabled={catalogLoading}>
+                        <button className="btn btn-secondary btn-sm" onClick={fetchCatalog} disabled={catalogLoading}>
                             <HiOutlineArrowPath className={catalogLoading ? 'spinning' : ''} /> {copy.refresh}
                         </button>
                     )}
@@ -243,7 +243,7 @@ export default function Tools() {
                         subtitle={copy.emptySubtitle}
                         surface
                         action={(
-                            <button type="button" className="btn btn-secondary rounded-lg" onClick={fetchCatalog}>
+                            <button type="button" className="btn btn-secondary" onClick={fetchCatalog}>
                                 <HiOutlineArrowPath /> {copy.refreshCatalog}
                             </button>
                         )}
@@ -271,7 +271,7 @@ export default function Tools() {
 
                                 <div className="tool-card-actions">
                                     <button
-                                        className="btn btn-primary btn-sm rounded-lg"
+                                        className="btn btn-primary btn-sm"
                                         onClick={() => handleGenerate(tool)}
                                         disabled={loading[tool.key] || tool.available === false}
                                     >
@@ -279,7 +279,7 @@ export default function Tools() {
                                         {copy.generate}
                                     </button>
                                     {results[tool.key] && (
-                                        <button className="btn btn-secondary btn-sm rounded-lg" onClick={() => handleCopy(results[tool.key])}>
+                                        <button className="btn btn-secondary btn-sm" onClick={() => handleCopy(results[tool.key])}>
                                             <HiOutlineClipboard /> {copy.copy}
                                         </button>
                                     )}

@@ -1781,7 +1781,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     <div className="text-xs text-muted">未配置 fallback</div>
                                                 )}
                                                 {vlessFallbacks.map((fallback, index) => (
-                                                    <div key={`vless-fallback-${index}`} className="border border-stroke-soft rounded-md p-3 mb-2">
+                                                    <div key={`vless-fallback-${index}`} className="border border-stroke-soft rounded-lg p-3 mb-2">
                                                         <div className="flex justify-between items-center mb-2">
                                                             <span className="text-xs text-secondary">Fallback #{index + 1}</span>
                                                             <button

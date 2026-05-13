@@ -1203,7 +1203,7 @@ function AuditEventsMobileList({ items = [], copy, locale, onSelect }) {
                         </div>
                     <div className="audit-mobile-card-actions">
                         <button
-                            className="btn btn-secondary btn-sm rounded-lg audit-action-btn"
+                            className="btn btn-secondary btn-sm audit-action-btn"
                             onClick={() => onSelect(item)}
                             title={copy.actions.viewDetail}
                             aria-label={copy.actions.viewDetail}
@@ -1907,7 +1907,6 @@ export default function AuditCenter() {
         <>
             <Header
                 title={t('pages.audit.title')}
-                eyebrow={t('pages.audit.eyebrow')}
             />
             <div className="page-content page-enter page-content--wide audit-page">
                 <div className="audit-shell">
@@ -2128,7 +2127,7 @@ export default function AuditCenter() {
                                                     <td data-label={copy.tables.action} className="table-cell-actions">
                                                         <div className="table-row-actions audit-table-row-actions">
                                                             <button
-                                                                className="btn btn-secondary btn-sm rounded-lg audit-action-btn"
+                                                                className="btn btn-secondary btn-sm audit-action-btn"
                                                                 onClick={() => setSelectedEvent(item)}
                                                                 title={copy.actions.viewDetail}
                                                                 aria-label={copy.actions.viewDetail}

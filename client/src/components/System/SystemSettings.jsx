@@ -3161,7 +3161,6 @@ export default function SystemSettings() {
                 <Header
                     title={t('pages.settings.title')}
                     subtitle={t('pages.settings.limitedSubtitle')}
-                    eyebrow={t('pages.settings.eyebrow')}
                 />
                 <div className="page-content page-enter settings-page">
                     <EmptyState
@@ -3184,7 +3183,6 @@ export default function SystemSettings() {
         <>
             <Header
                 title={t('pages.settings.title')}
-                eyebrow={t('pages.settings.eyebrow')}
             />
             <div className="page-content page-content--wide page-enter settings-page">
                 <div className="settings-shell">
@@ -3221,7 +3219,7 @@ export default function SystemSettings() {
                                             {item.navSummary ? <span className="settings-nav-item-summary">{item.navSummary}</span> : null}
                                             {(isDirty || item.navFlag) ? (
                                                 <span className="settings-nav-item-flags">
-                                                    {isDirty ? <span className="badge badge-warning">未保存</span> : null}
+                                                    {isDirty ? <span className="badge badge-warning">{t('pages.settings.saveDock.unsaved')}</span> : null}
                                                     {item.navFlag ? <span className={`badge ${navFlagToneClass}`}>{item.navFlag.label}</span> : null}
                                                 </span>
                                             ) : null}
@@ -3253,12 +3251,12 @@ export default function SystemSettings() {
                                         {saving ? <span className="spinner spinner-16" /> : null}
                                         <span>
                                             {saving
-                                                ? '正在保存设置'
+                                                ? t('pages.settings.saveDock.saving')
                                                 : loading
-                                                    ? '正在加载配置'
+                                                    ? t('pages.settings.saveDock.loading')
                                                     : hasPendingChanges
-                                                        ? '有未保存更改'
-                                                        : '配置已加载'}
+                                                        ? t('pages.settings.saveDock.dirty')
+                                                        : t('pages.settings.saveDock.ready')}
                                         </span>
                                     </div>
                                     <span className="settings-save-dock-summary">{saveDockSummary}</span>
@@ -3267,11 +3265,11 @@ export default function SystemSettings() {
                                 <div className="settings-save-dock-actions">
                                     {hasPendingChanges ? (
                                         <button className="btn btn-ghost btn-sm" onClick={resetPendingChanges} disabled={loading || saving}>
-                                            恢复更改
+                                            {t('pages.settings.saveDock.revertChanges')}
                                         </button>
                                     ) : null}
                                     <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={loading || saving || !hasPendingChanges}>
-                                        {saving ? <span className="spinner" /> : '保存设置'}
+                                        {saving ? <span className="spinner" /> : t('pages.settings.saveDock.saveSettings')}
                                     </button>
                                 </div>
                             </div>

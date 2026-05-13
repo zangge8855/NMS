@@ -404,9 +404,10 @@ export default function AccountCenter() {
                         </div>
                         <div className="account-card-note">{getPasswordPolicyHint(locale)}</div>
                     </div>
+
+                    <TwoFactorPanel locale={locale} />
                 </div>
             </div>
-            <TwoFactorPanel locale={locale} />
         </>
     );
 }

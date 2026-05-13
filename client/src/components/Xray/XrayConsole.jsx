@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { HiOutlineArrowPath, HiOutlineCheck, HiOutlineExclamationTriangle } from 'react-icons/hi2';
 import Header from '../Layout/Header.jsx';
 import PageToolbar from '../UI/PageToolbar.jsx';
-import SectionHeader from '../UI/SectionHeader.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
@@ -122,93 +121,105 @@ export default function XrayConsole() {
 
     return (
         <>
-            <Header title={copy.title} subtitle={copy.subtitle} />
-            <PageToolbar>
-                <div className="flex items-center gap-2">
-                    {source ? (
-                        <span className="badge badge-neutral text-xs">
-                            <HiOutlineCheck className="text-success" /> {copy.sources[source] || source}
-                        </span>
-                    ) : null}
-                </div>
-                <button
-                    type="button"
-                    className="btn btn-secondary rounded-lg flex items-center gap-2"
-                    onClick={loadConfig}
-                    disabled={!singleServerSelected || loading}
-                >
-                    <HiOutlineArrowPath className={loading ? 'animate-spin' : ''} />
-                    {copy.refresh}
-                </button>
-            </PageToolbar>
-
-            {!singleServerSelected ? (
-                <EmptyState
-                    icon={<HiOutlineExclamationTriangle />}
-                    title={copy.selectServer}
-                    subtitle={copy.selectServerHint}
+            <Header title={copy.title} />
+            <div className="page-content page-content--wide page-enter xray-page">
+                <PageToolbar
+                    className="card mb-6 xray-toolbar"
+                    compact
+                    main={(
+                        <div className="xray-toolbar-meta">
+                            <span className="text-sm text-muted">{copy.subtitle}</span>
+                            {source ? (
+                                <span className="badge badge-neutral">
+                                    <HiOutlineCheck /> {copy.sources[source] || source}
+                                </span>
+                            ) : null}
+                        </div>
+                    )}
+                    actions={(
+                        <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={loadConfig}
+                            disabled={!singleServerSelected || loading}
+                        >
+                            <HiOutlineArrowPath className={loading ? 'spinning' : ''} />
+                            {copy.refresh}
+                        </button>
+                    )}
                 />
-            ) : (
-                <div className="rounded-xl border border-stroke-soft bg-surface-soft p-4">
-                    <div className="flex flex-wrap gap-2 mb-4 border-b border-stroke-soft pb-3">
-                        {TABS.map((tab) => (
-                            <button
-                                key={tab}
-                                type="button"
-                                className={`px-3 py-1.5 rounded-md text-sm transition ${
-                                    activeTab === tab
-                                        ? 'bg-primary text-white'
-                                        : 'bg-surface text-secondary hover:bg-surface-strong'
-                                }`}
-                                onClick={() => setActiveTab(tab)}
-                            >
-                                {copy.sectionLabels[tab]}
-                            </button>
-                        ))}
+
+                {!singleServerSelected ? (
+                    <EmptyState
+                        icon={<HiOutlineExclamationTriangle />}
+                        title={copy.selectServer}
+                        subtitle={copy.selectServerHint}
+                        surface
+                    />
+                ) : (
+                    <div className="card xray-workbench">
+                        <div className="tabs xray-tabs" role="tablist" aria-label={copy.title}>
+                            {TABS.map((tab) => (
+                                <button
+                                    key={tab}
+                                    type="button"
+                                    className={`tab ${activeTab === tab ? 'active' : ''}`}
+                                    role="tab"
+                                    aria-selected={activeTab === tab}
+                                    onClick={() => setActiveTab(tab)}
+                                >
+                                    {copy.sectionLabels[tab]}
+                                </button>
+                            ))}
+                        </div>
+
+                        {loading && !snapshot ? (
+                            <EmptyState
+                                title={copy.loadingTitle}
+                                size="compact"
+                                icon={<span className="spinner spinner-20" aria-hidden="true" />}
+                            />
+                        ) : null}
+
+                        {snapshot ? (
+                            <div className="xray-tab-panel">
+                                {activeTab === 'routing' && (
+                                    <RoutingRulesEditor
+                                        locale={locale}
+                                        value={snapshot.routing}
+                                        onSave={(payload) => handleSave('routing', payload)}
+                                        saving={saving}
+                                    />
+                                )}
+                                {activeTab === 'outbounds' && (
+                                    <OutboundsEditor
+                                        locale={locale}
+                                        value={snapshot.outbounds}
+                                        onSave={(payload) => handleSave('outbounds', payload)}
+                                        saving={saving}
+                                    />
+                                )}
+                                {activeTab === 'dns' && (
+                                    <DnsEditor
+                                        locale={locale}
+                                        value={snapshot.dns}
+                                        onSave={(payload) => handleSave('dns', payload)}
+                                        saving={saving}
+                                    />
+                                )}
+                                {activeTab === 'balancers' && (
+                                    <BalancersEditor
+                                        locale={locale}
+                                        value={snapshot.balancers}
+                                        onSave={(payload) => handleSave('balancers', payload)}
+                                        saving={saving}
+                                    />
+                                )}
+                            </div>
+                        ) : null}
                     </div>
-
-                    {loading && !snapshot ? (
-                        <SectionHeader title={copy.loadingTitle} subtitle="" />
-                    ) : null}
-
-                    {snapshot ? (
-                        <>
-                            {activeTab === 'routing' && (
-                                <RoutingRulesEditor
-                                    locale={locale}
-                                    value={snapshot.routing}
-                                    onSave={(payload) => handleSave('routing', payload)}
-                                    saving={saving}
-                                />
-                            )}
-                            {activeTab === 'outbounds' && (
-                                <OutboundsEditor
-                                    locale={locale}
-                                    value={snapshot.outbounds}
-                                    onSave={(payload) => handleSave('outbounds', payload)}
-                                    saving={saving}
-                                />
-                            )}
-                            {activeTab === 'dns' && (
-                                <DnsEditor
-                                    locale={locale}
-                                    value={snapshot.dns}
-                                    onSave={(payload) => handleSave('dns', payload)}
-                                    saving={saving}
-                                />
-                            )}
-                            {activeTab === 'balancers' && (
-                                <BalancersEditor
-                                    locale={locale}
-                                    value={snapshot.balancers}
-                                    onSave={(payload) => handleSave('balancers', payload)}
-                                    saving={saving}
-                                />
-                            )}
-                        </>
-                    ) : null}
-                </div>
-            )}
+                )}
+            </div>
         </>
     );
 }

@@ -1151,7 +1151,6 @@ export default function Inbounds() {
             <>
                 <Header
                     title={t('pages.inbounds.title')}
-                    eyebrow={t('pages.inbounds.eyebrow')}
                 />
                 <div className="page-content page-content--wide page-enter inbounds-page">
                     <EmptyState
@@ -1169,7 +1168,6 @@ export default function Inbounds() {
         <>
             <Header
                 title={t('pages.inbounds.title')}
-                eyebrow={t('pages.inbounds.eyebrow')}
             />
             <div className="page-content page-content--wide page-enter inbounds-page">
                 <ListToolbar
@@ -1182,26 +1180,26 @@ export default function Inbounds() {
                             onChange={(e) => setFilterServerId(e.target.value)}
                             disabled={isServerFilterLocked}
                         >
-                            <option value="all">全部节点 ({servers.length})</option>
+                            <option value="all">{t('pages.inbounds.toolbar.allServers', { count: servers.length })}</option>
                             {orderedServerOptions.map(s => (
                                 <option key={s.id} value={s.id}>{s.name}</option>
                             ))}
                         </select>
                         </>
                     )}
-                    summary={<span className="text-sm text-muted inbounds-toolbar-summary">共 {filteredInbounds.length} 条规则</span>}
+                    summary={<span className="text-sm text-muted inbounds-toolbar-summary">{t('pages.inbounds.toolbar.summary', { count: filteredInbounds.length })}</span>}
                     actions={selectedVisibleCount > 0 ? (
                         <div className="flex gap-2 items-center animate-fade-in inbounds-selection-bar">
-                            <span className="text-sm font-bold px-2 text-primary">已选 {selectedVisibleCount} 项</span>
+                            <span className="text-sm font-bold px-2 text-primary">{t('pages.inbounds.toolbar.selected', { count: selectedVisibleCount })}</span>
                             <button className={bulkToggleClassName} onClick={() => handleBulkSetEnable(bulkToggleEnable)}>
                                 {bulkToggleIcon}
                                 {bulkToggleLabel}
                             </button>
                             <button className="btn btn-danger btn-sm" onClick={handleBulkDelete}>
-                                <HiOutlineTrash /> 删除
+                                <HiOutlineTrash /> {t('pages.inbounds.toolbar.delete')}
                             </button>
                             <button className="btn btn-secondary btn-sm" onClick={handleBulkReset}>
-                                <HiOutlineArrowPath /> 重置
+                                <HiOutlineArrowPath /> {t('pages.inbounds.toolbar.reset')}
                             </button>
                             <button className="btn btn-secondary btn-sm" onClick={handleBulkSyncExistingUsers}>
                                 <HiOutlineArrowPath /> {t('comp.inbounds.syncExistingUsersButton')}
@@ -1210,9 +1208,9 @@ export default function Inbounds() {
                     ) : (
                         <>
                         <button className="btn btn-primary btn-sm" onClick={handleAdd}>
-                            <HiOutlinePlusCircle /> 添加入站
+                            <HiOutlinePlusCircle /> {t('pages.inbounds.toolbar.add')}
                         </button>
-                        <button className="btn btn-secondary btn-sm" onClick={fetchAllInbounds} title="刷新">
+                        <button className="btn btn-secondary btn-sm" onClick={fetchAllInbounds} title={t('pages.inbounds.toolbar.refresh')}>
                             <HiOutlineArrowPath />
                         </button>
                         </>
@@ -1222,8 +1220,8 @@ export default function Inbounds() {
                 {savingOrderServerId && (
                     <div className="text-xs text-muted mb-3 inbounds-saving-note">
                         {savingOrderServerId === 'global'
-                            ? '正在保存节点顺序'
-                            : `正在保存入站顺序: ${servers.find((item) => item.id === savingOrderServerId)?.name || savingOrderServerId}`}
+                            ? t('pages.inbounds.savingOrderGlobal')
+                            : t('pages.inbounds.savingOrderServer', { name: servers.find((item) => item.id === savingOrderServerId)?.name || savingOrderServerId })}
                     </div>
                 )}
 
@@ -1258,17 +1256,17 @@ export default function Inbounds() {
                                         />
                                     </th>
                                     <th className="inbounds-expand-col" aria-hidden="true" />
-                                    <th className={`inbounds-sequence-col${filterServerId === 'all' ? ' is-compact' : ''}`}>序号</th>
+                                    <th className={`inbounds-sequence-col${filterServerId === 'all' ? ' is-compact' : ''}`}>{t('pages.inbounds.cols.sequence')}</th>
                                     {filterServerId === 'all' && (
-                                        <th className="inbounds-node-col">节点</th>
+                                        <th className="inbounds-node-col">{t('pages.inbounds.cols.node')}</th>
                                     )}
-                                    <th className="inbounds-remark-col">备注</th>
-                                    <th className="table-cell-center inbounds-protocol-col">协议</th>
-                                    <th className="table-cell-right inbounds-port-col">监听:端口</th>
-                                    <th className="table-cell-center inbounds-users-col">用户数</th>
-                                    <th className="table-cell-right inbounds-traffic-col">流量 (上/下)</th>
-                                    <th className="table-cell-center inbounds-status-col">状态</th>
-                                    <th className="table-cell-actions inbounds-actions-col">操作</th>
+                                    <th className="inbounds-remark-col">{t('pages.inbounds.cols.remark')}</th>
+                                    <th className="table-cell-center inbounds-protocol-col">{t('pages.inbounds.cols.protocol')}</th>
+                                    <th className="table-cell-right inbounds-port-col">{t('pages.inbounds.cols.listenPort')}</th>
+                                    <th className="table-cell-center inbounds-users-col">{t('pages.inbounds.cols.users')}</th>
+                                    <th className="table-cell-right inbounds-traffic-col">{t('pages.inbounds.cols.traffic')}</th>
+                                    <th className="table-cell-center inbounds-status-col">{t('pages.inbounds.cols.status')}</th>
+                                    <th className="table-cell-actions inbounds-actions-col">{t('pages.inbounds.cols.actions')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1352,7 +1350,7 @@ export default function Inbounds() {
                                                     </div>
                                                 </td>
                                                 <td
-                                                    data-label="序号"
+                                                    data-label={t('pages.inbounds.cols.sequence')}
                                                     onClick={(e) => e.stopPropagation()}
                                                     className={`inbounds-sequence-cell-td${filterServerId === 'all' ? ' is-compact' : ''}`}
                                                 >
@@ -1417,7 +1415,7 @@ export default function Inbounds() {
                                                     </div>
                                                 </td>
                                                 {filterServerId === 'all' && (
-                                                    <td data-label="节点" onClick={(event) => event.stopPropagation()} className="inbounds-node-cell">
+                                                    <td data-label={t('pages.inbounds.cols.node')} onClick={(event) => event.stopPropagation()} className="inbounds-node-cell">
                                                         <div className="inbounds-node-cell-inner">
                                                             <span className="badge badge-neutral inbounds-node-badge">
                                                                 <HiOutlineServer size={10} />
@@ -1428,25 +1426,25 @@ export default function Inbounds() {
                                                     </td>
                                                 )}
                                                 <td
-                                                    data-label="备注"
+                                                    data-label={t('pages.inbounds.cols.remark')}
                                                     className="inbounds-remark-cell"
                                                 >
                                                     <InboundRemarkPill remark={ib.remark} protocol={ib.protocol} />
                                                 </td>
-                                                <td data-label="协议" className="table-cell-center whitespace-nowrap inbounds-protocol-cell"><span className="badge badge-info">{ib.protocol}</span></td>
-                                                <td data-label="端口" className="table-cell-right cell-mono text-sm whitespace-nowrap inbounds-port-cell">{ib.listen || '*'}:{ib.port}</td>
-                                                <td data-label="用户数" className="table-cell-center inbounds-users-cell">
-                                                    <span className="cell-mono inbounds-user-count" title={`共 ${clients.length} 位用户`}>
+                                                <td data-label={t('pages.inbounds.cols.protocol')} className="table-cell-center whitespace-nowrap inbounds-protocol-cell"><span className="badge badge-info">{ib.protocol}</span></td>
+                                                <td data-label={t('pages.inbounds.cols.listenPort')} className="table-cell-right cell-mono text-sm whitespace-nowrap inbounds-port-cell">{ib.listen || '*'}:{ib.port}</td>
+                                                <td data-label={t('pages.inbounds.cols.users')} className="table-cell-center inbounds-users-cell">
+                                                    <span className="cell-mono inbounds-user-count" title={t('pages.inbounds.toolbar.summary', { count: clients.length })}>
                                                         {clients.length}
                                                     </span>
                                                 </td>
-                                                <td data-label="流量" className="table-cell-right text-sm inbounds-traffic-cell">
+                                                <td data-label={t('pages.inbounds.cols.traffic')} className="table-cell-right text-sm inbounds-traffic-cell">
                                                     <div className="inbounds-traffic-stack">
                                                         <span className="text-success">↑{formatBytes(ib.trafficUp)}</span>
                                                         <span className="text-info">↓{formatBytes(ib.trafficDown)}</span>
                                                     </div>
                                                 </td>
-                                                <td data-label="状态" className="table-cell-center inbounds-status-cell-wrap">
+                                                <td data-label={t('pages.inbounds.cols.status')} className="table-cell-center inbounds-status-cell-wrap">
                                                     <div className="inbounds-status-cell">
                                                         <span className={`badge ${ib.enable ? 'badge-success' : 'badge-danger'}`}>
                                                             {ib.enable ? t('comp.common.enabled') : t('comp.common.disabled')}
@@ -1454,18 +1452,18 @@ export default function Inbounds() {
                                                         {ib.hasOnlineUsers && (
                                                             <span
                                                                 className="inbounds-online-indicator"
-                                                                title={`当前 ${ib.onlineUserCount || 0} 位用户 / ${ib.onlineSessionCount || 0} 个会话在线`}
+                                                                title={t('comp.inbounds.onlineUsersTitle', { users: ib.onlineUserCount || 0, sessions: ib.onlineSessionCount || 0 })}
                                                             >
                                                                 <span className="inbounds-online-dot-shell" aria-hidden="true">
                                                                     <span className="inbounds-online-dot-ping" />
                                                                     <span className="inbounds-online-dot" />
                                                                 </span>
-                                                                在线
+                                                                {t('comp.users.online')}
                                                             </span>
                                                         )}
                                                     </div>
                                                 </td>
-                                                <td data-label="操作" className="table-cell-actions inbounds-actions-cell" onClick={(e) => e.stopPropagation()}>
+                                                <td data-label={t('pages.inbounds.cols.actions')} className="table-cell-actions inbounds-actions-cell" onClick={(e) => e.stopPropagation()}>
                                                     <div className="flex gap-2 inbounds-row-actions">
                                                         <button
                                                             className="btn btn-secondary btn-sm btn-icon table-action-btn inbounds-action-btn"

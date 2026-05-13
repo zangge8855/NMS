@@ -1250,7 +1250,6 @@ export default function Dashboard() {
             <>
                 <Header
                     title={t('pages.dashboardGlobal.title')}
-                    eyebrow={t('pages.dashboardGlobal.eyebrow')}
                     icon={<HiOutlineCloud />}
                 >
                     <button
@@ -1464,7 +1463,6 @@ export default function Dashboard() {
         <>
             <Header
                 title={activeServer?.name || t('pages.dashboardNode.title')}
-                eyebrow={t('pages.dashboardNode.eyebrow')}
             >
                 <button
                     className={`btn btn-sm dashboard-refresh-btn ${autoRefresh ? 'btn-primary' : 'btn-secondary'}`}

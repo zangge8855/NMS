@@ -963,7 +963,7 @@ export default function UsersHub() {
             ? syncingCopy.detail
             : user.clientData.count > 0
             ? formatExpiryLabel(user.clientData.expiryValues, locale)
-            : '未开通';
+            : t('pages.usersHub.notProvisioned');
         const userTrafficSummary = user.statsPending
             ? syncingCopy.detail
             : user.clientData.totalUsed
@@ -1484,7 +1484,6 @@ export default function UsersHub() {
         <>
             <Header
                 title={t('pages.usersHub.title')}
-                eyebrow={t('pages.usersHub.eyebrow')}
             />
             <div className="page-content page-enter page-content--wide users-page">
                 <ListToolbar
@@ -1495,37 +1494,37 @@ export default function UsersHub() {
                             <HiOutlineMagnifyingGlass className="account-search-icon" />
                             <input
                                 className="form-input account-search-input"
-                                placeholder="搜索用户名 / 邮箱..."
+                                placeholder={t('pages.usersHub.toolbar.searchPlaceholder')}
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
                         <select className="form-select users-filter-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-                            <option value="all">全部状态</option>
-                            <option value="active">已开通</option>
-                            <option value="enabled">已启用</option>
-                            <option value="disabled">已停用</option>
-                            <option value="pending">待审核</option>
+                            <option value="all">{t('pages.usersHub.toolbar.allStatus')}</option>
+                            <option value="active">{t('pages.usersHub.toolbar.statusActive')}</option>
+                            <option value="enabled">{t('pages.usersHub.toolbar.statusEnabled')}</option>
+                            <option value="disabled">{t('pages.usersHub.toolbar.statusDisabled')}</option>
+                            <option value="pending">{t('pages.usersHub.toolbar.statusPending')}</option>
                         </select>
                         </>
                     )}
                     summary={(
                         <div className="text-sm text-muted users-toolbar-summary">
                             {statsLoading
-                                ? `${syncingCopy.summary} · 显示 ${enrichedUsers.length} / ${users.length} 位账号`
-                                : `显示 ${enrichedUsers.length} / ${users.length} 位账号`}
+                                ? t('pages.usersHub.toolbar.summaryWithSync', { sync: syncingCopy.summary, visible: enrichedUsers.length, total: users.length })
+                                : t('pages.usersHub.toolbar.summary', { visible: enrichedUsers.length, total: users.length })}
                         </div>
                     )}
                     actions={(
                         <>
-                        <button className="btn btn-secondary btn-sm" onClick={handleExportCSV} title="导出CSV">
-                            <HiOutlineArrowDownTray /> 导出
+                        <button className="btn btn-secondary btn-sm" onClick={handleExportCSV} title={t('pages.usersHub.toolbar.exportTitle')}>
+                            <HiOutlineArrowDownTray /> {t('pages.usersHub.toolbar.export')}
                         </button>
-                        <button className="btn btn-secondary btn-sm" onClick={() => fetchData({ forceUsers: true })} title="刷新">
-                            <HiOutlineArrowPath /> 刷新
+                        <button className="btn btn-secondary btn-sm" onClick={() => fetchData({ forceUsers: true })} title={t('pages.usersHub.toolbar.refreshTitle')}>
+                            <HiOutlineArrowPath /> {t('pages.usersHub.toolbar.refresh')}
                         </button>
-                        <button className="btn btn-primary btn-sm" onClick={openCreateModal} title="添加账号">
-                            <HiOutlineUserPlus /> 添加账号
+                        <button className="btn btn-primary btn-sm" onClick={openCreateModal} title={t('pages.usersHub.toolbar.addAccountTitle')}>
+                            <HiOutlineUserPlus /> {t('pages.usersHub.toolbar.addAccount')}
                         </button>
                         </>
                     )}
@@ -1541,12 +1540,12 @@ export default function UsersHub() {
 
                 {selectedIds.size > 0 && (
                     <div className="bulk-toolbar mb-4 users-bulk-toolbar">
-                        <span className="bulk-toolbar-count">已选 {selectedIds.size} 个用户</span>
+                        <span className="bulk-toolbar-count">{t('pages.usersHub.toolbar.selected', { count: selectedIds.size })}</span>
                         <button className={bulkToggleClassName} onClick={() => handleBulkSetEnabled(bulkToggleEnable)} disabled={bulkLoading}>
                             {bulkToggleIcon} {bulkToggleLabel}
                         </button>
                         <button className="btn btn-secondary btn-sm" onClick={() => setSelectedIds(new Set())}>
-                            取消选择
+                            {t('pages.usersHub.toolbar.deselect')}
                         </button>
                     </div>
                 )}
@@ -1560,15 +1559,15 @@ export default function UsersHub() {
                                     checked={enrichedUsers.length > 0 && selectedUsers.length === enrichedUsers.length}
                                     onChange={toggleSelectAll}
                                 />
-                                <span>全选当前列表</span>
+                                <span>{t('pages.usersHub.mobileSelectAll')}</span>
                             </label>
                             <button
                                 type="button"
                                 className="table-sort-button users-sequence-sort-button"
                                 onClick={() => setSequenceDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
-                                aria-label={`按序号${sequenceDirection === 'asc' ? '降序' : '升序'}显示`}
+                                aria-label={sequenceDirection === 'asc' ? t('pages.usersHub.sortDesc') : t('pages.usersHub.sortAsc')}
                             >
-                                <span>序号</span>
+                                <span>{t('pages.usersHub.cols.sequence')}</span>
                                 <span className="table-sort-button-icon" aria-hidden="true">
                                     {sequenceDirection === 'asc' ? <HiOutlineChevronUp /> : <HiOutlineChevronDown />}
                                 </span>
@@ -1581,7 +1580,7 @@ export default function UsersHub() {
                                 <EmptyState
                                     title={copy.userListLoadFailedTitle}
                                     subtitle={primaryError}
-                                    action={<button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchData({ forceUsers: true })}><HiOutlineArrowPath /> 刷新后重试</button>}
+                                    action={<button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchData({ forceUsers: true })}><HiOutlineArrowPath /> {t('pages.usersHub.retryAfterRefresh')}</button>}
                                 />
                             </div>
                         ) : enrichedUsers.length === 0 ? (
@@ -1590,8 +1589,8 @@ export default function UsersHub() {
                                     title={searchTerm ? copy.noMatchUsersTitle : copy.noUsersTitle}
                                     subtitle={searchTerm ? copy.noMatchUsersSubtitle : copy.noUsersSubtitle}
                                     action={searchTerm || statusFilter !== 'all'
-                                        ? <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setSearchTerm(''); setStatusFilter('all'); }}>清空筛选</button>
-                                        : <button type="button" className="btn btn-primary btn-sm" onClick={openCreateModal}><HiOutlineUserPlus /> 添加账号</button>}
+                                        ? <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setSearchTerm(''); setStatusFilter('all'); }}>{t('pages.usersHub.clearFilters')}</button>
+                                        : <button type="button" className="btn btn-primary btn-sm" onClick={openCreateModal}><HiOutlineUserPlus /> {t('pages.usersHub.toolbar.addAccount')}</button>}
                                 />
                             </div>
                         ) : (
@@ -1607,7 +1606,7 @@ export default function UsersHub() {
                         <EmptyState
                             title={copy.userListLoadFailedTitle}
                             subtitle={primaryError}
-                            action={<button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchData({ forceUsers: true })}><HiOutlineArrowPath /> 刷新后重试</button>}
+                            action={<button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchData({ forceUsers: true })}><HiOutlineArrowPath /> {t('pages.usersHub.retryAfterRefresh')}</button>}
                         />
                     </div>
                 ) : enrichedUsers.length === 0 ? (
@@ -1616,8 +1615,8 @@ export default function UsersHub() {
                             title={searchTerm ? copy.noMatchUsersTitle : copy.noUsersTitle}
                             subtitle={searchTerm ? copy.noMatchUsersSubtitle : copy.noUsersSubtitle}
                             action={searchTerm || statusFilter !== 'all'
-                                ? <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setSearchTerm(''); setStatusFilter('all'); }}>清空筛选</button>
-                                : <button type="button" className="btn btn-primary btn-sm" onClick={openCreateModal}><HiOutlineUserPlus /> 添加账号</button>}
+                                ? <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setSearchTerm(''); setStatusFilter('all'); }}>{t('pages.usersHub.clearFilters')}</button>
+                                : <button type="button" className="btn btn-primary btn-sm" onClick={openCreateModal}><HiOutlineUserPlus /> {t('pages.usersHub.toolbar.addAccount')}</button>}
                         />
                     </div>
                 ) : (
@@ -1633,21 +1632,21 @@ export default function UsersHub() {
                                             type="button"
                                             className="table-sort-button users-sequence-sort-button"
                                             onClick={() => setSequenceDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
-                                            aria-label={`按序号${sequenceDirection === 'asc' ? '降序' : '升序'}显示`}
+                                            aria-label={sequenceDirection === 'asc' ? t('pages.usersHub.sortDesc') : t('pages.usersHub.sortAsc')}
                                         >
-                                            <span>序号</span>
+                                            <span>{t('pages.usersHub.cols.sequence')}</span>
                                             <span className="table-sort-button-icon" aria-hidden="true">
                                                 {sequenceDirection === 'asc' ? <HiOutlineChevronUp /> : <HiOutlineChevronDown />}
                                             </span>
                                         </button>
                                     </th>
-                                    <th className="users-identity-column">账号</th>
-                                    <th className="table-cell-center users-status-column">状态</th>
-                                    <th className="table-cell-center users-online-column">在线状态</th>
-                                    <th className="table-cell-center users-node-count-column">节点数</th>
-                                    <th className="table-cell-right users-traffic-column">已用流量</th>
-                                    <th className="table-cell-center users-expiry-column">到期时间</th>
-                                    <th className="table-cell-actions users-actions-column">操作</th>
+                                    <th className="users-identity-column">{t('pages.usersHub.cols.account')}</th>
+                                    <th className="table-cell-center users-status-column">{t('pages.usersHub.cols.status')}</th>
+                                    <th className="table-cell-center users-online-column">{t('pages.usersHub.cols.online')}</th>
+                                    <th className="table-cell-center users-node-count-column">{t('pages.usersHub.cols.nodeCount')}</th>
+                                    <th className="table-cell-right users-traffic-column">{t('pages.usersHub.cols.traffic')}</th>
+                                    <th className="table-cell-center users-expiry-column">{t('pages.usersHub.cols.expiry')}</th>
+                                    <th className="table-cell-actions users-actions-column">{t('pages.usersHub.cols.actions')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1660,7 +1659,7 @@ export default function UsersHub() {
                                         ? syncingCopy.detail
                                         : user.clientData.count > 0
                                         ? formatExpiryLabel(user.clientData.expiryValues, locale)
-                                        : '未开通';
+                                        : t('pages.usersHub.notProvisioned');
                                     return (
                                         <tr
                                             key={user.id}
@@ -1668,11 +1667,11 @@ export default function UsersHub() {
                                             onClick={selectedIds.size > 0 ? () => toggleSelect(user.id) : undefined}
                                         >
                                                 <td className="mobile-checkbox-cell users-select-cell" data-label="" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selectedIds.has(user.id)} onChange={() => toggleSelect(user.id)} /></td>
-                                                <td data-label="序号" onClick={(e) => e.stopPropagation()}>
+                                                <td data-label={t('pages.usersHub.cols.sequence')} onClick={(e) => e.stopPropagation()}>
                                                     <span className="cell-mono users-sequence-number">{sequenceNumber}</span>
                                                 </td>
                                                 <td
-                                                    data-label="账号"
+                                                    data-label={t('pages.usersHub.cols.account')}
                                                     className="users-identity-cell"
                                                     onClick={(e) => { e.stopPropagation(); navigate(`/clients/${user.id}`); }}
                                                 >
@@ -1687,24 +1686,24 @@ export default function UsersHub() {
                                                         </span>
                                                     </button>
                                                 </td>
-                                                <td data-label="状态" className="table-cell-center users-status-cell">
+                                                <td data-label={t('pages.usersHub.cols.status')} className="table-cell-center users-status-cell">
                                                     <span className={`badge ${user.status.badge}`}>{user.status.label}</span>
                                                 </td>
-                                                <td data-label="在线状态" className="table-cell-center users-online-cell">
+                                                <td data-label={t('pages.usersHub.cols.online')} className="table-cell-center users-online-cell">
                                                     <div className="flex items-center gap-2 flex-wrap users-online-stack">
                                                         <span className={`badge ${user.onlineStatus.badge}`}>{user.onlineStatus.label}</span>
                                                         {user.onlineStatus.detail ? <span className="text-xs text-muted font-mono">{user.onlineStatus.detail}</span> : null}
                                                     </div>
                                                 </td>
-                                                <td data-label="节点数" className="table-cell-center users-node-count-cell">
+                                                <td data-label={t('pages.usersHub.cols.nodeCount')} className="table-cell-center users-node-count-cell">
                                                     {user.statsPending ? (
                                                         <span className="text-xs text-muted">{syncingCopy.status}</span>
                                                     ) : (user.clientData.count || '-')}
                                                 </td>
                                                 <td
-                                                    data-label="已用流量"
+                                                    data-label={t('pages.usersHub.cols.traffic')}
                                                     className="users-traffic-cell"
-                                                    title={user.statsPending ? syncingCopy.detail : (user.clientData.totalUsed ? `总计 ${formatBytes(user.clientData.totalUsed)}` : '-')}
+                                                    title={user.statsPending ? syncingCopy.detail : (user.clientData.totalUsed ? t('comp.users.totalTrafficTitle', { total: formatBytes(user.clientData.totalUsed) }) : '-')}
                                                 >
                                                     {user.statsPending ? (
                                                         <span className="text-xs text-muted">{syncingCopy.detail}</span>
@@ -1716,7 +1715,7 @@ export default function UsersHub() {
                                                     ) : '-'}
                                                 </td>
                                                 <td
-                                                    data-label="到期时间"
+                                                    data-label={t('pages.usersHub.cols.expiry')}
                                                     className="cell-mono table-cell-center users-expiry-cell"
                                                     title={user.statsPending ? syncingCopy.detail : (user.clientData.count > 0 ? userExpiryLabel : '-')}
                                                 >
@@ -1724,7 +1723,7 @@ export default function UsersHub() {
                                                         <span className="text-xs text-muted">{syncingCopy.detail}</span>
                                                     ) : (user.clientData.count > 0 ? userExpiryLabel : '-')}
                                                 </td>
-                                                <td data-label="" className="table-cell-actions users-actions-cell" onClick={(e) => e.stopPropagation()}>
+                                                <td data-label={t('pages.usersHub.cols.actions')} className="table-cell-actions users-actions-cell" onClick={(e) => e.stopPropagation()}>
                                                     <div className="flex gap-2 flex-wrap users-row-actions">
                                                         {renderUserActionButtons(user)}
                                                     </div>

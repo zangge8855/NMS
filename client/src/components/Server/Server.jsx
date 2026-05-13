@@ -368,7 +368,6 @@ export default function ServerManagement({ embedded = false }) {
                     <Header
                         title={t('pages.serverConsole.title')}
                         subtitle={t('pages.serverConsole.emptySubtitle')}
-                        eyebrow={t('pages.serverConsole.eyebrow')}
                     />
                 )}
                 <div className={embedded ? 'settings-embedded-console settings-embedded-console--empty' : 'page-content page-enter server-console-page'}>
@@ -625,7 +624,6 @@ export default function ServerManagement({ embedded = false }) {
             {!embedded && (
                 <Header
                     title={t('pages.serverConsole.title')}
-                    eyebrow={t('pages.serverConsole.eyebrow')}
                 />
             )}
             {content}

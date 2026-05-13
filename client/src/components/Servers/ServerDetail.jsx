@@ -404,7 +404,6 @@ export default function ServerDetail() {
             <>
                 <Header
                     title={t('pages.serverDetail.title')}
-                    eyebrow={t('pages.serverDetail.eyebrow')}
                 />
                 <div className="page-content page-enter server-detail-page">
                     <div className="glass-panel p-6">
@@ -420,7 +419,6 @@ export default function ServerDetail() {
             <>
                 <Header
                     title={t('pages.serverDetail.title')}
-                    eyebrow={t('pages.serverDetail.eyebrow')}
                 />
                 <div className="page-content page-enter server-detail-page">
                     <EmptyState title="服务器不存在" subtitle="该服务器可能已被删除" action={
@@ -451,7 +449,6 @@ export default function ServerDetail() {
         <>
             <Header
                 title={t('pages.serverDetail.titleWithName', { name: server.name })}
-                eyebrow={t('pages.serverDetail.eyebrow')}
                 allowTitleWrap
             />
             <div className="page-content page-enter server-detail-page">

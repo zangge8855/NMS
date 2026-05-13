@@ -192,7 +192,7 @@ function TaskMobileList({
                         </div>
                         <div className="audit-mobile-card-actions tasks-mobile-actions">
                             <button
-                                className="btn btn-secondary btn-sm rounded-lg"
+                                className="btn btn-secondary btn-sm"
                                 onClick={() => onView(task.id)}
                                 title={copy.viewDetail}
                                 aria-label={copy.viewDetail}
@@ -202,7 +202,7 @@ function TaskMobileList({
                             </button>
                             {failedCount > 0 && (
                                 <button
-                                    className="btn btn-primary btn-sm rounded-lg"
+                                    className="btn btn-primary btn-sm"
                                     onClick={() => onRetryFailed(task)}
                                     disabled={retryingId === task.id}
                                     title={copy.retryFailedItems}
@@ -436,10 +436,10 @@ export default function Tasks({ embedded = false }) {
                         compact
                         actions={(
                             <div className="tasks-page-actions">
-                                <button className="btn btn-secondary btn-sm rounded-lg" onClick={fetchTasks} disabled={loading}>
+                                <button className="btn btn-secondary btn-sm" onClick={fetchTasks} disabled={loading}>
                                     <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> {copy.refresh}
                                 </button>
-                                <button className="btn btn-danger btn-sm rounded-lg" onClick={handleClear}>
+                                <button className="btn btn-danger btn-sm" onClick={handleClear}>
                                     <HiOutlineTrash /> {copy.clear}
                                 </button>
                             </div>
@@ -453,10 +453,10 @@ export default function Tasks({ embedded = false }) {
                         <>
                             <div className="audit-control-head audit-control-head--compact">
                                 <div className="audit-control-actions">
-                                    <button className="btn btn-secondary btn-sm rounded-lg" onClick={fetchTasks} disabled={loading}>
+                                    <button className="btn btn-secondary btn-sm" onClick={fetchTasks} disabled={loading}>
                                         <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> {copy.refresh}
                                     </button>
-                                    <button className="btn btn-danger btn-sm rounded-lg" onClick={handleClear}>
+                                    <button className="btn btn-danger btn-sm" onClick={handleClear}>
                                         <HiOutlineTrash /> {copy.clear}
                                     </button>
                                 </div>

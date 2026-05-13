@@ -174,14 +174,14 @@ export default function TaskProgressModal({ taskId, title, onClose }) {
 
                     {/* 失败详情 */}
                     {task?.status === 'failed' && task?.error && (
-                        <div className="bg-danger/5 border border-danger/15 rounded-md p-3 text-sm text-danger mb-4">
+                        <div className="bg-danger/5 border border-danger/15 rounded-lg p-3 text-sm text-danger mb-4">
                             <strong>{copy.error}</strong>{task.error}
                         </div>
                     )}
 
                     {/* 成功结果摘要 */}
                     {task?.status === 'completed' && task?.result && (
-                        <div className="bg-success/5 border border-success/15 rounded-md p-3 text-sm text-success mb-4">
+                        <div className="bg-success/5 border border-success/15 rounded-lg p-3 text-sm text-success mb-4">
                             {task.result.cancelled ? (
                                 <span>{copy.cancelledSummary.replace('{count}', String(task.result.success || 0))}</span>
                             ) : (

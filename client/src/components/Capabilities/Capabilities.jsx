@@ -269,7 +269,7 @@ export default function Capabilities() {
                         icon={<HiOutlineCircleStack style={{ fontSize: '48px' }} />}
                         surface
                         action={(
-                            <button type="button" className="btn btn-primary rounded-lg" onClick={() => navigate('/servers')}>
+                            <button type="button" className="btn btn-primary" onClick={() => navigate('/servers')}>
                                 {copy.goToServers}
                             </button>
                         )}
