@@ -21,7 +21,7 @@ function summarizeUserLine(helpers, user) {
 }
 
 export function registerClientCommands(registry, ctx) {
-    const { helpers, services } = ctx;
+    const { helpers, services, listSessions } = ctx;
 
     registry.register({
         name: '/clients',
@@ -43,22 +43,33 @@ export function registerClientCommands(registry, ctx) {
                     kind: 'clients_empty',
                 };
             }
-            const { items, page, totalPages, total } = paginate({ items: users, pageSize: PAGE_SIZE });
+            const { items, page, totalPages, total } = paginate({
+                items: users,
+                page: Number(args?.page || 1),
+                pageSize: PAGE_SIZE,
+            });
             const lines = items.map((u) => summarizeUserLine(helpers, u));
             const text = helpers.joinHtmlMessage('NMS 客户列表', [
                 `${helpers.sectionHeader('结果')}\n${lines.join('\n')}`,
                 `${helpers.sectionHeader('提示')}\n• 共 <b>${total}</b> 位\n• 使用 <code>/client &lt;email&gt;</code> 查看详情`,
             ], { subtitle: keyword ? `关键词: ${keyword}` : '全部客户' });
 
-            // List-key encodes the keyword so paginate callbacks can re-run
-            // the same query (Step 3 only renders prev/next without
-            // re-running — handlers for paginate will land in Step 4.)
+            let replyMarkup;
+            if (totalPages > 1) {
+                const session = listSessions.create({
+                    command: '/clients',
+                    positional: keyword ? [keyword] : [],
+                });
+                replyMarkup = buildPaginationKeyboard({
+                    listKey: session.id,
+                    page,
+                    totalPages,
+                });
+            }
             return {
                 text,
                 kind: 'clients_list',
-                extras: totalPages > 1
-                    ? { replyMarkup: buildPaginationKeyboard({ listKey: 'cl', page, totalPages }) }
-                    : undefined,
+                extras: replyMarkup ? { replyMarkup } : undefined,
             };
         },
     });

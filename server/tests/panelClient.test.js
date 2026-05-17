@@ -102,6 +102,9 @@ async function startFakePanel(options = {}) {
             if (options.legacyCsrf === true) {
                 return sendJson(res, 404, { success: false, msg: 'not found' });
             }
+            if (options.preLoginCsrfRequiresAuth === true) {
+                return sendJson(res, 401, { success: false, msg: 'login required' });
+            }
             const { sid, session } = ensureRequestSession(req);
             return sendJson(res, 200, { success: true, obj: session.csrf }, {
                 'Set-Cookie': `3x-ui=${sid}; Path=/; HttpOnly`,
@@ -300,6 +303,29 @@ test('ensureAuthenticated keeps legacy 3x-ui login compatibility when CSRF endpo
     assert.equal(status.data.success, true);
     assert.ok(panel.calls.includes('GET /csrf-token'));
     assert.ok(panel.calls.includes('POST /login'));
+});
+
+test('ensureAuthenticated keeps login compatibility when pre-login CSRF probing requires auth', async (t) => {
+    const panel = await startFakePanel({
+        preLoginCsrfRequiresAuth: true,
+        requireCsrf: false,
+    });
+    t.after(panel.close);
+
+    mockPanelServerStore(t, {
+        id: 'srv-auth-gated-csrf-login',
+        url: panel.url,
+    });
+
+    const client = await ensureAuthenticated('srv-auth-gated-csrf-login');
+    const res = await client.post('/panel/api/inbounds/addClient', 'id=1');
+
+    assert.equal(res.data.success, true);
+    assert.deepEqual(panel.calls.slice(0, 3), [
+        'GET /csrf-token',
+        'POST /login',
+        'GET /panel/csrf-token',
+    ]);
 });
 
 test('ensureAuthenticated refreshes CSRF token for an existing logged-in session', async (t) => {

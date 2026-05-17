@@ -2529,7 +2529,7 @@ export default function SystemSettings() {
                             checked={draft.telegram.commandMenuEnabled}
                             onChange={(event) => patchField('telegram', 'commandMenuEnabled', event.target.checked)}
                             label="Telegram 命令菜单"
-                            description="开启后会显示 Telegram 官方命令菜单；关闭后只保留手动输入命令。"
+                            description="开启后同步 Telegram 官方命令菜单；/menu 内的按钮入口始终可用。"
                             activeLabel="显示"
                             inactiveLabel="隐藏"
                         />
@@ -3013,7 +3013,7 @@ export default function SystemSettings() {
                             <span className="settings-monitor-log-label">Telegram</span>
                             <span className="settings-monitor-log-value">
                                 {monitorStatus?.telegram?.enabled
-                                    ? `已启用${telegramTargetPreview !== '-' ? ` · ${telegramTargetPreview}` : ''}${monitorStatus?.telegram?.sendDailyBackup ? ` · 下次备份 ${telegramNextBackupLabel}` : ''}`
+                                    ? `已启用${telegramTargetPreview !== '-' ? ` · ${telegramTargetPreview}` : ''}${monitorStatus?.telegram?.sendDailyBackup ? ` · 下次备份 ${telegramNextBackupLabel}` : ''} · 菜单${monitorStatus?.telegram?.commandMenuEnabled ? '显示' : '隐藏'} · 轮询${monitorStatus?.telegram?.polling ? '运行' : '停止'}`
                                     : monitorStatus?.telegram?.configured
                                         ? '已配置未启用'
                                         : '未配置'}

@@ -13,13 +13,13 @@ function healthLabel(status = '') {
 }
 
 export function registerServerCommands(registry, ctx) {
-    const { helpers, services } = ctx;
+    const { helpers, services, listSessions } = ctx;
 
     registry.register({
         name: '/servers',
         level: 'query',
         summary: '列出节点状态',
-        handler: async () => {
+        handler: async ({ args }) => {
             const statusModule = await services.serverStatus();
             const collect = statusModule.collectClusterStatusSnapshot
                 || statusModule.default?.collectClusterStatusSnapshot;
@@ -30,20 +30,30 @@ export function registerServerCommands(registry, ctx) {
                 };
             }
             const snapshot = await collect({ includeDetails: true, maxAgeMs: 30_000 });
-            const servers = Array.isArray(snapshot?.servers) ? snapshot.servers : [];
+            const servers = Array.isArray(snapshot?.items) ? snapshot.items : [];
             if (servers.length === 0) {
                 return {
                     text: notFound(helpers, '节点'),
                     kind: 'servers_empty',
                 };
             }
-            const { items, page, totalPages, total } = paginate({ items: servers, pageSize: PAGE_SIZE });
+            const { items, page, totalPages, total } = paginate({
+                items: servers,
+                page: Number(args?.page || 1),
+                pageSize: PAGE_SIZE,
+            });
             const lines = items.map((s) => {
                 const name = helpers.escapeTelegramHtml(s.name || s.id);
                 const health = healthLabel(s.health || s.status);
-                const onlineUsers = Number(s.onlineUsers ?? s.summary?.onlineUsers ?? 0);
-                const cpu = s.cpu != null ? `${Number(s.cpu).toFixed(0)}%` : '-';
-                const mem = s.mem != null ? `${Number(s.mem).toFixed(0)}%` : '-';
+                const onlineUsers = Number(s.onlineUsers ?? s.onlineCount ?? s.summary?.onlineUsers ?? 0);
+                const cpuValue = s.cpu ?? s.status?.cpu;
+                const memValue = s.mem ?? s.status?.mem;
+                const cpu = cpuValue != null ? `${Number(cpuValue).toFixed(0)}%` : '-';
+                const mem = typeof memValue === 'object' && memValue
+                    ? `${Math.round((Number(memValue.current || 0) / Math.max(1, Number(memValue.total || 1))) * 100)}%`
+                    : memValue != null
+                        ? `${Number(memValue).toFixed(0)}%`
+                        : '-';
                 return `• <b>${name}</b> · ${health} · 在线 ${onlineUsers} · CPU ${cpu} · MEM ${mem}`;
             });
             const summaryLine = (snapshot?.summary)
@@ -53,12 +63,22 @@ export function registerServerCommands(registry, ctx) {
                 `${helpers.sectionHeader('节点状态')}\n${lines.join('\n')}`,
                 `${helpers.sectionHeader('概览')}\n${summaryLine}`,
             ], { subtitle: '集群快照' });
+            let replyMarkup;
+            if (totalPages > 1) {
+                const session = listSessions.create({
+                    command: '/servers',
+                    positional: [],
+                });
+                replyMarkup = buildPaginationKeyboard({
+                    listKey: session.id,
+                    page,
+                    totalPages,
+                });
+            }
             return {
                 text,
                 kind: 'servers_list',
-                extras: totalPages > 1
-                    ? { replyMarkup: buildPaginationKeyboard({ listKey: 'srv', page, totalPages }) }
-                    : undefined,
+                extras: replyMarkup ? { replyMarkup } : undefined,
             };
         },
     });

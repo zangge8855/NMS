@@ -3,13 +3,15 @@ import systemSettingsStore from '../store/systemSettingsStore.js';
 import { getLatestTelegramBackupMeta } from './systemBackupStatus.js';
 import { createCommandRegistry } from './telegram/commandRegistry.js';
 import { registerLegacyCommands } from './telegram/commands/legacy.js';
-import { registerMenuCommands } from './telegram/commands/menu.js';
+import { MENU_CALLBACK_COMMANDS, registerMenuCommands } from './telegram/commands/menu.js';
 import { registerClientCommands } from './telegram/commands/clients.js';
 import { registerServerCommands } from './telegram/commands/servers.js';
+import { registerInboundCommands } from './telegram/commands/inbounds.js';
 import { registerAuditCommands } from './telegram/commands/audit.js';
 import { registerOpsCommands } from './telegram/commands/ops.js';
 import { registerHighRiskCommands } from './telegram/commands/highrisk.js';
 import { createPendingActionStore } from './telegram/pendingActions.js';
+import { createListSessionStore } from './telegram/listSessions.js';
 import { parseCallbackData, buildConfirmKeyboard, buildHighRiskKeyboard } from './telegram/inlineKeyboards.js';
 
 const DEFAULT_ALERT_SEVERITIES = new Set(['warning', 'critical']);
@@ -39,6 +41,7 @@ const DEFAULT_QUERY_COMMANDS = [
     { command: '/alerts', description: '最近未读告警摘要' },
     { command: '/security', description: '最近安全事件汇总' },
     { command: '/nodes', description: '异常节点摘要' },
+    { command: '/inbounds', description: '入站摘要' },
     { command: '/access', description: '最近被拒绝的公开订阅访问' },
     { command: '/expiry', description: '用户到期提醒摘要' },
     { command: '/menu', description: '主菜单（按钮入口）' },
@@ -1012,6 +1015,9 @@ export function createTelegramAlertService(options = {}) {
         startInterval: typeof options.startBackgroundInterval === 'function'
             ? options.startBackgroundInterval
             : startBackgroundInterval,
+    });
+    const listSessions = options.listSessions || createListSessionStore({
+        now: nowProvider,
     });
     let legacyCommandsRegistered = false;
     let commandSyncPromise = null;
@@ -2066,6 +2072,7 @@ export function createTelegramAlertService(options = {}) {
         registerMenuCommands(commandRegistry, telegramServiceContext);
         registerClientCommands(commandRegistry, telegramServiceContext);
         registerServerCommands(commandRegistry, telegramServiceContext);
+        registerInboundCommands(commandRegistry, telegramServiceContext);
         registerAuditCommands(commandRegistry, telegramServiceContext);
         // Step 4 write commands — wrap their handler results in pendingActions.
         registerOpsCommands(commandRegistry, telegramServiceContext);
@@ -2089,6 +2096,7 @@ export function createTelegramAlertService(options = {}) {
             trimLines,
             appendHtmlSection,
         },
+        listSessions,
         services: typeof options.services === 'object' && options.services !== null
             ? options.services
             : {
@@ -2111,12 +2119,12 @@ export function createTelegramAlertService(options = {}) {
             },
     };
 
-    async function dispatchCommand(command = '', { actor = 'telegram', chatId = '', positional = [], raw = '' } = {}) {
+    async function dispatchCommand(command = '', { actor = 'telegram', chatId = '', positional = [], raw = '', page = 1 } = {}) {
         ensureLegacyCommandsRegistered();
         const normalized = normalizeCommand(command);
         const result = await commandRegistry.dispatch({
             command: normalized,
-            args: { positional, raw },
+            args: { positional, raw, page },
             ctx: { actor, chatId, pendingActions, services: telegramServiceContext },
         });
 
@@ -2239,9 +2247,50 @@ export function createTelegramAlertService(options = {}) {
             return;
         }
 
-        // 'paginate' and 'menu' kinds will be handled in Step 3 when the
-        // commands that emit them land. For now answer gracefully.
-        await answerCallbackQuerySafe(callback, '该按钮暂未实现');
+        if (parsed.kind === 'menu') {
+            const command = MENU_CALLBACK_COMMANDS[parsed.key];
+            if (!command) {
+                await answerCallbackQuerySafe(callback, '未知菜单');
+                return;
+            }
+            const reply = await dispatchCommand(command, {
+                actor: callback?.from?.username || 'telegram',
+                chatId: String(callback?.message?.chat?.id || '').trim(),
+            });
+            await answerCallbackQuerySafe(callback, '已打开');
+            await sendCommandReply(
+                reply.text,
+                String(callback?.message?.chat?.id || '').trim(),
+                reply.kind,
+                reply.extras
+            );
+            return;
+        }
+
+        if (parsed.kind === 'paginate') {
+            const session = listSessions.get(parsed.listKey);
+            if (!session) {
+                await answerCallbackQuerySafe(callback, '分页已过期，请重新查询');
+                return;
+            }
+            const reply = await dispatchCommand(session.payload.command, {
+                actor: callback?.from?.username || 'telegram',
+                chatId: String(callback?.message?.chat?.id || '').trim(),
+                positional: session.payload.positional || [],
+                raw: session.payload.raw || '',
+                page: parsed.page,
+            });
+            await answerCallbackQuerySafe(callback, '已翻页');
+            await sendCommandReply(
+                reply.text,
+                String(callback?.message?.chat?.id || '').trim(),
+                reply.kind,
+                reply.extras
+            );
+            return;
+        }
+
+        await answerCallbackQuerySafe(callback, '无效操作');
     }
 
     async function sendPeriodicDigest(kind = 'ops') {
@@ -2503,6 +2552,7 @@ export function createTelegramAlertService(options = {}) {
             clearAggregateTimer(key);
         }
         pendingActions.reset();
+        listSessions.reset();
     }
 
     startBackgroundInterval(() => {
@@ -2532,6 +2582,7 @@ export function createTelegramAlertService(options = {}) {
             return commandRegistry;
         },
         getPendingActions: () => pendingActions,
+        getListSessions: () => listSessions,
         // Exposed for tests / future modules that drive callback flows
         // synchronously (e.g. write-command confirmation in Step 4).
         _handleCallbackQuery: handleCallbackQuery,

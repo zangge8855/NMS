@@ -166,6 +166,18 @@ async function postForm(client, path, data) {
     });
 }
 
+async function setInboundEnableCompat(client, inboundId, enable, fallbackPayload) {
+    try {
+        return await postForm(client, `/panel/api/inbounds/setEnable/${inboundId}`, { enable });
+    } catch (error) {
+        const status = Number(error?.response?.status || 0);
+        if (status !== 404 && status !== 405) {
+            throw error;
+        }
+        return postForm(client, `/panel/api/inbounds/update/${inboundId}`, fallbackPayload);
+    }
+}
+
 export async function resetInboundTrafficCompat(client, inboundId) {
     const candidatePaths = [
         `/panel/api/inbounds/resetAllClientTraffics/${inboundId}`,
@@ -566,7 +578,11 @@ async function executeInboundAction({ action, target, payload }) {
         };
         const inboundData = normalizeInboundSnapshot(merged, enableOverride);
 
-        await postForm(client, `/panel/api/inbounds/update/${inboundId}`, inboundData);
+        if (action === 'enable' || action === 'disable') {
+            await setInboundEnableCompat(client, inboundId, enableOverride, inboundData);
+        } else {
+            await postForm(client, `/panel/api/inbounds/update/${inboundId}`, inboundData);
+        }
 
         return {
             ...baseResult,

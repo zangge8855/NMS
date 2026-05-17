@@ -11,7 +11,7 @@ function severityIcon(severity = '') {
 }
 
 export function registerAuditCommands(registry, ctx) {
-    const { helpers, services } = ctx;
+    const { helpers, services, listSessions } = ctx;
 
     registry.register({
         name: '/audit',
@@ -44,7 +44,11 @@ export function registerAuditCommands(registry, ctx) {
                     kind: 'audit_empty',
                 };
             }
-            const { items, page, totalPages, total } = paginate({ items: events, pageSize: PAGE_SIZE });
+            const { items, page, totalPages, total } = paginate({
+                items: events,
+                page: Number(args?.page || 1),
+                pageSize: PAGE_SIZE,
+            });
             const lines = items.map((e) => {
                 const ts = compactDate(e.ts || e.timestamp);
                 const icon = severityIcon(e.severity);
@@ -54,15 +58,28 @@ export function registerAuditCommands(registry, ctx) {
                 const targetSuffix = target ? ` · ${helpers.escapeTelegramHtml(target)}` : '';
                 return `• ${icon} ${ts} · <b>${type}</b> · ${actor}${targetSuffix}`;
             });
+            let replyMarkup;
+            if (totalPages > 1) {
+                const session = listSessions.create({
+                    command: '/audit',
+                    positional: [
+                        ...(eventType ? [eventType] : []),
+                        String(limit),
+                    ],
+                });
+                replyMarkup = buildPaginationKeyboard({
+                    listKey: session.id,
+                    page,
+                    totalPages,
+                });
+            }
             return {
                 text: helpers.joinHtmlMessage('NMS 审计事件', [
                     `${helpers.sectionHeader('最近事件')}\n${lines.join('\n')}`,
                     `${helpers.sectionHeader('概览')}\n共 <b>${total}</b> 条`,
                 ], { subtitle: eventType ? `类型: ${eventType}` : '最近事件' }),
                 kind: 'audit_list',
-                extras: totalPages > 1
-                    ? { replyMarkup: buildPaginationKeyboard({ listKey: 'aud', page, totalPages }) }
-                    : undefined,
+                extras: replyMarkup ? { replyMarkup } : undefined,
             };
         },
     });

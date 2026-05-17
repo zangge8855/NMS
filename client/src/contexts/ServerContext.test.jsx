@@ -14,11 +14,12 @@ vi.mock('../api/client.js', () => ({
 }));
 
 function ServerContextConsumer() {
-    const { activeServerId, servers } = useServer();
+    const { activeServerId, servers, selectServer } = useServer();
     return (
         <div>
             <div data-testid="active-server">{activeServerId || 'none'}</div>
             <div data-testid="server-count">{servers.length}</div>
+            <button type="button" onClick={() => selectServer('server-b')}>select-b</button>
         </div>
     );
 }
@@ -33,7 +34,7 @@ describe('ServerContext', () => {
         api.delete.mockReset();
     });
 
-    it('migrates persisted node selection back to global operations scope', async () => {
+    it('preserves a persisted concrete node selection when that node still exists', async () => {
         window.localStorage.setItem('nms_active_server', 'server-a');
         api.get.mockReturnValue(new Promise(() => {}));
 
@@ -55,9 +56,38 @@ describe('ServerContext', () => {
         });
 
         await waitFor(() => {
-            expect(screen.getByTestId('active-server')).toHaveTextContent('global');
+            expect(screen.getByTestId('active-server')).toHaveTextContent('server-a');
             expect(screen.getByTestId('server-count')).toHaveTextContent('2');
         });
+    });
+
+    it('lets the caller switch between concrete node scopes', async () => {
+        window.sessionStorage.setItem('nms_session_snapshot:server_context_bootstrap_v1', JSON.stringify({
+            savedAt: Date.now(),
+            value: {
+                servers: [
+                    { id: 'server-a', name: 'Node A' },
+                    { id: 'server-b', name: 'Node B' },
+                ],
+                activeServerId: 'server-a',
+            },
+        }));
+
+        render(
+            <ServerProvider>
+                <ServerContextConsumer />
+            </ServerProvider>
+        );
+
+        await waitFor(() => {
+            expect(screen.getByTestId('active-server')).toHaveTextContent('server-a');
+        });
+
+        act(() => {
+            screen.getByRole('button', { name: 'select-b' }).click();
+        });
+
+        expect(screen.getByTestId('active-server')).toHaveTextContent('server-b');
     });
 
     it('reuses a fresh bootstrap snapshot without immediately refetching the server list', async () => {

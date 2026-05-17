@@ -621,6 +621,67 @@ export default function Inbounds() {
         }
     };
 
+    const handleToggleInboundEnabled = async (inbound) => {
+        const nextEnable = inbound.enable === false;
+        const ok = await confirmAction({
+            title: t('comp.inbounds.toggleInboundTitle'),
+            message: `确定${nextEnable ? '启用' : '停用'} ${inbound.serverName} 上的该入站吗？`,
+            confirmText: nextEnable ? t('comp.common.confirmEnable') : t('comp.common.confirmDisable'),
+            tone: nextEnable ? 'success' : 'danger',
+        });
+        if (!ok) return;
+
+        try {
+            const action = nextEnable ? 'enable' : 'disable';
+            const payload = await attachBatchRiskToken({
+                action,
+                targets: [{
+                    serverId: inbound.serverId,
+                    serverName: inbound.serverName,
+                    id: inbound.id,
+                    remark: inbound.remark,
+                    protocol: inbound.protocol,
+                    port: inbound.port,
+                    listen: inbound.listen,
+                    total: inbound.total,
+                    expiryTime: inbound.expiryTime,
+                    settings: inbound.settings,
+                    streamSettings: inbound.streamSettings,
+                    sniffing: inbound.sniffing,
+                    enable: inbound.enable,
+                }],
+            }, {
+                type: 'inbounds',
+                action,
+                targetCount: 1,
+            });
+            await api.post('/batch/inbounds', payload);
+            toast.success(nextEnable ? t('comp.inbounds.inboundEnabled') : t('comp.inbounds.inboundDisabled'));
+            fetchAllInbounds();
+        } catch (err) {
+            toast.error(getErrorMessage(err, t('comp.inbounds.toggleFailed'), locale));
+        }
+    };
+
+    const handleCleanupDepletedClients = async (inbound) => {
+        const ok = await confirmAction({
+            title: t('comp.inbounds.cleanupDepletedTitle'),
+            message: `确定清理 ${inbound.serverName} / ${inbound.remark || inbound.protocol}:${inbound.port} 的耗尽用户吗？`,
+            details: t('comp.inbounds.cleanupDepletedDetails'),
+            confirmText: t('comp.common.confirmDelete'),
+            tone: 'danger',
+        });
+        if (!ok) return;
+
+        try {
+            await api.post(`/panel/${inbound.serverId}/panel/api/inbounds/delDepletedClients/${inbound.id}`);
+            toast.success(t('comp.inbounds.cleanupDepletedDone'));
+            fetchAllInbounds();
+        } catch (err) {
+            toast.error(getErrorMessage(err, t('comp.inbounds.cleanupDepletedFailed'), locale));
+        }
+    };
+
     const handleEdit = (inbound) => {
         setEditingInbound(inbound);
         setIsModalOpen(true);
@@ -1472,6 +1533,24 @@ export default function Inbounds() {
                                                         >
                                                             <HiOutlinePencilSquare />
                                                             <span className="inbounds-action-mobile-label">{t('comp.common.edit')}</span>
+                                                        </button>
+                                                        <button
+                                                            className={`btn btn-sm btn-icon table-action-btn inbounds-action-btn ${ib.enable ? 'btn-danger is-danger' : 'btn-success is-success'}`}
+                                                            title={ib.enable ? t('comp.common.disable') : t('comp.common.enable')}
+                                                            onClick={() => handleToggleInboundEnabled(ib)}
+                                                        >
+                                                            {ib.enable ? <HiOutlineXMark /> : <HiOutlineCheck />}
+                                                            <span className="inbounds-action-mobile-label">
+                                                                {ib.enable ? t('comp.common.disable') : t('comp.common.enable')}
+                                                            </span>
+                                                        </button>
+                                                        <button
+                                                            className="btn btn-secondary btn-sm btn-icon table-action-btn inbounds-action-btn"
+                                                            title={t('comp.inbounds.cleanupDepletedTitle')}
+                                                            onClick={() => handleCleanupDepletedClients(ib)}
+                                                        >
+                                                            <HiOutlineArrowPath />
+                                                            <span className="inbounds-action-mobile-label">{t('comp.inbounds.cleanupDepletedTitle')}</span>
                                                         </button>
                                                         <button
                                                             className="btn btn-danger btn-sm btn-icon table-action-btn inbounds-action-btn is-danger"

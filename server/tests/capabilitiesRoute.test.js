@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildCapabilitiesPayload } from '../routes/capabilities.js';
+import { buildCapabilitiesPayload, detectToolCapabilities } from '../routes/capabilities.js';
 
 describe('capabilities payload alignment', () => {
     it('canonicalizes legacy inbound protocol names in the response payload', () => {
@@ -40,5 +40,24 @@ describe('capabilities payload alignment', () => {
         assert.equal(databaseManagement?.supportedByNms, true);
         assert.equal(telegramBot?.status, 'integrated');
         assert.equal(telegramBot?.supportedByNms, true);
+    });
+
+    it('probes current 3x-ui log capabilities with POST', async () => {
+        const calls = [];
+        const tools = await detectToolCapabilities(async (request) => {
+            calls.push([request.method, request.url]);
+            return { data: { success: true } };
+        });
+
+        assert.equal(tools.panelLogs.method, 'post');
+        assert.equal(tools.xrayLogs.method, 'post');
+        assert.deepEqual(
+            calls.filter(([, url]) => url.includes('/logs/')),
+            [['post', '/panel/api/server/logs/20']]
+        );
+        assert.deepEqual(
+            calls.filter(([, url]) => url.includes('/xraylogs/')),
+            [['post', '/panel/api/server/xraylogs/20']]
+        );
     });
 });

@@ -8,6 +8,7 @@ import {
     parseCallbackData,
     __testing,
 } from '../../lib/telegram/inlineKeyboards.js';
+import { __menuItems, MENU_CALLBACK_COMMANDS } from '../../lib/telegram/commands/menu.js';
 
 test('buildConfirmKeyboard produces a two-button row with c:/x: callback data', () => {
     const keyboard = buildConfirmKeyboard({ pendingId: 'abc12345' });
@@ -48,6 +49,13 @@ test('buildMenuKeyboard chunks items into rows of rowSize', () => {
     assert.equal(keyboard.inline_keyboard[0].length, 2);
     assert.equal(keyboard.inline_keyboard[1].length, 1);
     assert.equal(keyboard.inline_keyboard[0][0].callback_data, 'm:a');
+});
+
+test('menu callback map covers every visible menu item', () => {
+    assert.deepEqual(
+        __menuItems.map((item) => item.key).sort(),
+        Object.keys(MENU_CALLBACK_COMMANDS).sort()
+    );
 });
 
 test('parseCallbackData decodes confirm / cancel / pg / m', () => {

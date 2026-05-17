@@ -104,7 +104,7 @@ export default function Header({
     showSubtitle = false,
     allowTitleWrap = false,
 }) {
-    const { activeServerId, servers = [] } = useServer();
+    const { activeServerId, servers = [], selectServer } = useServer();
     const { user } = useAuth();
     const { locale, toggleLocale, t } = useI18n();
     const navigate = useNavigate();
@@ -124,6 +124,7 @@ export default function Header({
     const matchedNavItem = useMemo(() => getNavItemForPath(location.pathname), [location.pathname]);
     const MatchedNavIcon = matchedNavItem?.icon || null;
     const resolvedHeaderIcon = MatchedNavIcon ? <MatchedNavIcon /> : icon;
+    const scopeValue = activeServerId || 'global';
     const searchableItems = useMemo(
         () => {
             const copy = buildCommandCopy(locale);
@@ -474,6 +475,25 @@ export default function Header({
                     </div>
                     {children ? <div className="header-primary-actions">{children}</div> : null}
                     <div className="header-controls">
+                        {isAdmin && servers.length > 0 ? (
+                            <label className="header-scope-switch">
+                                <span className="sr-only">{t('shell.selectServer')}</span>
+                                <select
+                                    className="header-scope-select"
+                                    value={scopeValue}
+                                    onChange={(event) => selectServer?.(event.target.value)}
+                                    aria-label={t('shell.selectServer')}
+                                    title={t('shell.selectServer')}
+                                >
+                                    <option value="global">{t('shell.scopeGlobalValue')}</option>
+                                    {servers.map((server) => (
+                                        <option key={server.id} value={server.id}>
+                                            {server.name || server.url || server.id}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                        ) : null}
                         <button
                             type="button"
                             className="theme-toggle-btn language-toggle-btn"

@@ -40,8 +40,14 @@ export default function ServerManagement({ embedded = false }) {
     const [capabilities, setCapabilities] = useState(null);
     const [toolResults, setToolResults] = useState({});
     const [capabilitiesLoading, setCapabilitiesLoading] = useState(false);
+    const [panelUpdateInfo, setPanelUpdateInfo] = useState(null);
+    const [customGeoItems, setCustomGeoItems] = useState([]);
+    const [customGeoSupported, setCustomGeoSupported] = useState(null);
+    const [customGeoDraft, setCustomGeoDraft] = useState({ type: 'geoip', alias: '', url: '' });
+    const [editingCustomGeoId, setEditingCustomGeoId] = useState('');
     const versionsRequestIdRef = useRef(0);
     const capabilitiesRequestIdRef = useRef(0);
+    const panelUpdateRequestIdRef = useRef(0);
     const configRequestIdRef = useRef(0);
     const toolRunRequestIdRef = useRef(0);
 
@@ -154,6 +160,48 @@ export default function ServerManagement({ embedded = false }) {
         }
     };
 
+    const fetchPanelUpdateInfo = async () => {
+        if (isGlobalView || !activeServerId) {
+            panelUpdateRequestIdRef.current += 1;
+            setPanelUpdateInfo(null);
+            return;
+        }
+        const requestId = panelUpdateRequestIdRef.current + 1;
+        panelUpdateRequestIdRef.current = requestId;
+        setActionLoading('panelUpdateInfo', true);
+        try {
+            const res = await panelApi('get', '/panel/api/server/getPanelUpdateInfo');
+            if (requestId !== panelUpdateRequestIdRef.current) return;
+            setPanelUpdateInfo(res.data?.obj || null);
+        } catch {
+            if (requestId !== panelUpdateRequestIdRef.current) return;
+            setPanelUpdateInfo(null);
+        } finally {
+            if (requestId === panelUpdateRequestIdRef.current) {
+                setActionLoading('panelUpdateInfo', false);
+            }
+        }
+    };
+
+    const fetchCustomGeoResources = async () => {
+        if (isGlobalView || !activeServerId) {
+            setCustomGeoItems([]);
+            setCustomGeoSupported(null);
+            return;
+        }
+        setActionLoading('customGeoRefresh', true);
+        try {
+            const res = await panelApi('get', '/panel/api/custom-geo/list');
+            setCustomGeoItems(Array.isArray(res.data?.obj) ? res.data.obj : []);
+            setCustomGeoSupported(true);
+        } catch {
+            setCustomGeoItems([]);
+            setCustomGeoSupported(false);
+        } finally {
+            setActionLoading('customGeoRefresh', false);
+        }
+    };
+
     useEffect(() => {
         if (!activeServerId) return;
         configRequestIdRef.current += 1;
@@ -161,6 +209,8 @@ export default function ServerManagement({ embedded = false }) {
         setLoading({});
         fetchVersions();
         fetchCapabilities();
+        fetchPanelUpdateInfo();
+        fetchCustomGeoResources();
         setToolResults({});
         setShowConfig(false);
         setConfigJson('');
@@ -316,9 +366,107 @@ export default function ServerManagement({ embedded = false }) {
             loadingKey: 'tgBackup',
             successText: isGlobalView ? '批量 Telegram 备份' : 'Telegram 备份',
             actionBuilder: async (serverMeta) => {
-                await panelRequest(serverMeta.id, 'get', '/panel/api/backuptotgbot');
+                await panelRequest(serverMeta.id, 'post', '/panel/api/backuptotgbot');
             },
         });
+    };
+
+    const handleUpdatePanel = async () => {
+        if (isGlobalView) return;
+        const latestVersion = String(panelUpdateInfo?.latestVersion || '').trim();
+        const ok = await confirmAction({
+            title: '更新 3x-ui 面板',
+            message: latestVersion
+                ? `确定将当前节点面板更新到 ${latestVersion} 吗？`
+                : '确定开始当前节点面板更新吗？',
+            details: '更新期间节点面板会短暂不可用，请确认已安排维护窗口。',
+            confirmText: '开始更新',
+            tone: 'danger',
+        });
+        if (!ok) return;
+
+        setActionLoading('panelUpdate', true);
+        try {
+            await panelApi('post', '/panel/api/server/updatePanel');
+            toast.success('面板更新已开始');
+            fetchPanelUpdateInfo();
+        } catch (error) {
+            toast.error(getErrorMessage(error, '面板更新启动失败', locale));
+        } finally {
+            setActionLoading('panelUpdate', false);
+        }
+    };
+
+    const resetCustomGeoDraft = () => {
+        setEditingCustomGeoId('');
+        setCustomGeoDraft({ type: 'geoip', alias: '', url: '' });
+    };
+
+    const handleSubmitCustomGeo = async (event) => {
+        event.preventDefault();
+        if (!customGeoDraft.alias.trim() || !customGeoDraft.url.trim()) {
+            toast.error('请填写别名和资源 URL');
+            return;
+        }
+        setActionLoading('customGeoSave', true);
+        try {
+            const path = editingCustomGeoId
+                ? `/panel/api/custom-geo/update/${editingCustomGeoId}`
+                : '/panel/api/custom-geo/add';
+            await panelApi('post', path, customGeoDraft);
+            toast.success(editingCustomGeoId ? '自定义 Geo 资源已更新' : '自定义 Geo 资源已添加');
+            resetCustomGeoDraft();
+            fetchCustomGeoResources();
+        } catch (error) {
+            toast.error(getErrorMessage(error, '保存自定义 Geo 资源失败', locale));
+        } finally {
+            setActionLoading('customGeoSave', false);
+        }
+    };
+
+    const handleEditCustomGeo = (item) => {
+        setEditingCustomGeoId(String(item.id || ''));
+        setCustomGeoDraft({
+            type: String(item.type || 'geoip'),
+            alias: String(item.alias || ''),
+            url: String(item.url || ''),
+        });
+    };
+
+    const handleDeleteCustomGeo = async (item) => {
+        const ok = await confirmAction({
+            title: '删除自定义 Geo 资源',
+            message: `确定删除 ${item.alias || item.id} 吗？`,
+            confirmText: '确认删除',
+            tone: 'danger',
+        });
+        if (!ok) return;
+        try {
+            await panelApi('post', `/panel/api/custom-geo/delete/${item.id}`);
+            toast.success('自定义 Geo 资源已删除');
+            fetchCustomGeoResources();
+        } catch (error) {
+            toast.error(getErrorMessage(error, '删除自定义 Geo 资源失败', locale));
+        }
+    };
+
+    const handleDownloadCustomGeo = async (item) => {
+        try {
+            await panelApi('post', `/panel/api/custom-geo/download/${item.id}`);
+            toast.success('自定义 Geo 资源已下载');
+        } catch (error) {
+            toast.error(getErrorMessage(error, '下载自定义 Geo 资源失败', locale));
+        }
+    };
+
+    const handleUpdateAllCustomGeo = async () => {
+        try {
+            await panelApi('post', '/panel/api/custom-geo/update-all');
+            toast.success('自定义 Geo 资源已全部更新');
+            fetchCustomGeoResources();
+        } catch (error) {
+            toast.error(getErrorMessage(error, '更新自定义 Geo 资源失败', locale));
+        }
     };
 
     const handleViewConfig = async () => {
@@ -370,7 +518,7 @@ export default function ServerManagement({ embedded = false }) {
                         subtitle={t('pages.serverConsole.emptySubtitle')}
                     />
                 )}
-                <div className={embedded ? 'settings-embedded-console settings-embedded-console--empty' : 'page-content page-enter server-console-page'}>
+                <div className={embedded ? 'settings-embedded-console settings-embedded-console--empty' : 'page-content page-content--wide page-enter server-console-page'}>
                     <EmptyState
                         title="请先选择一台服务器"
                         subtitle="节点控制台支持单节点操作，也支持在全局视图下执行批量控制。"
@@ -389,7 +537,7 @@ export default function ServerManagement({ embedded = false }) {
 
     const content = (
         <>
-            <div className={embedded ? 'settings-embedded-console' : 'page-content page-enter server-console-page'}>
+            <div className={embedded ? 'settings-embedded-console' : 'page-content page-content--wide page-enter server-console-page'}>
                 <PageToolbar
                     className={`card mb-6 server-console-toolbar${embedded ? ' server-console-toolbar--embedded' : ''}`}
                     compact
@@ -513,6 +661,127 @@ export default function ServerManagement({ embedded = false }) {
                             </button>
                         </div>
                     </div>
+
+                    <div className="card">
+                        <SectionHeader
+                            compact divider
+                            title="面板更新"
+                            subtitle="查看当前 3x-ui 面板版本，并在单节点范围内执行自更新。"
+                            actions={!isGlobalView ? (
+                                <button className="btn btn-secondary btn-sm" onClick={fetchPanelUpdateInfo} disabled={loading.panelUpdateInfo}>
+                                    <HiOutlineArrowPath className={loading.panelUpdateInfo ? 'spinning' : ''} /> 刷新
+                                </button>
+                            ) : null}
+                        />
+                        {isGlobalView ? (
+                            <div className="server-console-note">面板自更新仅支持单节点执行，请切换到具体节点。</div>
+                        ) : panelUpdateInfo ? (
+                            <>
+                                <div className="server-console-result-summary">
+                                    当前版本 {panelUpdateInfo.currentVersion || '-'} · 最新版本 {panelUpdateInfo.latestVersion || '-'}
+                                </div>
+                                <div className="server-console-action-row mt-3">
+                                    <button
+                                        className="btn btn-primary btn-sm"
+                                        onClick={handleUpdatePanel}
+                                        disabled={loading.panelUpdate || panelUpdateInfo.updateAvailable !== true}
+                                    >
+                                        <HiOutlineArrowDown /> {panelUpdateInfo.updateAvailable ? '更新面板' : '已是最新'}
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="server-console-note">当前节点未返回面板版本信息。</div>
+                        )}
+                    </div>
+
+                    {!isGlobalView && (
+                        <div className="card server-console-span-full">
+                            <SectionHeader
+                                compact divider
+                                title="自定义 Geo 资源"
+                                subtitle="管理新版 3x-ui 的 GeoIP / GeoSite 扩展资源。"
+                                actions={(
+                                    <div className="server-console-action-row">
+                                        <button className="btn btn-secondary btn-sm" onClick={fetchCustomGeoResources} disabled={loading.customGeoRefresh}>
+                                            <HiOutlineArrowPath className={loading.customGeoRefresh ? 'spinning' : ''} /> 刷新
+                                        </button>
+                                        <button className="btn btn-secondary btn-sm" onClick={handleUpdateAllCustomGeo} disabled={customGeoSupported !== true}>
+                                            全部更新
+                                        </button>
+                                    </div>
+                                )}
+                            />
+                            {customGeoSupported === false ? (
+                                <div className="server-console-note">当前节点未提供自定义 Geo 资源接口。</div>
+                            ) : (
+                                <>
+                                    <form className="server-console-select-row mb-4" onSubmit={handleSubmitCustomGeo}>
+                                        <select
+                                            className="form-select"
+                                            value={customGeoDraft.type}
+                                            onChange={(event) => setCustomGeoDraft((prev) => ({ ...prev, type: event.target.value }))}
+                                        >
+                                            <option value="geoip">GeoIP</option>
+                                            <option value="geosite">GeoSite</option>
+                                        </select>
+                                        <input
+                                            className="form-input"
+                                            placeholder="别名"
+                                            value={customGeoDraft.alias}
+                                            onChange={(event) => setCustomGeoDraft((prev) => ({ ...prev, alias: event.target.value }))}
+                                        />
+                                        <input
+                                            className="form-input"
+                                            placeholder="资源 URL"
+                                            value={customGeoDraft.url}
+                                            onChange={(event) => setCustomGeoDraft((prev) => ({ ...prev, url: event.target.value }))}
+                                        />
+                                        <button className="btn btn-primary btn-sm" type="submit" disabled={loading.customGeoSave}>
+                                            {editingCustomGeoId ? '保存' : '添加'}
+                                        </button>
+                                        {editingCustomGeoId && (
+                                            <button className="btn btn-secondary btn-sm" type="button" onClick={resetCustomGeoDraft}>
+                                                取消
+                                            </button>
+                                        )}
+                                    </form>
+                                    {customGeoItems.length === 0 ? (
+                                        <div className="server-console-note">暂无自定义 Geo 资源。</div>
+                                    ) : (
+                                        <div className="table-container">
+                                            <table>
+                                                <thead>
+                                                    <tr>
+                                                        <th>类型</th>
+                                                        <th>别名</th>
+                                                        <th>URL</th>
+                                                        <th>操作</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {customGeoItems.map((item) => (
+                                                        <tr key={item.id}>
+                                                            <td>{item.type || '-'}</td>
+                                                            <td>{item.alias || '-'}</td>
+                                                            <td className="cell-mono">{item.url || '-'}</td>
+                                                            <td>
+                                                                <div className="server-console-action-row">
+                                                                    <button className="btn btn-secondary btn-sm" type="button" onClick={() => handleEditCustomGeo(item)}>编辑</button>
+                                                                    <button className="btn btn-secondary btn-sm" type="button" onClick={() => handleDownloadCustomGeo(item)}>下载</button>
+                                                                    <button className="btn btn-danger btn-sm" type="button" onClick={() => handleDeleteCustomGeo(item)}>删除</button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    )}
 
                     <div className="card">
                         <SectionHeader

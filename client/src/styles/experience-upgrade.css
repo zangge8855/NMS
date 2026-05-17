@@ -5245,6 +5245,8 @@
   --workspace-border: rgba(148, 163, 184, 0.14);
   --workspace-border-strong: rgba(148, 163, 184, 0.2);
   --workspace-shadow: 0 18px 42px -32px rgba(2, 6, 23, 0.78);
+  --workspace-gap: clamp(16px, 1.45vw, 22px);
+  --workspace-radius: 12px;
 }
 
 [data-theme="light"] {
@@ -5264,7 +5266,14 @@
   .subscriptions-page,
   .user-detail-page,
   .account-page,
-  .audit-page
+  .audit-page,
+  .server-detail-page,
+  .server-console-page,
+  .logs-page,
+  .tools-page,
+  .capabilities-page,
+  .xray-page,
+  .tasks-page
 ) :is(
   .card,
   .glass-panel,
@@ -5296,21 +5305,158 @@
   .subscriptions-page,
   .user-detail-page,
   .account-page,
-  .audit-page
+  .audit-page,
+  .server-detail-page,
+  .server-console-page,
+  .logs-page,
+  .tools-page,
+  .capabilities-page,
+  .xray-page,
+  .tasks-page
 ) :is(.table-container, .page-toolbar, .users-toolbar, .servers-toolbar, .inbounds-toolbar, .subscriptions-toolbar, .settings-nav) {
   background:
     linear-gradient(180deg, var(--workspace-surface), var(--workspace-surface-muted));
 }
 
-.page-content:is(.dashboard-page, .users-page, .servers-page, .inbounds-page, .settings-page, .subscriptions-page, .user-detail-page, .account-page, .audit-page)
+.page-content:is(.dashboard-page, .users-page, .servers-page, .inbounds-page, .settings-page, .subscriptions-page, .user-detail-page, .account-page, .audit-page, .server-detail-page, .server-console-page, .logs-page, .tools-page, .capabilities-page, .xray-page, .tasks-page)
   :is(.btn, .form-input, .form-select, .form-textarea) {
   border-radius: 8px;
 }
 
-.page-content:is(.dashboard-page, .users-page, .servers-page, .inbounds-page, .settings-page, .subscriptions-page, .user-detail-page, .account-page, .audit-page)
+.page-content:is(.dashboard-page, .users-page, .servers-page, .inbounds-page, .settings-page, .subscriptions-page, .user-detail-page, .account-page, .audit-page, .server-detail-page, .server-console-page, .logs-page, .tools-page, .capabilities-page, .xray-page, .tasks-page)
   :is(.form-input, .form-select, .form-textarea) {
   border-color: var(--workspace-border-strong);
   background-color: var(--bg-input);
+}
+
+.page-content:is(
+  .dashboard-page,
+  .users-page,
+  .servers-page,
+  .inbounds-page,
+  .settings-page,
+  .subscriptions-page,
+  .user-detail-page,
+  .account-page,
+  .audit-page,
+  .server-detail-page,
+  .server-console-page,
+  .logs-page,
+  .tools-page,
+  .capabilities-page,
+  .xray-page,
+  .tasks-page
+) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--workspace-gap);
+}
+
+.page-content:is(
+  .dashboard-page,
+  .users-page,
+  .servers-page,
+  .inbounds-page,
+  .settings-page,
+  .subscriptions-page,
+  .user-detail-page,
+  .account-page,
+  .audit-page,
+  .server-detail-page,
+  .server-console-page,
+  .logs-page,
+  .tools-page,
+  .capabilities-page,
+  .xray-page,
+  .tasks-page
+) > * {
+  min-width: 0;
+}
+
+.page-content:is(
+  .dashboard-page,
+  .users-page,
+  .servers-page,
+  .inbounds-page,
+  .settings-page,
+  .subscriptions-page,
+  .user-detail-page,
+  .account-page,
+  .audit-page,
+  .server-detail-page,
+  .server-console-page,
+  .logs-page,
+  .tools-page,
+  .capabilities-page,
+  .xray-page,
+  .tasks-page
+) :is(
+  .card,
+  .glass-panel,
+  .table-container,
+  .page-toolbar,
+  .users-toolbar,
+  .servers-toolbar,
+  .inbounds-toolbar,
+  .subscriptions-toolbar,
+  .settings-nav,
+  .settings-panel,
+  .settings-form-cluster,
+  .subscription-primary-card,
+  .subscription-downloads-page-card,
+  .subscription-link-card,
+  .subscription-device-card,
+  .subscription-inline-qr
+) {
+  border-radius: var(--workspace-radius);
+}
+
+.page-content:is(
+  .dashboard-page,
+  .users-page,
+  .servers-page,
+  .inbounds-page,
+  .settings-page,
+  .subscriptions-page,
+  .user-detail-page,
+  .account-page,
+  .audit-page,
+  .server-detail-page,
+  .server-console-page,
+  .logs-page,
+  .tools-page,
+  .capabilities-page,
+  .xray-page,
+  .tasks-page
+) :is(.card-header, .section-header, .page-toolbar) {
+  min-width: 0;
+}
+
+.page-content:is(
+  .dashboard-page,
+  .users-page,
+  .servers-page,
+  .inbounds-page,
+  .settings-page,
+  .subscriptions-page,
+  .user-detail-page,
+  .account-page,
+  .audit-page,
+  .server-detail-page,
+  .server-console-page,
+  .logs-page,
+  .tools-page,
+  .capabilities-page,
+  .xray-page,
+  .tasks-page
+) :is(
+  .section-header-title,
+  .card-title,
+  .card-value,
+  .header-title,
+  .modal-title
+) {
+  letter-spacing: 0;
 }
 
 .settings-page .settings-form-cluster,

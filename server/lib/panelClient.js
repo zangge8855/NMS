@@ -50,6 +50,11 @@ function isUnsupportedPanelCsrfError(error) {
         || message.includes('not implemented');
 }
 
+function isSkippablePreLoginCsrfError(error) {
+    const status = Number(error?.response?.status || 0);
+    return [401, 403].includes(status) || isUnsupportedPanelCsrfError(error);
+}
+
 function extractPanelCsrfToken(payload) {
     const candidates = [
         payload?.obj,
@@ -97,6 +102,9 @@ async function refreshPanelCsrfToken(client, path, options = {}) {
         return token;
     } catch (error) {
         if (options.ignoreUnsupported === true && isUnsupportedPanelCsrfError(error)) {
+            return '';
+        }
+        if (options.ignorePreLoginFailure === true && isSkippablePreLoginCsrfError(error)) {
             return '';
         }
         throw error;
@@ -400,7 +408,10 @@ export async function ensureAuthenticated(serverId, options = {}) {
 
     // Login
     try {
-        await refreshPanelCsrfToken(client, '/csrf-token', { ignoreUnsupported: true });
+        await refreshPanelCsrfToken(client, '/csrf-token', {
+            ignoreUnsupported: true,
+            ignorePreLoginFailure: true,
+        });
         const loginRes = await client.post('/login', `username=${encodeURIComponent(server.username)}&password=${encodeURIComponent(server.password)}`);
         if (loginRes.data && loginRes.data.success) {
             await refreshPanelCsrfToken(client, '/panel/csrf-token', { ignoreUnsupported: true }).catch(() => '');

@@ -1070,7 +1070,7 @@ export default function Dashboard() {
                     title={t('pages.dashboardEmpty.title')}
                 />
                 
-                <div className="page-content page-enter dashboard-page">
+                <div className="page-content page-content--wide page-enter dashboard-page">
                     <EmptyState
                         title={t('pages.dashboardEmpty.bodyTitle')}
                         subtitle={t('pages.dashboardEmpty.bodySubtitle')}
@@ -1263,7 +1263,7 @@ export default function Dashboard() {
                         </span>
                     </button>
                 </Header>
-                <div className="page-content page-enter dashboard-page">
+                <div className="page-content page-content--wide page-enter dashboard-page">
                     <div className="stats-grid dashboard-stats-grid mb-8">
                         {globalCards.map((card, index) => (
                             <StatCard
@@ -1475,7 +1475,7 @@ export default function Dashboard() {
                     </span>
                 </button>
             </Header>
-            <div className="page-content page-enter dashboard-page">
+            <div className="page-content page-content--wide page-enter dashboard-page">
                 <div className="stats-grid dashboard-stats-grid">
                     {statCards.map((card, index) => (
                         <StatCard

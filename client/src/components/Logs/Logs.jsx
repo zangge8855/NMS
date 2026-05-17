@@ -519,8 +519,8 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
 
     return (
         <>
-            {!embedded && <Header title={isGlobal ? `${t('pages.logs.clusterPrefix')}${sourceLabel}` : sourceLabel} />}
-            <div className={`${embedded ? '' : 'page-content page-enter '}logs-page${immersiveMode ? ' logs-page-immersive' : ''}`.trim()}>
+            {!embedded && <Header title={isGlobal ? `${t('pages.logs.clusterPrefix')} ${sourceLabel}`.trim() : sourceLabel} />}
+            <div className={`${embedded ? '' : 'page-content page-content--wide page-enter '}logs-page${immersiveMode ? ' logs-page-immersive' : ''}`.trim()}>
                 {/* Toolbar */}
                 <PageToolbar
                     className="card rounded-xl mb-4 logs-toolbar"

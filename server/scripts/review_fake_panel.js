@@ -152,6 +152,18 @@ function createPanelApp(definition) {
     app.use(express.json({ limit: '2mb' }));
     app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
+    app.get('/csrf-token', (req, res) => {
+        if (definition.profile === 'legacy') {
+            return res.status(404).json({
+                success: false,
+                msg: 'csrf endpoint unavailable',
+            });
+        }
+        const csrfToken = crypto.randomBytes(16).toString('hex');
+        res.cookie('csrf', csrfToken, { httpOnly: true });
+        return makeSuccess(res, csrfToken);
+    });
+
     app.post('/login', (req, res) => {
         const username = String(req.body?.username || '').trim();
         const password = String(req.body?.password || '');
@@ -182,6 +194,16 @@ function createPanelApp(definition) {
         });
     });
 
+    app.get('/panel/csrf-token', (req, res) => {
+        if (definition.profile === 'legacy') {
+            return res.status(404).json({
+                success: false,
+                msg: 'csrf endpoint unavailable',
+            });
+        }
+        return makeSuccess(res, toText(req.cookies?.csrf) || crypto.randomBytes(16).toString('hex'));
+    });
+
     app.get('/panel/api/server/status', (req, res) => {
         return makeSuccess(res, state.status);
     });
@@ -194,6 +216,81 @@ function createPanelApp(definition) {
 
     app.get('/panel/api/server/getXrayVersion', (req, res) => {
         return makeSuccess(res, state.xrayVersions);
+    });
+
+    app.get('/panel/api/server/getPanelUpdateInfo', (req, res) => {
+        return makeSuccess(res, {
+            currentVersion: '2.9.3',
+            latestVersion: '2.9.4',
+            updateAvailable: true,
+        });
+    });
+
+    app.post('/panel/api/server/updatePanel', (req, res) => {
+        appendLog(state, 'panel', `${new Date().toISOString()} [INFO] panel update started`);
+        return makeSuccess(res, {
+            updating: true,
+        });
+    });
+
+    app.get('/panel/api/server/xrayMetricsState', (req, res) => {
+        return makeSuccess(res, {
+            enabled: true,
+            listen: '127.0.0.1:11111',
+            reason: '',
+        });
+    });
+
+    app.get('/panel/api/server/xrayObservatory', (req, res) => {
+        return makeSuccess(res, [
+            { tag: 'proxy-a', alive: true, delay: 48 },
+            { tag: 'proxy-b', alive: true, delay: 71 },
+        ]);
+    });
+
+    app.get('/panel/api/custom-geo/list', (req, res) => {
+        state.customGeoResources = Array.isArray(state.customGeoResources)
+            ? state.customGeoResources
+            : [{ id: 1, type: 'geoip', alias: 'review', url: 'https://example.com/geoip.dat' }];
+        return makeSuccess(res, state.customGeoResources);
+    });
+
+    app.post('/panel/api/custom-geo/add', (req, res) => {
+        state.customGeoResources = Array.isArray(state.customGeoResources) ? state.customGeoResources : [];
+        const nextId = state.customGeoResources.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1;
+        const item = {
+            id: nextId,
+            type: toText(req.body?.type) || 'geoip',
+            alias: toText(req.body?.alias),
+            url: toText(req.body?.url),
+        };
+        state.customGeoResources.push(item);
+        return makeSuccess(res, item);
+    });
+
+    app.post('/panel/api/custom-geo/update/:id', (req, res) => {
+        state.customGeoResources = Array.isArray(state.customGeoResources) ? state.customGeoResources : [];
+        const item = state.customGeoResources.find((entry) => String(entry.id) === String(req.params.id));
+        if (item) {
+            item.type = toText(req.body?.type) || item.type;
+            item.alias = toText(req.body?.alias) || item.alias;
+            item.url = toText(req.body?.url) || item.url;
+        }
+        return makeSuccess(res, item || null);
+    });
+
+    app.post('/panel/api/custom-geo/delete/:id', (req, res) => {
+        state.customGeoResources = Array.isArray(state.customGeoResources) ? state.customGeoResources : [];
+        state.customGeoResources = state.customGeoResources.filter((entry) => String(entry.id) !== String(req.params.id));
+        return makeSuccess(res, true);
+    });
+
+    app.post('/panel/api/custom-geo/download/:id', (req, res) => {
+        return makeSuccess(res, { id: Number(req.params.id), downloaded: true });
+    });
+
+    app.post('/panel/api/custom-geo/update-all', (req, res) => {
+        return makeSuccess(res, { updated: true });
     });
 
     app.post('/panel/api/server/installXray/:version', (req, res) => {
@@ -251,12 +348,15 @@ function createPanelApp(definition) {
         });
     });
 
-    app.get('/panel/api/backuptotgbot', (req, res) => {
+    const handleTelegramBackup = (req, res) => {
         appendLog(state, 'panel', `${new Date().toISOString()} [INFO] telegram backup triggered`);
         return makeSuccess(res, {
             queued: true,
         });
-    });
+    };
+
+    app.post('/panel/api/backuptotgbot', handleTelegramBackup);
+    app.get('/panel/api/backuptotgbot', handleTelegramBackup);
 
     app.get('/panel/api/server/getNewUUID', (req, res) => {
         return makeSuccess(res, crypto.randomUUID());
@@ -326,7 +426,7 @@ function createPanelApp(definition) {
         });
     });
 
-    app.get('/panel/api/server/logs/:count', (req, res) => {
+    const handlePanelLogs = (req, res) => {
         if (definition.profile === 'legacy') {
             return res.status(404).json({
                 success: false,
@@ -336,9 +436,9 @@ function createPanelApp(definition) {
         return makeSuccess(res, {
             lines: listLogs(state.logs.panel, req.params.count),
         });
-    });
+    };
 
-    app.get('/panel/api/server/xraylogs/:count', (req, res) => {
+    const handleXrayLogs = (req, res) => {
         if (definition.profile === 'legacy') {
             return res.status(404).json({
                 success: false,
@@ -348,7 +448,12 @@ function createPanelApp(definition) {
         return makeSuccess(res, {
             lines: listLogs(state.logs.xray, req.params.count),
         });
-    });
+    };
+
+    app.post('/panel/api/server/logs/:count', handlePanelLogs);
+    app.get('/panel/api/server/logs/:count', handlePanelLogs);
+    app.post('/panel/api/server/xraylogs/:count', handleXrayLogs);
+    app.get('/panel/api/server/xraylogs/:count', handleXrayLogs);
 
     app.post('/panel/api/server/log', (req, res) => {
         return makeSuccess(res, listLogs(state.logs.panel, req.body?.count).join('\n'));

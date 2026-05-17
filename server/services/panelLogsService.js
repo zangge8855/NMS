@@ -32,15 +32,38 @@ function extractLogLines(payload) {
     }
     if (Array.isArray(raw)) {
         return raw
-            .map((line) => String(line || '').trimEnd())
+            .map((line) => formatLogLine(line))
             .filter(Boolean);
     }
     if (Array.isArray(raw?.lines)) {
         return raw.lines
-            .map((line) => String(line || '').trimEnd())
+            .map((line) => formatLogLine(line))
             .filter(Boolean);
     }
     return [];
+}
+
+function formatLogLine(value) {
+    if (value === undefined || value === null) return '';
+    if (typeof value !== 'object') return String(value || '').trimEnd();
+
+    const timestamp = String(value.DateTime || value.dateTime || value.time || '').trim();
+    const parts = [
+        timestamp,
+        value.FromAddress ? `FROM=${value.FromAddress}` : '',
+        value.ToAddress ? `TO=${value.ToAddress}` : '',
+        value.Inbound ? `INBOUND=${value.Inbound}` : '',
+        value.Outbound ? `OUTBOUND=${value.Outbound}` : '',
+        value.Email ? `EMAIL=${value.Email}` : '',
+        value.Event !== undefined && value.Event !== null ? `EVENT=${value.Event}` : '',
+    ].filter(Boolean);
+    if (parts.length > 0) return parts.join(' ');
+
+    try {
+        return JSON.stringify(value);
+    } catch {
+        return String(value).trimEnd();
+    }
 }
 
 async function fetchLegacyLogLines(client, source, count) {
@@ -53,6 +76,35 @@ async function fetchLegacyLogLines(client, source, count) {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
     return extractLogLines(res);
+}
+
+async function fetchPreferredLogLines(client, source, count) {
+    const endpoint = source === 'xray'
+        ? `/panel/api/server/xraylogs/${count}`
+        : `/panel/api/server/logs/${count}`;
+
+    try {
+        const response = await client.post(endpoint);
+        return {
+            lines: extractLogLines(response),
+            sourcePath: endpoint,
+            transport: 'post',
+        };
+    } catch (postError) {
+        if (!isUnsupportedLogEndpoint(postError)) throw postError;
+
+        try {
+            const response = await client.get(endpoint);
+            return {
+                lines: extractLogLines(response),
+                sourcePath: endpoint,
+                transport: 'get',
+            };
+        } catch (getError) {
+            if (!isUnsupportedLogEndpoint(getError)) throw getError;
+            throw postError;
+        }
+    }
 }
 
 async function fetchServerLogPayload(serverId, options = {}, deps = {}) {
@@ -69,9 +121,8 @@ async function fetchServerLogPayload(serverId, options = {}, deps = {}) {
 
     if (source === 'panel') {
         try {
-            const preferred = await client.get(`/panel/api/server/logs/${count}`);
-            const preferredLines = extractLogLines(preferred);
-            if (preferredLines.length === 0) {
+            const preferred = await fetchPreferredLogLines(client, 'panel', count);
+            if (preferred.lines.length === 0) {
                 try {
                     const legacyLines = await fetchLegacyLogLines(client, 'panel', count);
                     if (legacyLines.length > 0) {
@@ -92,9 +143,9 @@ async function fetchServerLogPayload(serverId, options = {}, deps = {}) {
                 serverId,
                 source,
                 supported: true,
-                lines: preferredLines,
-                warning: '',
-                sourcePath: `/panel/api/server/logs/${count}`,
+                lines: preferred.lines,
+                warning: preferred.transport === 'get' ? '当前节点使用旧版 GET 日志接口兼容返回' : '',
+                sourcePath: preferred.sourcePath,
             };
         } catch (error) {
             if (!isUnsupportedLogEndpoint(error)) throw error;
@@ -112,14 +163,14 @@ async function fetchServerLogPayload(serverId, options = {}, deps = {}) {
 
     if (source === 'xray') {
         try {
-            const preferred = await client.get(`/panel/api/server/xraylogs/${count}`);
+            const preferred = await fetchPreferredLogLines(client, 'xray', count);
             return {
                 serverId,
                 source,
                 supported: true,
-                lines: extractLogLines(preferred),
-                warning: '',
-                sourcePath: `/panel/api/server/xraylogs/${count}`,
+                lines: preferred.lines,
+                warning: preferred.transport === 'get' ? '当前节点使用旧版 GET Xray 日志接口兼容返回' : '',
+                sourcePath: preferred.sourcePath,
             };
         } catch (error) {
             if (!isUnsupportedLogEndpoint(error)) throw error;
@@ -146,3 +197,7 @@ async function fetchServerLogPayload(serverId, options = {}, deps = {}) {
 }
 
 export { fetchServerLogPayload, normalizeLogCount, normalizeLogSource };
+export const __testing = {
+    extractLogLines,
+    formatLogLine,
+};

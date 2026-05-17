@@ -127,7 +127,7 @@ test('telegramAlertService syncs Telegram command menus only when explicitly ena
     assert.ok(commandCall);
     assert.deepEqual(commandCall.body.commands.map((item) => item.command), [
         'status', 'online', 'traffic', 'alerts', 'security', 'nodes',
-        'access', 'expiry', 'menu', 'clients', 'client', 'sub',
+        'inbounds', 'access', 'expiry', 'menu', 'clients', 'client', 'sub',
         'servers', 'audit',
         'monitor', 'backup',
         'client_freeze', 'client_unfreeze', 'client_extend',
@@ -165,6 +165,89 @@ test('telegramAlertService clears Telegram command menus by default', async () =
     assert.ok(commandCall);
     assert.match(messageCall.body.text, /<i>消息结构与命令入口检查<\/i>/);
     assert.deepEqual(messageCall.body.reply_markup, { remove_keyboard: true });
+});
+
+test('telegramAlertService routes menu and pagination callbacks through live commands', async () => {
+    const calls = [];
+    const service = createTelegramAlertService({
+        enabled: true,
+        botToken: '123456:ABCDEF',
+        chatId: '-1001234567890',
+        fetcher: async (payload) => {
+            calls.push(payload);
+            return { ok: true, result: {} };
+        },
+        services: {
+            async userAdmin() {
+                return {
+                    listUsers: () => Array.from({ length: 9 }, (_, index) => ({
+                        id: `u${index}`,
+                        email: `user${index}@example.com`,
+                        enabled: true,
+                    })),
+                };
+            },
+            async serverStatus() {
+                return {
+                    collectClusterStatusSnapshot: async () => ({ items: [], panelSnapshots: [], summary: {} }),
+                };
+            },
+            async auditRepository() {
+                return {
+                    queryEvents: () => ({ items: [] }),
+                };
+            },
+        },
+    });
+
+    const listReply = await service.getCommandRegistry().dispatch({
+        command: '/clients',
+        args: { positional: [], raw: '', page: 1 },
+    });
+    const callbackData = listReply.extras.replyMarkup.inline_keyboard.at(-1).at(-1).callback_data;
+    const listSessionId = callbackData.split(':')[1];
+
+    await service._handleCallbackQuery({
+        id: 'menu-1',
+        data: 'm:clients',
+        from: { username: 'admin' },
+        message: { chat: { id: '-1001234567890' } },
+    });
+    await service._handleCallbackQuery({
+        id: 'page-1',
+        data: `pg:${listSessionId}:2`,
+        from: { username: 'admin' },
+        message: { chat: { id: '-1001234567890' } },
+    });
+
+    const answerCalls = calls.filter((item) => /\/answerCallbackQuery$/.test(item.url));
+    const messageCalls = calls.filter((item) => /\/sendMessage$/.test(item.url));
+    assert.equal(answerCalls.length, 2);
+    assert.match(messageCalls[0].body.text, /NMS 客户列表/);
+    assert.match(messageCalls[1].body.text, /user8@example.com/);
+});
+
+test('telegramAlertService reports expired pagination callbacks gracefully', async () => {
+    const calls = [];
+    const service = createTelegramAlertService({
+        enabled: true,
+        botToken: '123456:ABCDEF',
+        chatId: '-1001234567890',
+        fetcher: async (payload) => {
+            calls.push(payload);
+            return { ok: true, result: {} };
+        },
+    });
+
+    await service._handleCallbackQuery({
+        id: 'page-expired',
+        data: 'pg:deadbeef:2',
+        from: { username: 'admin' },
+        message: { chat: { id: '-1001234567890' } },
+    });
+
+    const answerCall = calls.find((item) => /\/answerCallbackQuery$/.test(item.url));
+    assert.equal(answerCall.body.text, '分页已过期，请重新查询');
 });
 
 test('telegramAlertService sends encrypted backups as Telegram documents and tracks backup status', async () => {

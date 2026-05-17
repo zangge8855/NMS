@@ -141,6 +141,12 @@ describe('ServerManagement', () => {
                 }
                 return Promise.resolve({ data: { obj: ['1.9.0'] } });
             }
+            if (method === 'get' && path === '/panel/api/server/getPanelUpdateInfo') {
+                return Promise.resolve({ data: { obj: null } });
+            }
+            if (method === 'get' && path === '/panel/api/custom-geo/list') {
+                return Promise.resolve({ data: { obj: [] } });
+            }
             throw new Error(`Unexpected panelApi ${method} ${path}`);
         });
         apiMock.get.mockResolvedValue({
@@ -218,6 +224,12 @@ describe('ServerManagement', () => {
         serverState.panelApi.mockImplementation((method, path) => {
             if (method === 'get' && path === '/panel/api/server/getXrayVersion') {
                 return Promise.resolve({ data: { obj: ['1.9.0'] } });
+            }
+            if (method === 'get' && path === '/panel/api/server/getPanelUpdateInfo') {
+                return Promise.resolve({ data: { obj: null } });
+            }
+            if (method === 'get' && path === '/panel/api/custom-geo/list') {
+                return Promise.resolve({ data: { obj: [] } });
             }
             if (method === 'get' && path === '/panel/api/tools/diag') {
                 return new Promise((resolve) => {
