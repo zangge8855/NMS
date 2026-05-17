@@ -279,7 +279,7 @@ export default function AccountCenter() {
 
                     <div className="card account-profile-card">
                         <SectionHeader
-                            className="card-header section-header section-header--compact"
+                            compact divider
                             title={copy.profileTitle}
                         />
                         <div className="account-profile-grid">
@@ -355,7 +355,7 @@ export default function AccountCenter() {
 
                     <div className="card account-password-card">
                         <SectionHeader
-                            className="card-header section-header section-header--compact"
+                            compact divider
                             title={copy.passwordTitle}
                         />
                         <div className="account-password-grid">

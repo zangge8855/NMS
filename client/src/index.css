@@ -1725,6 +1725,10 @@ input[type="radio"]:focus {
   margin-bottom: 24px;
 }
 
+.mb-5 {
+  margin-bottom: 20px;
+}
+
 .mb-8 {
   margin-bottom: 32px;
 }
@@ -3402,10 +3406,6 @@ input[type="radio"]:focus-visible {
 }
 
 .dashboard-section-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
   margin-bottom: 16px;
 }
 
@@ -5930,10 +5930,6 @@ body::before {
 
 .dashboard-toolbar-actions {
   justify-content: flex-start;
-}
-
-.dashboard-section-head {
-  align-items: center;
 }
 
 .dashboard-section-title {
@@ -15897,7 +15893,7 @@ input[type="radio"]:focus-visible {
   min-width: 0;
 }
 
-.settings-restore-modal {
+.modal.settings-restore-modal {
   max-width: 760px;
 }
 

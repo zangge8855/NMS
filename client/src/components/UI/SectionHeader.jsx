@@ -7,6 +7,7 @@ export default function SectionHeader({
     actions,
     align = 'between',
     compact = false,
+    divider = false,
     density = '',
     titleSize = '',
     className = '',
@@ -14,6 +15,7 @@ export default function SectionHeader({
     const classes = [
         'section-header',
         compact ? 'section-header--compact' : '',
+        divider ? 'section-header--divided' : '',
         density ? `section-header--${density}` : '',
         titleSize ? `section-header--title-${titleSize}` : '',
         align === 'start' ? 'section-header--align-start' : 'section-header--align-between',

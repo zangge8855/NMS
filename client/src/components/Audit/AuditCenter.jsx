@@ -2255,7 +2255,7 @@ export default function AuditCenter() {
                         <div className="grid-auto-280-tight audit-chart-grid">
                             <div className="card audit-chart-card">
                                 <SectionHeader
-                                    className="card-header section-header section-header--compact"
+                                    compact divider
                                     title={copy.traffic.userTrend}
                                     subtitle={trafficWindowCopy.userTrendScope}
                                     actions={(
@@ -2304,7 +2304,7 @@ export default function AuditCenter() {
 
                             <div className="card audit-chart-card">
                                 <SectionHeader
-                                    className="card-header section-header section-header--compact"
+                                    compact divider
                                     title={copy.traffic.serverTrend}
                                     subtitle={trafficWindowCopy.serverTrendScope}
                                     actions={(
@@ -2362,7 +2362,7 @@ export default function AuditCenter() {
                         <div className="grid-auto-280-tight audit-leaderboard-grid">
                             <div className="card audit-leaderboard-card">
                                 <SectionHeader
-                                    className="card-header section-header section-header--compact"
+                                    compact divider
                                     title={copy.traffic.topUsers}
                                     subtitle={trafficWindowCopy.topUsersScope}
                                 />
@@ -2412,7 +2412,7 @@ export default function AuditCenter() {
                             </div>
                             <div className="card audit-leaderboard-card">
                                 <SectionHeader
-                                    className="card-header section-header section-header--compact"
+                                    compact divider
                                     title={copy.traffic.topServers}
                                     subtitle={trafficWindowCopy.topServersScope}
                                 />

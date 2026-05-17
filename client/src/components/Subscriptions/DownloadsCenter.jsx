@@ -41,7 +41,7 @@ export default function DownloadsCenter() {
                 <div className="card subscription-downloads-card subscription-downloads-page-card">
                     {!isCompactViewport ? (
                         <SectionHeader
-                            className="card-header section-header section-header--compact"
+                            compact divider
                             title={copy.panelTitle}
                             subtitle={copy.panelSubtitle}
                         />

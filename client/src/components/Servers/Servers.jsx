@@ -1263,7 +1263,7 @@ export default function Servers() {
                 {/* Add/Edit Modal */}
                 {showForm && (
                     <ModalShell isOpen={showForm} onClose={resetForm}>
-                        <div className="modal glass-panel" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal modal-lg glass-panel" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
                                 <h3 className="modal-title text-glow">{editingId ? t('comp.servers.editServer') : t('comp.servers.addServer')}</h3>
                                 <button type="button" className="modal-close" onClick={resetForm} aria-label="关闭" title="关闭"><HiOutlineXMark /></button>

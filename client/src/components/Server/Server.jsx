@@ -424,7 +424,7 @@ export default function ServerManagement({ embedded = false }) {
                 {lastRun && (
                     <div className="card mb-6 server-console-result-card">
                         <SectionHeader
-                            className="card-header section-header section-header--compact"
+                            compact divider
                             title="最近一次执行结果"
                             subtitle={lastRun.title}
                             meta={(
@@ -451,7 +451,7 @@ export default function ServerManagement({ embedded = false }) {
                 <div className="server-console-grid">
                     <div className="card">
                         <SectionHeader
-                            className="card-header section-header section-header--compact"
+                            compact divider
                             title="Xray 控制"
                             subtitle="停止、重启服务，必要时查看当前节点配置。"
                         />
@@ -475,7 +475,7 @@ export default function ServerManagement({ embedded = false }) {
 
                     <div className="card">
                         <SectionHeader
-                            className="card-header section-header section-header--compact"
+                            compact divider
                             title="Xray 版本"
                             subtitle="从当前节点可用的版本列表中选择目标版本后执行安装。"
                             actions={(
@@ -497,7 +497,7 @@ export default function ServerManagement({ embedded = false }) {
 
                     <div className="card">
                         <SectionHeader
-                            className="card-header section-header section-header--compact"
+                            compact divider
                             title="Geo 文件"
                             subtitle="更新 GeoIP 与 GeoSite 数据，批量模式会广播到所有节点。"
                         />
@@ -516,7 +516,7 @@ export default function ServerManagement({ embedded = false }) {
 
                     <div className="card">
                         <SectionHeader
-                            className="card-header section-header section-header--compact"
+                            compact divider
                             title="数据与备份"
                             subtitle="批量模式只保留 Telegram 备份，数据库导入导出仍限定单节点。"
                         />
@@ -542,7 +542,7 @@ export default function ServerManagement({ embedded = false }) {
                     {!isGlobalView && (
                         <div className="card server-console-span-full">
                             <SectionHeader
-                                className="card-header section-header section-header--compact"
+                                compact divider
                                 title="节点工具"
                                 subtitle="仅展示支持在控制台直接执行的节点工具接口。"
                                 actions={(
@@ -594,7 +594,7 @@ export default function ServerManagement({ embedded = false }) {
                     {!isGlobalView && guidedModules.length > 0 && (
                         <div className="card server-console-span-full">
                             <SectionHeader
-                                className="card-header section-header section-header--compact"
+                                compact divider
                                 title="官方能力引导"
                                 subtitle="对于 NMS 尚未接管的能力，直接跳转到上游文档查看说明。"
                             />

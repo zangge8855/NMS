@@ -3434,7 +3434,7 @@ export default function SystemSettings() {
                 onClose={() => setNoticeTaskId(null)}
             />
             <ModalShell isOpen={backupRestoreModalOpen} onClose={() => setBackupRestoreModalOpen(false)}>
-                <div className="modal modal-wide settings-restore-modal" onClick={(event) => event.stopPropagation()}>
+                <div className="modal settings-restore-modal" onClick={(event) => event.stopPropagation()}>
                     <div className="modal-header">
                         <h3 className="modal-title">恢复系统备份</h3>
                         <button type="button" className="modal-close" onClick={() => setBackupRestoreModalOpen(false)} aria-label="关闭" title="关闭">

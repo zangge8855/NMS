@@ -253,7 +253,7 @@ export default function Tools() {
                         {(enabledTools.length > 0 ? enabledTools : tools).map((tool) => (
                             <div className="card rounded-xl tool-card" key={tool.key}>
                                 <SectionHeader
-                                    className="card-header section-header section-header--compact"
+                                    compact divider
                                     title={tool.label || tool.key}
                                     subtitle={tool.description || copy.currentTool}
                                     meta={(

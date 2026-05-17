@@ -308,7 +308,7 @@ export default function Capabilities() {
                     <>
                         <div className="card mb-8">
                             <SectionHeader
-                                className="card-header section-header section-header--compact"
+                                compact divider
                                 title={copy.protocolSectionTitle}
                                 meta={<span className="text-sm text-muted">{copy.protocolCount(protocolList.length)}</span>}
                             />
@@ -335,7 +335,7 @@ export default function Capabilities() {
 
                         <div className="card mb-8">
                             <SectionHeader
-                                className="card-header section-header section-header--compact"
+                                compact divider
                                 title={copy.matrixSectionTitle}
                             />
                             {systemModules.length === 0 ? (
@@ -391,7 +391,7 @@ export default function Capabilities() {
 
                         <div className="card mb-8">
                             <SectionHeader
-                                className="card-header section-header section-header--compact"
+                                compact divider
                                 title={copy.toolsSectionTitle}
                             />
                             {toolEntries.length === 0 ? (
@@ -445,7 +445,7 @@ export default function Capabilities() {
 
                         <div className="card mb-8">
                             <SectionHeader
-                                className="card-header section-header section-header--compact"
+                                compact divider
                                 title={copy.batchSectionTitle}
                             />
                             <div className="capability-batch-grid">
@@ -470,7 +470,7 @@ export default function Capabilities() {
 
                         <div className="card">
                             <SectionHeader
-                                className="card-header section-header section-header--compact"
+                                compact divider
                                 title={copy.subscriptionModesTitle}
                             />
                             <div className="flex gap-2 flex-wrap">

@@ -286,7 +286,7 @@
   animation: circular-meter-pulse 1.6s ease-in-out infinite;
 }
 
-.subscription-qr-modal {
+.modal.subscription-qr-modal {
   width: min(92vw, 420px);
 }
 
@@ -457,7 +457,7 @@
   margin-top: 8px;
 }
 
-.site-danger-modal {
+.modal.site-danger-modal {
   width: min(92vw, 640px);
   border: 1px solid rgba(248, 113, 113, 0.28);
 }
@@ -926,6 +926,23 @@
   --mobile-bottom-nav-height: 78px;
   --page-shell-max: 1500px;
   --page-shell-wide-max: 1700px;
+
+  /* Density tokens shared by cards, toolbars, modals so modules stop
+     improvising their own padding. */
+  --card-pad: 20px;
+  --card-pad-tight: 16px;
+  --card-pad-loose: 24px;
+  --toolbar-pad-y: 12px;
+  --toolbar-pad-x: 16px;
+  --toolbar-pad-y-compact: 10px;
+  --toolbar-pad-x-compact: 12px;
+
+  /* Modal width tiers; experience-upgrade.css collapsed everything to ~920px,
+     leaving sm/md/lg visually identical. Re-introduce real differences. */
+  --modal-width-sm: 480px;
+  --modal-width-md: 640px;
+  --modal-width-lg: 920px;
+  --modal-width-wide: 1120px;
 }
 
 .header {
@@ -1648,6 +1665,31 @@
   color: #0f172a;
 }
 
+@media (max-width: 1100px) {
+  /* Mid-density breakpoint: tablet-landscape and narrow desktops with the
+     sidebar expanded. Keep the toolbar horizontal but stop actions from
+     grabbing main's space. */
+  .page-toolbar-actions,
+  .users-toolbar-actions,
+  .inbounds-toolbar-actions,
+  .servers-toolbar-actions,
+  .subscriptions-toolbar-actions,
+  .audit-traffic-toolbar-actions,
+  .settings-toolbar-actions {
+    flex: 0 0 auto;
+  }
+
+  .page-toolbar-main,
+  .users-toolbar-main,
+  .inbounds-toolbar-main,
+  .servers-toolbar-summary,
+  .subscriptions-toolbar-main,
+  .audit-filter-bar,
+  .settings-toolbar-copy {
+    flex-basis: 320px;
+  }
+}
+
 @media (max-width: 900px) {
   .page-toolbar,
   .users-toolbar,
@@ -1659,7 +1701,6 @@
   .settings-toolbar {
     padding: 12px;
   }
-
   .page-toolbar-main,
   .page-toolbar-actions,
   .users-toolbar-main,
@@ -1922,8 +1963,8 @@
 }
 
 .modal {
-  width: min(100%, 920px);
-  max-width: min(100%, 920px);
+  width: min(100%, var(--modal-width-md));
+  max-width: min(100%, var(--modal-width-md));
   max-height: calc(100dvh - 36px);
   display: flex;
   flex-direction: column;
@@ -1932,12 +1973,24 @@
   margin: auto;
 }
 
+.modal.modal-sm {
+  width: min(100%, var(--modal-width-sm));
+  max-width: min(100%, var(--modal-width-sm));
+}
+
+.modal.modal-md {
+  width: min(100%, var(--modal-width-md));
+  max-width: min(100%, var(--modal-width-md));
+}
+
 .modal.modal-lg {
-  max-width: min(100%, 980px);
+  width: min(100%, var(--modal-width-lg));
+  max-width: min(100%, var(--modal-width-lg));
 }
 
 .modal.modal-wide {
-  max-width: min(100%, 1120px);
+  width: min(100%, var(--modal-width-wide));
+  max-width: min(100%, var(--modal-width-wide));
 }
 
 .modal-header,
@@ -2037,6 +2090,8 @@
   }
 
   .modal,
+  .modal.modal-sm,
+  .modal.modal-md,
   .modal.modal-lg,
   .modal.modal-wide {
     width: 100%;
@@ -2663,6 +2718,15 @@
 .btn-xs {
   min-height: 28px;
   border-radius: 8px;
+}
+
+/* Match form controls to the .btn heights so toolbars (where buttons sit
+   next to inputs) keep a single baseline. .form-textarea is excluded — it
+   needs to grow with content. */
+.form-input,
+.form-select {
+  min-height: 38px;
+  line-height: 1.2;
 }
 
 .btn-primary {

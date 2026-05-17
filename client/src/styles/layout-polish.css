@@ -556,6 +556,13 @@
   white-space: nowrap;
 }
 
+/* When actions are also rendered, don't double-anchor the summary to the
+   right edge — let it sit naturally after main and let actions own the
+   right side. */
+.page-toolbar:has(.page-toolbar-actions) .page-toolbar-summary {
+  margin-left: 0;
+}
+
 .page-toolbar--dense {
   padding: 10px 12px;
   gap: 8px;
@@ -678,6 +685,12 @@
 
 .section-header--compact {
   gap: 12px;
+}
+
+.section-header--divided {
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .section-header--dense {
@@ -12876,7 +12889,7 @@ input[type="radio"] {
   font-size: 18px;
 }
 
-.conflict-scanner-modal {
+.modal.conflict-scanner-modal {
   max-width: 1200px;
 }
 

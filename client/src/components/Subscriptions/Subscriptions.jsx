@@ -987,7 +987,7 @@ export default function Subscriptions() {
                                 <div className={`card subscription-primary-card${isUserOnly ? ' subscription-primary-card--user' : ''}`}>
                                     {!isUserOnly && (
                                         <SectionHeader
-                                            className="card-header section-header section-header--compact"
+                                            compact divider
                                             title={ui.adminTitle}
                                             actions={(
                                                 <button
@@ -1189,7 +1189,7 @@ export default function Subscriptions() {
                         {!isUserOnly && (
                             <div className="card subscription-guide-card">
                                 <SectionHeader
-                                    className="card-header section-header section-header--compact"
+                                    compact divider
                                     title={ui.guideTitle}
                                 />
                                 <div className="subscription-guide-grid">
@@ -1221,7 +1221,7 @@ export default function Subscriptions() {
                             <>
                                 <div className="card subscription-summary-card">
                                     <SectionHeader
-                                        className="card-header section-header section-header--compact"
+                                        compact divider
                                         title={ui.summaryTitle}
                                     />
                                         <div className="subscription-summary-grid">

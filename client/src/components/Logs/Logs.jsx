@@ -682,7 +682,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                 {/* Log Viewer */}
                 <div className="card rounded-xl flex-1 logs-viewer-card">
                     <SectionHeader
-                        className="card-header section-header section-header--compact"
+                        compact divider
                         title={(
                             <div className="flex items-center gap-8 flex-wrap">
                                 <HiOutlineDocumentText className="text-muted" />
