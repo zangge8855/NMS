@@ -1,6 +1,16 @@
 import config from '../config.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
 import { getLatestTelegramBackupMeta } from './systemBackupStatus.js';
+import { createCommandRegistry } from './telegram/commandRegistry.js';
+import { registerLegacyCommands } from './telegram/commands/legacy.js';
+import { registerMenuCommands } from './telegram/commands/menu.js';
+import { registerClientCommands } from './telegram/commands/clients.js';
+import { registerServerCommands } from './telegram/commands/servers.js';
+import { registerAuditCommands } from './telegram/commands/audit.js';
+import { registerOpsCommands } from './telegram/commands/ops.js';
+import { registerHighRiskCommands } from './telegram/commands/highrisk.js';
+import { createPendingActionStore } from './telegram/pendingActions.js';
+import { parseCallbackData, buildConfirmKeyboard, buildHighRiskKeyboard } from './telegram/inlineKeyboards.js';
 
 const DEFAULT_ALERT_SEVERITIES = new Set(['warning', 'critical']);
 const DEFAULT_AUDIT_EVENT_RULES = {
@@ -31,11 +41,23 @@ const DEFAULT_QUERY_COMMANDS = [
     { command: '/nodes', description: '异常节点摘要' },
     { command: '/access', description: '最近被拒绝的公开订阅访问' },
     { command: '/expiry', description: '用户到期提醒摘要' },
+    { command: '/menu', description: '主菜单（按钮入口）' },
+    { command: '/clients', description: '客户列表，可加搜索词 /clients 关键词' },
+    { command: '/client', description: '客户详情 /client <id 或 email>' },
+    { command: '/sub', description: '订阅链接 /sub <id 或 email>' },
+    { command: '/servers', description: '节点状态列表' },
+    { command: '/audit', description: '审计事件 /audit [类型] [N]' },
 ];
 const DEFAULT_OPERATION_COMMANDS = [
     { command: '/monitor', description: '立即执行节点巡检' },
     { command: '/backup', description: '立即发送一次加密备份' },
-];
+    { command: '/client_freeze', description: '停用客户（按钮确认）' },
+    { command: '/client_unfreeze', description: '启用客户（按钮确认）' },
+    { command: '/client_extend', description: '延长到期 /client_extend <id> <天数>' },
+    { command: '/alert_mute', description: '静音告警 /alert_mute <分钟>' },
+    { command: '/alert_unmute', description: '解除告警静音' },
+    { command: '/client_delete', description: '🔴 删除客户（高风险，按钮+令牌）' },
+];;
 const AGGREGATE_SAMPLE_LIMIT = 5;
 
 // ── Telegram 消息排版 emoji 映射 ──────────────────────────
@@ -590,6 +612,16 @@ function normalizeCommand(value) {
     return String(value || '').trim().split(/\s+/)[0].toLowerCase();
 }
 
+function parseCommandLine(value = '') {
+    const text = String(value || '').trim();
+    if (!text) return { command: '', positional: [], raw: '' };
+    const tokens = text.split(/\s+/);
+    const command = tokens[0].toLowerCase();
+    const positional = tokens.slice(1);
+    const raw = text.slice(tokens[0].length).trim();
+    return { command, positional, raw };
+}
+
 function isNumericChatId(value) {
     return /^-?\d+$/.test(String(value || '').trim());
 }
@@ -974,6 +1006,14 @@ export function createTelegramAlertService(options = {}) {
     let initializedOffset = false;
     let commandsSynced = false;
     let commandMenuCleared = false;
+
+    const commandRegistry = options.commandRegistry || createCommandRegistry();
+    const pendingActions = options.pendingActions || createPendingActionStore({
+        startInterval: typeof options.startBackgroundInterval === 'function'
+            ? options.startBackgroundInterval
+            : startBackgroundInterval,
+    });
+    let legacyCommandsRegistered = false;
     let commandSyncPromise = null;
 
     async function resolveBackupHelpers() {
@@ -1036,6 +1076,7 @@ export function createTelegramAlertService(options = {}) {
             sendSystemStatus: options.sendSystemStatus ?? stored?.sendSystemStatus ?? true,
             sendSecurityAudit: options.sendSecurityAudit ?? stored?.sendSecurityAudit ?? true,
             sendEmergencyAlerts: options.sendEmergencyAlerts ?? stored?.sendEmergencyAlerts ?? true,
+            alertMutedUntil: String(options.alertMutedUntil ?? stored?.alertMutedUntil ?? '').trim(),
             opsDigestIntervalMinutes: normalizeDigestIntervalMinutes(
                 options.opsDigestIntervalMinutes ?? stored?.opsDigestIntervalMinutes,
                 Math.round(OPS_DIGEST_INTERVAL_MS / 60_000)
@@ -1136,7 +1177,9 @@ export function createTelegramAlertService(options = {}) {
             if (overrides.parseMode) {
                 body.parse_mode = String(overrides.parseMode);
             }
-            if (overrides.removeKeyboard) {
+            if (overrides.replyMarkup && typeof overrides.replyMarkup === 'object') {
+                body.reply_markup = overrides.replyMarkup;
+            } else if (overrides.removeKeyboard) {
                 body.reply_markup = {
                     remove_keyboard: true,
                 };
@@ -1397,14 +1440,19 @@ export function createTelegramAlertService(options = {}) {
         return commandSyncPromise;
     }
 
-    async function sendCommandReply(text, chatId, kind = 'command') {
+    async function sendCommandReply(text, chatId, kind = 'command', extras = {}) {
         await syncCommands();
-        return sendMessage(text, '', {
+        const overrides = {
             chatId,
             kind,
             parseMode: 'HTML',
-            removeKeyboard: true,
-        });
+        };
+        if (extras && extras.replyMarkup && typeof extras.replyMarkup === 'object') {
+            overrides.replyMarkup = extras.replyMarkup;
+        } else {
+            overrides.removeKeyboard = true;
+        }
+        return sendMessage(text, '', overrides);
     }
 
     function shouldSendNotification(notification = {}) {
@@ -1413,6 +1461,13 @@ export function createTelegramAlertService(options = {}) {
 
         const severity = String(notification.severity || 'info').trim().toLowerCase();
         if (!settings.alertSeverities.has(severity)) return false;
+
+        // Honour the operator-issued /alert_mute window. Critical alerts
+        // still leak through so we don't bury actual emergencies.
+        const mutedUntilTs = Date.parse(String(settings.alertMutedUntil || ''));
+        if (Number.isFinite(mutedUntilTs) && mutedUntilTs > Date.now() && severity !== 'critical') {
+            return false;
+        }
 
         const topics = Array.isArray(notification?.meta?.telegramTopics)
             ? notification.meta.telegramTopics
@@ -1983,118 +2038,210 @@ export function createTelegramAlertService(options = {}) {
         });
     }
 
-    async function dispatchCommand(command = '', { actor = 'telegram', chatId = '' } = {}) {
+    function ensureLegacyCommandsRegistered() {
+        if (legacyCommandsRegistered) return;
+        legacyCommandsRegistered = true;
+        registerLegacyCommands(commandRegistry, {
+            buildStatusDigest,
+            buildOnlineDigest,
+            buildTrafficDigest,
+            buildAlertsDigest,
+            buildSecurityDigest,
+            buildNodeIssuesDigest,
+            buildAccessDigest,
+            buildExpiryDigest,
+            runMonitorDigest,
+            sendBackupArchive,
+            formatCommandCatalogMessage,
+            joinHtmlMessage,
+            sectionHeader,
+            formatHtmlKeyValueRow,
+            trimLines,
+            formatBytesHuman,
+            formatDateTime,
+        });
+        // New (Step 3) query commands. They run against the
+        // telegramServiceContext defined just below, which is in scope by
+        // the time this function is invoked from dispatchCommand.
+        registerMenuCommands(commandRegistry, telegramServiceContext);
+        registerClientCommands(commandRegistry, telegramServiceContext);
+        registerServerCommands(commandRegistry, telegramServiceContext);
+        registerAuditCommands(commandRegistry, telegramServiceContext);
+        // Step 4 write commands — wrap their handler results in pendingActions.
+        registerOpsCommands(commandRegistry, telegramServiceContext);
+        // Step 5 high-risk commands — additionally backed by batchRiskControl
+        // token issue/consume.
+        registerHighRiskCommands(commandRegistry, telegramServiceContext);
+    }
+
+    // Bag of services + helpers handed to every registered command. Services
+    // are lazy-imported so this module stays cheap at startup and avoids
+    // circular dependencies.
+    const telegramServiceContext = {
+        helpers: {
+            joinHtmlMessage,
+            sectionHeader,
+            formatHtmlKeyValueRow,
+            formatHtmlDetailBlock,
+            escapeTelegramHtml,
+            formatBytesHuman,
+            formatDateTime,
+            trimLines,
+            appendHtmlSection,
+        },
+        services: typeof options.services === 'object' && options.services !== null
+            ? options.services
+            : {
+                async userAdmin() {
+                    const mod = await import('../services/userAdminService.js');
+                    return mod;
+                },
+                async subscriptionSync() {
+                    const mod = await import('../services/subscriptionSyncService.js');
+                    return mod;
+                },
+                async serverStatus() {
+                    const mod = await import('./serverStatusService.js');
+                    return mod;
+                },
+                async auditRepository() {
+                    const mod = await import('../store/auditStore.js');
+                    return mod.default || mod;
+                },
+            },
+    };
+
+    async function dispatchCommand(command = '', { actor = 'telegram', chatId = '', positional = [], raw = '' } = {}) {
+        ensureLegacyCommandsRegistered();
         const normalized = normalizeCommand(command);
-        if (normalized === '/start' || normalized === '/help') {
-            return {
-                text: formatCommandCatalogMessage(),
-                kind: 'command_help',
-            };
-        }
+        const result = await commandRegistry.dispatch({
+            command: normalized,
+            args: { positional, raw },
+            ctx: { actor, chatId, pendingActions, services: telegramServiceContext },
+        });
 
-        if (normalized === '/status') {
-            return {
-                text: await buildStatusDigest(),
-                kind: 'status_digest',
-            };
-        }
-
-        if (normalized === '/online') {
-            return {
-                text: await buildOnlineDigest(),
-                kind: 'online_digest',
-            };
-        }
-
-        if (normalized === '/traffic') {
-            return {
-                text: await buildTrafficDigest(),
-                kind: 'traffic_digest',
-            };
-        }
-
-        if (normalized === '/alerts') {
-            return {
-                text: await buildAlertsDigest(),
-                kind: 'alerts_digest',
-            };
-        }
-
-        if (normalized === '/security') {
-            return {
-                text: await buildSecurityDigest(),
-                kind: 'security_digest',
-            };
-        }
-
-        if (normalized === '/nodes') {
-            return {
-                text: await buildNodeIssuesDigest(),
-                kind: 'node_digest',
-            };
-        }
-
-        if (normalized === '/access') {
-            return {
-                text: await buildAccessDigest(),
-                kind: 'access_digest',
-            };
-        }
-
-        if (normalized === '/expiry') {
-            return {
-                text: await buildExpiryDigest(),
-                kind: 'expiry_digest',
-            };
-        }
-
-        if (normalized === '/monitor') {
-            return {
-                text: await runMonitorDigest(actor),
-                kind: 'monitor_digest',
-            };
-        }
-
-        if (normalized === '/backup') {
-            const result = await sendBackupArchive(actor, { reason: 'manual' });
+        if (result.kind === 'unknown_command') {
             return {
                 text: joinHtmlMessage('NMS Telegram 控制台', [
-                    `${sectionHeader('运维动作')}\n• 已发送加密备份到当前会话`,
-                    `${sectionHeader('关键信息')}\n${trimLines([
-                        formatHtmlKeyValueRow('文件', result?.archive?.filename || result?.filename || '-'),
-                        formatHtmlKeyValueRow('大小', formatBytesHuman(result?.archive?.bytes || result?.bytes || 0)),
-                        formatHtmlKeyValueRow('时间', formatDateTime(result?.ts || result?.sentAt || new Date().toISOString())),
-                    ])}`,
+                    `${sectionHeader('提示')}\n• 未识别命令，请使用 <code>/help</code> 查看可用命令`,
                 ], {
-                    subtitle: '手动备份执行结果',
+                    subtitle: '命令入口',
                 }),
-                kind: 'backup_manual_result',
+                kind: 'command',
+                chatId,
+            };
+        }
+
+        // Write / high-risk commands return a `pending` payload — wrap it in a
+        // pendingActions entry and attach the appropriate inline keyboard so
+        // the user has to tap to confirm.
+        if (result.pending && typeof result.pending.execute === 'function') {
+            const level = String(result.entry?.level || 'write').toLowerCase();
+            const record = pendingActions.create({
+                command: result.entry?.name,
+                actor,
+                level,
+                execute: result.pending.execute,
+                summary: result.pending.summary || '',
+            }, { ttlMs: 60_000 });
+            const keyboard = level === 'high-risk'
+                ? buildHighRiskKeyboard({ pendingId: record.id })
+                : buildConfirmKeyboard({ pendingId: record.id });
+            return {
+                text: result.text,
+                kind: result.kind,
+                extras: {
+                    ...(result.extras || {}),
+                    replyMarkup: keyboard,
+                },
             };
         }
 
         return {
-            text: joinHtmlMessage('NMS Telegram 控制台', [
-                `${sectionHeader('提示')}\n• 未识别命令，请使用 <code>/help</code> 查看可用命令`,
-            ], {
-                subtitle: '命令入口',
-            }),
-            kind: 'command',
-            chatId,
+            text: result.text,
+            kind: result.kind,
+            extras: result.extras,
         };
     }
 
     async function handleCommand(message) {
         const chatId = String(message?.chat?.id || '').trim();
-        const command = normalizeCommand(message?.text || '');
+        const parsed = parseCommandLine(message?.text || '');
 
         runtimeStatus.lastCommandAt = new Date().toISOString();
-        runtimeStatus.lastCommand = command || String(message?.text || '').trim();
+        runtimeStatus.lastCommand = parsed.command || String(message?.text || '').trim();
 
-        const reply = await dispatchCommand(command, {
+        const reply = await dispatchCommand(parsed.command, {
             actor: message?.from?.username || 'telegram',
             chatId,
+            positional: parsed.positional,
+            raw: parsed.raw,
         });
-        await sendCommandReply(reply.text, chatId, reply.kind);
+        await sendCommandReply(reply.text, chatId, reply.kind, reply.extras);
+    }
+
+    async function answerCallbackQuerySafe(callback, text = '') {
+        const callbackId = String(callback?.id || '').trim();
+        if (!callbackId) return;
+        try {
+            await callTelegramBotApi('answerCallbackQuery', {
+                callback_query_id: callbackId,
+                text: text ? String(text).slice(0, 200) : undefined,
+                show_alert: false,
+            }, { requireConfiguredChat: false });
+        } catch (error) {
+            // We swallow answerCallbackQuery failures — they're best-effort UX.
+            runtimeStatus.lastPollError = error.message || 'telegram-callback-answer-failed';
+        }
+    }
+
+    async function handleCallbackQuery(callback) {
+        const parsed = parseCallbackData(callback?.data || '');
+        if (!parsed) {
+            await answerCallbackQuerySafe(callback, '无效操作');
+            return;
+        }
+
+        if (parsed.kind === 'cancel') {
+            const taken = pendingActions.take(parsed.id);
+            await answerCallbackQuerySafe(callback, taken ? '已取消' : '已过期');
+            return;
+        }
+
+        if (parsed.kind === 'confirm') {
+            const taken = pendingActions.take(parsed.id);
+            if (!taken) {
+                await answerCallbackQuerySafe(callback, '确认已过期，请重新发起');
+                return;
+            }
+            const action = taken.payload || {};
+            try {
+                const result = typeof action.execute === 'function'
+                    ? await action.execute({
+                        actor: callback?.from?.username || 'telegram',
+                        callback,
+                    })
+                    : null;
+                await answerCallbackQuerySafe(callback, result?.toast || '已执行');
+                if (result?.text) {
+                    await sendCommandReply(
+                        result.text,
+                        String(callback?.message?.chat?.id || '').trim(),
+                        result.kind || 'command_result'
+                    );
+                }
+            } catch (error) {
+                await answerCallbackQuerySafe(callback, '执行失败');
+                await sendCommandReply(joinHtmlMessage('NMS Telegram 控制台', [
+                    `<b>执行失败</b>\n• ${escapeTelegramHtml(error.message || 'unknown error')}`,
+                ]), String(callback?.message?.chat?.id || '').trim(), 'command_error');
+            }
+            return;
+        }
+
+        // 'paginate' and 'menu' kinds will be handled in Step 3 when the
+        // commands that emit them land. For now answer gracefully.
+        await answerCallbackQuerySafe(callback, '该按钮暂未实现');
     }
 
     async function sendPeriodicDigest(kind = 'ops') {
@@ -2172,6 +2319,7 @@ export function createTelegramAlertService(options = {}) {
         for (const update of Array.isArray(updates) ? updates : []) {
             lastUpdateId = Math.max(lastUpdateId, Number(update?.update_id || 0));
             const message = update?.message;
+            const callback = update?.callback_query;
 
             if (message?.text && String(message?.chat?.id || '').trim() === String(settings.chatId || '').trim()) {
                 try {
@@ -2180,6 +2328,14 @@ export function createTelegramAlertService(options = {}) {
                     await sendCommandReply(joinHtmlMessage('NMS Telegram 控制台', [
                         `<b>执行失败</b>\n• ${escapeTelegramHtml(error.message || 'unknown error')}`,
                     ]), String(message?.chat?.id || '').trim(), 'command_error');
+                }
+            }
+
+            if (callback && String(callback?.message?.chat?.id || '').trim() === String(settings.chatId || '').trim()) {
+                try {
+                    await handleCallbackQuery(callback);
+                } catch (error) {
+                    await answerCallbackQuerySafe(callback, escapeTelegramHtml(error.message || 'unknown error'));
                 }
             }
         }
@@ -2198,7 +2354,7 @@ export function createTelegramAlertService(options = {}) {
         const result = await callTelegramApi('getUpdates', {
             timeout: 15,
             offset: lastUpdateId + 1,
-            allowed_updates: ['message'],
+            allowed_updates: ['message', 'callback_query'],
         });
 
         runtimeStatus.lastPollAt = new Date().toISOString();
@@ -2346,6 +2502,7 @@ export function createTelegramAlertService(options = {}) {
         for (const key of aggregateTimers.keys()) {
             clearAggregateTimer(key);
         }
+        pendingActions.reset();
     }
 
     startBackgroundInterval(() => {
@@ -2370,6 +2527,14 @@ export function createTelegramAlertService(options = {}) {
         start,
         stop,
         resetForTests,
+        getCommandRegistry: () => {
+            ensureLegacyCommandsRegistered();
+            return commandRegistry;
+        },
+        getPendingActions: () => pendingActions,
+        // Exposed for tests / future modules that drive callback flows
+        // synchronously (e.g. write-command confirmation in Step 4).
+        _handleCallbackQuery: handleCallbackQuery,
     };
 }
 

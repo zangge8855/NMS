@@ -125,7 +125,15 @@ test('telegramAlertService syncs Telegram command menus only when explicitly ena
     assert.equal(service.getStatus().commandMenuEnabled, true);
     assert.equal(service.getStatus().enabled, true);
     assert.ok(commandCall);
-    assert.deepEqual(commandCall.body.commands.map((item) => item.command), ['status', 'online', 'traffic', 'alerts', 'security', 'nodes', 'access', 'expiry', 'monitor', 'backup']);
+    assert.deepEqual(commandCall.body.commands.map((item) => item.command), [
+        'status', 'online', 'traffic', 'alerts', 'security', 'nodes',
+        'access', 'expiry', 'menu', 'clients', 'client', 'sub',
+        'servers', 'audit',
+        'monitor', 'backup',
+        'client_freeze', 'client_unfreeze', 'client_extend',
+        'alert_mute', 'alert_unmute',
+        'client_delete',
+    ]);
     assert.equal(messageCall.body.parse_mode, 'HTML');
     assert.match(messageCall.body.text, /<b>🧪 NMS Telegram 测试通知<\/b>/);
     assert.match(messageCall.body.text, /<i>消息结构与命令菜单检查<\/i>/);

@@ -61,6 +61,7 @@ const ALLOWED_KEYS = {
         'sendSystemStatus',
         'sendSecurityAudit',
         'sendEmergencyAlerts',
+        'alertMutedUntil',
     ]),
 };
 
@@ -265,6 +266,15 @@ function normalizeTelegramChatId(value, fallback = '') {
     return text.replace(/\s+/g, '').slice(0, 160);
 }
 
+function normalizeAlertMutedUntil(value, fallback = '') {
+    if (value === '' || value === null) return '';
+    const text = String(value || fallback || '').trim();
+    if (!text) return '';
+    const parsed = new Date(text);
+    if (Number.isNaN(parsed.getTime())) return '';
+    return parsed.toISOString();
+}
+
 function normalizeDailyBackupTime(value, fallback = DEFAULT_DAILY_BACKUP_TIME) {
     const text = String(value || '').trim();
     if (!text) return String(fallback || DEFAULT_DAILY_BACKUP_TIME).trim() || DEFAULT_DAILY_BACKUP_TIME;
@@ -425,6 +435,7 @@ export class SystemSettingsStore {
             sendSystemStatus: section.sendSystemStatus !== false,
             sendSecurityAudit: section.sendSecurityAudit !== false,
             sendEmergencyAlerts: section.sendEmergencyAlerts !== false,
+            alertMutedUntil: String(section.alertMutedUntil || ''),
         };
     }
 
@@ -487,6 +498,7 @@ export class SystemSettingsStore {
                 sendSystemStatus: true,
                 sendSecurityAudit: true,
                 sendEmergencyAlerts: true,
+                alertMutedUntil: '',
             },
             serverOrder: [],
             inboundOrder: {},
@@ -600,6 +612,7 @@ export class SystemSettingsStore {
             sendSystemStatus: normalizeBoolean(input.sendSystemStatus, fallback.sendSystemStatus),
             sendSecurityAudit: normalizeBoolean(input.sendSecurityAudit, fallback.sendSecurityAudit),
             sendEmergencyAlerts: normalizeBoolean(input.sendEmergencyAlerts, fallback.sendEmergencyAlerts),
+            alertMutedUntil: normalizeAlertMutedUntil(input.alertMutedUntil, fallback.alertMutedUntil),
         };
     }
 
@@ -764,6 +777,7 @@ export class SystemSettingsStore {
             sendSystemStatus: section.sendSystemStatus !== false,
             sendSecurityAudit: section.sendSecurityAudit !== false,
             sendEmergencyAlerts: section.sendEmergencyAlerts !== false,
+            alertMutedUntil: String(section.alertMutedUntil || ''),
         };
     }
 
