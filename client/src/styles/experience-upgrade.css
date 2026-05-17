@@ -927,16 +927,6 @@
   --page-shell-max: 1500px;
   --page-shell-wide-max: 1700px;
 
-  /* Density tokens shared by cards, toolbars, modals so modules stop
-     improvising their own padding. */
-  --card-pad: 20px;
-  --card-pad-tight: 16px;
-  --card-pad-loose: 24px;
-  --toolbar-pad-y: 12px;
-  --toolbar-pad-x: 16px;
-  --toolbar-pad-y-compact: 10px;
-  --toolbar-pad-x-compact: 12px;
-
   /* Modal width tiers; experience-upgrade.css collapsed everything to ~920px,
      leaving sm/md/lg visually identical. Re-introduce real differences. */
   --modal-width-sm: 480px;
