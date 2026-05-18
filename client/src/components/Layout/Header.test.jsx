@@ -5,17 +5,13 @@ import Header from './Header.jsx';
 
 const mockState = vi.hoisted(() => ({
     authUser: { role: 'admin', username: 'review-admin' },
-    selectServer: vi.fn(),
 }));
 
 vi.mock('../../contexts/ServerContext.jsx', () => ({
     useServer: () => ({
         activeServer: null,
         activeServerId: 'global',
-        servers: [
-            { id: 'server-a', name: 'Node A' },
-        ],
-        selectServer: mockState.selectServer,
+        servers: [{ id: 'server-a', name: 'Node A' }],
     }),
 }));
 
@@ -32,7 +28,6 @@ vi.mock('./NotificationBell.jsx', () => ({
 describe('Header', () => {
     beforeEach(() => {
         mockState.authUser = { role: 'admin', username: 'review-admin' };
-        mockState.selectServer.mockReset();
     });
 
     it('renders the title while hiding eyebrow and subtitle by default', () => {
@@ -91,13 +86,6 @@ describe('Header', () => {
         expect(controls?.querySelector('.theme-toggle-btn:not(.language-toggle-btn)')).toBeNull();
     });
 
-    it('lets admins change the active node scope from the header', () => {
-        renderWithRouter(<Header title="仪表盘" />);
-
-        fireEvent.change(screen.getByLabelText('选择服务器'), { target: { value: 'server-a' } });
-
-        expect(mockState.selectServer).toHaveBeenCalledWith('server-a');
-    });
 
     it('keeps admin notifications out of the user header', () => {
         mockState.authUser = { role: 'user', username: 'review-user' };

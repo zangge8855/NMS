@@ -1531,10 +1531,10 @@ export default function UsersHub() {
                 />
 
                 {partialErrors.length > 0 && !primaryError && !loading && (
-                    <div className="glass-panel mb-4" role="status">
-                        <div className="text-sm font-semibold">{copy.degradedDataTitle}</div>
-                        <div className="text-sm text-muted mt-1">{copy.degradedDataIntro}</div>
-                        <div className="text-xs text-muted mt-2">{summarizePartialErrors(partialErrors, locale)}</div>
+                    <div className="glass-panel mb-4 users-degraded-panel" role="status">
+                        <div className="text-sm font-semibold users-degraded-title">{copy.degradedDataTitle}</div>
+                        <div className="text-sm text-muted users-degraded-copy">{copy.degradedDataIntro}</div>
+                        <div className="text-xs text-muted users-degraded-detail">{summarizePartialErrors(partialErrors, locale)}</div>
                     </div>
                 )}
 

@@ -519,7 +519,12 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
 
     return (
         <>
-            {!embedded && <Header title={isGlobal ? `${t('pages.logs.clusterPrefix')} ${sourceLabel}`.trim() : sourceLabel} />}
+            {!embedded && (
+                <Header
+                    title={isGlobal ? `${t('pages.logs.clusterPrefix')} ${sourceLabel}`.trim() : sourceLabel}
+                    icon={<HiOutlineDocumentText />}
+                />
+            )}
             <div className={`${embedded ? '' : 'page-content page-content--wide page-enter '}logs-page${immersiveMode ? ' logs-page-immersive' : ''}`.trim()}>
                 {/* Toolbar */}
                 <PageToolbar

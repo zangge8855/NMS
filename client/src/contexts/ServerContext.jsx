@@ -20,20 +20,21 @@ function readServerContextSnapshot() {
 
     return {
         servers,
-        activeServerId: resolvePreferredServerId(servers, snapshot?.activeServerId),
+        activeServerId: servers.length > 0 ? 'global' : null,
     };
 }
 
 function getStoredActiveServerId() {
     const value = localStorage.getItem(ACTIVE_SERVER_KEY);
     if (value) {
-        return value;
+        persistActiveServerId('global');
+        return 'global';
     }
 
     const legacyValue = localStorage.getItem(LEGACY_ACTIVE_SERVER_KEY);
     if (legacyValue) {
-        persistActiveServerId(legacyValue);
-        return legacyValue;
+        persistActiveServerId('global');
+        return 'global';
     }
 
     return null;
@@ -50,20 +51,9 @@ function persistActiveServerId(value) {
     localStorage.removeItem(LEGACY_ACTIVE_SERVER_KEY);
 }
 
-function resolvePreferredServerId(serverList = [], ...candidateIds) {
+function resolvePreferredServerId(serverList = []) {
     const hasServers = Array.isArray(serverList) && serverList.length > 0;
-    if (!hasServers) return null;
-
-    const validIds = new Set(serverList.map((server) => String(server?.id || '').trim()).filter(Boolean));
-    for (const candidate of candidateIds) {
-        const normalized = String(candidate || '').trim();
-        if (!normalized) continue;
-        if (normalized === 'global' || validIds.has(normalized)) {
-            return normalized;
-        }
-    }
-
-    return 'global';
+    return hasServers ? 'global' : null;
 }
 
 export function ServerProvider({ children, enabled = true }) {
@@ -115,12 +105,8 @@ export function ServerProvider({ children, enabled = true }) {
                 serversStateRef.current = serverList;
                 setServers(serverList);
 
-                setActiveServerId((currentId) => {
-                    const nextId = resolvePreferredServerId(
-                        serverList,
-                        currentId,
-                        getStoredActiveServerId()
-                    );
+                setActiveServerId(() => {
+                    const nextId = resolvePreferredServerId(serverList);
                     persistActiveServerId(nextId);
                     return nextId;
                 });
@@ -178,14 +164,8 @@ export function ServerProvider({ children, enabled = true }) {
             const snapshot = readServerContextSnapshot();
             if (!snapshot) return;
             setServers(snapshot.servers);
-            setActiveServerId((currentId) => {
-                const persistedId = getStoredActiveServerId();
-                const nextId = resolvePreferredServerId(
-                    snapshot.servers,
-                    currentId,
-                    persistedId,
-                    snapshot.activeServerId
-                );
+            setActiveServerId(() => {
+                const nextId = resolvePreferredServerId(snapshot.servers);
                 if (nextId) {
                     persistActiveServerId(nextId);
                 } else {
@@ -208,8 +188,8 @@ export function ServerProvider({ children, enabled = true }) {
         });
     }, [activeServerId, enabled, servers]);
 
-    const selectServer = (requestedId = 'global') => {
-        const nextId = resolvePreferredServerId(serversStateRef.current, requestedId);
+    const selectServer = () => {
+        const nextId = resolvePreferredServerId(serversStateRef.current);
         setActiveServerId(nextId);
         persistActiveServerId(nextId);
     };

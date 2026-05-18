@@ -5600,20 +5600,31 @@
   }
 
   .header .header-actions {
-    display: grid;
+    display: flex;
     flex: 0 0 auto;
-    grid-template-columns: minmax(0, 1fr);
-    justify-content: flex-start;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-end;
     gap: 8px;
   }
 
   .header .header-controls,
   .header .header-primary-actions {
-    flex: 1 1 100%;
-    flex-wrap: wrap;
+    flex: 0 0 auto;
+    width: auto;
+    flex-wrap: nowrap;
     justify-content: flex-start;
     margin-left: 0;
     min-width: 0;
+  }
+
+  .header .header-primary-actions {
+    order: 1;
+  }
+
+  .header .header-controls {
+    order: 2;
   }
 
   .page-content,
@@ -5680,5 +5691,34 @@
   .subscriptions-page .subscription-user-danger-row,
   .user-detail-page .subscription-user-address-foot {
     margin-bottom: 8px;
+  }
+}
+
+@media (min-width: 1101px) {
+  .settings-page .settings-summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .settings-page .settings-monitor-log-meta {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .page-content .table td:not(.mobile-checkbox-cell) {
+    align-items: flex-start;
+    text-align: left !important;
+  }
+
+  .page-content .table td:not(.mobile-checkbox-cell)::before {
+    text-align: left;
+  }
+
+  .page-content .table td.table-cell-center > :is(.badge, .btn, .btn-icon, .spinner) {
+    margin-inline: 0;
+  }
+
+  .page-content .table td .flex {
+    justify-content: flex-start;
   }
 }
