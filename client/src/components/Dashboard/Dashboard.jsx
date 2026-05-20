@@ -1110,7 +1110,7 @@ export default function Dashboard() {
             {
                 icon: HiOutlineServerStack,
                 value: clusterSummaryReady ? `${globalStats.onlineServers} / ${clusterServerCount}` : `-- / ${clusterServerCount}`,
-                kicker: t('pages.dashboardCommon.onlineTotal'),
+                label: t('pages.dashboardCommon.onlineTotal'),
                 sub: clusterSummaryReady
                     ? t('pages.dashboardGlobal.inboundSummary', {
                         active: globalStats.activeInbounds,

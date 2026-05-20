@@ -1,41 +1,86 @@
 /* Shared UI tokens for global themes (Dark & Light modes). */
 
 :root {
+  /* Core Base Overrides for Premium Obsidian Space Theme */
+  --bg-primary: #05070c;        /* Deep navy-black space base */
+  --bg-secondary: #0a0d18;      /* Deep rich obsidian dark base */
+  --bg-tertiary: #0f1224;       /* Soft obsidian gray-blue dark base */
+
+  --bg-card: rgba(16, 20, 38, 0.65);       /* Frosted Obsidian Glass card background */
+  --bg-card-hover: rgba(22, 28, 54, 0.72); /* Glass hover card */
+  --bg-glass: rgba(255, 255, 255, 0.03);
+  --bg-input: rgba(10, 13, 26, 0.85);
+
+  --surface-panel: rgba(16, 20, 38, 0.65);
+  --surface-panel-hover: rgba(22, 28, 54, 0.72);
+  --surface-panel-soft: rgba(16, 20, 38, 0.5);
+  --surface-overlay: rgba(10, 12, 23, 0.98);
+  --chart-grid-color: rgba(255, 255, 255, 0.05);
+
+  /* Curated Fine Border highlights */
+  --border-color: rgba(99, 102, 241, 0.1);
+  --border-highlight: rgba(99, 102, 241, 0.18);
+  --border-focus: rgba(139, 92, 246, 0.5); /* Muted purple focus */
+
+  /* Text color & scaling */
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-inverse: #05070c;
+  --text-on-accent: #ffffff;
+
+  /* Accent Glows & Gradients (Sophisticated Indigo to Purple Gradient) */
+  --accent-primary: #6366f1;
+  --accent-primary-hover: #8b5cf6;
+  --accent-primary-glow: rgba(99, 102, 241, 0.12);
+  --accent-primary-bg: rgba(99, 102, 241, 0.08);
+
+  --gradient-primary: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  --gradient-surface: linear-gradient(180deg, rgba(16, 20, 38, 0.7) 0%, rgba(10, 12, 23, 0.8) 100%);
+
+  /* Dynamic Glassmorphic Shadows */
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px -6px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  --shadow-lg: 0 16px 40px -8px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --shadow-2xl: 0 24px 60px -12px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --shadow-glow: 0 8px 20px -12px rgba(99, 102, 241, 0.2);
+  --shadow-glow-primary: 0 12px 28px -16px rgba(99, 102, 241, 0.25);
+
   /* Extended Tokens */
-  --surface-elevated: #0f172a;
-  --surface-elevated-muted: #111827;
-  --surface-elevated-border: rgba(148, 163, 184, 0.18);
-  --surface-elevated-shadow: 0 24px 48px -28px rgba(2, 6, 23, 0.72), 0 18px 30px -24px rgba(15, 23, 42, 0.42);
-  --surface-elevated-hover: rgba(148, 163, 184, 0.14);
+  --surface-elevated: #0b0d19;
+  --surface-elevated-muted: #0a0c16;
+  --surface-elevated-border: rgba(99, 102, 241, 0.12);
+  --surface-elevated-shadow: var(--shadow-lg);
+  --surface-elevated-hover: rgba(99, 102, 241, 0.08);
   
-  --surface-card-bg: linear-gradient(180deg, rgba(24, 24, 27, 0.95) 0%, rgba(18, 18, 20, 0.98) 100%);
-  --surface-card-border: rgba(148, 163, 184, 0.14);
-  --surface-card-shadow: 0 18px 40px -28px rgba(2, 6, 23, 0.72), 0 10px 22px -18px rgba(15, 23, 42, 0.42);
-  --surface-card-shadow-hover: 0 24px 52px -32px rgba(2, 6, 23, 0.82), 0 16px 30px -22px rgba(15, 23, 42, 0.48);
+  --surface-card-bg: linear-gradient(180deg, rgba(20, 24, 46, 0.75) 0%, rgba(13, 16, 28, 0.85) 100%);
+  --surface-card-border: rgba(99, 102, 241, 0.12);
+  --surface-card-shadow: var(--shadow-md);
+  --surface-card-shadow-hover: var(--shadow-lg);
   
-  --floating-panel-bg: rgba(14, 14, 16, 0.98);
-  --floating-panel-border: rgba(148, 163, 184, 0.18);
-  --floating-panel-shadow: 0 28px 60px -34px rgba(2, 6, 23, 0.8), 0 18px 30px -24px rgba(15, 23, 42, 0.48);
+  --floating-panel-bg: rgba(10, 12, 23, 0.95);
+  --floating-panel-border: rgba(99, 102, 241, 0.16);
+  --floating-panel-shadow: var(--shadow-2xl);
   
-  --surface-table-header: rgba(15, 23, 42, 0.96);
-  --surface-table-row-hover: rgba(51, 65, 85, 0.18);
+  --surface-table-header: rgba(13, 16, 28, 0.95);
+  --surface-table-row-hover: rgba(99, 102, 241, 0.06);
   
   --focus-ring-border: var(--accent-primary);
   --focus-ring-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent-primary);
   
-  --scrollbar-thumb-color: rgba(148, 163, 184, 0.18);
-  --scrollbar-thumb-hover: rgba(148, 163, 184, 0.38);
+  --scrollbar-thumb-color: rgba(99, 102, 241, 0.15);
+  --scrollbar-thumb-hover: rgba(99, 102, 241, 0.35);
   
-  --theme-transition-duration: 0ms;
+  --theme-transition-duration: 200ms;
 
   /* Dark theme form & component defaults */
-  --form-focus-bg: rgba(15, 23, 42, 0.8);
+  --form-focus-bg: rgba(16, 20, 38, 0.9);
   --btn-danger-hover-text: #ffd9d9;
   --btn-success-hover-text: #d9ffe6;
-  --table-container-bg: rgba(5, 12, 20, 0.3);
-  --skeleton-from: rgba(145, 161, 181, 0.05);
-  --skeleton-via: rgba(255, 255, 255, 0.08);
-  --skeleton-to: rgba(145, 161, 181, 0.05);
+  --table-container-bg: rgba(10, 13, 26, 0.4);
+  --skeleton-from: rgba(99, 102, 241, 0.03);
+  --skeleton-via: rgba(255, 255, 255, 0.06);
+  --skeleton-to: rgba(99, 102, 241, 0.03);
 
   color-scheme: dark;
 }

@@ -5780,3 +5780,428 @@
     flex-direction: column;
   }
 }
+
+/* ==========================================================================
+   PREMIUM GLASSMORPHIC OBSIDIAN DARK/LIGHT SURFACES & COMPONENT OVERRIDES
+   ========================================================================== */
+
+/* Frosted Glass & Border parameter adjustments */
+[data-theme="dark"] .card,
+[data-theme="dark"] .glass-panel {
+  background: linear-gradient(135deg, rgba(20, 24, 46, 0.72) 0%, rgba(13, 16, 28, 0.85) 100%) !important;
+  border: 1px solid rgba(99, 102, 241, 0.16) !important;
+  box-shadow: 0 10px 36px 0 rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.03) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border-radius: 16px !important;
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+[data-theme="light"] .card,
+[data-theme="light"] .glass-panel {
+  background: rgba(255, 255, 255, 0.82) !important;
+  border: 1px solid rgba(148, 163, 184, 0.22) !important;
+  box-shadow: 0 10px 36px 0 rgba(148, 163, 184, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border-radius: 16px !important;
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+[data-theme="dark"] .card:hover,
+[data-theme="dark"] .glass-panel:hover {
+  transform: translateY(-2px) !important;
+  border-color: rgba(99, 102, 241, 0.32) !important;
+  box-shadow: 0 16px 48px 0 rgba(0, 0, 0, 0.5), 0 0 20px rgba(99, 102, 241, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+[data-theme="light"] .card:hover,
+[data-theme="light"] .glass-panel:hover {
+  transform: translateY(-2px) !important;
+  border-color: rgba(99, 102, 241, 0.32) !important;
+  box-shadow: 0 16px 48px 0 rgba(148, 163, 184, 0.12), 0 0 16px rgba(99, 102, 241, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
+}
+
+/* Dashboard Stat Card typography refinements */
+.card-title {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  color: var(--text-secondary) !important;
+  margin-bottom: 6px !important;
+}
+
+.card-value {
+  font-size: 26px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em !important;
+  color: var(--text-primary) !important;
+  background: var(--gradient-primary, linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  display: inline-block !important;
+}
+
+/* Pulsing Status Halo Indicator */
+.status-dot {
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 50% !important;
+  position: relative !important;
+  display: inline-block !important;
+}
+
+.status-dot.online,
+.indicator-online,
+.active-status-dot {
+  background-color: #10b981 !important;
+  box-shadow: 0 0 8px #10b981 !important;
+}
+
+.status-dot.online::after,
+.indicator-online::after {
+  content: '' !important;
+  position: absolute !important;
+  top: -4px !important;
+  left: -4px !important;
+  right: -4px !important;
+  bottom: -4px !important;
+  border-radius: 50% !important;
+  border: 1px solid #10b981 !important;
+  animation: statusPulse 2s cubic-bezier(0.24, 0, 0.38, 1) infinite !important;
+  opacity: 0 !important;
+}
+
+.status-dot.offline,
+.indicator-offline,
+.inactive-status-dot {
+  background-color: #ef4444 !important;
+  box-shadow: 0 0 8px #ef4444 !important;
+}
+
+.status-dot.offline::after,
+.indicator-offline::after {
+  content: '' !important;
+  position: absolute !important;
+  top: -4px !important;
+  left: -4px !important;
+  right: -4px !important;
+  bottom: -4px !important;
+  border-radius: 50% !important;
+  border: 1px solid #ef4444 !important;
+  animation: statusPulse 2s cubic-bezier(0.24, 0, 0.38, 1) infinite !important;
+  opacity: 0 !important;
+}
+
+@keyframes statusPulse {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+/* Premium Badge Capsule Tags */
+.badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-family: inherit !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  padding: 4px 10px !important;
+  border-radius: 99px !important;
+  border: 1px solid transparent !important;
+  letter-spacing: 0.02em !important;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: none !important;
+  cursor: default !important;
+}
+
+.badge-success {
+  background: rgba(16, 185, 129, 0.12) !important;
+  border-color: rgba(16, 185, 129, 0.25) !important;
+  color: #10b981 !important;
+}
+[data-theme="dark"] .badge-success {
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.08) !important;
+}
+.badge-success:hover {
+  background: rgba(16, 185, 129, 0.2) !important;
+  transform: scale(1.05) !important;
+}
+
+.badge-danger {
+  background: rgba(239, 68, 68, 0.12) !important;
+  border-color: rgba(239, 68, 68, 0.25) !important;
+  color: #ef4444 !important;
+}
+[data-theme="dark"] .badge-danger {
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.08) !important;
+}
+.badge-danger:hover {
+  background: rgba(239, 68, 68, 0.2) !important;
+  transform: scale(1.05) !important;
+}
+
+.badge-warning {
+  background: rgba(245, 158, 11, 0.12) !important;
+  border-color: rgba(245, 158, 11, 0.25) !important;
+  color: #f59e0b !important;
+}
+[data-theme="dark"] .badge-warning {
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.08) !important;
+}
+.badge-warning:hover {
+  background: rgba(245, 158, 11, 0.2) !important;
+  transform: scale(1.05) !important;
+}
+
+.badge-info {
+  background: rgba(59, 130, 246, 0.12) !important;
+  border-color: rgba(59, 130, 246, 0.25) !important;
+  color: #3b82f6 !important;
+}
+[data-theme="dark"] .badge-info {
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.08) !important;
+}
+.badge-info:hover {
+  background: rgba(59, 130, 246, 0.2) !important;
+  transform: scale(1.05) !important;
+}
+
+.badge-neutral {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: var(--text-secondary) !important;
+}
+[data-theme="light"] .badge-neutral {
+  background: rgba(15, 23, 42, 0.05) !important;
+  border-color: rgba(15, 23, 42, 0.1) !important;
+}
+.badge-neutral:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  transform: scale(1.05) !important;
+}
+[data-theme="light"] .badge-neutral:hover {
+  background: rgba(15, 23, 42, 0.08) !important;
+}
+
+/* Beautiful Premium Table Overrides */
+.table-container {
+  overflow: hidden !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  background: rgba(10, 13, 26, 0.3) !important;
+}
+
+[data-theme="light"] .table-container {
+  border: 1px solid rgba(148, 163, 184, 0.15) !important;
+  background: rgba(255, 255, 255, 0.4) !important;
+}
+
+.table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  font-size: 13px !important;
+  text-align: left !important;
+}
+
+.table th {
+  background: rgba(20, 24, 46, 0.9) !important;
+  color: var(--text-secondary) !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  font-size: 11px !important;
+  letter-spacing: 0.05em !important;
+  padding: 12px 16px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="light"] .table th {
+  background: #f8fafc !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15) !important;
+}
+
+.table td {
+  padding: 14px 16px !important;
+  color: var(--text-primary) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+  vertical-align: middle !important;
+  transition: all 150ms ease !important;
+}
+
+[data-theme="light"] .table td {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08) !important;
+}
+
+/* Hover effect on table rows */
+.table tr:hover td {
+  background: rgba(99, 102, 241, 0.05) !important;
+}
+
+[data-theme="light"] .table tr:hover td {
+  background: rgba(99, 102, 241, 0.03) !important;
+}
+
+/* Specific statistical numbers column right-alignment & monospaced font */
+.table-cell-number,
+.table td.font-mono {
+  font-family: var(--font-mono, 'Fira Code', 'Courier New', monospace) !important;
+  text-align: right !important;
+}
+
+.table th.table-cell-number {
+  text-align: right !important;
+}
+
+/* Center-aligned elements */
+.table-cell-center,
+.table th.table-cell-center,
+.table td.table-cell-center {
+  text-align: center !important;
+}
+
+/* Left-aligned items */
+.table-cell-left,
+.table th.table-cell-left,
+.table td.table-cell-left {
+  text-align: left !important;
+}
+
+/* ── Premium Unified Space Glassmorphic Dashboard Status Card Color System ── */
+
+.dashboard-stat-card[data-tone="primary"] {
+  --dashboard-tone: HSL(242, 85%, 68%);
+  --dashboard-tone-bg: HSLA(242, 85%, 68%, 0.07);
+  --dashboard-tone-border: HSLA(242, 85%, 68%, 0.16);
+  --dashboard-tone-glow: HSLA(242, 85%, 68%, 0.14);
+}
+
+.dashboard-stat-card[data-tone="info"] {
+  --dashboard-tone: HSL(195, 80%, 55%);
+  --dashboard-tone-bg: HSLA(195, 80%, 55%, 0.07);
+  --dashboard-tone-border: HSLA(195, 80%, 55%, 0.16);
+  --dashboard-tone-glow: HSLA(195, 80%, 55%, 0.14);
+}
+
+.dashboard-stat-card[data-tone="warning"] {
+  --dashboard-tone: HSL(38, 85%, 62%);
+  --dashboard-tone-bg: HSLA(38, 85%, 62%, 0.07);
+  --dashboard-tone-border: HSLA(38, 85%, 62%, 0.16);
+  --dashboard-tone-glow: HSLA(38, 85%, 62%, 0.14);
+}
+
+.dashboard-stat-card[data-tone="success"] {
+  --dashboard-tone: HSL(150, 70%, 55%);
+  --dashboard-tone-bg: HSLA(150, 70%, 55%, 0.07);
+  --dashboard-tone-border: HSLA(150, 70%, 55%, 0.16);
+  --dashboard-tone-glow: HSLA(150, 70%, 55%, 0.14);
+}
+
+.dashboard-stat-card[data-tone="neutral"] {
+  --dashboard-tone: HSL(215, 20%, 65%);
+  --dashboard-tone-bg: HSLA(215, 20%, 65%, 0.07);
+  --dashboard-tone-border: HSLA(215, 20%, 65%, 0.12);
+  --dashboard-tone-glow: HSLA(215, 20%, 65%, 0.12);
+}
+
+/* Light Theme overrides for higher visibility and readability contrast */
+[data-theme="light"] .dashboard-stat-card[data-tone="primary"] {
+  --dashboard-tone: HSL(242, 75%, 52%);
+  --dashboard-tone-bg: HSLA(242, 75%, 52%, 0.06);
+  --dashboard-tone-border: HSLA(242, 75%, 52%, 0.14);
+  --dashboard-tone-glow: HSLA(242, 75%, 52%, 0.08);
+}
+
+[data-theme="light"] .dashboard-stat-card[data-tone="info"] {
+  --dashboard-tone: HSL(195, 80%, 40%);
+  --dashboard-tone-bg: HSLA(195, 80%, 40%, 0.06);
+  --dashboard-tone-border: HSLA(195, 80%, 40%, 0.14);
+  --dashboard-tone-glow: HSLA(195, 80%, 40%, 0.08);
+}
+
+[data-theme="light"] .dashboard-stat-card[data-tone="warning"] {
+  --dashboard-tone: HSL(38, 85%, 40%);
+  --dashboard-tone-bg: HSLA(38, 85%, 40%, 0.06);
+  --dashboard-tone-border: HSLA(38, 85%, 40%, 0.14);
+  --dashboard-tone-glow: HSLA(38, 85%, 40%, 0.08);
+}
+
+[data-theme="light"] .dashboard-stat-card[data-tone="success"] {
+  --dashboard-tone: HSL(150, 65%, 36%);
+  --dashboard-tone-bg: HSLA(150, 65%, 36%, 0.06);
+  --dashboard-tone-border: HSLA(150, 65%, 36%, 0.14);
+  --dashboard-tone-glow: HSLA(150, 65%, 36%, 0.08);
+}
+
+[data-theme="light"] .dashboard-stat-card[data-tone="neutral"] {
+  --dashboard-tone: HSL(215, 15%, 46%);
+  --dashboard-tone-bg: HSLA(215, 15%, 46%, 0.06);
+  --dashboard-tone-border: HSLA(215, 15%, 46%, 0.12);
+  --dashboard-tone-glow: HSLA(215, 15%, 46%, 0.06);
+}
+
+/* Glassmorphic border, background blend, and glowing shadows styling */
+.dashboard-page .dashboard-stat-card {
+  border: 1px solid var(--dashboard-tone-border) !important;
+  background: color-mix(in srgb, var(--dashboard-tone) 4%, var(--bg-card)) !important;
+  box-shadow: 0 4px 20px -8px var(--dashboard-tone-glow) !important;
+  transition: transform 0.28s cubic-bezier(0.22, 0.68, 0, 1.04),
+              box-shadow 0.28s ease,
+              border-color 0.28s ease,
+              background 0.28s ease !important;
+}
+
+.dashboard-page .dashboard-stat-card:hover {
+  border-color: var(--dashboard-tone) !important;
+  background: color-mix(in srgb, var(--dashboard-tone) 7%, var(--bg-card-hover)) !important;
+  box-shadow: 0 10px 24px -10px var(--dashboard-tone-glow), 
+              inset 0 0 12px -2px var(--dashboard-tone-bg) !important;
+  transform: translateY(-2.5px) !important;
+}
+
+/* ── Typography & Sizing Axis Alignment ── */
+
+.dashboard-page .dashboard-stat-card-head {
+  margin-bottom: 12px !important;
+}
+
+.dashboard-page .dashboard-stat-card-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0 !important;
+}
+
+.dashboard-page .dashboard-stat-card-label {
+  display: inline-block;
+  min-height: 18px;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  color: var(--text-muted) !important;
+  margin-bottom: 8px !important;
+  line-height: 1.2 !important;
+}
+
+.dashboard-page .dashboard-stat-card-value {
+  font-size: clamp(22px, 2vw, 32px) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+  line-height: 1.1 !important;
+  margin: 0 !important;
+  color: var(--text-primary) !important;
+}
+
+.dashboard-page .dashboard-stat-card-subtitle {
+  font-size: 11.5px !important;
+  color: var(--text-secondary) !important;
+  margin-top: 6px !important;
+  line-height: 1.4 !important;
+}
+
