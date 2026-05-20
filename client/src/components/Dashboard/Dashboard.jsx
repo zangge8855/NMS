@@ -1358,13 +1358,13 @@ export default function Dashboard() {
                         </div>
                     )}
 
-                    <div className="card mb-6">
+                    <section className="dashboard-quick-section mb-6">
                         <SectionHeader
                             className="dashboard-section-head"
                             title={t('pages.dashboardCommon.quickActionsTitle')}
                         />
                         <QuickActionGrid actions={globalQuickActions} />
-                    </div>
+                    </section>
 
                     {/* 节点健康网格 */}
                     <div className="mb-6">
@@ -1537,13 +1537,13 @@ export default function Dashboard() {
                     </div>
                 )}
 
-                <div className="card mb-6">
+                <section className="dashboard-quick-section mb-6">
                     <SectionHeader
                         className="dashboard-section-head"
                         title={t('pages.dashboardCommon.quickActionsTitle')}
                     />
                     <QuickActionGrid actions={singleQuickActions} />
-                </div>
+                </section>
 
                 {/* Inbound Summary */}
                 <div className="card mb-6">

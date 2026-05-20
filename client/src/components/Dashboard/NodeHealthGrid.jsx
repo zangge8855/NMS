@@ -317,43 +317,46 @@ export default function NodeHealthGrid({ servers, serverStatuses, trendHistory =
 
     return (
         <div className="node-health-panel">
-            <div className="node-health-summary-strip" aria-label={t('pages.dashboardGlobal.nodeHealthTitle')}>
-                <div className="node-health-summary-item" data-tone="success">
-                    <span>{copy.healthy}</span>
-                    <strong>{hasStatuses ? summary.healthy : '--'}</strong>
+            <div className="node-health-workbench">
+                <div className="node-health-summary-strip" aria-label={t('pages.dashboardGlobal.nodeHealthTitle')}>
+                    <div className="node-health-summary-item" data-tone="success">
+                        <span>{copy.healthy}</span>
+                        <strong>{hasStatuses ? summary.healthy : '--'}</strong>
+                    </div>
+                    <div className="node-health-summary-item" data-tone="warning">
+                        <span>{copy.warning}</span>
+                        <strong>{hasStatuses ? summary.warning : '--'}</strong>
+                    </div>
+                    <div className="node-health-summary-item" data-tone="danger">
+                        <span>{copy.critical}</span>
+                        <strong>{hasStatuses ? summary.critical : '--'}</strong>
+                    </div>
+                    <div className="node-health-summary-item" data-tone="neutral">
+                        <span>{copy.offline}</span>
+                        <strong>{hasStatuses ? summary.offline : '--'}</strong>
+                    </div>
                 </div>
-                <div className="node-health-summary-item" data-tone="warning">
-                    <span>{copy.warning}</span>
-                    <strong>{hasStatuses ? summary.warning : '--'}</strong>
-                </div>
-                <div className="node-health-summary-item" data-tone="danger">
-                    <span>{copy.critical}</span>
-                    <strong>{hasStatuses ? summary.critical : '--'}</strong>
-                </div>
-                <div className="node-health-summary-item" data-tone="neutral">
-                    <span>{copy.offline}</span>
-                    <strong>{hasStatuses ? summary.offline : '--'}</strong>
-                </div>
-            </div>
 
-            <div className="node-health-toolbar">
-                <input
-                    className="form-input node-health-search"
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    placeholder={copy.searchPlaceholder}
-                />
-                {denseMode && <span className="node-health-density-pill">{copy.denseMode}</span>}
-                <span className="node-health-visible-count">{shownLabel}</span>
-                {canToggle && (
-                    <button
-                        type="button"
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => setExpanded((value) => !value)}
-                    >
-                        {expanded ? copy.collapse : copy.showAll}
-                    </button>
-                )}
+                <div className="node-health-toolbar">
+                    <input
+                        className="form-input node-health-search"
+                        value={query}
+                        onChange={(event) => setQuery(event.target.value)}
+                        placeholder={copy.searchPlaceholder}
+                        aria-label={copy.searchPlaceholder}
+                    />
+                    {denseMode && <span className="node-health-density-pill">{copy.denseMode}</span>}
+                    <span className="node-health-visible-count">{shownLabel}</span>
+                    {canToggle && (
+                        <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => setExpanded((value) => !value)}
+                        >
+                            {expanded ? copy.collapse : copy.showAll}
+                        </button>
+                    )}
+                </div>
             </div>
 
             <div className={`node-health-grid ${expanded || normalizedQuery ? 'is-expanded' : 'is-compact'} ${denseMode ? 'is-dense' : ''}`}>
