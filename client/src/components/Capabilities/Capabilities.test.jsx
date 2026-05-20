@@ -111,6 +111,32 @@ describe('Capabilities', () => {
         expect(api.get).toHaveBeenCalledWith('/capabilities/server-a');
     });
 
+    it('uses the embedded server id when shown inside server management', async () => {
+        useServer.mockReturnValue({
+            activeServerId: 'global',
+        });
+        api.get.mockResolvedValue({
+            data: {
+                obj: {
+                    protocolDetails: [],
+                    tools: {},
+                    systemModules: [],
+                    batchActions: {
+                        clients: [],
+                        inbounds: [],
+                    },
+                    subscriptionModes: [],
+                },
+            },
+        });
+
+        renderWithRouter(<Capabilities embedded serverId="server-c" />);
+
+        expect(await screen.findByText('协议 0 · 工具 0')).toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: '3x-ui 能力' })).not.toBeInTheDocument();
+        expect(api.get).toHaveBeenCalledWith('/capabilities/server-c');
+    });
+
     it('renders the cached capability snapshot before the live request finishes', async () => {
         window.sessionStorage.setItem('nms_session_snapshot:capabilities_view_v1:server-a', JSON.stringify({
             savedAt: Date.now(),

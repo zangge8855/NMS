@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../api/client.js';
 import Header from '../Layout/Header.jsx';
 import SkeletonTable from '../UI/SkeletonTable.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import ClientIpModal from '../UI/ClientIpModal.jsx';
+import Capabilities from '../Capabilities/Capabilities.jsx';
 import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
 import { formatBytes, formatDateTime, formatUptime, getErrorMessage } from '../../utils/format.js';
@@ -26,6 +27,19 @@ import {
 } from 'react-icons/hi2';
 
 const SERVER_DETAIL_SNAPSHOT_TTL_MS = 2 * 60_000;
+const SERVER_DETAIL_TABS = [
+    { key: 'overview', label: '概览' },
+    { key: 'inbounds', label: '入站列表' },
+    { key: 'onlines', label: '在线用户' },
+    { key: 'capabilities', label: '节点能力' },
+    { key: 'audit', label: '审计日志' },
+];
+const SERVER_DETAIL_TAB_KEYS = new Set(SERVER_DETAIL_TABS.map((tab) => tab.key));
+
+function getServerDetailTab(searchParams) {
+    const tab = String(searchParams?.get('tab') || '').trim();
+    return SERVER_DETAIL_TAB_KEYS.has(tab) ? tab : 'overview';
+}
 
 function buildServerDetailSnapshotKey(serverId) {
     return `server_detail_v1:${String(serverId || '').trim()}`;
@@ -145,6 +159,7 @@ export default function ServerDetail() {
     const isCompactLayout = useMediaQuery('(max-width: 768px)');
     const { serverId } = useParams();
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const confirmAction = useConfirm();
     const detailBootstrapRef = useRef(readServerDetailSnapshot(serverId));
     const snapshotRequestIdRef = useRef(0);
@@ -159,7 +174,7 @@ export default function ServerDetail() {
     const [inboundsLoading, setInboundsLoading] = useState(() => detailBootstrapRef.current?.inbounds == null);
     const [onlinesLoading, setOnlinesLoading] = useState(() => detailBootstrapRef.current?.onlines == null);
     const [auditEvents, setAuditEvents] = useState(() => detailBootstrapRef.current?.auditEvents || []);
-    const [activeTab, setActiveTab] = useState('overview');
+    const [activeTab, setActiveTab] = useState(() => getServerDetailTab(searchParams));
     const [clientIpSupport, setClientIpSupport] = useState({ supported: true, reason: '' });
     const [clientIpModal, setClientIpModal] = useState({
         open: false,
@@ -246,6 +261,11 @@ export default function ServerDetail() {
     }, [activeTab, serverId]);
 
     useEffect(() => {
+        const nextTab = getServerDetailTab(searchParams);
+        setActiveTab((current) => (current === nextTab ? current : nextTab));
+    }, [searchParams]);
+
+    useEffect(() => {
         if (!server) return;
         writeSessionSnapshot(buildServerDetailSnapshotKey(serverId), {
             server,
@@ -292,6 +312,17 @@ export default function ServerDetail() {
         if (activeTab === 'audit') {
             fetchAudit();
         }
+    };
+
+    const selectTab = (tabKey) => {
+        setActiveTab(tabKey);
+        const nextParams = new URLSearchParams(searchParams);
+        if (tabKey === 'overview') {
+            nextParams.delete('tab');
+        } else {
+            nextParams.set('tab', tabKey);
+        }
+        setSearchParams(nextParams);
     };
 
     const closeClientIpModal = () => {
@@ -435,12 +466,7 @@ export default function ServerDetail() {
     const healthLabel = { healthy: '健康', degraded: '降级', unreachable: '不可达', maintenance: '维护中' };
     const healthBadge = { healthy: 'badge-success', degraded: 'badge-warning', unreachable: 'badge-danger', maintenance: 'badge-info' };
 
-    const tabs = [
-        { key: 'overview', label: '概览' },
-        { key: 'inbounds', label: '入站列表' },
-        { key: 'onlines', label: '在线用户' },
-        { key: 'audit', label: '审计日志' },
-    ];
+    const tabs = SERVER_DETAIL_TABS;
     const showInboundStats = !inboundsLoading || inbounds.length > 0;
     const showOnlineStats = !onlinesLoading || onlineUsers.length > 0 || onlines.length > 0;
     const hasEnvironment = String(server.environment || '').trim() && String(server.environment || '').trim() !== 'unknown';
@@ -508,7 +534,7 @@ export default function ServerDetail() {
                 <div className="user-detail-tabs detail-tabs">
                     <div className="tabs">
                         {tabs.map(t => (
-                            <button key={t.key} className={`tab ${activeTab === t.key ? 'active' : ''}`} onClick={() => setActiveTab(t.key)}>
+                            <button key={t.key} className={`tab ${activeTab === t.key ? 'active' : ''}`} onClick={() => selectTab(t.key)}>
                                 {t.label}
                             </button>
                         ))}
@@ -669,6 +695,11 @@ export default function ServerDetail() {
                                     </div>
                                 )}
                             </div>
+                        )}
+
+                        {/* Capabilities Tab */}
+                        {activeTab === 'capabilities' && (
+                            <Capabilities embedded serverId={serverId} />
                         )}
 
                         {/* Audit Tab */}

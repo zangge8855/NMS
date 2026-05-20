@@ -36,11 +36,11 @@ function getCapabilitiesCopy(locale = 'zh-CN') {
             refresh: 'Refresh',
             toolbarSummary: (protocolCount, toolCount) => `Protocols ${protocolCount} · Tools ${toolCount}`,
             selectServerTitle: 'Select a server first',
-            selectServerSubtitle: 'Capability probing only works in a single-node view. Switch to a specific node first.',
+            selectServerSubtitle: 'Open a specific server from Server Management to view node capabilities.',
             goToServers: 'Open Servers',
             loadingTitle: 'Loading...',
             noDataTitle: 'No capability data yet',
-            noDataSubtitle: 'Capability results will appear after you switch to a specific node.',
+            noDataSubtitle: 'Capability results will appear after this node returns probe data.',
             protocolSectionTitle: 'Protocol Naming Alignment',
             protocolCount: (count) => `${count} protocols`,
             noProtocols: 'No inbound protocols detected',
@@ -99,11 +99,11 @@ function getCapabilitiesCopy(locale = 'zh-CN') {
         refresh: '刷新',
         toolbarSummary: (protocolCount, toolCount) => `协议 ${protocolCount} · 工具 ${toolCount}`,
         selectServerTitle: '请先选择一台服务器',
-        selectServerSubtitle: '能力探测仅支持单节点视图，请先切换到具体节点。',
+        selectServerSubtitle: '请从服务器管理进入某台服务器详情后查看节点能力。',
         goToServers: '前往服务器管理',
         loadingTitle: '加载中...',
         noDataTitle: '暂无能力数据',
-        noDataSubtitle: '切换到具体节点后会显示当前节点的能力探测结果。',
+        noDataSubtitle: '当前节点返回能力探测结果后会显示在这里。',
         protocolSectionTitle: '协议命名对齐',
         protocolCount: (count) => `${count} 种`,
         noProtocols: '未检测到入站协议',
@@ -182,13 +182,17 @@ function renderProbeSource(source, copy) {
     return source || '-';
 }
 
-export default function Capabilities() {
+export default function Capabilities({ serverId = '', embedded = false } = {}) {
     const { activeServerId } = useServer();
     const { locale, t } = useI18n();
     const navigate = useNavigate();
-    const hasTargetServer = Boolean(activeServerId && activeServerId !== 'global');
+    const targetServerId = useMemo(() => {
+        const normalized = String(serverId || activeServerId || '').trim();
+        return normalized && normalized !== 'global' ? normalized : '';
+    }, [activeServerId, serverId]);
+    const hasTargetServer = Boolean(targetServerId);
     const copy = useMemo(() => getCapabilitiesCopy(locale), [locale]);
-    const cachedData = hasTargetServer ? readCapabilitiesSnapshot(activeServerId) : null;
+    const cachedData = hasTargetServer ? readCapabilitiesSnapshot(targetServerId) : null;
     const capabilitiesRequestIdRef = useRef(0);
     const [loading, setLoading] = useState(() => hasTargetServer && !cachedData);
     const [data, setData] = useState(() => cachedData);
@@ -206,7 +210,7 @@ export default function Capabilities() {
             setLoading(true);
         }
         try {
-            const res = await api.get(`/capabilities/${activeServerId}`);
+            const res = await api.get(`/capabilities/${targetServerId}`);
             if (requestId !== capabilitiesRequestIdRef.current) return;
             setData(res.data?.obj || null);
         } catch (err) {
@@ -230,18 +234,18 @@ export default function Capabilities() {
             setLoading(false);
             return;
         }
-        const snapshot = readCapabilitiesSnapshot(activeServerId);
+        const snapshot = readCapabilitiesSnapshot(targetServerId);
         setData(snapshot);
         setLoading(snapshot == null);
         fetchCapabilities({ preserveCurrent: snapshot != null });
-    }, [activeServerId, hasTargetServer]);
+    }, [targetServerId, hasTargetServer]);
 
     useEffect(() => {
         if (!hasTargetServer || !data) return;
-        writeSessionSnapshot(buildCapabilitiesSnapshotKey(activeServerId), {
+        writeSessionSnapshot(buildCapabilitiesSnapshotKey(targetServerId), {
             data,
         });
-    }, [activeServerId, data, hasTargetServer]);
+    }, [data, hasTargetServer, targetServerId]);
 
     const protocolList = useMemo(
         () => (Array.isArray(data?.protocolDetails) ? data.protocolDetails : []),
@@ -258,31 +262,43 @@ export default function Capabilities() {
         [data]
     );
 
-    if (!hasTargetServer) {
+    const renderFrame = (children) => {
+        if (embedded) {
+            return (
+                <div className="server-detail-capabilities-panel capabilities-page">
+                    {children}
+                </div>
+            );
+        }
+
         return (
             <>
                 <Header title={t('pages.capabilities.title')} />
                 <div className="page-content page-content--wide page-enter capabilities-page">
-                    <EmptyState
-                        title={copy.selectServerTitle}
-                        subtitle={copy.selectServerSubtitle}
-                        icon={<HiOutlineCircleStack style={{ fontSize: '48px' }} />}
-                        surface
-                        action={(
-                            <button type="button" className="btn btn-primary" onClick={() => navigate('/servers')}>
-                                {copy.goToServers}
-                            </button>
-                        )}
-                    />
+                    {children}
                 </div>
             </>
         );
+    };
+
+    if (!hasTargetServer) {
+        return renderFrame(
+            <EmptyState
+                title={copy.selectServerTitle}
+                subtitle={copy.selectServerSubtitle}
+                icon={<HiOutlineCircleStack style={{ fontSize: '48px' }} />}
+                surface
+                action={!embedded ? (
+                    <button type="button" className="btn btn-primary" onClick={() => navigate('/servers')}>
+                        {copy.goToServers}
+                    </button>
+                ) : undefined}
+            />
+        );
     }
 
-    return (
+    return renderFrame(
         <>
-            <Header title={t('pages.capabilities.title')} />
-            <div className="page-content page-content--wide page-enter capabilities-page">
                 <PageToolbar
                     className="card mb-6 capabilities-toolbar"
                     compact
@@ -481,7 +497,6 @@ export default function Capabilities() {
                         </div>
                     </>
                 )}
-            </div>
         </>
     );
 }

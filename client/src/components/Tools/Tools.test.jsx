@@ -65,6 +65,42 @@ describe('Tools', () => {
         expect(api.get).not.toHaveBeenCalled();
     });
 
+    it('can open a node tool catalog from global view by choosing a server', async () => {
+        const user = userEvent.setup();
+        useServer.mockReturnValue({
+            activeServerId: 'global',
+            servers: [{ id: 'server-a', name: '节点 A' }],
+            panelApi: vi.fn(),
+        });
+        api.get.mockResolvedValue({
+            data: {
+                obj: {
+                    tools: {
+                        diag: {
+                            key: 'diag',
+                            label: '诊断工具',
+                            description: '执行节点诊断',
+                            uiAction: 'node_tools',
+                            supportedByNms: true,
+                            available: true,
+                            path: '/panel/api/tools/diag',
+                            method: 'get',
+                        },
+                    },
+                },
+            },
+        });
+
+        renderWithRouter(<Tools />);
+
+        const openButton = screen.getByRole('button', { name: '打开节点' });
+        await waitFor(() => expect(openButton).not.toBeDisabled());
+        await user.click(openButton);
+
+        expect(await screen.findByText('诊断工具')).toBeInTheDocument();
+        expect(api.get).toHaveBeenCalledWith('/capabilities/server-a');
+    });
+
     it('loads supported tools for a node and can invoke a tool action', async () => {
         const panelApi = vi.fn().mockResolvedValue({
             data: {

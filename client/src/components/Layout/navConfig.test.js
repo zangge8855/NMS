@@ -1,4 +1,4 @@
-import { HiOutlineCog6Tooth, HiOutlineCpuChip, HiOutlineRss, HiOutlineServerStack, HiOutlineSignal, HiOutlineUserCircle } from 'react-icons/hi2';
+import { HiOutlineCog6Tooth, HiOutlineRss, HiOutlineServerStack, HiOutlineSignal, HiOutlineUserCircle } from 'react-icons/hi2';
 import { describe, expect, it } from 'vitest';
 import { getVisibleMobileNavItems, getVisibleNavSections, navSections } from './navConfig.js';
 
@@ -26,11 +26,11 @@ describe('navConfig', () => {
         expect(sections[0].items.map((item) => item.path)).toEqual(['/subscriptions', '/downloads', '/account']);
     });
 
-    it('uses distinct icons for inbounds, capabilities, settings, and servers', () => {
+    it('keeps node capabilities out of the top-level nav and uses distinct system icons', () => {
         const items = navSections.flatMap((section) => section.items);
 
         expect(items.find((item) => item.path === '/inbounds')?.icon).toBe(HiOutlineSignal);
-        expect(items.find((item) => item.path === '/capabilities')?.icon).toBe(HiOutlineCpuChip);
+        expect(items.find((item) => item.path === '/capabilities')).toBeUndefined();
         expect(items.find((item) => item.path === '/settings')?.icon).toBe(HiOutlineCog6Tooth);
         expect(items.find((item) => item.path === '/servers')?.icon).toBe(HiOutlineServerStack);
     });

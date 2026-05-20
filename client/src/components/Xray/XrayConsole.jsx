@@ -1,10 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { HiOutlineArrowPath, HiOutlineCheck, HiOutlineExclamationTriangle } from 'react-icons/hi2';
 import Header from '../Layout/Header.jsx';
 import PageToolbar from '../UI/PageToolbar.jsx';
+import PageServerSelector from '../UI/PageServerSelector.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
+import usePageServerTarget from '../../hooks/usePageServerTarget.js';
 import api from '../../api/client.js';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../utils/format.js';
@@ -22,7 +25,12 @@ function getCopy(locale = 'zh-CN') {
             subtitle: 'Manage routing rules, outbounds, DNS and balancers on a single node.',
             refresh: 'Refresh',
             selectServer: 'Select a server',
-            selectServerHint: 'Switch to a specific node from the header to manage Xray settings.',
+            selectServerHint: 'Choose a node to manage its Xray settings.',
+            noServersHint: 'Add a server before managing Xray settings.',
+            goToServers: 'Open Servers',
+            serverSelectorLabel: 'Target node',
+            serverPlaceholder: 'Select node',
+            openSelectedServer: 'Open Node',
             loadError: 'Failed to load Xray configuration',
             loadingTitle: 'Loading Xray configuration...',
             unsupported: 'This node did not return a parseable Xray template configuration.',
@@ -40,7 +48,12 @@ function getCopy(locale = 'zh-CN') {
         subtitle: '集中管理单个节点的路由、出站、DNS 与负载均衡器。',
         refresh: '刷新',
         selectServer: '请先选择节点',
-        selectServerHint: '从顶部切换到具体节点后才能管理 Xray 设置。',
+        selectServerHint: '选择一个节点后管理它的 Xray 设置。',
+        noServersHint: '请先添加服务器，再管理 Xray 设置。',
+        goToServers: '前往服务器管理',
+        serverSelectorLabel: '目标节点',
+        serverPlaceholder: '选择节点',
+        openSelectedServer: '打开节点',
         loadError: '读取 Xray 配置失败',
         loadingTitle: '加载 Xray 配置中...',
         unsupported: '当前节点未返回可解析的 Xray 模板配置。',
@@ -55,9 +68,21 @@ function getCopy(locale = 'zh-CN') {
 }
 
 export default function XrayConsole() {
-    const { activeServerId } = useServer();
+    const { activeServerId, servers = [] } = useServer();
     const { locale } = useI18n();
+    const navigate = useNavigate();
     const copy = useMemo(() => getCopy(locale), [locale]);
+    const {
+        serverList,
+        hasServers,
+        targetServerId,
+        hasTargetServer,
+        isUsingPageServer,
+        draftServerId,
+        setDraftServerId,
+        setPageTargetServerId,
+        commitDraftServer,
+    } = usePageServerTarget({ activeServerId, servers });
 
     const [activeTab, setActiveTab] = useState('routing');
     const [loading, setLoading] = useState(false);
@@ -65,16 +90,11 @@ export default function XrayConsole() {
     const [snapshot, setSnapshot] = useState(null);
     const [source, setSource] = useState('');
 
-    const singleServerSelected = useMemo(
-        () => typeof activeServerId === 'string' && activeServerId !== 'global' && activeServerId.length > 0,
-        [activeServerId]
-    );
-
     const loadConfig = useCallback(async () => {
-        if (!singleServerSelected) return;
+        if (!hasTargetServer) return;
         setLoading(true);
         try {
-            const res = await api.get(`/xray/${activeServerId}/config`);
+            const res = await api.get(`/xray/${targetServerId}/config`);
             const obj = res?.data?.obj;
             if (!obj || !obj.snapshot) {
                 throw new Error(copy.unsupported);
@@ -89,21 +109,22 @@ export default function XrayConsole() {
         } finally {
             setLoading(false);
         }
-    }, [activeServerId, copy.loadError, copy.unsupported, singleServerSelected]);
+    }, [copy.loadError, copy.unsupported, hasTargetServer, targetServerId]);
 
     useEffect(() => {
-        if (!singleServerSelected) {
+        if (!hasTargetServer) {
             setSnapshot(null);
+            setSource('');
             return;
         }
         loadConfig();
-    }, [activeServerId, singleServerSelected, loadConfig]);
+    }, [hasTargetServer, loadConfig, targetServerId]);
 
     const handleSave = useCallback(async (section, payload) => {
-        if (!singleServerSelected || saving) return;
+        if (!hasTargetServer || saving) return;
         setSaving(true);
         try {
-            const res = await api.put(`/xray/${activeServerId}/${section}`, payload);
+            const res = await api.put(`/xray/${targetServerId}/${section}`, payload);
             const next = res?.data?.obj;
             if (next?.snapshot) {
                 setSnapshot(next.snapshot);
@@ -117,7 +138,31 @@ export default function XrayConsole() {
         } finally {
             setSaving(false);
         }
-    }, [activeServerId, loadConfig, locale, saving, singleServerSelected]);
+    }, [hasTargetServer, loadConfig, locale, saving, targetServerId]);
+
+    const serverSelectionAction = hasServers ? (
+        <div className="page-server-selection-action">
+            <PageServerSelector
+                servers={serverList}
+                value={draftServerId}
+                onChange={setDraftServerId}
+                label={copy.serverSelectorLabel}
+                placeholder={copy.serverPlaceholder}
+            />
+            <button
+                type="button"
+                className="btn btn-primary"
+                onClick={commitDraftServer}
+                disabled={!draftServerId}
+            >
+                {copy.openSelectedServer}
+            </button>
+        </div>
+    ) : (
+        <button type="button" className="btn btn-primary" onClick={() => navigate('/servers')}>
+            {copy.goToServers}
+        </button>
+    );
 
     return (
         <>
@@ -137,24 +182,36 @@ export default function XrayConsole() {
                         </div>
                     )}
                     actions={(
-                        <button
-                            type="button"
-                            className="btn btn-secondary btn-sm"
-                            onClick={loadConfig}
-                            disabled={!singleServerSelected || loading}
-                        >
-                            <HiOutlineArrowPath className={loading ? 'spinning' : ''} />
-                            {copy.refresh}
-                        </button>
+                        <>
+                            {isUsingPageServer && hasServers ? (
+                                <PageServerSelector
+                                    servers={serverList}
+                                    value={targetServerId}
+                                    onChange={setPageTargetServerId}
+                                    label={copy.serverSelectorLabel}
+                                    placeholder={copy.serverPlaceholder}
+                                />
+                            ) : null}
+                            <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                onClick={loadConfig}
+                                disabled={!hasTargetServer || loading}
+                            >
+                                <HiOutlineArrowPath className={loading ? 'spinning' : ''} />
+                                {copy.refresh}
+                            </button>
+                        </>
                     )}
                 />
 
-                {!singleServerSelected ? (
+                {!hasTargetServer ? (
                     <EmptyState
                         icon={<HiOutlineExclamationTriangle />}
                         title={copy.selectServer}
-                        subtitle={copy.selectServerHint}
+                        subtitle={hasServers ? copy.selectServerHint : copy.noServersHint}
                         surface
+                        action={serverSelectionAction}
                     />
                 ) : (
                     <div className="card xray-workbench">

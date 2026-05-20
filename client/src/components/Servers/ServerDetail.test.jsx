@@ -32,6 +32,14 @@ vi.mock('../UI/ClientIpModal.jsx', () => ({
     default: () => null,
 }));
 
+vi.mock('../Capabilities/Capabilities.jsx', () => ({
+    default: ({ embedded, serverId }) => (
+        <div data-testid="embedded-capabilities">
+            capabilities {String(embedded)} {serverId}
+        </div>
+    ),
+}));
+
 vi.mock('../../hooks/useAnimatedCounter.js', () => ({
     default: (value) => value,
 }));
@@ -310,6 +318,25 @@ describe('ServerDetail', () => {
         await user.click(screen.getByRole('button', { name: '在线用户' }));
         expect(await screen.findByText('alice@example.com')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /节点 IP/ })).toBeInTheDocument();
+    });
+
+    it('opens node capabilities inside the server detail tabs', async () => {
+        api.get.mockImplementation((url) => {
+            if (url === '/servers/server-1/snapshot') {
+                return Promise.resolve(buildServerSnapshot());
+            }
+            if (url === '/audit/events') {
+                return Promise.resolve({ data: { obj: { items: [] } } });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<ServerDetail />, { route: '/servers/server-1?tab=capabilities' });
+
+        await screen.findByText('服务器 · Test Server');
+
+        expect(screen.getByRole('button', { name: '节点能力' })).toHaveClass('active');
+        expect(screen.getByTestId('embedded-capabilities')).toHaveTextContent('capabilities true server-1');
     });
 
     it('ignores a stale online snapshot after a newer online refresh completes', async () => {

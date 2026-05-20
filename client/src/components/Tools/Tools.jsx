@@ -13,7 +13,9 @@ import {
 } from 'react-icons/hi2';
 import EmptyState from '../UI/EmptyState.jsx';
 import PageToolbar from '../UI/PageToolbar.jsx';
+import PageServerSelector from '../UI/PageServerSelector.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
+import usePageServerTarget from '../../hooks/usePageServerTarget.js';
 import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
 
 const TOOLS_SNAPSHOT_TTL_MS = 2 * 60_000;
@@ -45,11 +47,21 @@ function formatToolValue(value) {
 }
 
 export default function Tools() {
-    const { activeServerId, panelApi } = useServer();
+    const { activeServerId, servers = [], panelApi } = useServer();
     const { locale, t } = useI18n();
     const navigate = useNavigate();
-    const hasTargetServer = Boolean(activeServerId && activeServerId !== 'global');
-    const cachedState = hasTargetServer ? readToolsSnapshot(activeServerId) : null;
+    const {
+        serverList,
+        hasServers,
+        targetServerId,
+        hasTargetServer,
+        isUsingPageServer,
+        draftServerId,
+        setDraftServerId,
+        setPageTargetServerId,
+        commitDraftServer,
+    } = usePageServerTarget({ activeServerId, servers });
+    const cachedState = hasTargetServer ? readToolsSnapshot(targetServerId) : null;
     const toolsCatalogRequestIdRef = useRef(0);
     const toolExecutionRequestIdRef = useRef(0);
     const [results, setResults] = useState(() => cachedState?.results || {});
@@ -61,8 +73,12 @@ export default function Tools() {
             ? {
                 catalogLoadFailed: 'Failed to load node tools',
                 selectServerFirst: 'Select a server first',
-                selectServerHint: 'Node tools only run against a single server. Open the server list and switch to a target node first.',
+                selectServerHint: 'Node tools only run against a single server. Choose a node to continue.',
+                noServersHint: 'Add a server before running node tools.',
                 goToServers: 'Open Servers',
+                serverSelectorLabel: 'Target node',
+                serverPlaceholder: 'Select node',
+                openSelectedServer: 'Open Node',
                 executeFailed: 'Run failed',
                 copied: 'Copied',
                 toolbarTitle: 'Node Tooling',
@@ -81,8 +97,12 @@ export default function Tools() {
             : {
                 catalogLoadFailed: '加载节点工具失败',
                 selectServerFirst: '请先选择一台服务器',
-                selectServerHint: '节点工具仅支持单节点执行，请先打开服务器列表并切换到具体节点。',
+                selectServerHint: '节点工具仅支持单节点执行，选择一个节点后继续。',
+                noServersHint: '请先添加服务器，再运行节点工具。',
                 goToServers: '前往服务器管理',
+                serverSelectorLabel: '目标节点',
+                serverPlaceholder: '选择节点',
+                openSelectedServer: '打开节点',
                 executeFailed: '执行失败',
                 copied: '已复制',
                 toolbarTitle: '节点工具集',
@@ -113,7 +133,7 @@ export default function Tools() {
             setCatalogLoading(true);
         }
         try {
-            const res = await api.get(`/capabilities/${activeServerId}`);
+            const res = await api.get(`/capabilities/${targetServerId}`);
             if (requestId !== toolsCatalogRequestIdRef.current) return;
             const entries = Object.values(res.data?.obj?.tools || {})
                 .filter((item) => item.uiAction === 'node_console' || item.uiAction === 'node_tools')
@@ -143,20 +163,20 @@ export default function Tools() {
             return;
         }
         toolExecutionRequestIdRef.current += 1;
-        const snapshot = readToolsSnapshot(activeServerId);
+        const snapshot = readToolsSnapshot(targetServerId);
         setResults(snapshot?.results || {});
         setTools(snapshot?.tools || []);
         setCatalogLoading(snapshot == null);
         fetchCatalog({ preserveCurrent: snapshot != null });
-    }, [activeServerId, hasTargetServer]);
+    }, [targetServerId, hasTargetServer]);
 
     useEffect(() => {
         if (!hasTargetServer) return;
-        writeSessionSnapshot(buildToolsSnapshotKey(activeServerId), {
+        writeSessionSnapshot(buildToolsSnapshotKey(targetServerId), {
             tools,
             results,
         });
-    }, [activeServerId, hasTargetServer, results, tools]);
+    }, [hasTargetServer, results, targetServerId, tools]);
 
     const enabledTools = useMemo(
         () => tools.filter((item) => item.available !== false),
@@ -176,7 +196,9 @@ export default function Tools() {
         setLoading((prev) => ({ ...prev, [tool.key]: true }));
         try {
             const method = tool.method || 'get';
-            const res = await panelApi(method, tool.path);
+            const res = targetServerId === activeServerId && typeof panelApi === 'function'
+                ? await panelApi(method, tool.path)
+                : await api({ method, url: `/panel/${encodeURIComponent(targetServerId)}${tool.path}` });
             if (requestId !== toolExecutionRequestIdRef.current) return;
             setResults((prev) => ({
                 ...prev,
@@ -196,6 +218,30 @@ export default function Tools() {
         toast.success(copy.copied);
     };
 
+    const serverSelectionAction = hasServers ? (
+        <div className="page-server-selection-action">
+            <PageServerSelector
+                servers={serverList}
+                value={draftServerId}
+                onChange={setDraftServerId}
+                label={copy.serverSelectorLabel}
+                placeholder={copy.serverPlaceholder}
+            />
+            <button
+                type="button"
+                className="btn btn-primary"
+                onClick={commitDraftServer}
+                disabled={!draftServerId}
+            >
+                {copy.openSelectedServer}
+            </button>
+        </div>
+    ) : (
+        <button type="button" className="btn btn-primary" onClick={() => navigate('/servers')}>
+            {copy.goToServers}
+        </button>
+    );
+
     if (!hasTargetServer) {
         return (
             <>
@@ -203,14 +249,10 @@ export default function Tools() {
                 <div className="page-content page-content--wide page-enter tools-page">
                     <EmptyState
                         title={copy.selectServerFirst}
-                        subtitle={copy.selectServerHint}
+                        subtitle={hasServers ? copy.selectServerHint : copy.noServersHint}
                         icon={<HiOutlineWrench style={{ fontSize: '48px' }} />}
                         surface
-                        action={(
-                            <button type="button" className="btn btn-primary" onClick={() => navigate('/servers')}>
-                                {copy.goToServers}
-                            </button>
-                        )}
+                        action={serverSelectionAction}
                     />
                 </div>
             </>
@@ -231,9 +273,20 @@ export default function Tools() {
                         </div>
                     )}
                     actions={(
+                        <>
+                        {isUsingPageServer && hasServers ? (
+                            <PageServerSelector
+                                servers={serverList}
+                                value={targetServerId}
+                                onChange={setPageTargetServerId}
+                                label={copy.serverSelectorLabel}
+                                placeholder={copy.serverPlaceholder}
+                            />
+                        ) : null}
                         <button className="btn btn-secondary btn-sm" onClick={fetchCatalog} disabled={catalogLoading}>
                             <HiOutlineArrowPath className={catalogLoading ? 'spinning' : ''} /> {copy.refresh}
                         </button>
+                        </>
                     )}
                     meta={<span>{toolbarMeta}</span>}
                 />
