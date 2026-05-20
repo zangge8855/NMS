@@ -112,11 +112,30 @@
             font-size: 12px;
             font-weight: 700;
             cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         .{{class:lang-button}}[aria-pressed="true"] {
             background: #2f2621;
             color: #fffaf2;
+        }
+
+        .{{class:nav-links}} {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .{{class:nav-link}} {
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            transition: color 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .{{class:nav-link}}:hover {
+            color: var(--ink);
         }
 
         .{{class:hero}} {
@@ -197,6 +216,16 @@
             align-content: start;
             padding: 24px;
             border-radius: 30px;
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .{{class:section-card}}:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 32px 80px rgba(64, 42, 29, 0.22);
+        }
+
+        .{{class:section-card}}:hover .{{class:hero-image}} {
+            transform: scale(1.05);
         }
 
         .{{class:image-frame}} {
@@ -222,6 +251,7 @@
             min-height: 230px;
             object-fit: cover;
             filter: var(--image-filter);
+            transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         .{{class:card-title}} {
@@ -243,6 +273,16 @@
             gap: 12px;
             padding: 18px;
             border-radius: 24px;
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .{{class:blog-item}}:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 32px 80px rgba(64, 42, 29, 0.22);
+        }
+
+        .{{class:blog-item}}:hover .{{class:hero-image}} {
+            transform: scale(1.05);
         }
 
         .{{class:blog-meta}} {
@@ -309,6 +349,11 @@
             .{{class:footer}} {
                 box-shadow: 0 18px 56px rgba(0, 0, 0, 0.26);
             }
+
+            .{{class:section-card}}:hover,
+            .{{class:blog-item}}:hover {
+                box-shadow: 0 32px 80px rgba(0, 0, 0, 0.45);
+            }
         }
 
         @media (max-width: 820px) {
@@ -318,6 +363,7 @@
             .{{class:hero}},
             .{{class:blog-list}} { grid-template-columns: minmax(0, 1fr); }
             .{{class:hero-copy}} { min-height: 520px; }
+            .{{class:nav-links}} { display: none; }
         }
     </style>
 </head>
@@ -333,6 +379,17 @@
                         <span data-lang="en-US" hidden>{{directoryBadgeEn}}</span>
                     </div>
                 </div>
+            </div>
+            <div class="{{class:nav-links}}">
+                <a href="#" class="{{class:nav-link}}">
+                    <span data-lang="zh-CN">精选故事</span><span data-lang="en-US" hidden>Stories</span>
+                </a>
+                <a href="#" class="{{class:nav-link}}">
+                    <span data-lang="zh-CN">往期归档</span><span data-lang="en-US" hidden>Archive</span>
+                </a>
+                <a href="#" class="{{class:nav-link}}">
+                    <span data-lang="zh-CN">关于我们</span><span data-lang="en-US" hidden>About</span>
+                </a>
             </div>
             <div class="{{class:lang-switch}}" role="group" aria-label="Language">
                 <button class="{{class:lang-button}}" type="button" data-lang-button="zh-CN" aria-pressed="true">中文</button>
@@ -415,6 +472,9 @@
             <p class="{{class:footer-note}}">
                 <span data-lang="zh-CN">{{companyFootnoteZh}}</span>
                 <span data-lang="en-US" hidden>{{companyFootnoteEn}}</span>
+            </p>
+            <p class="{{class:footer-note}}">
+                <span>© {{currentYear}} {{title}}. All rights reserved.</span>
             </p>
             <p class="{{class:footer-note}}">
                 <span data-lang="zh-CN">{{deliveryNoticeZh}}</span>

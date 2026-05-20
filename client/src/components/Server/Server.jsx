@@ -747,10 +747,14 @@ export default function ServerManagement({ embedded = false }) {
                                         )}
                                     </form>
                                     {customGeoItems.length === 0 ? (
-                                        <div className="server-console-note">暂无自定义 Geo 资源。</div>
+                                        <EmptyState
+                                            title={locale === 'en-US' ? 'No custom Geo resources' : '暂无自定义 Geo 资源'}
+                                            size="compact"
+                                            hideIcon
+                                        />
                                     ) : (
                                         <div className="table-container">
-                                            <table>
+                                            <table className="table server-console-geo-table">
                                                 <thead>
                                                     <tr>
                                                         <th>类型</th>

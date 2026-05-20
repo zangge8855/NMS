@@ -102,11 +102,30 @@
             font-size: 12px;
             font-weight: 700;
             cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         .{{class:lang-button}}[aria-pressed="true"] {
             background: var(--ink);
             color: #fffbf4;
+        }
+
+        .{{class:nav-links}} {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .{{class:nav-link}} {
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            transition: color 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .{{class:nav-link}}:hover {
+            color: var(--ink);
         }
 
         .{{class:hero}} {
@@ -224,11 +243,25 @@
             padding: 18px;
             background: var(--surface);
             box-shadow: 0 18px 48px rgba(40, 31, 24, 0.1);
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .{{class:section-card}}:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 32px 80px rgba(40, 31, 24, 0.22);
         }
 
         .{{class:section-card}} .{{class:image-frame}} {
             min-height: 190px;
             border-radius: 18px;
+            background-size: cover;
+            background-position: center;
+            transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), filter 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .{{class:section-card}}:hover .{{class:image-frame}} {
+            transform: scale(1.04);
+            filter: brightness(1.05) saturate(1.02);
         }
 
         .{{class:card-title}} {
@@ -294,6 +327,10 @@
                 box-shadow: 0 18px 52px rgba(0, 0, 0, 0.26);
             }
 
+            .{{class:section-card}}:hover {
+                box-shadow: 0 32px 80px rgba(0, 0, 0, 0.45);
+            }
+
             .{{class:hero}} {
                 background: rgba(18, 24, 29, 0.94);
             }
@@ -307,6 +344,7 @@
             .{{class:section-grid}},
             .{{class:meta-grid}} { grid-template-columns: minmax(0, 1fr); }
             .{{class:image-frame}} { min-height: 360px; order: -1; }
+            .{{class:nav-links}} { display: none; }
         }
     </style>
 </head>
@@ -322,6 +360,17 @@
                         <span data-lang="en-US" hidden>{{directoryBadgeEn}}</span>
                     </div>
                 </div>
+            </div>
+            <div class="{{class:nav-links}}">
+                <a href="#" class="{{class:nav-link}}">
+                    <span data-lang="zh-CN">精选故事</span><span data-lang="en-US" hidden>Stories</span>
+                </a>
+                <a href="#" class="{{class:nav-link}}">
+                    <span data-lang="zh-CN">往期归档</span><span data-lang="en-US" hidden>Archive</span>
+                </a>
+                <a href="#" class="{{class:nav-link}}">
+                    <span data-lang="zh-CN">关于我们</span><span data-lang="en-US" hidden>About</span>
+                </a>
             </div>
             <div class="{{class:lang-switch}}" role="group" aria-label="Language">
                 <button class="{{class:lang-button}}" type="button" data-lang-button="zh-CN" aria-pressed="true">中文</button>
@@ -413,6 +462,9 @@
             <p class="{{class:footer-note}}">
                 <span data-lang="zh-CN">{{companyFootnoteZh}}</span>
                 <span data-lang="en-US" hidden>{{companyFootnoteEn}}</span>
+            </p>
+            <p class="{{class:footer-note}}">
+                <span>© {{currentYear}} {{title}}. All rights reserved.</span>
             </p>
             <p class="{{class:footer-note}}">
                 <span data-lang="zh-CN">{{deliveryNoticeZh}}</span>

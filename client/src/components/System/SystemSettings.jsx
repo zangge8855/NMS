@@ -2082,7 +2082,12 @@ export default function SystemSettings() {
                             {inviteCodesLoading ? (
                                 <div className="text-sm text-muted">正在加载邀请码列表...</div>
                             ) : inviteRecords.length === 0 ? (
-                                <div className="text-sm text-muted">暂无邀请码记录，可先生成一批。</div>
+                                <EmptyState
+                                    title={locale === 'en-US' ? 'No invitation codes available' : '暂无邀请码记录'}
+                                    subtitle={locale === 'en-US' ? 'You can generate a batch of invitation codes first.' : '可先生成一批邀请码。'}
+                                    size="compact"
+                                    hideIcon
+                                />
                             ) : (
                                 <>
                                     <div className="settings-inline-action-strip">

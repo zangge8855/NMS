@@ -329,7 +329,11 @@ export default function Capabilities({ serverId = '', embedded = false } = {}) {
                                 meta={<span className="text-sm text-muted">{copy.protocolCount(protocolList.length)}</span>}
                             />
                             {protocolList.length === 0 ? (
-                                <div className="text-sm text-muted">{copy.noProtocols}</div>
+                                <EmptyState
+                                    title={copy.noProtocols}
+                                    size="compact"
+                                    hideIcon
+                                />
                             ) : (
                                 <div className="capability-protocol-grid">
                                     {protocolList.map((item) => (

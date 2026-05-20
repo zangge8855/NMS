@@ -60,20 +60,31 @@ describe('site camouflage renderer', () => {
         assert.doesNotMatch(html, /访问说明|更新节奏|受限资源|公开范围|路径说明|维护节奏|目录状态 200/);
     });
 
-    it('replaces legacy technical camouflage titles with the city-magazine default', () => {
-        const html = createSiteCamouflageHtml({
-            siteConfig: {
-                camouflageTemplate: 'corporate',
-                camouflageTitle: 'Edge Precision Systems',
-            },
-            requestPath: '/',
-            statusCode: 200,
-        });
+    it('replaces legacy and technical camouflage titles with the city-magazine default', () => {
+        const forbiddenTitles = [
+            'Edge Precision Systems',
+            'NMS Portal',
+            'Xray Proxy Server',
+            '节点面板',
+            '运维后台',
+            '订阅管理系统',
+        ];
 
-        assert.match(html, /City Field Notes/);
-        assert.match(html, /城市周刊/);
-        assert.doesNotMatch(html, /Edge Precision Systems|Precision Systems/i);
-        assert.doesNotMatch(html, FORBIDDEN_PUBLIC_CONTENT);
+        for (const title of forbiddenTitles) {
+            const html = createSiteCamouflageHtml({
+                siteConfig: {
+                    camouflageTemplate: 'corporate',
+                    camouflageTitle: title,
+                },
+                requestPath: '/',
+                statusCode: 200,
+            });
+
+            assert.match(html, /City Field Notes/);
+            assert.match(html, /城市周刊/);
+            assert.doesNotMatch(html, new RegExp(title, 'i'));
+            assert.doesNotMatch(html, FORBIDDEN_PUBLIC_CONTENT);
+        }
     });
 
     it('ships system-adaptive light and dark theme styles for every public template', () => {

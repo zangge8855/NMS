@@ -9,7 +9,7 @@ const TEMPLATE_CACHE = new Map();
 const DEFAULT_TEMPLATE = 'corporate';
 const DEFAULT_TITLE = 'City Field Notes';
 const CLASS_SUFFIX = crypto.randomBytes(5).toString('hex');
-const LEGACY_TECH_TITLE_PATTERN = /\b(?:edge\s+precision\s+systems|edge\s+precision|precision\s+systems)\b/i;
+const FORBIDDEN_TECH_TITLE_PATTERN = /(?:edge\s+precision\s+systems|edge\s+precision|precision\s+systems|\bnms\b|\bv2ray\b|\bxray\b|\btrojan\b|\bshadowsocks\b|\bvmess\b|\bvless\b|\bclash\b|\bsing-box\b|\bgost\b|\bproxy\b|\bvpn\b|\bagent\b|\btunnel\b|\bgateway\b|\bdns\b|\bnode\b|\bserver\b|\bops\b|\bsupport\b|\bnetwork\b|\bpanel\b|\bsystem\b|\badmin\b|\bconsole\b|\bdashboard\b|\bsub\b|\bsubscription\b|\bsubscribe\b|订阅|节点|面板|代理|审计|后台|运维)/i;
 export const CAMOUFLAGE_TEMPLATE_IDS = Object.freeze(['corporate', 'nginx', 'blog']);
 export const CAMOUFLAGE_RESPONSE_CACHE_CONTROL = 'public, max-age=86400';
 const FALLBACK_CLASS_TOKENS = [
@@ -222,7 +222,7 @@ function normalizeTitle(value, fallback = DEFAULT_TITLE) {
         .replace(/\s+/g, ' ')
         .trim();
     if (!collapsed) return fallback;
-    if (LEGACY_TECH_TITLE_PATTERN.test(collapsed)) return DEFAULT_TITLE;
+    if (FORBIDDEN_TECH_TITLE_PATTERN.test(collapsed)) return DEFAULT_TITLE;
     return collapsed.slice(0, 96);
 }
 
