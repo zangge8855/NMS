@@ -6661,3 +6661,154 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Inbound management: preserve the full work area with the desktop sidebar open. */
+@media (min-width: 769px) {
+  .main-content {
+    flex: 0 0 calc(100vw - var(--sidebar-width));
+    margin-left: var(--sidebar-width);
+    width: calc(100vw - var(--sidebar-width));
+    max-width: calc(100vw - var(--sidebar-width));
+  }
+
+  .main-content.collapsed {
+    flex-basis: calc(100vw - var(--sidebar-collapsed));
+    margin-left: var(--sidebar-collapsed);
+    width: calc(100vw - var(--sidebar-collapsed));
+    max-width: calc(100vw - var(--sidebar-collapsed));
+  }
+
+  @supports (width: 100dvw) {
+    .main-content {
+      flex-basis: calc(100dvw - var(--sidebar-width));
+      width: calc(100dvw - var(--sidebar-width));
+      max-width: calc(100dvw - var(--sidebar-width));
+    }
+
+    .main-content.collapsed {
+      flex-basis: calc(100dvw - var(--sidebar-collapsed));
+      width: calc(100dvw - var(--sidebar-collapsed));
+      max-width: calc(100dvw - var(--sidebar-collapsed));
+    }
+  }
+
+  .main-scroll-region {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .main-scroll-region > .page-content {
+    width: 100%;
+    max-width: min(100%, var(--page-shell-max));
+  }
+
+  .main-scroll-region > .page-content--wide {
+    max-width: min(100%, var(--page-shell-wide-max));
+  }
+
+  .inbounds-page {
+    --inbounds-actions-column: 184px;
+    --inbounds-table-min: 1120px;
+    --inbounds-clients-table-min: 1040px;
+  }
+
+  .inbounds-page .table-container {
+    max-width: 100%;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    position: relative;
+    scrollbar-gutter: stable both-edges;
+  }
+
+  .inbounds-page .inbounds-table {
+    width: 100%;
+    min-width: var(--inbounds-table-min);
+    table-layout: fixed;
+  }
+
+  .inbounds-page .inbounds-actions-col,
+  .inbounds-page .inbounds-actions-cell {
+    position: sticky;
+    right: 0;
+    z-index: 2;
+    width: var(--inbounds-actions-column);
+    min-width: var(--inbounds-actions-column);
+    max-width: var(--inbounds-actions-column);
+    background: color-mix(in srgb, var(--workspace-surface) 96%, var(--surface-panel) 4%);
+    box-shadow: -14px 0 22px -24px rgba(2, 8, 23, 0.74);
+  }
+
+  .inbounds-page .inbounds-actions-col {
+    z-index: 3;
+  }
+
+  .inbounds-page .inbounds-row-actions {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 34px;
+    justify-content: center;
+    width: max-content;
+    max-width: none;
+    gap: 5px;
+    margin-inline: auto;
+    padding: 4px;
+  }
+
+  .inbounds-page .inbounds-row-actions .btn {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    min-height: 34px;
+    padding: 0;
+  }
+
+  .inbounds-page .inbounds-clients-cell {
+    min-width: 0;
+  }
+
+  .inbounds-page .inbounds-clients-panel {
+    max-width: calc(100% - 16px);
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-gutter: stable;
+  }
+
+  .inbounds-page .inbounds-clients-table {
+    width: 100%;
+    min-width: var(--inbounds-clients-table-min);
+  }
+
+  .inbounds-page .inbounds-clients-col-actions {
+    width: 118px;
+    min-width: 118px;
+  }
+
+  .inbounds-page .inbounds-client-actions {
+    min-width: 0;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1180px) {
+  .inbounds-page {
+    --inbounds-actions-column: 166px;
+    --inbounds-table-min: 1000px;
+    --inbounds-clients-table-min: 940px;
+  }
+
+  .inbounds-page .inbounds-table th,
+  .inbounds-page .inbounds-table td {
+    padding-inline: 6px;
+  }
+
+  .inbounds-page .inbounds-row-actions {
+    grid-auto-columns: 32px;
+    gap: 4px;
+  }
+
+  .inbounds-page .inbounds-row-actions .btn {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    min-height: 32px;
+  }
+}
