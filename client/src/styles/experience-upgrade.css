@@ -3048,12 +3048,41 @@
     z-index: 2;
     width: 228px;
     min-width: 228px;
-    background: var(--surface-panel-solid);
+    background: var(--surface-panel-solid) !important;
     box-shadow: -14px 0 20px -22px rgba(2, 8, 23, 0.72);
   }
 
   .servers-page .servers-actions-column {
     z-index: 3;
+    background: var(--surface-panel-solid) !important;
+  }
+
+  .servers-page .servers-table th {
+    background: var(--surface-panel-solid) !important;
+  }
+
+  .servers-page .servers-table-row td {
+    background: var(--surface-panel-solid);
+  }
+
+  .servers-page .servers-table-row:hover td {
+    background: color-mix(in srgb, var(--surface-panel-solid) 92%, var(--surface-table-row-hover) 8%) !important;
+  }
+
+  .servers-page .servers-table-row.server-card-selected td {
+    background: color-mix(in srgb, var(--surface-panel-solid) 92%, var(--accent-primary, #096adb) 8%) !important;
+  }
+
+  .servers-page .servers-table-row.server-card-selected:hover td {
+    background: color-mix(in srgb, var(--surface-panel-solid) 84%, var(--surface-table-row-hover) 16%) !important;
+  }
+
+  .servers-page .servers-table-row.active td {
+    background: color-mix(in srgb, var(--surface-panel-solid) 94%, var(--accent-primary, #096adb) 6%) !important;
+  }
+
+  .servers-page .servers-table-row.active:hover td {
+    background: color-mix(in srgb, var(--surface-panel-solid) 88%, var(--surface-table-row-hover) 12%) !important;
   }
 
   .servers-page .servers-table-row:hover .servers-actions-cell {
@@ -6757,12 +6786,33 @@
     width: var(--inbounds-actions-column);
     min-width: var(--inbounds-actions-column);
     max-width: var(--inbounds-actions-column);
-    background: color-mix(in srgb, var(--workspace-surface-solid) 96%, var(--surface-panel-solid) 4%);
+    background: color-mix(in srgb, var(--workspace-surface-solid) 96%, var(--surface-panel-solid) 4%) !important;
     box-shadow: -14px 0 22px -24px rgba(2, 8, 23, 0.74);
   }
 
   .inbounds-page .inbounds-actions-col {
     z-index: 3;
+    background: color-mix(in srgb, var(--workspace-surface-solid) 94%, var(--surface-panel-solid) 6%) !important;
+  }
+
+  .inbounds-page .inbounds-table th {
+    background: color-mix(in srgb, var(--workspace-surface-solid) 94%, var(--surface-panel-solid) 6%) !important;
+  }
+
+  .inbounds-page .inbounds-row td {
+    background: color-mix(in srgb, var(--workspace-surface-solid) 96%, var(--surface-panel-solid) 4%);
+  }
+
+  .inbounds-page .inbounds-row:hover td {
+    background: color-mix(in srgb, var(--workspace-surface-solid) 92%, var(--surface-table-row-hover) 8%) !important;
+  }
+
+  .inbounds-page .inbounds-row.inbounds-row-selected td {
+    background: color-mix(in srgb, var(--workspace-surface-solid) 92%, var(--accent-primary, #096adb) 8%) !important;
+  }
+
+  .inbounds-page .inbounds-row.inbounds-row-selected:hover td {
+    background: color-mix(in srgb, var(--workspace-surface-solid) 84%, var(--surface-table-row-hover) 16%) !important;
   }
 
   .inbounds-page .inbounds-row:hover .inbounds-actions-cell {
