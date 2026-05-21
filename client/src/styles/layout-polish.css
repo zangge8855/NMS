@@ -1596,7 +1596,7 @@
 
 .inbounds-table td.inbounds-protocol-cell,
 .inbounds-table th.inbounds-protocol-col {
-  text-align: center;
+  text-align: left !important;
 }
 
 .inbounds-traffic-stack,
