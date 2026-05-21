@@ -6509,8 +6509,8 @@ body::before {
 }
 
 .inbounds-status-col {
-  width: 86px;
-  min-width: 86px;
+  width: 120px;
+  min-width: 120px;
 }
 
 .inbounds-actions-col {

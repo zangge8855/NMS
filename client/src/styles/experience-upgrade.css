@@ -3048,12 +3048,32 @@
     z-index: 2;
     width: 228px;
     min-width: 228px;
-    background: color-mix(in srgb, var(--surface-panel) 94%, transparent);
+    background: var(--surface-panel-solid);
     box-shadow: -14px 0 20px -22px rgba(2, 8, 23, 0.72);
   }
 
   .servers-page .servers-actions-column {
     z-index: 3;
+  }
+
+  .servers-page .servers-table-row:hover .servers-actions-cell {
+    background: color-mix(in srgb, var(--surface-panel-solid) 92%, var(--surface-table-row-hover) 8%) !important;
+  }
+
+  .servers-page .servers-table-row.server-card-selected .servers-actions-cell {
+    background: color-mix(in srgb, var(--surface-panel-solid) 92%, var(--accent-primary, #096adb) 8%) !important;
+  }
+
+  .servers-page .servers-table-row.server-card-selected:hover .servers-actions-cell {
+    background: color-mix(in srgb, var(--surface-panel-solid) 84%, var(--surface-table-row-hover) 16%) !important;
+  }
+
+  .servers-page .servers-table-row.active .servers-actions-cell {
+    background: color-mix(in srgb, var(--surface-panel-solid) 94%, var(--accent-primary, #096adb) 6%) !important;
+  }
+
+  .servers-page .servers-table-row.active:hover .servers-actions-cell {
+    background: color-mix(in srgb, var(--surface-panel-solid) 88%, var(--surface-table-row-hover) 12%) !important;
   }
 
   .servers-page .servers-row-actions {
@@ -5238,9 +5258,10 @@
   }
 }
 
-/* Final workspace refinement: shared management/user surfaces and mobile safe area. */
 :root {
   --workspace-surface: rgba(18, 18, 20, 0.96);
+  --workspace-surface-solid: #121214;
+  --surface-panel-solid: #0f172a;
   --workspace-surface-muted: rgba(15, 23, 42, 0.54);
   --workspace-border: rgba(148, 163, 184, 0.14);
   --workspace-border-strong: rgba(148, 163, 184, 0.2);
@@ -5251,6 +5272,8 @@
 
 [data-theme="light"] {
   --workspace-surface: rgba(255, 255, 255, 0.94);
+  --workspace-surface-solid: #ffffff;
+  --surface-panel-solid: #ffffff;
   --workspace-surface-muted: rgba(248, 250, 252, 0.9);
   --workspace-border: rgba(15, 23, 42, 0.08);
   --workspace-border-strong: rgba(15, 23, 42, 0.12);
@@ -6734,12 +6757,24 @@
     width: var(--inbounds-actions-column);
     min-width: var(--inbounds-actions-column);
     max-width: var(--inbounds-actions-column);
-    background: color-mix(in srgb, var(--workspace-surface) 96%, var(--surface-panel) 4%);
+    background: color-mix(in srgb, var(--workspace-surface-solid) 96%, var(--surface-panel-solid) 4%);
     box-shadow: -14px 0 22px -24px rgba(2, 8, 23, 0.74);
   }
 
   .inbounds-page .inbounds-actions-col {
     z-index: 3;
+  }
+
+  .inbounds-page .inbounds-row:hover .inbounds-actions-cell {
+    background: color-mix(in srgb, var(--workspace-surface-solid) 92%, var(--surface-table-row-hover) 8%) !important;
+  }
+
+  .inbounds-page .inbounds-row.inbounds-row-selected .inbounds-actions-cell {
+    background: color-mix(in srgb, var(--workspace-surface-solid) 92%, var(--accent-primary, #096adb) 8%) !important;
+  }
+
+  .inbounds-page .inbounds-row.inbounds-row-selected:hover .inbounds-actions-cell {
+    background: color-mix(in srgb, var(--workspace-surface-solid) 84%, var(--surface-table-row-hover) 16%) !important;
   }
 
   .inbounds-page .inbounds-row-actions {

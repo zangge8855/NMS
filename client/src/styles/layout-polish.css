@@ -1891,7 +1891,7 @@
 .servers-table th.servers-status-column,
 .servers-table td.servers-status-cell {
   width: 1%;
-  min-width: 96px;
+  min-width: 110px;
 }
 
 .servers-table th.servers-actions-column,
@@ -9014,7 +9014,7 @@ p, .empty-state-body, td {
 
   .servers-page .servers-table th.servers-status-column,
   .servers-page .servers-table td.servers-status-cell {
-    min-width: 88px;
+    min-width: 110px;
   }
 
   .servers-page .servers-table th.servers-actions-column,
@@ -13169,4 +13169,10 @@ input[type="radio"] {
   background: rgba(99, 102, 241, 0.1) !important;
   color: var(--accent-primary) !important;
   flex-shrink: 0 !important;
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .main-content:not(.collapsed) :is(.page-content, .page-content--wide) {
+    padding-left: clamp(28px, 4vw, 40px) !important;
+  }
 }
