@@ -3,6 +3,15 @@ import { createHttpError } from '../lib/httpError.js';
 import userRepository from '../repositories/userRepository.js';
 import serverRepository from '../repositories/serverRepository.js';
 import userPolicyRepository from '../repositories/userPolicyRepository.js';
+import userGroupRepository from '../repositories/userGroupRepository.js';
+import {
+    getInboundScopeKey,
+    isProtocolAllowedByPolicy,
+    isServerAllowedByPolicy,
+    normalizeStringList,
+    resolveEffectivePolicy,
+    sanitizePolicy,
+} from '../lib/userPolicyResolver.js';
 import subscriptionTokenRepository from '../repositories/subscriptionTokenRepository.js';
 import {
     isValidEmail,
@@ -130,15 +139,6 @@ function emptyDeploymentResult() {
     return { total: 0, created: 0, updated: 0, skipped: 0, failed: 0, details: [] };
 }
 
-function normalizeStringList(input = []) {
-    if (!Array.isArray(input)) return [];
-    return Array.from(new Set(
-        input
-            .map((item) => String(item || '').trim())
-            .filter(Boolean)
-    ));
-}
-
 function buildManagedUserEmailAliases(targetUser = null, primaryEmail = '') {
     const normalizedPrimaryEmail = normalizeEmailInput(primaryEmail);
     return Array.from(new Set(
@@ -168,29 +168,37 @@ function applyInboundRetryScope(policy = null, targetInboundKeys = []) {
     };
 }
 
+function resolveUserGroupForPolicy(targetUser = null, deps = {}) {
+    const groupRepo = deps.userGroupRepository || userGroupRepository;
+    const groupId = String(targetUser?.groupId || '').trim();
+    if (!groupId || typeof groupRepo.getById !== 'function') return null;
+    return groupRepo.getById(groupId);
+}
+
+function resolveEffectivePolicyForUser(targetUser = null, rawPolicy = {}, deps = {}) {
+    return resolveEffectivePolicy(
+        targetUser,
+        rawPolicy,
+        resolveUserGroupForPolicy(targetUser, deps)
+    );
+}
+
 function buildInboundScopeKey(serverId = '', inboundId = '') {
-    const normalizedServerId = String(serverId || '').trim();
-    const normalizedInboundId = String(inboundId || '').trim();
-    if (!normalizedServerId || !normalizedInboundId) return '';
-    return `${normalizedServerId}:${normalizedInboundId}`;
+    return getInboundScopeKey(serverId, inboundId);
 }
 
 function isPolicyServerAllowed(policy = {}, serverId = '') {
-    const normalizedServerId = String(serverId || '').trim();
-    const mode = String(policy?.serverScopeMode || 'all').trim().toLowerCase();
-    if (!normalizedServerId || mode === 'none') return false;
-    if (mode !== 'selected') return true;
-    const allowed = new Set(normalizeStringList(policy?.allowedServerIds));
-    return allowed.has(normalizedServerId);
+    return isServerAllowedByPolicy(policy, serverId);
 }
 
 function isPolicyProtocolAllowed(policy = {}, protocol = '') {
-    const normalizedProtocol = String(protocol || '').trim().toLowerCase();
-    const mode = String(policy?.protocolScopeMode || 'all').trim().toLowerCase();
-    if (!normalizedProtocol || mode === 'none') return false;
-    if (mode !== 'selected') return true;
-    const allowed = new Set(normalizeStringList(policy?.allowedProtocols).map((item) => String(item || '').trim().toLowerCase()));
-    return allowed.has(normalizedProtocol);
+    return isProtocolAllowedByPolicy(policy, protocol);
+}
+
+function isPolicyInboundBlocked(policy = {}, serverId = '', inboundId = '') {
+    const key = buildInboundScopeKey(serverId, inboundId);
+    if (!key) return true;
+    return normalizeStringList(policy?.blockedInboundKeys).includes(key);
 }
 
 async function syncAddedInboundsToExistingUsers(addedInbounds = [], actor = 'admin', deps = {}) {
@@ -251,11 +259,13 @@ async function syncAddedInboundsToExistingUsers(addedInbounds = [], actor = 'adm
             continue;
         }
 
-        const policy = policyRepo.get(subscriptionEmail);
+        const rawPolicy = policyRepo.get(subscriptionEmail);
+        const policy = resolveEffectivePolicyForUser(targetUser, rawPolicy, deps);
         const explicitInboundKeys = new Set(normalizeStringList(policy?.allowedInboundKeys));
         const eligibleInbounds = candidates.filter((item) => {
             if (!isPolicyServerAllowed(policy, item.serverId)) return false;
             if (!isPolicyProtocolAllowed(policy, item.protocol)) return false;
+            if (isPolicyInboundBlocked(policy, item.serverId, item.inboundId)) return false;
             return true;
         });
 
@@ -298,20 +308,24 @@ async function syncAddedInboundsToExistingUsers(addedInbounds = [], actor = 'adm
             const mergedInboundKeys = explicitInboundKeys.size > 0
                 ? normalizeStringList([...explicitInboundKeys, ...allowedInboundKeys])
                 : [];
-            const policyNeedsInboundBackfill = explicitInboundKeys.size > 0
+            const policyNeedsInboundBackfill = rawPolicy?.inheritGroup !== true
+                && explicitInboundKeys.size > 0
                 && mergedInboundKeys.length > explicitInboundKeys.size;
             const effectivePolicy = policyNeedsInboundBackfill
                 ? policyRepo.upsert(
                     subscriptionEmail,
                     {
-                        ...policy,
+                        ...rawPolicy,
                         allowedInboundKeys: mergedInboundKeys,
                     },
                     actor
                 )
                 : policy;
+            const deploymentPolicy = targetUser?.groupId
+                ? effectivePolicy
+                : (policyNeedsInboundBackfill ? effectivePolicy : rawPolicy);
 
-            const deployment = await deployClients(subscriptionEmail, effectivePolicy, {
+            const deployment = await deployClients(subscriptionEmail, deploymentPolicy, {
                 allServers: targetServers,
                 allowedInboundKeys,
                 clientEnabled: targetUser?.enabled !== false,
@@ -386,7 +400,8 @@ async function runManagedUserNodeSync(targetUser, actor = 'admin', options = {},
     const basePolicy = options.policyOverride !== undefined
         ? options.policyOverride
         : policyRepo.get(subscriptionEmail);
-    const scopedPolicy = applyInboundRetryScope(basePolicy, options.targetInboundKeys);
+    const effectivePolicy = resolveEffectivePolicyForUser(targetUser, basePolicy, deps);
+    const scopedPolicy = applyInboundRetryScope(effectivePolicy, options.targetInboundKeys);
 
     let clientSync = emptyClientSyncResult();
     if (options.includeToggle === true) {
@@ -431,6 +446,7 @@ async function runManagedUserNodeSync(targetUser, actor = 'admin', options = {},
     return {
         subscriptionEmail,
         policy: scopedPolicy || null,
+        rawPolicy: basePolicy || null,
         clientSync,
         deployment,
         partialFailure: Number(clientSync.failed || 0) > 0 || Number(deployment.failed || 0) > 0,
@@ -552,11 +568,25 @@ function stripSubscriptionAliasPath(user) {
 
 function listUsers(deps = {}) {
     const userRepo = deps.userRepository || userRepository;
-    return userRepo.list().map((item) => stripSubscriptionAliasPath(item));
+    const groupRepo = deps.userGroupRepository || userGroupRepository;
+    const groups = new Map(
+        (typeof groupRepo.list === 'function' ? groupRepo.list() : [])
+            .map((item) => [String(item?.id || '').trim(), item])
+    );
+    return userRepo.list().map((item) => {
+        const groupId = String(item?.groupId || '').trim();
+        const group = groupId ? groups.get(groupId) : null;
+        return stripSubscriptionAliasPath({
+            ...item,
+            groupId,
+            groupName: group?.name || '',
+        });
+    });
 }
 
 function createManagedUser(payload = {}, deps = {}) {
     const userRepo = deps.userRepository || userRepository;
+    const groupRepo = deps.userGroupRepository || userGroupRepository;
     const username = String(payload?.username || '').trim();
     const password = String(payload?.password || '');
     const role = payload?.role;
@@ -571,6 +601,10 @@ function createManagedUser(payload = {}, deps = {}) {
     if (subscriptionEmail && !isValidEmail(subscriptionEmail)) {
         throw createHttpError(400, '订阅绑定邮箱格式不正确');
     }
+    const groupId = String(payload?.groupId || '').trim();
+    if (groupId && !groupRepo.getById(groupId)) {
+        throw createHttpError(400, '用户分组不存在');
+    }
 
     const passwordCheck = checkAccountPassword(password);
     if (!passwordCheck.valid) {
@@ -583,6 +617,7 @@ function createManagedUser(payload = {}, deps = {}) {
         role,
         email,
         subscriptionEmail,
+        groupId,
         emailVerified: true,
         enabled: true,
     });
@@ -594,6 +629,7 @@ function createManagedUser(payload = {}, deps = {}) {
             role,
             email,
             subscriptionEmail: user.subscriptionEmail || '',
+            groupId,
         },
     };
 }
@@ -637,12 +673,13 @@ async function bulkSetUsersEnabled(payload = {}, actor = 'admin', deps = {}) {
 
 function buildUsersCsv(deps = {}) {
     const users = listUsers(deps);
-    const header = 'ID,用户名,邮箱,订阅邮箱,角色,状态,邮箱已验证,创建时间,最后登录';
+    const header = 'ID,用户名,邮箱,订阅邮箱,用户分组,角色,状态,邮箱已验证,创建时间,最后登录';
     const rows = users.map((user) => [
         user.id,
         buildCsvCell(user.username),
         buildCsvCell(user.email),
         buildCsvCell(user.subscriptionEmail),
+        buildCsvCell(user.groupName || user.groupId || ''),
         user.role,
         user.enabled ? '启用' : '停用',
         user.emailVerified ? '是' : '否',
@@ -661,6 +698,7 @@ async function updateManagedUser(id, payload = {}, actorOrDeps = 'admin', deps =
     const serverRepo = runtimeDeps.serverRepository || serverRepository;
     const policyRepo = runtimeDeps.userPolicyRepository || userPolicyRepository;
     const tokenRepo = runtimeDeps.subscriptionTokenRepository || subscriptionTokenRepository;
+    const groupRepo = runtimeDeps.userGroupRepository || userGroupRepository;
     const target = userRepo.getById(id);
 
     if (!target) {
@@ -702,6 +740,17 @@ async function updateManagedUser(id, payload = {}, actorOrDeps = 'admin', deps =
             throw createHttpError(400, `无效角色: ${payload?.role}`);
         }
         nextData.role = role;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload || {}, 'groupId')) {
+        const groupId = String(payload?.groupId || '').trim();
+        if (groupId) {
+            const group = groupRepo.getById(groupId);
+            if (!group) {
+                throw createHttpError(400, '用户分组不存在');
+            }
+        }
+        nextData.groupId = groupId;
     }
 
     const password = String(payload?.password || '');
@@ -828,6 +877,28 @@ async function updateManagedUser(id, payload = {}, actorOrDeps = 'admin', deps =
         throw createHttpError(404, '用户不存在');
     }
 
+    let groupSync = null;
+    if (Object.prototype.hasOwnProperty.call(nextData, 'groupId') && target.role !== 'admin') {
+        try {
+            groupSync = await runManagedUserNodeSync(user, actor, {
+                enabled: user.enabled !== false,
+                includeToggle: true,
+                includeDeploy: user.enabled !== false,
+            }, runtimeDeps);
+        } catch (error) {
+            groupSync = {
+                subscriptionEmail: resolveUserSubscriptionEmail(user),
+                partialFailure: true,
+                clientSync: emptyClientSyncResult(),
+                deployment: {
+                    ...emptyDeploymentResult(),
+                    failed: 1,
+                    details: [{ status: 'failed', error: error.message || 'group-assignment-sync-failed' }],
+                },
+            };
+        }
+    }
+
     return {
         target: {
             id,
@@ -839,6 +910,7 @@ async function updateManagedUser(id, payload = {}, actorOrDeps = 'admin', deps =
         subscriptionMigration,
         policyMigration,
         tokenMigration,
+        groupSync,
     };
 }
 
@@ -921,6 +993,10 @@ async function updateManagedUserExpiry(id, payload = {}, actor = 'admin', deps =
         {
             ...currentPolicy,
             expiryTime,
+            overrideFields: Array.from(new Set([
+                ...normalizeStringList(currentPolicy.overrideFields),
+                'expiryTime',
+            ])),
         },
         actor
     );
@@ -982,6 +1058,7 @@ async function updateManagedUserPolicyByEmail(email, payload = {}, actor = 'admi
             subscriptionEmail,
             target,
             policy: nextPolicy,
+            effectivePolicy: target ? resolveEffectivePolicyForUser(target, nextPolicy, deps) : sanitizePolicy(nextPolicy),
             clientSync: emptyClientSyncResult(),
             deployment: emptyDeploymentResult(),
             partialFailure: false,
@@ -1004,11 +1081,13 @@ async function updateManagedUserPolicyByEmail(email, payload = {}, actor = 'admi
         };
     }
 
-    if (target.enabled !== false && nextPolicy.serverScopeMode !== 'none' && nextPolicy.protocolScopeMode !== 'none') {
+    const effectivePolicy = resolveEffectivePolicyForUser(target, nextPolicy, deps);
+
+    if (target.enabled !== false && effectivePolicy.serverScopeMode !== 'none' && effectivePolicy.protocolScopeMode !== 'none') {
         try {
-            deployment = await deployClients(subscriptionEmail, nextPolicy, {
+            deployment = await deployClients(subscriptionEmail, effectivePolicy, {
                 allServers,
-                allowedInboundKeys: nextPolicy.allowedInboundKeys,
+                allowedInboundKeys: effectivePolicy.allowedInboundKeys,
                 clientEnabled: true,
                 emailAliases,
             }, deps);
@@ -1029,6 +1108,7 @@ async function updateManagedUserPolicyByEmail(email, payload = {}, actor = 'admi
         subscriptionEmail,
         target,
         policy: nextPolicy,
+        effectivePolicy,
         clientSync,
         deployment,
         partialFailure: Number(clientSync.failed || 0) > 0 || Number(deployment.failed || 0) > 0,
@@ -1158,6 +1238,179 @@ async function deleteManagedUser(id, deps = {}) {
     };
 }
 
+function summarizeGroupMembers(groupId = '', deps = {}) {
+    const userRepo = deps.userRepository || userRepository;
+    const normalizedGroupId = String(groupId || '').trim();
+    return (Array.isArray(userRepo.list()) ? userRepo.list() : [])
+        .filter((item) => item?.role !== 'admin' && String(item?.groupId || '').trim() === normalizedGroupId);
+}
+
+function listUserGroups(deps = {}) {
+    const groupRepo = deps.userGroupRepository || userGroupRepository;
+    const userRepo = deps.userRepository || userRepository;
+    const users = Array.isArray(userRepo.list()) ? userRepo.list() : [];
+    return groupRepo.list().map((group) => ({
+        ...group,
+        memberCount: users.filter((user) => user?.role !== 'admin' && String(user?.groupId || '').trim() === group.id).length,
+    }));
+}
+
+function createUserGroup(payload = {}, actor = 'admin', deps = {}) {
+    const groupRepo = deps.userGroupRepository || userGroupRepository;
+    const created = groupRepo.add(payload, actor);
+    return {
+        group: created,
+        sync: {
+            totalUsers: 0,
+            syncedUsers: 0,
+            failedUsers: 0,
+            details: [],
+        },
+    };
+}
+
+async function syncUserGroupMembers(groupId = '', actor = 'admin', deps = {}) {
+    const groupRepo = deps.userGroupRepository || userGroupRepository;
+    const group = groupRepo.getById(groupId);
+    if (!group) {
+        throw createHttpError(404, '用户分组不存在');
+    }
+
+    const members = summarizeGroupMembers(group.id, deps);
+    const result = {
+        group,
+        totalUsers: members.length,
+        syncedUsers: 0,
+        failedUsers: 0,
+        clientSync: emptyClientSyncResult(),
+        deployment: emptyDeploymentResult(),
+        details: [],
+    };
+
+    for (const member of members) {
+        const subscriptionEmail = resolveUserSubscriptionEmail(member);
+        if (!subscriptionEmail) {
+            result.details.push({
+                userId: member.id,
+                username: member.username,
+                status: 'skipped',
+                reason: 'missing-subscription-email',
+            });
+            continue;
+        }
+
+        try {
+            const sync = await runManagedUserNodeSync(member, actor, {
+                enabled: member.enabled !== false,
+                includeToggle: true,
+                includeDeploy: member.enabled !== false,
+            }, deps);
+            result.clientSync.total += Number(sync.clientSync?.total || 0);
+            result.clientSync.updated += Number(sync.clientSync?.updated || 0);
+            result.clientSync.skipped += Number(sync.clientSync?.skipped || 0);
+            result.clientSync.failed += Number(sync.clientSync?.failed || 0);
+            result.deployment.total += Number(sync.deployment?.total || 0);
+            result.deployment.created += Number(sync.deployment?.created || 0);
+            result.deployment.updated += Number(sync.deployment?.updated || 0);
+            result.deployment.skipped += Number(sync.deployment?.skipped || 0);
+            result.deployment.failed += Number(sync.deployment?.failed || 0);
+            if (sync.partialFailure) {
+                result.failedUsers += 1;
+            } else {
+                result.syncedUsers += 1;
+            }
+            result.details.push({
+                userId: member.id,
+                username: member.username,
+                subscriptionEmail,
+                status: sync.partialFailure ? 'partial_failure' : 'synced',
+                clientSync: sync.clientSync,
+                deployment: sync.deployment,
+            });
+        } catch (error) {
+            result.failedUsers += 1;
+            result.details.push({
+                userId: member.id,
+                username: member.username,
+                subscriptionEmail,
+                status: 'failed',
+                error: error.message || 'group-member-sync-failed',
+            });
+        }
+    }
+
+    return result;
+}
+
+async function updateUserGroup(id, payload = {}, actor = 'admin', deps = {}) {
+    const groupRepo = deps.userGroupRepository || userGroupRepository;
+    const updated = groupRepo.update(id, payload, actor);
+    if (!updated) {
+        throw createHttpError(404, '用户分组不存在');
+    }
+    const sync = await syncUserGroupMembers(updated.id, actor, deps);
+    return {
+        group: updated,
+        sync,
+    };
+}
+
+async function deleteUserGroup(id, actor = 'admin', deps = {}) {
+    const groupRepo = deps.userGroupRepository || userGroupRepository;
+    const userRepo = deps.userRepository || userRepository;
+    const group = groupRepo.getById(id);
+    if (!group) {
+        throw createHttpError(404, '用户分组不存在');
+    }
+
+    const members = summarizeGroupMembers(group.id, deps);
+    members.forEach((member) => {
+        userRepo.update(member.id, { groupId: '' });
+    });
+    groupRepo.remove(group.id);
+
+    const sync = {
+        group,
+        totalUsers: members.length,
+        syncedUsers: 0,
+        failedUsers: 0,
+        details: [],
+    };
+    for (const member of members) {
+        const updatedMember = userRepo.getById(member.id) || { ...member, groupId: '' };
+        try {
+            const result = await runManagedUserNodeSync(updatedMember, actor, {
+                enabled: updatedMember.enabled !== false,
+                includeToggle: true,
+                includeDeploy: updatedMember.enabled !== false,
+            }, deps);
+            if (result.partialFailure) sync.failedUsers += 1;
+            else sync.syncedUsers += 1;
+            sync.details.push({
+                userId: updatedMember.id,
+                username: updatedMember.username,
+                subscriptionEmail: result.subscriptionEmail,
+                status: result.partialFailure ? 'partial_failure' : 'synced',
+                clientSync: result.clientSync,
+                deployment: result.deployment,
+            });
+        } catch (error) {
+            sync.failedUsers += 1;
+            sync.details.push({
+                userId: updatedMember.id,
+                username: updatedMember.username,
+                status: 'failed',
+                error: error.message || 'group-delete-sync-failed',
+            });
+        }
+    }
+
+    return {
+        group,
+        sync,
+    };
+}
+
 function buildUsersExportFilename(now = new Date()) {
     return `users_${now.toISOString().slice(0, 10)}.csv`;
 }
@@ -1165,6 +1418,11 @@ function buildUsersExportFilename(now = new Date()) {
 export {
     buildManagedUserSyncJobPayload,
     listUsers,
+    listUserGroups,
+    createUserGroup,
+    updateUserGroup,
+    deleteUserGroup,
+    syncUserGroupMembers,
     createManagedUser,
     bulkSetUsersEnabled,
     buildUsersCsv,

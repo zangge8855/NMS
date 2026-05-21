@@ -12,6 +12,7 @@ const KNOWN_FILES = [
     'servers.json',
     'subscription_tokens.json',
     'user_policies.json',
+    'user_groups.json',
     'audit_events.json',
     'subscription_access_logs.json',
     'jobs.json',

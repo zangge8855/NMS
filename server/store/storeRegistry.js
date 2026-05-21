@@ -6,6 +6,7 @@ import subscriptionTokenStore from './subscriptionTokenStore.js';
 import systemSettingsStore from './systemSettingsStore.js';
 import trafficStatsStore from './trafficStatsStore.js';
 import userPolicyStore from './userPolicyStore.js';
+import userGroupStore from './userGroupStore.js';
 import clientEntitlementOverrideStore from './clientEntitlementOverrideStore.js';
 import inviteCodeStore from './inviteCodeStore.js';
 import { loadStoreSnapshot, writeStoreSnapshotNow } from './dbMirror.js';
@@ -76,6 +77,7 @@ const STORE_REGISTRY = [
     { key: 'invite_codes', store: inviteCodeStore },
     { key: 'traffic', store: trafficStatsStore },
     { key: 'user_policies', store: userPolicyStore },
+    { key: 'user_groups', store: userGroupStore },
     { key: 'client_entitlement_overrides', store: clientEntitlementOverrideStore },
 ];
 

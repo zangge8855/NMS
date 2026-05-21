@@ -4,6 +4,7 @@ import net from 'net';
 import serverStore from '../store/serverStore.js';
 import userStore from '../store/userStore.js';
 import userPolicyStore from '../store/userPolicyStore.js';
+import userGroupStore from '../store/userGroupStore.js';
 import serverTelemetryStore from '../store/serverTelemetryStore.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
 import { ensureAuthenticated, fetchPanelServerStatus } from '../lib/panelClient.js';
@@ -709,14 +710,17 @@ router.delete('/:id', (req, res) => {
     if (!removed) {
         return res.status(404).json({ success: false, msg: '节点不存在，请刷新节点列表后重试' });
     }
-    const affectedPolicies = userPolicyStore.removeServerId(serverId, String(req.user?.username || req.user?.role || 'admin'));
-    appendSecurityAudit('server_deleted', req, { serverId, affectedPolicies });
+    const actor = String(req.user?.username || req.user?.role || 'admin');
+    const affectedPolicies = userPolicyStore.removeServerId(serverId, actor);
+    const affectedGroups = userGroupStore.removeServerId(serverId, actor);
+    appendSecurityAudit('server_deleted', req, { serverId, affectedPolicies, affectedGroups });
     res.json({
         success: true,
         msg: 'Server removed',
         obj: {
             serverId,
             affectedPolicies,
+            affectedGroups,
         },
     });
 });

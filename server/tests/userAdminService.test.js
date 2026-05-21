@@ -193,6 +193,63 @@ test('syncAddedInboundsToExistingUsers backfills newly added inbounds into match
     ]);
 });
 
+test('syncAddedInboundsToExistingUsers skips explicitly blocked new inbounds', async () => {
+    const deployments = [];
+    const result = await syncAddedInboundsToExistingUsers(
+        [{
+            serverId: 'srv-1',
+            serverName: 'Node A',
+            inboundId: 101,
+            inboundRemark: 'Blocked inbound',
+            protocol: 'vless',
+            port: 443,
+        }],
+        'ops',
+        {
+            userRepository: {
+                list() {
+                    return [
+                        {
+                            id: 'u-1',
+                            username: 'alice',
+                            role: 'user',
+                            email: 'alice@example.com',
+                            subscriptionEmail: 'alice@example.com',
+                            enabled: true,
+                        },
+                    ];
+                },
+            },
+            serverRepository: {
+                list() {
+                    return [{ id: 'srv-1', name: 'Node A' }];
+                },
+            },
+            userPolicyRepository: {
+                get() {
+                    return {
+                        serverScopeMode: 'selected',
+                        allowedServerIds: ['srv-1'],
+                        blockedInboundKeys: ['srv-1:101'],
+                        protocolScopeMode: 'selected',
+                        allowedProtocols: ['vless'],
+                    };
+                },
+            },
+            autoDeployClients: async (email, policy, options) => {
+                deployments.push({ email, policy, options });
+                return { total: 1, created: 1, updated: 0, skipped: 0, failed: 0, details: [] };
+            },
+        }
+    );
+
+    assert.equal(result.eligibleUsers, 0);
+    assert.equal(result.skippedUsers, 1);
+    assert.equal(result.created, 0);
+    assert.deepEqual(deployments, []);
+    assert.equal(result.details[0].reason, 'policy-scope');
+});
+
 test('buildUsersCsv renders escaped csv rows', () => {
     const csv = buildUsersCsv({
         userRepository: {

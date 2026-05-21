@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import userStore from '../store/userStore.js';
 import userPolicyStore from '../store/userPolicyStore.js';
+import userGroupStore from '../store/userGroupStore.js';
 import auditStore from '../store/auditStore.js';
 import subscriptionTokenStore from '../store/subscriptionTokenStore.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
@@ -9,6 +10,7 @@ import { normalizeEmail } from '../lib/normalize.js';
 import { querySubscriptionAccess } from '../services/subscriptionAuditService.js';
 import { normalizeIpAddress } from '../lib/ipGeoResolver.js';
 import { enrichAuditEvents } from '../lib/auditEventEnrichment.js';
+import { resolveEffectivePolicy } from '../lib/userPolicyResolver.js';
 
 const router = Router();
 function collectUserEmails(user) {
@@ -65,6 +67,8 @@ router.get('/:id/detail', async (req, res) => {
         username: user.username,
         email: normalizeEmail(user.email),
         subscriptionEmail,
+        groupId: String(user.groupId || '').trim(),
+        groupName: '',
         emailVerified: !!user.emailVerified,
         role: user.role,
         enabled: user.enabled !== false,
@@ -74,9 +78,14 @@ router.get('/:id/detail', async (req, res) => {
 
     // Access policy
     let policy = null;
+    let effectivePolicy = null;
+    let group = null;
     if (subscriptionEmail) {
         try {
             policy = userPolicyStore.get(subscriptionEmail);
+            group = user.groupId ? userGroupStore.getById(user.groupId) : null;
+            effectivePolicy = resolveEffectivePolicy(user, policy, group);
+            if (group?.name) userInfo.groupName = group.name;
         } catch (e) { console.error(`[Users Route] Failed to get policy for ${subscriptionEmail}:`, e.message); }
     }
 
@@ -127,6 +136,8 @@ router.get('/:id/detail', async (req, res) => {
         obj: {
             user: userInfo,
             policy,
+            effectivePolicy,
+            group,
             recentAudit,
             subscriptionAccess,
             tokens,

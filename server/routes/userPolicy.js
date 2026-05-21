@@ -38,6 +38,15 @@ function normalizeInboundKeys(input = []) {
     ));
 }
 
+function normalizeTextList(input = []) {
+    const values = Array.isArray(input) ? input : [];
+    return Array.from(new Set(
+        values
+            .map((item) => String(item || '').trim())
+            .filter(Boolean)
+    ));
+}
+
 function normalizeScopeMode(input, fallback = 'all') {
     const normalizedFallback = POLICY_SCOPE_MODES.has(String(fallback || '').trim().toLowerCase())
         ? String(fallback || '').trim().toLowerCase()
@@ -75,9 +84,16 @@ router.put('/:email', async (req, res) => {
         return res.status(400).json({ success: false, msg: 'Email is required' });
     }
 
-    const allowedServerIds = normalizeServerIds(req.body?.allowedServerIds);
+    const currentPolicy = userPolicyStore.get(email);
+    const hasAllowedServerIds = Object.prototype.hasOwnProperty.call(req.body || {}, 'allowedServerIds');
+    const hasBlockedServerIds = Object.prototype.hasOwnProperty.call(req.body || {}, 'blockedServerIds');
+    const hasAllowedProtocols = Object.prototype.hasOwnProperty.call(req.body || {}, 'allowedProtocols');
+    const hasServerScopeMode = Object.prototype.hasOwnProperty.call(req.body || {}, 'serverScopeMode');
+    const hasProtocolScopeMode = Object.prototype.hasOwnProperty.call(req.body || {}, 'protocolScopeMode');
+    const allowedServerIds = hasAllowedServerIds ? normalizeServerIds(req.body?.allowedServerIds) : (currentPolicy.allowedServerIds || []);
+    const blockedServerIds = hasBlockedServerIds ? normalizeServerIds(req.body?.blockedServerIds) : (currentPolicy.blockedServerIds || []);
     const existingServerIds = new Set(serverStore.getAll().map((item) => item.id));
-    const invalidServerIds = allowedServerIds.filter((item) => !existingServerIds.has(item));
+    const invalidServerIds = [...allowedServerIds, ...blockedServerIds].filter((item) => !existingServerIds.has(item));
     if (invalidServerIds.length > 0) {
         return res.status(400).json({
             success: false,
@@ -85,13 +101,21 @@ router.put('/:email', async (req, res) => {
         });
     }
 
-    const allowedProtocols = normalizeProtocols(req.body?.allowedProtocols);
+    const allowedProtocols = hasAllowedProtocols ? normalizeProtocols(req.body?.allowedProtocols) : (currentPolicy.allowedProtocols || []);
     const hasAllowedInboundKeys = Object.prototype.hasOwnProperty.call(req.body || {}, 'allowedInboundKeys');
     const allowedInboundKeys = hasAllowedInboundKeys
         ? normalizeInboundKeys(req.body?.allowedInboundKeys)
-        : undefined;
-    let serverScopeMode = normalizeScopeMode(req.body?.serverScopeMode, allowedServerIds.length > 0 ? 'selected' : 'all');
-    let protocolScopeMode = normalizeScopeMode(req.body?.protocolScopeMode, allowedProtocols.length > 0 ? 'selected' : 'all');
+        : (currentPolicy.allowedInboundKeys || []);
+    const hasBlockedInboundKeys = Object.prototype.hasOwnProperty.call(req.body || {}, 'blockedInboundKeys');
+    const blockedInboundKeys = hasBlockedInboundKeys
+        ? normalizeInboundKeys(req.body?.blockedInboundKeys)
+        : (currentPolicy.blockedInboundKeys || []);
+    let serverScopeMode = hasServerScopeMode
+        ? normalizeScopeMode(req.body?.serverScopeMode, allowedServerIds.length > 0 ? 'selected' : 'all')
+        : normalizeScopeMode(currentPolicy.serverScopeMode, allowedServerIds.length > 0 ? 'selected' : 'all');
+    let protocolScopeMode = hasProtocolScopeMode
+        ? normalizeScopeMode(req.body?.protocolScopeMode, allowedProtocols.length > 0 ? 'selected' : 'all')
+        : normalizeScopeMode(currentPolicy.protocolScopeMode, allowedProtocols.length > 0 ? 'selected' : 'all');
 
     if (serverScopeMode === 'selected' && allowedServerIds.length === 0) {
         serverScopeMode = 'none';
@@ -105,13 +129,25 @@ router.put('/:email', async (req, res) => {
             email,
             {
                 allowedServerIds,
+                blockedServerIds,
                 allowedProtocols,
-                ...(hasAllowedInboundKeys ? { allowedInboundKeys } : {}),
+                allowedInboundKeys,
+                blockedInboundKeys,
                 serverScopeMode,
                 protocolScopeMode,
-                expiryTime: normalizeNonNegativeInt(req.body?.expiryTime, 0),
-                limitIp: normalizeNonNegativeInt(req.body?.limitIp, 0),
-                trafficLimitBytes: normalizeNonNegativeInt(req.body?.trafficLimitBytes, 0),
+                expiryTime: Object.prototype.hasOwnProperty.call(req.body || {}, 'expiryTime')
+                    ? normalizeNonNegativeInt(req.body?.expiryTime, 0)
+                    : normalizeNonNegativeInt(currentPolicy.expiryTime, 0),
+                limitIp: Object.prototype.hasOwnProperty.call(req.body || {}, 'limitIp')
+                    ? normalizeNonNegativeInt(req.body?.limitIp, 0)
+                    : normalizeNonNegativeInt(currentPolicy.limitIp, 0),
+                trafficLimitBytes: Object.prototype.hasOwnProperty.call(req.body || {}, 'trafficLimitBytes')
+                    ? normalizeNonNegativeInt(req.body?.trafficLimitBytes, 0)
+                    : normalizeNonNegativeInt(currentPolicy.trafficLimitBytes, 0),
+                trafficResetCycle: String(req.body?.trafficResetCycle || currentPolicy.trafficResetCycle || 'none').trim().toLowerCase(),
+                ipLimitPolicy: String(req.body?.ipLimitPolicy || currentPolicy.ipLimitPolicy || 'first-wins').trim().toLowerCase(),
+                inheritGroup: req.body?.inheritGroup === true,
+                overrideFields: normalizeTextList(req.body?.overrideFields),
             },
             req.user?.username || req.user?.role || 'admin'
         );
@@ -121,8 +157,10 @@ router.put('/:email', async (req, res) => {
             targetUserId: result.target?.id || '',
             targetUsername: result.target?.username || '',
             allowedServerIds,
+            blockedServerIds,
             allowedProtocols,
             allowedInboundKeys: result.policy?.allowedInboundKeys || [],
+            blockedInboundKeys: result.policy?.blockedInboundKeys || [],
             serverScopeMode,
             protocolScopeMode,
             expiryTime: result.policy?.expiryTime || 0,

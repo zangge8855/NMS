@@ -17,6 +17,11 @@ import subscriptionTokenRepository from '../repositories/subscriptionTokenReposi
 import userPolicyRepository from '../repositories/userPolicyRepository.js';
 import { invalidateServerPanelSnapshotCache } from '../lib/serverPanelSnapshotService.js';
 import { listPanelInbounds } from './panelGateway.js';
+import {
+    isInboundAllowedByPolicy,
+    isProtocolAllowedByPolicy,
+    isServerAllowedByPolicy,
+} from '../lib/userPolicyResolver.js';
 
 function normalizeEmailInput(value) {
     return String(value || '').trim().toLowerCase();
@@ -144,6 +149,16 @@ function buildScopedPolicyMeta(policy = {}) {
             ? policy.allowedInboundKeys.map((item) => String(item || '').trim()).filter(Boolean)
             : []
     );
+    const blockedServerIds = new Set(
+        Array.isArray(policy.blockedServerIds)
+            ? policy.blockedServerIds.map((item) => String(item || '').trim()).filter(Boolean)
+            : []
+    );
+    const blockedInboundKeys = new Set(
+        Array.isArray(policy.blockedInboundKeys)
+            ? policy.blockedInboundKeys.map((item) => String(item || '').trim()).filter(Boolean)
+            : []
+    );
 
     return {
         serverScopeMode: normalizeScopeMode(policy.serverScopeMode, allowedServerIds.size > 0 ? 'selected' : 'all'),
@@ -151,6 +166,8 @@ function buildScopedPolicyMeta(policy = {}) {
         allowedServerIds,
         allowedProtocols,
         allowedInboundKeys,
+        blockedServerIds,
+        blockedInboundKeys,
     };
 }
 
@@ -362,21 +379,11 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
     const emailCandidates = collectManagedEmailCandidates(email, options.emailAliases);
 
     const allServers = Array.isArray(options.allServers) ? options.allServers : servers.list();
-    const serverScopeMode = String(policy.serverScopeMode || 'all').toLowerCase();
-    let targetServers = [];
-    if (serverScopeMode === 'all') {
-        targetServers = allServers;
-    } else if (serverScopeMode === 'selected') {
-        const allowed = new Set(Array.isArray(policy.allowedServerIds) ? policy.allowedServerIds : []);
-        targetServers = allServers.filter((item) => allowed.has(item.id));
-    }
+    const targetServers = allServers.filter((item) => isServerAllowedByPolicy(policy, item?.id));
     if (targetServers.length === 0) return result;
 
     const protocolScopeMode = String(policy.protocolScopeMode || 'all').toLowerCase();
-    let allowedProtocols = null;
-    if (protocolScopeMode === 'selected') {
-        allowedProtocols = new Set(Array.isArray(policy.allowedProtocols) ? policy.allowedProtocols : []);
-    } else if (protocolScopeMode === 'none') {
+    if (protocolScopeMode === 'none') {
         return result;
     }
 
@@ -412,8 +419,9 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
             const protocol = String(inbound.protocol || '').toLowerCase();
             if (!DEPLOY_CLIENT_PROTOCOLS.has(protocol)) continue;
             if (inbound.enable === false) continue;
-            if (allowedProtocols && !allowedProtocols.has(protocol)) continue;
+            if (!isProtocolAllowedByPolicy(policy, protocol)) continue;
             if (allowedInboundKeys && !allowedInboundKeys.has(`${server.id}:${inbound.id}`)) continue;
+            if (!isInboundAllowedByPolicy(policy, server.id, inbound.id)) continue;
 
             result.total += 1;
 
@@ -684,6 +692,19 @@ async function autoSetManagedClientsEnabled(subscriptionEmail, enabled, options 
                     });
                     continue;
                 }
+                if (scopedPolicy.blockedServerIds.has(server.id)) {
+                    result.skipped += 1;
+                    result.details.push({
+                        serverId: server.id,
+                        serverName: server.name,
+                        inboundId: inbound.id,
+                        inboundRemark: inbound.remark || '',
+                        protocol,
+                        status: 'skipped',
+                        reason: 'server-blocked',
+                    });
+                    continue;
+                }
                 if (scopedPolicy.protocolScopeMode === 'selected' && !scopedPolicy.allowedProtocols.has(protocol)) {
                     result.skipped += 1;
                     result.details.push({
@@ -707,6 +728,19 @@ async function autoSetManagedClientsEnabled(subscriptionEmail, enabled, options 
                         protocol,
                         status: 'skipped',
                         reason: 'inbound-not-allowed',
+                    });
+                    continue;
+                }
+                if (scopedPolicy.blockedInboundKeys.has(`${server.id}:${inbound.id}`)) {
+                    result.skipped += 1;
+                    result.details.push({
+                        serverId: server.id,
+                        serverName: server.name,
+                        inboundId: inbound.id,
+                        inboundRemark: inbound.remark || '',
+                        protocol,
+                        status: 'skipped',
+                        reason: 'inbound-blocked',
                     });
                     continue;
                 }

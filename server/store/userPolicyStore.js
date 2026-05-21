@@ -43,10 +43,37 @@ function normalizeNonNegativeInt(value, fallback = 0) {
 }
 
 function sanitizePolicy(input = {}) {
-    const selectedServerIds = toUniqueStringArray(input.allowedServerIds, (item) => String(item || '').trim());
+    const blockedServerIds = toUniqueStringArray(
+        input.blockedServerIds || input.deniedServerIds,
+        (item) => String(item || '').trim()
+    );
+    const blockedServerIdSet = new Set(blockedServerIds);
+    const selectedServerIds = toUniqueStringArray(input.allowedServerIds, (item) => String(item || '').trim())
+        .filter((item) => !blockedServerIdSet.has(item));
     const selectedProtocols = toUniqueStringArray(input.allowedProtocols, (item) => String(item || '').trim().toLowerCase())
         .filter((item) => ALLOWED_PROTOCOLS.has(item));
-    const allowedInboundKeys = toUniqueStringArray(input.allowedInboundKeys, (item) => String(item || '').trim());
+    const blockedInboundKeys = toUniqueStringArray(
+        input.blockedInboundKeys || input.deniedInboundKeys,
+        (item) => String(item || '').trim()
+    );
+    const blockedInboundKeySet = new Set(blockedInboundKeys);
+    const allowedInboundKeys = toUniqueStringArray(input.allowedInboundKeys, (item) => String(item || '').trim())
+        .filter((item) => !blockedInboundKeySet.has(item));
+    const overrideFields = toUniqueStringArray(input.overrideFields, (item) => String(item || '').trim())
+        .filter((item) => [
+            'allowedServerIds',
+            'blockedServerIds',
+            'allowedProtocols',
+            'allowedInboundKeys',
+            'blockedInboundKeys',
+            'serverScopeMode',
+            'protocolScopeMode',
+            'expiryTime',
+            'limitIp',
+            'trafficLimitBytes',
+            'trafficResetCycle',
+            'ipLimitPolicy',
+        ].includes(item));
     const inferredServerMode = selectedServerIds.length > 0 ? 'selected' : 'all';
     const inferredProtocolMode = selectedProtocols.length > 0 ? 'selected' : 'all';
     let serverScopeMode = normalizeScopeMode(input.serverScopeMode, inferredServerMode);
@@ -61,8 +88,10 @@ function sanitizePolicy(input = {}) {
 
     return {
         allowedServerIds: serverScopeMode === 'selected' ? selectedServerIds : [],
+        blockedServerIds,
         allowedProtocols: protocolScopeMode === 'selected' ? selectedProtocols : [],
         allowedInboundKeys,
+        blockedInboundKeys,
         serverScopeMode,
         protocolScopeMode,
         expiryTime: normalizeNonNegativeInt(input.expiryTime, 0),
@@ -74,6 +103,8 @@ function sanitizePolicy(input = {}) {
         ipLimitPolicy: IP_LIMIT_POLICIES.has(String(input.ipLimitPolicy || '').trim().toLowerCase())
             ? String(input.ipLimitPolicy).trim().toLowerCase()
             : 'first-wins',
+        inheritGroup: input.inheritGroup === true,
+        overrideFields,
     };
 }
 
@@ -112,8 +143,10 @@ class UserPolicyStore {
             return {
                 email: '',
                 allowedServerIds: [],
+                blockedServerIds: [],
                 allowedProtocols: [],
                 allowedInboundKeys: [],
+                blockedInboundKeys: [],
                 serverScopeMode: 'all',
                 protocolScopeMode: 'all',
                 expiryTime: 0,
@@ -121,6 +154,8 @@ class UserPolicyStore {
                 trafficLimitBytes: 0,
                 trafficResetCycle: 'none',
                 ipLimitPolicy: 'first-wins',
+                inheritGroup: false,
+                overrideFields: [],
                 updatedAt: null,
                 updatedBy: '',
             };

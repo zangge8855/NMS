@@ -9,6 +9,11 @@ import config from '../config.js';
 import auditStore from '../store/auditStore.js';
 import userPolicyStore from '../store/userPolicyStore.js';
 import userStore from '../store/userStore.js';
+import userGroupStore from '../store/userGroupStore.js';
+import {
+    isInboundAllowedByPolicy,
+    resolveEffectivePolicy,
+} from '../lib/userPolicyResolver.js';
 import { getServerPanelSnapshot, getServerPanelSnapshots } from '../lib/serverPanelSnapshotService.js';
 import { canAccessSubscriptionEmail } from '../lib/subscriptionAccess.js';
 import { resolveClientIpDetails } from '../lib/requestIp.js';
@@ -723,10 +728,12 @@ function isClientExpired(entry, nowTs) {
 async function collectByServer(serverMeta, normalizedEmail, mode, options = {}) {
     const allowedServerIdList = Array.isArray(options.policy?.allowedServerIds) ? options.policy.allowedServerIds : [];
     const allowedProtocolList = Array.isArray(options.policy?.allowedProtocols) ? options.policy.allowedProtocols : [];
+    const blockedServerIdList = Array.isArray(options.policy?.blockedServerIds) ? options.policy.blockedServerIds : [];
     const serverScopeMode = normalizePolicyScopeMode(options.policy?.serverScopeMode, allowedServerIdList);
     const protocolScopeMode = normalizePolicyScopeMode(options.policy?.protocolScopeMode, allowedProtocolList);
     const allowedServerIds = new Set(allowedServerIdList);
     const allowedProtocols = new Set(allowedProtocolList);
+    const blockedServerIds = new Set(blockedServerIdList);
     const nowTs = Number(options.nowTs || Date.now());
 
     const perServer = {
@@ -756,6 +763,23 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options = {}) 
             type: 'policy-server-denied',
             server: serverMeta.name,
             reason: 'server scope mode is none',
+        };
+        perServer.filteredByPolicy = 1;
+        perServer.warnings.push(detail);
+        warnings.push(detail);
+        return {
+            links: [],
+            skipped,
+            warnings,
+            perServer,
+        };
+    }
+
+    if (blockedServerIds.has(serverMeta.id)) {
+        const detail = {
+            type: 'policy-server-denied',
+            server: serverMeta.name,
+            reason: `server ${serverMeta.id} is blocked`,
         };
         perServer.filteredByPolicy = 1;
         perServer.warnings.push(detail);
@@ -818,6 +842,10 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options = {}) 
                     continue;
                 }
                 if (protocolScopeMode === 'selected' && !allowedProtocols.has(protocol)) {
+                    perServer.filteredByPolicy += 1;
+                    continue;
+                }
+                if (!isInboundAllowedByPolicy(options.policy, serverMeta.id, inbound.id)) {
                     perServer.filteredByPolicy += 1;
                     continue;
                 }
@@ -930,12 +958,20 @@ async function buildMergedLinksByEmail(email, options = {}) {
     const mode = normalizeMode(options.mode);
     const requestedServerId = normalizeServerId(options.serverId);
     const nowTs = Date.now();
-    const policy = userPolicyStore.get(normalizedEmail);
+    const rawPolicy = userPolicyStore.get(normalizedEmail);
+    const policyUser = userStore.getBySubscriptionEmail(normalizedEmail) || userStore.getByEmail(normalizedEmail) || null;
+    const policyGroup = policyUser?.groupId ? userGroupStore.getById(policyUser.groupId) : null;
+    const policy = resolveEffectivePolicy(policyUser, rawPolicy, policyGroup);
     const policyAllowedServerIds = Array.isArray(policy.allowedServerIds) ? policy.allowedServerIds : [];
     const policyAllowedProtocols = Array.isArray(policy.allowedProtocols) ? policy.allowedProtocols : [];
+    const policyBlockedServerIds = Array.isArray(policy.blockedServerIds) ? policy.blockedServerIds : [];
     const policyServerScopeMode = normalizePolicyScopeMode(policy.serverScopeMode, policyAllowedServerIds);
     const policyProtocolScopeMode = normalizePolicyScopeMode(policy.protocolScopeMode, policyAllowedProtocols);
-    const policyRestrictive = policyServerScopeMode !== 'all' || policyProtocolScopeMode !== 'all';
+    const policyRestrictive = policyServerScopeMode !== 'all'
+        || policyProtocolScopeMode !== 'all'
+        || (Array.isArray(policy.allowedInboundKeys) && policy.allowedInboundKeys.length > 0)
+        || (Array.isArray(policy.blockedServerIds) && policy.blockedServerIds.length > 0)
+        || (Array.isArray(policy.blockedInboundKeys) && policy.blockedInboundKeys.length > 0);
     if (!normalizedEmail) {
         return {
             links: [],
@@ -971,6 +1007,7 @@ async function buildMergedLinksByEmail(email, options = {}) {
         && (
             policyServerScopeMode === 'none'
             || (policyServerScopeMode === 'selected' && !policyAllowedServerIds.includes(requestedServerId))
+            || policyBlockedServerIds.includes(requestedServerId)
         );
 
     if (serverNotFound) {

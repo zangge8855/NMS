@@ -260,6 +260,100 @@ describe('subscriptionSyncService', () => {
         assert.equal(result.details[2].reason, 'server-not-allowed');
     });
 
+    it('deploys IP limits only to allowed servers and inbounds', async () => {
+        const updates = [];
+        const adds = [];
+        const result = await autoDeployClients('user@example.com', {
+            serverScopeMode: 'selected',
+            allowedServerIds: ['srv-1', 'srv-2'],
+            blockedServerIds: ['srv-2'],
+            protocolScopeMode: 'all',
+            allowedProtocols: [],
+            allowedInboundKeys: [],
+            blockedInboundKeys: ['srv-1:111'],
+            expiryTime: 0,
+            limitIp: 2,
+            trafficLimitBytes: 0,
+        }, {}, {
+            serverRepository: {
+                list: () => [
+                    { id: 'srv-1', name: 'Server 1' },
+                    { id: 'srv-2', name: 'Server 2' },
+                ],
+            },
+            listPanelInbounds: async (serverId) => ({
+                client: { post: async () => ({}) },
+                inbounds: serverId === 'srv-1'
+                    ? [
+                        {
+                            id: 101,
+                            protocol: 'vless',
+                            enable: true,
+                            remark: 'Allowed inbound',
+                            settings: JSON.stringify({
+                                clients: [{
+                                    email: 'user@example.com',
+                                    id: 'allowed-client-id',
+                                    enable: true,
+                                    expiryTime: 0,
+                                    limitIp: 0,
+                                    totalGB: 0,
+                                }],
+                            }),
+                        },
+                        {
+                            id: 111,
+                            protocol: 'vless',
+                            enable: true,
+                            remark: 'Blocked inbound',
+                            settings: JSON.stringify({
+                                clients: [{
+                                    email: 'user@example.com',
+                                    id: 'blocked-client-id',
+                                    enable: true,
+                                    expiryTime: 0,
+                                    limitIp: 0,
+                                    totalGB: 0,
+                                }],
+                            }),
+                        },
+                    ]
+                    : [
+                        {
+                            id: 202,
+                            protocol: 'vless',
+                            enable: true,
+                            remark: 'Blocked server inbound',
+                            settings: JSON.stringify({ clients: [] }),
+                        },
+                    ],
+            }),
+            postUpdateClient: async (_panelClient, inboundId, clientIdentifier, clientData) => {
+                updates.push({ inboundId, clientIdentifier, clientData });
+                return {};
+            },
+            postAddClient: async (_panelClient, inboundId, clientData) => {
+                adds.push({ inboundId, clientData });
+                return {};
+            },
+            overrideRepository: {
+                get() {
+                    return null;
+                },
+            },
+        });
+
+        assert.equal(result.total, 1);
+        assert.equal(result.updated, 1);
+        assert.equal(result.created, 0);
+        assert.equal(result.skipped, 0);
+        assert.equal(adds.length, 0);
+        assert.equal(updates.length, 1);
+        assert.equal(updates[0].inboundId, 101);
+        assert.equal(updates[0].clientIdentifier, 'allowed-client-id');
+        assert.equal(updates[0].clientData.limitIp, 2);
+    });
+
     it('migrates managed subscription email in place without rotating client credentials', async () => {
         const updates = [];
         const result = await migrateManagedSubscriptionEmail('user@example.com', 'user.new@example.com', {}, {

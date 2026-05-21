@@ -75,6 +75,10 @@ function normalizeOptionalText(value) {
     return text || null;
 }
 
+function normalizeGroupId(value) {
+    return String(value || '').trim();
+}
+
 class UserStore {
     constructor() {
         this._ensureDataDir();
@@ -114,6 +118,7 @@ class UserStore {
                         profileVerifyTargetEmail: normalizeEmailValue(item?.profileVerifyTargetEmail),
                         profileVerifyUsername: normalizeUsernameValue(item?.profileVerifyUsername),
                         profileVerifyEmail: normalizeEmailValue(item?.profileVerifyEmail),
+                        groupId: normalizeGroupId(item?.groupId),
                     };
                 });
             }
@@ -145,6 +150,7 @@ class UserStore {
                 enabled: true,
                 subscriptionEmail: '',
                 subscriptionAliasPath: '',
+                groupId: '',
                 profileVerifyCode: null,
                 profileVerifyCodeExpiresAt: null,
                 profileVerifyTargetEmail: '',
@@ -164,6 +170,7 @@ class UserStore {
             email: normalizeEmailValue(u.email),
             subscriptionEmail: resolveSubscriptionEmail(u),
             subscriptionAliasPath: resolveSubscriptionAliasPath(u),
+            groupId: normalizeGroupId(u.groupId),
             emailVerified: !!u.emailVerified,
             role: u.role,
             enabled: u.enabled !== false,
@@ -256,6 +263,7 @@ class UserStore {
             email = '',
             emailVerified = false,
             enabled = true,
+            groupId = '',
         } = payload;
         const normalizedUsername = normalizeUsernameValue(username);
         if (!normalizedUsername || !password) throw new Error('用户名和密码不能为空');
@@ -287,6 +295,7 @@ class UserStore {
             email: normalizedEmail,
             subscriptionEmail: normalizedSubscriptionEmail,
             subscriptionAliasPath: aliasCheck.value,
+            groupId: normalizeGroupId(groupId),
             emailVerified: !!emailVerified,
             enabled: !!enabled,
             verifyCode: null,
@@ -312,6 +321,7 @@ class UserStore {
             email: user.email,
             subscriptionEmail: resolveSubscriptionEmail(user),
             subscriptionAliasPath: resolveSubscriptionAliasPath(user),
+            groupId: normalizeGroupId(user.groupId),
             emailVerified: user.emailVerified,
             enabled: user.enabled !== false,
             role: user.role,
@@ -361,6 +371,9 @@ class UserStore {
             if (!aliasCheck.ok) throw new Error(aliasCheck.message);
             this.users[idx].subscriptionAliasPath = aliasCheck.value;
         }
+        if (Object.prototype.hasOwnProperty.call(data, 'groupId')) {
+            this.users[idx].groupId = normalizeGroupId(data.groupId);
+        }
         if (data.password) {
             const passwordCheck = checkAccountPassword(data.password);
             if (!passwordCheck.valid) throw new Error(passwordCheck.reason);
@@ -387,6 +400,7 @@ class UserStore {
             email: normalizeEmailValue(this.users[idx].email),
             subscriptionEmail: resolveSubscriptionEmail(this.users[idx]),
             subscriptionAliasPath: resolveSubscriptionAliasPath(this.users[idx]),
+            groupId: normalizeGroupId(this.users[idx].groupId),
             emailVerified: !!this.users[idx].emailVerified,
             enabled: this.users[idx].enabled !== false,
             role: this.users[idx].role,
@@ -410,6 +424,7 @@ class UserStore {
             email: normalizeEmailValue(this.users[idx].email),
             subscriptionEmail: resolveSubscriptionEmail(this.users[idx]),
             subscriptionAliasPath: resolveSubscriptionAliasPath(this.users[idx]),
+            groupId: normalizeGroupId(this.users[idx].groupId),
             emailVerified: !!this.users[idx].emailVerified,
             enabled: this.users[idx].enabled !== false,
             role: this.users[idx].role,
@@ -463,6 +478,7 @@ class UserStore {
             email: normalizeEmailValue(this.users[idx].email),
             subscriptionEmail: resolveSubscriptionEmail(this.users[idx]),
             subscriptionAliasPath: resolveSubscriptionAliasPath(this.users[idx]),
+            groupId: normalizeGroupId(this.users[idx].groupId),
             emailVerified: !!this.users[idx].emailVerified,
             enabled: this.users[idx].enabled !== false,
             role: this.users[idx].role,
@@ -589,6 +605,7 @@ class UserStore {
                     ? normalizeEmailValue(item?.subscriptionEmail)
                     : normalizeEmailValue(item?.email),
                 subscriptionAliasPath: aliasCheck.ok ? aliasCheck.value : '',
+                groupId: normalizeGroupId(item?.groupId),
             };
         });
         this._ensureDefaultAdmin();

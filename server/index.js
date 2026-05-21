@@ -17,6 +17,7 @@ import protocolSchemasRoutes from './routes/protocolSchemas.js';
 import auditRoutes from './routes/audit.js';
 import trafficRoutes from './routes/traffic.js';
 import userPolicyRoutes from './routes/userPolicy.js';
+import userGroupRoutes from './routes/userGroups.js';
 import wsAuthRoutes from './routes/wsAuth.js';
 import systemRoutes from './routes/system.js';
 import usersRoutes from './routes/users.js';
@@ -140,6 +141,7 @@ export function createApp(options = {}) {
     app.use('/api/batch', authMiddleware, adminOnly, batchRoutes);
     app.use('/api/jobs', authMiddleware, adminOnly, batchRoutes);
     app.use('/api/user-policy', authMiddleware, adminOnly, userPolicyRoutes);
+    app.use('/api/user-groups', authMiddleware, adminOnly, userGroupRoutes);
     app.use('/api/users', authMiddleware, adminOnly, usersRoutes);
     app.use('/api/clients', authMiddleware, adminOnly, clientsRoutes);
     app.use('/api/system', authMiddleware, adminOnly, systemRoutes);
