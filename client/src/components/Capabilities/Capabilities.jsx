@@ -322,152 +322,152 @@ export default function Capabilities({ serverId = '', embedded = false } = {}) {
                     />
                 ) : (
                     <>
-                        <div className="card mb-8">
-                            <SectionHeader
-                                compact divider
-                                title={copy.protocolSectionTitle}
-                                meta={<span className="text-sm text-muted">{copy.protocolCount(protocolList.length)}</span>}
-                            />
-                            {protocolList.length === 0 ? (
+                        <SectionHeader
+                            className="mb-3"
+                            compact divider
+                            title={copy.protocolSectionTitle}
+                            meta={<span className="text-sm text-muted">{copy.protocolCount(protocolList.length)}</span>}
+                        />
+                        {protocolList.length === 0 ? (
+                            <div className="card rounded-xl p-6 mb-8">
                                 <EmptyState
                                     title={copy.noProtocols}
                                     size="compact"
                                     hideIcon
                                 />
-                            ) : (
-                                <div className="capability-protocol-grid">
-                                    {protocolList.map((item) => (
-                                        <div key={item.key} className="capability-protocol-card">
-                                            <div className="capability-card-head">
-                                                <strong>{item.label}</strong>
-                                                <span className="badge badge-info">{item.key}</span>
-                                            </div>
-                                            <div className="text-xs text-muted">
-                                                {Array.isArray(item.legacyKeys) && item.legacyKeys.length > 0
-                                                    ? copy.legacyKeysLabel(item.legacyKeys)
-                                                    : copy.noLegacyKeys}
-                                            </div>
+                            </div>
+                        ) : (
+                            <div className="capability-protocol-grid mb-8">
+                                {protocolList.map((item) => (
+                                    <div key={item.key} className="card rounded-xl capability-protocol-card">
+                                        <div className="capability-card-head">
+                                            <strong>{item.label}</strong>
+                                            <span className="badge badge-info">{item.key}</span>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                                        <div className="text-xs text-muted">
+                                            {Array.isArray(item.legacyKeys) && item.legacyKeys.length > 0
+                                                ? copy.legacyKeysLabel(item.legacyKeys)
+                                                : copy.noLegacyKeys}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
 
-                        <div className="card mb-8">
-                            <SectionHeader
-                                compact divider
-                                title={copy.matrixSectionTitle}
-                            />
-                            {systemModules.length === 0 ? (
-                                <div className="p-4">
-                                    <EmptyState
-                                        title={copy.noMatrixTitle}
-                                        subtitle={copy.noMatrixSubtitle}
-                                        size="compact"
-                                        hideIcon
-                                        action={(
-                                            <button type="button" className="btn btn-secondary btn-sm" onClick={fetchCapabilities} disabled={loading}>
-                                                <HiOutlineArrowPath /> {copy.refresh}
-                                            </button>
-                                        )}
-                                    />
-                                </div>
-                            ) : (
-                                <div className="table-container">
-                                    <table className="table capability-matrix-table">
-                                        <thead>
-                                            <tr>
-                                                <th>{copy.matrixColumns.capability}</th>
-                                                <th className="table-cell-center capability-support-column">{copy.matrixColumns.support}</th>
-                                                <th className="table-cell-center capability-status-column">{copy.matrixColumns.status}</th>
-                                                <th className="table-cell-center capability-entry-column">{copy.matrixColumns.entry}</th>
-                                                <th>{copy.matrixColumns.note}</th>
+                        <SectionHeader
+                            className="mb-3"
+                            compact divider
+                            title={copy.matrixSectionTitle}
+                        />
+                        {systemModules.length === 0 ? (
+                            <div className="card rounded-xl p-6 mb-8">
+                                <EmptyState
+                                    title={copy.noMatrixTitle}
+                                    subtitle={copy.noMatrixSubtitle}
+                                    size="compact"
+                                    hideIcon
+                                    action={(
+                                        <button type="button" className="btn btn-secondary btn-sm" onClick={fetchCapabilities} disabled={loading}>
+                                            <HiOutlineArrowPath /> {copy.refresh}
+                                        </button>
+                                    )}
+                                />
+                            </div>
+                        ) : (
+                            <div className="table-container mb-8">
+                                <table className="table capability-matrix-table">
+                                    <thead>
+                                        <tr>
+                                            <th>{copy.matrixColumns.capability}</th>
+                                            <th className="table-cell-center capability-support-column">{copy.matrixColumns.support}</th>
+                                            <th className="table-cell-center capability-status-column">{copy.matrixColumns.status}</th>
+                                            <th className="table-cell-center capability-entry-column">{copy.matrixColumns.entry}</th>
+                                            <th>{copy.matrixColumns.note}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {systemModules.map((module) => (
+                                            <tr key={module.key}>
+                                                <td data-label={copy.matrixColumns.capability}>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                        <span>{module.label}</span>
+                                                        <a href={module.docs} target="_blank" rel="noreferrer" className="text-xs">
+                                                            {copy.docsLink}
+                                                        </a>
+                                                    </div>
+                                                </td>
+                                                <td data-label={copy.matrixColumns.support} className="table-cell-center capability-support-cell">{renderBooleanSupport(module.supportedBy3xui === true, copy)}</td>
+                                                <td data-label={copy.matrixColumns.status} className="table-cell-center capability-status-cell">{renderAlignmentStatus(module.status, copy)}</td>
+                                                <td data-label={copy.matrixColumns.entry} className="table-cell-center capability-entry-cell">
+                                                    <span className="badge badge-neutral">{module.uiActionLabel || '-'}</span>
+                                                </td>
+                                                <td data-label={copy.matrixColumns.note} className="text-sm text-muted">{module.note || '-'}</td>
                                             </tr>
-                                        </thead>
-                                        <tbody>
-                                            {systemModules.map((module) => (
-                                                <tr key={module.key}>
-                                                    <td data-label={copy.matrixColumns.capability}>
-                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                            <span>{module.label}</span>
-                                                            <a href={module.docs} target="_blank" rel="noreferrer" className="text-xs">
-                                                                {copy.docsLink}
-                                                            </a>
-                                                        </div>
-                                                    </td>
-                                                    <td data-label={copy.matrixColumns.support} className="table-cell-center capability-support-cell">{renderBooleanSupport(module.supportedBy3xui === true, copy)}</td>
-                                                    <td data-label={copy.matrixColumns.status} className="table-cell-center capability-status-cell">{renderAlignmentStatus(module.status, copy)}</td>
-                                                    <td data-label={copy.matrixColumns.entry} className="table-cell-center capability-entry-cell">
-                                                        <span className="badge badge-neutral">{module.uiActionLabel || '-'}</span>
-                                                    </td>
-                                                    <td data-label={copy.matrixColumns.note} className="text-sm text-muted">{module.note || '-'}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-                        </div>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
 
-                        <div className="card mb-8">
-                            <SectionHeader
-                                compact divider
-                                title={copy.toolsSectionTitle}
-                            />
-                            {toolEntries.length === 0 ? (
-                                <div className="p-4">
-                                    <EmptyState
-                                        title={copy.noToolsTitle}
-                                        subtitle={copy.noToolsSubtitle}
-                                        size="compact"
-                                        hideIcon
-                                        action={(
-                                            <button type="button" className="btn btn-secondary btn-sm" onClick={fetchCapabilities} disabled={loading}>
-                                                <HiOutlineArrowPath /> {copy.refresh}
-                                            </button>
-                                        )}
-                                    />
-                                </div>
-                            ) : (
-                                <div className="table-container">
-                                    <table className="table capability-tools-table">
-                                        <thead>
-                                            <tr>
-                                                <th>{copy.toolsColumns.tool}</th>
-                                                <th className="table-cell-center capability-availability-column">{copy.toolsColumns.availability}</th>
-                                                <th className="table-cell-center capability-status-column">{copy.toolsColumns.status}</th>
-                                                <th className="table-cell-center capability-entry-column">{copy.toolsColumns.entry}</th>
-                                                <th>{copy.toolsColumns.source}</th>
+                        <SectionHeader
+                            className="mb-3"
+                            compact divider
+                            title={copy.toolsSectionTitle}
+                        />
+                        {toolEntries.length === 0 ? (
+                            <div className="card rounded-xl p-6 mb-8">
+                                <EmptyState
+                                    title={copy.noToolsTitle}
+                                    subtitle={copy.noToolsSubtitle}
+                                    size="compact"
+                                    hideIcon
+                                    action={(
+                                        <button type="button" className="btn btn-secondary btn-sm" onClick={fetchCapabilities} disabled={loading}>
+                                            <HiOutlineArrowPath /> {copy.refresh}
+                                        </button>
+                                    )}
+                                />
+                            </div>
+                        ) : (
+                            <div className="table-container mb-8">
+                                <table className="table capability-tools-table">
+                                    <thead>
+                                        <tr>
+                                            <th>{copy.toolsColumns.tool}</th>
+                                            <th className="table-cell-center capability-availability-column">{copy.toolsColumns.availability}</th>
+                                            <th className="table-cell-center capability-status-column">{copy.toolsColumns.status}</th>
+                                            <th className="table-cell-center capability-entry-column">{copy.toolsColumns.entry}</th>
+                                            <th>{copy.toolsColumns.source}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {toolEntries.map((tool) => (
+                                            <tr key={tool.key}>
+                                                <td data-label={copy.toolsColumns.tool}>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                        <span>{tool.label || tool.key}</span>
+                                                        <span className="text-xs text-muted">{tool.description || '-'}</span>
+                                                    </div>
+                                                </td>
+                                                <td data-label={copy.toolsColumns.availability} className="table-cell-center capability-availability-cell">{renderAvailability(tool.available, copy)}</td>
+                                                <td data-label={copy.toolsColumns.status} className="table-cell-center capability-status-cell">{renderAlignmentStatus(tool.status, copy)}</td>
+                                                <td data-label={copy.toolsColumns.entry} className="table-cell-center capability-entry-cell">
+                                                    <span className="badge badge-neutral">{tool.uiActionLabel || '-'}</span>
+                                                </td>
+                                                <td data-label={copy.toolsColumns.source} className="text-sm text-muted">{renderProbeSource(tool.source, copy)}</td>
                                             </tr>
-                                        </thead>
-                                        <tbody>
-                                            {toolEntries.map((tool) => (
-                                                <tr key={tool.key}>
-                                                    <td data-label={copy.toolsColumns.tool}>
-                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                            <span>{tool.label || tool.key}</span>
-                                                            <span className="text-xs text-muted">{tool.description || '-'}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td data-label={copy.toolsColumns.availability} className="table-cell-center capability-availability-cell">{renderAvailability(tool.available, copy)}</td>
-                                                    <td data-label={copy.toolsColumns.status} className="table-cell-center capability-status-cell">{renderAlignmentStatus(tool.status, copy)}</td>
-                                                    <td data-label={copy.toolsColumns.entry} className="table-cell-center capability-entry-cell">
-                                                        <span className="badge badge-neutral">{tool.uiActionLabel || '-'}</span>
-                                                    </td>
-                                                    <td data-label={copy.toolsColumns.source} className="text-sm text-muted">{renderProbeSource(tool.source, copy)}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-                        </div>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
 
-                        <div className="card mb-8">
-                            <SectionHeader
-                                compact divider
-                                title={copy.batchSectionTitle}
-                            />
+                        <SectionHeader
+                            className="mb-3"
+                            compact divider
+                            title={copy.batchSectionTitle}
+                        />
+                        <div className="card rounded-xl p-4 mb-8">
                             <div className="capability-batch-grid">
                                 <div className="capability-stack">
                                     <div className="text-sm text-muted mb-2">{copy.clientBatch}</div>
@@ -488,11 +488,12 @@ export default function Capabilities({ serverId = '', embedded = false } = {}) {
                             </div>
                         </div>
 
-                        <div className="card">
-                            <SectionHeader
-                                compact divider
-                                title={copy.subscriptionModesTitle}
-                            />
+                        <SectionHeader
+                            className="mb-3"
+                            compact divider
+                            title={copy.subscriptionModesTitle}
+                        />
+                        <div className="card rounded-xl p-4">
                             <div className="flex gap-2 flex-wrap">
                                 {(data.subscriptionModes || []).map((mode) => (
                                     <span key={mode} className="badge badge-success">{mode}</span>
