@@ -13087,11 +13087,6 @@ input[type="radio"] {
 
 /* Frosted Glass Dropdown Popover Search Results */
 .header-search-results {
-  position: absolute !important;
-  top: 100% !important;
-  right: 0 !important;
-  margin-top: 8px !important;
-  width: 380px !important;
   background: rgba(10, 12, 23, 0.92) !important;
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
@@ -13100,7 +13095,6 @@ input[type="radio"] {
   box-shadow: var(--shadow-2xl), 0 20px 50px -12px rgba(0, 0, 0, 0.5) !important;
   padding: 8px !important;
   z-index: 1000 !important;
-  max-height: 480px !important;
   display: flex !important;
   flex-direction: column !important;
 }
