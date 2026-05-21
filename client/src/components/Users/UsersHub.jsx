@@ -374,14 +374,11 @@ export default function UsersHub() {
     const [groupName, setGroupName] = useState('');
     const [groupDescription, setGroupDescription] = useState('');
     const [groupEnabled, setGroupEnabled] = useState(true);
-    const [groupNoServerLimit, setGroupNoServerLimit] = useState(true);
-    const [groupServerIds, setGroupServerIds] = useState([]);
-    const [groupBlockedServerIds, setGroupBlockedServerIds] = useState([]);
-    const [groupProtocols, setGroupProtocols] = useState([]);
     const [groupAllowedInboundKeys, setGroupAllowedInboundKeys] = useState([]);
-    const [groupBlockedInboundKeys, setGroupBlockedInboundKeys] = useState([]);
     const [groupLimitIp, setGroupLimitIp] = useState('0');
     const [groupTrafficLimitGb, setGroupTrafficLimitGb] = useState('0');
+    const [groupMemberIds, setGroupMemberIds] = useState([]);
+    const [groupMemberQuery, setGroupMemberQuery] = useState('');
 
     // Provision modal
     const [provisionOpen, setProvisionOpen] = useState(false);
@@ -756,6 +753,25 @@ export default function UsersHub() {
     const userGroupMap = useMemo(() => new Map(
         userGroups.map((group) => [String(group?.id || ''), group])
     ), [userGroups]);
+    const inboundByKey = useMemo(() => new Map(
+        allInbounds.map((inbound) => [String(inbound?.key || ''), inbound])
+    ), [allInbounds]);
+    const groupMemberCandidates = useMemo(() => (
+        users
+            .filter((user) => user?.role !== 'admin')
+            .slice()
+            .sort((a, b) => String(a?.username || '').localeCompare(String(b?.username || '')))
+    ), [users]);
+    const visibleGroupMemberCandidates = useMemo(() => {
+        const query = String(groupMemberQuery || '').trim().toLowerCase();
+        if (!query) return groupMemberCandidates;
+        return groupMemberCandidates.filter((user) => [
+            user.username,
+            user.email,
+            user.subscriptionEmail,
+            user.groupName,
+        ].some((value) => String(value || '').toLowerCase().includes(query)));
+    }, [groupMemberCandidates, groupMemberQuery]);
     const bulkToggleEnable = selectedUsers.length > 0
         ? !selectedUsers.every((user) => user.enabled !== false)
         : true;
@@ -1451,15 +1467,19 @@ export default function UsersHub() {
         setGroupName('');
         setGroupDescription('');
         setGroupEnabled(true);
-        setGroupNoServerLimit(true);
-        setGroupServerIds([]);
-        setGroupBlockedServerIds([]);
-        setGroupProtocols([]);
         setGroupAllowedInboundKeys([]);
-        setGroupBlockedInboundKeys([]);
         setGroupLimitIp('0');
         setGroupTrafficLimitGb('0');
+        setGroupMemberIds([]);
+        setGroupMemberQuery('');
         setGroupSaving(false);
+    };
+
+    const formatInboundAssignmentLabel = (inboundKey) => {
+        const inbound = inboundByKey.get(String(inboundKey || '').trim());
+        if (!inbound) return String(inboundKey || '').trim();
+        const remark = inbound.remark || inbound.protocol || inbound.inboundId;
+        return `${inbound.serverName} / ${remark}`;
     };
 
     const openGroupModal = (group = null) => {
@@ -1469,14 +1489,15 @@ export default function UsersHub() {
             setGroupName(group.name || '');
             setGroupDescription(group.description || '');
             setGroupEnabled(group.enabled !== false);
-            setGroupNoServerLimit(String(group.serverScopeMode || 'all') === 'all');
-            setGroupServerIds(Array.isArray(group.allowedServerIds) ? group.allowedServerIds : []);
-            setGroupBlockedServerIds(Array.isArray(group.blockedServerIds) ? group.blockedServerIds : []);
-            setGroupProtocols(Array.isArray(group.allowedProtocols) ? group.allowedProtocols : []);
             setGroupAllowedInboundKeys(Array.isArray(group.allowedInboundKeys) ? group.allowedInboundKeys : []);
-            setGroupBlockedInboundKeys(Array.isArray(group.blockedInboundKeys) ? group.blockedInboundKeys : []);
             setGroupLimitIp(String(normalizeLimitIp(group.limitIp)));
             setGroupTrafficLimitGb(bytesToGigabytesInput(group.trafficLimitBytes));
+            const memberIds = Array.isArray(group.memberIds) && group.memberIds.length > 0
+                ? group.memberIds
+                : users
+                    .filter((user) => String(user?.groupId || '') === String(group.id || ''))
+                    .map((user) => user.id);
+            setGroupMemberIds(memberIds);
         }
         setGroupModalOpen(true);
     };
@@ -1494,56 +1515,36 @@ export default function UsersHub() {
         });
     };
 
-    const removeGroupArrayValue = (setter, value) => {
-        setter((prev) => (Array.isArray(prev) ? prev.filter((item) => item !== value) : []));
-    };
-
-    const toggleGroupAllowedServer = (serverId, checked) => {
-        toggleGroupArrayValue(setGroupServerIds, serverId, checked);
-        if (checked) removeGroupArrayValue(setGroupBlockedServerIds, serverId);
-    };
-
-    const toggleGroupBlockedServer = (serverId, checked) => {
-        toggleGroupArrayValue(setGroupBlockedServerIds, serverId, checked);
-        if (checked) removeGroupArrayValue(setGroupServerIds, serverId);
-    };
-
     const toggleGroupAllowedInbound = (inboundKey, checked) => {
         toggleGroupArrayValue(setGroupAllowedInboundKeys, inboundKey, checked);
-        if (checked) removeGroupArrayValue(setGroupBlockedInboundKeys, inboundKey);
     };
 
-    const toggleGroupBlockedInbound = (inboundKey, checked) => {
-        toggleGroupArrayValue(setGroupBlockedInboundKeys, inboundKey, checked);
-        if (checked) removeGroupArrayValue(setGroupAllowedInboundKeys, inboundKey);
+    const toggleGroupMember = (userId, checked) => {
+        toggleGroupArrayValue(setGroupMemberIds, userId, checked);
     };
 
     const submitGroup = async (event) => {
         event.preventDefault();
-        const name = String(groupName || '').trim();
-        if (!name) {
-            toast.error('分组名称不能为空');
+        const allowedInboundKeys = groupAllowedInboundKeys;
+        if (allowedInboundKeys.length === 0) {
+            toast.error('请选择至少一个入站');
             return;
         }
-        const blockedServerIdSet = new Set(groupBlockedServerIds);
-        const blockedInboundKeySet = new Set(groupBlockedInboundKeys);
-        const allowedServerIds = groupNoServerLimit
-            ? []
-            : groupServerIds.filter((serverId) => !blockedServerIdSet.has(serverId));
-        const allowedInboundKeys = groupAllowedInboundKeys.filter((key) => !blockedInboundKeySet.has(key));
+        const name = String(groupName || '').trim() || formatInboundAssignmentLabel(allowedInboundKeys[0]);
         const payload = {
             name,
             description: groupDescription,
             enabled: groupEnabled,
-            serverScopeMode: groupNoServerLimit ? 'all' : (allowedServerIds.length > 0 ? 'selected' : 'none'),
-            allowedServerIds,
-            blockedServerIds: groupBlockedServerIds,
-            protocolScopeMode: groupProtocols.length > 0 ? 'selected' : 'all',
-            allowedProtocols: groupProtocols,
+            serverScopeMode: 'all',
+            allowedServerIds: [],
+            blockedServerIds: [],
+            protocolScopeMode: 'all',
+            allowedProtocols: [],
             allowedInboundKeys,
-            blockedInboundKeys: groupBlockedInboundKeys,
+            blockedInboundKeys: [],
             limitIp: normalizeLimitIp(groupLimitIp),
             trafficLimitBytes: gigabytesInputToBytes(groupTrafficLimitGb),
+            memberUserIds: groupMemberIds,
         };
 
         setGroupSaving(true);
@@ -1727,7 +1728,7 @@ export default function UsersHub() {
                         className={`btn btn-sm ${activeDirectoryView === 'groups' ? 'btn-primary' : 'btn-secondary'}`}
                         onClick={() => setActiveDirectoryView('groups')}
                     >
-                        <HiOutlineUserGroup /> 用户分组
+                        <HiOutlineUserGroup /> 入站分组
                     </button>
                 </div>
                 {activeDirectoryView === 'users' ? (
@@ -1990,13 +1991,13 @@ export default function UsersHub() {
                         className="groups-toolbar glass-panel mb-6"
                         filters={(
                             <div>
-                                <div className="text-sm font-semibold">用户分组</div>
-                                <div className="text-xs text-muted">分组策略会立即同步到成员的 3x-ui 节点客户端。</div>
+                                <div className="text-sm font-semibold">入站分配组</div>
+                                <div className="text-xs text-muted">选择具体入站和成员，保存后直接同步到 3x-ui。</div>
                             </div>
                         )}
                         actions={(
                             <button type="button" className="btn btn-primary btn-sm" onClick={() => openGroupModal()}>
-                                <HiOutlineUserGroup /> 新建分组
+                                <HiOutlineUserGroup /> 新建入站组
                             </button>
                         )}
                     />
@@ -2008,51 +2009,71 @@ export default function UsersHub() {
                         ) : userGroups.length === 0 ? (
                             <div className="p-4">
                                 <EmptyState
-                                    title="暂无用户分组"
-                                    subtitle="创建分组后，可把用户绑定到固定节点和入站范围。"
-                                    action={<button type="button" className="btn btn-primary btn-sm" onClick={() => openGroupModal()}><HiOutlineUserGroup /> 新建分组</button>}
+                                    title="暂无入站分配组"
+                                    subtitle="创建分组后，可把一组用户批量绑定到指定入站。"
+                                    action={<button type="button" className="btn btn-primary btn-sm" onClick={() => openGroupModal()}><HiOutlineUserGroup /> 新建入站组</button>}
                                 />
                             </div>
                         ) : (
                             <table className="table">
                                 <thead>
                                     <tr>
-                                        <th>分组</th>
+                                        <th>入站分组</th>
+                                        <th>已分配入站</th>
                                         <th>成员</th>
-                                        <th>服务器</th>
-                                        <th>入站</th>
+                                        <th>限额</th>
                                         <th className="table-cell-actions">操作</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {userGroups.map((group) => (
-                                        <tr key={group.id}>
-                                            <td>
-                                                <div className="font-medium">{group.name}</div>
-                                                <div className="text-xs text-muted">{group.description || (group.enabled === false ? '已停用' : '启用中')}</div>
-                                            </td>
-                                            <td>{group.memberCount || 0}</td>
-                                            <td>
-                                                <span className="badge badge-neutral">
-                                                    {group.serverScopeMode === 'selected' ? `允许 ${group.allowedServerIds?.length || 0}` : (group.serverScopeMode === 'none' ? '不允许' : '全部')}
-                                                </span>
-                                                {(group.blockedServerIds?.length || 0) > 0 && <span className="badge badge-danger ml-1">禁用 {group.blockedServerIds.length}</span>}
-                                            </td>
-                                            <td>
-                                                {(group.allowedInboundKeys?.length || 0) > 0
-                                                    ? <span className="badge badge-info">允许 {group.allowedInboundKeys.length}</span>
-                                                    : <span className="badge badge-neutral">按服务器</span>}
-                                                {(group.blockedInboundKeys?.length || 0) > 0 && <span className="badge badge-danger ml-1">禁用 {group.blockedInboundKeys.length}</span>}
-                                            </td>
-                                            <td className="table-cell-actions">
-                                                <div className="flex gap-2 flex-wrap justify-end">
-                                                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleSyncGroup(group)}><HiOutlineArrowPath /> 同步</button>
-                                                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => openGroupModal(group)}><HiOutlinePencilSquare /> 编辑</button>
-                                                    <button type="button" className="btn btn-danger btn-sm" onClick={() => handleDeleteGroup(group)}><HiOutlineTrash /> 删除</button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                    {userGroups.map((group) => {
+                                        const inboundKeys = Array.isArray(group.allowedInboundKeys) ? group.allowedInboundKeys : [];
+                                        const inboundLabels = inboundKeys.slice(0, 3).map(formatInboundAssignmentLabel);
+                                        const memberPreview = Array.isArray(group.members)
+                                            ? group.members.slice(0, 3).map((member) => member.username).filter(Boolean)
+                                            : [];
+                                        return (
+                                            <tr key={group.id}>
+                                                <td>
+                                                    <div className="font-medium">{group.name}</div>
+                                                    <div className="text-xs text-muted">{group.description || (group.enabled === false ? '已停用' : '启用中')}</div>
+                                                </td>
+                                                <td>
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="badge badge-info w-fit">入站 {inboundKeys.length}</span>
+                                                        <span className="text-xs text-muted">
+                                                            {inboundLabels.length > 0
+                                                                ? `${inboundLabels.join('，')}${inboundKeys.length > inboundLabels.length ? ` 等 ${inboundKeys.length} 个` : ''}`
+                                                                : '未分配入站'}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div className="flex flex-col gap-1">
+                                                        <span>{group.memberCount || 0}</span>
+                                                        {memberPreview.length > 0 ? (
+                                                            <span className="text-xs text-muted">
+                                                                {memberPreview.join('，')}{group.memberCount > memberPreview.length ? ` 等 ${group.memberCount} 人` : ''}
+                                                            </span>
+                                                        ) : <span className="text-xs text-muted">暂无成员</span>}
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div className="flex gap-2 flex-wrap">
+                                                        <span className="badge badge-neutral">IP {group.limitIp || 0}</span>
+                                                        <span className="badge badge-neutral">流量 {group.trafficLimitBytes ? formatBytes(group.trafficLimitBytes) : '不限'}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="table-cell-actions">
+                                                    <div className="flex gap-2 flex-wrap justify-end">
+                                                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleSyncGroup(group)}><HiOutlineArrowPath /> 同步</button>
+                                                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => openGroupModal(group)}><HiOutlinePencilSquare /> 编辑</button>
+                                                        <button type="button" className="btn btn-danger btn-sm" onClick={() => handleDeleteGroup(group)}><HiOutlineTrash /> 删除</button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         )}
@@ -2065,15 +2086,15 @@ export default function UsersHub() {
                 <ModalShell isOpen={groupModalOpen} onClose={closeGroupModal}>
                     <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h3 className="modal-title">{editingGroup ? '编辑用户分组' : '新建用户分组'}</h3>
+                            <h3 className="modal-title">{editingGroup ? '编辑入站分配组' : '新建入站分配组'}</h3>
                             <button type="button" className="modal-close" onClick={closeGroupModal} aria-label="关闭" title="关闭"><HiOutlineXMark /></button>
                         </div>
                         <form onSubmit={submitGroup}>
                             <div className="modal-body">
                                 <div className="grid-auto-280-tight">
                                     <div className="form-group">
-                                        <label className="form-label">分组名称</label>
-                                        <input className="form-input" value={groupName} onChange={(e) => setGroupName(e.target.value)} />
+                                        <label className="form-label">分组名称（可选）</label>
+                                        <input className="form-input" value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder="留空时使用第一个入站名称" />
                                     </div>
                                     <div className="form-group">
                                         <label className="form-label">状态</label>
@@ -2085,98 +2106,94 @@ export default function UsersHub() {
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">说明</label>
-                                    <input className="form-input" value={groupDescription} onChange={(e) => setGroupDescription(e.target.value)} placeholder="例如：华东节点 / 高级用户 / 测试组" />
+                                    <input className="form-input" value={groupDescription} onChange={(e) => setGroupDescription(e.target.value)} placeholder="例如：香港入口 / 高级用户 / 测试入站" />
                                 </div>
 
-                                <div className="card mb-3">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <span className="text-sm font-medium">允许服务器</span>
-                                        <label className="flex items-center gap-2 text-xs cursor-pointer">
-                                            <input type="checkbox" checked={groupNoServerLimit} onChange={(e) => setGroupNoServerLimit(e.target.checked)} />
-                                            不限制
-                                        </label>
+                                <div className="mb-3">
+                                    <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
+                                        <div>
+                                            <div className="text-sm font-medium">1. 分配入站</div>
+                                            <div className="text-xs text-muted">成员只会同步到这里勾选的具体入站。</div>
+                                        </div>
+                                        <span className="badge badge-info">已选 {groupAllowedInboundKeys.length}</span>
                                     </div>
-                                    <div className="flex flex-wrap gap-2">
-                                        {servers.map((server) => (
-                                            <label key={server.id} className="badge badge-neutral flex items-center gap-2 cursor-pointer text-xs">
-                                                <input
-                                                    type="checkbox"
-                                                    disabled={groupNoServerLimit}
-                                                    checked={groupServerIds.includes(server.id)}
-                                                    onChange={(e) => toggleGroupAllowedServer(server.id, e.target.checked)}
-                                                />
-                                                {server.name}
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="card mb-3">
-                                    <div className="text-sm font-medium mb-2">禁用服务器</div>
-                                    <div className="flex flex-wrap gap-2">
-                                        {servers.map((server) => (
-                                            <label key={server.id} className="badge badge-neutral flex items-center gap-2 cursor-pointer text-xs">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={groupBlockedServerIds.includes(server.id)}
-                                                    onChange={(e) => toggleGroupBlockedServer(server.id, e.target.checked)}
-                                                />
-                                                {server.name}
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="card mb-3">
-                                    <div className="text-sm font-medium mb-2">可用协议</div>
-                                    <div className="flex flex-wrap gap-2">
-                                        {PROTOCOL_OPTIONS.map((protocol) => (
-                                            <label key={protocol.key} className="badge badge-neutral flex items-center gap-2 cursor-pointer text-xs">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={groupProtocols.includes(protocol.key)}
-                                                    onChange={(e) => toggleGroupArrayValue(setGroupProtocols, protocol.key, e.target.checked)}
-                                                />
-                                                {protocol.label}
-                                            </label>
-                                        ))}
-                                    </div>
-                                    <p className="text-xs text-muted mt-2">未选择协议时表示不限制协议。</p>
-                                </div>
-
-                                <div className="card mb-3">
-                                    <div className="text-sm font-medium mb-2">入站范围</div>
-                                    <div className="text-xs text-muted mb-2">允许列表为空时按服务器范围开放；禁用列表始终优先。</div>
-                                    <div className="flex flex-col gap-2" style={{ maxHeight: '260px', overflowY: 'auto' }}>
+                                    <div className="table-container p-3" style={{ maxHeight: '300px', overflowY: 'auto' }}>
                                         {allInbounds.length === 0 ? (
                                             <span className="text-sm text-muted">暂无可用入站</span>
                                         ) : allInbounds.map((inbound) => (
-                                            <div key={inbound.key} className="flex items-center gap-3 flex-wrap px-3 py-2 rounded border border-stroke-soft">
+                                            <label key={inbound.key} className="flex items-center gap-3 flex-wrap px-3 py-2 rounded border border-stroke-soft cursor-pointer">
                                                 <span className="font-medium text-sm">{inbound.serverName}</span>
-                                                <span className="text-sm text-muted">{inbound.remark || inbound.protocol}</span>
+                                                <span className="text-sm">{inbound.remark || inbound.protocol}</span>
                                                 <span className="badge badge-neutral text-xs">{inbound.protocol}:{inbound.port}</span>
-                                                <label className="ml-auto flex items-center gap-1 text-xs cursor-pointer">
+                                                <span className="ml-auto flex items-center gap-2 text-xs">
                                                     <input
                                                         type="checkbox"
                                                         checked={groupAllowedInboundKeys.includes(inbound.key)}
                                                         onChange={(e) => toggleGroupAllowedInbound(inbound.key, e.target.checked)}
                                                     />
-                                                    允许
-                                                </label>
-                                                <label className="flex items-center gap-1 text-xs cursor-pointer">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={groupBlockedInboundKeys.includes(inbound.key)}
-                                                        onChange={(e) => toggleGroupBlockedInbound(inbound.key, e.target.checked)}
-                                                    />
-                                                    禁用
-                                                </label>
-                                            </div>
+                                                    分配
+                                                </span>
+                                            </label>
                                         ))}
                                     </div>
                                 </div>
 
-                                <div className="card">
+                                <div className="mb-3">
+                                    <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
+                                        <div>
+                                            <div className="text-sm font-medium">2. 选择成员</div>
+                                            <div className="text-xs text-muted">保存后会批量绑定这些用户，并按分组入站同步 3x-ui。</div>
+                                        </div>
+                                        <span className="badge badge-info">已选 {groupMemberIds.length}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <input
+                                            className="form-input"
+                                            value={groupMemberQuery}
+                                            onChange={(e) => setGroupMemberQuery(e.target.value)}
+                                            placeholder="搜索用户名、邮箱或当前分组"
+                                        />
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary btn-sm"
+                                            onClick={() => setGroupMemberIds(Array.from(new Set([
+                                                ...groupMemberIds,
+                                                ...visibleGroupMemberCandidates.map((user) => user.id),
+                                            ])))}
+                                        >
+                                            全选当前
+                                        </button>
+                                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => setGroupMemberIds([])}>
+                                            清空
+                                        </button>
+                                    </div>
+                                    <div className="table-container p-3" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                                        {visibleGroupMemberCandidates.length === 0 ? (
+                                            <span className="text-sm text-muted">没有匹配用户</span>
+                                        ) : visibleGroupMemberCandidates.map((user) => {
+                                            const currentGroupName = user.groupName || userGroupMap.get(String(user.groupId || ''))?.name || '';
+                                            const movingFromOtherGroup = currentGroupName && String(user.groupId || '') !== String(editingGroup?.id || '');
+                                            return (
+                                                <label key={user.id} className="flex items-center gap-3 flex-wrap px-3 py-2 rounded border border-stroke-soft cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={groupMemberIds.includes(user.id)}
+                                                        onChange={(e) => toggleGroupMember(user.id, e.target.checked)}
+                                                    />
+                                                    <span className="font-medium text-sm">{user.username}</span>
+                                                    <span className="text-xs text-muted">{user.subscriptionEmail || user.email || '未绑定订阅邮箱'}</span>
+                                                    {currentGroupName ? (
+                                                        <span className={`badge ${movingFromOtherGroup ? 'badge-warning' : 'badge-neutral'} text-xs ml-auto`}>
+                                                            {movingFromOtherGroup ? `将从 ${currentGroupName} 移入` : currentGroupName}
+                                                        </span>
+                                                    ) : <span className="badge badge-neutral text-xs ml-auto">未分组</span>}
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                <div>
                                     <div className="text-sm font-medium mb-2">统一限额</div>
                                     <div className="grid-auto-280-tight">
                                         <div className="form-group mb-0">
@@ -2196,7 +2213,7 @@ export default function UsersHub() {
                             <div className="modal-footer">
                                 <button type="button" className="btn btn-secondary" onClick={closeGroupModal}>取消</button>
                                 <button type="submit" className="btn btn-primary" disabled={groupSaving}>
-                                    {groupSaving ? <span className="spinner" /> : <><HiOutlineCheck /> 保存分组</>}
+                                    {groupSaving ? <span className="spinner" /> : <><HiOutlineCheck /> 保存并同步</>}
                                 </button>
                             </div>
                         </form>

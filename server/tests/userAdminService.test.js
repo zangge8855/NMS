@@ -6,11 +6,13 @@ import {
     buildUsersCsv,
     bulkSetUsersEnabled,
     createManagedUser,
+    createUserGroup,
     deleteManagedUser,
     provisionManagedUserSubscription,
     resyncManagedUserNodes,
     setManagedUserEnabled,
     syncAddedInboundsToExistingUsers,
+    updateUserGroup,
     updateManagedUser,
     updateManagedUserExpiry,
     updateManagedUserPolicyByEmail,
@@ -38,6 +40,166 @@ test('createManagedUser creates a verified enabled user', () => {
     assert.equal(result.user.id, 'u-1');
     assert.equal(calls[0].emailVerified, true);
     assert.equal(calls[0].enabled, true);
+});
+
+test('createUserGroup assigns selected members and syncs inherited inbound policy', async () => {
+    const users = [
+        { id: 'u-1', username: 'alice', role: 'user', groupId: '', email: 'alice@example.com', subscriptionEmail: 'alice@example.com', enabled: true },
+    ];
+    const policies = new Map();
+    const events = [];
+    const result = await createUserGroup(
+        {
+            name: 'Inbound A',
+            allowedInboundKeys: ['srv-1:101'],
+            memberUserIds: ['u-1'],
+        },
+        'ops',
+        {
+            userGroupRepository: {
+                add(payload, actor) {
+                    assert.equal(actor, 'ops');
+                    return { id: 'g-1', ...payload };
+                },
+                getById() {
+                    return { id: 'g-1', name: 'Inbound A', allowedInboundKeys: ['srv-1:101'] };
+                },
+            },
+            userRepository: {
+                list() {
+                    return users;
+                },
+                update(id, data) {
+                    const user = users.find((item) => item.id === id);
+                    Object.assign(user, data);
+                    return { ...user };
+                },
+            },
+            userPolicyRepository: {
+                get(email) {
+                    return policies.get(email) || {
+                        email,
+                        serverScopeMode: 'all',
+                        protocolScopeMode: 'all',
+                        updatedAt: null,
+                    };
+                },
+                upsert(email, payload, actor) {
+                    events.push(`policy:${email}:${payload.inheritGroup}:${payload.serverScopeMode}:${actor}`);
+                    const next = { email, ...payload, updatedAt: 'now' };
+                    policies.set(email, next);
+                    return next;
+                },
+            },
+            serverRepository: {
+                list() {
+                    return [{ id: 'srv-1' }];
+                },
+            },
+            autoSetManagedClientsEnabled: async (email, enabled) => {
+                events.push(`toggle:${email}:${enabled}`);
+                return { total: 1, updated: 1, skipped: 0, failed: 0, details: [] };
+            },
+            autoDeployClients: async (email, policy, options) => {
+                events.push(`deploy:${email}:${policy.allowedInboundKeys.join(',')}:${options.allowedInboundKeys.join(',')}`);
+                return { total: 1, created: 1, updated: 0, skipped: 0, failed: 0, details: [] };
+            },
+        }
+    );
+
+    assert.equal(users[0].groupId, 'g-1');
+    assert.equal(result.sync.totalUsers, 1);
+    assert.deepEqual(events, [
+        'policy:alice@example.com:true:none:ops',
+        'toggle:alice@example.com:false',
+        'deploy:alice@example.com:srv-1:101:srv-1:101',
+    ]);
+});
+
+test('updateUserGroup moves members in bulk and resyncs removed users', async () => {
+    const users = [
+        { id: 'u-1', username: 'alice', role: 'user', groupId: '', email: 'alice@example.com', subscriptionEmail: 'alice@example.com', enabled: true },
+        { id: 'u-2', username: 'bob', role: 'user', groupId: 'g-1', email: 'bob@example.com', subscriptionEmail: 'bob@example.com', enabled: true },
+    ];
+    const policies = new Map([
+        ['bob@example.com', {
+            email: 'bob@example.com',
+            serverScopeMode: 'selected',
+            allowedServerIds: ['srv-legacy'],
+            protocolScopeMode: 'all',
+            inheritGroup: true,
+            updatedAt: 'existing',
+        }],
+    ]);
+    const events = [];
+
+    const result = await updateUserGroup(
+        'g-1',
+        {
+            name: 'Inbound B',
+            allowedInboundKeys: ['srv-1:202'],
+            memberUserIds: ['u-1'],
+        },
+        'ops',
+        {
+            userGroupRepository: {
+                update(id, payload) {
+                    return { id, ...payload };
+                },
+                getById() {
+                    return { id: 'g-1', name: 'Inbound B', allowedInboundKeys: ['srv-1:202'] };
+                },
+            },
+            userRepository: {
+                list() {
+                    return users;
+                },
+                update(id, data) {
+                    const user = users.find((item) => item.id === id);
+                    Object.assign(user, data);
+                    return { ...user };
+                },
+            },
+            userPolicyRepository: {
+                get(email) {
+                    return policies.get(email) || {
+                        email,
+                        serverScopeMode: 'all',
+                        protocolScopeMode: 'all',
+                        updatedAt: null,
+                    };
+                },
+                upsert(email, payload, actor) {
+                    events.push(`policy:${email}:${payload.inheritGroup}:${payload.serverScopeMode}:${actor}`);
+                    const next = { email, ...payload, updatedAt: 'now' };
+                    policies.set(email, next);
+                    return next;
+                },
+            },
+            serverRepository: {
+                list() {
+                    return [{ id: 'srv-1' }, { id: 'srv-legacy' }];
+                },
+            },
+            autoSetManagedClientsEnabled: async (email, enabled) => {
+                events.push(`toggle:${email}:${enabled}`);
+                return { total: 1, updated: 1, skipped: 0, failed: 0, details: [] };
+            },
+            autoDeployClients: async (email, policy) => {
+                events.push(`deploy:${email}:${policy.allowedInboundKeys?.join(',') || policy.allowedServerIds?.join(',') || ''}`);
+                return { total: 1, created: 0, updated: 1, skipped: 0, failed: 0, details: [] };
+            },
+        }
+    );
+
+    assert.equal(users[0].groupId, 'g-1');
+    assert.equal(users[1].groupId, '');
+    assert.equal(result.sync.totalUsers, 2);
+    assert.equal(result.membership.removedUsers.length, 1);
+    assert.ok(events.includes('policy:alice@example.com:true:none:ops'));
+    assert.ok(events.includes('policy:bob@example.com:false:selected:ops'));
+    assert.ok(events.includes('toggle:alice@example.com:false'));
+    assert.ok(events.includes('toggle:bob@example.com:false'));
 });
 
 test('bulkSetUsersEnabled aggregates per-user results and delegates sync behavior', async () => {
@@ -315,7 +477,7 @@ test('setManagedUserEnabled restores clients for enabled users with policy', asy
 
     assert.equal(result.enabled, true);
     assert.deepEqual(events, [
-        'toggle:sub@example.com:true:eve@example.com',
+        'toggle:sub@example.com:false:eve@example.com',
         'deploy:sub@example.com:eve@example.com',
         'token:sub@example.com:admin',
     ]);
@@ -781,8 +943,9 @@ test('resyncManagedUserNodes scopes retry to selected failed servers and inbound
 
     assert.equal(result.subscriptionEmail, 'sub@example.com');
     assert.equal(toggleCalls.length, 1);
+    assert.equal(toggleCalls[0].enabled, false);
     assert.deepEqual(toggleCalls[0].options.allServers, [{ id: 'srv-2', name: 'Node B' }]);
-    assert.deepEqual(toggleCalls[0].options.policy.allowedInboundKeys, ['srv-2:202']);
+    assert.equal(toggleCalls[0].options.policy, null);
     assert.equal(deployCalls.length, 1);
     assert.deepEqual(deployCalls[0].policy.allowedInboundKeys, ['srv-2:202']);
     assert.deepEqual(deployCalls[0].options.allowedInboundKeys, ['srv-2:202']);

@@ -23,7 +23,7 @@ function normalizeStringList(input = []) {
 }
 
 function normalizeGroupPayload(body = {}) {
-    return {
+    const payload = {
         name: String(body?.name || '').trim(),
         description: String(body?.description || '').trim(),
         enabled: body?.enabled !== false,
@@ -40,6 +40,10 @@ function normalizeGroupPayload(body = {}) {
         trafficResetCycle: String(body?.trafficResetCycle || 'none').trim().toLowerCase(),
         ipLimitPolicy: String(body?.ipLimitPolicy || 'first-wins').trim().toLowerCase(),
     };
+    if (Object.prototype.hasOwnProperty.call(body || {}, 'memberUserIds')) {
+        payload.memberUserIds = normalizeStringList(body?.memberUserIds);
+    }
+    return payload;
 }
 
 function validateServerIds(payload = {}) {
@@ -95,17 +99,30 @@ router.get('/', (req, res) => {
     });
 });
 
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
     try {
         const actor = req.user?.username || req.user?.role || 'admin';
         const payload = normalizeGroupPayload(req.body);
         validateServerIds(payload);
-        const result = createUserGroup(payload, actor);
+        const result = await createUserGroup(payload, actor);
+        const syncHistoryIds = appendGroupSyncHistory(req, result.sync, 'group_policy_create');
         appendSecurityAudit('user_group_created', req, {
             groupId: result.group.id,
             groupName: result.group.name,
+            assignedUsers: result.membership?.assignedUsers?.length || 0,
+            failedUsers: result.sync?.failedUsers || 0,
+            syncHistoryIds,
         });
-        return res.json({ success: true, obj: result });
+        return res.json({
+            success: true,
+            msg: result.sync.failedUsers > 0
+                ? '用户分组已创建，但部分 3x-ui 节点同步失败，可在任务历史中重试'
+                : '用户分组已创建',
+            obj: {
+                ...result,
+                syncHistoryIds,
+            },
+        });
     } catch (error) {
         const httpError = toHttpError(error, 400, '创建用户分组失败');
         return res.status(httpError.status).json({ success: false, msg: httpError.message });

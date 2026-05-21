@@ -406,9 +406,10 @@ async function runManagedUserNodeSync(targetUser, actor = 'admin', options = {},
     let clientSync = emptyClientSyncResult();
     if (options.includeToggle === true) {
         try {
-            clientSync = await toggleClients(subscriptionEmail, enabled, {
+            const shouldResetBeforeDeploy = enabled && options.includeDeploy === true;
+            clientSync = await toggleClients(subscriptionEmail, shouldResetBeforeDeploy ? false : enabled, {
                 allServers: scopedServers,
-                policy: scopedPolicy,
+                policy: shouldResetBeforeDeploy ? null : scopedPolicy,
                 emailAliases,
             });
         } catch (error) {
@@ -1245,49 +1246,166 @@ function summarizeGroupMembers(groupId = '', deps = {}) {
         .filter((item) => item?.role !== 'admin' && String(item?.groupId || '').trim() === normalizedGroupId);
 }
 
+function normalizeUserIdList(input = []) {
+    return normalizeStringList(input);
+}
+
 function listUserGroups(deps = {}) {
     const groupRepo = deps.userGroupRepository || userGroupRepository;
     const userRepo = deps.userRepository || userRepository;
     const users = Array.isArray(userRepo.list()) ? userRepo.list() : [];
-    return groupRepo.list().map((group) => ({
-        ...group,
-        memberCount: users.filter((user) => user?.role !== 'admin' && String(user?.groupId || '').trim() === group.id).length,
-    }));
+    return groupRepo.list().map((group) => {
+        const members = users
+            .filter((user) => user?.role !== 'admin' && String(user?.groupId || '').trim() === group.id)
+            .map((user) => ({
+                id: user.id,
+                username: user.username,
+                email: user.email || '',
+                subscriptionEmail: user.subscriptionEmail || '',
+                enabled: user.enabled !== false,
+            }));
+        return {
+            ...group,
+            memberCount: members.length,
+            memberIds: members.map((item) => item.id),
+            members,
+        };
+    });
 }
 
-function createUserGroup(payload = {}, actor = 'admin', deps = {}) {
-    const groupRepo = deps.userGroupRepository || userGroupRepository;
-    const created = groupRepo.add(payload, actor);
+function buildPolicyForGroupAssignment(currentPolicy = {}) {
+    if (currentPolicy?.updatedAt) {
+        return {
+            ...currentPolicy,
+            inheritGroup: true,
+            overrideFields: [],
+        };
+    }
     return {
-        group: created,
-        sync: {
-            totalUsers: 0,
-            syncedUsers: 0,
-            failedUsers: 0,
-            details: [],
-        },
+        ...currentPolicy,
+        allowedServerIds: [],
+        blockedServerIds: [],
+        allowedProtocols: [],
+        allowedInboundKeys: [],
+        blockedInboundKeys: [],
+        serverScopeMode: 'none',
+        protocolScopeMode: 'none',
+        expiryTime: 0,
+        limitIp: 0,
+        trafficLimitBytes: 0,
+        trafficResetCycle: 'none',
+        ipLimitPolicy: 'first-wins',
+        inheritGroup: true,
+        overrideFields: [],
     };
 }
 
-async function syncUserGroupMembers(groupId = '', actor = 'admin', deps = {}) {
-    const groupRepo = deps.userGroupRepository || userGroupRepository;
-    const group = groupRepo.getById(groupId);
-    if (!group) {
-        throw createHttpError(404, '用户分组不存在');
+function setUserGroupPolicyInheritance(targetUser, inheritGroup, actor = 'admin', deps = {}) {
+    const policyRepo = deps.userPolicyRepository || userPolicyRepository;
+    if (!policyRepo || typeof policyRepo.get !== 'function' || typeof policyRepo.upsert !== 'function') return null;
+    const subscriptionEmail = resolveUserSubscriptionEmail(targetUser);
+    if (!subscriptionEmail) return null;
+    const currentPolicy = policyRepo.get(subscriptionEmail);
+    const payload = inheritGroup
+        ? buildPolicyForGroupAssignment(currentPolicy)
+        : {
+            ...currentPolicy,
+            inheritGroup: false,
+        };
+    return policyRepo.upsert(subscriptionEmail, payload, actor);
+}
+
+function applyUserGroupMembership(groupId = '', memberUserIds = null, actor = 'admin', deps = {}) {
+    const userRepo = deps.userRepository || userRepository;
+    if (!Array.isArray(memberUserIds)) {
+        return {
+            requested: false,
+            memberIds: [],
+            assignedUsers: [],
+            removedUsers: [],
+            changedUsers: [],
+        };
     }
 
-    const members = summarizeGroupMembers(group.id, deps);
-    const result = {
+    const normalizedGroupId = String(groupId || '').trim();
+    const desiredIds = normalizeUserIdList(memberUserIds);
+    const users = (Array.isArray(userRepo.list()) ? userRepo.list() : [])
+        .filter((item) => item?.role !== 'admin');
+    const userById = new Map(users.map((item) => [String(item?.id || '').trim(), item]));
+    const invalidIds = desiredIds.filter((id) => !userById.has(id));
+    if (invalidIds.length > 0) {
+        throw createHttpError(400, `用户不存在或不能加入分组: ${invalidIds.join(', ')}`);
+    }
+
+    const desiredSet = new Set(desiredIds);
+    const assignedUsers = [];
+    const removedUsers = [];
+    const changedUsers = [];
+
+    users.forEach((user) => {
+        const userId = String(user?.id || '').trim();
+        const currentGroupId = String(user?.groupId || '').trim();
+        const shouldBeMember = desiredSet.has(userId);
+        if (shouldBeMember) {
+            const updated = currentGroupId === normalizedGroupId
+                ? user
+                : (userRepo.update(userId, { groupId: normalizedGroupId }) || { ...user, groupId: normalizedGroupId });
+            setUserGroupPolicyInheritance(updated, true, actor, deps);
+            assignedUsers.push(updated);
+            if (currentGroupId !== normalizedGroupId) changedUsers.push(updated);
+            return;
+        }
+
+        if (currentGroupId === normalizedGroupId) {
+            const updated = userRepo.update(userId, { groupId: '' }) || { ...user, groupId: '' };
+            setUserGroupPolicyInheritance(updated, false, actor, deps);
+            removedUsers.push(updated);
+            changedUsers.push(updated);
+        }
+    });
+
+    return {
+        requested: true,
+        memberIds: desiredIds,
+        assignedUsers,
+        removedUsers,
+        changedUsers,
+    };
+}
+
+function createEmptyGroupSyncResult(group = null) {
+    return {
         group,
-        totalUsers: members.length,
+        totalUsers: 0,
         syncedUsers: 0,
         failedUsers: 0,
         clientSync: emptyClientSyncResult(),
         deployment: emptyDeploymentResult(),
         details: [],
     };
+}
 
-    for (const member of members) {
+function addSyncGroupTotals(target, source) {
+    target.totalUsers += Number(source?.totalUsers || 0);
+    target.syncedUsers += Number(source?.syncedUsers || 0);
+    target.failedUsers += Number(source?.failedUsers || 0);
+    target.clientSync.total += Number(source?.clientSync?.total || 0);
+    target.clientSync.updated += Number(source?.clientSync?.updated || 0);
+    target.clientSync.skipped += Number(source?.clientSync?.skipped || 0);
+    target.clientSync.failed += Number(source?.clientSync?.failed || 0);
+    target.deployment.total += Number(source?.deployment?.total || 0);
+    target.deployment.created += Number(source?.deployment?.created || 0);
+    target.deployment.updated += Number(source?.deployment?.updated || 0);
+    target.deployment.skipped += Number(source?.deployment?.skipped || 0);
+    target.deployment.failed += Number(source?.deployment?.failed || 0);
+    target.details.push(...(Array.isArray(source?.details) ? source.details : []));
+}
+
+async function syncManagedUsersWithEffectivePolicies(members = [], actor = 'admin', deps = {}, detailDefaults = {}) {
+    const result = createEmptyGroupSyncResult(null);
+
+    for (const member of (Array.isArray(members) ? members : [])) {
+        result.totalUsers += 1;
         const subscriptionEmail = resolveUserSubscriptionEmail(member);
         if (!subscriptionEmail) {
             result.details.push({
@@ -1295,6 +1413,7 @@ async function syncUserGroupMembers(groupId = '', actor = 'admin', deps = {}) {
                 username: member.username,
                 status: 'skipped',
                 reason: 'missing-subscription-email',
+                ...detailDefaults,
             });
             continue;
         }
@@ -1326,6 +1445,7 @@ async function syncUserGroupMembers(groupId = '', actor = 'admin', deps = {}) {
                 status: sync.partialFailure ? 'partial_failure' : 'synced',
                 clientSync: sync.clientSync,
                 deployment: sync.deployment,
+                ...detailDefaults,
             });
         } catch (error) {
             result.failedUsers += 1;
@@ -1335,9 +1455,41 @@ async function syncUserGroupMembers(groupId = '', actor = 'admin', deps = {}) {
                 subscriptionEmail,
                 status: 'failed',
                 error: error.message || 'group-member-sync-failed',
+                ...detailDefaults,
             });
         }
     }
+
+    return result;
+}
+
+async function createUserGroup(payload = {}, actor = 'admin', deps = {}) {
+    const groupRepo = deps.userGroupRepository || userGroupRepository;
+    const created = groupRepo.add(payload, actor);
+    const membership = applyUserGroupMembership(created.id, payload.memberUserIds, actor, deps);
+    const sync = membership.requested
+        ? {
+            ...(await syncUserGroupMembers(created.id, actor, deps)),
+            membership,
+        }
+        : createEmptyGroupSyncResult(created);
+    return {
+        group: created,
+        membership,
+        sync,
+    };
+}
+
+async function syncUserGroupMembers(groupId = '', actor = 'admin', deps = {}) {
+    const groupRepo = deps.userGroupRepository || userGroupRepository;
+    const group = groupRepo.getById(groupId);
+    if (!group) {
+        throw createHttpError(404, '用户分组不存在');
+    }
+
+    const members = summarizeGroupMembers(group.id, deps);
+    const result = await syncManagedUsersWithEffectivePolicies(members, actor, deps, { membership: 'member' });
+    result.group = group;
 
     return result;
 }
@@ -1348,9 +1500,23 @@ async function updateUserGroup(id, payload = {}, actor = 'admin', deps = {}) {
     if (!updated) {
         throw createHttpError(404, '用户分组不存在');
     }
-    const sync = await syncUserGroupMembers(updated.id, actor, deps);
+    const membership = applyUserGroupMembership(updated.id, payload.memberUserIds, actor, deps);
+    const sync = createEmptyGroupSyncResult(updated);
+    const memberSync = await syncUserGroupMembers(updated.id, actor, deps);
+    addSyncGroupTotals(sync, memberSync);
+    if (membership.removedUsers.length > 0) {
+        const removedSync = await syncManagedUsersWithEffectivePolicies(
+            membership.removedUsers,
+            actor,
+            deps,
+            { membership: 'removed' }
+        );
+        addSyncGroupTotals(sync, removedSync);
+    }
+    sync.membership = membership;
     return {
         group: updated,
+        membership,
         sync,
     };
 }
@@ -1366,6 +1532,7 @@ async function deleteUserGroup(id, actor = 'admin', deps = {}) {
     const members = summarizeGroupMembers(group.id, deps);
     members.forEach((member) => {
         userRepo.update(member.id, { groupId: '' });
+        setUserGroupPolicyInheritance(member, false, actor, deps);
     });
     groupRepo.remove(group.id);
 
