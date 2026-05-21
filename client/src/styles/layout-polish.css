@@ -13179,10 +13179,13 @@ input[type="radio"] {
 
 .inbounds-table th.inbounds-status-col,
 .inbounds-table td.inbounds-status-cell-wrap {
-  width: 160px !important;
-  min-width: 160px !important;
+  width: 90px !important;
+  min-width: 90px !important;
 }
 
 .inbounds-status-cell {
-  flex-wrap: nowrap !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 6px !important;
+  justify-content: center !important;
 }

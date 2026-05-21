@@ -6759,8 +6759,8 @@
   }
 
   .inbounds-page {
-    --inbounds-actions-column: 184px;
-    --inbounds-table-min: 1120px;
+    --inbounds-actions-column: 90px;
+    --inbounds-table-min: 960px;
     --inbounds-clients-table-min: 1040px;
   }
 
@@ -6813,12 +6813,12 @@
 
   .inbounds-page .inbounds-row-actions {
     display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 34px;
+    grid-template-columns: repeat(2, 34px);
+    grid-template-rows: auto auto;
     justify-content: center;
     width: max-content;
     max-width: none;
-    gap: 5px;
+    gap: 6px;
     margin-inline: auto;
     padding: 4px;
   }
@@ -6859,8 +6859,8 @@
 
 @media (min-width: 769px) and (max-width: 1180px) {
   .inbounds-page {
-    --inbounds-actions-column: 166px;
-    --inbounds-table-min: 1000px;
+    --inbounds-actions-column: 90px;
+    --inbounds-table-min: 840px;
     --inbounds-clients-table-min: 940px;
   }
 
