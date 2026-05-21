@@ -6780,19 +6780,13 @@
 
   .inbounds-page .inbounds-actions-col,
   .inbounds-page .inbounds-actions-cell {
-    position: sticky;
-    right: 0;
-    z-index: 2;
     width: var(--inbounds-actions-column);
     min-width: var(--inbounds-actions-column);
     max-width: var(--inbounds-actions-column);
-    background: color-mix(in srgb, var(--workspace-surface-solid) 96%, var(--surface-panel-solid) 4%) !important;
-    box-shadow: -14px 0 22px -24px rgba(2, 8, 23, 0.74);
   }
 
   .inbounds-page .inbounds-actions-col {
     z-index: 3;
-    background: color-mix(in srgb, var(--workspace-surface-solid) 94%, var(--surface-panel-solid) 6%) !important;
   }
 
   .inbounds-page .inbounds-table th {
@@ -6815,17 +6809,7 @@
     background: color-mix(in srgb, var(--workspace-surface-solid) 84%, var(--surface-table-row-hover) 16%) !important;
   }
 
-  .inbounds-page .inbounds-row:hover .inbounds-actions-cell {
-    background: color-mix(in srgb, var(--workspace-surface-solid) 92%, var(--surface-table-row-hover) 8%) !important;
-  }
 
-  .inbounds-page .inbounds-row.inbounds-row-selected .inbounds-actions-cell {
-    background: color-mix(in srgb, var(--workspace-surface-solid) 92%, var(--accent-primary, #096adb) 8%) !important;
-  }
-
-  .inbounds-page .inbounds-row.inbounds-row-selected:hover .inbounds-actions-cell {
-    background: color-mix(in srgb, var(--workspace-surface-solid) 84%, var(--surface-table-row-hover) 16%) !important;
-  }
 
   .inbounds-page .inbounds-row-actions {
     display: grid;
