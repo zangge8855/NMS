@@ -1244,68 +1244,74 @@ export default function UsersHub() {
     };
 
     const openEditModal = (user) => {
-        setEditUser(user);
-        setEditUsername(user.username || '');
-        setEditEmail(user.email || '');
-        const initialSubscriptionEmail = user.subscriptionEmail || user.email || '';
-        setEditSubscriptionEmail(initialSubscriptionEmail);
-        setEditSubscriptionFollowLogin(
-            normalizeEmail(initialSubscriptionEmail) === normalizeEmail(user.email || '')
-        );
-        setEditEnabled(user.enabled !== false);
-        setEditGroupId(String(user.groupId || ''));
-        setEditInheritGroup(Boolean(user.groupId));
-        setEditPassword('');
-        setShowEditPassword(false);
-        setEditSaving(false);
+        console.log('DEBUG: openEditModal called with user:', user);
+        try {
+            setEditUser(user);
+            setEditUsername(user.username || '');
+            setEditEmail(user.email || '');
+            const initialSubscriptionEmail = user.subscriptionEmail || user.email || '';
+            setEditSubscriptionEmail(initialSubscriptionEmail);
+            setEditSubscriptionFollowLogin(
+                normalizeEmail(initialSubscriptionEmail) === normalizeEmail(user.email || '')
+            );
+            setEditEnabled(user.enabled !== false);
+            setEditGroupId(String(user.groupId || ''));
+            setEditInheritGroup(Boolean(user.groupId));
+            setEditPassword('');
+            setShowEditPassword(false);
+            setEditSaving(false);
 
-        // Pre-fill expiry from client data
-        const cd = resolveUserClientData(user, clientsMap, onlineMap);
-        if (cd && cd.expiryValues && cd.expiryValues.length > 0) {
-            const earliest = Math.min(...cd.expiryValues);
-            setEditExpiryDate(toLocalDateTimeString(earliest));
-            setEditHasClients(true);
-        } else if (cd && cd.count > 0) {
-            setEditExpiryDate('');
-            setEditHasClients(true);
-        } else {
-            setEditExpiryDate('');
-            setEditHasClients(false);
+            // Pre-fill expiry from client data
+            const cd = resolveUserClientData(user, clientsMap, onlineMap);
+            console.log('DEBUG: resolved cd:', cd);
+            if (cd && cd.expiryValues && cd.expiryValues.length > 0) {
+                const earliest = Math.min(...cd.expiryValues);
+                setEditExpiryDate(toLocalDateTimeString(earliest));
+                setEditHasClients(true);
+            } else if (cd && cd.count > 0) {
+                setEditExpiryDate('');
+                setEditHasClients(true);
+            } else {
+                setEditExpiryDate('');
+                setEditHasClients(false);
+            }
+
+            // Load policy
+            const policyEmail = normalizeEmail(user.subscriptionEmail || user.email);
+            setEditNoServerLimit(true);
+            setEditNoProtocolLimit(true);
+            setEditServerIds([]);
+            setEditProtocols([]);
+            setEditLimitIp('0');
+            setEditTrafficLimitGb('0');
+            if (policyEmail) {
+                setEditPolicyLoading(true);
+                api.get(`/user-policy/${encodeURIComponent(policyEmail)}`)
+                    .then((res) => {
+                        const p = res.data?.obj || {};
+                        const rawIds = Array.isArray(p.allowedServerIds) ? p.allowedServerIds : [];
+                        const validIds = new Set(servers.map((s) => s.id));
+                        setEditServerIds(rawIds.filter((id) => validIds.has(id)));
+                        const protos = (Array.isArray(p.allowedProtocols) ? p.allowedProtocols : [])
+                            .map((v) => String(v || '').trim().toLowerCase())
+                            .filter((v) => ['vless', 'vmess', 'trojan', 'shadowsocks'].includes(v));
+                        setEditProtocols(protos);
+                        const sMode = String(p.serverScopeMode || '').toLowerCase();
+                        const pMode = String(p.protocolScopeMode || '').toLowerCase();
+                        setEditNoServerLimit(sMode !== 'selected' && sMode !== 'none');
+                        setEditNoProtocolLimit(pMode !== 'selected' && pMode !== 'none');
+                        setEditLimitIp(String(normalizeLimitIp(p.limitIp)));
+                        setEditTrafficLimitGb(bytesToGigabytesInput(p.trafficLimitBytes));
+                        setEditInheritGroup(p.inheritGroup === true || (String(user.groupId || '') && !p.updatedAt));
+                    })
+                    .catch(() => {})
+                    .finally(() => setEditPolicyLoading(false));
+            }
+
+            setEditOpen(true);
+        } catch (err) {
+            console.error('DEBUG: openEditModal caught error:', err);
         }
-
-        // Load policy
-        const policyEmail = normalizeEmail(user.subscriptionEmail || user.email);
-        setEditNoServerLimit(true);
-        setEditNoProtocolLimit(true);
-        setEditServerIds([]);
-        setEditProtocols([]);
-        setEditLimitIp('0');
-        setEditTrafficLimitGb('0');
-        if (policyEmail) {
-            setEditPolicyLoading(true);
-            api.get(`/user-policy/${encodeURIComponent(policyEmail)}`)
-                .then((res) => {
-                    const p = res.data?.obj || {};
-                    const rawIds = Array.isArray(p.allowedServerIds) ? p.allowedServerIds : [];
-                    const validIds = new Set(servers.map((s) => s.id));
-                    setEditServerIds(rawIds.filter((id) => validIds.has(id)));
-                    const protos = (Array.isArray(p.allowedProtocols) ? p.allowedProtocols : [])
-                        .map((v) => String(v || '').trim().toLowerCase())
-                        .filter((v) => ['vless', 'vmess', 'trojan', 'shadowsocks'].includes(v));
-                    setEditProtocols(protos);
-                    const sMode = String(p.serverScopeMode || '').toLowerCase();
-                    const pMode = String(p.protocolScopeMode || '').toLowerCase();
-                    setEditNoServerLimit(sMode !== 'selected' && sMode !== 'none');
-                    setEditNoProtocolLimit(pMode !== 'selected' && pMode !== 'none');
-                    setEditLimitIp(String(normalizeLimitIp(p.limitIp)));
-                    setEditTrafficLimitGb(bytesToGigabytesInput(p.trafficLimitBytes));
-                    setEditInheritGroup(p.inheritGroup === true || (String(user.groupId || '') && !p.updatedAt));
-                })
-                .catch(() => {})
-                .finally(() => setEditPolicyLoading(false));
-        }
-
-        setEditOpen(true);
     };
 
     const closeEditModal = () => {
@@ -2329,18 +2335,19 @@ export default function UsersHub() {
                 </ModalShell>
             )}
 
+            {console.log('DEBUG: UsersHub JSX rendering editOpen =', editOpen, 'editUser =', editUser)}
             {/* Edit User Modal */}
             {editOpen && editUser && (
                 <ModalShell isOpen={editOpen} onClose={closeEditModal}>
                     <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h3 className="modal-title">{t('users.editTitle', { username: editUser.username })}</h3>
-                            <button type="button" className="modal-close" onClick={closeEditModal} aria-label={t('users.close')} title={t('users.close')}><HiOutlineXMark /></button>
+                            <h3 className="modal-title">{t('comp.users.editTitle', { username: editUser.username })}</h3>
+                            <button type="button" className="modal-close" onClick={closeEditModal} aria-label={t('comp.users.close')} title={t('comp.users.close')}><HiOutlineXMark /></button>
                         </div>
                         <form onSubmit={submitEdit}>
                             <div className="modal-body">
                                 <div className="form-group">
-                                    <label className="form-label">{t('users.editUsername')}</label>
+                                    <label className="form-label">{t('comp.users.editUsername')}</label>
                                     <input
                                         className="form-input"
                                         value={editUsername}
@@ -2348,7 +2355,7 @@ export default function UsersHub() {
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">{t('users.editEmail')}</label>
+                                    <label className="form-label">{t('comp.users.editEmail')}</label>
                                     <input
                                         type="email"
                                         className="form-input"
@@ -2357,22 +2364,22 @@ export default function UsersHub() {
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">{t('users.provisionEmailLabel')}</label>
+                                    <label className="form-label">{t('comp.users.provisionEmailLabel')}</label>
                                     <input
                                         type="email"
                                         className="form-input"
                                         value={editSubscriptionEmail}
                                         onChange={(e) => handleEditSubscriptionEmailChange(e.target.value)}
-                                        placeholder={t('users.editSubEmailHintNoBind')}
+                                        placeholder={t('comp.users.editSubEmailHintNoBind')}
                                     />
                                     <p className="text-muted text-sm mt-1">
                                         {editSubscriptionFollowLogin
-                                            ? t('users.editSubEmailFollow')
-                                            : t('users.editSubEmailCustom')}
+                                            ? t('comp.users.editSubEmailFollow')
+                                            : t('comp.users.editSubEmailCustom')}
                                     </p>
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">{t('users.editGroup')}</label>
+                                    <label className="form-label">{t('comp.users.editGroup')}</label>
                                     <select
                                         className="form-select"
                                         value={editGroupId}
@@ -2382,7 +2389,7 @@ export default function UsersHub() {
                                             setEditInheritGroup(Boolean(nextGroupId));
                                         }}
                                     >
-                                        <option value="">{t('users.editGroupNone')}</option>
+                                        <option value="">{t('comp.users.editGroupNone')}</option>
                                         {userGroups.map((group) => (
                                             <option key={group.id} value={group.id}>{group.name}</option>
                                         ))}
@@ -2394,13 +2401,13 @@ export default function UsersHub() {
                                                 checked={editInheritGroup}
                                                 onChange={(e) => setEditInheritGroup(e.target.checked)}
                                             />
-                                            {t('users.editGroupInherit')}
+                                            {t('comp.users.editGroupInherit')}
                                         </label>
                                     )}
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">{t('users.editStatus')}</label>
-                                    <div className="users-edit-status-toggle" role="group" aria-label={t('users.editStatus')}>
+                                    <label className="form-label">{t('comp.users.editStatus')}</label>
+                                    <div className="users-edit-status-toggle" role="group" aria-label={t('comp.users.editStatus')}>
                                         <button
                                             type="button"
                                             className={`users-edit-status-option${editEnabled ? ' is-active is-success' : ''}`}
@@ -2408,7 +2415,7 @@ export default function UsersHub() {
                                             aria-pressed={editEnabled}
                                         >
                                             <HiOutlinePlayCircle />
-                                            <span>{t('users.editStatusEnable')}</span>
+                                            <span>{t('comp.users.editStatusEnable')}</span>
                                         </button>
                                         <button
                                             type="button"
@@ -2417,29 +2424,29 @@ export default function UsersHub() {
                                             aria-pressed={!editEnabled}
                                         >
                                             <HiOutlineNoSymbol />
-                                            <span>{t('users.editStatusDisable')}</span>
+                                            <span>{t('comp.users.editStatusDisable')}</span>
                                         </button>
                                     </div>
                                     <p className="text-muted text-sm mt-1">
-                                        {editEnabled ? t('users.editStatusEnableDesc') : t('users.editStatusDisableDesc')}
+                                        {editEnabled ? t('comp.users.editStatusEnableDesc') : t('comp.users.editStatusDisableDesc')}
                                     </p>
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">{t('users.editPassword')}</label>
+                                    <label className="form-label">{t('comp.users.editPassword')}</label>
                                     <div className="flex gap-2">
                                         <input
                                             type={showEditPassword ? 'text' : 'password'}
                                             className="form-input font-mono"
                                             value={editPassword}
                                             onChange={(e) => setEditPassword(e.target.value)}
-                                            placeholder={t('users.editPasswordHint')}
+                                            placeholder={t('comp.users.editPasswordHint')}
                                         />
                                         <button
                                             type="button"
                                             className="btn btn-secondary btn-sm btn-icon"
                                             onClick={() => setShowEditPassword((v) => !v)}
-                                            title={showEditPassword ? t('users.hidePassword') : t('users.showPassword')}
-                                            aria-label={showEditPassword ? t('users.hidePassword') : t('users.showPassword')}
+                                            title={showEditPassword ? t('comp.users.hidePassword') : t('comp.users.showPassword')}
+                                            aria-label={showEditPassword ? t('comp.users.hidePassword') : t('comp.users.showPassword')}
                                         >
                                             {showEditPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
                                         </button>
@@ -2447,8 +2454,8 @@ export default function UsersHub() {
                                             type="button"
                                             className="btn btn-secondary btn-sm btn-icon"
                                             onClick={() => { const p = generateSecurePassword(); setEditPassword(p); setShowEditPassword(true); }}
-                                            title={t('users.genPassword')}
-                                            aria-label={t('users.genPassword')}
+                                            title={t('comp.users.genPassword')}
+                                            aria-label={t('comp.users.genPassword')}
                                         >
                                             <HiOutlineArrowPath />
                                         </button>
@@ -2457,41 +2464,41 @@ export default function UsersHub() {
                                 </div>
                                 {editHasClients && (
                                     <div className="form-group">
-                                        <label className="form-label">{t('users.provisionExpiryLabel')}</label>
+                                        <label className="form-label">{t('comp.users.provisionExpiryLabel')}</label>
                                         <input
                                             type="datetime-local"
                                             className="form-input"
                                             value={editExpiryDate}
                                             onChange={(e) => setEditExpiryDate(e.target.value)}
                                         />
-                                        <p className="text-muted text-sm mt-1">{t('users.editExpiryHint')}</p>
+                                        <p className="text-muted text-sm mt-1">{t('comp.users.editExpiryHint')}</p>
                                     </div>
                                 )}
                                 <div className="form-group">
-                                    <label className="form-label">{t('users.editPolicy')}</label>
+                                    <label className="form-label">{t('comp.users.editPolicy')}</label>
                                     {editPolicyLoading ? (
                                         <div className="text-center p-4"><span className="spinner" /></div>
                                     ) : editGroupId && editInheritGroup ? (
                                         <div className="card">
                                             <div className="text-sm font-medium mb-2">
-                                                {t('users.editGroupInherit')}: {userGroupMap.get(editGroupId)?.name || t('users.editGroup')}
+                                                {t('comp.users.editGroupInherit')}: {userGroupMap.get(editGroupId)?.name || t('comp.users.editGroup')}
                                             </div>
                                             <div className="text-xs text-muted">
-                                                {t('users.editPolicyInheritDesc')}
+                                                {t('comp.users.editPolicyInheritDesc')}
                                             </div>
                                         </div>
                                     ) : (
                                         <>
                                             <div className="card mb-3">
                                                 <div className="flex items-center justify-between mb-2">
-                                                    <span className="text-sm font-medium">{t('users.editServerAccess')}</span>
+                                                    <span className="text-sm font-medium">{t('comp.users.editServerAccess')}</span>
                                                     <label className="flex items-center gap-2 text-xs cursor-pointer">
                                                         <input
                                                             type="checkbox"
                                                             checked={editNoServerLimit}
                                                             onChange={(e) => setEditNoServerLimit(e.target.checked)}
                                                         />
-                                                        {t('users.editNoLimit')}
+                                                        {t('comp.users.editNoLimit')}
                                                     </label>
                                                 </div>
                                                 <div className="flex flex-wrap gap-2">
@@ -2516,14 +2523,14 @@ export default function UsersHub() {
                                             </div>
                                             <div className="card">
                                                 <div className="flex items-center justify-between mb-2">
-                                                    <span className="text-sm font-medium">{t('users.editProtocolAccess')}</span>
+                                                    <span className="text-sm font-medium">{t('comp.users.editProtocolAccess')}</span>
                                                     <label className="flex items-center gap-2 text-xs cursor-pointer">
                                                         <input
                                                             type="checkbox"
                                                             checked={editNoProtocolLimit}
                                                             onChange={(e) => setEditNoProtocolLimit(e.target.checked)}
                                                         />
-                                                        {t('users.editNoLimit')}
+                                                        {t('comp.users.editNoLimit')}
                                                     </label>
                                                 </div>
                                                 <div className="flex flex-wrap gap-2">
@@ -2547,11 +2554,11 @@ export default function UsersHub() {
                                                 </div>
                                             </div>
                                             <div className="card mt-3">
-                                                <div className="text-sm font-medium mb-2">{t('users.provisionLimitTitle')}</div>
-                                                <div className="text-xs text-muted mb-3">{t('users.editLimitDesc')}</div>
+                                                <div className="text-sm font-medium mb-2">{t('comp.users.provisionLimitTitle')}</div>
+                                                <div className="text-xs text-muted mb-3">{t('comp.users.editLimitDesc')}</div>
                                                 <div className="grid-auto-280-tight">
                                                     <div className="form-group mb-0">
-                                                        <label className="form-label">{t('users.provisionIpLimitLabel')}</label>
+                                                        <label className="form-label">{t('comp.users.provisionIpLimitLabel')}</label>
                                                         <input
                                                             type="number"
                                                             className="form-input"
@@ -2559,10 +2566,10 @@ export default function UsersHub() {
                                                             value={editLimitIp}
                                                             onChange={(e) => setEditLimitIp(e.target.value)}
                                                         />
-                                                        <p className="text-muted text-sm mt-1">{t('users.provisionIpLimitHint')}</p>
+                                                        <p className="text-muted text-sm mt-1">{t('comp.users.provisionIpLimitHint')}</p>
                                                     </div>
                                                     <div className="form-group mb-0">
-                                                        <label className="form-label">{t('users.provisionTrafficLimitLabel')}</label>
+                                                        <label className="form-label">{t('comp.users.provisionTrafficLimitLabel')}</label>
                                                         <div className="flex items-center gap-2">
                                                             <input
                                                                 type="number"
@@ -2574,7 +2581,7 @@ export default function UsersHub() {
                                                             />
                                                             <span className="text-sm text-muted">GB</span>
                                                         </div>
-                                                        <p className="text-muted text-sm mt-1">{t('users.provisionTrafficLimitHint')}</p>
+                                                        <p className="text-muted text-sm mt-1">{t('comp.users.provisionTrafficLimitHint')}</p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -2583,9 +2590,9 @@ export default function UsersHub() {
                                 </div>
                             </div>
                             <div className="modal-footer">
-                                <button type="button" className="btn btn-secondary" onClick={closeEditModal}>{t('users.cancel')}</button>
+                                <button type="button" className="btn btn-secondary" onClick={closeEditModal}>{t('comp.users.cancel')}</button>
                                 <button type="submit" className="btn btn-primary" disabled={editSaving}>
-                                    {editSaving ? <span className="spinner" /> : <><HiOutlineCheck /> {t('users.save')}</>}
+                                    {editSaving ? <span className="spinner" /> : <><HiOutlineCheck /> {t('comp.users.save')}</>}
                                 </button>
                             </div>
                         </form>
@@ -2608,32 +2615,32 @@ export default function UsersHub() {
                                 ) : (
                                     <>
                                         <div className="form-group">
-                                            <label className="form-label">{t('users.provisionEmailLabel')}</label>
+                                            <label className="form-label">{t('comp.users.provisionEmailLabel')}</label>
                                             <input
                                                 type="email"
                                                 className="form-input"
                                                 value={provisionEmail}
                                                 onChange={(e) => setProvisionEmail(e.target.value)}
-                                                placeholder={t('users.provisionEmailPlaceholder')}
+                                                placeholder={t('comp.users.provisionEmailPlaceholder')}
                                             />
                                         </div>
 
                                         <div className="card mb-4">
-                                            <div className="text-sm font-medium mb-2">{t('users.provisionLimitTitle')}</div>
-                                            <div className="text-xs text-muted mb-3">{t('users.provisionLimitDesc')}</div>
+                                            <div className="text-sm font-medium mb-2">{t('comp.users.provisionLimitTitle')}</div>
+                                            <div className="text-xs text-muted mb-3">{t('comp.users.provisionLimitDesc')}</div>
                                             <div className="grid-auto-280-tight">
                                                 <div className="form-group mb-0">
-                                                    <label className="form-label">{t('users.provisionExpiryLabel')}</label>
+                                                    <label className="form-label">{t('comp.users.provisionExpiryLabel')}</label>
                                                     <input
                                                         type="datetime-local"
                                                         className="form-input"
                                                         value={provisionExpiryDate}
                                                         onChange={(e) => setProvisionExpiryDate(e.target.value)}
                                                     />
-                                                    <p className="text-muted text-sm mt-1">{t('users.provisionExpiryHint')}</p>
+                                                    <p className="text-muted text-sm mt-1">{t('comp.users.provisionExpiryHint')}</p>
                                                     {inboundExpiries.length > 0 && (
                                                         <div className="mt-2">
-                                                            <div className="text-xs text-muted mb-1">{t('users.provisionExpiryRef')}</div>
+                                                            <div className="text-xs text-muted mb-1">{t('comp.users.provisionExpiryRef')}</div>
                                                             <div className="flex flex-wrap gap-2">
                                                                 {inboundExpiries
                                                                     .filter((e) => e.expiryTime > Date.now())
@@ -2657,7 +2664,7 @@ export default function UsersHub() {
                                                     )}
                                                 </div>
                                                 <div className="form-group mb-0">
-                                                    <label className="form-label">{t('users.provisionIpLimitLabel')}</label>
+                                                    <label className="form-label">{t('comp.users.provisionIpLimitLabel')}</label>
                                                     <input
                                                         type="number"
                                                         className="form-input"
@@ -2665,10 +2672,10 @@ export default function UsersHub() {
                                                         value={provisionLimitIp}
                                                         onChange={(e) => setProvisionLimitIp(e.target.value)}
                                                     />
-                                                    <p className="text-xs text-muted mt-1">{t('users.provisionIpLimitHint')}</p>
+                                                    <p className="text-xs text-muted mt-1">{t('comp.users.provisionIpLimitHint')}</p>
                                                 </div>
                                                 <div className="form-group mb-0">
-                                                    <label className="form-label">{t('users.provisionTrafficLimitLabel')}</label>
+                                                    <label className="form-label">{t('comp.users.provisionTrafficLimitLabel')}</label>
                                                     <div className="flex items-center gap-2">
                                                         <input
                                                             type="number"
@@ -2680,16 +2687,16 @@ export default function UsersHub() {
                                                         />
                                                         <span className="text-sm text-muted">GB</span>
                                                     </div>
-                                                    <p className="text-xs text-muted mt-1">{t('users.provisionTrafficLimitHint')}</p>
+                                                    <p className="text-xs text-muted mt-1">{t('comp.users.provisionTrafficLimitHint')}</p>
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div className="form-group">
                                             <label className="form-label">
-                                                {t('users.provisionInboundLabel')}
+                                                {t('comp.users.provisionInboundLabel')}
                                                 <span className="text-muted text-xs ml-2">
-                                                    {t('users.provisionInboundSelected', { count: provisionSelectedInboundKeys.size, total: allInbounds.length })}
+                                                    {t('comp.users.provisionInboundSelected', { count: provisionSelectedInboundKeys.size, total: allInbounds.length })}
                                                 </span>
                                             </label>
                                             <div className="flex gap-2 mb-2">
@@ -2698,24 +2705,24 @@ export default function UsersHub() {
                                                     className="btn btn-secondary btn-sm"
                                                     onClick={() => setProvisionSelectedInboundKeys(new Set(allInbounds.map((ib) => ib.key)))}
                                                 >
-                                                    {t('users.selectAll')}
+                                                    {t('comp.users.selectAll')}
                                                 </button>
                                                 <button
                                                     type="button"
                                                     className="btn btn-secondary btn-sm"
                                                     onClick={() => setProvisionSelectedInboundKeys(new Set())}
                                                 >
-                                                    {t('users.selectNone')}
+                                                    {t('comp.users.selectNone')}
                                                 </button>
                                             </div>
                                             <div className="list-selection-container" style={{ maxHeight: '240px' }}>
                                                 {allInbounds.length === 0 ? (
-                                                    <span className="text-sm text-muted">{t('users.provisionNoInbounds')}</span>
+                                                    <span className="text-sm text-muted">{t('comp.users.provisionNoInbounds')}</span>
                                                 ) : allInbounds.map((ib) => {
                                                     const checked = provisionSelectedInboundKeys.has(ib.key);
                                                     const expiryLabel = ib.expiryTime > 0
                                                         ? formatDateOnly(ib.expiryTime, locale)
-                                                        : t('users.permanent');
+                                                        : t('comp.users.permanent');
                                                     return (
                                                         <label
                                                             key={ib.key}
@@ -2736,7 +2743,7 @@ export default function UsersHub() {
                                                             <span className="font-medium">{ib.serverName}</span>
                                                             <span className="text-muted">{ib.remark || ib.protocol}</span>
                                                             <span className="badge badge-neutral text-xs">{ib.protocol}:{ib.port}</span>
-                                                            <span className="text-muted text-xs ml-auto">{t('users.expiresAt')}{expiryLabel}</span>
+                                                            <span className="text-muted text-xs ml-auto">{t('comp.users.expiresAt')}{expiryLabel}</span>
                                                         </label>
                                                     );
                                                 })}
@@ -2748,20 +2755,20 @@ export default function UsersHub() {
                                 {provisionResult && (
                                     <div className="card">
                                         <div className="card-header">
-                                            <span className="card-title">{t('users.provisionResultTitle')}</span>
+                                            <span className="card-title">{t('comp.users.provisionResultTitle')}</span>
                                         </div>
                                         <div className="text-sm text-success mb-3">
-                                            {provisionResult.successMessage || t('users.provisionResultSuccess')}
+                                            {provisionResult.successMessage || t('comp.users.provisionResultSuccess')}
                                         </div>
                                         {provisionResult.deployment && provisionResult.deployment.total > 0 && (
                                             <div className="mb-3">
                                                 <div className="text-sm mb-2">
-                                                    <span className="font-medium">{t('users.provisionNodeDeploy')}</span>
-                                                    <span className="badge badge-success mr-1">{t('users.provisionDeployCreated', { count: provisionResult.deployment.created })}</span>
-                                                    <span className="badge badge-info mr-1">{t('users.provisionDeployUpdated', { count: provisionResult.deployment.updated || 0 })}</span>
-                                                    <span className="badge badge-neutral mr-1">{t('users.provisionDeploySkipped', { count: provisionResult.deployment.skipped })}</span>
+                                                    <span className="font-medium">{t('comp.users.provisionNodeDeploy')}</span>
+                                                    <span className="badge badge-success mr-1">{t('comp.users.provisionDeployCreated', { count: provisionResult.deployment.created })}</span>
+                                                    <span className="badge badge-info mr-1">{t('comp.users.provisionDeployUpdated', { count: provisionResult.deployment.updated || 0 })}</span>
+                                                    <span className="badge badge-neutral mr-1">{t('comp.users.provisionDeploySkipped', { count: provisionResult.deployment.skipped })}</span>
                                                     {provisionResult.deployment.failed > 0 && (
-                                                        <span className="badge badge-danger">{t('users.provisionDeployFailed', { count: provisionResult.deployment.failed })}</span>
+                                                        <span className="badge badge-danger">{t('comp.users.provisionDeployFailed', { count: provisionResult.deployment.failed })}</span>
                                                     )}
                                                 </div>
                                             </div>
@@ -2773,9 +2780,9 @@ export default function UsersHub() {
                                                     <button
                                                         type="button"
                                                         className="btn btn-secondary btn-sm"
-                                                        onClick={async () => { await copyToClipboard(item.url); toast.success(t('users.linkCopied', { label: item.label })); }}
+                                                        onClick={async () => { await copyToClipboard(item.url); toast.success(t('comp.users.linkCopied', { label: item.label })); }}
                                                     >
-                                                        <HiOutlineClipboard /> {t('users.copyLink', { label: item.label })}
+                                                        <HiOutlineClipboard /> {t('comp.users.copyLink', { label: item.label })}
                                                     </button>
                                                 </div>
                                             ))}
@@ -2785,9 +2792,9 @@ export default function UsersHub() {
                                 )}
                             </div>
                             <div className="modal-footer">
-                                <button type="button" className="btn btn-secondary" onClick={closeProvisionModal}>{t('users.close')}</button>
+                                <button type="button" className="btn btn-secondary" onClick={closeProvisionModal}>{t('comp.users.close')}</button>
                                 <button type="submit" className="btn btn-primary" disabled={provisionSaving || provisionInitLoading}>
-                                    {provisionSaving ? <span className="spinner" /> : <><HiOutlineCheck /> {t('users.confirmProvision')}</>}
+                                    {provisionSaving ? <span className="spinner" /> : <><HiOutlineCheck /> {t('comp.users.confirmProvision')}</>}
                                 </button>
                             </div>
                         </form>

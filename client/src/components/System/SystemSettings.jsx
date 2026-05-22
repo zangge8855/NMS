@@ -2647,36 +2647,36 @@ export default function SystemSettings() {
                 <div className="card p-3 mt-3 settings-mini-card settings-detail-card settings-runtime-storage-panel">
                     <div className="settings-backup-local-head">
                         <div>
-                            <div className="text-sm font-medium">{t('system.sysRuntimeTitle')}</div>
-                            <div className="text-xs text-muted mt-1">{t('system.sysRuntimeDesc')}</div>
+                            <div className="text-sm font-medium">{t('comp.system.sysRuntimeTitle')}</div>
+                            <div className="text-xs text-muted mt-1">{t('comp.system.sysRuntimeDesc')}</div>
                         </div>
                         <span className={`badge ${runtimeStorageBadgeClass}`}>{runtimeStorageBadgeText}</span>
                     </div>
                     <div className="settings-backup-inspection-grid settings-runtime-storage-grid">
                         <div className="settings-backup-inspection-item">
-                            <div className="text-xs text-muted">{t('system.sysDataDir')}</div>
+                            <div className="text-xs text-muted">{t('comp.system.sysDataDir')}</div>
                             <div className="text-sm settings-runtime-storage-path">{runtimeStorage?.dataDir || '-'}</div>
                         </div>
                         <div className="settings-backup-inspection-item">
-                            <div className="text-xs text-muted">{t('system.sysLocalBackupDir')}</div>
+                            <div className="text-xs text-muted">{t('comp.system.sysLocalBackupDir')}</div>
                             <div className="text-sm settings-runtime-storage-path">{runtimeStorage?.localBackupDir || backupStatus?.localBackupDir || '-'}</div>
                         </div>
                         <div className="settings-backup-inspection-item">
-                            <div className="text-xs text-muted">{t('system.sysDirStatus')}</div>
+                            <div className="text-xs text-muted">{t('comp.system.sysDirStatus')}</div>
                             <div className="text-sm">
                                 {runtimeStorage
                                     ? `${runtimeStorage.dataDirExists ? '已创建' : '未创建'} · ${runtimeStorage.dataDirReadable ? '可读' : '不可读'} · ${runtimeStorage.dataDirWritable ? '可写' : '不可写'}`
-                                    : t('system.sysWaitRefresh')}
+                                    : t('comp.system.sysWaitRefresh')}
                             </div>
                         </div>
                         <div className="settings-backup-inspection-item">
-                            <div className="text-xs text-muted">{t('system.sysDataCheck')}</div>
+                            <div className="text-xs text-muted">{t('comp.system.sysDataCheck')}</div>
                             <div className="text-sm">
                                 {runtimeStorage
                                     ? runtimeStorage.invalidStoreCount > 0
                                         ? `${runtimeStorage.invalidStoreCount} 个 JSON 异常`
                                         : 'JSON 校验正常'
-                                    : t('system.sysWaitRefresh')}
+                                    : t('comp.system.sysWaitRefresh')}
                             </div>
                         </div>
                     </div>
@@ -2723,28 +2723,28 @@ export default function SystemSettings() {
                 <div className="card p-3 mt-3 settings-mini-card settings-detail-card settings-backup-local-panel">
                     <div className="settings-backup-local-head">
                         <div>
-                            <div className="text-sm font-medium">{t('system.sysLocalBackupsTitle')}</div>
-                            <div className="text-xs text-muted mt-1">{t('system.sysBackupDir')} {backupStatus?.localBackupDir || '-'}</div>
+                            <div className="text-sm font-medium">{t('comp.system.sysLocalBackupsTitle')}</div>
+                            <div className="text-xs text-muted mt-1">{t('comp.system.sysBackupDir')} {backupStatus?.localBackupDir || '-'}</div>
                         </div>
-                        <span className="badge badge-neutral">{localBackups.length} {t('system.sysBackupCount')}</span>
+                        <span className="badge badge-neutral">{localBackups.length} {t('comp.system.sysBackupCount')}</span>
                     </div>
                     {localBackups.length === 0 ? (
-                        <div className="text-sm text-muted">{t('system.sysNoLocalBackups')}</div>
+                        <div className="text-sm text-muted">{t('comp.system.sysNoLocalBackups')}</div>
                     ) : (
                         <div className="settings-backup-local-grid">
                             {localBackups.map((item) => (
                                 <div key={item.filename} className="settings-backup-local-item">
                                     <div className="settings-backup-local-item-head">
                                         <div className="settings-backup-local-name">{item.filename}</div>
-                                        <span className="badge badge-success">{t('system.sysEncrypted')}</span>
+                                        <span className="badge badge-success">{t('comp.system.sysEncrypted')}</span>
                                     </div>
                                     <div className="settings-backup-local-meta">
                                         <span>{formatDateTime(item.createdAt, locale)}</span>
                                         <span>{formatBytes(item.bytes || 0)}</span>
-                                        <span>{(item.storeKeys || []).length} {t('system.sysDataModules')}</span>
+                                        <span>{(item.storeKeys || []).length} {t('comp.system.sysDataModules')}</span>
                                     </div>
                                     <div className="text-xs text-muted">
-                                        {t('system.sysDecryptionKey')} {item.keyHint || 'CREDENTIALS_SECRET'} · {t('system.sysAlgorithm')} {item.cipher || 'AES-256-GCM'}
+                                        {t('comp.system.sysDecryptionKey')} {item.keyHint || 'CREDENTIALS_SECRET'} · {t('comp.system.sysAlgorithm')} {item.cipher || 'AES-256-GCM'}
                                     </div>
                                     <div className="settings-backup-local-actions">
                                         <button
@@ -2753,7 +2753,7 @@ export default function SystemSettings() {
                                             onClick={() => downloadLocalBackup(item.filename)}
                                             disabled={backupLocalActionKey === `download:${item.filename}`}
                                         >
-                                            {backupLocalActionKey === `download:${item.filename}` ? <span className="spinner" /> : t('system.sysActionDownload')}
+                                            {backupLocalActionKey === `download:${item.filename}` ? <span className="spinner" /> : t('comp.system.sysActionDownload')}
                                         </button>
                                         <button
                                             type="button"
@@ -2761,7 +2761,7 @@ export default function SystemSettings() {
                                             onClick={() => restoreLocalBackup(item.filename)}
                                             disabled={backupLocalActionKey === `restore:${item.filename}`}
                                         >
-                                            {backupLocalActionKey === `restore:${item.filename}` ? <span className="spinner" /> : t('system.sysActionRestore')}
+                                            {backupLocalActionKey === `restore:${item.filename}` ? <span className="spinner" /> : t('comp.system.sysActionRestore')}
                                         </button>
                                         <button
                                             type="button"
@@ -2769,7 +2769,7 @@ export default function SystemSettings() {
                                             onClick={() => deleteLocalBackup(item.filename)}
                                             disabled={backupLocalActionKey === `delete:${item.filename}`}
                                         >
-                                            {backupLocalActionKey === `delete:${item.filename}` ? <span className="spinner" /> : t('system.sysActionDelete')}
+                                            {backupLocalActionKey === `delete:${item.filename}` ? <span className="spinner" /> : t('comp.system.sysActionDelete')}
                                         </button>
                                     </div>
                                 </div>
@@ -2781,46 +2781,46 @@ export default function SystemSettings() {
                 {backupInspection && (
                     <div className="card p-3 mt-3 settings-mini-card settings-detail-card settings-backup-inspection">
                         <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
-                            <div className="text-sm font-medium">{t('system.sysBackupPreview')}</div>
+                            <div className="text-sm font-medium">{t('comp.system.sysBackupPreview')}</div>
                             <span className={`badge ${backupInspection.encrypted === false ? 'badge-warning' : 'badge-success'}`}>
-                                {backupInspection.encrypted === false ? t('system.sysLegacyCompat') : t('system.sysDecryptionVerified')}
+                                {backupInspection.encrypted === false ? t('comp.system.sysLegacyCompat') : t('comp.system.sysDecryptionVerified')}
                             </span>
                         </div>
                         <div className="settings-backup-inspection-grid">
                             <div className="settings-backup-inspection-item">
-                                <div className="text-xs text-muted">{t('system.sysBackupTime')}</div>
-                                <div className="text-sm">{backupInspection.createdAt ? formatDateTime(backupInspection.createdAt, locale) : t('system.sysUnknown')}</div>
+                                <div className="text-xs text-muted">{t('comp.system.sysBackupTime')}</div>
+                                <div className="text-sm">{backupInspection.createdAt ? formatDateTime(backupInspection.createdAt, locale) : t('comp.system.sysUnknown')}</div>
                             </div>
                             <div className="settings-backup-inspection-item">
-                                <div className="text-xs text-muted">{t('system.sysFormatVersion')}</div>
+                                <div className="text-xs text-muted">{t('comp.system.sysFormatVersion')}</div>
                                 <div className="text-sm">{backupInspection.format} v{backupInspection.version}</div>
                             </div>
                             <div className="settings-backup-inspection-item">
-                                <div className="text-xs text-muted">{t('system.sysEncryptionState')}</div>
-                                <div className="text-sm">{backupInspection.encrypted === false ? t('system.sysLegacyUnencrypted') : (backupInspection.cipher || 'AES-256-GCM')}</div>
+                                <div className="text-xs text-muted">{t('comp.system.sysEncryptionState')}</div>
+                                <div className="text-sm">{backupInspection.encrypted === false ? t('comp.system.sysLegacyUnencrypted') : (backupInspection.cipher || 'AES-256-GCM')}</div>
                             </div>
                             <div className="settings-backup-inspection-item">
-                                <div className="text-xs text-muted">{t('system.sysRestorableModules')}</div>
-                                <div className="text-sm">{(backupInspection.restorableKeys || []).join(', ') || t('system.sysNone')}</div>
+                                <div className="text-xs text-muted">{t('comp.system.sysRestorableModules')}</div>
+                                <div className="text-sm">{(backupInspection.restorableKeys || []).join(', ') || t('comp.system.sysNone')}</div>
                             </div>
                         </div>
                         {(backupInspection.unsupportedKeys || []).length > 0 && (
-                            <div className="text-sm text-muted mt-1">{t('system.sysUnsupportedModules')}{backupInspection.unsupportedKeys.join(', ')}</div>
+                            <div className="text-sm text-muted mt-1">{t('comp.system.sysUnsupportedModules')}{backupInspection.unsupportedKeys.join(', ')}</div>
                         )}
                         {(backupInspection.missingKeys || []).length > 0 && (
-                            <div className="text-sm text-muted mt-1">{t('system.sysMissingSnapshots')}{backupInspection.missingKeys.join(', ')}</div>
+                            <div className="text-sm text-muted mt-1">{t('comp.system.sysMissingSnapshots')}{backupInspection.missingKeys.join(', ')}</div>
                         )}
                         <div className="text-sm text-muted mt-1">
                             {backupInspection.encrypted === false
-                                ? t('system.sysLegacyWarning')
+                                ? t('comp.system.sysLegacyWarning')
                                 : (locale === 'en-US' ? `Decrypted with ${backupInspection.keyHint || 'CREDENTIALS_SECRET'}` : `恢复时将使用 ${backupInspection.keyHint || 'CREDENTIALS_SECRET'} 解密。`)}
                         </div>
                         <div className="settings-backup-inspection-actions">
                             <button className="btn btn-secondary btn-sm" onClick={inspectBackup} disabled={!backupFile || backupInspectLoading || backupRestoreLoading}>
-                                {backupInspectLoading ? <span className="spinner" /> : t('system.sysReVerify')}
+                                {backupInspectLoading ? <span className="spinner" /> : t('comp.system.sysReVerify')}
                             </button>
                             <button className="btn btn-danger btn-sm" onClick={restoreBackup} disabled={backupRestoreLoading || (backupInspection.restorableKeys || []).length === 0}>
-                                {backupRestoreLoading ? <span className="spinner" /> : t('system.sysConfirmRestore')}
+                                {backupRestoreLoading ? <span className="spinner" /> : t('comp.system.sysConfirmRestore')}
                             </button>
                         </div>
                     </div>
