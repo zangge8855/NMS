@@ -141,33 +141,59 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
                     return (
                         <div className="nav-section" key={section.title}>
                             <div className="nav-section-title">{section.title}</div>
-                            {section.items.map((item) => (
-                                <NavLink
-                                    key={item.path}
-                                    to={item.path}
-                                    end={item.path === '/'}
-                                    onClick={() => {
-                                        closeNavFlyout(item.path);
-                                        onClose?.();
-                                    }}
-                                    data-tooltip={item.label}
-                                    {...getNavFlyoutProps(item.path, item.label)}
-                                    className={({ isActive }) =>
-                                        `nav-item ${isActive ? 'active' : ''}`
-                                    }
-                                >
-                                    {({ isActive }) => (
-                                        <>
-                                            {isActive && <div className="active-glow" />}
-                                            <span className="nav-item-icon"><item.icon /></span>
-                                            <span className="nav-label">{item.label}</span>
-                                            {item.path === '/audit' && unreadCount > 0 && !collapsed && (
-                                                <span className="nav-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
+                            {section.items.map((item) => {
+                                const hasChildren = Array.isArray(item.children) && item.children.length > 0;
+                                const isSettingsActive = location.pathname === '/settings';
+                                const showChildren = !collapsed && isSettingsActive;
+
+                                return (
+                                    <React.Fragment key={item.path}>
+                                        <NavLink
+                                            to={item.path}
+                                            end={item.path === '/' || item.path === '/settings'}
+                                            onClick={() => {
+                                                closeNavFlyout(item.path);
+                                                onClose?.();
+                                            }}
+                                            data-tooltip={item.label}
+                                            {...getNavFlyoutProps(item.path, item.label)}
+                                            className={({ isActive }) =>
+                                                `nav-item ${isActive ? 'active' : ''}`
+                                            }
+                                        >
+                                            {({ isActive }) => (
+                                                <>
+                                                    {isActive && <div className="active-glow" />}
+                                                    <span className="nav-item-icon"><item.icon /></span>
+                                                    <span className="nav-label">{item.label}</span>
+                                                    {item.path === '/audit' && unreadCount > 0 && !collapsed && (
+                                                        <span className="nav-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
+                                                    )}
+                                                </>
                                             )}
-                                        </>
-                                    )}
-                                </NavLink>
-                            ))}
+                                        </NavLink>
+                                        {hasChildren && showChildren && (
+                                            <div className="nav-item-children">
+                                                {item.children.map((child) => {
+                                                    const currentTab = new URLSearchParams(location.search).get('tab') || 'status';
+                                                    const isChildActive = location.pathname === '/settings' && currentTab === child.tabId;
+                                                    return (
+                                                        <NavLink
+                                                            key={child.path}
+                                                            to={child.path}
+                                                            onClick={() => onClose?.()}
+                                                            className={`nav-item-child ${isChildActive ? 'active' : ''}`}
+                                                        >
+                                                            <span className="nav-item-child-dot" />
+                                                            <span className="nav-child-label">{child.label}</span>
+                                                        </NavLink>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </React.Fragment>
+                                );
+                            })}
                         </div>
                     );
                 })}

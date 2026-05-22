@@ -1224,7 +1224,7 @@ export default function Servers() {
                                     <td className="servers-status-cell" data-label={t('pages.servers.cols.status')}>
                                         <div className="servers-status-stack">
                                             <span className={`badge ${isActive ? 'badge-success' : 'badge-neutral'}`}>{serverStateText}</span>
-                                            <span className="text-xs text-muted servers-status-meta">
+                                            <span className="text-xs text-muted servers-status-meta" data-test={testState || 'none'}>
                                                 {testStateText}
                                             </span>
                                         </div>

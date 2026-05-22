@@ -36,7 +36,21 @@ export const navSections = [
     {
         title: { 'zh-CN': '系统', 'en-US': 'System' },
         items: [
-            { path: '/settings', icon: HiOutlineCog6Tooth, label: { 'zh-CN': '系统设置', 'en-US': 'Settings' }, supportsGlobal: true, adminOnly: true, keywords: ['设置', 'system', 'settings', '节点', '控制台', 'console', 'backup', 'monitor', 'database'] },
+            {
+                path: '/settings',
+                icon: HiOutlineCog6Tooth,
+                label: { 'zh-CN': '系统设置', 'en-US': 'Settings' },
+                supportsGlobal: true,
+                adminOnly: true,
+                keywords: ['设置', 'system', 'settings', '节点', '控制台', 'console', 'backup', 'monitor', 'database'],
+                children: [
+                    { path: '/settings?tab=status', tabId: 'status', label: { 'zh-CN': '运行状态', 'en-US': 'Status' } },
+                    { path: '/settings?tab=access', tabId: 'access', label: { 'zh-CN': '接入与混淆', 'en-US': 'Access' } },
+                    { path: '/settings?tab=policy', tabId: 'policy', label: { 'zh-CN': '策略配置', 'en-US': 'Policy' } },
+                    { path: '/settings?tab=monitor', tabId: 'monitor', label: { 'zh-CN': '通知与推送', 'en-US': 'Notifications' } },
+                    { path: '/settings?tab=backup', tabId: 'backup', label: { 'zh-CN': '数据备份', 'en-US': 'Backup' } },
+                ]
+            },
             { path: '/servers', icon: HiOutlineServerStack, label: { 'zh-CN': '服务器管理', 'en-US': 'Servers' }, supportsGlobal: true, adminOnly: true, keywords: ['服务器', '节点', '能力', '探测', 'capabilities', 'server', 'registry'] },
         ],
     },
@@ -82,7 +96,16 @@ export function getVisibleNavSections({ isAdmin, isGlobalView, locale = 'zh-CN' 
             title: localize(section.title, locale),
             items: section.items
                 .filter((item) => shouldIncludeNavItem(item, { isAdmin, isGlobalView }))
-                .map((item) => ({ ...item, label: localize(item.label, locale) })),
+                .map((item) => ({
+                    ...item,
+                    label: localize(item.label, locale),
+                    children: Array.isArray(item.children)
+                        ? item.children.map((child) => ({
+                              ...child,
+                              label: localize(child.label, locale),
+                          }))
+                        : undefined,
+                })),
         }))
         .filter((section) => section.items.length > 0);
 }
