@@ -2240,7 +2240,8 @@ export default function UsersHub() {
                         </div>
                         <form onSubmit={submitCreate}>
                             <div className="modal-body">
-                                <div className="form-group">
+                                <div className="page-field-grid">
+                                    <div className="form-group">
                                     <label className="form-label">用户名</label>
                                     <input
                                         className="form-input"
@@ -2313,6 +2314,7 @@ export default function UsersHub() {
                                     </div>
                                     <p className="text-muted text-sm mt-1">{getPasswordPolicyHint(locale)}</p>
                                 </div>
+                                </div>
                                 <div className="form-group">
                                     <label className="badge badge-info flex items-center gap-2 cursor-pointer">
                                         <input
@@ -2346,7 +2348,8 @@ export default function UsersHub() {
                         </div>
                         <form onSubmit={submitEdit}>
                             <div className="modal-body">
-                                <div className="form-group">
+                                <div className="page-field-grid">
+                                    <div className="form-group">
                                     <label className="form-label">{t('comp.users.editUsername')}</label>
                                     <input
                                         className="form-input"
@@ -2474,6 +2477,7 @@ export default function UsersHub() {
                                         <p className="text-muted text-sm mt-1">{t('comp.users.editExpiryHint')}</p>
                                     </div>
                                 )}
+                                </div>
                                 <div className="form-group">
                                     <label className="form-label">{t('comp.users.editPolicy')}</label>
                                     {editPolicyLoading ? (

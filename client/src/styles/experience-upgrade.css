@@ -7190,3 +7190,168 @@
   box-shadow: 0 -8px 30px rgba(15, 23, 42, 0.05) !important;
 }
 
+/* ==========================================================================
+   ALL PAGES LAYOUT AUDIT & PREMIUM SaaS ALIGNMENTS
+   ========================================================================== */
+
+/* 1. Page width constraints and centering on desktops (>= 1024px) */
+@media (min-width: 1024px) {
+  /* Listing, console and admin hub pages: constrained to 1320px and centered */
+  .main-scroll-region > .page-content:is(
+    .users-page,
+    .servers-page,
+    .inbounds-page,
+    .audit-page,
+    .logs-page,
+    .tools-page,
+    .capabilities-page,
+    .xray-page,
+    .dashboard-page,
+    .tasks-page
+  ) {
+    max-width: 1320px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    width: 100% !important;
+  }
+
+  /* Detail, account and subscription pages: constrained to 1200px and centered */
+  .main-scroll-region > .page-content:is(
+    .user-detail-page,
+    .server-detail-page,
+    .subscriptions-page
+  ) {
+    max-width: 1200px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    width: 100% !important;
+  }
+  
+  .main-scroll-region > .page-content--wide:is(
+    .users-page,
+    .servers-page,
+    .inbounds-page,
+    .audit-page,
+    .logs-page,
+    .tools-page,
+    .capabilities-page,
+    .xray-page,
+    .dashboard-page,
+    .tasks-page
+  ) {
+    max-width: 1320px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    width: 100% !important;
+  }
+
+  .main-scroll-region > .page-content--wide:is(
+    .user-detail-page,
+    .server-detail-page,
+    .subscriptions-page,
+    .account-page
+  ) {
+    max-width: 1200px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    width: 100% !important;
+  }
+}
+
+/* 2. Account Page sidebar-plus-workspace dual column layout (>= 1024px) */
+@media (min-width: 1024px) {
+  .account-page .account-shell {
+    display: grid !important;
+    grid-template-columns: 320px 1fr !important;
+    gap: 24px !important;
+    align-items: start !important;
+  }
+
+  .account-page .account-identity-card {
+    grid-column: 1 !important;
+    grid-row: 1 / span 2 !important;
+    position: sticky !important;
+    top: calc(84px + env(safe-area-inset-top, 0px)) !important;
+  }
+
+  .account-page .account-profile-card {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+  }
+
+  .account-page .account-password-card {
+    grid-column: 2 !important;
+    grid-row: 2 !important;
+  }
+}
+
+/* 3. Compact Grid Form Field layouts for Edit/Create user modals and generic page modal forms */
+.page-field-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important;
+  gap: 16px !important;
+}
+
+.page-field-grid--compact {
+  gap: 12px !important;
+}
+
+.modal-body .form-group label {
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  color: var(--text-secondary) !important;
+  margin-bottom: 6px !important;
+}
+
+/* Form input, select, textarea visual consistency under modals & pages */
+.modal-body input[type="text"],
+.modal-body input[type="number"],
+.modal-body input[type="password"],
+.modal-body input[type="email"],
+.modal-body select,
+.modal-body textarea {
+  background: rgba(15, 23, 42, 0.25) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 10px !important;
+  transition: all 0.2s ease !important;
+  color: var(--text-primary) !important;
+  padding: 10px 12px !important;
+  font-size: 13.5px !important;
+  width: 100% !important;
+}
+
+[data-theme="light"] .modal-body input[type="text"],
+[data-theme="light"] .modal-body input[type="number"],
+[data-theme="light"] .modal-body input[type="password"],
+[data-theme="light"] .modal-body input[type="email"],
+[data-theme="light"] .modal-body select,
+[data-theme="light"] .modal-body textarea {
+  background: rgba(255, 255, 255, 0.8) !important;
+  border: 1px solid rgba(148, 163, 184, 0.25) !important;
+}
+
+.modal-body input:focus,
+.modal-body select:focus,
+.modal-body textarea:focus {
+  border-color: rgba(99, 102, 241, 0.5) !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+  background: rgba(15, 23, 42, 0.35) !important;
+}
+
+[data-theme="light"] .modal-body input:focus,
+[data-theme="light"] .modal-body select:focus,
+[data-theme="light"] .modal-body textarea:focus {
+  border-color: rgba(99, 102, 241, 0.5) !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* Fix spacing in detail view blocks */
+.detail-hero-panel {
+  padding: 18px !important;
+}
+
+.detail-tabs {
+  margin-top: 18px !important;
+}
+
+
