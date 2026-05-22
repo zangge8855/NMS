@@ -17,6 +17,12 @@ import {
     HiOutlineServerStack,
     HiOutlineShieldCheck,
     HiOutlineXMark,
+    HiOutlineEnvelope,
+    HiOutlineCheckCircle,
+    HiOutlineBell,
+    HiOutlinePaperAirplane,
+    HiOutlineCircleStack,
+    HiOutlineArrowPath,
 } from 'react-icons/hi2';
 import TaskProgressModal from '../Tasks/TaskProgressModal.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
@@ -2969,11 +2975,12 @@ export default function SystemSettings() {
     };
 
     const renderStatusContent = () => (
-            <div className="settings-section-stack">
+        <div className="settings-section-stack">
             <div className="settings-grid settings-grid--basic">
+                {/* Notification and Inspection Card */}
                 <div className="card p-4 settings-panel settings-panel--span-6 settings-status-panel">
                     <SectionHeader
-                        className="mb-3"
+                        className="mb-4"
                         compact
                         title="通知与巡检状态"
                         subtitle="集中查看 SMTP、节点巡检、异常原因分布和 Telegram 通知链路。"
@@ -2988,83 +2995,175 @@ export default function SystemSettings() {
                             </button>
                         )}
                     />
-                    <div className="settings-monitor-log-meta">
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">SMTP</span>
-                            <span className="settings-monitor-log-value">{emailConfiguredLabel} · {emailDeliveryLabel}</span>
+                    <div className="settings-status-grid">
+                        {/* SMTP Service */}
+                        <div className="settings-kpi-card">
+                            <div className="settings-kpi-card-header">
+                                <span className="settings-kpi-card-icon settings-kpi-card-icon--info"><HiOutlineEnvelope /></span>
+                                <span className="settings-kpi-card-title">SMTP 服务</span>
+                                <span className={`settings-kpi-card-indicator ${emailStatus?.configured ? 'is-active' : 'is-inactive'}`} />
+                            </div>
+                            <div className="settings-kpi-card-body">
+                                <div className="settings-kpi-card-value">{emailConfiguredLabel}</div>
+                                <div className="settings-kpi-card-meta" title={emailDeliveryLabel}>{emailDeliveryLabel}</div>
+                            </div>
                         </div>
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">最近测试</span>
-                            <span className="settings-monitor-log-value">{emailVerificationLabel} · {formatDateTime(emailStatus?.lastVerification?.ts, locale)}</span>
+
+                        {/* Connection Test */}
+                        <div className="settings-kpi-card">
+                            <div className="settings-kpi-card-header">
+                                <span className="settings-kpi-card-icon settings-kpi-card-icon--success"><HiOutlineCheckCircle /></span>
+                                <span className="settings-kpi-card-title">连接测试</span>
+                                <span className={`settings-kpi-card-indicator ${emailStatus?.lastVerification?.success ? 'is-active' : 'is-inactive'}`} />
+                            </div>
+                            <div className="settings-kpi-card-body">
+                                <div className="settings-kpi-card-value">{emailVerificationLabel}</div>
+                                <div className="settings-kpi-card-meta" title={formatDateTime(emailStatus?.lastVerification?.ts, locale)}>{formatDateTime(emailStatus?.lastVerification?.ts, locale)}</div>
+                            </div>
                         </div>
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">节点巡检</span>
-                            <span className="settings-monitor-log-value">
-                                {monitorStatus?.healthMonitor?.running ? '运行中' : '未运行'}
-                                {` · 正常 ${monitorHealthyCount} / 异常 ${monitorIncidentCount}`}
-                            </span>
+
+                        {/* Node Inspection */}
+                        <div className="settings-kpi-card">
+                            <div className="settings-kpi-card-header">
+                                <span className="settings-kpi-card-icon settings-kpi-card-icon--info"><HiOutlineServerStack /></span>
+                                <span className="settings-kpi-card-title">节点巡检</span>
+                                <span className={`settings-kpi-card-indicator ${monitorStatus?.healthMonitor?.running ? 'is-active' : 'is-inactive'}`} />
+                            </div>
+                            <div className="settings-kpi-card-body">
+                                <div className="settings-kpi-card-value">{monitorStatus?.healthMonitor?.running ? '运行中' : '未运行'}</div>
+                                <div className="settings-kpi-card-meta" title={`正常 ${monitorHealthyCount} / 异常 ${monitorIncidentCount}`}>{`正常 ${monitorHealthyCount} / 异常 ${monitorIncidentCount}`}</div>
+                            </div>
                         </div>
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">异常分布</span>
-                            <span className="settings-monitor-log-value">{monitorReasonSummary}</span>
+
+                        {/* Exception Distribution */}
+                        <div className="settings-kpi-card">
+                            <div className="settings-kpi-card-header">
+                                <span className="settings-kpi-card-icon settings-kpi-card-icon--warning"><HiOutlineExclamationTriangle /></span>
+                                <span className="settings-kpi-card-title">异常原因</span>
+                                <span className={`settings-kpi-card-indicator ${monitorIncidentCount > 0 ? 'is-warning' : 'is-active'}`} />
+                            </div>
+                            <div className="settings-kpi-card-body">
+                                <div className="settings-kpi-card-value">{monitorReasonSummary || '无异常记录'}</div>
+                                <div className="settings-kpi-card-meta" title="最近巡检异常分布">异常分布统计</div>
+                            </div>
                         </div>
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">通知中心</span>
-                            <span className="settings-monitor-log-value">
-                                未读 {monitorUnreadCount} · DB 连续失败 {monitorStatus?.dbAlerts?.consecutiveFailures || 0}
-                            </span>
+
+                        {/* Notification Center */}
+                        <div className="settings-kpi-card">
+                            <div className="settings-kpi-card-header">
+                                <span className="settings-kpi-card-icon settings-kpi-card-icon--info"><HiOutlineBell /></span>
+                                <span className="settings-kpi-card-title">通知中心</span>
+                                <span className={`settings-kpi-card-indicator ${monitorUnreadCount > 0 ? 'is-warning' : 'is-active'}`} />
+                            </div>
+                            <div className="settings-kpi-card-body">
+                                <div className="settings-kpi-card-value">未读 {monitorUnreadCount}</div>
+                                <div className="settings-kpi-card-meta" title={`DB 连续失败 ${monitorStatus?.dbAlerts?.consecutiveFailures || 0} 次`}>{`DB 连续失败 ${monitorStatus?.dbAlerts?.consecutiveFailures || 0} 次`}</div>
+                            </div>
                         </div>
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">Telegram</span>
-                            <span className="settings-monitor-log-value">
-                                {monitorStatus?.telegram?.enabled
-                                    ? `已启用${telegramTargetPreview !== '-' ? ` · ${telegramTargetPreview}` : ''}${monitorStatus?.telegram?.sendDailyBackup ? ` · 下次备份 ${telegramNextBackupLabel}` : ''} · 菜单${monitorStatus?.telegram?.commandMenuEnabled ? '显示' : '隐藏'} · 轮询${monitorStatus?.telegram?.polling ? '运行' : '停止'}`
-                                    : monitorStatus?.telegram?.configured
-                                        ? '已配置未启用'
-                                        : '未配置'}
-                            </span>
+
+                        {/* Telegram Bot */}
+                        <div className="settings-kpi-card">
+                            <div className="settings-kpi-card-header">
+                                <span className="settings-kpi-card-icon settings-kpi-card-icon--telegram"><HiOutlinePaperAirplane /></span>
+                                <span className="settings-kpi-card-title">Telegram</span>
+                                <span className={`settings-kpi-card-indicator ${monitorStatus?.telegram?.enabled ? 'is-active' : 'is-inactive'}`} />
+                            </div>
+                            <div className="settings-kpi-card-body">
+                                <div className="settings-kpi-card-value">{monitorStatus?.telegram?.enabled ? '已启用' : monitorStatus?.telegram?.configured ? '已配置' : '未配置'}</div>
+                                <div className="settings-kpi-card-meta" title={telegramTargetPreview !== '-' ? telegramTargetPreview : '未绑定 Chat ID'}>
+                                    {telegramTargetPreview !== '-' ? telegramTargetPreview : '未绑定 Chat ID'}
+                                    {monitorStatus?.telegram?.sendDailyBackup ? ` · 下次备份 ${telegramNextBackupLabel}` : ''}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                {/* Database and Backup Card */}
                 <div className="card p-4 settings-panel settings-panel--span-6 settings-status-db-panel">
                     <SectionHeader
-                        className="mb-3"
+                        className="mb-4"
                         compact
                         title="数据库与备份状态"
                         subtitle="把连接状态、当前读写模式、写入排队和最近恢复记录放在一起核对。"
                     />
-                    <div className="settings-monitor-log-meta">
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">DB 连接</span>
-                            <span className="settings-monitor-log-value">
-                                {dbStatus?.connection?.enabled ? (dbStatus?.connection?.ready ? '已就绪' : '未就绪') : '未启用'}
-                            </span>
+                    <div className="settings-status-grid">
+                        {/* DB Connection */}
+                        <div className="settings-kpi-card">
+                            <div className="settings-kpi-card-header">
+                                <span className="settings-kpi-card-icon settings-kpi-card-icon--info"><HiOutlineCircleStack /></span>
+                                <span className="settings-kpi-card-title">DB 连接</span>
+                                <span className={`settings-kpi-card-indicator ${dbStatus?.connection?.ready ? 'is-active' : 'is-inactive'}`} />
+                            </div>
+                            <div className="settings-kpi-card-body">
+                                <div className="settings-kpi-card-value">{dbStatus?.connection?.enabled ? (dbStatus?.connection?.ready ? '已就绪' : '未就绪') : '未启用'}</div>
+                                <div className="settings-kpi-card-meta" title="SQLite / JSON 数据源">SQLite / JSON 数据源</div>
+                            </div>
                         </div>
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">当前模式</span>
-                            <span className="settings-monitor-log-value">
-                                {dbStatus ? `read=${dbStatus.currentModes?.readMode || 'file'} / write=${dbStatus.currentModes?.writeMode || 'file'}` : '等待探测'}
-                            </span>
+
+                        {/* Read/Write Mode */}
+                        <div className="settings-kpi-card">
+                            <div className="settings-kpi-card-header">
+                                <span className="settings-kpi-card-icon settings-kpi-card-icon--info"><HiOutlineCog6Tooth /></span>
+                                <span className="settings-kpi-card-title">当前模式</span>
+                                <span className="settings-kpi-card-indicator is-active" />
+                            </div>
+                            <div className="settings-kpi-card-body">
+                                <div className="settings-kpi-card-value">{dbStatus ? `R:${dbStatus.currentModes?.readMode || 'file'} / W:${dbStatus.currentModes?.writeMode || 'file'}` : '等待探测'}</div>
+                                <div className="settings-kpi-card-meta" title="读写通道分配">读写通道分配</div>
+                            </div>
                         </div>
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">写入排队</span>
-                            <span className="settings-monitor-log-value">
-                                queued {dbStatus?.writesQueued || 0} · pending {dbStatus?.pendingWrites || 0}
-                            </span>
+
+                        {/* Write Queue */}
+                        <div className="settings-kpi-card">
+                            <div className="settings-kpi-card-header">
+                                <span className="settings-kpi-card-icon settings-kpi-card-icon--info"><HiOutlineArrowUpTray /></span>
+                                <span className="settings-kpi-card-title">写入排队</span>
+                                <span className={`settings-kpi-card-indicator ${(dbStatus?.writesQueued || dbStatus?.pendingWrites) ? 'is-warning' : 'is-active'}`} />
+                            </div>
+                            <div className="settings-kpi-card-body">
+                                <div className="settings-kpi-card-value">{`排队 ${dbStatus?.writesQueued || 0} · 挂起 ${dbStatus?.pendingWrites || 0}`}</div>
+                                <div className="settings-kpi-card-meta" title="缓存写入同步数">缓存写入同步数</div>
+                            </div>
                         </div>
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">备份状态</span>
-                            <span className="settings-monitor-log-value">{backupSummaryValue}</span>
+
+                        {/* Backup Status */}
+                        <div className="settings-kpi-card">
+                            <div className="settings-kpi-card-header">
+                                <span className="settings-kpi-card-icon settings-kpi-card-icon--success"><HiOutlineShieldCheck /></span>
+                                <span className="settings-kpi-card-title">备份状态</span>
+                                <span className={`settings-kpi-card-indicator ${(backupSummaryValue && !backupSummaryValue.includes('异常')) ? 'is-active' : 'is-inactive'}`} />
+                            </div>
+                            <div className="settings-kpi-card-body">
+                                <div className="settings-kpi-card-value">{backupSummaryValue}</div>
+                                <div className="settings-kpi-card-meta" title="备份基线与周期状态">备份基线状态</div>
+                            </div>
                         </div>
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">本机备份</span>
-                            <span className="settings-monitor-log-value">{localBackups.length} 份 · {latestLocalBackup?.filename || '暂无'}</span>
+
+                        {/* Local Backups */}
+                        <div className="settings-kpi-card">
+                            <div className="settings-kpi-card-header">
+                                <span className="settings-kpi-card-icon settings-kpi-card-icon--info"><HiOutlineArrowDownTray /></span>
+                                <span className="settings-kpi-card-title">本机备份</span>
+                                <span className={`settings-kpi-card-indicator ${localBackups.length > 0 ? 'is-active' : 'is-inactive'}`} />
+                            </div>
+                            <div className="settings-kpi-card-body">
+                                <div className="settings-kpi-card-value">{localBackups.length} 份备份</div>
+                                <div className="settings-kpi-card-meta" title={latestLocalBackup?.filename || '暂无'}>{latestLocalBackup?.filename || '暂无'}</div>
+                            </div>
                         </div>
-                        <div className="settings-monitor-log-item">
-                            <span className="settings-monitor-log-label">最近恢复</span>
-                            <span className="settings-monitor-log-value">
-                                {backupStatus?.lastImport?.sourceFilename || '暂无'} · {formatDateTime(backupStatus?.lastImport?.restoredAt, locale)}
-                            </span>
+
+                        {/* Last Restore */}
+                        <div className="settings-kpi-card">
+                            <div className="settings-kpi-card-header">
+                                <span className="settings-kpi-card-icon settings-kpi-card-icon--success"><HiOutlineArrowPath /></span>
+                                <span className="settings-kpi-card-title">最近恢复</span>
+                                <span className={`settings-kpi-card-indicator ${backupStatus?.lastImport?.restoredAt ? 'is-active' : 'is-inactive'}`} />
+                            </div>
+                            <div className="settings-kpi-card-body">
+                                <div className="settings-kpi-card-value" title={backupStatus?.lastImport?.sourceFilename || '暂无'}>{backupStatus?.lastImport?.sourceFilename || '暂无'}</div>
+                                <div className="settings-kpi-card-meta" title={formatDateTime(backupStatus?.lastImport?.restoredAt, locale)}>{formatDateTime(backupStatus?.lastImport?.restoredAt, locale)}</div>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -6881,3 +6881,312 @@
     min-height: 32px;
   }
 }
+
+/* ==========================================================================
+   System Settings Premium Upgrades & Overrides
+   ========================================================================== */
+
+/* 1. Global Page Width Constraints and Glassmorphic Containers */
+.settings-page {
+  --settings-card-bg-dark: rgba(15, 23, 42, 0.42);
+  --settings-card-bg-light: rgba(255, 255, 255, 0.65);
+  --settings-card-border-dark: rgba(255, 255, 255, 0.08);
+  --settings-card-border-light: rgba(148, 163, 184, 0.22);
+}
+
+.settings-page .settings-panel,
+.settings-page .settings-form-cluster,
+.settings-page .settings-nav,
+.settings-page .settings-ops-card,
+.settings-page .settings-db-control-card,
+.settings-page .settings-backup-action-card {
+  background: var(--settings-card-bg-dark) !important;
+  backdrop-filter: blur(16px) saturate(120%);
+  -webkit-backdrop-filter: blur(16px) saturate(120%);
+  border: 1px solid var(--settings-card-border-dark) !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3) !important;
+  transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease !important;
+}
+
+[data-theme="light"] .settings-page .settings-panel,
+[data-theme="light"] .settings-page .settings-form-cluster,
+[data-theme="light"] .settings-page .settings-nav,
+[data-theme="light"] .settings-page .settings-ops-card,
+[data-theme="light"] .settings-page .settings-db-control-card,
+[data-theme="light"] .settings-page .settings-backup-action-card {
+  background: var(--settings-card-bg-light) !important;
+  border: 1px solid var(--settings-card-border-light) !important;
+  box-shadow: 0 8px 32px 0 rgba(15, 23, 42, 0.06) !important;
+}
+
+/* Hover glow effects for cards */
+.settings-page .settings-panel:hover,
+.settings-page .settings-form-cluster:hover,
+.settings-page .settings-ops-card:hover {
+  border-color: rgba(99, 102, 241, 0.24) !important;
+}
+
+/* 2. Responsive Settings Dual Column Shell (Screens >= 1024px) */
+@media (min-width: 1024px) {
+  .settings-page .settings-shell {
+    display: grid !important;
+    grid-template-columns: 280px 1fr !important;
+    gap: 24px !important;
+    align-items: start !important;
+    max-width: 1320px !important;
+    margin: 0 auto !important;
+    padding: 0 16px !important;
+  }
+
+  .settings-page .settings-nav {
+    position: sticky !important;
+    top: calc(84px + env(safe-area-inset-top, 0px)) !important;
+    z-index: 10 !important;
+    max-height: calc(100vh - 120px) !important;
+    overflow-y: auto !important;
+    padding: 12px !important;
+  }
+
+  .settings-page .settings-nav-list--workspace {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+
+  .settings-page .settings-nav-item {
+    display: grid !important;
+    grid-template-columns: 36px 1fr !important;
+    align-items: center !important;
+    padding: 12px 14px !important;
+    min-height: 58px !important;
+    border-radius: 12px !important;
+    background: rgba(255, 255, 255, 0.02) !important;
+    border: 1px solid transparent !important;
+  }
+
+  [data-theme="light"] .settings-page .settings-nav-item {
+    background: rgba(15, 23, 42, 0.02) !important;
+  }
+
+  .settings-page .settings-nav-item-summary {
+    display: block !important;
+    color: var(--text-muted) !important;
+    font-size: 11px !important;
+  }
+
+  /* Active Sidebar Item Styling */
+  .settings-page .settings-nav-item.is-active {
+    border-color: rgba(99, 102, 241, 0.36) !important;
+    background: rgba(99, 102, 241, 0.12) !important;
+    box-shadow: 0 0 16px rgba(99, 102, 241, 0.15) !important;
+  }
+}
+
+/* 3. Dashboard KPI metrics card grid */
+.settings-status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  width: 100%;
+  margin-top: 12px;
+}
+
+.settings-kpi-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-theme="light"] .settings-kpi-card {
+  background: rgba(15, 23, 42, 0.02);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.settings-kpi-card:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(99, 102, 241, 0.2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="light"] .settings-kpi-card:hover {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(99, 102, 241, 0.2);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+}
+
+.settings-kpi-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+}
+
+.settings-kpi-card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 16px;
+  color: var(--text-secondary);
+}
+
+[data-theme="light"] .settings-kpi-card-icon {
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.settings-kpi-card-icon--success {
+  color: #34d399;
+  background: rgba(52, 211, 153, 0.1);
+  border-color: rgba(52, 211, 153, 0.15);
+}
+
+.settings-kpi-card-icon--warning {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.15);
+}
+
+.settings-kpi-card-icon--info {
+  color: #60a5fa;
+  background: rgba(96, 165, 250, 0.1);
+  border-color: rgba(96, 165, 250, 0.15);
+}
+
+.settings-kpi-card-icon--telegram {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+  border-color: rgba(56, 189, 248, 0.15);
+}
+
+.settings-kpi-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  flex-grow: 1;
+}
+
+.settings-kpi-card-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(148, 163, 184, 0.4);
+  transition: all 0.25s ease;
+}
+
+.settings-kpi-card-indicator.is-active {
+  background: #10b981;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.6);
+}
+
+.settings-kpi-card-indicator.is-warning {
+  background: #f59e0b;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
+}
+
+.settings-kpi-card-indicator.is-inactive {
+  background: #ef4444;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
+}
+
+.settings-kpi-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-kpi-card-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-kpi-card-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 4. Fine details for Settings Form Elements, Layout & Spacing */
+.settings-page input[type="text"],
+.settings-page input[type="number"],
+.settings-page input[type="password"],
+.settings-page select,
+.settings-page textarea {
+  background: rgba(15, 23, 42, 0.25) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 10px !important;
+  transition: all 0.2s ease !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .settings-page input[type="text"],
+[data-theme="light"] .settings-page input[type="number"],
+[data-theme="light"] .settings-page input[type="password"],
+[data-theme="light"] .settings-page select,
+[data-theme="light"] .settings-page textarea {
+  background: rgba(255, 255, 255, 0.8) !important;
+  border: 1px solid rgba(148, 163, 184, 0.25) !important;
+}
+
+.settings-page input:focus,
+.settings-page select:focus,
+.settings-page textarea:focus {
+  border-color: rgba(99, 102, 241, 0.5) !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+  background: rgba(15, 23, 42, 0.35) !important;
+}
+
+[data-theme="light"] .settings-page input:focus,
+[data-theme="light"] .settings-page select:focus,
+[data-theme="light"] .settings-page textarea:focus {
+  border-color: rgba(99, 102, 241, 0.5) !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* Compact grid layouts for forms instead of massive wide elements */
+.settings-field-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important;
+  gap: 16px !important;
+}
+
+.settings-field-grid--compact {
+  gap: 12px !important;
+}
+
+/* Sticky Save Dock polishing */
+.settings-page .settings-save-dock {
+  background: rgba(15, 23, 42, 0.6) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.4) !important;
+  position: sticky !important;
+  bottom: 24px !important;
+  z-index: 20 !important;
+}
+
+[data-theme="light"] .settings-page .settings-save-dock {
+  background: rgba(255, 255, 255, 0.8) !important;
+  border: 1px solid rgba(148, 163, 184, 0.22) !important;
+  box-shadow: 0 -8px 30px rgba(15, 23, 42, 0.05) !important;
+}
+

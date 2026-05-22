@@ -482,9 +482,13 @@ describe('SystemSettings', () => {
         renderWithRouter(<SystemSettings />, { route: '/settings?tab=status' });
 
         expect(await screen.findByText('配置已加载')).toBeInTheDocument();
-        expect(screen.getByText('已配置 · 最近发送成功')).toBeInTheDocument();
-        expect(screen.getByText(/运行中 · 正常 2 \/ 异常 1/)).toBeInTheDocument();
-        expect(screen.getByText(/已启用 · \*+\d{4} · 下次备份/)).toBeInTheDocument();
+        expect(screen.getByText('已配置')).toBeInTheDocument();
+        expect(screen.getByText('最近发送成功')).toBeInTheDocument();
+        expect(screen.getByText('运行中')).toBeInTheDocument();
+        expect(screen.getByText('正常 2 / 异常 1')).toBeInTheDocument();
+        expect(screen.getByText('已启用')).toBeInTheDocument();
+        expect(screen.getByText(/(\*+\d{4})/)).toBeInTheDocument();
+        expect(screen.getByText(/下次备份/)).toBeInTheDocument();
     });
 
     it('ignores a late app bootstrap snapshot after live settings and invite codes have loaded', async () => {
