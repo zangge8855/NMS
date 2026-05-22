@@ -1514,8 +1514,8 @@ export default function UserDetail() {
                                 )}
                                 {detail?.policy && (
                                     <div className="card mb-4">
-                                        <div className="card-header pb-0 mb-0" style={{ borderBottom: 'none', paddingBottom: 0, marginBottom: 8 }}>
-                                            <span className="card-title"><HiOutlineShieldCheck className="inline-flex mr-2" /> {copy.labels.accessPolicy}</span>
+                                        <div className="card-header border-none pb-0 mb-2">
+                                            <span className="card-title flex items-center"><HiOutlineShieldCheck className="mr-2" /> {copy.labels.accessPolicy}</span>
                                         </div>
                                         <div className="p-3">
                                             <div className="flex gap-4 text-sm">

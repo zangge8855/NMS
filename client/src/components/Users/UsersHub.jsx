@@ -1973,7 +1973,7 @@ export default function UsersHub() {
                                                     ) : (user.clientData.count > 0 ? userExpiryLabel : '-')}
                                                 </td>
                                                 <td data-label={t('pages.usersHub.cols.actions')} className="table-cell-actions users-actions-cell" onClick={(e) => e.stopPropagation()}>
-                                                    <div className="flex gap-2 flex-wrap users-row-actions">
+                                                    <div className="flex items-center justify-end gap-2 flex-wrap users-row-actions">
                                                         {renderUserActionButtons(user)}
                                                     </div>
                                                 </td>

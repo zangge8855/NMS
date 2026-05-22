@@ -389,7 +389,7 @@ export default function Capabilities({ serverId = '', embedded = false } = {}) {
                                         {systemModules.map((module) => (
                                             <tr key={module.key}>
                                                 <td data-label={copy.matrixColumns.capability}>
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                    <div className="flex flex-col gap-1">
                                                         <span>{module.label}</span>
                                                         <a href={module.docs} target="_blank" rel="noreferrer" className="text-xs">
                                                             {copy.docsLink}
@@ -444,7 +444,7 @@ export default function Capabilities({ serverId = '', embedded = false } = {}) {
                                         {toolEntries.map((tool) => (
                                             <tr key={tool.key}>
                                                 <td data-label={copy.toolsColumns.tool}>
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                    <div className="flex flex-col gap-1">
                                                         <span>{tool.label || tool.key}</span>
                                                         <span className="text-xs text-muted">{tool.description || '-'}</span>
                                                     </div>

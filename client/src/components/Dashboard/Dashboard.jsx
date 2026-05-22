@@ -1586,10 +1586,10 @@ export default function Dashboard() {
                                                 <span className={`badge ${ib.enable ? 'badge-success' : 'badge-danger'}`}>{ib.enable ? t('pages.dashboardNode.statusEnabled') : t('pages.dashboardNode.statusDisabled')}</span>
                                             </td>
                                             <td data-label={t('pages.dashboardNode.tableUp')} className="table-cell-right font-mono dashboard-inbound-up-cell">
-                                                {loading ? <div className="skeleton" style={{ width: '4.5rem', height: '1rem', marginLeft: 'auto' }} /> : formatBytes(ib.up)}
+                                                {loading ? <div className="skeleton ml-auto" style={{ width: '4.5rem', height: '1rem' }} /> : formatBytes(ib.up)}
                                             </td>
                                             <td data-label={t('pages.dashboardNode.tableDown')} className="table-cell-right font-mono dashboard-inbound-down-cell">
-                                                {loading ? <div className="skeleton" style={{ width: '4.5rem', height: '1rem', marginLeft: 'auto' }} /> : formatBytes(ib.down)}
+                                                {loading ? <div className="skeleton ml-auto" style={{ width: '4.5rem', height: '1rem' }} /> : formatBytes(ib.down)}
                                             </td>
                                         </tr>
                                     ))}

@@ -50,13 +50,7 @@ class ErrorBoundary extends Component {
         if (this.state.hasError) {
             const locale = document.documentElement.lang === 'en' ? 'en-US' : 'zh-CN';
             return (
-                <div style={{
-                    height: '100vh',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '16px',
+                <div className="flex flex-col items-center justify-center gap-4 h-screen" style={{
                     background: 'var(--bg-primary)',
                     color: 'var(--text-primary)',
                 }}>
@@ -82,13 +76,7 @@ class ErrorBoundary extends Component {
 
 function PageFallback() {
     return (
-        <div style={{
-            height: '100%',
-            minHeight: '220px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-        }}>
+        <div className="flex items-center justify-center h-full" style={{ minHeight: '220px' }}>
             <span className="spinner" style={{ width: '24px', height: '24px' }} />
         </div>
     );
@@ -246,13 +234,7 @@ export default function App() {
 
     if (loading) {
         return (
-            <div style={{
-                height: '100vh',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'var(--bg-primary)',
-            }}>
+            <div className="flex items-center justify-center h-screen" style={{ background: 'var(--bg-primary)' }}>
                 <span className="spinner" style={{ width: '32px', height: '32px' }} />
             </div>
         );
