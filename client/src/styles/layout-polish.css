@@ -13189,3 +13189,51 @@ input[type="radio"] {
   gap: 6px !important;
   justify-content: center !important;
 }
+
+/* --- Shared List Selection Styles --- */
+.list-selection-container {
+  max-height: 300px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--surface-primary, #ffffff);
+  border: 1px solid var(--border-color, rgba(148, 163, 184, 0.12));
+}
+
+[data-theme="dark"] .list-selection-container {
+  background: var(--surface-primary, #1e293b);
+  border-color: var(--border-color, rgba(255, 255, 255, 0.08));
+}
+
+.list-selection-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border-stroke-soft, rgba(148, 163, 184, 0.15));
+  cursor: pointer;
+  background: var(--surface-secondary, rgba(248, 250, 252, 0.5));
+  transition: background-color 0.2s, border-color 0.2s;
+  box-sizing: border-box;
+}
+
+[data-theme="dark"] .list-selection-item {
+  background: var(--surface-secondary, rgba(30, 41, 59, 0.5));
+  border-color: var(--border-stroke-soft, rgba(255, 255, 255, 0.08));
+}
+
+.list-selection-item:hover {
+  background: var(--surface-hover, rgba(241, 245, 249, 0.8));
+  border-color: var(--border-stroke-hover, rgba(148, 163, 184, 0.3));
+}
+
+[data-theme="dark"] .list-selection-item:hover {
+  background: var(--surface-hover, rgba(51, 65, 85, 0.8));
+  border-color: var(--border-stroke-hover, rgba(255, 255, 255, 0.15));
+}
+

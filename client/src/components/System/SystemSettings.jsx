@@ -2647,36 +2647,36 @@ export default function SystemSettings() {
                 <div className="card p-3 mt-3 settings-mini-card settings-detail-card settings-runtime-storage-panel">
                     <div className="settings-backup-local-head">
                         <div>
-                            <div className="text-sm font-medium">运行存储状态</div>
-                            <div className="text-xs text-muted mt-1">确认运行数据目录是否持久化，避免重启后用户、节点和设置回到空状态。</div>
+                            <div className="text-sm font-medium">{t('system.sysRuntimeTitle')}</div>
+                            <div className="text-xs text-muted mt-1">{t('system.sysRuntimeDesc')}</div>
                         </div>
                         <span className={`badge ${runtimeStorageBadgeClass}`}>{runtimeStorageBadgeText}</span>
                     </div>
                     <div className="settings-backup-inspection-grid settings-runtime-storage-grid">
                         <div className="settings-backup-inspection-item">
-                            <div className="text-xs text-muted">DATA_DIR</div>
+                            <div className="text-xs text-muted">{t('system.sysDataDir')}</div>
                             <div className="text-sm settings-runtime-storage-path">{runtimeStorage?.dataDir || '-'}</div>
                         </div>
                         <div className="settings-backup-inspection-item">
-                            <div className="text-xs text-muted">本机备份目录</div>
+                            <div className="text-xs text-muted">{t('system.sysLocalBackupDir')}</div>
                             <div className="text-sm settings-runtime-storage-path">{runtimeStorage?.localBackupDir || backupStatus?.localBackupDir || '-'}</div>
                         </div>
                         <div className="settings-backup-inspection-item">
-                            <div className="text-xs text-muted">目录状态</div>
+                            <div className="text-xs text-muted">{t('system.sysDirStatus')}</div>
                             <div className="text-sm">
                                 {runtimeStorage
                                     ? `${runtimeStorage.dataDirExists ? '已创建' : '未创建'} · ${runtimeStorage.dataDirReadable ? '可读' : '不可读'} · ${runtimeStorage.dataDirWritable ? '可写' : '不可写'}`
-                                    : '等待刷新'}
+                                    : t('system.sysWaitRefresh')}
                             </div>
                         </div>
                         <div className="settings-backup-inspection-item">
-                            <div className="text-xs text-muted">数据文件</div>
+                            <div className="text-xs text-muted">{t('system.sysDataCheck')}</div>
                             <div className="text-sm">
                                 {runtimeStorage
                                     ? runtimeStorage.invalidStoreCount > 0
                                         ? `${runtimeStorage.invalidStoreCount} 个 JSON 异常`
                                         : 'JSON 校验正常'
-                                    : '等待刷新'}
+                                    : t('system.sysWaitRefresh')}
                             </div>
                         </div>
                     </div>
@@ -2723,28 +2723,28 @@ export default function SystemSettings() {
                 <div className="card p-3 mt-3 settings-mini-card settings-detail-card settings-backup-local-panel">
                     <div className="settings-backup-local-head">
                         <div>
-                            <div className="text-sm font-medium">服务器本机加密备份</div>
-                            <div className="text-xs text-muted mt-1">保存目录: {backupStatus?.localBackupDir || '-'}</div>
+                            <div className="text-sm font-medium">{t('system.sysLocalBackupsTitle')}</div>
+                            <div className="text-xs text-muted mt-1">{t('system.sysBackupDir')} {backupStatus?.localBackupDir || '-'}</div>
                         </div>
-                        <span className="badge badge-neutral">{localBackups.length} 份备份</span>
+                        <span className="badge badge-neutral">{localBackups.length} {t('system.sysBackupCount')}</span>
                     </div>
                     {localBackups.length === 0 ? (
-                        <div className="text-sm text-muted">还没有保存到服务器本机的备份。需要时可以先点上方“保存本机备份”。</div>
+                        <div className="text-sm text-muted">{t('system.sysNoLocalBackups')}</div>
                     ) : (
                         <div className="settings-backup-local-grid">
                             {localBackups.map((item) => (
                                 <div key={item.filename} className="settings-backup-local-item">
                                     <div className="settings-backup-local-item-head">
                                         <div className="settings-backup-local-name">{item.filename}</div>
-                                        <span className="badge badge-success">已加密</span>
+                                        <span className="badge badge-success">{t('system.sysEncrypted')}</span>
                                     </div>
                                     <div className="settings-backup-local-meta">
                                         <span>{formatDateTime(item.createdAt, locale)}</span>
                                         <span>{formatBytes(item.bytes || 0)}</span>
-                                        <span>{(item.storeKeys || []).length} 个 Store</span>
+                                        <span>{(item.storeKeys || []).length} {t('system.sysDataModules')}</span>
                                     </div>
                                     <div className="text-xs text-muted">
-                                        解密密钥: {item.keyHint || 'CREDENTIALS_SECRET'} · 算法: {item.cipher || 'AES-256-GCM'}
+                                        {t('system.sysDecryptionKey')} {item.keyHint || 'CREDENTIALS_SECRET'} · {t('system.sysAlgorithm')} {item.cipher || 'AES-256-GCM'}
                                     </div>
                                     <div className="settings-backup-local-actions">
                                         <button
@@ -2753,7 +2753,7 @@ export default function SystemSettings() {
                                             onClick={() => downloadLocalBackup(item.filename)}
                                             disabled={backupLocalActionKey === `download:${item.filename}`}
                                         >
-                                            {backupLocalActionKey === `download:${item.filename}` ? <span className="spinner" /> : '下载'}
+                                            {backupLocalActionKey === `download:${item.filename}` ? <span className="spinner" /> : t('system.sysActionDownload')}
                                         </button>
                                         <button
                                             type="button"
@@ -2761,7 +2761,7 @@ export default function SystemSettings() {
                                             onClick={() => restoreLocalBackup(item.filename)}
                                             disabled={backupLocalActionKey === `restore:${item.filename}`}
                                         >
-                                            {backupLocalActionKey === `restore:${item.filename}` ? <span className="spinner" /> : '恢复'}
+                                            {backupLocalActionKey === `restore:${item.filename}` ? <span className="spinner" /> : t('system.sysActionRestore')}
                                         </button>
                                         <button
                                             type="button"
@@ -2769,7 +2769,7 @@ export default function SystemSettings() {
                                             onClick={() => deleteLocalBackup(item.filename)}
                                             disabled={backupLocalActionKey === `delete:${item.filename}`}
                                         >
-                                            {backupLocalActionKey === `delete:${item.filename}` ? <span className="spinner" /> : '删除'}
+                                            {backupLocalActionKey === `delete:${item.filename}` ? <span className="spinner" /> : t('system.sysActionDelete')}
                                         </button>
                                     </div>
                                 </div>
@@ -2781,46 +2781,46 @@ export default function SystemSettings() {
                 {backupInspection && (
                     <div className="card p-3 mt-3 settings-mini-card settings-detail-card settings-backup-inspection">
                         <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
-                            <div className="text-sm font-medium">备份预览</div>
+                            <div className="text-sm font-medium">{t('system.sysBackupPreview')}</div>
                             <span className={`badge ${backupInspection.encrypted === false ? 'badge-warning' : 'badge-success'}`}>
-                                {backupInspection.encrypted === false ? '旧版明文兼容' : '已通过解密校验'}
+                                {backupInspection.encrypted === false ? t('system.sysLegacyCompat') : t('system.sysDecryptionVerified')}
                             </span>
                         </div>
                         <div className="settings-backup-inspection-grid">
                             <div className="settings-backup-inspection-item">
-                                <div className="text-xs text-muted">备份时间</div>
-                                <div className="text-sm">{backupInspection.createdAt ? formatDateTime(backupInspection.createdAt, locale) : '未知'}</div>
+                                <div className="text-xs text-muted">{t('system.sysBackupTime')}</div>
+                                <div className="text-sm">{backupInspection.createdAt ? formatDateTime(backupInspection.createdAt, locale) : t('system.sysUnknown')}</div>
                             </div>
                             <div className="settings-backup-inspection-item">
-                                <div className="text-xs text-muted">格式版本</div>
+                                <div className="text-xs text-muted">{t('system.sysFormatVersion')}</div>
                                 <div className="text-sm">{backupInspection.format} v{backupInspection.version}</div>
                             </div>
                             <div className="settings-backup-inspection-item">
-                                <div className="text-xs text-muted">加密状态</div>
-                                <div className="text-sm">{backupInspection.encrypted === false ? '旧版未加密' : (backupInspection.cipher || 'AES-256-GCM')}</div>
+                                <div className="text-xs text-muted">{t('system.sysEncryptionState')}</div>
+                                <div className="text-sm">{backupInspection.encrypted === false ? t('system.sysLegacyUnencrypted') : (backupInspection.cipher || 'AES-256-GCM')}</div>
                             </div>
                             <div className="settings-backup-inspection-item">
-                                <div className="text-xs text-muted">可恢复 Store</div>
-                                <div className="text-sm">{(backupInspection.restorableKeys || []).join(', ') || '无'}</div>
+                                <div className="text-xs text-muted">{t('system.sysRestorableModules')}</div>
+                                <div className="text-sm">{(backupInspection.restorableKeys || []).join(', ') || t('system.sysNone')}</div>
                             </div>
                         </div>
                         {(backupInspection.unsupportedKeys || []).length > 0 && (
-                            <div className="text-sm text-muted mt-1">不支持 Store: {backupInspection.unsupportedKeys.join(', ')}</div>
+                            <div className="text-sm text-muted mt-1">{t('system.sysUnsupportedModules')}{backupInspection.unsupportedKeys.join(', ')}</div>
                         )}
                         {(backupInspection.missingKeys || []).length > 0 && (
-                            <div className="text-sm text-muted mt-1">缺失快照: {backupInspection.missingKeys.join(', ')}</div>
+                            <div className="text-sm text-muted mt-1">{t('system.sysMissingSnapshots')}{backupInspection.missingKeys.join(', ')}</div>
                         )}
                         <div className="text-sm text-muted mt-1">
                             {backupInspection.encrypted === false
-                                ? '这是旧版未加密备份，仅保留恢复兼容。后续请重新导出新的加密备份。'
-                                : `恢复时将使用 ${backupInspection.keyHint || 'CREDENTIALS_SECRET'} 解密。`}
+                                ? t('system.sysLegacyWarning')
+                                : (locale === 'en-US' ? `Decrypted with ${backupInspection.keyHint || 'CREDENTIALS_SECRET'}` : `恢复时将使用 ${backupInspection.keyHint || 'CREDENTIALS_SECRET'} 解密。`)}
                         </div>
                         <div className="settings-backup-inspection-actions">
                             <button className="btn btn-secondary btn-sm" onClick={inspectBackup} disabled={!backupFile || backupInspectLoading || backupRestoreLoading}>
-                                {backupInspectLoading ? <span className="spinner" /> : '重新校验'}
+                                {backupInspectLoading ? <span className="spinner" /> : t('system.sysReVerify')}
                             </button>
                             <button className="btn btn-danger btn-sm" onClick={restoreBackup} disabled={backupRestoreLoading || (backupInspection.restorableKeys || []).length === 0}>
-                                {backupRestoreLoading ? <span className="spinner" /> : '确认恢复备份'}
+                                {backupRestoreLoading ? <span className="spinner" /> : t('system.sysConfirmRestore')}
                             </button>
                         </div>
                     </div>

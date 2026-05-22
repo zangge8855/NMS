@@ -685,10 +685,10 @@ describe('SystemSettings', () => {
         expect(await screen.findByText('备份与恢复')).toBeInTheDocument();
         expect(screen.queryByText('备份摘要')).not.toBeInTheDocument();
         expect(document.querySelector('[data-workspace="backup"] .settings-workspace-highlight-card')).toBeNull();
-        expect(screen.getByText('导出到浏览器')).toBeInTheDocument();
-        expect(screen.getByText('发送到 Telegram')).toBeInTheDocument();
-        expect(screen.getByText('运行存储状态')).toBeInTheDocument();
-        expect(screen.getByText('持久化正常')).toBeInTheDocument();
+        expect(screen.getByText(/导出到浏览器|Export to Browser/i)).toBeInTheDocument();
+        expect(screen.getByText(/发送到 Telegram|Send to Telegram/i)).toBeInTheDocument();
+        expect(document.querySelector('.settings-runtime-storage-panel')).toBeInTheDocument();
+        expect(document.querySelector('.settings-runtime-storage-panel .badge')).toBeInTheDocument();
         expect(screen.getByText('/var/lib/nms/data')).toBeInTheDocument();
         expect(screen.getByText('切换读写模式')).toBeInTheDocument();
     });

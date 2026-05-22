@@ -2117,11 +2117,11 @@ export default function UsersHub() {
                                         </div>
                                         <span className="badge badge-info">已选 {groupAllowedInboundKeys.length}</span>
                                     </div>
-                                    <div className="table-container p-3" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                                    <div className="list-selection-container">
                                         {allInbounds.length === 0 ? (
                                             <span className="text-sm text-muted">暂无可用入站</span>
                                         ) : allInbounds.map((inbound) => (
-                                            <label key={inbound.key} className="flex items-center gap-3 flex-wrap px-3 py-2 rounded border border-stroke-soft cursor-pointer">
+                                            <label key={inbound.key} className="list-selection-item">
                                                 <span className="font-medium text-sm">{inbound.serverName}</span>
                                                 <span className="text-sm">{inbound.remark || inbound.protocol}</span>
                                                 <span className="badge badge-neutral text-xs">{inbound.protocol}:{inbound.port}</span>
@@ -2167,14 +2167,14 @@ export default function UsersHub() {
                                             清空
                                         </button>
                                     </div>
-                                    <div className="table-container p-3" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                                    <div className="list-selection-container">
                                         {visibleGroupMemberCandidates.length === 0 ? (
                                             <span className="text-sm text-muted">没有匹配用户</span>
                                         ) : visibleGroupMemberCandidates.map((user) => {
                                             const currentGroupName = user.groupName || userGroupMap.get(String(user.groupId || ''))?.name || '';
                                             const movingFromOtherGroup = currentGroupName && String(user.groupId || '') !== String(editingGroup?.id || '');
                                             return (
-                                                <label key={user.id} className="flex items-center gap-3 flex-wrap px-3 py-2 rounded border border-stroke-soft cursor-pointer">
+                                                <label key={user.id} className="list-selection-item">
                                                     <input
                                                         type="checkbox"
                                                         checked={groupMemberIds.includes(user.id)}
@@ -2331,13 +2331,13 @@ export default function UsersHub() {
                 <ModalShell isOpen={editOpen} onClose={closeEditModal}>
                     <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h3 className="modal-title">编辑用户 - {editUser.username}</h3>
-                            <button type="button" className="modal-close" onClick={closeEditModal} aria-label="关闭" title="关闭"><HiOutlineXMark /></button>
+                            <h3 className="modal-title">{t('users.editTitle', { username: editUser.username })}</h3>
+                            <button type="button" className="modal-close" onClick={closeEditModal} aria-label={t('users.close')} title={t('users.close')}><HiOutlineXMark /></button>
                         </div>
                         <form onSubmit={submitEdit}>
                             <div className="modal-body">
                                 <div className="form-group">
-                                    <label className="form-label">用户名</label>
+                                    <label className="form-label">{t('users.editUsername')}</label>
                                     <input
                                         className="form-input"
                                         value={editUsername}
@@ -2345,7 +2345,7 @@ export default function UsersHub() {
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">邮箱</label>
+                                    <label className="form-label">{t('users.editEmail')}</label>
                                     <input
                                         type="email"
                                         className="form-input"
@@ -2354,22 +2354,22 @@ export default function UsersHub() {
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">订阅绑定邮箱</label>
+                                    <label className="form-label">{t('users.provisionEmailLabel')}</label>
                                     <input
                                         type="email"
                                         className="form-input"
                                         value={editSubscriptionEmail}
                                         onChange={(e) => handleEditSubscriptionEmailChange(e.target.value)}
-                                        placeholder="留空表示暂不单独绑定"
+                                        placeholder={t('users.editSubEmailHintNoBind')}
                                     />
                                     <p className="text-muted text-sm mt-1">
                                         {editSubscriptionFollowLogin
-                                            ? '当前跟随登录邮箱变更，现有节点凭据和订阅令牌会原地迁移。'
-                                            : '可单独指定订阅客户端绑定邮箱；修改时会保留现有节点凭据和订阅链接。'}
+                                            ? t('users.editSubEmailFollow')
+                                            : t('users.editSubEmailCustom')}
                                     </p>
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">用户分组</label>
+                                    <label className="form-label">{t('users.editGroup')}</label>
                                     <select
                                         className="form-select"
                                         value={editGroupId}
@@ -2379,7 +2379,7 @@ export default function UsersHub() {
                                             setEditInheritGroup(Boolean(nextGroupId));
                                         }}
                                     >
-                                        <option value="">不分组</option>
+                                        <option value="">{t('users.editGroupNone')}</option>
                                         {userGroups.map((group) => (
                                             <option key={group.id} value={group.id}>{group.name}</option>
                                         ))}
@@ -2391,13 +2391,13 @@ export default function UsersHub() {
                                                 checked={editInheritGroup}
                                                 onChange={(e) => setEditInheritGroup(e.target.checked)}
                                             />
-                                            继承分组节点策略
+                                            {t('users.editGroupInherit')}
                                         </label>
                                     )}
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">账号状态</label>
-                                    <div className="users-edit-status-toggle" role="group" aria-label="账号状态">
+                                    <label className="form-label">{t('users.editStatus')}</label>
+                                    <div className="users-edit-status-toggle" role="group" aria-label={t('users.editStatus')}>
                                         <button
                                             type="button"
                                             className={`users-edit-status-option${editEnabled ? ' is-active is-success' : ''}`}
@@ -2405,7 +2405,7 @@ export default function UsersHub() {
                                             aria-pressed={editEnabled}
                                         >
                                             <HiOutlinePlayCircle />
-                                            <span>启用</span>
+                                            <span>{t('users.editStatusEnable')}</span>
                                         </button>
                                         <button
                                             type="button"
@@ -2414,29 +2414,29 @@ export default function UsersHub() {
                                             aria-pressed={!editEnabled}
                                         >
                                             <HiOutlineNoSymbol />
-                                            <span>停用</span>
+                                            <span>{t('users.editStatusDisable')}</span>
                                         </button>
                                     </div>
                                     <p className="text-muted text-sm mt-1">
-                                        {editEnabled ? '允许该账号正常登录和使用订阅。' : '停用后账号将无法登录，已开通客户端会同步停用。'}
+                                        {editEnabled ? t('users.editStatusEnableDesc') : t('users.editStatusDisableDesc')}
                                     </p>
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">重置密码（留空则不修改）</label>
+                                    <label className="form-label">{t('users.editPassword')}</label>
                                     <div className="flex gap-2">
                                         <input
                                             type={showEditPassword ? 'text' : 'password'}
                                             className="form-input font-mono"
                                             value={editPassword}
                                             onChange={(e) => setEditPassword(e.target.value)}
-                                            placeholder="留空不修改"
+                                            placeholder={t('users.editPasswordHint')}
                                         />
                                         <button
                                             type="button"
                                             className="btn btn-secondary btn-sm btn-icon"
                                             onClick={() => setShowEditPassword((v) => !v)}
-                                            title={showEditPassword ? '隐藏密码' : '显示密码'}
-                                            aria-label={showEditPassword ? '隐藏密码' : '显示密码'}
+                                            title={showEditPassword ? t('users.hidePassword') : t('users.showPassword')}
+                                            aria-label={showEditPassword ? t('users.hidePassword') : t('users.showPassword')}
                                         >
                                             {showEditPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
                                         </button>
@@ -2444,8 +2444,8 @@ export default function UsersHub() {
                                             type="button"
                                             className="btn btn-secondary btn-sm btn-icon"
                                             onClick={() => { const p = generateSecurePassword(); setEditPassword(p); setShowEditPassword(true); }}
-                                            title="生成强密码"
-                                            aria-label="生成强密码"
+                                            title={t('users.genPassword')}
+                                            aria-label={t('users.genPassword')}
                                         >
                                             <HiOutlineArrowPath />
                                         </button>
@@ -2454,41 +2454,41 @@ export default function UsersHub() {
                                 </div>
                                 {editHasClients && (
                                     <div className="form-group">
-                                        <label className="form-label">到期时间</label>
+                                        <label className="form-label">{t('users.provisionExpiryLabel')}</label>
                                         <input
                                             type="datetime-local"
                                             className="form-input"
                                             value={editExpiryDate}
                                             onChange={(e) => setEditExpiryDate(e.target.value)}
                                         />
-                                        <p className="text-muted text-sm mt-1">留空 = 永不过期，修改后将同步更新所有节点客户端</p>
+                                        <p className="text-muted text-sm mt-1">{t('users.editExpiryHint')}</p>
                                     </div>
                                 )}
                                 <div className="form-group">
-                                    <label className="form-label">订阅策略</label>
+                                    <label className="form-label">{t('users.editPolicy')}</label>
                                     {editPolicyLoading ? (
                                         <div className="text-center p-4"><span className="spinner" /></div>
                                     ) : editGroupId && editInheritGroup ? (
                                         <div className="card">
                                             <div className="text-sm font-medium mb-2">
-                                                继承：{userGroupMap.get(editGroupId)?.name || '用户分组'}
+                                                {t('users.editGroupInherit')}: {userGroupMap.get(editGroupId)?.name || t('users.editGroup')}
                                             </div>
                                             <div className="text-xs text-muted">
-                                                保存后会按分组的服务器、入站和限制策略同步到 3x-ui；如需单独调整该用户，请取消继承。
+                                                {t('users.editPolicyInheritDesc')}
                                             </div>
                                         </div>
                                     ) : (
                                         <>
                                             <div className="card mb-3">
                                                 <div className="flex items-center justify-between mb-2">
-                                                    <span className="text-sm font-medium">可访问服务器</span>
+                                                    <span className="text-sm font-medium">{t('users.editServerAccess')}</span>
                                                     <label className="flex items-center gap-2 text-xs cursor-pointer">
                                                         <input
                                                             type="checkbox"
                                                             checked={editNoServerLimit}
                                                             onChange={(e) => setEditNoServerLimit(e.target.checked)}
                                                         />
-                                                        不限制
+                                                        {t('users.editNoLimit')}
                                                     </label>
                                                 </div>
                                                 <div className="flex flex-wrap gap-2">
@@ -2513,14 +2513,14 @@ export default function UsersHub() {
                                             </div>
                                             <div className="card">
                                                 <div className="flex items-center justify-between mb-2">
-                                                    <span className="text-sm font-medium">可用协议</span>
+                                                    <span className="text-sm font-medium">{t('users.editProtocolAccess')}</span>
                                                     <label className="flex items-center gap-2 text-xs cursor-pointer">
                                                         <input
                                                             type="checkbox"
                                                             checked={editNoProtocolLimit}
                                                             onChange={(e) => setEditNoProtocolLimit(e.target.checked)}
                                                         />
-                                                        不限制
+                                                        {t('users.editNoLimit')}
                                                     </label>
                                                 </div>
                                                 <div className="flex flex-wrap gap-2">
@@ -2544,11 +2544,11 @@ export default function UsersHub() {
                                                 </div>
                                             </div>
                                             <div className="card mt-3">
-                                                <div className="text-sm font-medium mb-2">统一限额</div>
-                                                <div className="text-xs text-muted mb-3">这里保存的是该用户的默认限额；单个入站用户如有手工覆盖，会优先使用覆盖值。</div>
+                                                <div className="text-sm font-medium mb-2">{t('users.provisionLimitTitle')}</div>
+                                                <div className="text-xs text-muted mb-3">{t('users.editLimitDesc')}</div>
                                                 <div className="grid-auto-280-tight">
                                                     <div className="form-group mb-0">
-                                                        <label className="form-label">IP 限制</label>
+                                                        <label className="form-label">{t('users.provisionIpLimitLabel')}</label>
                                                         <input
                                                             type="number"
                                                             className="form-input"
@@ -2556,10 +2556,10 @@ export default function UsersHub() {
                                                             value={editLimitIp}
                                                             onChange={(e) => setEditLimitIp(e.target.value)}
                                                         />
-                                                        <p className="text-muted text-sm mt-1">0 = 不限制连接 IP 数量</p>
+                                                        <p className="text-muted text-sm mt-1">{t('users.provisionIpLimitHint')}</p>
                                                     </div>
                                                     <div className="form-group mb-0">
-                                                        <label className="form-label">总流量上限</label>
+                                                        <label className="form-label">{t('users.provisionTrafficLimitLabel')}</label>
                                                         <div className="flex items-center gap-2">
                                                             <input
                                                                 type="number"
@@ -2571,7 +2571,7 @@ export default function UsersHub() {
                                                             />
                                                             <span className="text-sm text-muted">GB</span>
                                                         </div>
-                                                        <p className="text-muted text-sm mt-1">0 = 不限制总流量</p>
+                                                        <p className="text-muted text-sm mt-1">{t('users.provisionTrafficLimitHint')}</p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -2580,9 +2580,9 @@ export default function UsersHub() {
                                 </div>
                             </div>
                             <div className="modal-footer">
-                                <button type="button" className="btn btn-secondary" onClick={closeEditModal}>取消</button>
+                                <button type="button" className="btn btn-secondary" onClick={closeEditModal}>{t('users.cancel')}</button>
                                 <button type="submit" className="btn btn-primary" disabled={editSaving}>
-                                    {editSaving ? <span className="spinner" /> : <><HiOutlineCheck /> 保存</>}
+                                    {editSaving ? <span className="spinner" /> : <><HiOutlineCheck /> {t('users.save')}</>}
                                 </button>
                             </div>
                         </form>
@@ -2605,32 +2605,32 @@ export default function UsersHub() {
                                 ) : (
                                     <>
                                         <div className="form-group">
-                                            <label className="form-label">订阅绑定邮箱</label>
+                                            <label className="form-label">{t('users.provisionEmailLabel')}</label>
                                             <input
                                                 type="email"
                                                 className="form-input"
                                                 value={provisionEmail}
                                                 onChange={(e) => setProvisionEmail(e.target.value)}
-                                                placeholder="与节点客户端配置一致的邮箱"
+                                                placeholder={t('users.provisionEmailPlaceholder')}
                                             />
                                         </div>
 
                                         <div className="card mb-4">
-                                            <div className="text-sm font-medium mb-2">统一限额</div>
-                                            <div className="text-xs text-muted mb-3">开通后会把到期时间、IP 限制和总流量上限同步到该用户的默认策略与选中入站客户端。</div>
+                                            <div className="text-sm font-medium mb-2">{t('users.provisionLimitTitle')}</div>
+                                            <div className="text-xs text-muted mb-3">{t('users.provisionLimitDesc')}</div>
                                             <div className="grid-auto-280-tight">
                                                 <div className="form-group mb-0">
-                                                    <label className="form-label">到期时间</label>
+                                                    <label className="form-label">{t('users.provisionExpiryLabel')}</label>
                                                     <input
                                                         type="datetime-local"
                                                         className="form-input"
                                                         value={provisionExpiryDate}
                                                         onChange={(e) => setProvisionExpiryDate(e.target.value)}
                                                     />
-                                                    <p className="text-muted text-sm mt-1">留空 = 永不过期</p>
+                                                    <p className="text-muted text-sm mt-1">{t('users.provisionExpiryHint')}</p>
                                                     {inboundExpiries.length > 0 && (
                                                         <div className="mt-2">
-                                                            <div className="text-xs text-muted mb-1">参考：当前入站到期时间</div>
+                                                            <div className="text-xs text-muted mb-1">{t('users.provisionExpiryRef')}</div>
                                                             <div className="flex flex-wrap gap-2">
                                                                 {inboundExpiries
                                                                     .filter((e) => e.expiryTime > Date.now())
@@ -2642,7 +2642,7 @@ export default function UsersHub() {
                                                                                 key={i}
                                                                                 type="button"
                                                                                 className="badge badge-neutral cursor-pointer"
-                                                                                title={`${e.serverName} / ${e.inboundRemark}（${e.clientCount} 客户端）`}
+                                                                                title={`${e.serverName} / ${e.inboundRemark}（${e.clientCount} clients）`}
                                                                                 onClick={() => setProvisionExpiryDate(toLocalDateTimeString(e.expiryTime))}
                                                                             >
                                                                                 {e.serverName}/{e.inboundRemark}: {dateStr}
@@ -2654,7 +2654,7 @@ export default function UsersHub() {
                                                     )}
                                                 </div>
                                                 <div className="form-group mb-0">
-                                                    <label className="form-label">IP 限制</label>
+                                                    <label className="form-label">{t('users.provisionIpLimitLabel')}</label>
                                                     <input
                                                         type="number"
                                                         className="form-input"
@@ -2662,10 +2662,10 @@ export default function UsersHub() {
                                                         value={provisionLimitIp}
                                                         onChange={(e) => setProvisionLimitIp(e.target.value)}
                                                     />
-                                                    <p className="text-xs text-muted mt-1">0 = 不限制连接 IP 数量</p>
+                                                    <p className="text-xs text-muted mt-1">{t('users.provisionIpLimitHint')}</p>
                                                 </div>
                                                 <div className="form-group mb-0">
-                                                    <label className="form-label">总流量上限</label>
+                                                    <label className="form-label">{t('users.provisionTrafficLimitLabel')}</label>
                                                     <div className="flex items-center gap-2">
                                                         <input
                                                             type="number"
@@ -2677,16 +2677,16 @@ export default function UsersHub() {
                                                         />
                                                         <span className="text-sm text-muted">GB</span>
                                                     </div>
-                                                    <p className="text-xs text-muted mt-1">0 = 不限制总流量</p>
+                                                    <p className="text-xs text-muted mt-1">{t('users.provisionTrafficLimitHint')}</p>
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div className="form-group">
                                             <label className="form-label">
-                                                选择入站
+                                                {t('users.provisionInboundLabel')}
                                                 <span className="text-muted text-xs ml-2">
-                                                    已选 {provisionSelectedInboundKeys.size} / {allInbounds.length}
+                                                    {t('users.provisionInboundSelected', { count: provisionSelectedInboundKeys.size, total: allInbounds.length })}
                                                 </span>
                                             </label>
                                             <div className="flex gap-2 mb-2">
@@ -2695,29 +2695,28 @@ export default function UsersHub() {
                                                     className="btn btn-secondary btn-sm"
                                                     onClick={() => setProvisionSelectedInboundKeys(new Set(allInbounds.map((ib) => ib.key)))}
                                                 >
-                                                    全选
+                                                    {t('users.selectAll')}
                                                 </button>
                                                 <button
                                                     type="button"
                                                     className="btn btn-secondary btn-sm"
                                                     onClick={() => setProvisionSelectedInboundKeys(new Set())}
                                                 >
-                                                    全不选
+                                                    {t('users.selectNone')}
                                                 </button>
                                             </div>
-                                            <div className="flex flex-col gap-1" style={{ maxHeight: '240px', overflowY: 'auto' }}>
+                                            <div className="list-selection-container" style={{ maxHeight: '240px' }}>
                                                 {allInbounds.length === 0 ? (
-                                                    <span className="text-sm text-muted">暂无可用入站</span>
+                                                    <span className="text-sm text-muted">{t('users.provisionNoInbounds')}</span>
                                                 ) : allInbounds.map((ib) => {
                                                     const checked = provisionSelectedInboundKeys.has(ib.key);
                                                     const expiryLabel = ib.expiryTime > 0
                                                         ? formatDateOnly(ib.expiryTime, locale)
-                                                        : '永久';
+                                                        : t('users.permanent');
                                                     return (
                                                         <label
                                                             key={ib.key}
-                                                            className={`flex items-center gap-3 px-3 py-2 rounded cursor-pointer text-sm ${checked ? 'bg-surface-soft border-stroke-soft' : ''}`}
-                                                            style={{ border: '1px solid var(--border-color)' }}
+                                                            className={`list-selection-item ${checked ? 'is-selected' : ''}`}
                                                         >
                                                             <input
                                                                 type="checkbox"
@@ -2734,7 +2733,7 @@ export default function UsersHub() {
                                                             <span className="font-medium">{ib.serverName}</span>
                                                             <span className="text-muted">{ib.remark || ib.protocol}</span>
                                                             <span className="badge badge-neutral text-xs">{ib.protocol}:{ib.port}</span>
-                                                            <span className="text-muted text-xs ml-auto">到期: {expiryLabel}</span>
+                                                            <span className="text-muted text-xs ml-auto">{t('users.expiresAt')}{expiryLabel}</span>
                                                         </label>
                                                     );
                                                 })}
@@ -2746,20 +2745,20 @@ export default function UsersHub() {
                                 {provisionResult && (
                                     <div className="card">
                                         <div className="card-header">
-                                            <span className="card-title">开通结果</span>
+                                            <span className="card-title">{t('users.provisionResultTitle')}</span>
                                         </div>
                                         <div className="text-sm text-success mb-3">
-                                            {provisionResult.successMessage || '订阅已成功开通'}
+                                            {provisionResult.successMessage || t('users.provisionResultSuccess')}
                                         </div>
                                         {provisionResult.deployment && provisionResult.deployment.total > 0 && (
                                             <div className="mb-3">
                                                 <div className="text-sm mb-2">
-                                                    <span className="font-medium">节点下发：</span>
-                                                    <span className="badge badge-success mr-1">创建 {provisionResult.deployment.created}</span>
-                                                    <span className="badge badge-info mr-1">更新 {provisionResult.deployment.updated || 0}</span>
-                                                    <span className="badge badge-neutral mr-1">跳过 {provisionResult.deployment.skipped}（已存在）</span>
+                                                    <span className="font-medium">{t('users.provisionNodeDeploy')}</span>
+                                                    <span className="badge badge-success mr-1">{t('users.provisionDeployCreated', { count: provisionResult.deployment.created })}</span>
+                                                    <span className="badge badge-info mr-1">{t('users.provisionDeployUpdated', { count: provisionResult.deployment.updated || 0 })}</span>
+                                                    <span className="badge badge-neutral mr-1">{t('users.provisionDeploySkipped', { count: provisionResult.deployment.skipped })}</span>
                                                     {provisionResult.deployment.failed > 0 && (
-                                                        <span className="badge badge-danger">失败 {provisionResult.deployment.failed}</span>
+                                                        <span className="badge badge-danger">{t('users.provisionDeployFailed', { count: provisionResult.deployment.failed })}</span>
                                                     )}
                                                 </div>
                                             </div>
@@ -2771,9 +2770,9 @@ export default function UsersHub() {
                                                     <button
                                                         type="button"
                                                         className="btn btn-secondary btn-sm"
-                                                        onClick={async () => { await copyToClipboard(item.url); toast.success(`${item.label} 链接已复制`); }}
+                                                        onClick={async () => { await copyToClipboard(item.url); toast.success(t('users.linkCopied', { label: item.label })); }}
                                                     >
-                                                        <HiOutlineClipboard /> 复制{item.label}
+                                                        <HiOutlineClipboard /> {t('users.copyLink', { label: item.label })}
                                                     </button>
                                                 </div>
                                             ))}
@@ -2783,9 +2782,9 @@ export default function UsersHub() {
                                 )}
                             </div>
                             <div className="modal-footer">
-                                <button type="button" className="btn btn-secondary" onClick={closeProvisionModal}>关闭</button>
+                                <button type="button" className="btn btn-secondary" onClick={closeProvisionModal}>{t('users.close')}</button>
                                 <button type="submit" className="btn btn-primary" disabled={provisionSaving || provisionInitLoading}>
-                                    {provisionSaving ? <span className="spinner" /> : <><HiOutlineCheck /> 确认开通</>}
+                                    {provisionSaving ? <span className="spinner" /> : <><HiOutlineCheck /> {t('users.confirmProvision')}</>}
                                 </button>
                             </div>
                         </form>

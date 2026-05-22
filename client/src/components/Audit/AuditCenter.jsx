@@ -2392,7 +2392,19 @@ export default function AuditCenter() {
                                             </thead>
                                             <tbody>
                                                 {topUsers.map((item) => (
-                                                    <tr key={item.email} className="cursor-pointer" onClick={() => setSelectedUser(item.email)}>
+                                                    <tr
+                                                        key={item.email}
+                                                        className="cursor-pointer"
+                                                        tabIndex={0}
+                                                        role="button"
+                                                        onClick={() => setSelectedUser(item.email)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                                e.preventDefault();
+                                                                setSelectedUser(item.email);
+                                                            }
+                                                        }}
+                                                    >
                                                         <td data-label={copy.tables.user} className="audit-leaderboard-label-cell">{formatTrafficUserLabel(item)}</td>
                                                         <td data-label={leaderboardTrendLabel} className="audit-leaderboard-trend-cell">
                                                             <MiniSparkline
@@ -2438,7 +2450,19 @@ export default function AuditCenter() {
                                             </thead>
                                             <tbody>
                                                 {topServers.map((item) => (
-                                                    <tr key={item.serverId} className="cursor-pointer" onClick={() => setSelectedServerId(item.serverId)}>
+                                                    <tr
+                                                        key={item.serverId}
+                                                        className="cursor-pointer"
+                                                        tabIndex={0}
+                                                        role="button"
+                                                        onClick={() => setSelectedServerId(item.serverId)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                                e.preventDefault();
+                                                                setSelectedServerId(item.serverId);
+                                                            }
+                                                        }}
+                                                    >
                                                         <td data-label={copy.tables.node} className="audit-leaderboard-label-cell">{item.serverName}</td>
                                                         <td data-label={leaderboardTrendLabel} className="audit-leaderboard-trend-cell">
                                                             <MiniSparkline
