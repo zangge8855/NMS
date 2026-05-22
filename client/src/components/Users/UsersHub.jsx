@@ -1561,7 +1561,8 @@ export default function UsersHub() {
             if (Number(sync?.failedUsers || 0) > 0) {
                 toast.error(res.data?.msg || '用户分组已保存，但部分节点同步失败');
             } else {
-                toast.success(res.data?.msg || '用户分组已保存');
+                const syncedCount = sync?.syncedUsers || 0;
+                toast.success(`${res.data?.msg || '用户分组已保存'} (已处理 ${syncedCount} 个用户)`);
             }
             closeGroupModal();
             await fetchGroups();
@@ -1602,10 +1603,12 @@ export default function UsersHub() {
     const handleSyncGroup = async (group) => {
         try {
             const res = await api.post(`/user-groups/${encodeURIComponent(group.id)}/sync`);
-            if (Number(res.data?.obj?.sync?.failedUsers || 0) > 0) {
+            const syncResult = res.data?.obj?.sync || {};
+            if (Number(syncResult.failedUsers || 0) > 0) {
                 toast.error(res.data?.msg || '分组同步存在失败项');
             } else {
-                toast.success(res.data?.msg || '分组同步完成');
+                const syncedCount = syncResult.syncedUsers || 0;
+                toast.success(`${res.data?.msg || '分组同步完成'} (已处理 ${syncedCount} 个用户)`);
             }
             await fetchGroups();
             invalidateServerPanelDataCache();
