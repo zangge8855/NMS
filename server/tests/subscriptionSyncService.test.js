@@ -263,6 +263,7 @@ describe('subscriptionSyncService', () => {
     it('deploys IP limits only to allowed servers and inbounds', async () => {
         const updates = [];
         const adds = [];
+        const removes = [];
         const result = await autoDeployClients('user@example.com', {
             serverScopeMode: 'selected',
             allowedServerIds: ['srv-1', 'srv-2'],
@@ -282,7 +283,12 @@ describe('subscriptionSyncService', () => {
                 ],
             },
             listPanelInbounds: async (serverId) => ({
-                client: { post: async () => ({}) },
+                client: {
+                    post: async (url) => {
+                        if (url.includes('/delClient/')) removes.push(url);
+                        return {};
+                    },
+                },
                 inbounds: serverId === 'srv-1'
                     ? [
                         {
@@ -343,10 +349,12 @@ describe('subscriptionSyncService', () => {
             },
         });
 
-        assert.equal(result.total, 1);
+        assert.equal(result.total, 2);
         assert.equal(result.updated, 1);
         assert.equal(result.created, 0);
         assert.equal(result.skipped, 0);
+        assert.equal(result.removed, 1);
+        assert.equal(removes.length, 1);
         assert.equal(adds.length, 0);
         assert.equal(updates.length, 1);
         assert.equal(updates[0].inboundId, 101);

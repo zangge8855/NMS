@@ -379,14 +379,6 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
     const emailCandidates = collectManagedEmailCandidates(email, options.emailAliases);
 
     const allServers = Array.isArray(options.allServers) ? options.allServers : servers.list();
-    const targetServers = allServers.filter((item) => isServerAllowedByPolicy(policy, item?.id));
-    if (targetServers.length === 0) return result;
-
-    const protocolScopeMode = String(policy.protocolScopeMode || 'all').toLowerCase();
-    if (protocolScopeMode === 'none') {
-        return result;
-    }
-
     const allowedInboundKeys = Array.isArray(options.allowedInboundKeys) && options.allowedInboundKeys.length > 0
         ? new Set(options.allowedInboundKeys)
         : null;
@@ -395,8 +387,12 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
     const baseEntitlement = resolvePolicyEntitlement(policy, options);
     const forceCredentialRotation = options.forceCredentialRotation === true;
     const clientEnabled = options.clientEnabled;
+    const protocolScopeMode = String(policy.protocolScopeMode || 'all').toLowerCase();
+    const isGlobalProtocolDenied = protocolScopeMode === 'none';
 
-    for (const server of targetServers) {
+    for (const server of allServers) {
+        const isServerAllowed = isServerAllowedByPolicy(policy, server.id);
+
         let panelContext;
         try {
             panelContext = await listInbounds(server.id);
@@ -418,16 +414,52 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
         for (const inbound of inbounds) {
             const protocol = String(inbound.protocol || '').toLowerCase();
             if (!DEPLOY_CLIENT_PROTOCOLS.has(protocol)) continue;
+
+            const isProtocolAllowed = !isGlobalProtocolDenied && isProtocolAllowedByPolicy(policy, protocol);
+            const isInboundKeyAllowed = !allowedInboundKeys || allowedInboundKeys.has(`${server.id}:${inbound.id}`);
+            const isPolicyInboundAllowed = isInboundAllowedByPolicy(policy, server.id, inbound.id);
+            const isAllowed = isServerAllowed && isProtocolAllowed && isInboundKeyAllowed && isPolicyInboundAllowed;
+
+            const existingClients = parseInboundClients(inbound);
+            const match = findManagedClientByEmail(existingClients, emailCandidates);
+
+            if (!isAllowed) {
+                if (match) {
+                    result.total += 1;
+                    try {
+                        const clientIdentifier = resolveClientIdentifier(match, protocol);
+                        await client.post(`/panel/api/inbounds/${encodeURIComponent(inbound.id)}/delClient/${encodeURIComponent(clientIdentifier)}`);
+                        result.removed = (result.removed || 0) + 1;
+                        result.details.push({
+                            serverId: server.id,
+                            serverName: server.name,
+                            inboundId: inbound.id,
+                            inboundRemark: inbound.remark || '',
+                            protocol,
+                            status: 'removed',
+                            reason: 'excluded-by-policy',
+                        });
+                    } catch (error) {
+                        result.failed += 1;
+                        result.details.push({
+                            serverId: server.id,
+                            serverName: server.name,
+                            inboundId: inbound.id,
+                            inboundRemark: inbound.remark || '',
+                            protocol,
+                            status: 'failed',
+                            error: error.message,
+                        });
+                    }
+                }
+                continue;
+            }
+
             if (inbound.enable === false) continue;
-            if (!isProtocolAllowedByPolicy(policy, protocol)) continue;
-            if (allowedInboundKeys && !allowedInboundKeys.has(`${server.id}:${inbound.id}`)) continue;
-            if (!isInboundAllowedByPolicy(policy, server.id, inbound.id)) continue;
 
             result.total += 1;
 
             try {
-                const existingClients = parseInboundClients(inbound);
-                const match = findManagedClientByEmail(existingClients, emailCandidates);
 
                 if (match) {
                     const clientIdentifier = resolveClientIdentifier(match, protocol);
