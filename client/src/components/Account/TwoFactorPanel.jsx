@@ -20,6 +20,7 @@ function getCopy(locale = 'zh-CN') {
             qrAlt: 'TOTP enrolment QR code',
             secret: 'Manual key',
             secretCopied: 'Secret copied',
+            copyAction: 'Copy',
             verifyCode: 'Verification code',
             verify: 'Confirm & enable',
             cancel: 'Cancel',
@@ -47,6 +48,7 @@ function getCopy(locale = 'zh-CN') {
         qrAlt: '2FA 注册二维码',
         secret: '手动密钥',
         secretCopied: '密钥已复制',
+        copyAction: '复制',
         verifyCode: '验证码',
         verify: '确认开启',
         cancel: '取消',
@@ -224,7 +226,7 @@ export default function TwoFactorPanel({ locale = 'zh-CN' }) {
                             className="btn btn-ghost btn-sm"
                             onClick={() => copyText(enrollment.secret, copy.secretCopied)}
                         >
-                            <HiOutlineClipboard /> {locale === 'en-US' ? 'Copy' : '复制'}
+                            <HiOutlineClipboard /> {copy.copyAction}
                         </button>
                     </div>
                     <div className="form-group mb-0">
@@ -257,7 +259,7 @@ export default function TwoFactorPanel({ locale = 'zh-CN' }) {
                     </div>
                     <div className="account-twofactor-actions">
                         <button type="button" className="btn btn-secondary btn-sm" onClick={() => copyText(backupCodes.join('\n'), copy.backupCopied)}>
-                            <HiOutlineClipboard /> {locale === 'en-US' ? 'Copy' : '复制'}
+                            <HiOutlineClipboard /> {copy.copyAction}
                         </button>
                         <button type="button" className="btn btn-primary btn-sm" onClick={() => setBackupCodes(null)}>
                             {copy.done}

@@ -4,7 +4,7 @@ export const VALID_LOCALES = ['zh-CN', 'en-US'];
 const messages = {
   'zh-CN': {
     shell: {
-      brandSubtitle: '',
+      brandSubtitle: '多节点集群管理',
       searchPlaceholder: '搜索页面、用户、节点...',
       searchAriaLabel: '全局命令搜索',
       searchEmpty: '没有匹配结果',
@@ -24,6 +24,8 @@ const messages = {
       collapseSidebar: '收起侧边栏',
       langLabel: 'EN',
       switchLanguage: '切换到英文',
+      menu: '菜单',
+      mobileNavigation: '移动导航',
     },
     nav: {
       monitor: '监控',
@@ -843,7 +845,7 @@ const messages = {
   },
   'en-US': {
     shell: {
-      brandSubtitle: '',
+      brandSubtitle: 'Multi-Node Panel Cluster',
       searchPlaceholder: 'Search pages, users, nodes...',
       searchAriaLabel: 'Global command search',
       searchEmpty: 'No matching result',
@@ -863,6 +865,8 @@ const messages = {
       collapseSidebar: 'Collapse sidebar',
       langLabel: '中',
       switchLanguage: 'Switch to Chinese',
+      menu: 'Menu',
+      mobileNavigation: 'Mobile navigation',
     },
     nav: {
       monitor: 'Monitor',

@@ -33,6 +33,8 @@ function getNodeHealthCopy(locale) {
             collapse: 'Collapse',
             denseMode: 'Priority view',
             noMatch: 'No matching nodes',
+            addNode: 'Add Node',
+            clearFilter: 'Clear filter',
         }
         : {
             searchPlaceholder: '搜索节点',
@@ -45,6 +47,8 @@ function getNodeHealthCopy(locale) {
             collapse: '收起',
             denseMode: '重点视图',
             noMatch: '没有匹配节点',
+            addNode: '前往添加节点',
+            clearFilter: '清空筛选',
         };
 }
 
@@ -307,7 +311,7 @@ export default function NodeHealthGrid({ servers, serverStatuses, trendHistory =
                     icon={<HiOutlineServerStack className="node-health-empty-icon" />}
                     action={(
                         <button type="button" className="btn btn-primary btn-sm" onClick={() => { window.location.href = '/servers'; }}>
-                            {locale === 'en-US' ? 'Add Node' : '前往添加节点'}
+                            {copy.addNode}
                         </button>
                     )}
                 />
@@ -377,7 +381,7 @@ export default function NodeHealthGrid({ servers, serverStatuses, trendHistory =
                                 title={copy.noMatch}
                                 size="compact"
                                 hideIcon
-                                action={<button type="button" className="btn btn-secondary btn-sm" onClick={() => setQuery('')}>{locale === 'en-US' ? 'Clear filter' : '清空筛选'}</button>}
+                                action={<button type="button" className="btn btn-secondary btn-sm" onClick={() => setQuery('')}>{copy.clearFilter}</button>}
                             />
                         </div>
                     )

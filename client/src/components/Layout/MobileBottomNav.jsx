@@ -8,17 +8,17 @@ import { getVisibleMobileNavItems } from './navConfig.js';
 
 export default function MobileBottomNav({ onOpenMenu }) {
     const { user } = useAuth();
-    const { locale } = useI18n();
+    const { locale, t } = useI18n();
     const { activeServerId } = useServer();
     const isAdmin = user?.role === 'admin';
     const isGlobalView = activeServerId === 'global';
     const items = getVisibleMobileNavItems({ isAdmin, isGlobalView, locale });
-    const menuLabel = locale === 'en-US' ? 'Menu' : '菜单';
+    const menuLabel = t('shell.menu');
 
     if (items.length === 0) return null;
 
     return (
-        <nav className="mobile-bottom-nav" aria-label={locale === 'en-US' ? 'Mobile navigation' : '移动导航'}>
+        <nav className="mobile-bottom-nav" aria-label={t('shell.mobileNavigation')}>
             <div className="mobile-bottom-nav-track">
                 {items.map((item) => (
                     <NavLink

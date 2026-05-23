@@ -48,6 +48,8 @@ function getAccountCopy(locale = 'zh-CN') {
             passwordChangeFailed: 'Failed to update password',
             passwordMismatch: 'The new passwords do not match',
             fillAllPasswordFields: 'Fill in all password fields',
+            profileDraft: 'Profile draft',
+            passwordDraft: 'Password draft',
         };
     }
 
@@ -89,6 +91,8 @@ function getAccountCopy(locale = 'zh-CN') {
         passwordChangeFailed: '修改密码失败',
         passwordMismatch: '两次输入的新密码不一致',
         fillAllPasswordFields: '请填写完整的密码字段',
+        profileDraft: '资料待保存',
+        passwordDraft: '密码待提交',
     };
 }
 
@@ -123,8 +127,8 @@ export default function AccountCenter() {
     const profileDraftKey = `${normalizeUsername(username)}\n${normalizeEmail(email)}`;
     const accountInitial = String(loginUsername || loginEmail || copy.title || '?').trim().charAt(0).toUpperCase() || '?';
     const hasPendingPasswordDraft = Boolean(oldPassword || newPassword || confirmPassword);
-    const profileDraftLabel = locale === 'en-US' ? 'Profile draft' : '资料待保存';
-    const passwordDraftLabel = locale === 'en-US' ? 'Password draft' : '密码待提交';
+    const profileDraftLabel = copy.profileDraft;
+    const passwordDraftLabel = copy.passwordDraft;
 
     useEffect(() => {
         setUsername(loginUsername);

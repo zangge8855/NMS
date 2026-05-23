@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useMemo, useState, useCallback, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { DEFAULT_LOCALE, VALID_LOCALES, getLocaleMessage, getLocaleMessageObject } from '../i18n/messages.js';
+import { getNavItemForPath } from '../components/Layout/navConfig.js';
 
 const LanguageContext = createContext(null);
 const STORAGE_KEY = 'nms_locale';
@@ -12,6 +14,7 @@ function getStoredLocale() {
 
 export function LanguageProvider({ children }) {
   const [locale, setLocaleState] = useState(getStoredLocale);
+  const location = useLocation();
 
   const setLocale = useCallback((nextLocale) => {
     const normalized = VALID_LOCALES.includes(nextLocale) ? nextLocale : DEFAULT_LOCALE;
@@ -32,9 +35,15 @@ export function LanguageProvider({ children }) {
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
+    const item = getNavItemForPath(location.pathname);
+    const pageTitle = item ? (typeof item.label === 'object' ? item.label[locale] : item.label) : '';
     const subtitle = String(getLocaleMessage(locale, 'shell.brandSubtitle') || '').trim();
-    document.title = subtitle ? `NMS · ${subtitle}` : 'NMS';
-  }, [locale]);
+    if (pageTitle) {
+      document.title = `${pageTitle} · NMS`;
+    } else {
+      document.title = subtitle ? `NMS · ${subtitle}` : 'NMS';
+    }
+  }, [locale, location.pathname]);
 
   const value = useMemo(() => ({
     locale,
