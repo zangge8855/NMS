@@ -12,7 +12,7 @@ describe('LanguageProvider', () => {
         localStorage.clear();
     });
 
-    it('syncs document title with the sidebar brand copy', () => {
+    it('falls back to the app name when the brand subtitle is empty', () => {
         render(
             <MemoryRouter initialEntries={['/unknown']}>
                 <LanguageProvider>
@@ -21,7 +21,7 @@ describe('LanguageProvider', () => {
             </MemoryRouter>
         );
 
-        expect(document.title).toBe('NMS · 多节点集群管理');
+        expect(document.title).toBe('NMS');
         expect(document.documentElement.lang).toBe('zh-CN');
     });
 
@@ -36,7 +36,7 @@ describe('LanguageProvider', () => {
             </MemoryRouter>
         );
 
-        expect(document.title).toBe('NMS · Multi-Node Panel Cluster');
+        expect(document.title).toBe('NMS');
         expect(document.documentElement.lang).toBe('en-US');
     });
 

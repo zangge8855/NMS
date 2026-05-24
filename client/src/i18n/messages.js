@@ -4,7 +4,7 @@ export const VALID_LOCALES = ['zh-CN', 'en-US'];
 const messages = {
   'zh-CN': {
     shell: {
-      brandSubtitle: '多节点集群管理',
+      brandSubtitle: '',
       searchPlaceholder: '搜索页面、用户、节点...',
       searchAriaLabel: '全局命令搜索',
       searchEmpty: '没有匹配结果',
@@ -845,7 +845,7 @@ const messages = {
   },
   'en-US': {
     shell: {
-      brandSubtitle: 'Multi-Node Panel Cluster',
+      brandSubtitle: '',
       searchPlaceholder: 'Search pages, users, nodes...',
       searchAriaLabel: 'Global command search',
       searchEmpty: 'No matching result',

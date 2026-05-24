@@ -118,6 +118,49 @@ describe('inbound client helpers', () => {
         expect(resolveClientUsed(mergeInboundClientStats(inbound)[0])).toBe(0);
     });
 
+    it('keeps entitlement fields from settings when clientStats is stale', () => {
+        const inbound = {
+            protocol: 'vless',
+            settings: {
+                clients: [
+                    {
+                        id: 'client-4',
+                        email: 'expiry@example.com',
+                        expiryTime: 1800000000000,
+                        totalGB: 4096,
+                        limitIp: 2,
+                        enable: true,
+                    },
+                ],
+            },
+            clientStats: [
+                {
+                    id: 'client-4',
+                    email: 'expiry@example.com',
+                    expiryTime: 1700000000000,
+                    totalGB: 1024,
+                    limitIp: 1,
+                    enable: false,
+                    up: 30,
+                    down: 40,
+                },
+            ],
+        };
+
+        expect(mergeInboundClientStats(inbound)).toEqual([
+            {
+                id: 'client-4',
+                email: 'expiry@example.com',
+                expiryTime: 1800000000000,
+                totalGB: 4096,
+                limitIp: 2,
+                enable: true,
+                up: 30,
+                down: 40,
+            },
+        ]);
+    });
+
     it('falls back safely for invalid non-object JSON payloads', () => {
         expect(parseJsonObjectLike('[]', { clients: [] })).toEqual({ clients: [] });
         expect(parseJsonObjectLike('not-json', { clients: [] })).toEqual({ clients: [] });

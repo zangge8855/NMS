@@ -105,6 +105,81 @@ function clientMatchesIdentifier(client = {}, identifier = '', protocol = '') {
     return candidates.includes(needle);
 }
 
+function panelResponseIsFailure(response) {
+    return response?.data
+        && typeof response.data === 'object'
+        && response.data.success === false;
+}
+
+function createPanelResponseError(response, fallbackMessage = 'panel request failed') {
+    const message = normalizeText(response?.data?.msg || response?.data?.message || fallbackMessage);
+    const error = new Error(message || fallbackMessage);
+    error.response = {
+        status: Number(response?.status || 502),
+        data: response?.data || { success: false, msg: message || fallbackMessage },
+    };
+    return error;
+}
+
+function assertPanelResponseSuccess(response, fallbackMessage) {
+    if (panelResponseIsFailure(response)) {
+        throw createPanelResponseError(response, fallbackMessage);
+    }
+    return response;
+}
+
+function valuesEqual(field, left, right) {
+    if (field === 'email') return normalizeEmail(left) === normalizeEmail(right);
+    if (['expiryTime', 'limitIp', 'totalGB'].includes(field)) {
+        return Number(left || 0) === Number(right || 0);
+    }
+    if (field === 'enable') return (left !== false) === (right !== false);
+    return normalizeText(left) === normalizeText(right);
+}
+
+function clientUpdateMatches(actual = {}, expected = {}) {
+    const fields = ['email', 'id', 'password', 'subId', 'flow', 'expiryTime', 'limitIp', 'totalGB', 'enable'];
+    return fields.every((field) => {
+        if (!Object.prototype.hasOwnProperty.call(expected || {}, field)) return true;
+        return valuesEqual(field, actual?.[field], expected?.[field]);
+    });
+}
+
+function findUpdatedClient(clients = [], clientIdentifier = '', protocol = '', clientData = {}, options = {}) {
+    const emailCandidates = [
+        clientData?.email,
+        options.currentEmail,
+        options.email,
+        options.sourceClient?.email,
+    ].map(normalizeEmail).filter(Boolean);
+
+    for (const email of emailCandidates) {
+        const match = clients.find((item) => normalizeEmail(item?.email) === email);
+        if (match) return match;
+    }
+
+    const identifierMatch = clients.find((item) => clientMatchesIdentifier(item, clientIdentifier, protocol));
+    if (identifierMatch) return identifierMatch;
+
+    const nextIdentifier = resolveClientIdentifier(clientData, protocol);
+    if (nextIdentifier) {
+        return clients.find((item) => clientMatchesIdentifier(item, nextIdentifier, protocol)) || null;
+    }
+
+    return null;
+}
+
+async function legacyUpdateAppearsApplied(panelClient, inboundId, clientIdentifier, clientData = {}, options = {}) {
+    try {
+        const inbound = await fetchInboundById(panelClient, inboundId);
+        const protocol = normalizeProtocol(options.protocol || inbound?.protocol || clientData?.protocol);
+        const match = findUpdatedClient(parseInboundClients(inbound), clientIdentifier, protocol, clientData, options);
+        return Boolean(match && clientUpdateMatches(match, clientData));
+    } catch {
+        return true;
+    }
+}
+
 async function postJson(client, path, data = {}) {
     return client.post(path, data, {
         headers: { 'Content-Type': 'application/json' },
@@ -220,21 +295,30 @@ export async function postAddClientCompat(panelClient, inboundId, clientData) {
 
 export async function postUpdateClientCompat(panelClient, inboundId, clientIdentifier, clientData, options = {}) {
     const encodedIdentifier = encodePathSegment(clientIdentifier);
+    let legacyError = null;
+
     try {
-        return await postForm(panelClient, `/panel/api/inbounds/updateClient/${encodedIdentifier}`, {
+        const response = assertPanelResponseSuccess(await postForm(panelClient, `/panel/api/inbounds/updateClient/${encodedIdentifier}`, {
             id: inboundId,
             settings: { clients: [clientData] },
-        });
-    } catch (formError) {
-        if (!isUnsupportedPanelEndpointError(formError)) {
-            try {
-                return await panelClient.post(`/panel/api/inbounds/updateClient/${encodedIdentifier}`, clientData);
-            } catch (jsonError) {
-                if (!isUnsupportedPanelEndpointError(jsonError)) {
-                    throw jsonError;
-                }
-            }
+        }), 'legacy updateClient failed');
+        if (await legacyUpdateAppearsApplied(panelClient, inboundId, clientIdentifier, clientData, options)) {
+            return response;
         }
+    } catch (formError) {
+        legacyError = formError;
+    }
+
+    try {
+        const response = assertPanelResponseSuccess(
+            await panelClient.post(`/panel/api/inbounds/updateClient/${encodedIdentifier}`, clientData),
+            'legacy updateClient JSON failed'
+        );
+        if (await legacyUpdateAppearsApplied(panelClient, inboundId, clientIdentifier, clientData, options)) {
+            return response;
+        }
+    } catch (jsonError) {
+        legacyError = jsonError;
     }
 
     const currentEmail = await resolveClientEmailForInbound(panelClient, inboundId, clientIdentifier, {
@@ -242,9 +326,12 @@ export async function postUpdateClientCompat(panelClient, inboundId, clientIdent
         clientData,
     });
     if (!currentEmail) {
-        throw new Error('Unable to resolve client email for latest 3x-ui update API');
+        throw legacyError || new Error('Unable to resolve client email for latest 3x-ui update API');
     }
-    return postJson(panelClient, `/panel/api/clients/update/${encodePathSegment(currentEmail)}`, clientData);
+    return assertPanelResponseSuccess(
+        await postJson(panelClient, `/panel/api/clients/update/${encodePathSegment(currentEmail)}`, clientData),
+        'latest updateClient failed'
+    );
 }
 
 async function postDetachClientFromInboundV3(panelClient, inboundId, email) {

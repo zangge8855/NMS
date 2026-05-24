@@ -67,9 +67,13 @@ export function mergeInboundClientStats(inbound) {
             .map((key) => statsMap.get(key))
             .find(Boolean);
 
+        if (!stats) return client;
+
         return {
             ...client,
-            ...(stats || {}),
+            up: stats.up ?? client.up,
+            down: stats.down ?? client.down,
+            reset: stats.reset ?? client.reset,
         };
     });
 }

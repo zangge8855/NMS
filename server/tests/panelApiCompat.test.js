@@ -174,6 +174,40 @@ test('postUpdateClientCompat resolves old email and uses latest email-scoped upd
     assert.equal(calls.at(-1).contentType, 'application/json');
 });
 
+test('postUpdateClientCompat falls back when legacy update does not change entitlement fields', async () => {
+    const calls = [];
+    const client = {
+        async post(path, data, config) {
+            calls.push({ method: 'post', path, data, contentType: config?.headers?.['Content-Type'] });
+            return { data: { success: true } };
+        },
+        async get(path) {
+            calls.push({ method: 'get', path });
+            return {
+                data: {
+                    obj: {
+                        id: 7,
+                        protocol: 'vless',
+                        settings: JSON.stringify({
+                            clients: [{ id: 'uuid-a', email: 'old@example.com', expiryTime: 1700000000000 }],
+                        }),
+                    },
+                },
+            };
+        },
+    };
+
+    await postUpdateClientCompat(client, 7, 'uuid-a', {
+        id: 'uuid-a',
+        email: 'old@example.com',
+        expiryTime: 1800000000000,
+    });
+
+    assert.equal(calls.at(-1).path, '/panel/api/clients/update/old%40example.com');
+    assert.equal(calls.at(-1).contentType, 'application/json');
+    assert.equal(calls.at(-1).data.expiryTime, 1800000000000);
+});
+
 test('postDeleteClientFromInboundCompat detaches by resolved email on latest v3 panels', async () => {
     const calls = [];
     const client = {
