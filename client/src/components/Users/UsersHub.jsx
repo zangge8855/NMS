@@ -407,7 +407,7 @@ export default function UsersHub() {
     const [editPassword, setEditPassword] = useState('');
     const [showEditPassword, setShowEditPassword] = useState(false);
     const [editExpiryDate, setEditExpiryDate] = useState('');
-    const [editHasClients, setEditHasClients] = useState(false);
+    const [editExpiryInitial, setEditExpiryInitial] = useState('');
     const [editSaving, setEditSaving] = useState(false);
     // Policy fields in edit modal
     const [editPolicyLoading, setEditPolicyLoading] = useState(false);
@@ -417,6 +417,7 @@ export default function UsersHub() {
     const [editProtocols, setEditProtocols] = useState([]);
     const [editLimitIp, setEditLimitIp] = useState('0');
     const [editTrafficLimitGb, setEditTrafficLimitGb] = useState('0');
+    const [editOverrideFields, setEditOverrideFields] = useState([]);
 
     // Create user modal
     const [createOpen, setCreateOpen] = useState(false);
@@ -1244,7 +1245,6 @@ export default function UsersHub() {
     };
 
     const openEditModal = (user) => {
-        console.log('DEBUG: openEditModal called with user:', user);
         try {
             setEditUser(user);
             setEditUsername(user.username || '');
@@ -1261,20 +1261,15 @@ export default function UsersHub() {
             setShowEditPassword(false);
             setEditSaving(false);
 
-            // Pre-fill expiry from client data
+            // Pre-fill expiry: prefer earliest client expiry, else policy expiryTime (loaded below), else empty
             const cd = resolveUserClientData(user, clientsMap, onlineMap);
-            console.log('DEBUG: resolved cd:', cd);
+            let prefilled = '';
             if (cd && cd.expiryValues && cd.expiryValues.length > 0) {
                 const earliest = Math.min(...cd.expiryValues);
-                setEditExpiryDate(toLocalDateTimeString(earliest));
-                setEditHasClients(true);
-            } else if (cd && cd.count > 0) {
-                setEditExpiryDate('');
-                setEditHasClients(true);
-            } else {
-                setEditExpiryDate('');
-                setEditHasClients(false);
+                if (earliest > 0) prefilled = toLocalDateTimeString(earliest);
             }
+            setEditExpiryDate(prefilled);
+            setEditExpiryInitial(prefilled);
 
             // Load policy
             const policyEmail = normalizeEmail(user.subscriptionEmail || user.email);
@@ -1284,6 +1279,7 @@ export default function UsersHub() {
             setEditProtocols([]);
             setEditLimitIp('0');
             setEditTrafficLimitGb('0');
+            setEditOverrideFields([]);
             if (policyEmail) {
                 setEditPolicyLoading(true);
                 api.get(`/user-policy/${encodeURIComponent(policyEmail)}`)
@@ -1303,6 +1299,13 @@ export default function UsersHub() {
                         setEditLimitIp(String(normalizeLimitIp(p.limitIp)));
                         setEditTrafficLimitGb(bytesToGigabytesInput(p.trafficLimitBytes));
                         setEditInheritGroup(p.inheritGroup === true || (String(user.groupId || '') && !p.updatedAt));
+                        setEditOverrideFields(Array.isArray(p.overrideFields) ? p.overrideFields.slice() : []);
+                        // Fallback expiry pre-fill from policy when client list is empty
+                        if (!prefilled && Number(p.expiryTime) > 0) {
+                            const fromPolicy = toLocalDateTimeString(Number(p.expiryTime));
+                            setEditExpiryDate(fromPolicy);
+                            setEditExpiryInitial(fromPolicy);
+                        }
                     })
                     .catch(() => {})
                     .finally(() => setEditPolicyLoading(false));
@@ -1310,7 +1313,7 @@ export default function UsersHub() {
 
             setEditOpen(true);
         } catch (err) {
-            console.error('DEBUG: openEditModal caught error:', err);
+            console.error('openEditModal failed:', err);
         }
     };
 
@@ -1374,6 +1377,13 @@ export default function UsersHub() {
             );
             let policySyncFailedMessage = '';
             let policySyncPartialFailure = false;
+            const newExpiryTime = editExpiryDate ? new Date(editExpiryDate).getTime() : 0;
+            const expiryChanged = editExpiryDate !== editExpiryInitial;
+            // Preserve overrideFields; add 'expiryTime' if the user has set a value while inheriting from a group
+            const overrideFieldsNext = new Set(editOverrideFields || []);
+            if (editGroupId && editInheritGroup && expiryChanged && newExpiryTime > 0) {
+                overrideFieldsNext.add('expiryTime');
+            }
             if (policyEmail) {
                 const serverScopeMode = editNoServerLimit ? 'all' : (editServerIds.length > 0 ? 'selected' : 'none');
                 const protocolScopeMode = editNoProtocolLimit ? 'all' : (editProtocols.length > 0 ? 'selected' : 'none');
@@ -1381,17 +1391,19 @@ export default function UsersHub() {
                     const policyPayload = editGroupId && editInheritGroup
                         ? {
                             inheritGroup: true,
-                            overrideFields: [],
+                            overrideFields: Array.from(overrideFieldsNext),
+                            expiryTime: newExpiryTime,
                         }
                         : {
                             inheritGroup: false,
-                            overrideFields: [],
+                            overrideFields: Array.from(overrideFieldsNext),
                             allowedServerIds: serverScopeMode === 'selected' ? editServerIds : [],
                             allowedProtocols: protocolScopeMode === 'selected' ? editProtocols : [],
                             serverScopeMode,
                             protocolScopeMode,
                             limitIp: normalizeLimitIp(editLimitIp),
                             trafficLimitBytes: gigabytesInputToBytes(editTrafficLimitGb),
+                            expiryTime: newExpiryTime,
                         };
                     const policyRes = await api.put(`/user-policy/${encodeURIComponent(policyEmail)}`, policyPayload);
                     policySyncPartialFailure = policyRes.data?.obj?.partialFailure === true;
@@ -1418,43 +1430,39 @@ export default function UsersHub() {
                 }
             }
 
-            // Update expiry if user has clients
-            if (editHasClients) {
-                const newExpiryTime = editExpiryDate
-                    ? new Date(editExpiryDate).getTime()
-                    : 0;
+            // Always push the expiry to the panel (server is no-op if user has no clients yet)
+            let expiryUpdateMessage = '';
+            let expirySyncCount = 0;
+            let expirySyncTotal = 0;
+            let expirySyncPartialFailure = false;
+            if (expiryChanged) {
                 try {
                     const expiryRes = await api.put(`/auth/users/${encodeURIComponent(editUser.id)}/update-expiry`, {
                         expiryTime: newExpiryTime,
                     });
                     if (expiryRes.data?.success) {
-                        const r = expiryRes.data.obj;
-                        if (policySyncFailedMessage || statusSyncFailedMessage) {
-                            toast.error(`用户信息已更新，但${[policySyncFailedMessage, statusSyncFailedMessage].filter(Boolean).join('；')}`);
-                        } else if (r.failed > 0 || policySyncPartialFailure || statusSyncPartialFailure) {
-                            toast.success(`用户信息已更新，但节点同步有部分失败（到期时间成功 ${r.updated}/${r.total}）`);
-                        } else if (r.updated > 0) {
-                            toast.success(`用户信息${enabledChanged ? '、账号状态' : ''}、订阅策略和到期时间已更新（${r.updated} 个节点）`);
-                        } else {
-                            toast.success(`用户信息${enabledChanged ? '和账号状态' : ''}已更新`);
-                        }
+                        const r = expiryRes.data.obj || {};
+                        expirySyncCount = Number(r.updated || 0);
+                        expirySyncTotal = Number(r.total || 0);
+                        expirySyncPartialFailure = Number(r.failed || 0) > 0;
+                    } else {
+                        expiryUpdateMessage = expiryRes.data?.msg || '到期时间更新失败';
                     }
                 } catch (expiryErr) {
-                    const expiryFailedMessage = expiryErr.response?.data?.msg || expiryErr.message;
-                    if (policySyncFailedMessage || statusSyncFailedMessage) {
-                        toast.error(`用户信息已更新，但${[policySyncFailedMessage, statusSyncFailedMessage].filter(Boolean).join('；')}；到期时间更新也失败: ${expiryFailedMessage}`);
-                    } else {
-                        toast.error(`用户信息${enabledChanged ? '、账号状态' : ''}和订阅策略已更新，但到期时间更新失败: ${expiryFailedMessage}`);
-                    }
+                    expiryUpdateMessage = expiryErr.response?.data?.msg || expiryErr.message || '到期时间更新失败';
                 }
+            }
+
+            // Aggregate toast
+            const errorMessages = [policySyncFailedMessage, statusSyncFailedMessage, expiryUpdateMessage].filter(Boolean);
+            if (errorMessages.length > 0) {
+                toast.error(`用户信息已更新，但${errorMessages.join('；')}`);
+            } else if (policySyncPartialFailure || statusSyncPartialFailure || expirySyncPartialFailure) {
+                toast.success(`用户信息${enabledChanged ? '、账号状态' : ''}已更新，但部分节点同步失败`);
+            } else if (expiryChanged && expirySyncTotal > 0) {
+                toast.success(`用户信息${enabledChanged ? '、账号状态' : ''}、订阅策略和到期时间已更新（${expirySyncCount} 个节点）`);
             } else {
-                if (policySyncFailedMessage || statusSyncFailedMessage) {
-                    toast.error(`用户信息已更新，但${[policySyncFailedMessage, statusSyncFailedMessage].filter(Boolean).join('；')}`);
-                } else if (policySyncPartialFailure || statusSyncPartialFailure) {
-                    toast.success(`用户信息${enabledChanged ? '和账号状态' : ''}已更新，但部分节点同步失败`);
-                } else {
-                    toast.success(`用户信息${enabledChanged ? '和账号状态' : ''}已更新`);
-                }
+                toast.success(`用户信息${enabledChanged ? '和账号状态' : ''}已更新`);
             }
 
             closeEditModal();
@@ -2337,8 +2345,7 @@ export default function UsersHub() {
                 </ModalShell>
             )}
 
-            {console.log('DEBUG: UsersHub JSX rendering editOpen =', editOpen, 'editUser =', editUser)}
-            {/* Edit User Modal */}
+                                {/* Edit User Modal */}
             {editOpen && editUser && (
                 <ModalShell isOpen={editOpen} onClose={closeEditModal}>
                     <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
@@ -2465,18 +2472,16 @@ export default function UsersHub() {
                                     </div>
                                     <p className="text-muted text-sm mt-1">{getPasswordPolicyHint(locale)}</p>
                                 </div>
-                                {editHasClients && (
-                                    <div className="form-group">
-                                        <label className="form-label">{t('comp.users.provisionExpiryLabel')}</label>
-                                        <input
-                                            type="datetime-local"
-                                            className="form-input"
-                                            value={editExpiryDate}
-                                            onChange={(e) => setEditExpiryDate(e.target.value)}
-                                        />
-                                        <p className="text-muted text-sm mt-1">{t('comp.users.editExpiryHint')}</p>
-                                    </div>
-                                )}
+                                <div className="form-group">
+                                    <label className="form-label">{t('comp.users.provisionExpiryLabel')}</label>
+                                    <input
+                                        type="datetime-local"
+                                        className="form-input"
+                                        value={editExpiryDate}
+                                        onChange={(e) => setEditExpiryDate(e.target.value)}
+                                    />
+                                    <p className="text-muted text-sm mt-1">{t('comp.users.editExpiryHint')}</p>
+                                </div>
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">{t('comp.users.editPolicy')}</label>

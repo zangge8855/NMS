@@ -728,3 +728,177 @@ body,
     gap: 4px;
   }
 }
+
+/* --------------------------------------------------------------------------
+ * ChartTooltip — themed recharts tooltip
+ * ------------------------------------------------------------------------ */
+.chart-tooltip {
+  background: var(--bg-card, var(--bg-elevated, #1f2937));
+  color: var(--text-primary, #f8fafc);
+  border: 1px solid var(--border-default, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-md, 10px);
+  box-shadow: var(--shadow-lg, 0 10px 30px rgba(0, 0, 0, 0.32));
+  padding: 10px 14px;
+  font-size: 12px;
+  line-height: 1.55;
+  min-width: 160px;
+  pointer-events: none;
+  backdrop-filter: blur(8px);
+}
+
+.chart-tooltip-header {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-secondary, #cbd5e1);
+  letter-spacing: 0.02em;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed var(--border-default, rgba(255, 255, 255, 0.08));
+}
+
+.chart-tooltip-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.chart-tooltip-row {
+  display: grid;
+  grid-template-columns: 12px 1fr auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.chart-tooltip-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  display: inline-block;
+  box-shadow: 0 0 0 2px var(--bg-card, #1f2937);
+}
+
+.chart-tooltip-name {
+  color: var(--text-secondary, #cbd5e1);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chart-tooltip-value {
+  color: var(--text-primary, #f8fafc);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* --------------------------------------------------------------------------
+ * Modal fade-scale transitions (P-7)
+ * ModalShell uses .modal-overlay → animate the backdrop + the .modal child.
+ * ------------------------------------------------------------------------ */
+.modal-overlay[data-state="open"] {
+  animation: nmsModalBackdropIn 140ms ease-out both;
+}
+
+.modal-overlay[data-state="open"] > .modal,
+.modal-overlay[data-state="open"] > .modal-shell-inner,
+.modal-overlay[data-state="open"] > div:not(.modal-sentinel) {
+  animation: nmsModalShellIn 160ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes nmsModalBackdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes nmsModalShellIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-overlay[data-state="open"],
+  .modal-overlay[data-state="open"] > .modal,
+  .modal-overlay[data-state="open"] > .modal-shell-inner,
+  .modal-overlay[data-state="open"] > div:not(.modal-sentinel) {
+    animation-duration: 1ms;
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * Pagination — page size selector + jump-to-page input (P-2)
+ * ------------------------------------------------------------------------ */
+.page-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.page-pagination-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.page-pagination-jump {
+  width: 72px;
+  text-align: center;
+}
+
+.form-input-sm,
+.form-select-sm {
+  padding: 6px 10px;
+  font-size: 13px;
+  border-radius: var(--radius-sm, 8px);
+}
+
+/* --------------------------------------------------------------------------
+ * Confirm dialog — premium destructive confirms (P-1)
+ * ------------------------------------------------------------------------ */
+.confirm-modal {
+  max-width: 460px;
+}
+
+.confirm-modal-message {
+  color: var(--text-secondary);
+  margin: 0 0 12px;
+  line-height: 1.6;
+}
+
+.confirm-modal-details {
+  white-space: pre-wrap;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--surface-soft, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-md, 10px);
+  padding: 10px 12px;
+  line-height: 1.6;
+}
+
+.confirm-modal-type-gate {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--border-color, rgba(255, 255, 255, 0.08));
+}
+
+.confirm-modal-type-gate .form-label {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.confirm-modal-type-target {
+  background: rgba(248, 113, 113, 0.12);
+  color: var(--accent-danger, #f87171);
+  padding: 1px 8px;
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0 2px;
+}

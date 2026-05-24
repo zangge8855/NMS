@@ -299,8 +299,8 @@ function createDefaultSettings(protocolKey = 'vmess') {
 
     if (protocol === 'hysteria') {
         return {
-            up_mbps: 100,
-            down_mbps: 100,
+            up_mbps: 0,
+            down_mbps: 0,
             obfs: '',
             alpn: ['h3'],
             recv_window_conn: 0,
@@ -315,8 +315,8 @@ function createDefaultSettings(protocolKey = 'vmess') {
 
     if (protocol === 'hysteria2' || protocol === 'hy2') {
         return {
-            up_mbps: 100,
-            down_mbps: 100,
+            up_mbps: 0,
+            down_mbps: 0,
             ignore_client_bandwidth: false,
             obfs: { type: '', password: '' },
             clients: [{
@@ -1915,6 +1915,329 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </div>
                                             </div>
                                         )}
+                                    </div>
+                                )}
+
+                                {(normalizedProtocol === 'hysteria2' || normalizedProtocol === 'hy2') && (
+                                    <div className="border border-stroke-soft rounded-lg p-4 mb-4">
+                                        <h4 className="text-secondary text-sm font-bold mb-3 uppercase tracking-wider">Hysteria2 协议参数</h4>
+                                        <div className="grid grid-cols-2 gap-4 mb-3">
+                                            <div className="form-group">
+                                                <label className="form-label">上行带宽 (up_mbps)</label>
+                                                <input
+                                                    className="form-input"
+                                                    type="number"
+                                                    min={0}
+                                                    value={Number(settingsObj?.up_mbps || 0)}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        draft.up_mbps = Number(e.target.value || 0);
+                                                    })}
+                                                />
+                                                <div className="text-xs text-muted mt-1">0 = 不限速（建议）</div>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">下行带宽 (down_mbps)</label>
+                                                <input
+                                                    className="form-input"
+                                                    type="number"
+                                                    min={0}
+                                                    value={Number(settingsObj?.down_mbps || 0)}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        draft.down_mbps = Number(e.target.value || 0);
+                                                    })}
+                                                />
+                                                <div className="text-xs text-muted mt-1">0 = 不限速（建议）</div>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4 mb-3">
+                                            <div className="form-group">
+                                                <label className="form-label">混淆类型 (obfs.type)</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={String(settingsObj?.obfs?.type || '')}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        if (!draft.obfs || typeof draft.obfs !== 'object') draft.obfs = { type: '', password: '' };
+                                                        draft.obfs.type = e.target.value;
+                                                    })}
+                                                >
+                                                    <option value="">不启用</option>
+                                                    <option value="salamander">salamander</option>
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">混淆密码 (obfs.password)</label>
+                                                <input
+                                                    className="form-input font-mono"
+                                                    value={String(settingsObj?.obfs?.password || '')}
+                                                    placeholder="选用：与客户端一致"
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        if (!draft.obfs || typeof draft.obfs !== 'object') draft.obfs = { type: '', password: '' };
+                                                        draft.obfs.password = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="form-group mb-3">
+                                            <label className="flex items-center gap-2 cursor-pointer text-sm">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={Boolean(settingsObj?.ignore_client_bandwidth)}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        draft.ignore_client_bandwidth = e.target.checked;
+                                                    })}
+                                                />
+                                                忽略客户端带宽 (ignore_client_bandwidth)
+                                            </label>
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">客户端密码 (clients[0].password)</label>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    className="form-input font-mono"
+                                                    value={String(primaryClient?.password || '')}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        const client = ensurePrimaryClient(draft);
+                                                        client.password = e.target.value;
+                                                    })}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-secondary btn-icon"
+                                                    title="随机生成密码"
+                                                    onClick={() => updateSettingsJson((draft) => {
+                                                        const client = ensurePrimaryClient(draft);
+                                                        client.password = Array.from({ length: 16 }, () =>
+                                                            'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[
+                                                                Math.floor(Math.random() * 62)
+                                                            ]
+                                                        ).join('');
+                                                    })}
+                                                >
+                                                    随机
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {normalizedProtocol === 'wireguard' && (
+                                    <div className="border border-stroke-soft rounded-lg p-4 mb-4">
+                                        <h4 className="text-secondary text-sm font-bold mb-3 uppercase tracking-wider">WireGuard 协议参数</h4>
+                                        <div className="grid grid-cols-2 gap-4 mb-3">
+                                            <div className="form-group">
+                                                <label className="form-label">MTU</label>
+                                                <input
+                                                    className="form-input"
+                                                    type="number"
+                                                    min={576}
+                                                    max={9000}
+                                                    value={Number(settingsObj?.mtu || 1420)}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        draft.mtu = Number(e.target.value || 1420);
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="flex items-center gap-2 cursor-pointer pt-6 text-sm">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={Boolean(settingsObj?.noKernelTun)}
+                                                        onChange={(e) => updateSettingsJson((draft) => {
+                                                            draft.noKernelTun = e.target.checked;
+                                                        })}
+                                                    />
+                                                    不使用内核 TUN (noKernelTun)
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div className="form-group mb-3">
+                                            <label className="form-label">服务端密钥 (secretKey)</label>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    className="form-input font-mono"
+                                                    value={String(settingsObj?.secretKey || '')}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        draft.secretKey = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="text-xs text-muted mt-1">X25519 私钥 (base64)</div>
+                                        </div>
+                                        <div className="form-group">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <label className="form-label">对端 (peers)</label>
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-secondary btn-xs"
+                                                    onClick={() => updateSettingsJson((draft) => {
+                                                        if (!Array.isArray(draft.peers)) draft.peers = [];
+                                                        draft.peers.push({
+                                                            publicKey: '',
+                                                            allowedIPs: ['0.0.0.0/0'],
+                                                            keepAlive: 0,
+                                                        });
+                                                    })}
+                                                >
+                                                    + 添加对端
+                                                </button>
+                                            </div>
+                                            {(Array.isArray(settingsObj?.peers) ? settingsObj.peers : []).map((peer, peerIdx) => (
+                                                <div key={`wg-peer-${peerIdx}`} className="border border-stroke-soft rounded-lg p-3 mb-2">
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <span className="text-secondary text-xs font-bold">Peer #{peerIdx + 1}</span>
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-danger btn-xs"
+                                                            onClick={() => updateSettingsJson((draft) => {
+                                                                if (Array.isArray(draft.peers)) {
+                                                                    draft.peers.splice(peerIdx, 1);
+                                                                }
+                                                            })}
+                                                        >
+                                                            删除
+                                                        </button>
+                                                    </div>
+                                                    <div className="grid grid-cols-1 gap-2">
+                                                        <div className="form-group">
+                                                            <label className="form-label text-xs">PublicKey</label>
+                                                            <input
+                                                                className="form-input font-mono"
+                                                                value={String(peer?.publicKey || '')}
+                                                                onChange={(e) => updateSettingsJson((draft) => {
+                                                                    draft.peers[peerIdx].publicKey = e.target.value;
+                                                                })}
+                                                            />
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-2">
+                                                            <div className="form-group">
+                                                                <label className="form-label text-xs">AllowedIPs (逗号分隔)</label>
+                                                                <input
+                                                                    className="form-input font-mono"
+                                                                    value={(Array.isArray(peer?.allowedIPs) ? peer.allowedIPs : ['0.0.0.0/0']).join(', ')}
+                                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                                        draft.peers[peerIdx].allowedIPs = e.target.value
+                                                                            .split(',')
+                                                                            .map((s) => s.trim())
+                                                                            .filter(Boolean);
+                                                                    })}
+                                                                />
+                                                            </div>
+                                                            <div className="form-group">
+                                                                <label className="form-label text-xs">KeepAlive (秒, 0=关闭)</label>
+                                                                <input
+                                                                    className="form-input"
+                                                                    type="number"
+                                                                    min={0}
+                                                                    value={Number(peer?.keepAlive || 0)}
+                                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                                        draft.peers[peerIdx].keepAlive = Number(e.target.value || 0);
+                                                                    })}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <div className="form-group">
+                                                            <label className="form-label text-xs">PreSharedKey (选填)</label>
+                                                            <input
+                                                                className="form-input font-mono"
+                                                                value={String(peer?.preSharedKey || '')}
+                                                                onChange={(e) => updateSettingsJson((draft) => {
+                                                                    draft.peers[peerIdx].preSharedKey = e.target.value;
+                                                                })}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {(!Array.isArray(settingsObj?.peers) || settingsObj.peers.length === 0) && (
+                                                <div className="text-xs text-muted">尚无对端，点击"添加对端"开始配置。</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {(normalizedProtocol === 'tunnel' || normalizedProtocol === 'dokodemo-door') && (
+                                    <div className="border border-stroke-soft rounded-lg p-4 mb-4">
+                                        <h4 className="text-secondary text-sm font-bold mb-3 uppercase tracking-wider">Tunnel / Dokodemo 协议参数</h4>
+                                        <div className="grid grid-cols-2 gap-4 mb-3">
+                                            <div className="form-group">
+                                                <label className="form-label">目标地址 (address)</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={String(settingsObj?.address || '')}
+                                                    placeholder="如 1.1.1.1 或 example.com"
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        draft.address = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">目标端口 (port)</label>
+                                                <input
+                                                    className="form-input"
+                                                    type="number"
+                                                    min={1}
+                                                    max={65535}
+                                                    value={Number(settingsObj?.port || 0)}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        draft.port = Number(e.target.value || 0);
+                                                    })}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4 mb-3">
+                                            <div className="form-group">
+                                                <label className="form-label">网络 (network)</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={String(settingsObj?.network || 'tcp,udp')}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        draft.network = e.target.value;
+                                                    })}
+                                                >
+                                                    <option value="tcp">tcp</option>
+                                                    <option value="udp">udp</option>
+                                                    <option value="tcp,udp">tcp + udp</option>
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">超时 (timeout, 秒)</label>
+                                                <input
+                                                    className="form-input"
+                                                    type="number"
+                                                    min={0}
+                                                    value={Number(settingsObj?.timeout || 0)}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        draft.timeout = Number(e.target.value || 0);
+                                                    })}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="form-group">
+                                                <label className="flex items-center gap-2 cursor-pointer text-sm">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={Boolean(settingsObj?.followRedirect)}
+                                                        onChange={(e) => updateSettingsJson((draft) => {
+                                                            draft.followRedirect = e.target.checked;
+                                                        })}
+                                                    />
+                                                    透明代理跟随重定向 (followRedirect)
+                                                </label>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">用户级别 (userLevel)</label>
+                                                <input
+                                                    className="form-input"
+                                                    type="number"
+                                                    min={0}
+                                                    value={Number(settingsObj?.userLevel || 0)}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        draft.userLevel = Number(e.target.value || 0);
+                                                    })}
+                                                />
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
 

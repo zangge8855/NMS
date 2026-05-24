@@ -379,11 +379,11 @@ export default function Capabilities({ serverId = '', embedded = false } = {}) {
                                 className="mb-8"
                                 tableClassName="capability-matrix-table"
                                 headers={[
-                                    <th>{copy.matrixColumns.capability}</th>,
-                                    <th className="table-cell-center capability-support-column">{copy.matrixColumns.support}</th>,
-                                    <th className="table-cell-center capability-status-column">{copy.matrixColumns.status}</th>,
-                                    <th className="table-cell-center capability-entry-column">{copy.matrixColumns.entry}</th>,
-                                    <th>{copy.matrixColumns.note}</th>
+                                    <th key="cap">{copy.matrixColumns.capability}</th>,
+                                    <th key="support" className="table-cell-center capability-support-column">{copy.matrixColumns.support}</th>,
+                                    <th key="status" className="table-cell-center capability-status-column">{copy.matrixColumns.status}</th>,
+                                    <th key="entry" className="table-cell-center capability-entry-column">{copy.matrixColumns.entry}</th>,
+                                    <th key="note">{copy.matrixColumns.note}</th>
                                 ]}
                             >
                                 {systemModules.map((module) => (
@@ -431,11 +431,11 @@ export default function Capabilities({ serverId = '', embedded = false } = {}) {
                                 className="mb-8"
                                 tableClassName="capability-tools-table"
                                 headers={[
-                                    <th>{copy.toolsColumns.tool}</th>,
-                                    <th className="table-cell-center capability-availability-column">{copy.toolsColumns.availability}</th>,
-                                    <th className="table-cell-center capability-status-column">{copy.toolsColumns.status}</th>,
-                                    <th className="table-cell-center capability-entry-column">{copy.toolsColumns.entry}</th>,
-                                    <th>{copy.toolsColumns.source}</th>
+                                    <th key="tool">{copy.toolsColumns.tool}</th>,
+                                    <th key="avail" className="table-cell-center capability-availability-column">{copy.toolsColumns.availability}</th>,
+                                    <th key="status" className="table-cell-center capability-status-column">{copy.toolsColumns.status}</th>,
+                                    <th key="entry" className="table-cell-center capability-entry-column">{copy.toolsColumns.entry}</th>,
+                                    <th key="src">{copy.toolsColumns.source}</th>
                                 ]}
                             >
                                 {toolEntries.map((tool) => (

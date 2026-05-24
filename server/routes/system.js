@@ -60,7 +60,7 @@ import {
 const router = Router();
 const backupUpload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 20 * 1024 * 1024 },
+    limits: { fileSize: 100 * 1024 * 1024 },
 });
 
 function normalizeMode(value, allowed = [], fallback = '') {

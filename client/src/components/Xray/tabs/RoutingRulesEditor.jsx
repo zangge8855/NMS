@@ -17,7 +17,7 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
             if (value && typeof value === 'object') {
                 setConfig(JSON.parse(JSON.stringify(value)));
             }
-        } catch (e) {
+        } catch {
             // ignore
         }
     }, [value]);

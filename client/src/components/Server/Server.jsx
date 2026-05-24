@@ -268,6 +268,32 @@ export default function ServerManagement({ embedded = false }) {
         });
     };
 
+    const handleRestartPanel = async () => {
+        const targets = getTargets();
+        if (targets.length === 0) {
+            toast.error('暂无可维护节点');
+            return;
+        }
+        const ok = await confirmAction({
+            title: isGlobalView ? '全节点重启 3x-ui 面板' : '重启 3x-ui 面板',
+            message: isGlobalView
+                ? `确定重启 ${targets.length} 个节点的 3x-ui 面板服务吗？`
+                : '确定重启该节点的 3x-ui 面板服务吗？',
+            details: '面板重启会短暂中断 Web 管理通道，但代理转发不受影响。完成后请刷新页面。',
+            confirmText: '确认重启面板',
+            tone: 'warning',
+        });
+        if (!ok) return;
+
+        await runForTargets({
+            loadingKey: 'restartPanel',
+            successText: isGlobalView ? '批量重启面板' : '重启面板',
+            actionBuilder: async (serverMeta) => {
+                await panelRequest(serverMeta.id, 'post', '/panel/api/server/restartPanel');
+            },
+        });
+    };
+
     const handleInstallXray = async () => {
         if (!selectedVersion) return;
         const targets = getTargets();
@@ -609,6 +635,9 @@ export default function ServerManagement({ embedded = false }) {
                             </button>
                             <button className="btn btn-success btn-sm" onClick={handleRestartXray} disabled={loading.restart}>
                                 <HiOutlineArrowPath /> {isGlobalView ? '全部重启' : '重启'}
+                            </button>
+                            <button className="btn btn-warning btn-sm" onClick={handleRestartPanel} disabled={loading.restartPanel}>
+                                <HiOutlineArrowPath /> {isGlobalView ? '全部重启面板' : '重启面板'}
                             </button>
                             {!isGlobalView && (
                                 <button className="btn btn-secondary btn-sm" onClick={handleViewConfig}>

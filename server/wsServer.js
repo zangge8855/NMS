@@ -27,6 +27,7 @@ import {
     buildDashboardPresenceFromPanelSnapshots,
     buildDashboardTrafficWindowTotals,
 } from './lib/dashboardSnapshotService.js';
+import { normalizeEmail } from './lib/normalize.js';
 import trafficStatsStore from './store/trafficStatsStore.js';
 import userStore from './store/userStore.js';
 
@@ -54,7 +55,28 @@ function buildDashboardPresenceSummary(panelSnapshots = []) {
             ready: false,
         };
     }
-    const presence = buildDashboardPresenceFromPanelSnapshots(users, snapshots);
+    // Build activeTrafficEmails the same way the HTTP /dashboard/snapshot path does, so WS pushes
+    // don't disagree with HTTP pulls (which causes UI flicker between 0 and the correct count).
+    let activeTrafficEmails = new Set();
+    try {
+        const activeSinceIso = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+        const recentTraffic = trafficStatsStore.getOverview({ from: activeSinceIso, top: 10000 });
+        const enabledManagedEmails = new Set(
+            users
+                .filter((user) => user?.role !== 'admin' && user?.enabled !== false)
+                .flatMap((user) => [normalizeEmail(user?.subscriptionEmail), normalizeEmail(user?.email)])
+                .filter(Boolean)
+        );
+        activeTrafficEmails = new Set(
+            (Array.isArray(recentTraffic?.topUsers) ? recentTraffic.topUsers : [])
+                .map((u) => normalizeEmail(u.email))
+                .filter(Boolean)
+                .filter((email) => enabledManagedEmails.has(email))
+        );
+    } catch {
+        // Best-effort: if traffic stats are unavailable, fall back to panel-only presence.
+    }
+    const presence = buildDashboardPresenceFromPanelSnapshots(users, snapshots, activeTrafficEmails);
     return {
         onlineRows: presence.onlineRows,
         onlineSessionCount: Number(presence.onlineSessionCount || 0),

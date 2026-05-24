@@ -8,11 +8,13 @@ function toneToButtonClass(tone = 'danger') {
     if (normalized === 'primary') return 'btn-primary';
     if (normalized === 'success') return 'btn-success';
     if (normalized === 'secondary') return 'btn-secondary';
+    if (normalized === 'warning') return 'btn-warning';
     return 'btn-danger';
 }
 
 export function ConfirmProvider({ children }) {
     const [dialog, setDialog] = useState(null);
+    const [typedText, setTypedText] = useState('');
     const resolverRef = useRef(null);
 
     const closeDialog = useCallback((result) => {
@@ -21,6 +23,7 @@ export function ConfirmProvider({ children }) {
             resolverRef.current = null;
         }
         setDialog(null);
+        setTypedText('');
     }, []);
 
     const confirm = useCallback((options = {}) => {
@@ -31,6 +34,7 @@ export function ConfirmProvider({ children }) {
 
         return new Promise((resolve) => {
             resolverRef.current = resolve;
+            setTypedText('');
             setDialog({
                 title: String(options.title || '请确认操作'),
                 message: String(options.message || ''),
@@ -38,49 +42,60 @@ export function ConfirmProvider({ children }) {
                 confirmText: String(options.confirmText || '确认'),
                 cancelText: String(options.cancelText || '取消'),
                 tone: String(options.tone || 'danger'),
+                requireTypeText: options.requireTypeText ? String(options.requireTypeText) : '',
             });
         });
     }, []);
+
+    const requireText = dialog?.requireTypeText || '';
+    const confirmDisabled = requireText !== '' && typedText.trim() !== requireText.trim();
 
     return (
         <ConfirmContext.Provider value={confirm}>
             {children}
             <ModalShell isOpen={!!dialog} onClose={() => closeDialog(false)}>
                 {dialog && (
-                    <div className="modal" style={{ maxWidth: '440px' }} onClick={(event) => event.stopPropagation()}>
+                    <div className="modal confirm-modal" onClick={(event) => event.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title">{dialog.title}</h3>
                         </div>
                         <div className="modal-body">
                             {dialog.message && (
-                                <p style={{ marginBottom: dialog.details ? '12px' : 0, color: 'var(--text-secondary)' }}>
-                                    {dialog.message}
-                                </p>
+                                <p className="confirm-modal-message">{dialog.message}</p>
                             )}
                             {dialog.details && (
-                                <div
-                                    style={{
-                                        whiteSpace: 'pre-wrap',
-                                        fontSize: '12px',
-                                        color: 'var(--text-muted)',
-                                        background: 'var(--surface-soft)',
-                                        border: '1px solid var(--border-color)',
-                                        borderRadius: 'var(--radius-md)',
-                                        padding: '10px',
-                                    }}
-                                >
-                                    {dialog.details}
+                                <div className="confirm-modal-details">{dialog.details}</div>
+                            )}
+                            {requireText && (
+                                <div className="confirm-modal-type-gate">
+                                    <label className="form-label">
+                                        请输入 <code className="confirm-modal-type-target">{requireText}</code> 以确认此高危操作
+                                    </label>
+                                    <input
+                                        autoFocus
+                                        className="form-input"
+                                        value={typedText}
+                                        onChange={(e) => setTypedText(e.target.value)}
+                                        placeholder={requireText}
+                                        aria-label="键入确认字符串"
+                                    />
                                 </div>
                             )}
                         </div>
                         <div className="modal-footer">
-                            <button type="button" className="btn btn-secondary" onClick={() => closeDialog(false)} autoFocus>
+                            <button
+                                type="button"
+                                className="btn btn-secondary"
+                                onClick={() => closeDialog(false)}
+                                autoFocus={!requireText}
+                            >
                                 {dialog.cancelText}
                             </button>
                             <button
                                 type="button"
                                 className={`btn ${toneToButtonClass(dialog.tone)}`}
                                 onClick={() => closeDialog(true)}
+                                disabled={confirmDisabled}
                             >
                                 {dialog.confirmText}
                             </button>

@@ -262,10 +262,14 @@ function buildManagedOnlineSummary(users, serverPayloads = [], activeTrafficEmai
                     }
                     const matchedSet = emailMatchedOnlineSessions.get(email);
                     matchedOnlineEntries.forEach((matchIndex) => {
-                        matchedSet.add(`${serverId}:${matchIndex}`);
+                        // 'traffic_inferred' is a synthetic marker — collapse across servers so a roaming
+                        // user counts as 1 session, not N. Real panel-reported sessions still scope by serverId.
+                        const key = matchIndex === 'traffic_inferred'
+                            ? 'traffic_inferred'
+                            : `${serverId}:${matchIndex}`;
+                        matchedSet.add(key);
                     });
                 }
-                entry.onlineSessions = 0;
                 if (onlineSessions > 0 && serverName) {
                     entry.servers.add(serverName);
                 }
@@ -354,7 +358,7 @@ function buildManagedOnlineSummary(users, serverPayloads = [], activeTrafficEmai
     };
 }
 
-function buildDashboardPresenceFromPanelSnapshots(users, panelSnapshots = []) {
+function buildDashboardPresenceFromPanelSnapshots(users, panelSnapshots = [], activeTrafficEmails = new Set()) {
     return buildManagedOnlineSummary(
         users,
         (Array.isArray(panelSnapshots) ? panelSnapshots : []).map((item) => ({
@@ -362,7 +366,8 @@ function buildDashboardPresenceFromPanelSnapshots(users, panelSnapshots = []) {
             serverName: item?.server?.name || item?.serverName || '',
             inbounds: Array.isArray(item?.inbounds) ? item.inbounds : [],
             onlines: Array.isArray(item?.onlines) ? item.onlines : [],
-        }))
+        })),
+        activeTrafficEmails,
     );
 }
 
@@ -622,10 +627,17 @@ async function buildGlobalDashboardSnapshot(options = {}, deps = {}) {
 
     const activeSinceIso = new Date(Date.now() - 3 * 60 * 1000).toISOString();
     const recentTraffic = trafficStatsStoreRef.getOverview({ from: activeSinceIso, top: 10000 });
+    const enabledManagedEmailsGlobal = new Set(
+        (Array.isArray(users) ? users : [])
+            .filter((user) => user?.role !== 'admin' && user?.enabled !== false)
+            .flatMap((user) => [normalizeEmail(user?.subscriptionEmail), normalizeEmail(user?.email)])
+            .filter(Boolean)
+    );
     const activeTrafficEmails = new Set(
         (Array.isArray(recentTraffic?.topUsers) ? recentTraffic.topUsers : [])
             .map(u => normalizeEmail(u.email))
             .filter(Boolean)
+            .filter((email) => enabledManagedEmailsGlobal.has(email))
     );
 
     const panelByServerId = Object.fromEntries(panelSnapshots.map((item) => [String(item?.server?.id || '').trim(), item]));
@@ -745,10 +757,17 @@ async function buildSingleDashboardSnapshot(serverId, options = {}, deps = {}) {
     
     const activeSinceIso = new Date(Date.now() - 3 * 60 * 1000).toISOString();
     const recentTraffic = trafficStatsStoreRef.getOverview({ from: activeSinceIso, top: 10000 });
+    const enabledManagedEmailsServer = new Set(
+        (Array.isArray(users) ? users : [])
+            .filter((user) => user?.role !== 'admin' && user?.enabled !== false)
+            .flatMap((user) => [normalizeEmail(user?.subscriptionEmail), normalizeEmail(user?.email)])
+            .filter(Boolean)
+    );
     const activeTrafficEmails = new Set(
         (Array.isArray(recentTraffic?.topUsers) ? recentTraffic.topUsers : [])
             .map(u => normalizeEmail(u.email))
             .filter(Boolean)
+            .filter((email) => enabledManagedEmailsServer.has(email))
     );
 
     const presence = buildManagedOnlineSummary(users, [{

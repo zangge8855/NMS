@@ -101,6 +101,9 @@ export default function ClientModal({
     const [limitIp, setLimitIp] = useState(0);
     const [speedLimitUp, setSpeedLimitUp] = useState(0);
     const [speedLimitDown, setSpeedLimitDown] = useState(0);
+    const [tgId, setTgId] = useState('');
+    const [comment, setComment] = useState('');
+    const [reset, setReset] = useState(0);
     const [flow, setFlow] = useState('');
     const [editTargets, setEditTargets] = useState([]);
     const [selectedServerIds, setSelectedServerIds] = useState([]);
@@ -149,6 +152,9 @@ export default function ClientModal({
                 setLimitIp(editingClient.limitIp || 0);
                 setSpeedLimitUp((editingClient.speedLimitUp || 0) / (1024 * 1024));
                 setSpeedLimitDown((editingClient.speedLimitDown || 0) / (1024 * 1024));
+                setTgId(String(editingClient.tgId || ''));
+                setComment(String(editingClient.comment || ''));
+                setReset(Number(editingClient.reset || 0));
                 setFlow(editingClient.flow || '');
                 setEditTargets(Array.isArray(editingClient.editTargets) ? editingClient.editTargets : []);
                 setSelectedServerIds([]);
@@ -173,6 +179,9 @@ export default function ClientModal({
                 setExpiryAfterDays('');
                 setEnable(true);
                 setLimitIp(0);
+                setTgId('');
+                setComment('');
+                setReset(0);
                 setFlow('');
                 setEditTargets([]);
                 const uniqueServerIds = Array.from(new Set((targets || []).map((t) => t.serverId).filter(Boolean)));
@@ -405,8 +414,10 @@ export default function ClientModal({
                 totalGB: Number(totalGB) * 1024 * 1024 * 1024,
                 expiryTime: Math.max(0, Number(resolvedExpiryTime || 0)),
                 enable,
-                tgId: '',
+                tgId: String(tgId || '').trim(),
                 subId: derivedSubId,
+                comment: String(comment || '').trim(),
+                reset: Math.max(0, Number(reset || 0)),
                 limitIp: Number(limitIp),
                 speedLimitUp: Number(speedLimitUp || 0) * 1024 * 1024,
                 speedLimitDown: Number(speedLimitDown || 0) * 1024 * 1024,
@@ -833,6 +844,47 @@ export default function ClientModal({
                                 <input className="form-input" type="number" min={0} value={speedLimitDown} onChange={e => setSpeedLimitDown(e.target.value)} />
                                 <div className="text-xs text-muted mt-1">0 为不限速</div>
                             </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                            <div className="form-group">
+                                <label className="form-label">Telegram ID</label>
+                                <input
+                                    className="form-input"
+                                    inputMode="numeric"
+                                    pattern="[0-9-]*"
+                                    value={tgId}
+                                    placeholder="如 123456789"
+                                    onChange={e => setTgId(e.target.value.replace(/[^0-9-]/g, ''))}
+                                />
+                                <div className="text-xs text-muted mt-1">用于到期/流量提醒推送</div>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">流量重置周期</label>
+                                <select
+                                    className="form-select"
+                                    value={reset}
+                                    onChange={e => setReset(Number(e.target.value))}
+                                >
+                                    <option value={0}>不重置</option>
+                                    <option value={1}>每日</option>
+                                    <option value={7}>每周</option>
+                                    <option value={30}>每月（30 天）</option>
+                                    <option value={90}>每季度</option>
+                                </select>
+                                <div className="text-xs text-muted mt-1">0 表示永不重置</div>
+                            </div>
+                        </div>
+
+                        <div className="form-group mb-4">
+                            <label className="form-label">备注 (Comment)</label>
+                            <textarea
+                                className="form-input"
+                                rows={2}
+                                value={comment}
+                                placeholder="可选 — 仅运营人员可见"
+                                onChange={e => setComment(e.target.value)}
+                            />
                         </div>
                     </div>
 
