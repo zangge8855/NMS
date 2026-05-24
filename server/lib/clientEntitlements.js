@@ -1,3 +1,8 @@
+import {
+    postAddClientCompat,
+    postUpdateClientCompat,
+} from './panelApiCompat.js';
+
 const CLIENT_PROTOCOLS = new Set(['vmess', 'vless', 'trojan', 'shadowsocks']);
 const UUID_PROTOCOLS = new Set(['vmess', 'vless']);
 const PASSWORD_PROTOCOLS = new Set(['trojan', 'shadowsocks']);
@@ -51,44 +56,12 @@ function applyEntitlementToClient(clientRecord = {}, entitlement = {}) {
     };
 }
 
-function buildFormBody(data = {}) {
-    const params = new URLSearchParams();
-    for (const [key, value] of Object.entries(data)) {
-        if (value === undefined || value === null) continue;
-        if (typeof value === 'object') {
-            params.append(key, JSON.stringify(value));
-        } else {
-            params.append(key, String(value));
-        }
-    }
-    return params.toString();
-}
-
 async function postAddClient(panelClient, inboundId, clientData) {
-    return panelClient.post(
-        '/panel/api/inbounds/addClient',
-        buildFormBody({
-            id: inboundId,
-            settings: { clients: [clientData] },
-        }),
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-    );
+    return postAddClientCompat(panelClient, inboundId, clientData);
 }
 
 async function postUpdateClient(panelClient, inboundId, clientIdentifier, clientData) {
-    const encoded = encodeURIComponent(normalizeText(clientIdentifier));
-    try {
-        return await panelClient.post(
-            `/panel/api/inbounds/updateClient/${encoded}`,
-            buildFormBody({
-                id: inboundId,
-                settings: { clients: [clientData] },
-            }),
-            { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-        );
-    } catch {
-        return panelClient.post(`/panel/api/inbounds/updateClient/${encoded}`, clientData);
-    }
+    return postUpdateClientCompat(panelClient, inboundId, clientIdentifier, clientData);
 }
 
 function buildManagedClientData({

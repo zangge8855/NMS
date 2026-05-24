@@ -16,6 +16,7 @@ import serverRepository from '../repositories/serverRepository.js';
 import subscriptionTokenRepository from '../repositories/subscriptionTokenRepository.js';
 import userPolicyRepository from '../repositories/userPolicyRepository.js';
 import { invalidateServerPanelSnapshotCache } from '../lib/serverPanelSnapshotService.js';
+import { postDeleteClientFromInboundCompat } from '../lib/panelApiCompat.js';
 import { listPanelInbounds } from './panelGateway.js';
 import {
     isInboundAllowedByPolicy,
@@ -428,7 +429,11 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
                     result.total += 1;
                     try {
                         const clientIdentifier = resolveClientIdentifier(match, protocol);
-                        await client.post(`/panel/api/inbounds/${encodeURIComponent(inbound.id)}/delClient/${encodeURIComponent(clientIdentifier)}`);
+                        await postDeleteClientFromInboundCompat(client, inbound.id, clientIdentifier, {
+                            email: match.email,
+                            protocol,
+                            sourceClient: match,
+                        });
                         result.removed = (result.removed || 0) + 1;
                         result.details.push({
                             serverId: server.id,
@@ -627,9 +632,11 @@ async function autoRemoveClients(subscriptionEmail, options = {}, deps = {}) {
             result.total += 1;
             try {
                 const clientIdentifier = resolveClientIdentifier(match, protocol);
-                await client.post(
-                    `/panel/api/inbounds/${encodeURIComponent(inbound.id)}/delClient/${encodeURIComponent(clientIdentifier)}`
-                );
+                await postDeleteClientFromInboundCompat(client, inbound.id, clientIdentifier, {
+                    email: match.email,
+                    protocol,
+                    sourceClient: match,
+                });
                 markServerPanelSnapshotStale(server.id);
                 result.removed += 1;
                 result.details.push({

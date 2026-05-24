@@ -1,6 +1,7 @@
 import serverStore from '../store/serverStore.js';
 import config from '../config.js';
 import { getAuthenticatedPanelClient } from '../services/panelGateway.js';
+import { fetchPanelOnlineClients } from './panelApiCompat.js';
 
 const DEFAULT_WARM_INTERVAL_MS = Math.max(5_000, Number(config.performance?.panelSnapshotIntervalMs || 10_000));
 const DEFAULT_TTL_MS = DEFAULT_WARM_INTERVAL_MS;
@@ -82,7 +83,7 @@ async function fetchServerPanelSnapshot(server, options = {}) {
     const [inboundsResult, onlinesResult] = await Promise.allSettled([
         client.get('/panel/api/inbounds/list'),
         includeOnlines
-            ? client.post('/panel/api/inbounds/onlines')
+            ? fetchPanelOnlineClients(client)
             : Promise.resolve({ data: { obj: [] } }),
     ]);
 

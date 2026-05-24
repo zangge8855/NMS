@@ -2,6 +2,19 @@ import { Router } from 'express';
 import { ensureAuthenticated } from '../lib/panelClient.js';
 import { authMiddleware } from '../middleware/auth.js';
 import multer from 'multer';
+import {
+    cleanupDepletedClientsCompat,
+    clearClientIpsCompat,
+    fetchPanelOnlineClients,
+    getClientIpsCompat,
+    isUnsupportedPanelEndpointError,
+    parseLegacyAddClientBody,
+    parseLegacyUpdateClientBody,
+    postAddClientCompat,
+    postDeleteClientFromInboundCompat,
+    postUpdateClientCompat,
+    resetInboundTrafficCompat,
+} from '../lib/panelApiCompat.js';
 
 const router = Router();
 const upload = multer({
@@ -20,6 +33,78 @@ function isAllowedPanelPath(path) {
     if (!path.startsWith('/')) return false;
     if (path.includes('..')) return false;
     return ALLOWED_PREFIXES.some((prefix) => path.startsWith(prefix));
+}
+
+function safeDecodePathSegment(value = '') {
+    try {
+        return decodeURIComponent(String(value || ''));
+    } catch {
+        return String(value || '');
+    }
+}
+
+async function tryCompatPanelRequest(client, method, panelPath, body = {}) {
+    if (method !== 'POST') return null;
+
+    if (panelPath === '/panel/api/inbounds/onlines') {
+        return fetchPanelOnlineClients(client);
+    }
+
+    let match = panelPath.match(/^\/panel\/api\/inbounds\/clientIps\/([^/]+)$/);
+    if (match) {
+        return getClientIpsCompat(client, safeDecodePathSegment(match[1]));
+    }
+
+    match = panelPath.match(/^\/panel\/api\/inbounds\/clearClientIps\/([^/]+)$/);
+    if (match) {
+        return clearClientIpsCompat(client, safeDecodePathSegment(match[1]));
+    }
+
+    if (panelPath === '/panel/api/inbounds/addClient') {
+        const parsed = parseLegacyAddClientBody(body);
+        if (!parsed.client) return null;
+        return postAddClientCompat(client, parsed.inboundId, parsed.client);
+    }
+
+    match = panelPath.match(/^\/panel\/api\/inbounds\/updateClient\/([^/]+)$/);
+    if (match) {
+        const identifier = safeDecodePathSegment(match[1]);
+        const clientData = parseLegacyUpdateClientBody(body);
+        return postUpdateClientCompat(client, body?.id, identifier, clientData, {
+            clientData,
+        });
+    }
+
+    match = panelPath.match(/^\/panel\/api\/inbounds\/([^/]+)\/delClient\/([^/]+)$/);
+    if (match) {
+        const inboundId = safeDecodePathSegment(match[1]);
+        const identifier = safeDecodePathSegment(match[2]);
+        return postDeleteClientFromInboundCompat(client, inboundId, identifier, {
+            email: body?.email,
+        });
+    }
+
+    match = panelPath.match(/^\/panel\/api\/inbounds\/delClient\/([^/]+)$/);
+    if (match) {
+        const inboundId = safeDecodePathSegment(match[1]);
+        const identifier = body?.id || body?.clientId || body?.email || body?.password;
+        if (!identifier) return null;
+        return postDeleteClientFromInboundCompat(client, inboundId, identifier, {
+            email: body?.email,
+        });
+    }
+
+    match = panelPath.match(/^\/panel\/api\/inbounds\/(?:resetAllClientTraffics|resetTraffic)\/([^/]+)$/);
+    if (match) {
+        return resetInboundTrafficCompat(client, safeDecodePathSegment(match[1]));
+    }
+
+    match = panelPath.match(/^\/panel\/api\/inbounds\/delDepletedClients\/([^/]+)$/);
+    if (match) {
+        return cleanupDepletedClientsCompat(client, safeDecodePathSegment(match[1]));
+    }
+
+    return null;
 }
 
 // All proxy routes require auth
@@ -140,6 +225,27 @@ router.all('/:serverId/*', upload.any(), async (req, res) => {
                 code: error.code,
                 msg: `3x-ui 认证失败: ${error.message || '用户名或密码错误'}`,
             });
+        }
+
+        if (error.response && isUnsupportedPanelEndpointError(error)) {
+            try {
+                const client = await ensureAuthenticated(serverId);
+                const compatRes = await tryCompatPanelRequest(client, method, panelPath, req.body || {});
+                if (compatRes) {
+                    return res.status(compatRes.status || 200).json(compatRes.data);
+                }
+            } catch (compatError) {
+                if (compatError.response) {
+                    return res.status(compatError.response.status).json(compatError.response.data || {
+                        success: false,
+                        msg: `Panel error: ${compatError.response.statusText}`,
+                    });
+                }
+                return res.status(502).json({
+                    success: false,
+                    msg: `Failed to connect to panel: ${compatError.message}`,
+                });
+            }
         }
 
         if (error.response) {

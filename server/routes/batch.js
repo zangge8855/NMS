@@ -15,6 +15,12 @@ import batchRiskTokenStore, {
     buildBatchRiskOperationKey,
 } from '../lib/batchRiskControl.js';
 import { normalizeBoolean } from '../lib/normalize.js';
+import {
+    postAddClientCompat,
+    postDeleteClientFromInboundCompat,
+    postUpdateClientCompat,
+    resetInboundTrafficCompat as resetPanelInboundTrafficCompat,
+} from '../lib/panelApiCompat.js';
 
 const router = Router();
 
@@ -179,26 +185,7 @@ async function setInboundEnableCompat(client, inboundId, enable, fallbackPayload
 }
 
 export async function resetInboundTrafficCompat(client, inboundId) {
-    const candidatePaths = [
-        `/panel/api/inbounds/resetAllClientTraffics/${inboundId}`,
-        `/panel/api/inbounds/resetTraffic/${inboundId}`,
-    ];
-    let lastError = null;
-
-    for (const path of candidatePaths) {
-        try {
-            return await client.post(path);
-        } catch (error) {
-            lastError = error;
-            const status = Number(error?.response?.status || 0);
-            if (status === 404 || status === 405) {
-                continue;
-            }
-            throw error;
-        }
-    }
-
-    throw lastError || new Error(`Failed to reset inbound traffic for ${inboundId}`);
+    return resetPanelInboundTrafficCompat(client, inboundId);
 }
 
 function normalizeInboundSnapshot(input = {}, enableOverride = null) {
@@ -434,10 +421,7 @@ async function executeClientAction({ action, target, globalClient }) {
                 throw new Error(requiredCredentialLabel(targetProtocol));
             }
 
-            await postForm(client, '/panel/api/inbounds/addClient', {
-                id: target.inboundId,
-                settings: { clients: [clientData] },
-            });
+            await postAddClientCompat(client, target.inboundId, clientData);
 
             return {
                 ...baseResult,
@@ -447,19 +431,16 @@ async function executeClientAction({ action, target, globalClient }) {
         }
 
         if (action === 'delete') {
-            // 3x-ui delClient API always matches by client UUID (id field),
-            // regardless of protocol. Use target.id first, fall back to clientIdentifier.
+            // Older 3x-ui delete routes usually match by UUID/password. The
+            // compat helper resolves email when the latest clients API is needed.
             const deleteId = toStringValue(target.id) || clientIdentifier;
             if (!deleteId) throw new Error('Missing client identifier');
 
-            const encoded = encodeURIComponent(deleteId);
-            try {
-                await client.post(`/panel/api/inbounds/${target.inboundId}/delClient/${encoded}`);
-            } catch {
-                await client.post(`/panel/api/inbounds/delClient/${target.inboundId}`, {
-                    id: deleteId,
-                });
-            }
+            await postDeleteClientFromInboundCompat(client, target.inboundId, deleteId, {
+                email: target.email || target.client?.email || globalClient?.email,
+                protocol: targetProtocol,
+                clientData: target.client || globalClient || {},
+            });
 
             return {
                 ...baseResult,
@@ -482,15 +463,10 @@ async function executeClientAction({ action, target, globalClient }) {
         if (action === 'enable') normalizedClient.enable = true;
         if (action === 'disable') normalizedClient.enable = false;
 
-        const encoded = encodeURIComponent(clientIdentifier);
-        try {
-            await postForm(client, `/panel/api/inbounds/updateClient/${encoded}`, {
-                id: target.inboundId,
-                settings: { clients: [normalizedClient] },
-            });
-        } catch {
-            await client.post(`/panel/api/inbounds/updateClient/${encoded}`, normalizedClient);
-        }
+        await postUpdateClientCompat(client, target.inboundId, clientIdentifier, normalizedClient, {
+            email: target.email,
+            protocol: targetProtocol,
+        });
 
         return {
             ...baseResult,

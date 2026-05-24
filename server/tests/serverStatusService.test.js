@@ -57,7 +57,7 @@ test('collectClusterStatusSnapshot keeps healthy nodes online when detail endpoi
                 throw new Error('detail list failed');
             },
             post: async (path) => {
-                if (path === '/panel/api/inbounds/onlines') {
+                if (path === '/panel/api/clients/onlines') {
                     throw new Error('detail online failed');
                 }
                 return {
@@ -110,7 +110,7 @@ test('collectServerStatusSnapshot keeps inbound traffic totals at zero when coun
                         },
                     };
                 }
-                if (path === '/panel/api/inbounds/onlines') {
+                if (path === '/panel/api/clients/onlines') {
                     return {
                         data: {
                             obj: [],
@@ -242,7 +242,7 @@ test('collectClusterStatusSnapshot prefers netTraffic counters over inbound tota
             },
             post: async (path) => {
                 if (path === '/panel/api/server/status') return readStatus();
-                if (path === '/panel/api/inbounds/onlines') {
+                if (path === '/panel/api/clients/onlines') {
                     return { data: { obj: [] } };
                 }
                 throw new Error(`unexpected post ${path}`);
@@ -267,7 +267,7 @@ test('collectClusterStatusSnapshot prefers netTraffic counters over inbound tota
             },
             post: async (path) => {
                 if (path === '/panel/api/server/status') return readStatus();
-                if (path === '/panel/api/inbounds/onlines') {
+                if (path === '/panel/api/clients/onlines') {
                     return { data: { obj: [] } };
                 }
                 throw new Error(`unexpected post ${path}`);
@@ -331,7 +331,7 @@ test('collectClusterStatusSnapshot exposes fresh panel snapshots for managed rea
                         },
                     };
                 }
-                if (path === '/panel/api/inbounds/onlines') {
+                if (path === '/panel/api/clients/onlines') {
                     return {
                         data: {
                             obj: [

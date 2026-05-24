@@ -6,15 +6,20 @@ test('resetInboundTrafficCompat uses the current 3x-ui endpoint first', async ()
     const calls = [];
     const client = {
         async post(path) {
-            calls.push(path);
+            calls.push(['post', path]);
             return { data: { success: true } };
+        },
+        async get(path) {
+            calls.push(['get', path]);
+            return { data: { obj: { settings: JSON.stringify({ clients: [] }) } } };
         },
     };
 
     await resetInboundTrafficCompat(client, 7);
 
     assert.deepEqual(calls, [
-        '/panel/api/inbounds/resetAllClientTraffics/7',
+        ['post', '/panel/api/inbounds/7/resetTraffic'],
+        ['get', '/panel/api/inbounds/get/7'],
     ]);
 });
 
@@ -22,8 +27,8 @@ test('resetInboundTrafficCompat falls back to the legacy endpoint on 404', async
     const calls = [];
     const client = {
         async post(path) {
-            calls.push(path);
-            if (path === '/panel/api/inbounds/resetAllClientTraffics/9') {
+            calls.push(['post', path]);
+            if (path === '/panel/api/inbounds/9/resetTraffic') {
                 const error = new Error('Not found');
                 error.response = { status: 404 };
                 throw error;
@@ -35,7 +40,7 @@ test('resetInboundTrafficCompat falls back to the legacy endpoint on 404', async
     await resetInboundTrafficCompat(client, 9);
 
     assert.deepEqual(calls, [
-        '/panel/api/inbounds/resetAllClientTraffics/9',
-        '/panel/api/inbounds/resetTraffic/9',
+        ['post', '/panel/api/inbounds/9/resetTraffic'],
+        ['post', '/panel/api/inbounds/resetAllClientTraffics/9'],
     ]);
 });

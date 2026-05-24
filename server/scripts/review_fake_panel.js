@@ -467,8 +467,134 @@ function createPanelApp(definition) {
         return makeSuccess(res, state.inbounds);
     });
 
+    app.get('/panel/api/inbounds/get/:id', (req, res) => {
+        const inboundId = Number(req.params.id);
+        const target = state.inbounds.find((item) => Number(item.id) === inboundId);
+        if (!target) {
+            return res.status(404).json({
+                success: false,
+                msg: 'inbound not found',
+            });
+        }
+        return makeSuccess(res, target);
+    });
+
     app.post('/panel/api/inbounds/onlines', (req, res) => {
         return makeSuccess(res, state.onlineSessions);
+    });
+
+    app.post('/panel/api/clients/onlines', (req, res) => {
+        return makeSuccess(res, state.onlineSessions);
+    });
+
+    app.post('/panel/api/clients/add', (req, res) => {
+        const client = deepClone(req.body?.client || {});
+        const inboundIds = Array.isArray(req.body?.inboundIds) ? req.body.inboundIds : [];
+        let added = 0;
+        inboundIds.forEach((id) => {
+            const target = state.inbounds.find((item) => Number(item.id) === Number(id));
+            if (!target) return;
+            const clients = getInboundClients(target);
+            if (!clients.some((item) => normalizeEmail(item.email) === normalizeEmail(client.email))) {
+                clients.push(deepClone(client));
+                setInboundClients(target, clients);
+                target.clientStats = buildClientStats(clients);
+                added += 1;
+            }
+        });
+        return makeSuccess(res, { added });
+    });
+
+    app.post('/panel/api/clients/update/:email', (req, res) => {
+        const email = normalizeEmail(req.params.email);
+        let updated = 0;
+        state.inbounds.forEach((inbound) => {
+            const clients = getInboundClients(inbound);
+            const nextClients = clients.map((client) => {
+                if (normalizeEmail(client.email) !== email) return client;
+                updated += 1;
+                return {
+                    ...client,
+                    ...deepClone(req.body || {}),
+                };
+            });
+            setInboundClients(inbound, nextClients);
+            inbound.clientStats = buildClientStats(nextClients);
+        });
+        if (updated === 0) {
+            return res.status(404).json({
+                success: false,
+                msg: 'client not found',
+            });
+        }
+        return makeSuccess(res, { updated });
+    });
+
+    app.get('/panel/api/clients/get/:email', (req, res) => {
+        const email = normalizeEmail(req.params.email);
+        const inboundIds = [];
+        let found = null;
+        state.inbounds.forEach((inbound) => {
+            const match = getInboundClients(inbound)
+                .find((client) => normalizeEmail(client.email) === email);
+            if (match) {
+                inboundIds.push(Number(inbound.id));
+                found = found || match;
+            }
+        });
+        if (!found) {
+            return res.status(404).json({
+                success: false,
+                msg: 'client not found',
+            });
+        }
+        return makeSuccess(res, {
+            client: found,
+            inboundIds,
+        });
+    });
+
+    app.post('/panel/api/clients/del/:email', (req, res) => {
+        const email = normalizeEmail(req.params.email);
+        let deleted = 0;
+        state.inbounds.forEach((inbound) => {
+            const clients = getInboundClients(inbound);
+            const nextClients = clients.filter((client) => normalizeEmail(client.email) !== email);
+            deleted += clients.length - nextClients.length;
+            setInboundClients(inbound, nextClients);
+            inbound.clientStats = buildClientStats(nextClients);
+        });
+        return makeSuccess(res, { deleted });
+    });
+
+    app.post('/panel/api/clients/:email/detach', (req, res) => {
+        const email = normalizeEmail(req.params.email);
+        const inboundIds = Array.isArray(req.body?.inboundIds) ? req.body.inboundIds : [];
+        let detached = 0;
+        inboundIds.forEach((id) => {
+            const target = state.inbounds.find((item) => Number(item.id) === Number(id));
+            if (!target) return;
+            const clients = getInboundClients(target);
+            const nextClients = clients.filter((client) => normalizeEmail(client.email) !== email);
+            detached += clients.length - nextClients.length;
+            setInboundClients(target, nextClients);
+            target.clientStats = buildClientStats(nextClients);
+        });
+        return makeSuccess(res, { detached });
+    });
+
+    app.post('/panel/api/clients/resetTraffic/:email', (req, res) => {
+        const email = normalizeEmail(req.params.email);
+        state.inbounds.forEach((inbound) => {
+            const clients = getInboundClients(inbound).map((client) => (
+                normalizeEmail(client.email) === email
+                    ? { ...client, up: 0, down: 0 }
+                    : client
+            ));
+            setInboundClients(inbound, clients);
+            inbound.clientStats = buildClientStats(clients);
+        });
+        return makeSuccess(res, { reset: email });
     });
 
     app.post('/panel/api/inbounds/add', (req, res) => {
@@ -568,6 +694,7 @@ function createPanelApp(definition) {
         return makeSuccess(res, target);
     };
 
+    app.post('/panel/api/inbounds/:id/resetTraffic', handleResetInboundTraffic);
     app.post('/panel/api/inbounds/resetAllClientTraffics/:id', handleResetInboundTraffic);
     app.post('/panel/api/inbounds/resetTraffic/:id', handleResetInboundTraffic);
 
@@ -667,7 +794,30 @@ function createPanelApp(definition) {
         return makeSuccess(res, state.clientIps[email] || []);
     });
 
+    app.post('/panel/api/clients/ips/:email', (req, res) => {
+        if (definition.profile === 'legacy') {
+            return res.status(404).json({
+                success: false,
+                msg: 'client ip api unsupported',
+            });
+        }
+        const email = normalizeEmail(req.params.email);
+        return makeSuccess(res, state.clientIps[email] || []);
+    });
+
     app.post('/panel/api/inbounds/clearClientIps/:email', (req, res) => {
+        if (definition.profile === 'legacy') {
+            return res.status(404).json({
+                success: false,
+                msg: 'client ip api unsupported',
+            });
+        }
+        const email = normalizeEmail(req.params.email);
+        state.clientIps[email] = [];
+        return makeSuccess(res, []);
+    });
+
+    app.post('/panel/api/clients/clearIps/:email', (req, res) => {
         if (definition.profile === 'legacy') {
             return res.status(404).json({
                 success: false,
