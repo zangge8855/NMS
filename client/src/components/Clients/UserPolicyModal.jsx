@@ -34,6 +34,8 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
     const [selectedProtocols, setSelectedProtocols] = useState([]);
     const [limitIp, setLimitIp] = useState('0');
     const [trafficLimitGb, setTrafficLimitGb] = useState('0');
+    const [speedLimitUp, setSpeedLimitUp] = useState('0');
+    const [speedLimitDown, setSpeedLimitDown] = useState('0');
 
     useEffect(() => {
         if (!isOpen || !normalizedEmail) return;
@@ -47,6 +49,8 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
             setNoProtocolLimit(true);
             setLimitIp('0');
             setTrafficLimitGb('0');
+            setSpeedLimitUp('0');
+            setSpeedLimitDown('0');
             try {
                 const res = await api.get(`/user-policy/${encodeURIComponent(normalizedEmail)}`);
                 const payload = res.data?.obj || {};
@@ -63,6 +67,8 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                 setNoProtocolLimit(protocolScopeMode === 'all');
                 setLimitIp(String(normalizeLimitIp(payload.limitIp)));
                 setTrafficLimitGb(bytesToGigabytesInput(payload.trafficLimitBytes));
+                setSpeedLimitUp(String(Number(payload.speedLimitUp || 0) / (1024 * 1024)));
+                setSpeedLimitDown(String(Number(payload.speedLimitDown || 0) / (1024 * 1024)));
             } catch (error) {
                 if (!cancelled) {
                     const msg = error.response?.data?.msg || error.message || '权限策略加载失败';
@@ -110,6 +116,8 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
             protocolScopeMode,
             limitIp: normalizeLimitIp(limitIp),
             trafficLimitBytes: gigabytesInputToBytes(trafficLimitGb),
+            speedLimitUp: Number(speedLimitUp || 0) * 1024 * 1024,
+            speedLimitDown: Number(speedLimitDown || 0) * 1024 * 1024,
         };
 
         setSaving(true);
@@ -225,6 +233,36 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                                             <span className="text-sm text-muted">GB</span>
                                         </div>
                                         <div className="text-xs text-muted mt-1">0 表示不限制总流量</div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="form-group">
+                                            <label className="form-label">上行限速 (Speed Limit Up)</label>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    className="form-input"
+                                                    type="number"
+                                                    min={0}
+                                                    value={speedLimitUp}
+                                                    onChange={(e) => setSpeedLimitUp(e.target.value)}
+                                                />
+                                                <span className="text-sm text-muted">MB/s</span>
+                                            </div>
+                                            <div className="text-xs text-muted mt-1">0 表示不限速</div>
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">下行限速 (Speed Limit Down)</label>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    className="form-input"
+                                                    type="number"
+                                                    min={0}
+                                                    value={speedLimitDown}
+                                                    onChange={(e) => setSpeedLimitDown(e.target.value)}
+                                                />
+                                                <span className="text-sm text-muted">MB/s</span>
+                                            </div>
+                                            <div className="text-xs text-muted mt-1">0 表示不限速</div>
+                                        </div>
                                     </div>
                                 </div>
                             </>

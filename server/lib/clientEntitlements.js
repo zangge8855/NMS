@@ -53,6 +53,8 @@ function applyEntitlementToClient(clientRecord = {}, entitlement = {}) {
         expiryTime: normalizeNonNegativeInt(entitlement.expiryTime, normalizeNonNegativeInt(clientRecord.expiryTime, 0)),
         limitIp: normalizeNonNegativeInt(entitlement.limitIp, normalizeNonNegativeInt(clientRecord.limitIp, 0)),
         totalGB: normalizeNonNegativeInt(entitlement.trafficLimitBytes, normalizeNonNegativeInt(clientRecord.totalGB, 0)),
+        speedLimitUp: normalizeNonNegativeInt(entitlement.speedLimitUp, normalizeNonNegativeInt(clientRecord.speedLimitUp, 0)),
+        speedLimitDown: normalizeNonNegativeInt(entitlement.speedLimitDown, normalizeNonNegativeInt(clientRecord.speedLimitDown, 0)),
     };
 }
 

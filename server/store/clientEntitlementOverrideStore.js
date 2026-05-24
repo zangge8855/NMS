@@ -51,6 +51,8 @@ function sanitizeRecord(input = {}, actor = 'admin') {
         expiryTime: normalizeNonNegativeInt(input.expiryTime, 0),
         limitIp: normalizeNonNegativeInt(input.limitIp, 0),
         trafficLimitBytes: normalizeNonNegativeInt(input.trafficLimitBytes, 0),
+        speedLimitUp: normalizeNonNegativeInt(input.speedLimitUp, 0),
+        speedLimitDown: normalizeNonNegativeInt(input.speedLimitDown, 0),
         updatedAt: new Date().toISOString(),
         updatedBy: normalizeText(actor) || 'admin',
     };

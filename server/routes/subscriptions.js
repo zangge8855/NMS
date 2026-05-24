@@ -15,6 +15,7 @@ import {
     resolveEffectivePolicy,
 } from '../lib/userPolicyResolver.js';
 import { getServerPanelSnapshot, getServerPanelSnapshots } from '../lib/serverPanelSnapshotService.js';
+import { getCachedClusterStatusSnapshot, UNREACHABLE } from '../lib/serverStatusService.js';
 import { canAccessSubscriptionEmail } from '../lib/subscriptionAccess.js';
 import { resolveClientIpDetails } from '../lib/requestIp.js';
 import { normalizeBoolean, parseJsonObjectLike } from '../lib/normalize.js';
@@ -997,10 +998,15 @@ async function buildMergedLinksByEmail(email, options = {}) {
     const warnings = [];
     const perServer = [];
 
+    const clusterStatus = getCachedClusterStatusSnapshot()?.items || [];
+    const unreachableServerIds = new Set(
+        clusterStatus.filter(item => item.health === UNREACHABLE).map(item => item.serverId)
+    );
+
     const allServers = serverStore.getAll();
     const scopedServers = requestedServerId
         ? allServers.filter((item) => item.id === requestedServerId)
-        : allServers;
+        : allServers.filter((item) => !unreachableServerIds.has(item.id));
     const servers = sortServersForSubscription(scopedServers);
     const serverNotFound = requestedServerId && servers.length === 0;
     const requestedBlockedByPolicy = requestedServerId

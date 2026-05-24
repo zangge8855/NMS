@@ -32,6 +32,7 @@ import { readSessionSnapshot, SESSION_SNAPSHOT_EVENT, writeSessionSnapshot } fro
 
 const Logs = lazy(() => import('../Logs/Logs.jsx'));
 const TrafficLineChart = lazy(() => import('./TrafficLineChart.jsx'));
+const ProtocolPieChart = lazy(() => import('./ProtocolPieChart.jsx'));
 
 const AUDIT_TRAFFIC_TOP_LIMIT = 10;
 const AUDIT_TRAFFIC_DEFAULT_WINDOW = 'month';
@@ -2608,6 +2609,19 @@ export default function AuditCenter() {
                                         </table>
                                     </div>
                                 )}
+                            </div>
+                        </div>
+
+                        <div className="card audit-leaderboard-card mt-6">
+                            <SectionHeader
+                                compact divider
+                                title={copy.traffic.topProtocols}
+                                subtitle={trafficWindowCopy.topProtocolsScope}
+                            />
+                            <div className="p-4 h-[300px]">
+                                <Suspense fallback={<div className="skeleton w-full h-full opacity-10" />}>
+                                    <ProtocolPieChart data={trafficOverview?.topProtocols || []} locale={locale} />
+                                </Suspense>
                             </div>
                         </div>
                     </>

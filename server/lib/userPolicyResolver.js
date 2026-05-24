@@ -99,7 +99,18 @@ function sanitizePolicy(input = {}, options = {}) {
             input.trafficLimitBytes,
             normalizeNonNegativeInt(defaults.trafficLimitBytes, 0)
         ),
-        trafficResetCycle: normalizeTrafficResetCycle(input.trafficResetCycle, defaults.trafficResetCycle || 'none'),
+        speedLimitUp: normalizeNonNegativeInt(
+            input.speedLimitUp,
+            normalizeNonNegativeInt(defaults.speedLimitUp, 0)
+        ),
+        speedLimitDown: normalizeNonNegativeInt(
+            input.speedLimitDown,
+            normalizeNonNegativeInt(defaults.speedLimitDown, 0)
+        ),
+        trafficResetCycle: normalizeTrafficResetCycle(
+            input.trafficResetCycle,
+            normalizeTrafficResetCycle(defaults.trafficResetCycle, 'none')
+        ),
         ipLimitPolicy: normalizeIpLimitPolicy(input.ipLimitPolicy, defaults.ipLimitPolicy || 'first-wins'),
     };
 }

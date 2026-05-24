@@ -99,6 +99,8 @@ export default function ClientModal({
     const [expiryAfterDays, setExpiryAfterDays] = useState('');
     const [enable, setEnable] = useState(true);
     const [limitIp, setLimitIp] = useState(0);
+    const [speedLimitUp, setSpeedLimitUp] = useState(0);
+    const [speedLimitDown, setSpeedLimitDown] = useState(0);
     const [flow, setFlow] = useState('');
     const [editTargets, setEditTargets] = useState([]);
     const [selectedServerIds, setSelectedServerIds] = useState([]);
@@ -145,6 +147,8 @@ export default function ClientModal({
                 }
                 setEnable(editingClient.enable !== false);
                 setLimitIp(editingClient.limitIp || 0);
+                setSpeedLimitUp((editingClient.speedLimitUp || 0) / (1024 * 1024));
+                setSpeedLimitDown((editingClient.speedLimitDown || 0) / (1024 * 1024));
                 setFlow(editingClient.flow || '');
                 setEditTargets(Array.isArray(editingClient.editTargets) ? editingClient.editTargets : []);
                 setSelectedServerIds([]);
@@ -404,6 +408,8 @@ export default function ClientModal({
                 tgId: '',
                 subId: derivedSubId,
                 limitIp: Number(limitIp),
+                speedLimitUp: Number(speedLimitUp || 0) * 1024 * 1024,
+                speedLimitDown: Number(speedLimitDown || 0) * 1024 * 1024,
                 flow: isFlowSupported ? flow : '',
             };
 
@@ -813,6 +819,19 @@ export default function ClientModal({
                                     <input type="checkbox" checked={enable} onChange={e => setEnable(e.target.checked)} />
                                     启用此用户
                                 </label>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                            <div className="form-group">
+                                <label className="form-label">上行限速 (MB/s)</label>
+                                <input className="form-input" type="number" min={0} value={speedLimitUp} onChange={e => setSpeedLimitUp(e.target.value)} />
+                                <div className="text-xs text-muted mt-1">0 为不限速</div>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">下行限速 (MB/s)</label>
+                                <input className="form-input" type="number" min={0} value={speedLimitDown} onChange={e => setSpeedLimitDown(e.target.value)} />
+                                <div className="text-xs text-muted mt-1">0 为不限速</div>
                             </div>
                         </div>
                     </div>

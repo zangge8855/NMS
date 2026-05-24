@@ -57,7 +57,7 @@ function sanitizePolicy(input = {}) {
         (item) => String(item || '').trim()
     );
     const blockedInboundKeySet = new Set(blockedInboundKeys);
-    const allowedInboundKeys = toUniqueStringArray(input.allowedInboundKeys, (item) => String(item || '').trim())
+        const allowedInboundKeys = toUniqueStringArray(input.allowedInboundKeys, (item) => String(item || '').trim())
         .filter((item) => !blockedInboundKeySet.has(item));
     const overrideFields = toUniqueStringArray(input.overrideFields, (item) => String(item || '').trim())
         .filter((item) => [
@@ -73,6 +73,8 @@ function sanitizePolicy(input = {}) {
             'trafficLimitBytes',
             'trafficResetCycle',
             'ipLimitPolicy',
+            'speedLimitUp',
+            'speedLimitDown',
         ].includes(item));
     const inferredServerMode = selectedServerIds.length > 0 ? 'selected' : 'all';
     const inferredProtocolMode = selectedProtocols.length > 0 ? 'selected' : 'all';
@@ -97,6 +99,8 @@ function sanitizePolicy(input = {}) {
         expiryTime: normalizeNonNegativeInt(input.expiryTime, 0),
         limitIp: normalizeNonNegativeInt(input.limitIp, 0),
         trafficLimitBytes: normalizeNonNegativeInt(input.trafficLimitBytes, 0),
+        speedLimitUp: normalizeNonNegativeInt(input.speedLimitUp, 0),
+        speedLimitDown: normalizeNonNegativeInt(input.speedLimitDown, 0),
         trafficResetCycle: TRAFFIC_RESET_CYCLES.has(String(input.trafficResetCycle || '').trim().toLowerCase())
             ? String(input.trafficResetCycle).trim().toLowerCase()
             : 'none',
@@ -152,6 +156,8 @@ class UserPolicyStore {
                 expiryTime: 0,
                 limitIp: 0,
                 trafficLimitBytes: 0,
+                speedLimitUp: 0,
+                speedLimitDown: 0,
                 trafficResetCycle: 'none',
                 ipLimitPolicy: 'first-wins',
                 inheritGroup: false,

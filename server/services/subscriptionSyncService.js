@@ -124,6 +124,14 @@ function resolvePolicyEntitlement(policy = {}, options = {}) {
             options.trafficLimitBytes,
             normalizeNonNegativeInt(policy.trafficLimitBytes, 0)
         ),
+        speedLimitUp: normalizeNonNegativeInt(
+            options.speedLimitUp,
+            normalizeNonNegativeInt(policy.speedLimitUp, 0)
+        ),
+        speedLimitDown: normalizeNonNegativeInt(
+            options.speedLimitDown,
+            normalizeNonNegativeInt(policy.speedLimitDown, 0)
+        ),
     };
 }
 
@@ -876,6 +884,8 @@ async function provisionSubscriptionForUser(targetUser, payload = {}, actor = 'a
         : [];
     const limitIp = normalizeNonNegativeInt(payload.limitIp, 0);
     const trafficLimitBytes = normalizeNonNegativeInt(payload.trafficLimitBytes, 0);
+    const speedLimitUp = normalizeNonNegativeInt(payload.speedLimitUp, 0);
+    const speedLimitDown = normalizeNonNegativeInt(payload.speedLimitDown, 0);
     const user = users.setSubscriptionEmail(targetUser.id, subscriptionEmail);
     const policy = policies.upsert(
         subscriptionEmail,
@@ -888,6 +898,8 @@ async function provisionSubscriptionForUser(targetUser, payload = {}, actor = 'a
             expiryTime,
             limitIp,
             trafficLimitBytes,
+            speedLimitUp,
+            speedLimitDown,
         },
         actor
     );
@@ -901,6 +913,8 @@ async function provisionSubscriptionForUser(targetUser, payload = {}, actor = 'a
             expiryTime,
             limitIp,
             trafficLimitBytes,
+            speedLimitUp,
+            speedLimitDown,
             allowedInboundKeys,
             allServers: servers.list(),
             clientEnabled: targetUser?.enabled !== false,

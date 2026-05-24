@@ -29,6 +29,8 @@ function normalizeGroupRecord(input = {}) {
         expiryTime: policy.expiryTime,
         limitIp: policy.limitIp,
         trafficLimitBytes: policy.trafficLimitBytes,
+        speedLimitUp: policy.speedLimitUp,
+        speedLimitDown: policy.speedLimitDown,
         trafficResetCycle: policy.trafficResetCycle,
         ipLimitPolicy: policy.ipLimitPolicy,
         createdAt: input.createdAt || new Date().toISOString(),

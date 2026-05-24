@@ -834,6 +834,7 @@ class TrafficStatsStore {
                 managedTotals: { upBytes: 0, downBytes: 0, totalBytes: 0 },
                 unattributedTotals: { upBytes: 0, downBytes: 0, totalBytes: 0 },
                 users: new Map(),
+                protocols: new Map(),
                 sampleCount: 0,
                 hasUnattributedTraffic: false,
                 topServers: [],
@@ -882,6 +883,18 @@ class TrafficStatsStore {
                 state.totals.upBytes += upBytes;
                 state.totals.downBytes += downBytes;
                 state.totals.totalBytes += totalBytes;
+
+                const protocol = String(item?.protocol || 'unknown').toLowerCase();
+                const currentProtocol = state.protocols.get(protocol) || {
+                    protocol,
+                    upBytes: 0,
+                    downBytes: 0,
+                    totalBytes: 0,
+                };
+                currentProtocol.upBytes += upBytes;
+                currentProtocol.downBytes += downBytes;
+                currentProtocol.totalBytes += totalBytes;
+                state.protocols.set(protocol, currentProtocol);
 
                 if (email) {
                     if (!userInfo?.email) return;
@@ -965,6 +978,10 @@ class TrafficStatsStore {
                     .slice(0, request.top)
                 : [];
 
+            const topProtocols = Array.from(state.protocols.values())
+                .sort((left, right) => right.totalBytes - left.totalBytes)
+                .slice(0, request.top);
+
             return [request.key, {
                 from: request.from,
                 to: request.to,
@@ -982,6 +999,7 @@ class TrafficStatsStore {
                 serverTotals,
                 topUsers,
                 topServers,
+                topProtocols,
                 topServersReady: state.topServersReady,
                 lastCollectionAt: this.meta.lastCollectionAt || null,
             }];
@@ -1064,6 +1082,7 @@ class TrafficStatsStore {
                         serverName: serverMeta.name,
                         inboundId: String(inbound.id || ''),
                         inboundRemark: inbound.remark || '',
+                        protocol: inbound.protocol || '',
                         email,
                         clientIdentifier: identifier,
                         upBytes: deltaUp,
@@ -1105,6 +1124,7 @@ class TrafficStatsStore {
                     serverName: serverMeta.name,
                     inboundId: String(inbound.id || ''),
                     inboundRemark: inbound.remark || '',
+                    protocol: inbound.protocol || '',
                     email: '',
                     clientIdentifier: '__inbound_total__',
                     upBytes: deltaInboundUp,
