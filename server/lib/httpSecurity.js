@@ -54,7 +54,10 @@ export function redactRequestUrl(rawUrl = '') {
 }
 
 export function createSecurityHeadersMiddleware(options = {}) {
-    const isProduction = options.nodeEnv === 'production';
+    const hstsEnabled = Object.prototype.hasOwnProperty.call(options, 'hstsEnabled')
+        ? options.hstsEnabled === true
+        : options.nodeEnv === 'production';
+    const hstsMaxAgeSeconds = Math.max(1, Math.floor(Number(options.hstsMaxAgeSeconds || 15552000)));
     const csp = [
         "default-src 'self'",
         "base-uri 'self'",
@@ -81,8 +84,8 @@ export function createSecurityHeadersMiddleware(options = {}) {
             'usb=()',
         ].join(', '));
         res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
-        if (isProduction) {
-            res.setHeader('Strict-Transport-Security', 'max-age=15552000; includeSubDomains');
+        if (hstsEnabled) {
+            res.setHeader('Strict-Transport-Security', `max-age=${hstsMaxAgeSeconds}; includeSubDomains`);
         }
         next();
     };

@@ -52,7 +52,11 @@ export function createApp(options = {}) {
     // Middleware
     app.set('trust proxy', config.security.trustProxy);
     app.disable('x-powered-by');
-    app.use(createSecurityHeadersMiddleware({ nodeEnv: config.nodeEnv }));
+    app.use(createSecurityHeadersMiddleware({
+        nodeEnv: config.nodeEnv,
+        hstsEnabled: config.security.hstsEnabled,
+        hstsMaxAgeSeconds: config.security.hstsMaxAgeSeconds,
+    }));
     app.use(createSearchBotProtectionMiddleware());
     app.use(cors({
         origin: config.nodeEnv === 'development' ? 'http://localhost:5173' : false,

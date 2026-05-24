@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { isBlockedHostname, validateServerUrl } from '../routes/servers.js';
+import { isBlockedHostname, normalizeTokenRows, validateServerUrl } from '../routes/servers.js';
 
 describe('servers route hostname guards', () => {
     it('blocks localhost and single-label hostnames', () => {
@@ -29,5 +29,25 @@ describe('validateServerUrl', () => {
     it('rejects private ipv6 literal urls when private addresses are disallowed', async () => {
         const err = await validateServerUrl('https://[fd00::1]:2053', { allowPrivate: false });
         assert.equal(err, '节点面板地址不能使用私有或内部 IP');
+    });
+});
+
+describe('panel api token helpers', () => {
+    it('redacts tokens returned by upstream list responses', () => {
+        const rows = normalizeTokenRows({
+            success: true,
+            obj: [
+                {
+                    id: 1,
+                    name: 'ops',
+                    token: 'abcdef1234567890',
+                    enabled: true,
+                },
+            ],
+        });
+
+        assert.equal(rows[0].token, undefined);
+        assert.equal(rows[0].tokenConfigured, true);
+        assert.equal(rows[0].tokenPreview, 'abcdef...7890');
     });
 });

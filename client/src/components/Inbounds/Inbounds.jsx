@@ -24,6 +24,7 @@ import {
     HiOutlineClipboard,
     HiOutlineInbox,
     HiOutlineXMark,
+    HiOutlineCalendarDays,
 } from 'react-icons/hi2';
 import {
     normalizeInboundOrderMap,
@@ -195,6 +196,11 @@ export default function Inbounds() {
     const [overrideKeySet, setOverrideKeySet] = useState(() => new Set(bootstrapRef.current?.overrideKeys || []));
     const [clientActionKey, setClientActionKey] = useState('');
     const [selectedClientKeys, setSelectedClientKeys] = useState(new Set());
+    const [clientAdjustOpen, setClientAdjustOpen] = useState(false);
+    const [clientAdjustTarget, setClientAdjustTarget] = useState(null);
+    const [clientAdjustDays, setClientAdjustDays] = useState('');
+    const [clientAdjustTrafficGb, setClientAdjustTrafficGb] = useState('');
+    const [clientAdjustSaving, setClientAdjustSaving] = useState(false);
     const orderedServerOptions = useMemo(
         () => sortServersByOrder(servers, serverOrder),
         [servers, serverOrder]
@@ -935,6 +941,93 @@ export default function Inbounds() {
         }
     };
 
+    const getSelectedInboundClients = (inbound, clients = []) => (Array.isArray(clients) ? clients : []).filter((client) => {
+        const key = buildInboundClientSelectionKey(inbound?.serverId, inbound?.id, getClientIdentifier(client, inbound?.protocol));
+        return key && selectedClientKeys.has(key);
+    });
+
+    const openClientAdjustModal = (inbound, clients = []) => {
+        const selectedClients = getSelectedInboundClients(inbound, clients);
+        if (selectedClients.length === 0) {
+            toast.error(t('comp.inbounds.selectClientsFirst'));
+            return;
+        }
+        setClientAdjustTarget({
+            inbound,
+            clients: selectedClients,
+        });
+        setClientAdjustDays('');
+        setClientAdjustTrafficGb('');
+        setClientAdjustOpen(true);
+    };
+
+    const closeClientAdjustModal = () => {
+        if (clientAdjustSaving) return;
+        setClientAdjustOpen(false);
+        setClientAdjustTarget(null);
+        setClientAdjustDays('');
+        setClientAdjustTrafficGb('');
+    };
+
+    const submitClientAdjust = async (event) => {
+        event.preventDefault();
+        const inbound = clientAdjustTarget?.inbound;
+        const selectedClients = Array.isArray(clientAdjustTarget?.clients) ? clientAdjustTarget.clients : [];
+        const addDays = Number(clientAdjustDays || 0) || 0;
+        const addGb = Number(clientAdjustTrafficGb || 0) || 0;
+        const addBytes = Math.trunc(addGb * 1024 * 1024 * 1024);
+        if (addDays === 0 && addBytes === 0) {
+            toast.error('请填写要调整的天数或流量');
+            return;
+        }
+        if (!inbound || selectedClients.length === 0) {
+            toast.error(t('comp.inbounds.selectClientsFirst'));
+            return;
+        }
+
+        const targets = selectedClients.map((client) => ({
+            serverId: inbound.serverId,
+            serverName: inbound.serverName,
+            inboundId: inbound.id,
+            inboundRemark: inbound.remark || '',
+            protocol: inbound.protocol,
+            email: client.email || '',
+            clientIdentifier: getClientIdentifier(client, inbound.protocol),
+            id: client.id || '',
+            password: client.password || '',
+        }));
+
+        setClientAdjustSaving(true);
+        try {
+            const payload = await attachBatchRiskToken({
+                action: 'adjust',
+                targets,
+                payload: {
+                    addDays,
+                    addBytes,
+                },
+            }, {
+                type: 'clients',
+                action: 'adjust',
+                targetCount: targets.length,
+            });
+            const res = await api.post('/batch/clients', payload);
+            const output = res.data?.obj;
+            const summary = output?.summary || { success: 0, total: targets.length, failed: targets.length };
+            setBatchResultTitle('批量调整结果');
+            setBatchResultData(output || null);
+            toast.success(`批量调整完成: ${summary.success}/${summary.total} 成功`);
+            clearInboundClientSelection(inbound, selectedClients);
+            setClientAdjustOpen(false);
+            setClientAdjustTarget(null);
+            fetchAllInbounds({ force: true });
+        } catch (err) {
+            console.error(err);
+            toast.error(getErrorMessage(err, '批量调整失败', locale));
+        }
+        setClientAdjustSaving(false);
+    };
+
     const handleToggleClientEnabled = async (inbound, client) => {
         const identifier = String(getClientIdentifier(client, inbound.protocol) || '').trim();
         if (!identifier) {
@@ -1589,6 +1682,16 @@ export default function Inbounds() {
                                                                             className="btn btn-secondary btn-sm"
                                                                             onClick={(e) => {
                                                                                 e.stopPropagation();
+                                                                                openClientAdjustModal(ib, clients);
+                                                                            }}
+                                                                        >
+                                                                            <HiOutlineCalendarDays /> 调整到期/流量
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            className="btn btn-secondary btn-sm"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
                                                                                 clearInboundClientSelection(ib, clients);
                                                                             }}
                                                                         >
@@ -1829,6 +1932,61 @@ export default function Inbounds() {
                     title={batchResultTitle}
                     data={batchResultData}
                 />
+
+                {clientAdjustOpen && clientAdjustTarget && (
+                    <ModalShell isOpen={clientAdjustOpen} onClose={closeClientAdjustModal}>
+                        <div className="modal modal-md" onClick={(e) => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h3 className="modal-title">批量调整到期/流量</h3>
+                                <button className="modal-close" onClick={closeClientAdjustModal} aria-label="关闭" title="关闭">
+                                    <HiOutlineXMark />
+                                </button>
+                            </div>
+                            <form onSubmit={submitClientAdjust}>
+                                <div className="modal-body">
+                                    <div className="mb-4 p-3 rounded bg-surface-soft border border-stroke-soft text-sm">
+                                        <div>节点: <strong>{clientAdjustTarget.inbound.serverName}</strong></div>
+                                        <div>入站: <strong>{clientAdjustTarget.inbound.remark || clientAdjustTarget.inbound.protocol}</strong></div>
+                                        <div>已选用户: <strong>{clientAdjustTarget.clients.length}</strong></div>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">到期天数变化</label>
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            step="1"
+                                            value={clientAdjustDays}
+                                            onChange={(e) => setClientAdjustDays(e.target.value)}
+                                            placeholder="例如 30 或 -7"
+                                        />
+                                        <p className="text-xs text-muted mt-1">正数延长，负数扣减；永不过期用户会跳过到期调整。</p>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">流量变化</label>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="number"
+                                                className="form-input"
+                                                step="0.5"
+                                                value={clientAdjustTrafficGb}
+                                                onChange={(e) => setClientAdjustTrafficGb(e.target.value)}
+                                                placeholder="例如 100 或 -20"
+                                            />
+                                            <span className="text-sm text-muted">GB</span>
+                                        </div>
+                                        <p className="text-xs text-muted mt-1">正数增加，负数扣减；不限流量用户会跳过流量调整。</p>
+                                    </div>
+                                </div>
+                                <div className="modal-footer">
+                                    <button type="button" className="btn btn-secondary" onClick={closeClientAdjustModal}>取消</button>
+                                    <button type="submit" className="btn btn-primary" disabled={clientAdjustSaving}>
+                                        {clientAdjustSaving ? <span className="spinner" /> : <><HiOutlineCheck /> 执行调整</>}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </ModalShell>
+                )}
 
                 {entitlementOpen && entitlementTarget && (
                     <ModalShell isOpen={entitlementOpen} onClose={closeEntitlementModal}>

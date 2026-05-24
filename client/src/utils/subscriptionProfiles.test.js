@@ -26,7 +26,9 @@ describe('subscription profile bundle', () => {
         expect(bundle.singboxUrl).toBe('https://sub.example.com/base?format=singbox');
         expect(bundle.surgeUrl).toBe('https://sub.example.com/base?format=surge');
         expect(bundle.singboxImportUrl).toContain('sing-box://import-remote-profile');
-        expect(bundle.importActions.find((item) => item.key === 'shadowrocket')?.href).toContain('shadowrocket://add/');
+        const shadowrocketHref = bundle.importActions.find((item) => item.key === 'shadowrocket')?.href || '';
+        expect(shadowrocketHref).toContain('sub://');
+        expect(shadowrocketHref).toContain('#NMS');
         expect(bundle.importActions.find((item) => item.key === 'clash-family')?.actions?.find((item) => item.key === 'clash')?.href).toContain('clash://install-config');
         expect(bundle.importActions.find((item) => item.key === 'clash-family')?.actions?.find((item) => item.key === 'stash')?.href).toContain('stash://install-config');
         expect(bundle.importActions.find((item) => item.key === 'clash-family')?.siteLinks).toHaveLength(3);

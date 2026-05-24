@@ -788,7 +788,7 @@ test('updateManagedUserExpiry writes policy then deploys clients', async () => {
                 },
             },
             autoDeployClients: async (email, policy, options) => {
-                steps.push(`deploy:${email}:${policy.expiryTime}:${options.clientEnabled}`);
+                steps.push(`deploy:${email}:${policy.expiryTime}:${options.clientEnabled}:${options.forceExpiryTime}`);
                 return { updated: 2, failed: 0 };
             },
         }
@@ -797,7 +797,7 @@ test('updateManagedUserExpiry writes policy then deploys clients', async () => {
     assert.equal(result.expiryTime, 7200);
     assert.deepEqual(steps, [
         'upsert:tom@example.com:7200:alice',
-        'deploy:tom@example.com:7200:true',
+        'deploy:tom@example.com:7200:true:7200',
     ]);
 });
 

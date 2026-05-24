@@ -8,7 +8,7 @@ import userGroupStore from '../store/userGroupStore.js';
 import serverTelemetryStore from '../store/serverTelemetryStore.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
 import { ensureAuthenticated, fetchPanelServerStatus } from '../lib/panelClient.js';
-import { authMiddleware } from '../middleware/auth.js';
+import { authMiddleware, adminOnly } from '../middleware/auth.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import config from '../config.js';
 import { normalizeBoolean as parseBoolean } from '../lib/normalize.js';
@@ -200,6 +200,69 @@ function buildGovernanceSummary(servers) {
             .map(([tag, count]) => ({ tag, count }))
             .sort((a, b) => b.count - a.count),
     };
+}
+
+function isUnsupportedPanelSettingEndpoint(error) {
+    const status = Number(error?.response?.status || 0);
+    const message = String(error?.response?.data?.msg || error?.message || '').toLowerCase();
+    if (status === 404) {
+        return !message.includes('token not found')
+            && !message.includes('record not found')
+            && !message.includes('not found token');
+    }
+    if ([405, 410, 501].includes(status)) return true;
+    return message.includes('method not allowed')
+        || message.includes('unsupported')
+        || message.includes('not support')
+        || message.includes('not implemented')
+        || message.includes('no route');
+}
+
+function normalizePanelResponse(data, fallbackObj = null) {
+    if (data && typeof data === 'object' && Object.prototype.hasOwnProperty.call(data, 'success')) {
+        return data;
+    }
+    return {
+        success: true,
+        obj: data === undefined ? fallbackObj : data,
+    };
+}
+
+function normalizeTokenRows(payload) {
+    const normalized = normalizePanelResponse(payload, []);
+    const rows = Array.isArray(normalized.obj) ? normalized.obj : [];
+    return rows.map((row) => {
+        const token = String(row?.token || '').trim();
+        const tokenPreview = token.length > 12
+            ? `${token.slice(0, 6)}...${token.slice(-4)}`
+            : (token ? 'configured' : '');
+        const next = {
+            ...row,
+            tokenConfigured: Boolean(token),
+            tokenPreview,
+        };
+        delete next.token;
+        return next;
+    });
+}
+
+function sendPanelTokenRouteError(res, error, fallbackMessage) {
+    if (isUnsupportedPanelSettingEndpoint(error)) {
+        return res.status(501).json({
+            success: false,
+            msg: '当前 3x-ui 面板版本不支持 API Token 管理接口',
+        });
+    }
+    if (error?.response) {
+        return res.status(error.response.status || 502).json(error.response.data || {
+            success: false,
+            msg: fallbackMessage,
+        });
+    }
+    return res.status(502).json({
+        success: false,
+        msg: error?.message || fallbackMessage,
+    });
 }
 
 async function validateServerUrl(url, options = {}) {
@@ -415,6 +478,73 @@ router.get('/:id/snapshot', async (req, res) => {
             success: false,
             msg: error.message || '获取服务器快照失败',
         });
+    }
+});
+
+router.get('/:id/panel-api-tokens', adminOnly, async (req, res) => {
+    try {
+        const client = await ensureAuthenticated(req.params.id);
+        const response = await client.get('/panel/setting/apiTokens');
+        return res.json({
+            success: true,
+            obj: normalizeTokenRows(response.data),
+        });
+    } catch (error) {
+        return sendPanelTokenRouteError(res, error, '获取面板 API Token 列表失败');
+    }
+});
+
+router.post('/:id/panel-api-tokens', adminOnly, async (req, res) => {
+    const name = String(req.body?.name || '').trim();
+    if (!name) {
+        return res.status(400).json({
+            success: false,
+            msg: 'token name is required',
+        });
+    }
+
+    try {
+        const client = await ensureAuthenticated(req.params.id);
+        const response = await client.post('/panel/setting/apiTokens/create', { name });
+        appendSecurityAudit('panel_api_token_created', req, {
+            serverId: req.params.id,
+            name,
+        });
+        return res.status(response.status || 200).json(normalizePanelResponse(response.data));
+    } catch (error) {
+        return sendPanelTokenRouteError(res, error, '创建面板 API Token 失败');
+    }
+});
+
+router.patch('/:id/panel-api-tokens/:tokenId', adminOnly, async (req, res) => {
+    try {
+        const client = await ensureAuthenticated(req.params.id);
+        const enabled = parseBoolean(req.body?.enabled, true);
+        const response = await client.post(`/panel/setting/apiTokens/setEnabled/${encodeURIComponent(req.params.tokenId)}`, {
+            enabled,
+        });
+        appendSecurityAudit('panel_api_token_enabled_changed', req, {
+            serverId: req.params.id,
+            tokenId: String(req.params.tokenId || ''),
+            enabled,
+        });
+        return res.status(response.status || 200).json(normalizePanelResponse(response.data, true));
+    } catch (error) {
+        return sendPanelTokenRouteError(res, error, '更新面板 API Token 状态失败');
+    }
+});
+
+router.delete('/:id/panel-api-tokens/:tokenId', adminOnly, async (req, res) => {
+    try {
+        const client = await ensureAuthenticated(req.params.id);
+        const response = await client.post(`/panel/setting/apiTokens/delete/${encodeURIComponent(req.params.tokenId)}`);
+        appendSecurityAudit('panel_api_token_deleted', req, {
+            serverId: req.params.id,
+            tokenId: String(req.params.tokenId || ''),
+        });
+        return res.status(response.status || 200).json(normalizePanelResponse(response.data, true));
+    } catch (error) {
+        return sendPanelTokenRouteError(res, error, '删除面板 API Token 失败');
     }
 });
 
@@ -860,5 +990,5 @@ router.patch('/batch', (req, res) => {
     });
 });
 
-export { isBlockedHostname, validateServerUrl };
+export { isBlockedHostname, normalizeTokenRows, validateServerUrl };
 export default router;

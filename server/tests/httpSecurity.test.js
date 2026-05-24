@@ -45,4 +45,29 @@ describe('createSecurityHeadersMiddleware', () => {
         assert.equal(headers['Referrer-Policy'], 'no-referrer');
         assert.match(headers['Strict-Transport-Security'], /max-age=/);
     });
+
+    it('allows HSTS to be disabled or tuned explicitly', () => {
+        const disabledHeaders = {};
+        createSecurityHeadersMiddleware({
+            nodeEnv: 'production',
+            hstsEnabled: false,
+        })(
+            {},
+            { setHeader: (key, value) => { disabledHeaders[key] = value; } },
+            () => {}
+        );
+        assert.equal(disabledHeaders['Strict-Transport-Security'], undefined);
+
+        const tunedHeaders = {};
+        createSecurityHeadersMiddleware({
+            nodeEnv: 'development',
+            hstsEnabled: true,
+            hstsMaxAgeSeconds: 86400,
+        })(
+            {},
+            { setHeader: (key, value) => { tunedHeaders[key] = value; } },
+            () => {}
+        );
+        assert.equal(tunedHeaders['Strict-Transport-Security'], 'max-age=86400; includeSubDomains');
+    });
 });

@@ -162,6 +162,8 @@ const config = {
     security: {
         enforceStrictSecurity,
         trustProxy: parseTrustProxy(process.env.TRUST_PROXY),
+        hstsEnabled: parseBoolean(process.env.SECURITY_HSTS_ENABLED, isProduction),
+        hstsMaxAgeSeconds: parsePositiveInt(process.env.SECURITY_HSTS_MAX_AGE_SECONDS, 15552000),
     },
     credentials: {
         secret: credentialsSecret,

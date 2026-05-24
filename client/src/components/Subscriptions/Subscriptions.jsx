@@ -1,7 +1,6 @@
 import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { HiOutlineArrowPath, HiOutlineExclamationTriangle, HiOutlineLink, HiOutlineQrCode, HiOutlineXMark } from 'react-icons/hi2';
-import { QRCodeSVG } from 'qrcode.react';
 import ExpandableQRCode from '../UI/ExpandableQRCode.jsx';
 import toast from 'react-hot-toast';
 import api from '../../api/client.js';
@@ -1287,11 +1286,14 @@ export default function Subscriptions() {
                                         role="img"
                                         aria-label={ui.qrAriaLabel.replace('{label}', activeProfileLabel || activeProfile?.label || ui.scanImport)}
                                     >
-                                        <QRCodeSVG
+                                        <ExpandableQRCode
                                             value={activeProfile?.url || ''}
                                             size={220}
                                             level="M"
                                             includeMargin={false}
+                                            enlargedSize={360}
+                                            label={activeProfileLabel || activeProfile?.label || ui.scanImport}
+                                            ariaLabel={ui.qrAriaLabel.replace('{label}', activeProfileLabel || activeProfile?.label || ui.scanImport)}
                                         />
                                     </div>
                                     <div className="subscription-qr-modal-copy">{ui.qrHint}</div>

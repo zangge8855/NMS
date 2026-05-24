@@ -5,13 +5,16 @@ import multer from 'multer';
 import {
     cleanupDepletedClientsCompat,
     clearClientIpsCompat,
+    fetchClientRecordCompat,
     fetchPanelOnlineClients,
     getClientIpsCompat,
     isUnsupportedPanelEndpointError,
     parseLegacyAddClientBody,
     parseLegacyUpdateClientBody,
     postAddClientCompat,
+    postAttachClientToInboundsCompat,
     postDeleteClientFromInboundCompat,
+    postDetachClientFromInboundsCompat,
     postUpdateClientCompat,
     resetInboundTrafficCompat,
 } from '../lib/panelApiCompat.js';
@@ -61,6 +64,25 @@ async function tryCompatPanelRequest(client, method, panelPath, body = {}) {
         return clearClientIpsCompat(client, safeDecodePathSegment(match[1]));
     }
 
+    match = panelPath.match(/^\/panel\/api\/clients\/([^/]+)\/attach$/);
+    if (match) {
+        return postAttachClientToInboundsCompat(
+            client,
+            safeDecodePathSegment(match[1]),
+            body?.inboundIds,
+            { clientData: body?.client }
+        );
+    }
+
+    match = panelPath.match(/^\/panel\/api\/clients\/([^/]+)\/detach$/);
+    if (match) {
+        return postDetachClientFromInboundsCompat(
+            client,
+            safeDecodePathSegment(match[1]),
+            body?.inboundIds
+        );
+    }
+
     if (panelPath === '/panel/api/inbounds/addClient') {
         const parsed = parseLegacyAddClientBody(body);
         if (!parsed.client) return null;
@@ -103,6 +125,25 @@ async function tryCompatPanelRequest(client, method, panelPath, body = {}) {
     match = panelPath.match(/^\/panel\/api\/inbounds\/delDepletedClients\/([^/]+)$/);
     if (match) {
         return cleanupDepletedClientsCompat(client, safeDecodePathSegment(match[1]));
+    }
+
+    return null;
+}
+
+async function tryCompatPanelGetRequest(client, panelPath) {
+    let match = panelPath.match(/^\/panel\/api\/clients\/get\/([^/]+)$/);
+    if (match) {
+        const record = await fetchClientRecordCompat(client, safeDecodePathSegment(match[1]));
+        if (!record?.client) {
+            return {
+                status: 404,
+                data: { success: false, msg: 'client not found' },
+            };
+        }
+        return {
+            status: 200,
+            data: { success: true, obj: record },
+        };
     }
 
     return null;
@@ -236,7 +277,9 @@ router.all('/:serverId/*', upload.any(), async (req, res) => {
         if (error.response && isUnsupportedPanelEndpointError(error)) {
             try {
                 const client = await ensureAuthenticated(serverId);
-                const compatRes = await tryCompatPanelRequest(client, method, panelPath, req.body || {});
+                const compatRes = method === 'GET'
+                    ? await tryCompatPanelGetRequest(client, panelPath)
+                    : await tryCompatPanelRequest(client, method, panelPath, req.body || {});
                 if (compatRes) {
                     return res.status(compatRes.status || 200).json(compatRes.data);
                 }

@@ -165,6 +165,63 @@ describe('subscriptionSyncService', () => {
         assert.equal(updates[0].clientData.email, 'sub@example.com');
     });
 
+    it('forces updated user expiry while preserving per-client traffic and IP overrides', async () => {
+        const updates = [];
+        const result = await autoDeployClients('user@example.com', {
+            serverScopeMode: 'all',
+            protocolScopeMode: 'all',
+            expiryTime: 7200,
+            limitIp: 1,
+            trafficLimitBytes: 1024,
+        }, {
+            forceExpiryTime: 7200,
+        }, {
+            serverRepository: {
+                list: () => [{ id: 'srv-1', name: 'Server 1' }],
+            },
+            listPanelInbounds: async () => ({
+                client: { post: async () => ({}) },
+                inbounds: [
+                    {
+                        id: 101,
+                        protocol: 'vless',
+                        enable: true,
+                        remark: 'Inbound A',
+                        settings: JSON.stringify({
+                            clients: [{
+                                email: 'user@example.com',
+                                id: 'client-id',
+                                enable: true,
+                                expiryTime: 1000,
+                                limitIp: 2,
+                                totalGB: 1024,
+                            }],
+                        }),
+                    },
+                ],
+            }),
+            postUpdateClient: async (_panelClient, inboundId, clientIdentifier, clientData) => {
+                updates.push({ inboundId, clientIdentifier, clientData });
+                return {};
+            },
+            overrideRepository: {
+                get() {
+                    return {
+                        expiryTime: 1000,
+                        limitIp: 9,
+                        trafficLimitBytes: 2048,
+                    };
+                },
+            },
+        });
+
+        assert.equal(result.updated, 1);
+        assert.equal(updates.length, 1);
+        assert.equal(updates[0].clientData.expiryTime, 7200);
+        assert.equal(updates[0].clientData.limitIp, 9);
+        assert.equal(updates[0].clientData.totalGB, 2048);
+    });
+
     it('enables only clients that are still allowed by the current policy', async () => {
         const updates = [];
         const result = await autoSetManagedClientsEnabled('user@example.com', true, {

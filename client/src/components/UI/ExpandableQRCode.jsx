@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { createPortal } from 'react-dom';
-import { HiOutlineXMark, HiOutlineArrowsPointingOut } from 'react-icons/hi2';
+import { HiOutlineXMark, HiOutlineArrowsPointingOut, HiOutlineClipboard } from 'react-icons/hi2';
 
 /**
  * Subscription QR with click-to-enlarge: tap/click the QR to open a large
@@ -16,14 +16,43 @@ export default function ExpandableQRCode({
     enlargedSize = 320,
     className = '',
     ariaLabel = '',
+    maxQrValueLength = 1800,
 }) {
     const [expanded, setExpanded] = useState(false);
+    const [copied, setCopied] = useState(false);
     const close = useCallback(() => setExpanded(false), []);
     const onKey = useCallback((event) => {
         if (event.key === 'Escape') close();
     }, [close]);
 
     if (!value) return null;
+    const isTooLong = String(value || '').length > maxQrValueLength;
+    const copyLink = async () => {
+        try {
+            await navigator.clipboard.writeText(value);
+            setCopied(true);
+            window.setTimeout(() => setCopied(false), 1500);
+        } catch {
+            setCopied(false);
+        }
+    };
+
+    if (isTooLong) {
+        return (
+            <div className={['expandable-qr-fallback', className].filter(Boolean).join(' ')}>
+                <div className="expandable-qr-fallback-title">二维码内容过长</div>
+                <div className="expandable-qr-fallback-text">请复制链接导入客户端。</div>
+                <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={copyLink}
+                >
+                    <HiOutlineClipboard />
+                    {copied ? '已复制' : '复制链接'}
+                </button>
+            </div>
+        );
+    }
 
     return (
         <>

@@ -394,6 +394,9 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
 
     const sharedCredentials = options.sharedCredentials || createSharedCredentials();
     const baseEntitlement = resolvePolicyEntitlement(policy, options);
+    const forcedExpiryTime = options.forceExpiryTime === undefined
+        ? undefined
+        : normalizeNonNegativeInt(options.forceExpiryTime, 0);
     const forceCredentialRotation = options.forceCredentialRotation === true;
     const clientEnabled = options.clientEnabled;
     const protocolScopeMode = String(policy.protocolScopeMode || 'all').toLowerCase();
@@ -477,7 +480,12 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
                 if (match) {
                     const clientIdentifier = resolveClientIdentifier(match, protocol);
                     const override = overrideRepository.get(server.id, inbound.id, clientIdentifier);
-                    const targetEntitlement = override || baseEntitlement;
+                    const targetEntitlement = forcedExpiryTime === undefined
+                        ? (override || baseEntitlement)
+                        : {
+                            ...(override || baseEntitlement),
+                            expiryTime: forcedExpiryTime,
+                        };
                     const updatedClientBase = forceCredentialRotation
                         ? applyManagedCredentialsToClient(match, {
                             email,
@@ -546,7 +554,12 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
                     protocol,
                     inbound,
                     sharedCredentials,
-                    entitlement: baseEntitlement,
+                    entitlement: forcedExpiryTime === undefined
+                        ? baseEntitlement
+                        : {
+                            ...baseEntitlement,
+                            expiryTime: forcedExpiryTime,
+                        },
                     resolveFlow: resolveDeployFlow,
                 });
                 if (clientEnabled !== undefined) {

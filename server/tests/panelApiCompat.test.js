@@ -1,9 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+    fetchClientRecordCompat,
     fetchPanelOnlineClients,
+    postAttachClientToInboundsCompat,
     postAddClientCompat,
     postDeleteClientFromInboundCompat,
+    postDetachClientFromInboundsCompat,
     postUpdateClientCompat,
     resetInboundTrafficCompat,
 } from '../lib/panelApiCompat.js';
@@ -52,6 +55,90 @@ test('postAddClientCompat sends latest v3 JSON payload before legacy form fallba
         },
         contentType: 'application/json',
     }]);
+});
+
+test('fetchClientRecordCompat scans legacy inbound lists when latest client record endpoint is absent', async () => {
+    const calls = [];
+    const client = {
+        async get(path) {
+            calls.push(path);
+            if (path.startsWith('/panel/api/clients/get/')) throw notFound();
+            return {
+                data: {
+                    obj: [
+                        {
+                            id: 7,
+                            settings: JSON.stringify({
+                                clients: [{ email: 'alice@example.com', id: 'uuid-a' }],
+                            }),
+                        },
+                        {
+                            id: 8,
+                            settings: JSON.stringify({
+                                clients: [{ email: 'bob@example.com', id: 'uuid-b' }],
+                            }),
+                        },
+                    ],
+                },
+            };
+        },
+    };
+
+    const record = await fetchClientRecordCompat(client, 'alice@example.com');
+
+    assert.deepEqual(calls, [
+        '/panel/api/clients/get/alice%40example.com',
+        '/panel/api/inbounds/list',
+    ]);
+    assert.equal(record.client.id, 'uuid-a');
+    assert.deepEqual(record.inboundIds, [7]);
+});
+
+test('postAttachClientToInboundsCompat falls back to legacy addClient using resolved source client', async () => {
+    const calls = [];
+    const client = {
+        async post(path, data, config) {
+            calls.push({ method: 'post', path, data, contentType: config?.headers?.['Content-Type'] });
+            if (path.includes('/attach')) throw notFound();
+            return { data: { success: true } };
+        },
+        async get(path) {
+            calls.push({ method: 'get', path });
+            if (path.startsWith('/panel/api/clients/get/')) throw notFound();
+            return {
+                data: {
+                    obj: [{
+                        id: 7,
+                        settings: JSON.stringify({
+                            clients: [{ email: 'alice@example.com', id: 'uuid-a' }],
+                        }),
+                    }],
+                },
+            };
+        },
+    };
+
+    await postAttachClientToInboundsCompat(client, 'alice@example.com', [8]);
+
+    assert.equal(calls.at(-1).path, '/panel/api/clients/add');
+    assert.deepEqual(calls.at(-1).data.inboundIds, [8]);
+    assert.equal(calls.at(-1).data.client.email, 'alice@example.com');
+});
+
+test('postDetachClientFromInboundsCompat falls back to legacy per-inbound delete', async () => {
+    const calls = [];
+    const client = {
+        async post(path, data, config) {
+            calls.push({ method: 'post', path, data, contentType: config?.headers?.['Content-Type'] });
+            if (path.includes('/detach')) throw notFound();
+            return { data: { success: true } };
+        },
+    };
+
+    await postDetachClientFromInboundsCompat(client, 'alice@example.com', [8, 9]);
+
+    assert.equal(calls[1].path, '/panel/api/inbounds/8/delClient/alice%40example.com');
+    assert.equal(calls[2].path, '/panel/api/inbounds/9/delClient/alice%40example.com');
 });
 
 test('postUpdateClientCompat resolves old email and uses latest email-scoped update when legacy route is absent', async () => {

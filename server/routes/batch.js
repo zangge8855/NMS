@@ -16,15 +16,19 @@ import batchRiskTokenStore, {
 } from '../lib/batchRiskControl.js';
 import { normalizeBoolean } from '../lib/normalize.js';
 import {
+    fetchPanelInboundByIdCompat,
+    parseInboundClients,
     postAddClientCompat,
     postDeleteClientFromInboundCompat,
     postUpdateClientCompat,
+    resolveClientIdentifier,
     resetInboundTrafficCompat as resetPanelInboundTrafficCompat,
 } from '../lib/panelApiCompat.js';
+import { invalidateServerPanelSnapshotCache } from '../lib/serverPanelSnapshotService.js';
 
 const router = Router();
 
-const CLIENT_ACTIONS = new Set(['add', 'update', 'enable', 'disable', 'delete']);
+const CLIENT_ACTIONS = new Set(['add', 'update', 'enable', 'disable', 'delete', 'adjust']);
 const INBOUND_ACTIONS = new Set(['add', 'update', 'enable', 'disable', 'delete', 'resetTraffic', 'syncExistingUsers']);
 const FLOW_PROTOCOLS = new Set(['vless']);
 const CLIENT_PROTOCOLS = new Set(['vmess', 'vless', 'trojan', 'shadowsocks']);
@@ -244,10 +248,11 @@ async function runWithConcurrency(items, worker, concurrency = 5) {
 function summarizeBatchResults(action, results) {
     const total = results.length;
     const success = results.filter((item) => item.success).length;
+    const skipped = results.filter((item) => item.skipped === true).length;
     const failed = total - success;
     return {
         action,
-        summary: { total, success, failed },
+        summary: { total, success, skipped, failed },
         results,
     };
 }
@@ -342,6 +347,66 @@ function buildInboundSubscriptionSyncOutput(action, syncResult = {}, candidates 
     };
 }
 
+function findTargetClientInInbound(inbound = {}, target = {}, protocolHint = '') {
+    const protocol = normalizeProtocol(protocolHint || target.protocol || inbound.protocol);
+    const identifier = normalizeClientIdentifier(target, target.client || {}, protocol);
+    const email = String(target.email || target.client?.email || '').trim().toLowerCase();
+    const clients = parseInboundClients(inbound);
+    return clients.find((item) => {
+        const candidateIdentifier = resolveClientIdentifier(item, protocol);
+        return (identifier && candidateIdentifier === identifier)
+            || (email && String(item?.email || '').trim().toLowerCase() === email);
+    }) || null;
+}
+
+function buildClientAdjustPatch(sourceClient = {}, payload = {}) {
+    const addDays = Number(payload.addDays || 0) || 0;
+    const addBytes = Number(payload.addBytes || 0) || 0;
+    const now = Date.now();
+    const nextClient = { ...sourceClient };
+    const notes = [];
+    let changed = false;
+
+    if (addDays !== 0) {
+        const currentExpiry = Number(sourceClient.expiryTime || 0) || 0;
+        if (currentExpiry <= 0) {
+            notes.push('unlimited expiry skipped');
+        } else {
+            const deltaMs = Math.trunc(addDays * 24 * 60 * 60 * 1000);
+            const baseExpiry = addDays > 0 ? Math.max(currentExpiry, now) : currentExpiry;
+            const nextExpiry = baseExpiry + deltaMs;
+            if (nextExpiry <= now) {
+                notes.push('expiry reduction exceeds remaining time');
+            } else {
+                nextClient.expiryTime = nextExpiry;
+                changed = true;
+            }
+        }
+    }
+
+    if (addBytes !== 0) {
+        const currentTotal = Number(sourceClient.totalGB || 0) || 0;
+        const used = (Number(sourceClient.up || 0) || 0) + (Number(sourceClient.down || 0) || 0);
+        if (currentTotal <= 0) {
+            notes.push('unlimited traffic skipped');
+        } else {
+            const nextTotal = currentTotal + Math.trunc(addBytes);
+            if (nextTotal < 0 || nextTotal < used) {
+                notes.push('traffic reduction exceeds remaining quota');
+            } else {
+                nextClient.totalGB = nextTotal;
+                changed = true;
+            }
+        }
+    }
+
+    return {
+        client: nextClient,
+        changed,
+        notes,
+    };
+}
+
 function defaultConcurrencyFallback() {
     return Math.max(1, Number(systemSettingsStore.getJobs().defaultConcurrency || 5));
 }
@@ -387,7 +452,7 @@ function toHistoryItem(entry, includeResults = false) {
     };
 }
 
-async function executeClientAction({ action, target, globalClient }) {
+async function executeClientAction({ action, target, globalClient, payload }) {
     const targetProtocol = normalizeProtocol(target.protocol);
     const clientIdentifier = normalizeClientIdentifier(target, globalClient, targetProtocol);
     const baseResult = {
@@ -422,6 +487,7 @@ async function executeClientAction({ action, target, globalClient }) {
             }
 
             await postAddClientCompat(client, target.inboundId, clientData);
+            invalidateServerPanelSnapshotCache(target.serverId);
 
             return {
                 ...baseResult,
@@ -441,11 +507,55 @@ async function executeClientAction({ action, target, globalClient }) {
                 protocol: targetProtocol,
                 clientData: target.client || globalClient || {},
             });
+            invalidateServerPanelSnapshotCache(target.serverId);
 
             return {
                 ...baseResult,
                 success: true,
                 msg: 'Client deleted',
+            };
+        }
+
+        if (action === 'adjust') {
+            const addDays = Number(payload?.addDays || 0) || 0;
+            const addBytes = Number(payload?.addBytes || 0) || 0;
+            if (addDays === 0 && addBytes === 0) {
+                throw new Error('addDays or addBytes is required');
+            }
+
+            const inbound = await fetchPanelInboundByIdCompat(client, target.inboundId);
+            if (!inbound) throw new Error('Inbound not found');
+            const sourceClient = findTargetClientInInbound(inbound, target, targetProtocol);
+            if (!sourceClient) throw new Error('Client not found');
+            const sourceIdentifier = resolveClientIdentifier(sourceClient, targetProtocol || inbound.protocol);
+            const adjusted = buildClientAdjustPatch(sourceClient, { addDays, addBytes });
+            if (!adjusted.changed) {
+                return {
+                    ...baseResult,
+                    clientIdentifier: sourceIdentifier || clientIdentifier,
+                    email: sourceClient.email || baseResult.email,
+                    success: true,
+                    skipped: true,
+                    msg: adjusted.notes.join('; ') || 'No adjustable fields',
+                };
+            }
+
+            await postUpdateClientCompat(client, target.inboundId, sourceIdentifier || clientIdentifier, adjusted.client, {
+                email: sourceClient.email || target.email,
+                protocol: targetProtocol || inbound.protocol,
+                clientData: adjusted.client,
+            });
+            invalidateServerPanelSnapshotCache(target.serverId);
+
+            return {
+                ...baseResult,
+                clientIdentifier: sourceIdentifier || clientIdentifier,
+                email: sourceClient.email || baseResult.email,
+                success: true,
+                skipped: false,
+                msg: adjusted.notes.length > 0
+                    ? `Client adjusted (${adjusted.notes.join('; ')})`
+                    : 'Client adjusted',
             };
         }
 
@@ -467,6 +577,7 @@ async function executeClientAction({ action, target, globalClient }) {
             email: target.email,
             protocol: targetProtocol,
         });
+        invalidateServerPanelSnapshotCache(target.serverId);
 
         return {
             ...baseResult,
@@ -577,7 +688,7 @@ async function executeInboundAction({ action, target, payload }) {
     }
 }
 
-async function performClientBatch({ action, targets, concurrency, globalClient }) {
+async function performClientBatch({ action, targets, concurrency, globalClient, payload }) {
     if (!CLIENT_ACTIONS.has(action)) {
         return {
             error: {
@@ -601,6 +712,7 @@ async function performClientBatch({ action, targets, concurrency, globalClient }
             action,
             target,
             globalClient,
+            payload,
         }),
         concurrency
     );
@@ -1088,6 +1200,7 @@ async function retryHistoryItem(historyItem, req) {
             targets: retryRequest.targets || [],
             concurrency: normalizeConcurrency(retryRequest.concurrency, defaultConcurrencyFallback()),
             globalClient: retryRequest.client,
+            payload: retryRequest.payload,
         });
     } else if (historyItem.type === 'inbounds') {
         run = await performInboundBatch({
@@ -1233,6 +1346,7 @@ router.post('/clients', async (req, res) => {
         targets,
         concurrency,
         globalClient: req.body?.client,
+        payload: req.body?.payload,
     });
     if (run.error) {
         return res.status(run.error.status).json({
@@ -1254,6 +1368,7 @@ router.post('/clients', async (req, res) => {
             action,
             targets,
             client: req.body?.client,
+            payload: req.body?.payload,
             concurrency,
         },
         { risk: riskCheck.risk }
@@ -1556,3 +1671,7 @@ router.post(`/:id(${JOB_ID_PATTERN})/cancel`, (req, res) => {
 });
 
 export default router;
+export {
+    buildClientAdjustPatch,
+    findTargetClientInInbound,
+};

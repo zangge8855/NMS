@@ -431,6 +431,7 @@ async function runManagedUserNodeSync(targetUser, actor = 'admin', options = {},
                 allowedInboundKeys: scopedPolicy.allowedInboundKeys,
                 clientEnabled: enabled,
                 emailAliases,
+                forceExpiryTime: options.forceExpiryTime,
             });
         } catch (error) {
             deployment = {
@@ -1006,6 +1007,7 @@ async function updateManagedUserExpiry(id, payload = {}, actor = 'admin', deps =
         includeToggle: false,
         includeDeploy: true,
         policyOverride: nextPolicy,
+        forceExpiryTime: expiryTime,
     }, deps);
 
     return {

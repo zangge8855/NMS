@@ -14,6 +14,7 @@ This runbook is for single-host deployments, PM2-managed processes, Docker packa
 - Keep `.env`, `data/*.json`, `logs/`, and build output outside Git; only templates and documentation should be committed
 - Set `SUB_PUBLIC_BASE_URL` to the real external domain before sharing subscription links
 - Set `TRUST_PROXY` only to the reverse-proxy sources that can legitimately send `X-Forwarded-*`; the default trusts `loopback` only
+- Leave `SECURITY_HSTS_ENABLED` enabled in HTTPS production deployments; disable it only for plain HTTP or staging domains where HSTS would be unsafe
 - The UI homepage defaults to `/`; if you later move it to a custom path in `Settings`, keep `/api`, `/ws`, and subscription public routes reachable
 - If you enable the camouflage landing page, keep the real UI access path documented internally; only the public-facing fallback page should remain visible on `/` or other non-matching document paths
 - Enable SMTP only when you need registration, verification, or password reset mail
@@ -220,6 +221,7 @@ NMS is easier to operate in production because it already includes:
 - `.env`、`data/*.json`、`logs/` 和构建产物不要提交进 Git，仓库里只保留模板和文档
 - 在对外发放订阅链接前，先把 `SUB_PUBLIC_BASE_URL` 设置成真实公网域名
 - 只有在 NMS 确实位于可信反向代理后方时，才按实际来源配置 `TRUST_PROXY`；默认只信任 `loopback`
+- HTTPS 生产环境保持 `SECURITY_HSTS_ENABLED` 启用；只有纯 HTTP 或临时测试域名才应关闭
 - 后台首页默认走 `/`；如果后续在 `系统设置` 里改成自定义路径，也要继续保留 `/api`、`/ws` 和订阅公开地址可访问
 - 只有在需要注册、验证邮件或找回密码时才开启 SMTP
 - 登录页的“忘记密码”接口默认会隐藏邮箱是否存在的结果；上线前只需要确认 SMTP 可用，不需要额外暴露用户是否已注册

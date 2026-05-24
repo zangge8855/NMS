@@ -374,6 +374,97 @@ function getHeaderValue(headers, name) {
     return '';
 }
 
+function buildXhttpHeaderMap(headers) {
+    if (!headers) return null;
+    const output = {};
+    const pushHeader = (name, value) => {
+        const key = String(name || '').trim();
+        if (!key || key.toLowerCase() === 'host') return;
+        const headerValue = Array.isArray(value)
+            ? firstNonEmpty(value.find(Boolean))
+            : firstNonEmpty(value);
+        output[key] = headerValue;
+    };
+
+    if (Array.isArray(headers)) {
+        headers.forEach((item) => pushHeader(item?.name, item?.value));
+    } else if (typeof headers === 'object') {
+        Object.entries(headers).forEach(([key, value]) => pushHeader(key, value));
+    }
+
+    return Object.keys(output).length > 0 ? output : null;
+}
+
+function buildXhttpExtra(xhttpSettings = {}) {
+    if (!xhttpSettings || typeof xhttpSettings !== 'object') return null;
+    const extra = {};
+    const xPaddingBytes = firstNonEmpty(xhttpSettings.xPaddingBytes);
+    if (xPaddingBytes) {
+        extra.xPaddingBytes = xPaddingBytes;
+    }
+
+    if (xhttpSettings.xPaddingObfsMode === true) {
+        extra.xPaddingObfsMode = true;
+        ['xPaddingKey', 'xPaddingHeader', 'xPaddingPlacement', 'xPaddingMethod'].forEach((field) => {
+            const value = firstNonEmpty(xhttpSettings[field]);
+            if (value) extra[field] = value;
+        });
+    }
+
+    const mode = firstNonEmpty(xhttpSettings.mode);
+    if (mode) {
+        extra.mode = mode;
+    }
+
+    [
+        'sessionPlacement',
+        'sessionKey',
+        'seqPlacement',
+        'seqKey',
+        'uplinkDataPlacement',
+        'uplinkDataKey',
+        'scMaxEachPostBytes',
+    ].forEach((field) => {
+        const value = firstNonEmpty(xhttpSettings[field]);
+        if (value) extra[field] = value;
+    });
+
+    const headers = buildXhttpHeaderMap(xhttpSettings.headers);
+    if (headers) {
+        extra.headers = headers;
+    }
+
+    return Object.keys(extra).length > 0 ? extra : null;
+}
+
+function applyXhttpExtraToParams(xhttpSettings, params) {
+    if (!xhttpSettings || typeof xhttpSettings !== 'object') return;
+    setParamIfPresent(params, 'path', xhttpSettings.path || '/');
+    setParamIfPresent(params, 'host', firstNonEmpty(
+        xhttpSettings.host,
+        getHeaderValue(xhttpSettings.headers, 'Host')
+    ));
+    setParamIfPresent(params, 'mode', xhttpSettings.mode);
+    setParamIfPresent(params, 'x_padding_bytes', xhttpSettings.xPaddingBytes);
+
+    const extra = buildXhttpExtra(xhttpSettings);
+    if (extra) {
+        params.set('extra', JSON.stringify(extra));
+    }
+}
+
+function applyXhttpExtraToVmessObject(xhttpSettings, vmessObj) {
+    if (!xhttpSettings || typeof xhttpSettings !== 'object' || !vmessObj) return;
+    const xPaddingBytes = firstNonEmpty(xhttpSettings.xPaddingBytes);
+    if (xPaddingBytes) {
+        vmessObj.x_padding_bytes = xPaddingBytes;
+    }
+    const extra = buildXhttpExtra(xhttpSettings);
+    if (extra) {
+        Object.assign(vmessObj, extra);
+    }
+}
+
 function getRealityParams(stream) {
     const rs = stream.realitySettings || {};
     const rsSettings = rs.settings || {};
@@ -424,12 +515,7 @@ function applyTransportParams(params, stream) {
             getHeaderValue(stream.httpupgradeSettings?.headers, 'Host')
         ));
     } else if (net === 'xhttp') {
-        setParamIfPresent(params, 'path', stream.xhttpSettings?.path || '/');
-        setParamIfPresent(params, 'host', firstNonEmpty(
-            stream.xhttpSettings?.host,
-            getHeaderValue(stream.xhttpSettings?.headers, 'Host')
-        ));
-        setParamIfPresent(params, 'mode', stream.xhttpSettings?.mode);
+        applyXhttpExtraToParams(stream.xhttpSettings, params);
     } else if (net === 'kcp') {
         setParamIfPresent(params, 'seed', stream.kcpSettings?.seed);
         setParamIfPresent(params, 'headerType', stream.kcpSettings?.header?.type);
@@ -468,8 +554,15 @@ function buildVmessLink({ server, inbound, client, stream, diagnostics }) {
         host: stream.wsSettings?.headers?.Host
             || (Array.isArray(stream.httpSettings?.host)
                 ? stream.httpSettings.host.join(',')
-                : (stream.httpSettings?.host || '')),
-        path: stream.wsSettings?.path || stream.httpSettings?.path || stream.grpcSettings?.serviceName || '/',
+                : (stream.httpSettings?.host || ''))
+            || firstNonEmpty(stream.httpupgradeSettings?.host, getHeaderValue(stream.httpupgradeSettings?.headers, 'Host'))
+            || firstNonEmpty(stream.xhttpSettings?.host, getHeaderValue(stream.xhttpSettings?.headers, 'Host')),
+        path: stream.wsSettings?.path
+            || stream.httpSettings?.path
+            || stream.grpcSettings?.serviceName
+            || stream.httpupgradeSettings?.path
+            || stream.xhttpSettings?.path
+            || '/',
         tls: security === 'none' ? '' : (security === 'reality' ? 'tls' : security),
         sni,
         alpn: Array.isArray(stream.tlsSettings?.alpn) ? stream.tlsSettings.alpn.join(',') : '',
@@ -486,6 +579,11 @@ function buildVmessLink({ server, inbound, client, stream, diagnostics }) {
         vmessObj.fp = reality.fp;
         vmessObj.sid = reality.sid || '';
         vmessObj.spx = reality.spx || '/';
+    }
+
+    if (net === 'xhttp') {
+        vmessObj.type = stream.xhttpSettings?.mode || vmessObj.type;
+        applyXhttpExtraToVmessObject(stream.xhttpSettings, vmessObj);
     }
 
     return `vmess://${Buffer.from(JSON.stringify(vmessObj)).toString('base64')}`;
@@ -3882,9 +3980,11 @@ export default router;
 export {
     buildSubscriptionUserInfoHeader,
     buildMihomoConfigFromLinks,
+    buildClientLink,
     buildSurgeConfigFromLinks,
     buildSingboxConfigFromLinks,
     buildSubscriptionUrls,
+    buildXhttpExtra,
     mergeInboundClientEntries,
     normalizeSubscriptionFormat,
     resolveSingboxConfigVersion,

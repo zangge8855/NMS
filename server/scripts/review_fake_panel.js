@@ -112,6 +112,26 @@ function buildClientStats(clients = []) {
         .filter((client) => client.email);
 }
 
+function listUniqueClientRecords(inbounds = []) {
+    const records = new Map();
+    (Array.isArray(inbounds) ? inbounds : []).forEach((inbound) => {
+        getInboundClients(inbound).forEach((client) => {
+            const email = normalizeEmail(client.email);
+            if (!email) return;
+            const current = records.get(email) || {
+                client: deepClone(client),
+                inboundIds: [],
+            };
+            current.inboundIds.push(Number(inbound.id));
+            records.set(email, current);
+        });
+    });
+    return Array.from(records.entries()).map(([email, record]) => ({
+        email,
+        ...record,
+    }));
+}
+
 function matchClient(client, identifier) {
     const target = toText(identifier);
     if (!target) return false;
@@ -145,6 +165,7 @@ function makeSuccess(res, obj = null) {
 
 function createPanelApp(definition) {
     const state = deepClone(definition.state);
+    state.apiTokens = Array.isArray(state.apiTokens) ? state.apiTokens : [];
     const sessions = new Set();
     const app = express();
 
@@ -467,6 +488,27 @@ function createPanelApp(definition) {
         return makeSuccess(res, state.inbounds);
     });
 
+    app.get('/panel/api/clients/list', (req, res) => {
+        return makeSuccess(res, listUniqueClientRecords(state.inbounds));
+    });
+
+    app.get('/panel/api/clients/list/paged', (req, res) => {
+        const page = Math.max(1, Number(req.query?.page) || 1);
+        const pageSize = Math.max(1, Math.min(200, Number(req.query?.pageSize) || Number(req.query?.limit) || 20));
+        const search = normalizeEmail(req.query?.search || req.query?.email || '');
+        const inboundId = toText(req.query?.inboundId || '');
+        const all = listUniqueClientRecords(state.inbounds)
+            .filter((record) => !search || normalizeEmail(record.email).includes(search))
+            .filter((record) => !inboundId || record.inboundIds.some((id) => String(id) === inboundId));
+        const start = (page - 1) * pageSize;
+        return makeSuccess(res, {
+            total: all.length,
+            page,
+            pageSize,
+            items: all.slice(start, start + pageSize),
+        });
+    });
+
     app.get('/panel/api/inbounds/get/:id', (req, res) => {
         const inboundId = Number(req.params.id);
         const target = state.inbounds.find((item) => Number(item.id) === inboundId);
@@ -581,6 +623,65 @@ function createPanelApp(definition) {
             target.clientStats = buildClientStats(nextClients);
         });
         return makeSuccess(res, { detached });
+    });
+
+    app.post('/panel/api/clients/:email/attach', (req, res) => {
+        const email = normalizeEmail(req.params.email);
+        const inboundIds = Array.isArray(req.body?.inboundIds) ? req.body.inboundIds : [];
+        const source = req.body?.client && typeof req.body.client === 'object'
+            ? deepClone(req.body.client)
+            : listUniqueClientRecords(state.inbounds).find((record) => record.email === email)?.client;
+        if (!source) {
+            return res.status(404).json({
+                success: false,
+                msg: 'client not found',
+            });
+        }
+        let attached = 0;
+        inboundIds.forEach((id) => {
+            const target = state.inbounds.find((item) => Number(item.id) === Number(id));
+            if (!target) return;
+            const clients = getInboundClients(target);
+            if (clients.some((client) => normalizeEmail(client.email) === email)) return;
+            clients.push({
+                ...deepClone(source),
+                email,
+            });
+            setInboundClients(target, clients);
+            target.clientStats = buildClientStats(clients);
+            attached += 1;
+        });
+        return makeSuccess(res, { attached });
+    });
+
+    app.post('/panel/api/clients/bulkAdjust', (req, res) => {
+        const emails = new Set(
+            (Array.isArray(req.body?.emails) ? req.body.emails : [])
+                .map((item) => normalizeEmail(item))
+                .filter(Boolean)
+        );
+        const addDays = Number(req.body?.addDays || 0) || 0;
+        const addBytes = Number(req.body?.addBytes || 0) || 0;
+        let updated = 0;
+        const now = Date.now();
+        state.inbounds.forEach((inbound) => {
+            const clients = getInboundClients(inbound).map((client) => {
+                if (!emails.has(normalizeEmail(client.email))) return client;
+                const next = { ...client };
+                if (addDays !== 0 && Number(next.expiryTime || 0) > 0) {
+                    const base = addDays > 0 ? Math.max(Number(next.expiryTime || 0), now) : Number(next.expiryTime || 0);
+                    next.expiryTime = Math.max(now + 1000, base + Math.trunc(addDays * 86400000));
+                }
+                if (addBytes !== 0 && Number(next.totalGB || 0) > 0) {
+                    next.totalGB = Math.max(0, Number(next.totalGB || 0) + Math.trunc(addBytes));
+                }
+                updated += 1;
+                return next;
+            });
+            setInboundClients(inbound, clients);
+            inbound.clientStats = buildClientStats(clients);
+        });
+        return makeSuccess(res, { updated });
     });
 
     app.post('/panel/api/clients/resetTraffic/:email', (req, res) => {
@@ -854,6 +955,55 @@ function createPanelApp(definition) {
             }
         }
         return makeSuccess(res, { updated: true });
+    });
+
+    app.get('/panel/setting/apiTokens', (_req, res) => {
+        return makeSuccess(res, state.apiTokens);
+    });
+
+    app.post('/panel/setting/apiTokens/create', (req, res) => {
+        const name = toText(req.body?.name).trim();
+        if (!name) {
+            return res.status(400).json({
+                success: false,
+                msg: 'token name is required',
+            });
+        }
+        if (state.apiTokens.some((token) => token.name === name)) {
+            return res.status(409).json({
+                success: false,
+                msg: 'a token with that name already exists',
+            });
+        }
+        const row = {
+            id: state.apiTokens.reduce((max, token) => Math.max(max, Number(token.id) || 0), 0) + 1,
+            name,
+            token: crypto.randomBytes(24).toString('hex'),
+            enabled: true,
+            createdAt: Math.floor(Date.now() / 1000),
+        };
+        state.apiTokens.push(row);
+        return makeSuccess(res, row);
+    });
+
+    app.post('/panel/setting/apiTokens/delete/:id', (req, res) => {
+        const before = state.apiTokens.length;
+        state.apiTokens = state.apiTokens.filter((token) => String(token.id) !== String(req.params.id));
+        return makeSuccess(res, {
+            deleted: before - state.apiTokens.length,
+        });
+    });
+
+    app.post('/panel/setting/apiTokens/setEnabled/:id', (req, res) => {
+        const target = state.apiTokens.find((token) => String(token.id) === String(req.params.id));
+        if (!target) {
+            return res.status(404).json({
+                success: false,
+                msg: 'token not found',
+            });
+        }
+        target.enabled = normalizeBoolean(req.body?.enabled, target.enabled !== false);
+        return makeSuccess(res, target);
     });
 
     return app;

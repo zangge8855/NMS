@@ -7,20 +7,24 @@ import EmptyState from '../UI/EmptyState.jsx';
 import ClientIpModal from '../UI/ClientIpModal.jsx';
 import CopyFeedbackButton from '../UI/CopyFeedbackButton.jsx';
 import VirtualList from '../UI/VirtualList.jsx';
+import ModalShell from '../UI/ModalShell.jsx';
+import BatchResultModal from '../Batch/BatchResultModal.jsx';
 import useAnimatedCounter from '../../hooks/useAnimatedCounter.js';
 import { formatBytes, formatDateOnly, formatDateTime, getErrorMessage } from '../../utils/format.js';
+import { attachBatchRiskToken } from '../../utils/riskConfirm.js';
 import { resolveAccessGeoDisplay } from '../../utils/accessGeo.js';
 import { mergeInboundClientStats } from '../../utils/inboundClients.js';
 import { buildOnlineMatchMap, countClientOnlineSessions } from '../../utils/clientPresence.js';
 import { isUnsupportedPanelClientIpsError, normalizePanelClientIps } from '../../utils/panelClientIps.js';
 import { buildSubscriptionProfileBundle, findSubscriptionProfile } from '../../utils/subscriptionProfiles.js';
+import { getClientIdentifier } from '../../utils/protocol.js';
 import SubscriptionClientLinks from '../Subscriptions/SubscriptionClientLinks.jsx';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
-import { QRCodeSVG } from 'qrcode.react';
+import ExpandableQRCode from '../UI/ExpandableQRCode.jsx';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
 import { fetchServerPanelData } from '../../utils/serverPanelDataCache.js';
 import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
@@ -36,6 +40,7 @@ import {
     HiOutlineArrowPath,
     HiOutlinePencilSquare,
     HiOutlineGlobeAlt,
+    HiOutlineXMark,
 } from 'react-icons/hi2';
 
 function clampProgress(value) {
@@ -751,6 +756,12 @@ export default function UserDetail() {
         clearing: false,
         error: '',
     });
+    const [clientAdjustOpen, setClientAdjustOpen] = useState(false);
+    const [clientAdjustDays, setClientAdjustDays] = useState('');
+    const [clientAdjustTrafficGb, setClientAdjustTrafficGb] = useState('');
+    const [clientAdjustSaving, setClientAdjustSaving] = useState(false);
+    const [batchResultData, setBatchResultData] = useState(null);
+    const [batchResultTitle, setBatchResultTitle] = useState('批量调整结果');
 
     const applyTab = (tabKey) => {
         const normalized = normalizeDetailTab(tabKey);
@@ -893,16 +904,22 @@ export default function UserDetail() {
                     ibClients.forEach((cl) => {
                         const clientEmail = String(cl.email || '').trim().toLowerCase();
                         if (!emailSet.has(clientEmail)) return;
+                        const clientIdentifier = String(getClientIdentifier(cl, protocol) || '').trim();
                         clients.push({
                             serverId: server.id,
                             serverName: server.name,
                             inboundId: ib.id,
                             inboundRemark: ib.remark || '',
                             email: clientEmail,
+                            clientIdentifier,
+                            id: cl.id || '',
+                            password: cl.password || '',
                             protocol,
                             port: ib.port,
                             up: Number(cl.up) || 0,
                             down: Number(cl.down) || 0,
+                            totalGB: Number(cl.totalGB) || 0,
+                            limitIp: Number(cl.limitIp) || 0,
                             expiryTime: Number(cl.expiryTime) || 0,
                             enable: cl.enable !== false,
                             onlineSessions: countClientOnlineSessions(cl, protocol, onlineMatchMap),
@@ -936,6 +953,64 @@ export default function UserDetail() {
         if (!background) {
             setClientsLoading(false);
         }
+    };
+
+    const submitClientAdjust = async (event) => {
+        event.preventDefault();
+        const addDays = Number(clientAdjustDays || 0) || 0;
+        const addGb = Number(clientAdjustTrafficGb || 0) || 0;
+        const addBytes = Math.trunc(addGb * 1024 * 1024 * 1024);
+        if (addDays === 0 && addBytes === 0) {
+            toast.error('请填写要调整的天数或流量');
+            return;
+        }
+        const targets = clientData
+            .map((client) => ({
+                serverId: client.serverId,
+                serverName: client.serverName,
+                inboundId: client.inboundId,
+                inboundRemark: client.inboundRemark,
+                protocol: client.protocol,
+                email: client.email,
+                clientIdentifier: client.clientIdentifier || getClientIdentifier(client, client.protocol),
+                id: client.id || '',
+                password: client.password || '',
+            }))
+            .filter((target) => target.serverId && target.inboundId && (target.clientIdentifier || target.email));
+        if (targets.length === 0) {
+            toast.error('没有可调整的客户端');
+            return;
+        }
+
+        setClientAdjustSaving(true);
+        try {
+            const payload = await attachBatchRiskToken({
+                action: 'adjust',
+                targets,
+                payload: {
+                    addDays,
+                    addBytes,
+                },
+            }, {
+                type: 'clients',
+                action: 'adjust',
+                targetCount: targets.length,
+            });
+            const res = await api.post('/batch/clients', payload);
+            const output = res.data?.obj;
+            const summary = output?.summary || { success: 0, total: targets.length, failed: targets.length };
+            setBatchResultTitle('批量调整结果');
+            setBatchResultData(output || null);
+            toast.success(`批量调整完成: ${summary.success}/${summary.total} 成功`);
+            setClientAdjustOpen(false);
+            setClientAdjustDays('');
+            setClientAdjustTrafficGb('');
+            fetchClients({ force: true, preserveCurrent: true });
+            loadSubscription({ quiet: true });
+        } catch (err) {
+            toast.error(getErrorMessage(err, '批量调整失败', locale));
+        }
+        setClientAdjustSaving(false);
     };
 
     useEffect(() => {
@@ -1680,7 +1755,12 @@ export default function UserDetail() {
                                                     <>
                                                         <div className="subscription-inline-qr-title">{copy.labels.qrTitle}</div>
                                                         <div className="subscription-inline-qr-surface rounded-xl bg-white">
-                                                            <QRCodeSVG value={activeSubscriptionProfile.url} size={176} />
+                                                            <ExpandableQRCode
+                                                                value={activeSubscriptionProfile.url}
+                                                                size={176}
+                                                                label={activeSubscriptionProfile.label}
+                                                                ariaLabel={copy.labels.qrHint.replace('{label}', activeSubscriptionProfile.label)}
+                                                            />
                                                         </div>
                                                         <div className="subscription-inline-qr-text">
                                                             {copy.labels.qrHint.replace('{label}', activeSubscriptionProfile.label)}
@@ -1699,6 +1779,18 @@ export default function UserDetail() {
                         {/* Clients Tab */}
                         {activeTab === 'clients' && (
                             <div>
+                                {clientData.length > 0 && (
+                                    <div className="flex justify-end gap-2 mb-3">
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary btn-sm"
+                                            onClick={() => setClientAdjustOpen(true)}
+                                            disabled={clientsLoading}
+                                        >
+                                            <HiOutlineCalendarDays /> 批量调整到期/流量
+                                        </button>
+                                    </div>
+                                )}
                                 {Object.values(clientIpSupportByServer).some((item) => item?.supported === false) && (
                                     <div className="text-xs text-muted mb-3">{copy.labels.clientIpNotice}</div>
                                 )}
@@ -1854,6 +1946,70 @@ export default function UserDetail() {
                     </div>
                 </div>
             </div>
+
+            {clientAdjustOpen && (
+                <ModalShell isOpen={clientAdjustOpen} onClose={() => setClientAdjustOpen(false)}>
+                    <div className="modal modal-md" onClick={(event) => event.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3 className="modal-title">批量调整到期/流量</h3>
+                            <button
+                                type="button"
+                                className="modal-close"
+                                onClick={() => setClientAdjustOpen(false)}
+                                aria-label="关闭"
+                                title="关闭"
+                            >
+                                <HiOutlineXMark />
+                            </button>
+                        </div>
+                        <form onSubmit={submitClientAdjust}>
+                            <div className="modal-body">
+                                <div className="mb-4 p-3 rounded bg-surface-soft border border-stroke-soft text-sm">
+                                    将调整当前用户的 {clientData.length} 个节点客户端。负数表示扣减；永不过期或不限流量的客户端会跳过对应字段。
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">到期天数变化</label>
+                                    <input
+                                        type="number"
+                                        className="form-input"
+                                        step="1"
+                                        value={clientAdjustDays}
+                                        onChange={(event) => setClientAdjustDays(event.target.value)}
+                                        placeholder="例如 30 或 -7"
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">流量变化</label>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            step="0.5"
+                                            value={clientAdjustTrafficGb}
+                                            onChange={(event) => setClientAdjustTrafficGb(event.target.value)}
+                                            placeholder="例如 100 或 -20"
+                                        />
+                                        <span className="text-sm text-muted">GB</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-secondary" onClick={() => setClientAdjustOpen(false)}>取消</button>
+                                <button type="submit" className="btn btn-primary" disabled={clientAdjustSaving}>
+                                    {clientAdjustSaving ? <span className="spinner" /> : '执行调整'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </ModalShell>
+            )}
+
+            <BatchResultModal
+                isOpen={!!batchResultData}
+                onClose={() => setBatchResultData(null)}
+                title={batchResultTitle}
+                data={batchResultData}
+            />
 
             <ClientIpModal
                 isOpen={clientIpModal.open}

@@ -9,11 +9,13 @@ process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test-secret-key-for-subscription-routes';
 
 const {
+    buildClientLink,
     buildSubscriptionUserInfoHeader,
     buildMihomoConfigFromLinks,
     buildSurgeConfigFromLinks,
     buildSingboxConfigFromLinks,
     buildSubscriptionUrls,
+    buildXhttpExtra,
     mergeInboundClientEntries,
     normalizeSubscriptionFormat,
     resolveSingboxConfigVersion,
@@ -259,6 +261,98 @@ describe('subscription response formats', () => {
         assert.equal(normalizeSubscriptionFormat('raw'), 'raw');
         assert.equal(normalizeSubscriptionFormat('encoded'), 'encoded');
         assert.equal(normalizeSubscriptionFormat('something-else'), 'encoded');
+    });
+});
+
+describe('subscription xhttp share links', () => {
+    it('emits xhttp padding and extra params for vless links', () => {
+        const diagnostics = [];
+        const link = buildClientLink({
+            server: { url: 'https://edge.example.com' },
+            inbound: {
+                protocol: 'vless',
+                port: 443,
+                remark: 'XHTTP',
+                settings: JSON.stringify({ encryption: 'none' }),
+            },
+            client: {
+                id: '22222222-2222-2222-2222-222222222222',
+                email: 'alice@example.com',
+            },
+            settings: {},
+            stream: {
+                network: 'xhttp',
+                security: 'tls',
+                tlsSettings: { serverName: 'sni.example.com' },
+                xhttpSettings: {
+                    path: '/xhttp',
+                    mode: 'packet-up',
+                    xPaddingBytes: '100-200',
+                    sessionKey: 'session-secret',
+                    headers: [
+                        { name: 'Host', value: 'cdn.example.com' },
+                        { name: 'X-Client-Key', value: 'client-key' },
+                    ],
+                },
+            },
+            diagnostics,
+        });
+
+        assert.equal(diagnostics.length, 0);
+        const parsed = new URL(link);
+        assert.equal(parsed.searchParams.get('path'), '/xhttp');
+        assert.equal(parsed.searchParams.get('host'), 'cdn.example.com');
+        assert.equal(parsed.searchParams.get('mode'), 'packet-up');
+        assert.equal(parsed.searchParams.get('x_padding_bytes'), '100-200');
+        assert.deepEqual(JSON.parse(parsed.searchParams.get('extra')), {
+            xPaddingBytes: '100-200',
+            mode: 'packet-up',
+            sessionKey: 'session-secret',
+            headers: {
+                'X-Client-Key': 'client-key',
+            },
+        });
+    });
+
+    it('flattens xhttp extra fields into vmess link objects', () => {
+        const diagnostics = [];
+        const link = buildClientLink({
+            server: { url: 'https://edge.example.com' },
+            inbound: {
+                protocol: 'vmess',
+                port: 443,
+                remark: 'VMess XHTTP',
+            },
+            client: {
+                id: '11111111-1111-1111-1111-111111111111',
+                email: 'alice@example.com',
+            },
+            settings: {},
+            stream: {
+                network: 'xhttp',
+                security: 'none',
+                xhttpSettings: {
+                    path: '/vmess-xhttp',
+                    host: 'cdn.example.com',
+                    mode: 'stream-up',
+                    xPaddingBytes: '10-20',
+                    seqKey: 'seq-secret',
+                },
+            },
+            diagnostics,
+        });
+
+        const payload = JSON.parse(Buffer.from(link.slice('vmess://'.length), 'base64').toString('utf8'));
+        assert.equal(payload.net, 'xhttp');
+        assert.equal(payload.path, '/vmess-xhttp');
+        assert.equal(payload.host, 'cdn.example.com');
+        assert.equal(payload.type, 'stream-up');
+        assert.equal(payload.x_padding_bytes, '10-20');
+        assert.equal(payload.xPaddingBytes, '10-20');
+        assert.equal(payload.seqKey, 'seq-secret');
+        assert.deepEqual(buildXhttpExtra({ headers: { Host: 'ignored', 'X-Test': 'ok' } }), {
+            headers: { 'X-Test': 'ok' },
+        });
     });
 });
 

@@ -135,6 +135,10 @@ async function fetchInboundById(panelClient, inboundId) {
     return items.find((item) => normalizeText(item?.id) === normalizedId) || null;
 }
 
+export async function fetchPanelInboundByIdCompat(panelClient, inboundId) {
+    return fetchInboundById(panelClient, inboundId);
+}
+
 async function resolveClientEmailForInbound(panelClient, inboundId, clientIdentifier, options = {}) {
     const explicitEmail = normalizeEmail(options.currentEmail || options.email || options.sourceClient?.email);
     if (explicitEmail) return explicitEmail;
@@ -263,6 +267,52 @@ async function fetchClientRecordByEmailV3(panelClient, email) {
     }
 }
 
+function normalizeClientRecordPayload(payload = {}) {
+    if (payload?.client && typeof payload.client === 'object') {
+        return {
+            client: payload.client,
+            inboundIds: normalizeInboundIds(payload.inboundIds),
+        };
+    }
+    if (payload && typeof payload === 'object') {
+        return {
+            client: payload,
+            inboundIds: normalizeInboundIds(payload.inboundIds),
+        };
+    }
+    return {
+        client: null,
+        inboundIds: [],
+    };
+}
+
+export async function fetchClientRecordCompat(panelClient, email) {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) return { client: null, inboundIds: [] };
+
+    const latest = await fetchClientRecordByEmailV3(panelClient, normalizedEmail);
+    if (latest) {
+        return normalizeClientRecordPayload(latest);
+    }
+
+    const response = await panelClient.get('/panel/api/inbounds/list');
+    const inbounds = Array.isArray(response?.data?.obj) ? response.data.obj : [];
+    const inboundIds = [];
+    let found = null;
+    for (const inbound of inbounds) {
+        const match = parseInboundClients(inbound)
+            .find((item) => normalizeEmail(item?.email) === normalizedEmail);
+        if (!match) continue;
+        inboundIds.push(normalizeInboundId(inbound?.id));
+        found = found || match;
+    }
+
+    return {
+        client: found,
+        inboundIds,
+    };
+}
+
 async function removeClientFromInboundV3(panelClient, inboundId, email) {
     const clientRecord = await fetchClientRecordByEmailV3(panelClient, email);
     const inboundIds = normalizeInboundIds(clientRecord?.inboundIds);
@@ -274,6 +324,108 @@ async function removeClientFromInboundV3(panelClient, inboundId, email) {
     }
 
     return postDetachClientFromInboundV3(panelClient, inboundId, email);
+}
+
+export async function postAttachClientToInboundsCompat(panelClient, email, inboundIds = [], options = {}) {
+    const normalizedEmail = normalizeEmail(email || options.clientData?.email);
+    const targetInboundIds = normalizeInboundIds(inboundIds);
+    if (!normalizedEmail || targetInboundIds.length === 0) {
+        throw new Error('email and inboundIds are required');
+    }
+
+    try {
+        return await postJson(panelClient, `/panel/api/clients/${encodePathSegment(normalizedEmail)}/attach`, {
+            inboundIds: targetInboundIds,
+        });
+    } catch (error) {
+        if (!isUnsupportedPanelEndpointError(error)) {
+            throw error;
+        }
+    }
+
+    let sourceClient = options.clientData || null;
+    if (!sourceClient) {
+        const record = await fetchClientRecordCompat(panelClient, normalizedEmail);
+        sourceClient = record.client;
+    }
+    if (!sourceClient) {
+        throw new Error('Unable to resolve client data for legacy attach API');
+    }
+
+    for (const inboundId of targetInboundIds) {
+        await postAddClientCompat(panelClient, inboundId, {
+            ...sourceClient,
+            email: normalizedEmail,
+        });
+    }
+    return {
+        status: 200,
+        data: {
+            success: true,
+            obj: { attached: targetInboundIds.length },
+        },
+    };
+}
+
+export async function postDetachClientFromInboundsCompat(panelClient, email, inboundIds = []) {
+    const normalizedEmail = normalizeEmail(email);
+    const targetInboundIds = normalizeInboundIds(inboundIds);
+    if (!normalizedEmail || targetInboundIds.length === 0) {
+        throw new Error('email and inboundIds are required');
+    }
+
+    try {
+        return await postJson(panelClient, `/panel/api/clients/${encodePathSegment(normalizedEmail)}/detach`, {
+            inboundIds: targetInboundIds,
+        });
+    } catch (error) {
+        if (!isUnsupportedPanelEndpointError(error)) {
+            throw error;
+        }
+    }
+
+    for (const inboundId of targetInboundIds) {
+        await postDeleteClientFromInboundCompat(panelClient, inboundId, normalizedEmail, {
+            email: normalizedEmail,
+        });
+    }
+    return {
+        status: 200,
+        data: {
+            success: true,
+            obj: { detached: targetInboundIds.length },
+        },
+    };
+}
+
+export async function postBulkAdjustClientsCompat(panelClient, payload = {}) {
+    const emails = Array.from(new Set(
+        (Array.isArray(payload.emails) ? payload.emails : [])
+            .map((item) => normalizeEmail(item))
+            .filter(Boolean)
+    ));
+    const addDays = Number(payload.addDays || 0) || 0;
+    const addBytes = Number(payload.addBytes || 0) || 0;
+
+    try {
+        return await postJson(panelClient, '/panel/api/clients/bulkAdjust', {
+            emails,
+            addDays,
+            addBytes,
+        });
+    } catch (error) {
+        if (!isUnsupportedPanelEndpointError(error)) {
+            throw error;
+        }
+    }
+
+    return {
+        status: 501,
+        data: {
+            success: false,
+            msg: 'Bulk adjust is not supported by this panel version',
+        },
+    };
 }
 
 export async function postDeleteClientFromInboundCompat(panelClient, inboundId, clientIdentifier, options = {}) {

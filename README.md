@@ -147,6 +147,8 @@ data/     Default file-backed storage
 - `ADMIN_PASSWORD`: admin password; production should use a strong multi-class password
 - `CREDENTIALS_SECRET`: dedicated encryption secret for stored node credentials
 - `TRUST_PROXY`: trusted reverse-proxy sources for `X-Forwarded-*`; defaults to `loopback`
+- `SECURITY_HSTS_ENABLED`: controls the `Strict-Transport-Security` header; defaults to enabled in production and disabled elsewhere
+- `SECURITY_HSTS_MAX_AGE_SECONDS`: HSTS max-age; defaults to `15552000`
 - `DATA_DIR`: file-backed storage directory. Use a persistent path; do not point production at `/tmp` or `/var/tmp`
 - `DB_ENABLED` / `DB_URL`: PostgreSQL toggle and connection string
 - `SUB_PUBLIC_BASE_URL`: public base URL for subscription links
@@ -328,6 +330,8 @@ data/     默认文件存储目录
 - `ADMIN_PASSWORD`: 管理员密码，生产环境应满足多类字符复杂度
 - `CREDENTIALS_SECRET`: 节点凭据加密密钥，建议与 JWT 密钥分离
 - `TRUST_PROXY`: 可信反向代理来源，用于接收 `X-Forwarded-*`；默认只信任 `loopback`
+- `SECURITY_HSTS_ENABLED`: 控制 `Strict-Transport-Security` 响应头；默认生产环境启用，其他环境关闭
+- `SECURITY_HSTS_MAX_AGE_SECONDS`: HSTS max-age，默认 `15552000`
 - `DATA_DIR`: 文件存储目录。生产环境必须使用持久化路径，不要指向 `/tmp` 或 `/var/tmp`
 - `DB_ENABLED` / `DB_URL`: PostgreSQL 开关与连接串
 - `SUB_PUBLIC_BASE_URL`: 对外订阅基址

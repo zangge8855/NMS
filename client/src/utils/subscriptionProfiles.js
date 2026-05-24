@@ -62,10 +62,29 @@ function extractUrlHost(url) {
     }
 }
 
+function encodeBase64Utf8(value) {
+    const text = String(value || '');
+    const base64Encode = globalThis?.btoa;
+    if (typeof base64Encode === 'function' && typeof TextEncoder === 'function') {
+        const bytes = new TextEncoder().encode(text);
+        let binary = '';
+        bytes.forEach((byte) => {
+            binary += String.fromCharCode(byte);
+        });
+        return base64Encode(binary);
+    }
+    const nodeBuffer = globalThis?.Buffer;
+    if (nodeBuffer?.from) {
+        return nodeBuffer.from(text, 'utf8').toString('base64');
+    }
+    return '';
+}
+
 function buildShadowrocketImportUrl(sourceUrl) {
     const url = normalizeUrl(sourceUrl);
     if (!url) return '';
-    return `shadowrocket://add/${encodeURIComponent(url)}`;
+    const encoded = encodeBase64Utf8(url);
+    return encoded ? `sub://${encoded}#${encodeURIComponent('NMS')}` : '';
 }
 
 function buildStashImportUrl(sourceUrl, name = 'NMS') {
