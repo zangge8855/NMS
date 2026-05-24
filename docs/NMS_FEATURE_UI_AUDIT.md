@@ -119,6 +119,12 @@
 
 2026-05-05 存储与伪装站补充：公开伪装站三套城市杂志模板补齐 `prefers-color-scheme` 深色变量，系统设置备份工作区补充运行存储状态卡，仪表盘节点健康在大量服务器场景下默认进入重点视图。
 
+2026-05-24 审计与控制台体验升级：
+- 流量统计：`TrafficStatsStore` 与相关端点支持按服务器和入站连接进一步细分（breakdown）查询用户流量趋势，并补齐了全面的后端集成测试。
+- 审计中心：对审计日志界面进行了样式精修与体验升级，在保留原有紧凑控制的基础上优化了多维度筛选（日期、操作者、目标用户、Token、真实 IP、节点等）的响应式排版对齐。
+- Xray 控制台：完成页面整体布局和样式的重设计，应用了更加现代化、美观的主题与玻璃质感等高级设计细节。
+- 隐私数据清理：在完成全套测试（405 项后端测试、238 项前端 Vitest 测试全部通过）后，清理了本地开发环境产生的临时数据库文件、系统设置备份、遥测数据与测试运行日志，保障代码提交与推送不泄露任何系统活动痕迹。
+
 ### 结论
 
 当前版本已经完成本轮最重要的后台 UI 稳定性修复，可以作为后续页面统一重构的基线。下一阶段重点应从“修 bug”转向“收敛样式与组件复用”。
@@ -225,6 +231,13 @@ The final pass fixed the Settings `Access & Subscription` workspace at 1280px wi
 Follow-up design refinement restored the user navigation Downloads entry while keeping Downloads out of the Subscriptions workbench. The Account page now uses equal-width desktop cards and equal-height field rhythm, Settings access/invite sections use steadier grids, Server Management cards are more compact on desktop, and Dashboard global status cards settle into a balanced 3x2 arrangement.
 
 Storage and camouflage follow-up added system-adaptive dark variables to all three public city-magazine templates, exposed runtime storage health in the Settings backup workspace, and made Dashboard node health enter a priority view when many servers exist.
+
+### 2026-05-24 Audit and Console Experience Upgrades
+
+- Traffic Analytics: Extended `TrafficStatsStore` and corresponding API endpoints to support breakdown queries of user traffic trends aggregated by server and inbound connection (`includeBreakdown: true`), backed by full integration test cases.
+- Audit Center: Redesigned the audit log interface with polished styles and alignment, keeping standard filter controllers fully responsive and accessible across all viewport sizes.
+- Xray Console: Revamped the console workspace with modern themes, consistent grids, and subtle micro-animation details for an elevated visual presentation.
+- Privacy & Cleanup: Cleared volatile local development database files, telemetry caches, backfills, and testing runner log files under `data/`, `.playwright-cli/`, and `client/` directories after verifying 100% test completion (405 backend tests and 238 frontend Vitest specs passing).
 
 ### Conclusion
 

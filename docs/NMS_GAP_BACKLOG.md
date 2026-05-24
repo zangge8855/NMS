@@ -4,6 +4,7 @@
 
 ### 已完成
 
+- 2026-05-24: 实现了用户流量趋势查询的服务器与入站节点细分（breakdown）统计、完成审计中心（Audit Center）与 Xray 控制台界面的响应式与高级视觉体验升级，并彻底清理了本地测试临时数据和运行日志。
 - 2026-05-06: 补齐集中浏览器安全响应头、订阅公开 URL 与敏感查询参数日志脱敏、可配置 `TRUST_PROXY`、Docker 非 root 运行、数据库一致性校验 CLI、移动端 Toast/底部导航调整、图表懒加载，以及部署/数据库文档更新。
 
 ### P0
@@ -34,6 +35,7 @@
 
 ### Completed
 
+- 2026-05-24: Implemented user traffic trends breakdown queries aggregated by server and inbound connection, upgraded responsive layout and design for the Audit Center and Xray Console workspaces, and performed privacy sanitization on local storage.
 - 2026-05-06: Added centralized browser security headers, public subscription URL and sensitive query redaction in request logs, configurable `TRUST_PROXY`, non-root Docker runtime, database consistency CLI, mobile toast/bottom-nav adjustments, lazy chart loading, and deployment/database documentation updates.
 
 ### P0
