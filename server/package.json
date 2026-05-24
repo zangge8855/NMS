@@ -13,7 +13,7 @@
     "review:fake-panel": "node scripts/review_fake_panel.js",
     "review:seed": "node scripts/seed_review_harness.js",
     "review:server": "node scripts/review_server.js",
-    "test": "node --test --test-isolation=none"
+    "test": "node --test"
   },
   "dependencies": {
     "axios": "^1.7.0",
