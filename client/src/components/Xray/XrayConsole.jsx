@@ -15,8 +15,11 @@ import RoutingRulesEditor from './tabs/RoutingRulesEditor.jsx';
 import OutboundsEditor from './tabs/OutboundsEditor.jsx';
 import DnsEditor from './tabs/DnsEditor.jsx';
 import BalancersEditor from './tabs/BalancersEditor.jsx';
+import LogEditor from './tabs/LogEditor.jsx';
+import PolicyEditor from './tabs/PolicyEditor.jsx';
+import AdvancedEditor from './tabs/AdvancedEditor.jsx';
 
-const TABS = ['routing', 'outbounds', 'dns', 'balancers'];
+const TABS = ['routing', 'outbounds', 'dns', 'balancers', 'log', 'policy', 'advanced'];
 
 function getCopy(locale = 'zh-CN') {
     if (locale === 'en-US') {
@@ -42,6 +45,9 @@ function getCopy(locale = 'zh-CN') {
                 outbounds: 'Outbounds',
                 dns: 'DNS',
                 balancers: 'Balancers',
+                log: 'Log Settings',
+                policy: 'Policy Settings',
+                advanced: 'Advanced (Full JSON)',
             },
         };
     }
@@ -67,6 +73,9 @@ function getCopy(locale = 'zh-CN') {
             outbounds: '出站',
             dns: 'DNS',
             balancers: '负载均衡',
+            log: '日志配置',
+            policy: '系统策略',
+            advanced: '高级 (完整 JSON)',
         },
     };
 }
@@ -92,6 +101,7 @@ export default function XrayConsole() {
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [snapshot, setSnapshot] = useState(null);
+    const [template, setTemplate] = useState(null);
     const [source, setSource] = useState('');
 
     const loadConfig = useCallback(async () => {
@@ -104,11 +114,13 @@ export default function XrayConsole() {
                 throw new Error(copy.unsupported);
             }
             setSnapshot(obj.snapshot);
+            setTemplate(obj.template || null);
             setSource(String(obj.source || ''));
         } catch (err) {
             const message = getErrorMessage(err) || copy.loadError;
             toast.error(message);
             setSnapshot(null);
+            setTemplate(null);
             setSource('');
         } finally {
             setLoading(false);
@@ -118,6 +130,7 @@ export default function XrayConsole() {
     useEffect(() => {
         if (!hasTargetServer) {
             setSnapshot(null);
+            setTemplate(null);
             setSource('');
             return;
         }
@@ -132,6 +145,7 @@ export default function XrayConsole() {
             const next = res?.data?.obj;
             if (next?.snapshot) {
                 setSnapshot(next.snapshot);
+                if (next?.template) setTemplate(next.template);
                 if (next?.source) setSource(String(next.source));
             } else {
                 await loadConfig();
@@ -276,6 +290,30 @@ export default function XrayConsole() {
                                         locale={locale}
                                         value={snapshot.balancers}
                                         onSave={(payload) => handleSave('balancers', payload)}
+                                        saving={saving}
+                                    />
+                                )}
+                                {activeTab === 'log' && (
+                                    <LogEditor
+                                        locale={locale}
+                                        value={template?.log}
+                                        onSave={(payload) => handleSave('log', payload)}
+                                        saving={saving}
+                                    />
+                                )}
+                                {activeTab === 'policy' && (
+                                    <PolicyEditor
+                                        locale={locale}
+                                        value={template?.policy}
+                                        onSave={(payload) => handleSave('policy', payload)}
+                                        saving={saving}
+                                    />
+                                )}
+                                {activeTab === 'advanced' && (
+                                    <AdvancedEditor
+                                        locale={locale}
+                                        value={template}
+                                        onSave={(payload) => handleSave('template', payload)}
                                         saving={saving}
                                     />
                                 )}

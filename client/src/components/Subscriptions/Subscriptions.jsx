@@ -757,86 +757,87 @@ export default function Subscriptions() {
                         ))}
                     </div>
 
-                    <div className="subscription-link-card subscription-link-card--user-focus subscription-link-card--user-with-qr subscription-user-address-card">
-                        <div className="subscription-user-address-head">
-                            <div className="subscription-user-address-copy">
-                                <div className="subscription-user-address-label">{ui.copyOrScanTitle}</div>
-                                <div className="subscription-user-address-helper">{ui.copyOrScanText}</div>
+                    <div className={`subscription-user-address-layout${userInlineQrCard ? ' subscription-user-address-layout--with-qr' : ''}`}>
+                        <div className="subscription-link-card subscription-link-card--user-focus subscription-link-card--user-with-qr subscription-user-address-card">
+                            <div className="subscription-user-address-head">
+                                <div className="subscription-user-address-copy">
+                                    <div className="subscription-user-address-label">{ui.copyOrScanTitle}</div>
+                                    <div className="subscription-user-address-helper">{ui.copyOrScanText}</div>
+                                </div>
+                                <span className={`badge ${result.subscriptionActive ? 'badge-success' : 'badge-warning'}`}>
+                                    {result.subscriptionActive ? ui.available : ui.unavailable}
+                                </span>
                             </div>
-                            <span className={`badge ${result.subscriptionActive ? 'badge-success' : 'badge-warning'}`}>
-                                {result.subscriptionActive ? ui.available : ui.unavailable}
-                            </span>
-                        </div>
-                        {shouldShowProfileContext && (
-                            <div className="subscription-link-card-meta">
-                                {activeProfileSupportedClients.length > 0 && (
-                                    <div className="subscription-current-profile-tools subscription-current-profile-tools--embedded">
-                                        <span className="subscription-current-profile-tools-label">
-                                            {activeProfileSupportedClientsLabel}
-                                        </span>
-                                        <div className="subscription-current-profile-tools-list">
-                                            {activeProfileSupportedClients.map((client) => (
-                                                <span key={client} className="badge badge-neutral">{client}</span>
+                            {shouldShowProfileContext && (
+                                <div className="subscription-link-card-meta">
+                                    {activeProfileSupportedClients.length > 0 && (
+                                        <div className="subscription-current-profile-tools subscription-current-profile-tools--embedded">
+                                            <span className="subscription-current-profile-tools-label">
+                                                {activeProfileSupportedClientsLabel}
+                                            </span>
+                                            <div className="subscription-current-profile-tools-list">
+                                                {activeProfileSupportedClients.map((client) => (
+                                                    <span key={client} className="badge badge-neutral">{client}</span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            <div className="subscription-user-address-main">
+                                <input
+                                    className="form-input font-mono text-xs subscription-url-input"
+                                    value={activeProfile?.url || ''}
+                                    readOnly
+                                    title={activeProfile?.url || ''}
+                                    dir="ltr"
+                                    spellCheck={false}
+                                />
+                                <div className="subscription-user-address-actions">
+                                    <CopyFeedbackButton
+                                        className="btn btn-primary btn-sm subscription-user-copy-btn"
+                                        text={activeProfile?.url || ''}
+                                        successText={ui.copiedAddress.replace('{label}', activeProfileLabel || activeProfile?.label || ui.copyAddress)}
+                                        errorText={t('comp.common.noCopyableUrl')}
+                                        disabled={!activeProfile?.url || !result.subscriptionActive}
+                                    >
+                                        {ui.copyAddress}
+                                    </CopyFeedbackButton>
+                                    {isCompactViewport && canShowQr ? (
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary btn-sm subscription-user-import-btn"
+                                            onClick={() => setQrModalOpen(true)}
+                                        >
+                                            <HiOutlineQrCode /> {ui.scanImport}
+                                        </button>
+                                    ) : null}
+                                    {primaryImportActions.map((item) => (
+                                        <a key={item.label} href={item.href} className="btn btn-secondary btn-sm subscription-user-import-btn">
+                                            {item.label}
+                                        </a>
+                                    ))}
+                                </div>
+                                {secondaryImportActions.length > 0 && (
+                                    <details className="subscription-import-disclosure">
+                                        <summary className="subscription-import-disclosure-toggle">{ui.moreImports}</summary>
+                                        <div className="subscription-import-disclosure-actions">
+                                            {secondaryImportActions.map((item) => (
+                                                <a key={item.label} href={item.href} className="btn btn-secondary btn-sm subscription-user-import-btn">
+                                                    {item.label}
+                                                </a>
                                             ))}
                                         </div>
-                                    </div>
+                                    </details>
                                 )}
-                            </div>
-                        )}
-                        <div className="subscription-user-address-main">
-                            <input
-                                className="form-input font-mono text-xs subscription-url-input"
-                                value={activeProfile?.url || ''}
-                                readOnly
-                                title={activeProfile?.url || ''}
-                                dir="ltr"
-                                spellCheck={false}
-                            />
-                            <div className="subscription-user-address-actions">
-                                <CopyFeedbackButton
-                                    className="btn btn-primary btn-sm subscription-user-copy-btn"
-                                    text={activeProfile?.url || ''}
-                                    successText={ui.copiedAddress.replace('{label}', activeProfileLabel || activeProfile?.label || ui.copyAddress)}
-                                    errorText={t('comp.common.noCopyableUrl')}
-                                    disabled={!activeProfile?.url || !result.subscriptionActive}
-                                >
-                                    {ui.copyAddress}
-                                </CopyFeedbackButton>
-                                {isCompactViewport && canShowQr ? (
-                                    <button
-                                        type="button"
-                                        className="btn btn-secondary btn-sm subscription-user-import-btn"
-                                        onClick={() => setQrModalOpen(true)}
-                                    >
-                                        <HiOutlineQrCode /> {ui.scanImport}
-                                    </button>
-                                ) : null}
-                                {primaryImportActions.map((item) => (
-                                    <a key={item.label} href={item.href} className="btn btn-secondary btn-sm subscription-user-import-btn">
-                                        {item.label}
-                                    </a>
-                                ))}
-                            </div>
-                            {secondaryImportActions.length > 0 && (
-                                <details className="subscription-import-disclosure">
-                                    <summary className="subscription-import-disclosure-toggle">{ui.moreImports}</summary>
-                                    <div className="subscription-import-disclosure-actions">
-                                        {secondaryImportActions.map((item) => (
-                                            <a key={item.label} href={item.href} className="btn btn-secondary btn-sm subscription-user-import-btn">
-                                                {item.label}
-                                            </a>
-                                        ))}
-                                    </div>
-                                </details>
-                            )}
-                            <div className="subscription-user-address-note">
-                                {selectedImportActions.length > 0 ? ui.quickImportHint : ui.noQuickImport}
+                                <div className="subscription-user-address-note">
+                                    {selectedImportActions.length > 0 ? ui.quickImportHint : ui.noQuickImport}
+                                </div>
                             </div>
                         </div>
+                        {userInlineQrCard}
                     </div>
                 </div>
-
-                {userInlineQrCard}
             </div>
 
             <div className="subscription-user-address-foot subscription-user-danger-row">

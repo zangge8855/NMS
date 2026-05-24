@@ -17,7 +17,7 @@ const XRAY_SECTION_KEYS = new Set([
     'burstObservatory',
 ]);
 
-const SUPPORTED_WRITE_SECTIONS = new Set(['routing', 'outbounds', 'dns', 'balancers', 'reverse']);
+const SUPPORTED_WRITE_SECTIONS = new Set(['routing', 'outbounds', 'dns', 'balancers', 'reverse', 'template', 'log', 'policy']);
 
 function parseJsonTemplate(raw) {
     if (!raw) return null;
@@ -194,6 +194,9 @@ function mergeReverseSection(_template, payload) {
 }
 
 function applySectionUpdate(template, section, payload) {
+    if (section === 'template') {
+        return payload;
+    }
     const next = { ...template };
     if (section === 'routing') {
         next.routing = mergeRoutingSection(next, payload);
@@ -206,6 +209,10 @@ function applySectionUpdate(template, section, payload) {
         next.routing = routing;
     } else if (section === 'reverse') {
         next.reverse = mergeReverseSection(next, payload);
+    } else if (section === 'log') {
+        next.log = payload;
+    } else if (section === 'policy') {
+        next.policy = payload;
     } else {
         throw new Error(`Unsupported section: ${section}`);
     }

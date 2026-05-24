@@ -148,6 +148,24 @@ describe('xrayConfigService.applySectionUpdate', () => {
         const template = baseTemplate();
         assert.throws(() => applySectionUpdate(template, 'inbounds', []));
     });
+
+    it('replaces the whole template config when section is template', () => {
+        const template = baseTemplate();
+        const next = applySectionUpdate(template, 'template', { routing: { rules: [] } });
+        assert.deepEqual(next, { routing: { rules: [] } });
+    });
+
+    it('updates log configuration', () => {
+        const template = baseTemplate();
+        const next = applySectionUpdate(template, 'log', { access: '/var/log/xray/access.log', loglevel: 'debug' });
+        assert.deepEqual(next.log, { access: '/var/log/xray/access.log', loglevel: 'debug' });
+    });
+
+    it('updates policy configuration', () => {
+        const template = baseTemplate();
+        const next = applySectionUpdate(template, 'policy', { levels: { 0: { handshake: 4 } } });
+        assert.deepEqual(next.policy, { levels: { 0: { handshake: 4 } } });
+    });
 });
 
 describe('xrayConfigService.buildXrayConfigSnapshot', () => {

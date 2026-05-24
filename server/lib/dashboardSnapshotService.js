@@ -165,6 +165,7 @@ function buildManagedOnlineSummary(users, serverPayloads = []) {
     const onlineServerLabelMap = new Map();
     const managedEmailSet = new Set();
     const serverTrafficByServerId = {};
+    const emailMatchedOnlineSessions = new Map();
 
     (Array.isArray(users) ? users : [])
         .filter((user) => user?.role !== 'admin')
@@ -249,7 +250,16 @@ function buildManagedOnlineSummary(users, serverPayloads = []) {
                     bucket.total += safeNumber(client?.up) + safeNumber(client?.down);
                     serverTrafficByServerId[serverId] = bucket;
                 }
-                entry.onlineSessions += onlineSessions;
+                if (onlineSessions > 0) {
+                    if (!emailMatchedOnlineSessions.has(email)) {
+                        emailMatchedOnlineSessions.set(email, new Set());
+                    }
+                    const matchedSet = emailMatchedOnlineSessions.get(email);
+                    matchedOnlineEntries.forEach((matchIndex) => {
+                        matchedSet.add(`${serverId}:${matchIndex}`);
+                    });
+                }
+                entry.onlineSessions = 0;
                 if (onlineSessions > 0 && serverName) {
                     entry.servers.add(serverName);
                 }
@@ -280,7 +290,9 @@ function buildManagedOnlineSummary(users, serverPayloads = []) {
                 serverIds: new Set(),
                 nodeLabels: new Set(),
             };
-            const sessions = clientData.onlineSessions || onlineMap.get(subscriptionEmail) || onlineMap.get(loginEmail) || 0;
+            const matchedSessionsSet = emailMatchedOnlineSessions.get(subscriptionEmail) || emailMatchedOnlineSessions.get(loginEmail);
+            const sessions = matchedSessionsSet ? matchedSessionsSet.size : (onlineMap.get(subscriptionEmail) || onlineMap.get(loginEmail) || 0);
+            clientData.onlineSessions = sessions;
             const matchedServers = clientData.servers?.size
                 ? Array.from(clientData.servers)
                 : Array.from(onlineServerLabelMap.get(subscriptionEmail) || onlineServerLabelMap.get(loginEmail) || []);

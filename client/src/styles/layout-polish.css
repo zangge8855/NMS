@@ -165,15 +165,35 @@
 
 .subscriptions-page .subscription-user-import-stage {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(190px, 230px);
-  gap: 14px;
-  align-items: stretch;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
 }
 
 .subscriptions-page .subscription-user-import-main {
-  display: flex;
-  flex-direction: column;
-  gap: 11px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+}
+
+.subscriptions-page .subscription-user-address-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.subscriptions-page .subscription-user-address-layout--with-qr {
+  grid-template-columns: minmax(0, 1fr) minmax(210px, 240px);
+}
+
+.subscriptions-page .subscription-user-import-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
 }
 
 .subscriptions-page .subscription-user-section-head {
@@ -12401,9 +12421,28 @@ input[type="radio"] {
 
 .subscriptions-page .subscription-user-import-stage {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(190px, 230px);
-  gap: 14px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.subscriptions-page .subscription-user-import-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+}
+
+.subscriptions-page .subscription-user-address-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
   align-items: stretch;
+  min-width: 0;
+}
+
+.subscriptions-page .subscription-user-address-layout--with-qr {
+  grid-template-columns: minmax(0, 1fr) minmax(210px, 240px);
 }
 
 .subscriptions-page .subscription-profile-switches--user-stage {
@@ -12424,24 +12463,34 @@ input[type="radio"] {
 .subscriptions-page .subscription-user-address-card {
   width: 100%;
   max-width: none;
-  padding: 14px;
+  min-height: 100%;
+  padding: clamp(14px, 1.35vw, 18px);
   border-color: var(--subscription-user-border);
   border-radius: 16px;
   background: var(--subscription-user-panel-soft);
   box-shadow: none;
 }
 
+.subscriptions-page .subscription-user-address-card .subscription-link-card-meta {
+  margin: 0;
+}
+
+.subscriptions-page .subscription-user-address-card .subscription-url-input {
+  width: 100%;
+  max-width: none;
+}
+
 .subscriptions-page .subscription-user-address-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 8px;
   overflow: visible;
   padding-bottom: 0;
 }
 
 .subscriptions-page .subscription-user-address-actions .btn {
-  flex: 1 1 142px;
-  min-width: min(100%, 142px);
+  width: 100%;
+  min-width: 0;
   min-height: 38px;
   justify-content: center;
 }
@@ -12456,6 +12505,17 @@ input[type="radio"] {
   border-radius: 16px;
   background: var(--subscription-user-panel-raised);
   box-shadow: none;
+}
+
+.subscriptions-page .subscription-user-qr-panel .subscription-inline-qr-surface {
+  width: min(100%, 156px);
+  height: auto;
+}
+
+.subscriptions-page .subscription-user-qr-panel .subscription-inline-qr-surface svg {
+  display: block;
+  width: min(100%, 136px);
+  height: auto;
 }
 
 .subscriptions-page .subscription-user-danger-row {
@@ -12501,8 +12561,12 @@ input[type="radio"] {
 }
 
 @media (max-width: 1020px) {
-  .subscriptions-page .subscription-user-import-stage {
+  .subscriptions-page .subscription-user-address-layout--with-qr {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .subscriptions-page .subscription-user-qr-panel {
+    min-height: 0;
   }
 }
 
@@ -12518,6 +12582,14 @@ input[type="radio"] {
 
   .subscriptions-page .subscription-profile-switches--user-stage {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .subscriptions-page .subscription-user-address-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .subscriptions-page .subscription-user-address-head {
+    align-items: flex-start;
   }
 }
 
@@ -13236,4 +13308,3 @@ input[type="radio"] {
   background: var(--surface-hover, rgba(51, 65, 85, 0.8));
   border-color: var(--border-stroke-hover, rgba(255, 255, 255, 0.15));
 }
-
