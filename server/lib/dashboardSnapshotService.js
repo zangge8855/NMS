@@ -158,7 +158,7 @@ function withServerRemarkMeta(serverData, serverName = '') {
     };
 }
 
-function buildManagedOnlineSummary(users, serverPayloads = []) {
+function buildManagedOnlineSummary(users, serverPayloads = [], activeTrafficEmails = new Set()) {
     const clientsMap = new Map();
     const onlineMap = new Map();
     const onlineServerIdMap = new Map();
@@ -238,7 +238,13 @@ function buildManagedOnlineSummary(users, serverPayloads = []) {
                     if (!matches) return;
                     matches.forEach((matchIndex) => matchedOnlineEntries.add(matchIndex));
                 });
-                const onlineSessions = matchedOnlineEntries.size;
+                
+                let onlineSessions = matchedOnlineEntries.size;
+                if (onlineSessions === 0 && activeTrafficEmails.has(email)) {
+                    onlineSessions = 1;
+                    matchedOnlineEntries.add('traffic_inferred');
+                }
+                
                 entry.count += 1;
                 entry.totalUsed += resolveClientUsed(client);
                 entry.totalUp += safeNumber(client?.up);
@@ -614,6 +620,14 @@ async function buildGlobalDashboardSnapshot(options = {}, deps = {}) {
         }),
     ]);
 
+    const activeSinceIso = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+    const recentTraffic = trafficStatsStoreRef.getOverview({ from: activeSinceIso, top: 10000 });
+    const activeTrafficEmails = new Set(
+        (Array.isArray(recentTraffic?.topUsers) ? recentTraffic.topUsers : [])
+            .map(u => normalizeEmail(u.email))
+            .filter(Boolean)
+    );
+
     const panelByServerId = Object.fromEntries(panelSnapshots.map((item) => [String(item?.server?.id || '').trim(), item]));
     const presence = buildManagedOnlineSummary(
         users,
@@ -622,7 +636,8 @@ async function buildGlobalDashboardSnapshot(options = {}, deps = {}) {
             serverName: item?.server?.name || '',
             inbounds: Array.isArray(item?.inbounds) ? item.inbounds : [],
             onlines: Array.isArray(item?.onlines) ? item.onlines : [],
-        }))
+        })),
+        activeTrafficEmails
     );
 
     const clusterByServerId = clusterSnapshot?.byServerId && typeof clusterSnapshot.byServerId === 'object'
@@ -691,6 +706,7 @@ async function buildSingleDashboardSnapshot(serverId, options = {}, deps = {}) {
     const serverStoreRef = deps.serverStore || serverStore;
     const userStoreRef = deps.userStore || userStore;
     const systemSettingsStoreRef = deps.systemSettingsStore || systemSettingsStore;
+    const trafficStatsStoreRef = deps.trafficStatsStore || trafficStatsStore;
     const collectClusterStatusSnapshotRef = deps.collectClusterStatusSnapshot || collectClusterStatusSnapshot;
     const getServerPanelSnapshotRef = deps.getServerPanelSnapshot || getServerPanelSnapshot;
     const normalizedServerId = String(serverId || '').trim();
@@ -726,12 +742,21 @@ async function buildSingleDashboardSnapshot(serverId, options = {}, deps = {}) {
         Array.isArray(panelSnapshot?.inbounds) ? panelSnapshot.inbounds : []
     );
     const rawOnlines = Array.isArray(panelSnapshot?.onlines) ? panelSnapshot.onlines : [];
+    
+    const activeSinceIso = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+    const recentTraffic = trafficStatsStoreRef.getOverview({ from: activeSinceIso, top: 10000 });
+    const activeTrafficEmails = new Set(
+        (Array.isArray(recentTraffic?.topUsers) ? recentTraffic.topUsers : [])
+            .map(u => normalizeEmail(u.email))
+            .filter(Boolean)
+    );
+
     const presence = buildManagedOnlineSummary(users, [{
         serverId: normalizedServerId,
         serverName: server.name,
         inbounds,
         onlines: rawOnlines,
-    }]);
+    }], activeTrafficEmails);
 
     return {
         status: clusterItem?.status && typeof clusterItem.status === 'object' ? clusterItem.status : null,

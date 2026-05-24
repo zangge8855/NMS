@@ -40,7 +40,10 @@ test('buildGlobalDashboardSnapshot returns managed-user presence and traffic win
             collectIfStale: async (force) => {
                 collectForce = force;
             },
-            getOverview: () => {
+            getOverview: (options) => {
+                if (options?.top) {
+                    return { topUsers: [] };
+                }
                 overviewCall += 1;
                 if (overviewCall === 1) {
                     return { managedTotals: { upBytes: 180, downBytes: 360 } };
@@ -195,7 +198,7 @@ test('buildGlobalDashboardSnapshot waits for traffic sampling before computing t
             collectIfStale: async () => new Promise((resolve) => {
                 resolveTrafficSampling = resolve;
             }),
-            getOverview: () => {
+            getOverview: (options) => { if (options?.top) return { topUsers: [] };
                 getOverviewCalls += 1;
                 return { managedTotals: { upBytes: 0, downBytes: 0 } };
             },
