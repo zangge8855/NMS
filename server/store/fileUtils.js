@@ -36,3 +36,36 @@ export function saveObjectAtomic(file, data) {
         }
     }
 }
+
+/**
+ * Saves a JSON object to a file atomically and asynchronously using promises.
+ *
+ * @param {string} file The path to the file to write.
+ * @param {any} data The JSON serializable data to save.
+ * @returns {Promise<void>}
+ */
+export async function saveObjectAtomicAsync(file, data) {
+    if (!shouldWriteFile()) return;
+    
+    const content = JSON.stringify(data, null, 2);
+    const tempFile = `${file}.${process.pid}.${Date.now()}.tmp`;
+    
+    try {
+        await fs.promises.writeFile(tempFile, content, 'utf8');
+        await fs.promises.rename(tempFile, file);
+    } catch (e) {
+        try {
+            await fs.promises.writeFile(file, content, 'utf8');
+        } catch (writeErr) {
+            console.error(`[Store Error] Failed to fallback async write to ${file}:`, writeErr);
+            throw writeErr;
+        }
+    } finally {
+        try {
+            await fs.promises.rm(tempFile, { force: true });
+        } catch {
+            // Best-effort cleanup.
+        }
+    }
+}
+

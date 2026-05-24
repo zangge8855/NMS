@@ -7,6 +7,7 @@ import { useI18n } from '../../contexts/LanguageContext.jsx';
 import api from '../../api/client.js';
 import toast from 'react-hot-toast';
 import EmptyState from '../UI/EmptyState.jsx';
+import Table from '../UI/Table.jsx';
 import PageToolbar from '../UI/PageToolbar.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
 import { getErrorMessage } from '../../utils/format.js';
@@ -374,39 +375,36 @@ export default function Capabilities({ serverId = '', embedded = false } = {}) {
                                 />
                             </div>
                         ) : (
-                            <div className="table-container mb-8">
-                                <table className="table capability-matrix-table">
-                                    <thead>
-                                        <tr>
-                                            <th>{copy.matrixColumns.capability}</th>
-                                            <th className="table-cell-center capability-support-column">{copy.matrixColumns.support}</th>
-                                            <th className="table-cell-center capability-status-column">{copy.matrixColumns.status}</th>
-                                            <th className="table-cell-center capability-entry-column">{copy.matrixColumns.entry}</th>
-                                            <th>{copy.matrixColumns.note}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {systemModules.map((module) => (
-                                            <tr key={module.key}>
-                                                <td data-label={copy.matrixColumns.capability}>
-                                                    <div className="flex flex-col gap-1">
-                                                        <span>{module.label}</span>
-                                                        <a href={module.docs} target="_blank" rel="noreferrer" className="text-xs">
-                                                            {copy.docsLink}
-                                                        </a>
-                                                    </div>
-                                                </td>
-                                                <td data-label={copy.matrixColumns.support} className="table-cell-center capability-support-cell">{renderBooleanSupport(module.supportedBy3xui === true, copy)}</td>
-                                                <td data-label={copy.matrixColumns.status} className="table-cell-center capability-status-cell">{renderAlignmentStatus(module.status, copy)}</td>
-                                                <td data-label={copy.matrixColumns.entry} className="table-cell-center capability-entry-cell">
-                                                    <span className="badge badge-neutral">{module.uiActionLabel || '-'}</span>
-                                                </td>
-                                                <td data-label={copy.matrixColumns.note} className="text-sm text-muted">{module.note || '-'}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                            <Table
+                                className="mb-8"
+                                tableClassName="capability-matrix-table"
+                                headers={[
+                                    <th>{copy.matrixColumns.capability}</th>,
+                                    <th className="table-cell-center capability-support-column">{copy.matrixColumns.support}</th>,
+                                    <th className="table-cell-center capability-status-column">{copy.matrixColumns.status}</th>,
+                                    <th className="table-cell-center capability-entry-column">{copy.matrixColumns.entry}</th>,
+                                    <th>{copy.matrixColumns.note}</th>
+                                ]}
+                            >
+                                {systemModules.map((module) => (
+                                    <tr key={module.key}>
+                                        <td data-label={copy.matrixColumns.capability}>
+                                            <div className="flex flex-col gap-1">
+                                                <span>{module.label}</span>
+                                                <a href={module.docs} target="_blank" rel="noreferrer" className="text-xs">
+                                                    {copy.docsLink}
+                                                </a>
+                                            </div>
+                                        </td>
+                                        <td data-label={copy.matrixColumns.support} className="table-cell-center capability-support-cell">{renderBooleanSupport(module.supportedBy3xui === true, copy)}</td>
+                                        <td data-label={copy.matrixColumns.status} className="table-cell-center capability-status-cell">{renderAlignmentStatus(module.status, copy)}</td>
+                                        <td data-label={copy.matrixColumns.entry} className="table-cell-center capability-entry-cell">
+                                            <span className="badge badge-neutral">{module.uiActionLabel || '-'}</span>
+                                        </td>
+                                        <td data-label={copy.matrixColumns.note} className="text-sm text-muted">{module.note || '-'}</td>
+                                    </tr>
+                                ))}
+                            </Table>
                         )}
 
                         <SectionHeader
@@ -429,37 +427,34 @@ export default function Capabilities({ serverId = '', embedded = false } = {}) {
                                 />
                             </div>
                         ) : (
-                            <div className="table-container mb-8">
-                                <table className="table capability-tools-table">
-                                    <thead>
-                                        <tr>
-                                            <th>{copy.toolsColumns.tool}</th>
-                                            <th className="table-cell-center capability-availability-column">{copy.toolsColumns.availability}</th>
-                                            <th className="table-cell-center capability-status-column">{copy.toolsColumns.status}</th>
-                                            <th className="table-cell-center capability-entry-column">{copy.toolsColumns.entry}</th>
-                                            <th>{copy.toolsColumns.source}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {toolEntries.map((tool) => (
-                                            <tr key={tool.key}>
-                                                <td data-label={copy.toolsColumns.tool}>
-                                                    <div className="flex flex-col gap-1">
-                                                        <span>{tool.label || tool.key}</span>
-                                                        <span className="text-xs text-muted">{tool.description || '-'}</span>
-                                                    </div>
-                                                </td>
-                                                <td data-label={copy.toolsColumns.availability} className="table-cell-center capability-availability-cell">{renderAvailability(tool.available, copy)}</td>
-                                                <td data-label={copy.toolsColumns.status} className="table-cell-center capability-status-cell">{renderAlignmentStatus(tool.status, copy)}</td>
-                                                <td data-label={copy.toolsColumns.entry} className="table-cell-center capability-entry-cell">
-                                                    <span className="badge badge-neutral">{tool.uiActionLabel || '-'}</span>
-                                                </td>
-                                                <td data-label={copy.toolsColumns.source} className="text-sm text-muted">{renderProbeSource(tool.source, copy)}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                            <Table
+                                className="mb-8"
+                                tableClassName="capability-tools-table"
+                                headers={[
+                                    <th>{copy.toolsColumns.tool}</th>,
+                                    <th className="table-cell-center capability-availability-column">{copy.toolsColumns.availability}</th>,
+                                    <th className="table-cell-center capability-status-column">{copy.toolsColumns.status}</th>,
+                                    <th className="table-cell-center capability-entry-column">{copy.toolsColumns.entry}</th>,
+                                    <th>{copy.toolsColumns.source}</th>
+                                ]}
+                            >
+                                {toolEntries.map((tool) => (
+                                    <tr key={tool.key}>
+                                        <td data-label={copy.toolsColumns.tool}>
+                                            <div className="flex flex-col gap-1">
+                                                <span>{tool.label || tool.key}</span>
+                                                <span className="text-xs text-muted">{tool.description || '-'}</span>
+                                            </div>
+                                        </td>
+                                        <td data-label={copy.toolsColumns.availability} className="table-cell-center capability-availability-cell">{renderAvailability(tool.available, copy)}</td>
+                                        <td data-label={copy.toolsColumns.status} className="table-cell-center capability-status-cell">{renderAlignmentStatus(tool.status, copy)}</td>
+                                        <td data-label={copy.toolsColumns.entry} className="table-cell-center capability-entry-cell">
+                                            <span className="badge badge-neutral">{tool.uiActionLabel || '-'}</span>
+                                        </td>
+                                        <td data-label={copy.toolsColumns.source} className="text-sm text-muted">{renderProbeSource(tool.source, copy)}</td>
+                                    </tr>
+                                ))}
+                            </Table>
                         )}
 
                         <SectionHeader

@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { HiOutlineArrowPath, HiOutlineTrash, HiOutlineEye, HiOutlineArrowUturnLeft } from 'react-icons/hi2';
 import Header from '../Layout/Header.jsx';
-import SkeletonTable from '../UI/SkeletonTable.jsx';
-import EmptyState from '../UI/EmptyState.jsx';
+import Table from '../UI/Table.jsx';
 import api from '../../api/client.js';
 import { attachBatchRiskToken } from '../../utils/riskConfirm.js';
 import {
@@ -546,15 +545,19 @@ export default function Tasks({ embedded = false }) {
                 </div>
 
                 {loading ? (
-                    <div className={`${tableShellClassName} p-4`}>
-                        <SkeletonTable rows={5} cols={7} />
-                    </div>
+                    <Table
+                        loading={true}
+                        rows={5}
+                        cols={7}
+                        className={tableShellClassName}
+                    />
                 ) : filteredTasks.length === 0 ? (
-                    <div className={`${tableShellClassName} p-4`}>
-                        <EmptyState
-                            title={copy.emptyTitle}
-                            subtitle={copy.emptySubtitle}
-                            action={activeTaskFilterCount > 0 ? (
+                    <Table
+                        empty={true}
+                        emptyStateProps={{
+                            title: copy.emptyTitle,
+                            subtitle: copy.emptySubtitle,
+                            action: activeTaskFilterCount > 0 ? (
                                 <button type="button" className="btn btn-secondary btn-sm" onClick={resetTaskFilters}>
                                     {copy.resetFilters}
                                 </button>
@@ -562,9 +565,10 @@ export default function Tasks({ embedded = false }) {
                                 <button type="button" className="btn btn-secondary btn-sm" onClick={fetchTasks}>
                                     <HiOutlineArrowPath /> {copy.refresh}
                                 </button>
-                            )}
-                        />
-                    </div>
+                            )
+                        }}
+                        className={tableShellClassName}
+                    />
                 ) : isCompactLayout ? (
                     <div className={mobileListShellClassName}>
                         <TaskMobileList
@@ -577,53 +581,50 @@ export default function Tasks({ embedded = false }) {
                         />
                     </div>
                 ) : (
-                    <div className={tableShellClassName}>
-                        <table className="table tasks-table">
-                            <thead>
-                                <tr>
-                                    <th className="tasks-time-column">{copy.time}</th>
-                                    <th>{copy.typeAction}</th>
-                                    <th>{copy.server}</th>
-                                    <th className="table-cell-right tasks-total-column">{copy.totalCol}</th>
-                                    <th className="table-cell-right tasks-success-column">{copy.successCol}</th>
-                                    <th className="table-cell-right tasks-failed-column">{copy.failedCol}</th>
-                                    <th className="table-cell-actions tasks-actions-column">{copy.actions}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredTasks.map((task) => (
-                                    <tr key={task.id}>
-                                        <td data-label={copy.time} className="cell-mono tasks-time-cell">{formatDateTime(task.createdAt, locale)}</td>
-                                        <td data-label={copy.typeAction}>{formatTaskActionPair(task.type, task.action, locale)}</td>
-                                        <td data-label={copy.server} className="text-sm text-muted tasks-server-cell">
-                                            {formatTaskServerSummary(task)}
-                                        </td>
-                                        <td data-label={copy.totalCol} className="table-cell-right cell-mono-right tasks-total-cell">{task.summary?.total ?? '-'}</td>
-                                        <td data-label={copy.successCol} className="table-cell-right cell-mono-right tasks-success-cell">{task.summary?.success ?? '-'}</td>
-                                        <td data-label={copy.failedCol} className="table-cell-right cell-mono-right tasks-failed-cell">{task.summary?.failed ?? '-'}</td>
-                                        <td data-label={copy.actions} className="table-cell-actions tasks-actions-cell">
-                                            <div className="table-row-actions tasks-row-actions">
-                                            <button className="btn btn-secondary btn-sm btn-icon table-action-btn" onClick={() => handleView(task.id)} title={copy.viewDetail} aria-label={copy.viewDetail}>
-                                                <HiOutlineEye />
-                                            </button>
-                                            {Number(task.summary?.failed || 0) > 0 && (
-                                                <button
-                                                    className="btn btn-primary btn-sm btn-icon table-action-btn is-primary"
-                                                    onClick={() => handleRetryFailed(task)}
-                                                    disabled={retryingId === task.id}
-                                                    title={copy.retryFailedItems}
-                                                    aria-label={copy.retryFailedItems}
-                                                >
-                                                    {retryingId === task.id ? <span className="spinner" /> : <HiOutlineArrowUturnLeft />}
-                                                </button>
-                                            )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                    <Table
+                        className={tableShellClassName}
+                        tableClassName="tasks-table"
+                        headers={[
+                            <th className="tasks-time-column" key="time">{copy.time}</th>,
+                            <th key="typeAction">{copy.typeAction}</th>,
+                            <th key="server">{copy.server}</th>,
+                            <th className="table-cell-right tasks-total-column" key="total">{copy.totalCol}</th>,
+                            <th className="table-cell-right tasks-success-column" key="success">{copy.successCol}</th>,
+                            <th className="table-cell-right tasks-failed-column" key="failed">{copy.failedCol}</th>,
+                            <th className="table-cell-actions tasks-actions-column" key="actions">{copy.actions}</th>
+                        ]}
+                    >
+                        {filteredTasks.map((task) => (
+                            <tr key={task.id}>
+                                <td data-label={copy.time} className="cell-mono tasks-time-cell">{formatDateTime(task.createdAt, locale)}</td>
+                                <td data-label={copy.typeAction}>{formatTaskActionPair(task.type, task.action, locale)}</td>
+                                <td data-label={copy.server} className="text-sm text-muted tasks-server-cell">
+                                    {formatTaskServerSummary(task)}
+                                </td>
+                                <td data-label={copy.totalCol} className="table-cell-right cell-mono-right tasks-total-cell">{task.summary?.total ?? '-'}</td>
+                                <td data-label={copy.successCol} className="table-cell-right cell-mono-right tasks-success-cell">{task.summary?.success ?? '-'}</td>
+                                <td data-label={copy.failedCol} className="table-cell-right cell-mono-right tasks-failed-cell">{task.summary?.failed ?? '-'}</td>
+                                <td data-label={copy.actions} className="table-cell-actions tasks-actions-cell">
+                                    <div className="table-row-actions tasks-row-actions">
+                                    <button className="btn btn-secondary btn-sm btn-icon table-action-btn" onClick={() => handleView(task.id)} title={copy.viewDetail} aria-label={copy.viewDetail}>
+                                        <HiOutlineEye />
+                                    </button>
+                                    {Number(task.summary?.failed || 0) > 0 && (
+                                        <button
+                                            className="btn btn-primary btn-sm btn-icon table-action-btn is-primary"
+                                            onClick={() => handleRetryFailed(task)}
+                                            disabled={retryingId === task.id}
+                                            title={copy.retryFailedItems}
+                                            aria-label={copy.retryFailedItems}
+                                        >
+                                            {retryingId === task.id ? <span className="spinner" /> : <HiOutlineArrowUturnLeft />}
+                                        </button>
+                                    )}
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                    </Table>
                 )}
 
                 <ListPagination

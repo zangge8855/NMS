@@ -5,7 +5,7 @@ import config from '../config.js';
 import systemSettingsStore from './systemSettingsStore.js';
 import userStore from './userStore.js';
 import { mirrorStoreSnapshot } from './dbMirror.js';
-import { saveObjectAtomic } from './fileUtils.js';
+import { saveObjectAtomic, saveObjectAtomicAsync } from './fileUtils.js';
 import { resolveClientIp } from '../lib/requestIp.js';
 
 const AUDIT_EVENTS_FILE = path.join(config.dataDir, 'audit_events.json');
@@ -42,7 +42,9 @@ function loadArray(file) {
 }
 
 function saveArray(file, data) {
-    saveObjectAtomic(file, data);
+    saveObjectAtomicAsync(file, data).catch((err) => {
+        console.error(`[AuditStore Error] Failed async save to ${file}:`, err);
+    });
 }
 
 function normalizeDateInput(value, fallback = null) {

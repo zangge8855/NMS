@@ -7,7 +7,7 @@ import userStore from './userStore.js';
 import { parseJsonObjectLike } from '../lib/normalize.js';
 import { getServerPanelSnapshot } from '../lib/serverPanelSnapshotService.js';
 import { mirrorStoreSnapshot } from './dbMirror.js';
-import { saveObjectAtomic } from './fileUtils.js';
+import { saveObjectAtomic, saveObjectAtomicAsync } from './fileUtils.js';
 
 const TRAFFIC_SAMPLES_FILE = path.join(config.dataDir, 'traffic_samples.json');
 const TRAFFIC_COUNTERS_FILE = path.join(config.dataDir, 'traffic_counters.json');
@@ -47,6 +47,10 @@ function loadObject(file, fallback = {}) {
 
 function saveJson(file, data) {
     saveObjectAtomic(file, data);
+}
+
+async function saveJsonAsync(file, data) {
+    await saveObjectAtomicAsync(file, data);
 }
 
 function toPositiveInt(value, fallback) {
@@ -576,11 +580,17 @@ class TrafficStatsStore {
         this.overviewCache.clear();
     }
 
-    _persist() {
-        saveJson(TRAFFIC_SAMPLES_FILE, this.samples);
-        saveJson(TRAFFIC_COUNTERS_FILE, this.counters);
-        saveJson(TRAFFIC_META_FILE, this.meta);
-        mirrorStoreSnapshot('traffic', this.exportState(), { redact: false });
+    async _persist() {
+        try {
+            await Promise.all([
+                saveJsonAsync(TRAFFIC_SAMPLES_FILE, this.samples),
+                saveJsonAsync(TRAFFIC_COUNTERS_FILE, this.counters),
+                saveJsonAsync(TRAFFIC_META_FILE, this.meta),
+            ]);
+            mirrorStoreSnapshot('traffic', this.exportState(), { redact: false });
+        } catch (err) {
+            console.error('[TrafficStatsStore Error] Failed async save:', err);
+        }
     }
 
     _prune() {
@@ -1206,7 +1216,7 @@ class TrafficStatsStore {
         }
         this._touchState();
         this._prune();
-        this._persist();
+        await this._persist();
 
         return {
             collected: true,
