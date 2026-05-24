@@ -50,14 +50,11 @@ class ErrorBoundary extends Component {
         if (this.state.hasError) {
             const locale = document.documentElement.lang === 'en' ? 'en-US' : 'zh-CN';
             return (
-                <div className="flex flex-col items-center justify-center gap-4 h-screen" style={{
-                    background: 'var(--bg-primary)',
-                    color: 'var(--text-primary)',
-                }}>
-                    <div style={{ fontSize: '18px', fontWeight: 600 }}>
+                <div className="app-error-boundary">
+                    <div className="app-error-boundary-title">
                         {getLocaleMessage(locale, 'comp.common.errorBoundaryTitle')}
                     </div>
-                    <div style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
+                    <div className="app-error-boundary-subtitle">
                         {getLocaleMessage(locale, 'comp.common.errorBoundarySubtitle')}
                     </div>
                     <button
@@ -76,8 +73,8 @@ class ErrorBoundary extends Component {
 
 function PageFallback() {
     return (
-        <div className="flex items-center justify-center h-full" style={{ minHeight: '220px' }}>
-            <span className="spinner" style={{ width: '24px', height: '24px' }} />
+        <div className="app-page-fallback">
+            <span className="spinner spinner-md" />
         </div>
     );
 }

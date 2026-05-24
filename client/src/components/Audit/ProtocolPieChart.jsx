@@ -8,8 +8,18 @@ import {
     ResponsiveContainer,
 } from 'recharts';
 import { formatBytes } from '../../utils/format.js';
+import ChartTooltip from '../UI/ChartTooltip.jsx';
 
-const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
+// NMS brand-aligned palette — driven from CSS variables so palette swaps with the theme.
+const BRAND_PALETTE = [
+    'var(--accent-primary, #6366f1)',
+    'var(--accent-success, #10b981)',
+    'var(--accent-warning, #f59e0b)',
+    'var(--accent-danger, #ef4444)',
+    'var(--accent-purple, #8b5cf6)',
+    'var(--accent-pink, #ec4899)',
+    'var(--accent-cyan, #06b6d4)',
+];
 
 export default function ProtocolPieChart({ data = [], locale = 'zh-CN' }) {
     if (!data || data.length === 0) {
@@ -39,18 +49,11 @@ export default function ProtocolPieChart({ data = [], locale = 'zh-CN' }) {
                     stroke="none"
                 >
                     {chartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        <Cell key={`cell-${index}`} fill={BRAND_PALETTE[index % BRAND_PALETTE.length]} />
                     ))}
                 </Pie>
                 <Tooltip
-                    formatter={(value) => formatBytes(value)}
-                    contentStyle={{
-                        backgroundColor: 'var(--bg-popover)',
-                        border: '1px solid var(--border)',
-                        borderRadius: '0.5rem',
-                        color: 'var(--text-primary)',
-                    }}
-                    itemStyle={{ color: 'var(--text-primary)' }}
+                    content={<ChartTooltip valueFormatter={(value) => formatBytes(value)} />}
                 />
                 <Legend verticalAlign="bottom" height={36} />
             </PieChart>

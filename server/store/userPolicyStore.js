@@ -268,14 +268,24 @@ class UserPolicyStore {
             if (!normalizedEmail) continue;
 
             const sanitized = sanitizePolicy(rawRecord || {});
-            if (sanitized.serverScopeMode !== 'selected') continue;
-            if (!sanitized.allowedServerIds.includes(targetId)) continue;
+            const inAllowed = sanitized.serverScopeMode === 'selected'
+                && sanitized.allowedServerIds.includes(targetId);
+            const inBlocked = sanitized.blockedServerIds.includes(targetId);
+            if (!inAllowed && !inBlocked) continue;
 
-            const nextServerIds = sanitized.allowedServerIds.filter((item) => item !== targetId);
-            const nextMode = nextServerIds.length > 0 ? 'selected' : 'none';
+            const nextAllowed = inAllowed
+                ? sanitized.allowedServerIds.filter((item) => item !== targetId)
+                : sanitized.allowedServerIds;
+            const nextBlocked = inBlocked
+                ? sanitized.blockedServerIds.filter((item) => item !== targetId)
+                : sanitized.blockedServerIds;
+            const nextMode = inAllowed
+                ? (nextAllowed.length > 0 ? 'selected' : 'none')
+                : sanitized.serverScopeMode;
             this.policies[normalizedEmail] = {
                 ...sanitized,
-                allowedServerIds: nextServerIds,
+                allowedServerIds: nextAllowed,
+                blockedServerIds: nextBlocked,
                 serverScopeMode: nextMode,
                 updatedAt: nowIso,
                 updatedBy: String(actor || 'system'),

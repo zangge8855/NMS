@@ -8,6 +8,7 @@ import {
     ResponsiveContainer,
     CartesianGrid,
 } from 'recharts';
+import ChartTooltip from '../UI/ChartTooltip.jsx';
 
 export default function TrafficLineChart({
     data,
@@ -25,10 +26,17 @@ export default function TrafficLineChart({
         <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data || []} margin={margin}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
-                <XAxis dataKey="ts" tickFormatter={(value) => trendLabel(value, granularity, locale)} />
-                <YAxis width={yAxisWidth} tickFormatter={formatAxis} />
-                <Tooltip formatter={(value) => formatValue(value)} labelFormatter={(value) => formatLabel(value, locale)} />
-                <Line type="monotone" dataKey="totalBytes" stroke={color} strokeWidth={2} dot={false} />
+                <XAxis dataKey="ts" tickFormatter={(value) => trendLabel(value, granularity, locale)} tick={{ fill: 'var(--text-muted)' }} />
+                <YAxis width={yAxisWidth} tickFormatter={formatAxis} tick={{ fill: 'var(--text-muted)' }} />
+                <Tooltip
+                    content={(
+                        <ChartTooltip
+                            valueFormatter={(value) => formatValue(value)}
+                            labelFormatter={(value) => formatLabel(value, locale)}
+                        />
+                    )}
+                />
+                <Line type="monotone" dataKey="totalBytes" stroke={color || 'var(--accent-primary)'} strokeWidth={2} dot={false} />
             </LineChart>
         </ResponsiveContainer>
     );

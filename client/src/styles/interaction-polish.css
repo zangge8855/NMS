@@ -902,3 +902,153 @@ body,
   font-weight: 600;
   margin: 0 2px;
 }
+
+/* --------------------------------------------------------------------------
+ * Expandable QR code — click QR to open large overlay (P-30)
+ * ------------------------------------------------------------------------ */
+.expandable-qr-trigger {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  cursor: zoom-in;
+  position: relative;
+  border-radius: var(--radius-md, 12px);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.expandable-qr-trigger:hover {
+  transform: translateY(-1px);
+}
+
+.expandable-qr-trigger:focus-visible {
+  outline: 2px solid var(--accent-primary, #6366f1);
+  outline-offset: 2px;
+}
+
+.expandable-qr-trigger svg {
+  border-radius: var(--radius-sm, 8px);
+}
+
+.expandable-qr-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.expandable-qr-trigger:hover .expandable-qr-hint,
+.expandable-qr-trigger:focus-visible .expandable-qr-hint {
+  opacity: 1;
+}
+
+.expandable-qr-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: nmsModalBackdropIn 140ms ease-out both;
+}
+
+.expandable-qr-card {
+  background: var(--bg-card, #1f2937);
+  border-radius: var(--radius-lg, 16px);
+  padding: 32px;
+  position: relative;
+  max-width: 90vw;
+  box-shadow: var(--shadow-xl, 0 20px 60px rgba(0, 0, 0, 0.5));
+  animation: nmsModalShellIn 160ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.expandable-qr-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--surface-soft, rgba(255, 255, 255, 0.06));
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  transition: background 120ms ease;
+}
+
+.expandable-qr-close:hover {
+  background: var(--surface-soft-hover, rgba(255, 255, 255, 0.12));
+  color: var(--text-primary);
+}
+
+.expandable-qr-label {
+  text-align: center;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.expandable-qr-canvas {
+  background: white;
+  padding: 16px;
+  border-radius: var(--radius-md, 12px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.expandable-qr-foot {
+  margin-top: 16px;
+  max-width: 320px;
+  text-align: center;
+  word-break: break-all;
+}
+
+/* --------------------------------------------------------------------------
+ * App-level helpers — error boundary & lazy page fallback (P-8/9/27)
+ * ------------------------------------------------------------------------ */
+.app-error-boundary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  height: 100vh;
+  background: var(--bg-primary, #0f172a);
+  color: var(--text-primary, #f8fafc);
+  padding: 24px;
+}
+
+.app-error-boundary-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.app-error-boundary-subtitle {
+  font-size: 14px;
+  color: var(--text-muted, #94a3b8);
+}
+
+.app-page-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+}
+
+.spinner-sm { width: 16px; height: 16px; }
+.spinner-md { width: 24px; height: 24px; }
+.spinner-lg { width: 36px; height: 36px; }

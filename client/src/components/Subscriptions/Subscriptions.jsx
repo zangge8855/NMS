@@ -2,6 +2,7 @@ import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'r
 import { Link, useSearchParams } from 'react-router-dom';
 import { HiOutlineArrowPath, HiOutlineExclamationTriangle, HiOutlineLink, HiOutlineQrCode, HiOutlineXMark } from 'react-icons/hi2';
 import { QRCodeSVG } from 'qrcode.react';
+import ExpandableQRCode from '../UI/ExpandableQRCode.jsx';
 import toast from 'react-hot-toast';
 import api from '../../api/client.js';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
@@ -687,11 +688,13 @@ export default function Subscriptions() {
                         role="img"
                         aria-label={ui.qrAriaLabel.replace('{label}', activeProfileLabel || activeProfile.label)}
                     >
-                        <QRCodeSVG
+                        <ExpandableQRCode
                             value={activeProfile.url}
                             size={136}
                             level="M"
                             includeMargin
+                            label={activeProfileLabel || activeProfile.label}
+                            ariaLabel={ui.qrAriaLabel.replace('{label}', activeProfileLabel || activeProfile.label)}
                         />
                     </div>
                     <div className="subscription-inline-qr-text">{ui.qrHint}</div>
@@ -1138,12 +1141,14 @@ export default function Subscriptions() {
                                                                     role="img"
                                                                     aria-label={ui.qrAriaLabel.replace('{label}', activeProfile.label)}
                                                             >
-                                                                <QRCodeSVG
+                                                                <ExpandableQRCode
                                                                     value={activeProfile.url}
                                                                     size={124}
                                                                     level="M"
-                                                                        includeMargin={false}
-                                                                    />
+                                                                    includeMargin={false}
+                                                                    label={activeProfile.label}
+                                                                    ariaLabel={ui.qrAriaLabel.replace('{label}', activeProfile.label)}
+                                                                />
                                                                 </div>
                                                                 <div className="subscription-inline-qr-text">{ui.adminQuickImportHint}</div>
                                                                 {primaryImportActions.length > 0 ? (

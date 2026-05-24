@@ -1,5 +1,6 @@
 import React from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import ChartTooltip from '../UI/ChartTooltip.jsx';
 
 export default function CpuHistoryChart({ cpuHistory, endTick, t }) {
     return (
@@ -35,19 +36,12 @@ export default function CpuHistoryChart({ cpuHistory, endTick, t }) {
                     tickFormatter={(value) => `${value}%`}
                 />
                 <Tooltip
-                    contentStyle={{
-                        background: 'var(--surface-overlay)',
-                        backdropFilter: 'blur(8px)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '12px',
-                        fontSize: '12px',
-                        color: 'var(--text-primary)',
-                        boxShadow: 'var(--shadow-lg)',
-                    }}
-                    labelStyle={{ color: 'var(--text-primary)', fontWeight: 600, marginBottom: 6 }}
-                    itemStyle={{ color: 'var(--accent-primary-hover)' }}
-                    labelFormatter={(value) => `${t('pages.dashboardNode.cpuTooltipLabel')} · ${value}`}
-                    formatter={(value) => [`${value.toFixed(1)}%`, t('pages.dashboardNode.cpuTooltipLabel')]}
+                    content={(
+                        <ChartTooltip
+                            labelFormatter={(value) => `${t('pages.dashboardNode.cpuTooltipLabel')} · ${value}`}
+                            valueFormatter={(value) => `${Number(value).toFixed(1)}%`}
+                        />
+                    )}
                     cursor={{ stroke: 'var(--chart-grid-color)', strokeDasharray: '3 3', strokeWidth: 1.5 }}
                 />
                 <Area type="monotone" dataKey="cpu" stroke="var(--accent-primary)" strokeWidth={2} fill="url(#cpuGradient)" animationDuration={1500} />
