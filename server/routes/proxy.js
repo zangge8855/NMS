@@ -15,6 +15,7 @@ import {
     postUpdateClientCompat,
     resetInboundTrafficCompat,
 } from '../lib/panelApiCompat.js';
+import { invalidateServerPanelSnapshotCache } from '../lib/serverPanelSnapshotService.js';
 
 const router = Router();
 const upload = multer({
@@ -200,6 +201,11 @@ router.all('/:serverId/*', upload.any(), async (req, res) => {
                 'Content-Disposition': panelRes.headers['content-disposition'] || 'attachment; filename=x-ui.db',
             });
             return res.send(Buffer.from(panelRes.data));
+        }
+
+        // Invalidate cache if this was a modifying request
+        if (method === 'POST' || method === 'PUT' || method === 'DELETE') {
+            invalidateServerPanelSnapshotCache(serverId);
         }
 
         // Forward JSON response
