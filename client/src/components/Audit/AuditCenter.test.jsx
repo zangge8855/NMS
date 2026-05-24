@@ -1092,6 +1092,145 @@ describe('AuditCenter localization', () => {
         expect(screen.queryByText(/masked\.local/)).not.toBeInTheDocument();
     });
 
+    it('shows selected user traffic split by node and inbound', async () => {
+        const requestedUrls = [];
+        api.get.mockImplementation((url) => {
+            requestedUrls.push(String(url));
+            if (url.startsWith('/traffic/overview?')) {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            lastCollectionAt: '2026-03-13T10:00:00.000Z',
+                            currentTotalsAt: '2026-03-13T10:00:00.000Z',
+                            baselineReady: true,
+                            sampleCount: 3,
+                            activeUsers: 1,
+                            userLevelSupported: true,
+                            managedTotals: {
+                                upBytes: 40,
+                                downBytes: 60,
+                                totalBytes: 100,
+                            },
+                            totals: {
+                                upBytes: 40,
+                                downBytes: 60,
+                                totalBytes: 100,
+                            },
+                            topUsers: [
+                                {
+                                    email: 'alice@example.com',
+                                    username: 'alice',
+                                    displayLabel: 'alice · alice@example.com',
+                                    totalBytes: 100,
+                                },
+                            ],
+                            topServers: [
+                                {
+                                    serverId: 'server-a',
+                                    serverName: 'Node A',
+                                    totalBytes: 100,
+                                },
+                            ],
+                            collection: {
+                                warnings: [],
+                            },
+                            status: {
+                                lastCollectionAt: '2026-03-13T10:00:00.000Z',
+                                currentTotalsAt: '2026-03-13T10:00:00.000Z',
+                                baselineReady: true,
+                                sampleCount: 3,
+                                collecting: false,
+                            },
+                        },
+                    },
+                });
+            }
+            if (url.startsWith('/traffic/users/alice%40example.com/trend?')) {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            email: 'alice@example.com',
+                            username: 'alice',
+                            displayLabel: 'alice · alice@example.com',
+                            granularity: 'hour',
+                            points: [],
+                            totals: {
+                                upBytes: 40,
+                                downBytes: 60,
+                                totalBytes: 100,
+                            },
+                            breakdown: {
+                                totals: {
+                                    upBytes: 40,
+                                    downBytes: 60,
+                                    totalBytes: 100,
+                                },
+                                items: [
+                                    {
+                                        serverId: 'server-a',
+                                        serverName: 'Node A',
+                                        inboundId: '101',
+                                        inboundRemark: 'Main',
+                                        upBytes: 30,
+                                        downBytes: 45,
+                                        totalBytes: 75,
+                                        sampleCount: 2,
+                                        firstSampleAt: '2026-03-13T00:00:00.000Z',
+                                        lastSampleAt: '2026-03-13T01:00:00.000Z',
+                                    },
+                                    {
+                                        serverId: 'server-b',
+                                        serverName: 'Node B',
+                                        inboundId: '201',
+                                        inboundRemark: 'Backup',
+                                        upBytes: 10,
+                                        downBytes: 15,
+                                        totalBytes: 25,
+                                        sampleCount: 1,
+                                        firstSampleAt: '2026-03-13T02:00:00.000Z',
+                                        lastSampleAt: '2026-03-13T02:00:00.000Z',
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                });
+            }
+            if (url.startsWith('/traffic/servers/server-a/trend?')) {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            serverId: 'server-a',
+                            granularity: 'hour',
+                            points: [],
+                            totals: {
+                                upBytes: 40,
+                                downBytes: 60,
+                                totalBytes: 100,
+                            },
+                        },
+                    },
+                });
+            }
+            return Promise.resolve({ data: { obj: { points: [] } } });
+        });
+
+        renderWithRouter(<AuditCenter />, { route: '/audit?tab=traffic' });
+
+        expect(await screen.findByText('入站节点用量')).toBeInTheDocument();
+        expect(screen.getByText('当前所选用户 · 本月按节点 / 入站聚合')).toBeInTheDocument();
+        expect(screen.getAllByText('Node A').length).toBeGreaterThan(0);
+        expect(screen.getByText('Node B')).toBeInTheDocument();
+        expect(screen.getByText('Main · #101')).toBeInTheDocument();
+        expect(screen.getByText('Backup · #201')).toBeInTheDocument();
+        expect(screen.getByText('75%')).toBeInTheDocument();
+        expect(screen.getByText('25%')).toBeInTheDocument();
+        expect(requestedUrls.some((url) => (
+            url.startsWith('/traffic/users/alice%40example.com/trend?')
+            && url.includes('includeBreakdown=true')
+        ))).toBe(true);
+    });
+
     it('shows attributable user totals and omitted traffic when attribution is incomplete', async () => {
         api.get.mockImplementation((url) => {
             if (url.startsWith('/traffic/overview?')) {

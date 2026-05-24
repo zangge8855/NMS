@@ -144,6 +144,166 @@ describe('traffic stats inbound fallback', () => {
             assert.equal(trend.displayLabel, 'alice · alice@example.com');
             assert.equal(trend.totals.totalBytes, 300);
             assert.equal(trend.points.length, 1);
+            assert.equal(Object.prototype.hasOwnProperty.call(trend, 'breakdown'), false);
+
+            const trendWithBreakdown = store.getUserTrend('alice@example.com', {
+                days: 30,
+                granularity: 'hour',
+                to: FIXED_TRAFFIC_WINDOW_TO,
+                includeBreakdown: true,
+            });
+            assert.deepEqual(trendWithBreakdown.breakdown.totals, {
+                upBytes: 100,
+                downBytes: 200,
+                totalBytes: 300,
+            });
+            assert.equal(trendWithBreakdown.breakdown.items.length, 1);
+            assert.deepEqual(trendWithBreakdown.breakdown.items[0], {
+                serverId: 'server-a',
+                serverName: 'Node A',
+                inboundId: '1',
+                inboundRemark: 'Main',
+                upBytes: 100,
+                downBytes: 200,
+                totalBytes: 300,
+                sampleCount: 1,
+                firstSampleAt: '2026-03-13T00:00:00.000Z',
+                lastSampleAt: '2026-03-13T00:00:00.000Z',
+            });
+        } finally {
+            userStore.importState(originalUsers);
+        }
+    });
+
+    it('aggregates selected user traffic by server and inbound when requested', () => {
+        const originalUsers = userStore.exportState();
+        try {
+            userStore.importState({
+                users: [
+                    {
+                        id: 'user-1',
+                        username: 'alice',
+                        email: 'alice@example.com',
+                        subscriptionEmail: 'alice-sub@example.com',
+                        role: 'user',
+                        enabled: true,
+                        passwordHash: 'hash',
+                        passwordSalt: 'salt',
+                        createdAt: '2026-03-01T00:00:00.000Z',
+                    },
+                ],
+            });
+
+            const store = new TrafficStatsStore();
+            store.importState({
+                samples: [
+                    {
+                        id: 'sample-1',
+                        ts: '2026-03-13T00:00:00.000Z',
+                        serverId: 'server-a',
+                        serverName: 'Node A',
+                        inboundId: '1',
+                        inboundRemark: 'Main',
+                        email: 'alice-sub@example.com',
+                        clientIdentifier: 'alice',
+                        upBytes: 100,
+                        downBytes: 200,
+                        totalBytes: 300,
+                    },
+                    {
+                        id: 'sample-2',
+                        ts: '2026-03-13T01:00:00.000Z',
+                        serverId: 'server-a',
+                        serverName: 'Node A',
+                        inboundId: '1',
+                        inboundRemark: 'Main',
+                        email: maskEmail('alice@example.com'),
+                        clientIdentifier: 'alice',
+                        upBytes: 50,
+                        downBytes: 75,
+                        totalBytes: 125,
+                    },
+                    {
+                        id: 'sample-3',
+                        ts: '2026-03-13T02:00:00.000Z',
+                        serverId: 'server-b',
+                        serverName: 'Node B',
+                        inboundId: '7',
+                        inboundRemark: 'Edge',
+                        email: 'alice-sub@example.com',
+                        clientIdentifier: 'alice',
+                        upBytes: 20,
+                        downBytes: 30,
+                        totalBytes: 50,
+                    },
+                    {
+                        id: 'sample-unattributed',
+                        ts: '2026-03-13T03:00:00.000Z',
+                        serverId: 'server-c',
+                        serverName: 'Node C',
+                        inboundId: '9',
+                        inboundRemark: 'Fallback',
+                        email: '',
+                        clientIdentifier: '__inbound_total__',
+                        upBytes: 500,
+                        downBytes: 600,
+                        totalBytes: 1100,
+                    },
+                ],
+                counters: {},
+                meta: { lastCollectionAt: '2026-03-13T03:00:00.000Z' },
+            });
+
+            const trend = store.getUserTrend('alice@example.com', {
+                days: 30,
+                granularity: 'hour',
+                to: FIXED_TRAFFIC_WINDOW_TO,
+                includeBreakdown: true,
+            });
+
+            assert.deepEqual(trend.breakdown.totals, {
+                upBytes: 170,
+                downBytes: 305,
+                totalBytes: 475,
+            });
+            assert.equal(trend.breakdown.items.length, 2);
+            assert.deepEqual(trend.breakdown.items.map((item) => ({
+                serverId: item.serverId,
+                serverName: item.serverName,
+                inboundId: item.inboundId,
+                inboundRemark: item.inboundRemark,
+                upBytes: item.upBytes,
+                downBytes: item.downBytes,
+                totalBytes: item.totalBytes,
+                sampleCount: item.sampleCount,
+                firstSampleAt: item.firstSampleAt,
+                lastSampleAt: item.lastSampleAt,
+            })), [
+                {
+                    serverId: 'server-a',
+                    serverName: 'Node A',
+                    inboundId: '1',
+                    inboundRemark: 'Main',
+                    upBytes: 150,
+                    downBytes: 275,
+                    totalBytes: 425,
+                    sampleCount: 2,
+                    firstSampleAt: '2026-03-13T00:00:00.000Z',
+                    lastSampleAt: '2026-03-13T01:00:00.000Z',
+                },
+                {
+                    serverId: 'server-b',
+                    serverName: 'Node B',
+                    inboundId: '7',
+                    inboundRemark: 'Edge',
+                    upBytes: 20,
+                    downBytes: 30,
+                    totalBytes: 50,
+                    sampleCount: 1,
+                    firstSampleAt: '2026-03-13T02:00:00.000Z',
+                    lastSampleAt: '2026-03-13T02:00:00.000Z',
+                },
+            ]);
         } finally {
             userStore.importState(originalUsers);
         }

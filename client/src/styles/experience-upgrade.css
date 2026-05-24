@@ -4065,6 +4065,9 @@
 
 .audit-page .audit-nav-topbar {
   min-width: max-content;
+  align-self: start;
+  min-height: 34px;
+  align-items: center;
 }
 
 .audit-page .audit-tabs {
@@ -4081,8 +4084,9 @@
 }
 
 .audit-page .audit-nav-status-chip {
-  min-height: 28px;
-  padding: 5px 8px;
+  min-height: 34px;
+  padding: 0 10px;
+  align-items: center;
 }
 
 .audit-page .audit-control-card {
@@ -4172,6 +4176,163 @@
 .audit-page .audit-chart-selection {
   min-height: 28px;
   padding: 0 12px;
+}
+
+.audit-page .audit-inbound-breakdown {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.audit-page .audit-inbound-breakdown-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.audit-page .audit-inbound-breakdown-title {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text-primary);
+}
+
+.audit-page .audit-inbound-breakdown-subtitle {
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
+.audit-page .audit-inbound-breakdown-total {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+  color: var(--accent-primary);
+}
+
+.audit-page .audit-inbound-breakdown-empty {
+  padding: 12px;
+  border: 1px dashed var(--border-color);
+  border-radius: 10px;
+  background: var(--surface-subtle);
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.audit-page .audit-inbound-breakdown-table-container {
+  border-radius: 10px;
+}
+
+.audit-page .audit-inbound-breakdown-table th,
+.audit-page .audit-inbound-breakdown-table td {
+  padding: 9px 10px;
+  font-size: 12px;
+}
+
+.audit-page .audit-inbound-node-cell {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.audit-page .audit-inbound-node-cell span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+  font-weight: 650;
+}
+
+.audit-page .audit-inbound-node-cell span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.audit-page .audit-inbound-share-cell {
+  min-width: 92px;
+}
+
+.audit-page .audit-inbound-share-cell > span:first-child {
+  display: block;
+  margin-bottom: 4px;
+  font-family: var(--font-mono);
+}
+
+.audit-page .audit-inbound-share-track {
+  display: block;
+  width: 100%;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-hover);
+}
+
+.audit-page .audit-inbound-share-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent-primary);
+}
+
+.audit-page .audit-inbound-breakdown-list {
+  display: grid;
+  gap: 8px;
+}
+
+.audit-page .audit-inbound-breakdown-item {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--surface-subtle);
+}
+
+.audit-page .audit-inbound-breakdown-item-head,
+.audit-page .audit-inbound-breakdown-item-split,
+.audit-page .audit-inbound-breakdown-item-share {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.audit-page .audit-inbound-breakdown-item-node {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text-primary);
+}
+
+.audit-page .audit-inbound-breakdown-item-inbound,
+.audit-page .audit-inbound-breakdown-item-split {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
+.audit-page .audit-inbound-breakdown-item-total,
+.audit-page .audit-inbound-breakdown-item-share > span:first-child {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.audit-page .audit-inbound-breakdown-item-share .audit-inbound-share-track {
+  max-width: 148px;
 }
 
 .audit-page .audit-stats-grid {
@@ -7581,6 +7742,4 @@
   background: rgba(248, 113, 113, 0.06) !important;
   border-color: rgba(248, 113, 113, 0.15) !important;
 }
-
-
 

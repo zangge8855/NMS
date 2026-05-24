@@ -132,6 +132,7 @@ router.get('/users/:email/trend', async (req, res) => {
         to: req.query.to,
         days: req.query.days,
         granularity: req.query.granularity,
+        includeBreakdown: normalizeBoolean(req.query.includeBreakdown, false),
     }, req.query.window || req.query.range));
     return res.json({
         success: true,

@@ -183,12 +183,14 @@ const AUDIT_COPY = {
             result: '结果',
             actor: '操作者',
             node: '节点',
+            inbound: '入站',
             user: '用户',
             action: '操作',
             realIp: '真实 IP',
             locationCarrier: '归属地 / 运营商',
             ua: 'UA',
             traffic: '流量',
+            share: '占比',
         },
         states: {
             noAudit: '暂无审计记录',
@@ -214,6 +216,7 @@ const AUDIT_COPY = {
             windowMonth: '本月',
             userTrend: '用户流量趋势',
             serverTrend: '节点流量趋势',
+            inboundBreakdown: '入站节点用量',
             totalTrafficScope: '{window}用户流量',
             totalTrafficMonthNote: '{window}已归属用户流量',
             totalTrafficLimitedNote: '{window}用户流量归属不完整',
@@ -222,11 +225,13 @@ const AUDIT_COPY = {
             activeAccountsScope: '{window} · 有流量的已注册用户',
             samplePointsScope: '{window}采样记录数',
             userTrendScope: '当前所选用户 · {window}趋势',
+            inboundBreakdownScope: '当前所选用户 · {window}按节点 / 入站聚合',
             serverTrendScope: '当前所选节点 · {window}趋势',
             topUsersScope: '{window} · 已注册用户排行',
             topServersScope: '{window} · 全部节点排行',
             selectUser: '请选择用户',
             selectServer: '请选择节点',
+            inboundBreakdownEmpty: '当前窗口没有可归属的入站流量。',
             userLevelUnsupported: '当前窗口未返回可归属的用户流量明细，仅能查看节点总量。',
             userLevelPartial: '当前窗口存在未归属流量，用户趋势和排行仅统计已归属部分。',
             userLevelNoCounts: '当前节点列表未提供用户级流量计数。',
@@ -380,12 +385,14 @@ const AUDIT_COPY = {
             result: 'Outcome',
             actor: 'Actor',
             node: 'Node',
+            inbound: 'Inbound',
             user: 'User',
             action: 'Actions',
             realIp: 'Real IP',
             locationCarrier: 'Location / Carrier',
             ua: 'UA',
             traffic: 'Traffic',
+            share: 'Share',
         },
         states: {
             noAudit: 'No audit records',
@@ -411,6 +418,7 @@ const AUDIT_COPY = {
             windowMonth: 'This Month',
             userTrend: 'User Traffic Trend',
             serverTrend: 'Node Traffic Trend',
+            inboundBreakdown: 'Inbound Node Usage',
             totalTrafficScope: '{window} user traffic',
             totalTrafficMonthNote: 'Attributed user traffic for {window}',
             totalTrafficLimitedNote: 'User traffic attribution is incomplete for {window}',
@@ -419,11 +427,13 @@ const AUDIT_COPY = {
             activeAccountsScope: '{window} · registered users with traffic',
             samplePointsScope: '{window} sample count',
             userTrendScope: 'Selected user · {window}',
+            inboundBreakdownScope: 'Selected user · {window} by node / inbound',
             serverTrendScope: 'Selected node · {window}',
             topUsersScope: '{window} · registered user ranking',
             topServersScope: '{window} · all nodes ranking',
             selectUser: 'Select a user',
             selectServer: 'Select a node',
+            inboundBreakdownEmpty: 'No attributable inbound traffic exists in this window.',
             userLevelUnsupported: 'No attributable per-user traffic was returned for this window; only node totals are available.',
             userLevelPartial: 'This window contains unattributed traffic. User trends and rankings only cover the attributable portion.',
             userLevelNoCounts: 'Current nodes do not provide per-user traffic counters.',
@@ -651,6 +661,7 @@ function buildTrafficWindowCopy(windowKey, copy) {
         activeAccountsScope: formatCopyTemplate(copy.traffic.activeAccountsScope, { window: label }),
         samplePointsScope: formatCopyTemplate(copy.traffic.samplePointsScope, { window: label }),
         userTrendScope: formatCopyTemplate(copy.traffic.userTrendScope, { window: label }),
+        inboundBreakdownScope: formatCopyTemplate(copy.traffic.inboundBreakdownScope, { window: label }),
         serverTrendScope: formatCopyTemplate(copy.traffic.serverTrendScope, { window: label }),
         topUsersScope: formatCopyTemplate(copy.traffic.topUsersScope, { window: label }),
         topServersScope: formatCopyTemplate(copy.traffic.topServersScope, { window: label }),
@@ -867,6 +878,23 @@ function formatTrafficUserLabel(item) {
     const email = String(item?.email || '').trim();
     if (username && email) return `${username} · ${email}`;
     return username || email || '-';
+}
+
+function formatTrafficShare(value, total) {
+    const amount = Number(value || 0);
+    const base = Number(total || 0);
+    if (!Number.isFinite(amount) || !Number.isFinite(base) || base <= 0 || amount <= 0) return '0%';
+    const percent = (amount / base) * 100;
+    if (percent >= 10) return `${Math.round(percent)}%`;
+    if (percent >= 1) return `${percent.toFixed(1)}%`;
+    return '<1%';
+}
+
+function formatInboundBreakdownLabel(item, copy) {
+    const remark = String(item?.inboundRemark || '').trim();
+    const inboundId = String(item?.inboundId || '').trim();
+    if (remark && inboundId) return `${remark} · #${inboundId}`;
+    return remark || (inboundId ? `#${inboundId}` : copy.states.noData);
 }
 
 function isMaskedAccessEmail(value) {
@@ -1582,6 +1610,7 @@ export default function AuditCenter() {
             const params = new URLSearchParams();
             params.append('window', resolveTrafficWindowQuery(windowKey));
             params.append('granularity', trafficGranularity);
+            params.append('includeBreakdown', 'true');
             const res = await api.get(`/traffic/users/${encodeURIComponent(email)}/trend?${params.toString()}`);
             if (normalizeTrafficWindowKey(windowKey) === selectedTrafficWindowRef.current) {
                 setUserTrend(res.data?.obj || { points: [], granularity: 'hour' });
@@ -1837,6 +1866,11 @@ export default function AuditCenter() {
         () => topUsers.find((item) => item.email === selectedUser) || null,
         [selectedUser, topUsers]
     );
+    const userInboundBreakdown = useMemo(
+        () => Array.isArray(userTrend?.breakdown?.items) ? userTrend.breakdown.items : [],
+        [userTrend]
+    );
+    const userInboundBreakdownTotals = normalizeTrafficTotals(userTrend?.breakdown?.totals || EMPTY_TRAFFIC_TOTALS);
     const selectedTrafficServer = useMemo(
         () => topServers.find((item) => item.serverId === selectedServerId) || null,
         [selectedServerId, topServers]
@@ -2299,6 +2333,101 @@ export default function AuditCenter() {
                                             trendLabel={trendLabel}
                                         />
                                     </Suspense>
+                                </div>
+                                <div className="audit-inbound-breakdown">
+                                    <div className="audit-inbound-breakdown-head">
+                                        <div>
+                                            <div className="audit-inbound-breakdown-title">{copy.traffic.inboundBreakdown}</div>
+                                            <div className="audit-inbound-breakdown-subtitle">{trafficWindowCopy.inboundBreakdownScope}</div>
+                                        </div>
+                                        <div className="audit-inbound-breakdown-total">
+                                            {formatBytes(userInboundBreakdownTotals.totalBytes || 0)}
+                                        </div>
+                                    </div>
+                                    {userInboundBreakdown.length === 0 ? (
+                                        <div className="audit-inbound-breakdown-empty">
+                                            {copy.traffic.inboundBreakdownEmpty}
+                                        </div>
+                                    ) : isCompactLayout ? (
+                                        <div className="audit-inbound-breakdown-list">
+                                            {userInboundBreakdown.map((item) => {
+                                                const shareLabel = formatTrafficShare(
+                                                    item.totalBytes,
+                                                    userInboundBreakdownTotals.totalBytes
+                                                );
+                                                const shareValue = userInboundBreakdownTotals.totalBytes > 0
+                                                    ? Math.max(0, Math.min(100, (Number(item.totalBytes || 0) / userInboundBreakdownTotals.totalBytes) * 100))
+                                                    : 0;
+                                                return (
+                                                    <div className="audit-inbound-breakdown-item" key={`${item.serverId || 'server'}-${item.inboundId || item.inboundRemark || 'inbound'}`}>
+                                                        <div className="audit-inbound-breakdown-item-head">
+                                                            <div>
+                                                                <div className="audit-inbound-breakdown-item-node">{item.serverName || item.serverId || '-'}</div>
+                                                                <div className="audit-inbound-breakdown-item-inbound">{formatInboundBreakdownLabel(item, copy)}</div>
+                                                            </div>
+                                                            <div className="audit-inbound-breakdown-item-total">{formatBytes(item.totalBytes || 0)}</div>
+                                                        </div>
+                                                        <div className="audit-inbound-breakdown-item-split">
+                                                            <span>{copy.traffic.uploadTraffic} {formatBytes(item.upBytes || 0)}</span>
+                                                            <span>{copy.traffic.downloadTraffic} {formatBytes(item.downBytes || 0)}</span>
+                                                        </div>
+                                                        <div className="audit-inbound-breakdown-item-share">
+                                                            <span>{shareLabel}</span>
+                                                            <span className="audit-inbound-share-track" aria-hidden="true">
+                                                                <span style={{ width: `${shareValue}%` }} />
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <div className="table-container audit-inbound-breakdown-table-container">
+                                            <table className="table audit-inbound-breakdown-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>{copy.tables.node}</th>
+                                                        <th>{copy.tables.inbound}</th>
+                                                        <th className="table-cell-right">{copy.traffic.uploadTraffic}</th>
+                                                        <th className="table-cell-right">{copy.traffic.downloadTraffic}</th>
+                                                        <th className="table-cell-right">{copy.tables.traffic}</th>
+                                                        <th className="table-cell-right">{copy.tables.share}</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {userInboundBreakdown.map((item) => {
+                                                        const shareLabel = formatTrafficShare(
+                                                            item.totalBytes,
+                                                            userInboundBreakdownTotals.totalBytes
+                                                        );
+                                                        const shareValue = userInboundBreakdownTotals.totalBytes > 0
+                                                            ? Math.max(0, Math.min(100, (Number(item.totalBytes || 0) / userInboundBreakdownTotals.totalBytes) * 100))
+                                                            : 0;
+                                                        return (
+                                                            <tr key={`${item.serverId || 'server'}-${item.inboundId || item.inboundRemark || 'inbound'}`}>
+                                                                <td data-label={copy.tables.node}>
+                                                                    <div className="audit-inbound-node-cell">
+                                                                        <span>{item.serverName || item.serverId || '-'}</span>
+                                                                        {item.serverId ? <span>{item.serverId}</span> : null}
+                                                                    </div>
+                                                                </td>
+                                                                <td data-label={copy.tables.inbound}>{formatInboundBreakdownLabel(item, copy)}</td>
+                                                                <td data-label={copy.traffic.uploadTraffic} className="table-cell-right cell-mono-right">{formatBytes(item.upBytes || 0)}</td>
+                                                                <td data-label={copy.traffic.downloadTraffic} className="table-cell-right cell-mono-right">{formatBytes(item.downBytes || 0)}</td>
+                                                                <td data-label={copy.tables.traffic} className="table-cell-right cell-mono-right">{formatBytes(item.totalBytes || 0)}</td>
+                                                                <td data-label={copy.tables.share} className="table-cell-right audit-inbound-share-cell">
+                                                                    <span>{shareLabel}</span>
+                                                                    <span className="audit-inbound-share-track" aria-hidden="true">
+                                                                        <span style={{ width: `${shareValue}%` }} />
+                                                                    </span>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 

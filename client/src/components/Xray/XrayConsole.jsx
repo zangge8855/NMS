@@ -26,6 +26,8 @@ function getCopy(locale = 'zh-CN') {
             refresh: 'Refresh',
             selectServer: 'Select a server',
             selectServerHint: 'Choose a node to manage its Xray settings.',
+            confirmServerTitle: 'Confirm target node',
+            confirmServerHint: 'A node is preselected. Open it to load Xray settings.',
             noServersHint: 'Add a server before managing Xray settings.',
             goToServers: 'Open Servers',
             serverSelectorLabel: 'Target node',
@@ -49,6 +51,8 @@ function getCopy(locale = 'zh-CN') {
         refresh: '刷新',
         selectServer: '请先选择节点',
         selectServerHint: '选择一个节点后管理它的 Xray 设置。',
+        confirmServerTitle: '确认目标节点',
+        confirmServerHint: '已预选节点，点击打开节点后加载 Xray 设置。',
         noServersHint: '请先添加服务器，再管理 Xray 设置。',
         goToServers: '前往服务器管理',
         serverSelectorLabel: '目标节点',
@@ -163,53 +167,56 @@ export default function XrayConsole() {
             {copy.goToServers}
         </button>
     );
+    const hasDraftServer = hasServers && Boolean(draftServerId);
 
     return (
         <>
             <Header title={copy.title} />
             <div className="page-content page-content--wide page-enter xray-page">
-                <PageToolbar
-                    className="card mb-6 xray-toolbar"
-                    compact
-                    main={(
-                        <div className="xray-toolbar-meta">
-                            <span className="text-sm text-muted">{copy.subtitle}</span>
-                            {source ? (
-                                <span className="badge badge-neutral">
-                                    <HiOutlineCheck /> {copy.sources[source] || source}
-                                </span>
-                            ) : null}
-                        </div>
-                    )}
-                    actions={(
-                        <>
-                            {isUsingPageServer && hasServers ? (
-                                <PageServerSelector
-                                    servers={serverList}
-                                    value={targetServerId}
-                                    onChange={setPageTargetServerId}
-                                    label={copy.serverSelectorLabel}
-                                    placeholder={copy.serverPlaceholder}
-                                />
-                            ) : null}
-                            <button
-                                type="button"
-                                className="btn btn-secondary btn-sm"
-                                onClick={loadConfig}
-                                disabled={!hasTargetServer || loading}
-                            >
-                                <HiOutlineArrowPath className={loading ? 'spinning' : ''} />
-                                {copy.refresh}
-                            </button>
-                        </>
-                    )}
-                />
+                {hasTargetServer ? (
+                    <PageToolbar
+                        className="card mb-6 xray-toolbar"
+                        compact
+                        main={(
+                            <div className="xray-toolbar-meta">
+                                <span className="text-sm text-muted">{copy.subtitle}</span>
+                                {source ? (
+                                    <span className="badge badge-neutral">
+                                        <HiOutlineCheck /> {copy.sources[source] || source}
+                                    </span>
+                                ) : null}
+                            </div>
+                        )}
+                        actions={(
+                            <>
+                                {isUsingPageServer && hasServers ? (
+                                    <PageServerSelector
+                                        servers={serverList}
+                                        value={targetServerId}
+                                        onChange={setPageTargetServerId}
+                                        label={copy.serverSelectorLabel}
+                                        placeholder={copy.serverPlaceholder}
+                                    />
+                                ) : null}
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={loadConfig}
+                                    disabled={loading}
+                                >
+                                    <HiOutlineArrowPath className={loading ? 'spinning' : ''} />
+                                    {copy.refresh}
+                                </button>
+                            </>
+                        )}
+                    />
+                ) : null}
 
                 {!hasTargetServer ? (
                     <EmptyState
                         icon={<HiOutlineExclamationTriangle />}
-                        title={copy.selectServer}
-                        subtitle={hasServers ? copy.selectServerHint : copy.noServersHint}
+                        title={hasDraftServer ? copy.confirmServerTitle : copy.selectServer}
+                        subtitle={hasServers ? (hasDraftServer ? copy.confirmServerHint : copy.selectServerHint) : copy.noServersHint}
                         surface
                         action={serverSelectionAction}
                     />

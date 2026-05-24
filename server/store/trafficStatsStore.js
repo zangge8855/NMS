@@ -666,6 +666,74 @@ class TrafficStatsStore {
         ));
     }
 
+    _aggregateInboundBreakdown(samples = []) {
+        const entryMap = new Map();
+        const totals = { upBytes: 0, downBytes: 0, totalBytes: 0 };
+
+        for (const sample of (Array.isArray(samples) ? samples : [])) {
+            const upBytes = toNonNegativeInt(sample?.upBytes, 0);
+            const downBytes = toNonNegativeInt(sample?.downBytes, 0);
+            const totalBytes = toNonNegativeInt(sample?.totalBytes, upBytes + downBytes);
+            if (totalBytes <= 0) continue;
+
+            totals.upBytes += upBytes;
+            totals.downBytes += downBytes;
+            totals.totalBytes += totalBytes;
+
+            const serverId = String(sample?.serverId || '').trim();
+            const inboundId = String(sample?.inboundId || '').trim();
+            const key = `${serverId || 'unknown-server'}::${inboundId || 'unknown-inbound'}`;
+            const ts = normalizeDateInput(sample?.ts, '');
+            const current = entryMap.get(key) || {
+                serverId,
+                serverName: String(sample?.serverName || serverId || '').trim(),
+                inboundId,
+                inboundRemark: String(sample?.inboundRemark || '').trim(),
+                upBytes: 0,
+                downBytes: 0,
+                totalBytes: 0,
+                sampleCount: 0,
+                firstSampleAt: '',
+                lastSampleAt: '',
+            };
+
+            if (!current.serverName && sample?.serverName) {
+                current.serverName = String(sample.serverName).trim();
+            }
+            if (!current.inboundRemark && sample?.inboundRemark) {
+                current.inboundRemark = String(sample.inboundRemark).trim();
+            }
+
+            current.upBytes += upBytes;
+            current.downBytes += downBytes;
+            current.totalBytes += totalBytes;
+            current.sampleCount += 1;
+
+            if (ts) {
+                if (!current.firstSampleAt || new Date(ts).getTime() < new Date(current.firstSampleAt).getTime()) {
+                    current.firstSampleAt = ts;
+                }
+                if (!current.lastSampleAt || new Date(ts).getTime() > new Date(current.lastSampleAt).getTime()) {
+                    current.lastSampleAt = ts;
+                }
+            }
+
+            entryMap.set(key, current);
+        }
+
+        return {
+            totals,
+            items: Array.from(entryMap.values())
+                .sort((left, right) => {
+                    const totalDiff = right.totalBytes - left.totalBytes;
+                    if (totalDiff !== 0) return totalDiff;
+                    const serverDiff = String(left.serverName || left.serverId).localeCompare(String(right.serverName || right.serverId));
+                    if (serverDiff !== 0) return serverDiff;
+                    return String(left.inboundRemark || left.inboundId).localeCompare(String(right.inboundRemark || right.inboundId));
+                }),
+        };
+    }
+
     _aggregateSnapshotDeltaTrend(samples, granularity, range = {}) {
         const bucketMap = new Map();
         const fromTs = Number.isFinite(range.fromTs) ? range.fromTs : Number.NEGATIVE_INFINITY;
@@ -1171,11 +1239,12 @@ class TrafficStatsStore {
     }
 
     getUserTrend(email, options = {}) {
+        const includeBreakdown = options.includeBreakdown === true;
         const userDirectory = buildResolvedTrafficUserDirectory(userStore.getAll());
         const userInfo = resolveTrafficUserInfo(email, userDirectory);
         const normalizedEmail = String(userInfo?.email || '').trim().toLowerCase();
         if (!normalizedEmail || !userInfo) {
-            return {
+            const emptyResult = {
                 email: normalizedEmail,
                 username: '',
                 displayLabel: normalizedEmail || '-',
@@ -1185,6 +1254,13 @@ class TrafficStatsStore {
                 points: [],
                 totals: { upBytes: 0, downBytes: 0, totalBytes: 0 },
             };
+            if (includeBreakdown) {
+                emptyResult.breakdown = {
+                    totals: { upBytes: 0, downBytes: 0, totalBytes: 0 },
+                    items: [],
+                };
+            }
+            return emptyResult;
         }
         const range = this._buildTimeRange(options, { defaultDays: 30 });
         const selectedGranularity = String(options.granularity || 'auto').toLowerCase();
@@ -1204,7 +1280,7 @@ class TrafficStatsStore {
             return acc;
         }, { upBytes: 0, downBytes: 0, totalBytes: 0 });
 
-        return {
+        const result = {
             email: normalizedEmail,
             username: userInfo.username,
             displayLabel: userInfo.displayLabel,
@@ -1214,6 +1290,10 @@ class TrafficStatsStore {
             points,
             totals,
         };
+        if (includeBreakdown) {
+            result.breakdown = this._aggregateInboundBreakdown(samples);
+        }
+        return result;
     }
 
     getServerTrend(serverId, options = {}) {

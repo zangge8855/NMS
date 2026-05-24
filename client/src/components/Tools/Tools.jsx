@@ -74,6 +74,8 @@ export default function Tools() {
                 catalogLoadFailed: 'Failed to load node tools',
                 selectServerFirst: 'Select a server first',
                 selectServerHint: 'Node tools only run against a single server. Choose a node to continue.',
+                confirmServerTitle: 'Confirm target node',
+                confirmServerHint: 'A node is preselected. Open it to load the available tools.',
                 noServersHint: 'Add a server before running node tools.',
                 goToServers: 'Open Servers',
                 serverSelectorLabel: 'Target node',
@@ -98,6 +100,8 @@ export default function Tools() {
                 catalogLoadFailed: '加载节点工具失败',
                 selectServerFirst: '请先选择一台服务器',
                 selectServerHint: '节点工具仅支持单节点执行，选择一个节点后继续。',
+                confirmServerTitle: '确认目标节点',
+                confirmServerHint: '已预选节点，点击打开节点后加载可用工具。',
                 noServersHint: '请先添加服务器，再运行节点工具。',
                 goToServers: '前往服务器管理',
                 serverSelectorLabel: '目标节点',
@@ -185,6 +189,7 @@ export default function Tools() {
     const toolbarMeta = copy.meta
         .replace('{enabled}', String(enabledTools.length))
         .replace('{total}', String(tools.length));
+    const hasDraftServer = hasServers && Boolean(draftServerId);
 
     const handleGenerate = async (tool) => {
         if (!hasTargetServer) {
@@ -248,8 +253,8 @@ export default function Tools() {
                 <Header title={t('pages.tools.title')} />
                 <div className="page-content page-content--wide page-enter tools-page">
                     <EmptyState
-                        title={copy.selectServerFirst}
-                        subtitle={hasServers ? copy.selectServerHint : copy.noServersHint}
+                        title={hasDraftServer ? copy.confirmServerTitle : copy.selectServerFirst}
+                        subtitle={hasServers ? (hasDraftServer ? copy.confirmServerHint : copy.selectServerHint) : copy.noServersHint}
                         icon={<HiOutlineWrench style={{ fontSize: '48px' }} />}
                         surface
                         action={serverSelectionAction}
