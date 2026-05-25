@@ -565,6 +565,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
 
                             <input
                                 className={keywordInputClassName}
+                                aria-label={t('pages.logs.keywordPlaceholder')}
                                 placeholder={t('pages.logs.keywordPlaceholder')}
                                 value={keywords}
                                 onChange={e => setKeywords(e.target.value)}

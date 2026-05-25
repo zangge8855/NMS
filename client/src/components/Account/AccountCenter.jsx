@@ -292,6 +292,7 @@ export default function AccountCenter() {
                                 <input
                                     id="account-username"
                                     className="form-input"
+                                    aria-label={copy.username}
                                     value={username}
                                     onChange={(event) => setUsername(event.target.value)}
                                     autoComplete="username"
@@ -312,6 +313,7 @@ export default function AccountCenter() {
                                     id="account-email"
                                     type="email"
                                     className="form-input"
+                                    aria-label={copy.email}
                                     value={email}
                                     onChange={(event) => setEmail(event.target.value)}
                                     autoComplete="email"
@@ -324,6 +326,7 @@ export default function AccountCenter() {
                                     <input
                                         id="account-profile-code"
                                         className="form-input"
+                                        aria-label={copy.profileVerifyCode}
                                         inputMode="numeric"
                                         autoComplete="one-time-code"
                                         value={profileCode}
@@ -369,6 +372,7 @@ export default function AccountCenter() {
                                     id="account-current-password"
                                     type="password"
                                     className="form-input"
+                                    aria-label={copy.currentPassword}
                                     value={oldPassword}
                                     onChange={(event) => setOldPassword(event.target.value)}
                                     autoComplete="current-password"
@@ -380,6 +384,7 @@ export default function AccountCenter() {
                                     id="account-new-password"
                                     type="password"
                                     className="form-input"
+                                    aria-label={copy.newPassword}
                                     value={newPassword}
                                     onChange={(event) => setNewPassword(event.target.value)}
                                     autoComplete="new-password"
@@ -391,6 +396,7 @@ export default function AccountCenter() {
                                     id="account-confirm-password"
                                     type="password"
                                     className="form-input"
+                                    aria-label={copy.confirmPassword}
                                     value={confirmPassword}
                                     onChange={(event) => setConfirmPassword(event.target.value)}
                                     autoComplete="new-password"

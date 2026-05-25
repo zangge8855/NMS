@@ -2029,6 +2029,7 @@ export default function AuditCenter() {
                                     <div className="audit-filter-grid audit-filter-grid--events-primary">
                                         <input
                                             className="form-input"
+                                            aria-label={copy.filters.keyword}
                                             placeholder={copy.filters.keyword}
                                             value={eventFilters.q}
                                             onChange={(e) => setEventFilters((prev) => ({ ...prev, q: e.target.value }))}
@@ -2066,24 +2067,28 @@ export default function AuditCenter() {
                                         <div className="audit-filter-grid audit-filter-grid--events-secondary">
                                             <input
                                                 className="form-input"
+                                                aria-label={copy.filters.eventType}
                                                 placeholder={copy.filters.eventType}
                                                 value={eventFilters.eventType}
                                                 onChange={(e) => setEventFilters((prev) => ({ ...prev, eventType: e.target.value }))}
                                             />
                                             <input
                                                 className="form-input"
+                                                aria-label={copy.filters.actor}
                                                 placeholder={copy.filters.actor}
                                                 value={eventFilters.actor}
                                                 onChange={(e) => setEventFilters((prev) => ({ ...prev, actor: e.target.value }))}
                                             />
                                             <input
                                                 className="form-input"
+                                                aria-label={copy.filters.userOrEmail}
                                                 placeholder={copy.filters.userOrEmail}
                                                 value={eventFilters.targetEmail}
                                                 onChange={(e) => setEventFilters((prev) => ({ ...prev, targetEmail: e.target.value }))}
                                             />
                                             <input
                                                 className="form-input"
+                                                aria-label={copy.filters.serverId}
                                                 placeholder={copy.filters.serverId}
                                                 value={eventFilters.serverId}
                                                 onChange={(e) => setEventFilters((prev) => ({ ...prev, serverId: e.target.value }))}
@@ -2694,6 +2699,7 @@ export default function AuditCenter() {
                                 </label>
                                 <input
                                     className="form-input"
+                                    aria-label={copy.filters.userEmailFilter}
                                     placeholder={copy.filters.userEmailFilter}
                                     value={accessFilters.email}
                                     onChange={(e) => setAccessFilters((prev) => ({ ...prev, email: e.target.value }))}
@@ -2711,18 +2717,21 @@ export default function AuditCenter() {
                                 </select>
                                 <input
                                     className="form-input"
+                                    aria-label={copy.filters.realIp}
                                     placeholder={copy.filters.realIp}
                                     value={accessFilters.ip}
                                     onChange={(e) => setAccessFilters((prev) => ({ ...prev, ip: e.target.value }))}
                                 />
                                 <input
                                     className="form-input"
+                                    aria-label={copy.filters.tokenId}
                                     placeholder={copy.filters.tokenId}
                                     value={accessFilters.tokenId}
                                     onChange={(e) => setAccessFilters((prev) => ({ ...prev, tokenId: e.target.value }))}
                                 />
                                 <input
                                     className="form-input"
+                                    aria-label={copy.filters.serverId}
                                     placeholder={copy.filters.serverId}
                                     value={accessFilters.serverId}
                                     onChange={(e) => setAccessFilters((prev) => ({ ...prev, serverId: e.target.value }))}

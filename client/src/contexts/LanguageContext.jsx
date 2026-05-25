@@ -6,6 +6,11 @@ import { getNavItemForPath } from '../components/Layout/navConfig.js';
 const LanguageContext = createContext(null);
 const STORAGE_KEY = 'nms_locale';
 
+const ROUTE_TITLE_FALLBACKS = {
+  '/logs': 'pages.logs.title',
+  '/capabilities': 'pages.capabilities.title',
+};
+
 function getStoredLocale() {
   if (typeof window === 'undefined') return DEFAULT_LOCALE;
   const stored = window.localStorage.getItem(STORAGE_KEY);
@@ -36,7 +41,10 @@ export function LanguageProvider({ children }) {
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const item = getNavItemForPath(location.pathname);
-    const pageTitle = item ? (typeof item.label === 'object' ? item.label[locale] : item.label) : '';
+    const fallbackTitlePath = ROUTE_TITLE_FALLBACKS[location.pathname];
+    const pageTitle = item
+      ? (typeof item.label === 'object' ? item.label[locale] : item.label)
+      : (fallbackTitlePath ? getLocaleMessage(locale, fallbackTitlePath) : '');
     const subtitle = String(getLocaleMessage(locale, 'shell.brandSubtitle') || '').trim();
     if (pageTitle) {
       document.title = `${pageTitle} · NMS`;

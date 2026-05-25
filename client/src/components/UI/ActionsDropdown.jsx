@@ -5,7 +5,7 @@ import { HiOutlineEllipsisVertical } from 'react-icons/hi2';
 
 export default function ActionsDropdown({
     trigger,
-    actions = [], // list of { label, icon: Icon, onClick, isDanger, isSuccess, disabled, hidden }
+    actions = [], // list of { label, title, icon: Icon, onClick, isDanger, isSuccess, disabled, hidden }
     align = 'right',
 }) {
     const [isOpen, setIsOpen] = useState(false);
@@ -139,6 +139,7 @@ export default function ActionsDropdown({
                             type="button"
                             className={classes}
                             role="menuitem"
+                            title={action.title || action.label}
                             disabled={action.disabled}
                             onClick={(e) => handleActionClick(e, action.onClick, action.disabled)}
                         >

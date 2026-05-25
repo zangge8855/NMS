@@ -376,6 +376,7 @@ function SettingsToggleCard({
                 ) : null}
                 <input
                     type="checkbox"
+                    aria-label={label}
                     className="settings-toggle-input"
                     checked={checked}
                     onChange={onChange}
@@ -1738,6 +1739,7 @@ export default function SystemSettings() {
                                     <div className="settings-inline-action-row">
                                         <input
                                             className="form-input font-mono"
+                                            aria-label="首页访问路径"
                                             placeholder="/"
                                             value={draft.site.accessPath}
                                             onChange={(e) => patchField('site', 'accessPath', e.target.value)}
@@ -1753,7 +1755,7 @@ export default function SystemSettings() {
                                 </div>
                                 <div className="form-group mb-0">
                                     <label className="form-label">生成后的访问地址</label>
-                                    <input className="form-input font-mono" value={siteEntryPreview} readOnly />
+                                    <input className="form-input font-mono" aria-label="生成后的访问地址" value={siteEntryPreview} readOnly />
                                 </div>
                             </div>
                             <div className="settings-form-cluster settings-form-cluster--camouflage">
@@ -1766,6 +1768,7 @@ export default function SystemSettings() {
                                         <label className="form-label">伪装模板</label>
                                         <select
                                             className="form-select"
+                                            aria-label="伪装模板"
                                             value={draft.site.camouflageTemplate}
                                             onChange={(e) => patchField('site', 'camouflageTemplate', e.target.value)}
                                         >
@@ -1778,6 +1781,7 @@ export default function SystemSettings() {
                                         <label className="form-label">伪装站点标题</label>
                                         <input
                                             className="form-input"
+                                            aria-label="伪装站点标题"
                                             value={draft.site.camouflageTitle}
                                             onChange={(e) => patchField('site', 'camouflageTitle', e.target.value)}
                                             placeholder="City Field Notes"
@@ -1808,6 +1812,7 @@ export default function SystemSettings() {
                                     <input
                                         id="subscription-public-base-url"
                                         className="form-input"
+                                        aria-label="订阅公网地址"
                                         placeholder="https://nms.example.com"
                                         value={draft.subscription.publicBaseUrl}
                                         onChange={(e) => patchField('subscription', 'publicBaseUrl', e.target.value)}
@@ -1825,6 +1830,7 @@ export default function SystemSettings() {
                                     <input
                                         id="subscription-converter-base-url"
                                         className="form-input"
+                                        aria-label="外部订阅转换器地址"
                                         placeholder="https://converter.example.com"
                                         value={converterBaseUrl}
                                         onChange={(e) => patchField('subscription', 'converterBaseUrl', e.target.value)}
@@ -1836,6 +1842,7 @@ export default function SystemSettings() {
                                     <input
                                         id="subscription-converter-clash-config-url"
                                         className="form-input font-mono"
+                                        aria-label="Clash / Mihomo Config URL"
                                         placeholder="https://worker.example.com/subconverter?selectedRules=balanced"
                                         value={converterClashConfigUrl}
                                         onChange={(e) => patchField('subscription', 'converterClashConfigUrl', e.target.value)}
@@ -1847,6 +1854,7 @@ export default function SystemSettings() {
                                     <input
                                         id="subscription-converter-singbox-config-url"
                                         className="form-input font-mono"
+                                        aria-label="sing-box Config URL"
                                         placeholder="https://worker.example.com/subconverter?selectedRules=balanced"
                                         value={converterSingboxConfigUrl}
                                         onChange={(e) => patchField('subscription', 'converterSingboxConfigUrl', e.target.value)}
@@ -1858,6 +1866,7 @@ export default function SystemSettings() {
                                     <input
                                         id="subscription-converter-surge-config-url"
                                         className="form-input font-mono"
+                                        aria-label="Surge Config URL"
                                         placeholder="https://worker.example.com/subconverter?selectedRules=balanced"
                                         value={converterSurgeConfigUrl}
                                         onChange={(e) => patchField('subscription', 'converterSurgeConfigUrl', e.target.value)}
@@ -1948,6 +1957,7 @@ export default function SystemSettings() {
                                                 <label className="form-label">本次生成数量</label>
                                                 <input
                                                     className="form-input"
+                                                    aria-label="本次生成数量"
                                                     type="number"
                                                     min={1}
                                                     max={50}
@@ -1962,6 +1972,7 @@ export default function SystemSettings() {
                                                 <label className="form-label">每个邀请码可用次数</label>
                                                 <input
                                                     className="form-input"
+                                                    aria-label="每个邀请码可用次数"
                                                     type="number"
                                                     min={1}
                                                     max={1000}
@@ -1976,6 +1987,7 @@ export default function SystemSettings() {
                                                 <label className="form-label">开通时长（天）</label>
                                                 <input
                                                     className="form-input"
+                                                    aria-label="开通时长（天）"
                                                     type="number"
                                                     min={0}
                                                     max={3650}
@@ -2022,6 +2034,7 @@ export default function SystemSettings() {
                                                 <label className="form-label">开通时长（天）</label>
                                                 <input
                                                     className="form-input"
+                                                    aria-label="开通时长（天）"
                                                     type="number"
                                                     min={0}
                                                     max={3650}
@@ -2222,23 +2235,23 @@ export default function SystemSettings() {
                             <div className="settings-field-grid settings-field-grid--compact">
                                 <div className="form-group">
                                     <label className="form-label">中风险阈值</label>
-                                    <input className="form-input" type="number" min={1} value={draft.security.mediumRiskMinTargets} onChange={(e) => patchField('security', 'mediumRiskMinTargets', toInt(e.target.value, 20))} />
+                                    <input className="form-input" aria-label="中风险阈值" type="number" min={1} value={draft.security.mediumRiskMinTargets} onChange={(e) => patchField('security', 'mediumRiskMinTargets', toInt(e.target.value, 20))} />
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">高风险阈值</label>
-                                    <input className="form-input" type="number" min={1} value={draft.security.highRiskMinTargets} onChange={(e) => patchField('security', 'highRiskMinTargets', toInt(e.target.value, 100))} />
+                                    <input className="form-input" aria-label="高风险阈值" type="number" min={1} value={draft.security.highRiskMinTargets} onChange={(e) => patchField('security', 'highRiskMinTargets', toInt(e.target.value, 100))} />
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">确认令牌有效期（秒）</label>
-                                    <input className="form-input" type="number" min={30} value={draft.security.riskTokenTtlSeconds} onChange={(e) => patchField('security', 'riskTokenTtlSeconds', toInt(e.target.value, 180))} />
+                                    <input className="form-input" aria-label="确认令牌有效期（秒）" type="number" min={30} value={draft.security.riskTokenTtlSeconds} onChange={(e) => patchField('security', 'riskTokenTtlSeconds', toInt(e.target.value, 180))} />
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">审计保留天数</label>
-                                    <input className="form-input" type="number" min={1} value={draft.audit.retentionDays} onChange={(e) => patchField('audit', 'retentionDays', toInt(e.target.value, 365))} />
+                                    <input className="form-input" aria-label="审计保留天数" type="number" min={1} value={draft.audit.retentionDays} onChange={(e) => patchField('audit', 'retentionDays', toInt(e.target.value, 365))} />
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">审计分页最大条数</label>
-                                    <input className="form-input" type="number" min={20} value={draft.audit.maxPageSize} onChange={(e) => patchField('audit', 'maxPageSize', toInt(e.target.value, 200))} />
+                                    <input className="form-input" aria-label="审计分页最大条数" type="number" min={20} value={draft.audit.maxPageSize} onChange={(e) => patchField('audit', 'maxPageSize', toInt(e.target.value, 200))} />
                                 </div>
                             </div>
                         </div>
@@ -2262,6 +2275,7 @@ export default function SystemSettings() {
                                     <label className="form-label">Provider</label>
                                     <input
                                         className="form-input"
+                                        aria-label="Provider"
                                         value={draft.auditIpGeo.provider}
                                         onChange={(e) => patchField('auditIpGeo', 'provider', e.target.value)}
                                         placeholder="ip_api"
@@ -2271,6 +2285,7 @@ export default function SystemSettings() {
                                     <label className="form-label">超时（毫秒）</label>
                                     <input
                                         className="form-input"
+                                        aria-label="超时（毫秒）"
                                         type="number"
                                         min={100}
                                         value={draft.auditIpGeo.timeoutMs}
@@ -2281,6 +2296,7 @@ export default function SystemSettings() {
                                     <label className="form-label">缓存 TTL（秒）</label>
                                     <input
                                         className="form-input"
+                                        aria-label="缓存 TTL（秒）"
                                         type="number"
                                         min={60}
                                         value={draft.auditIpGeo.cacheTtlSeconds}
@@ -2291,6 +2307,7 @@ export default function SystemSettings() {
                                     <label className="form-label">查询端点</label>
                                     <input
                                         className="form-input font-mono"
+                                        aria-label="查询端点"
                                         value={draft.auditIpGeo.endpoint}
                                         onChange={(e) => patchField('auditIpGeo', 'endpoint', e.target.value)}
                                         placeholder="http://ip-api.com/json/{ip}?fields=status,country,regionName,city"
@@ -2434,6 +2451,7 @@ export default function SystemSettings() {
                                 <input
                                     id="telegram-chat-id"
                                     className={`form-input${shouldMaskTelegramChatId ? ' settings-sensitive-display' : ''}`}
+                                    aria-label="Chat ID / 群组 ID"
                                     type="text"
                                     inputMode={shouldMaskTelegramChatId ? undefined : 'numeric'}
                                     value={shouldMaskTelegramChatId ? telegramMaskedDisplayValue : draft.telegram.chatId}
@@ -2459,6 +2477,7 @@ export default function SystemSettings() {
                             <input
                                 id="telegram-bot-token"
                                 className="form-input"
+                                aria-label="Bot Token"
                                 type="password"
                                 value={draft.telegram.botToken}
                                 onChange={(event) => patchTelegramToken(event.target.value)}
@@ -2892,6 +2911,7 @@ export default function SystemSettings() {
                                         <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
                                             <input
                                                 type="checkbox"
+                                                aria-label="read=db 时同步加载到内存缓存"
                                                 checked={dbModeDraft.hydrateOnReadDb}
                                                 onChange={(event) => setDbModeDraft((prev) => ({ ...prev, hydrateOnReadDb: event.target.checked }))}
                                                 disabled={!isAdmin}
@@ -2921,6 +2941,7 @@ export default function SystemSettings() {
                                         <label className="form-label">数据键（逗号分隔，留空表示全部）</label>
                                         <input
                                             className="form-input"
+                                            aria-label="数据键（逗号分隔，留空表示全部）"
                                             value={dbBackfillDraft.keysText}
                                             onChange={(event) => setDbBackfillDraft((prev) => ({ ...prev, keysText: event.target.value }))}
                                             placeholder={(dbStatus.storeKeys || []).join(', ')}
@@ -2932,6 +2953,7 @@ export default function SystemSettings() {
                                         <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
                                             <input
                                                 type="checkbox"
+                                                aria-label="仅预演"
                                                 checked={dbBackfillDraft.dryRun}
                                                 onChange={(event) => setDbBackfillDraft((prev) => ({ ...prev, dryRun: event.target.checked }))}
                                                 disabled={!isAdmin}
@@ -2941,6 +2963,7 @@ export default function SystemSettings() {
                                         <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
                                             <input
                                                 type="checkbox"
+                                                aria-label="脱敏写入"
                                                 checked={dbBackfillDraft.redact}
                                                 onChange={(event) => setDbBackfillDraft((prev) => ({ ...prev, redact: event.target.checked }))}
                                                 disabled={!isAdmin}
@@ -3460,6 +3483,7 @@ export default function SystemSettings() {
                                 <label className="form-check-label w-fit mt-2">
                                     <input
                                         type="checkbox"
+                                        aria-label="包含已停用账号"
                                         checked={noticeDraft.includeDisabled}
                                         onChange={(event) => setNoticeDraft((prev) => ({ ...prev, includeDisabled: event.target.checked }))}
                                     />
@@ -3633,6 +3657,7 @@ export default function SystemSettings() {
                         <label className="settings-restore-checkbox">
                             <input
                                 type="checkbox"
+                                aria-label="确认恢复会覆盖当前同名数据"
                                 checked={backupRestoreConfirmed}
                                 onChange={(event) => setBackupRestoreConfirmed(event.target.checked)}
                             />

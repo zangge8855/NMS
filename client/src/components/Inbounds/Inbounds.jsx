@@ -1162,6 +1162,7 @@ export default function Inbounds() {
                             <label className="inbounds-client-mobile-check">
                                 <input
                                     type="checkbox"
+                                    aria-label={t('pages.inbounds.selectClient', { name: cl.email || clientIdentifier || idx + 1 })}
                                     checked={isClientSelected}
                                     onChange={() => toggleClientSelect(selectionKey)}
                                     className="cursor-pointer"
@@ -1262,6 +1263,7 @@ export default function Inbounds() {
                                 actions={[
                                     {
                                         label: toggleLabel,
+                                        title: toggleTitle,
                                         icon: cl.enable !== false ? HiOutlineXMark : HiOutlineCheck,
                                         onClick: () => handleToggleClientEnabled(ib, cl),
                                         disabled: isActioning,
@@ -1401,6 +1403,7 @@ export default function Inbounds() {
                                     <th className="cell-checkbox">
                                         <input
                                             type="checkbox"
+                                            aria-label={t('pages.inbounds.selectAllRows')}
                                             checked={filteredInbounds.length > 0 && selectedVisibleCount === filteredInbounds.length}
                                             onChange={toggleSelectAll}
                                             className="cursor-pointer"
@@ -1483,6 +1486,7 @@ export default function Inbounds() {
                                                 <td data-label="" onClick={e => e.stopPropagation()} className="text-center mobile-checkbox-cell">
                                                     <input
                                                         type="checkbox"
+                                                        aria-label={t('pages.inbounds.selectInboundRow', { name: ib.remark || ib.port || ib.id })}
                                                         checked={isSelected}
                                                         onChange={() => toggleSelect(ib.uiKey)}
                                                         className="cursor-pointer"
@@ -1698,6 +1702,7 @@ export default function Inbounds() {
                                                                         <th className="cell-checkbox">
                                                                             <input
                                                                                 type="checkbox"
+                                                                                aria-label={t('pages.inbounds.selectAllClients')}
                                                                                 checked={allInboundClientsSelected}
                                                                                 onChange={() => toggleSelectAllInboundClients(ib, clients)}
                                                                                 className="cursor-pointer"
@@ -1738,6 +1743,7 @@ export default function Inbounds() {
                                                                             <td data-label="" onClick={(e) => e.stopPropagation()} className="text-center mobile-checkbox-cell">
                                                                                 <input
                                                                                     type="checkbox"
+                                                                                    aria-label={t('pages.inbounds.selectClient', { name: cl.email || clientIdentifier || idx + 1 })}
                                                                                     checked={isClientSelected}
                                                                                     onChange={() => toggleClientSelect(selectionKey)}
                                                                                     className="cursor-pointer"
@@ -1836,6 +1842,7 @@ export default function Inbounds() {
                                                                                         actions={[
                                                                                             {
                                                                                                 label: toggleLabel,
+                                                                                                title: toggleTitle,
                                                                                                 icon: cl.enable !== false ? HiOutlineXMark : HiOutlineCheck,
                                                                                                 onClick: () => handleToggleClientEnabled(ib, cl),
                                                                                                 disabled: isActioning,

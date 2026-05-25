@@ -1025,6 +1025,7 @@ export default function UsersHub() {
                     <label className="users-mobile-check">
                         <input
                             type="checkbox"
+                            aria-label={t('pages.usersHub.selectUser', { name: user.username || user.email || user.id })}
                             checked={selectedIds.has(user.id)}
                             onChange={() => toggleSelect(user.id)}
                         />
@@ -1748,6 +1749,7 @@ export default function UsersHub() {
                             <HiOutlineMagnifyingGlass className="account-search-icon" />
                             <input
                                 className="form-input account-search-input"
+                                aria-label={t('pages.usersHub.toolbar.searchPlaceholder')}
                                 placeholder={t('pages.usersHub.toolbar.searchPlaceholder')}
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -1810,6 +1812,7 @@ export default function UsersHub() {
                             <label className="users-mobile-list-toggle">
                                 <input
                                     type="checkbox"
+                                    aria-label={t('pages.usersHub.selectAllRows')}
                                     checked={enrichedUsers.length > 0 && selectedUsers.length === enrichedUsers.length}
                                     onChange={toggleSelectAll}
                                 />
@@ -1879,7 +1882,12 @@ export default function UsersHub() {
                             <thead>
                                 <tr>
                                     <th className="users-select-column">
-                                        <input type="checkbox" checked={enrichedUsers.length > 0 && selectedUsers.length === enrichedUsers.length} onChange={toggleSelectAll} />
+                                        <input
+                                            type="checkbox"
+                                            aria-label={t('pages.usersHub.selectAllRows')}
+                                            checked={enrichedUsers.length > 0 && selectedUsers.length === enrichedUsers.length}
+                                            onChange={toggleSelectAll}
+                                        />
                                     </th>
                                     <th>
                                         <button
@@ -1921,7 +1929,14 @@ export default function UsersHub() {
                                             className={`users-row ${selectedIds.has(user.id) ? 'users-row-selected table-row-selected' : ''}${selectedIds.size > 0 ? ' table-row-selectable' : ''}`}
                                             onClick={selectedIds.size > 0 ? () => toggleSelect(user.id) : undefined}
                                         >
-                                                <td className="mobile-checkbox-cell users-select-cell" data-label="" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selectedIds.has(user.id)} onChange={() => toggleSelect(user.id)} /></td>
+                                                <td className="mobile-checkbox-cell users-select-cell" data-label="" onClick={(e) => e.stopPropagation()}>
+                                                    <input
+                                                        type="checkbox"
+                                                        aria-label={t('pages.usersHub.selectUser', { name: user.username || user.email || user.id })}
+                                                        checked={selectedIds.has(user.id)}
+                                                        onChange={() => toggleSelect(user.id)}
+                                                    />
+                                                </td>
                                                 <td data-label={t('pages.usersHub.cols.sequence')} onClick={(e) => e.stopPropagation()}>
                                                     <span className="cell-mono users-sequence-number">{sequenceNumber}</span>
                                                 </td>

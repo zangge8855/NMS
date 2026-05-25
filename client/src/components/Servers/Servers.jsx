@@ -852,6 +852,7 @@ export default function Servers() {
                     <label className="servers-mobile-check" onClick={(e) => e.stopPropagation()}>
                         <input
                             type="checkbox"
+                            aria-label={t('pages.servers.selectServer', { name: server.name || server.id })}
                             className="checkbox"
                             checked={isSelected}
                             disabled={rowBusy}
@@ -966,6 +967,7 @@ export default function Servers() {
                         <>
                             <input
                                 className="form-input servers-filter-search"
+                                aria-label={uiText.searchPlaceholder}
                                 placeholder={uiText.searchPlaceholder}
                                 value={searchKeyword}
                                 onChange={(e) => setSearchKeyword(e.target.value)}
@@ -1135,6 +1137,7 @@ export default function Servers() {
                                     <td className="table-cell-center mobile-checkbox-cell" data-label="" onClick={(e) => e.stopPropagation()}>
                                         <input
                                             type="checkbox"
+                                            aria-label={t('pages.servers.selectServer', { name: server.name || server.id })}
                                             className="checkbox"
                                             checked={isSelected}
                                             disabled={rowBusy}

@@ -649,6 +649,7 @@ export default function Dashboard() {
         dashboardBootstrapRef.current?.throughputSummary || { ...EMPTY_THROUGHPUT_SUMMARY }
     ));
     const liveGlobalDataAtRef = useRef(0);
+    const globalFallbackInFlightRef = useRef(false);
 
     // Shared State
     const [loading, setLoading] = useState(() => dashboardBootstrapRef.current?.hasRenderableData !== true);
@@ -676,6 +677,22 @@ export default function Dashboard() {
     const clusterThroughput = useMemo(
         () => summarizeClusterThroughput(serverTrendHistory),
         [serverTrendHistory]
+    );
+    const hasAnyServerStatus = useMemo(
+        () => Object.keys(serverStatuses || {}).length > 0,
+        [serverStatuses]
+    );
+    const hasAnyReadyTrafficWindow = useMemo(
+        () => Object.values(trafficWindowTotals || {}).some((window) => window?.ready === true),
+        [trafficWindowTotals]
+    );
+    const hasRenderableGlobalData = (
+        hasAnyServerStatus
+        || globalAccountSummary.totalUsers > 0
+        || globalManagedOnlineCount !== null
+        || globalOnlineUsers.length > 0
+        || throughputSummary.ready === true
+        || hasAnyReadyTrafficWindow
     );
     const resetTrafficWindows = useCallback(() => {
         setTrafficWindowTotals(buildInitialTrafficWindowTotals());
@@ -843,11 +860,7 @@ export default function Dashboard() {
 
     useEffect(() => {
         if (activeServerId !== 'global') return;
-        const hasSnapshotData = (
-            Object.keys(serverStatuses || {}).length > 0
-            || globalAccountSummary.totalUsers > 0
-            || Object.values(trafficWindowTotals || {}).some((window) => window?.ready === true)
-        );
+        const hasSnapshotData = hasAnyServerStatus || globalAccountSummary.totalUsers > 0 || hasAnyReadyTrafficWindow;
         if (!hasSnapshotData) return;
         writeSessionSnapshot(DASHBOARD_SNAPSHOT_KEY, {
             globalStats,
@@ -868,6 +881,8 @@ export default function Dashboard() {
         globalOnlineUsers,
         globalPresenceReady,
         globalStats,
+        hasAnyReadyTrafficWindow,
+        hasAnyServerStatus,
         serverStatuses,
         throughputSummary,
         trafficWindowTotals,
@@ -950,36 +965,43 @@ export default function Dashboard() {
     }, [activeServerId]);
 
     useEffect(() => {
-        if (activeServerId !== 'global') return undefined;
-        const hasRenderableGlobalData = (
-            Object.keys(serverStatuses || {}).length > 0
-            || globalAccountSummary.totalUsers > 0
-            || globalManagedOnlineCount !== null
-            || globalOnlineUsers.length > 0
-            || throughputSummary.ready === true
-            || Object.values(trafficWindowTotals || {}).some((window) => window?.ready === true)
-        );
+        if (activeServerId !== 'global') {
+            globalFallbackInFlightRef.current = false;
+            return undefined;
+        }
         setLoading(!hasRenderableGlobalData);
+        if (hasRenderableGlobalData) {
+            globalFallbackInFlightRef.current = false;
+            return undefined;
+        }
         if (hasLiveClusterSnapshot) {
+            globalFallbackInFlightRef.current = false;
             setLoading(false);
+            return undefined;
+        }
+        const runFallbackFetch = () => {
+            if (globalFallbackInFlightRef.current) return;
+            globalFallbackInFlightRef.current = true;
+            fetchGlobalData().finally(() => {
+                globalFallbackInFlightRef.current = false;
+            });
+        };
+        if (wsStatus !== 'connected') {
+            runFallbackFetch();
             return undefined;
         }
         const timer = window.setTimeout(() => {
             if (!hasLiveClusterSnapshot) {
-                fetchGlobalData();
+                runFallbackFetch();
             }
         }, GLOBAL_WS_GRACE_MS);
         return () => window.clearTimeout(timer);
     }, [
         activeServerId,
         fetchGlobalData,
-        globalAccountSummary.totalUsers,
-        globalManagedOnlineCount,
-        globalOnlineUsers.length,
+        hasRenderableGlobalData,
         hasLiveClusterSnapshot,
-        serverStatuses,
-        throughputSummary.ready,
-        trafficWindowTotals,
+        wsStatus,
     ]);
 
     useEffect(() => {
