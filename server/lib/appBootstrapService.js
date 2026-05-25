@@ -38,6 +38,20 @@ const AUDIT_TRAFFIC_MONTH_WINDOW = 'this_month';
 const AUDIT_ACCESS_WEEK_DAYS = 7;
 const AUDIT_ACCESS_MONTH_DAYS = 30;
 
+function coerceFiniteNumber(value) {
+    if (value === undefined || value === null || value === '') return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
+function firstFiniteNumber(...values) {
+    for (const value of values) {
+        const parsed = coerceFiniteNumber(value);
+        if (parsed !== null) return parsed;
+    }
+    return 0;
+}
+
 function buildDashboardAccountSummary() {
     const rows = userStore.getAll().filter((item) => item?.role !== 'admin');
     return {
@@ -281,17 +295,31 @@ function buildDashboardSnapshot(telemetryOverview = {}) {
 
     const telemetryItems = Array.isArray(telemetryOverview?.items) ? telemetryOverview.items : [];
     const onlineServersFallback = telemetryItems.filter((item) => item?.current?.online === true).length;
+    cachedPanelSnapshots.forEach((snapshot) => {
+        const serverId = String(snapshot?.server?.id || snapshot?.serverId || '').trim();
+        if (!serverId || !serverStatuses[serverId]) return;
+        if (!Array.isArray(snapshot?.inbounds)) return;
+        const inbounds = snapshot.inbounds;
+        serverStatuses[serverId].inboundCount = inbounds.length;
+        serverStatuses[serverId].activeInbounds = inbounds.filter((item) => item?.enable !== false).length;
+    });
+    const derivedInboundTotals = Object.values(serverStatuses).reduce((acc, item) => {
+        acc.total += Number(item?.inboundCount || 0);
+        acc.active += Number(item?.activeInbounds || 0);
+        return acc;
+    }, { total: 0, active: 0 });
+    const hasCachedPanelInbounds = cachedPanelSnapshots.some((snapshot) => Array.isArray(snapshot?.inbounds));
 
     return {
         serverStatuses,
         globalStats: {
-            totalUp: Number(summary?.totalUp || 0),
-            totalDown: Number(summary?.totalDown || 0),
-            totalOnline: presence ? presence.onlineRows.length : Number(summary?.totalOnline || 0),
-            totalInbounds: Number(summary?.totalInbounds || 0),
-            activeInbounds: Number(summary?.activeInbounds || 0),
-            serverCount: Number(summary?.total || telemetryItems.length || 0),
-            onlineServers: Number(summary?.onlineServers || onlineServersFallback || 0),
+            totalUp: firstFiniteNumber(summary?.totalUp, 0),
+            totalDown: firstFiniteNumber(summary?.totalDown, 0),
+            totalOnline: presence ? presence.onlineRows.length : firstFiniteNumber(summary?.totalOnline, 0),
+            totalInbounds: hasCachedPanelInbounds ? derivedInboundTotals.total : firstFiniteNumber(summary?.totalInbounds, 0),
+            activeInbounds: hasCachedPanelInbounds ? derivedInboundTotals.active : firstFiniteNumber(summary?.activeInbounds, 0),
+            serverCount: firstFiniteNumber(summary?.total, telemetryItems.length, 0),
+            onlineServers: firstFiniteNumber(summary?.onlineServers, onlineServersFallback, 0),
         },
         globalManagedOnlineCount: presence ? presence.onlineRows.length : null,
         globalOnlineUsers: presence?.onlineRows || [],

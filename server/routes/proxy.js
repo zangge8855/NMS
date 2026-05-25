@@ -50,7 +50,7 @@ function safeDecodePathSegment(value = '') {
 async function tryCompatPanelRequest(client, method, panelPath, body = {}) {
     if (method !== 'POST') return null;
 
-    if (panelPath === '/panel/api/inbounds/onlines') {
+    if (panelPath === '/panel/api/clients/onlines' || panelPath === '/panel/api/inbounds/onlines') {
         return fetchPanelOnlineClients(client);
     }
 

@@ -680,6 +680,11 @@ async function buildGlobalDashboardSnapshot(options = {}, deps = {}) {
         }, server?.name);
         return acc;
     }, {});
+    const derivedInboundTotals = Object.values(serverStatuses).reduce((acc, item) => {
+        acc.total += Number(item?.inboundCount || 0);
+        acc.active += Number(item?.activeInbounds || 0);
+        return acc;
+    }, { total: 0, active: 0 });
 
     return {
         serverStatuses,
@@ -687,8 +692,8 @@ async function buildGlobalDashboardSnapshot(options = {}, deps = {}) {
             totalUp: Number(presence.totalUp || 0),
             totalDown: Number(presence.totalDown || 0),
             totalOnline: presence.onlineRows.length,
-            totalInbounds: Number(clusterSnapshot?.summary?.totalInbounds || 0),
-            activeInbounds: Number(clusterSnapshot?.summary?.activeInbounds || 0),
+            totalInbounds: derivedInboundTotals.total,
+            activeInbounds: derivedInboundTotals.active,
             serverCount: Number(clusterSnapshot?.summary?.total || servers.length || 0),
             onlineServers: Number(clusterSnapshot?.summary?.onlineServers || 0),
         },

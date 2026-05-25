@@ -97,3 +97,37 @@ test('online count — panel /onlines hit still counted per-server (real distinc
     // Real panel-reported sessions remain scoped by serverId, so two distinct nodes = 2 sessions
     assert.equal(result.onlineSessionCount, 2, 'real panel-reported sessions on two different servers should count as 2');
 });
+
+test('online count — official 3x-ui /clients/onlines email strings match managed users', () => {
+    const users = [
+        { id: 'u1', role: 'user', email: 'alice@example.com', subscriptionEmail: 'alice@example.com', enabled: true },
+        { id: 'u2', role: 'user', email: 'bob@example.com', subscriptionEmail: 'bob@example.com', enabled: true },
+    ];
+    const snapshots = [
+        {
+            server: { id: 'sv-1', name: 'Node 1' },
+            inbounds: [
+                {
+                    protocol: 'vless',
+                    settings: {
+                        clients: [
+                            { id: 'uuid-a', email: 'alice@example.com' },
+                            { id: 'uuid-b', email: 'bob@example.com' },
+                        ],
+                    },
+                    clientStats: [
+                        { id: 'uuid-a', email: 'alice@example.com', up: 100, down: 200 },
+                        { id: 'uuid-b', email: 'bob@example.com', up: 300, down: 400 },
+                    ],
+                },
+            ],
+            onlines: ['alice@example.com'],
+        },
+    ];
+
+    const result = buildDashboardPresenceFromPanelSnapshots(users, snapshots);
+
+    assert.equal(result.onlineRows.length, 1);
+    assert.equal(result.onlineRows[0].email, 'alice@example.com');
+    assert.equal(result.onlineSessionCount, 1);
+});

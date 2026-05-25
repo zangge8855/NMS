@@ -1016,6 +1016,102 @@ describe('Dashboard', () => {
         });
     });
 
+    it('does not overwrite a ready managed online count with a not-ready zero websocket snapshot', async () => {
+        const never = new Promise(() => {});
+        writeSessionSnapshot('dashboard_global_v1', createGlobalDashboardSnapshot({
+            serverStatuses: {
+                'server-a': {
+                    serverId: 'server-a',
+                    name: 'Node A',
+                    online: true,
+                    inboundCount: 1,
+                    activeInbounds: 1,
+                    managedOnlineCount: 1,
+                    managedTrafficTotal: 0,
+                    managedTrafficReady: true,
+                    nodeRemarks: [],
+                    nodeRemarkPreview: [],
+                    nodeRemarkCount: 0,
+                    status: {},
+                },
+            },
+            globalStats: {
+                totalUp: 0,
+                totalDown: 0,
+                totalOnline: 1,
+                totalInbounds: 1,
+                activeInbounds: 1,
+                serverCount: 1,
+                onlineServers: 1,
+            },
+            globalOnlineUsers: [
+                { userId: 'u1', email: 'alice@example.com', displayName: 'Alice', sessions: 1 },
+            ],
+            globalManagedOnlineCount: 1,
+            globalOnlineSessionCount: 1,
+            globalAccountSummary: {
+                totalUsers: 1,
+                pendingUsers: 0,
+            },
+            globalPresenceReady: true,
+        }));
+        webSocketState = {
+            status: 'connected',
+            lastMessage: {
+                type: 'cluster_status',
+                data: {
+                    serverCount: 1,
+                    onlineServers: 1,
+                    totalInbounds: 1,
+                    activeInbounds: 1,
+                    accountSummary: {
+                        totalUsers: 1,
+                        pendingUsers: 0,
+                    },
+                    managedOnlineUserCount: 0,
+                    managedOnlineSessionCount: 0,
+                    managedOnlineUsers: [],
+                    managedPresenceReady: false,
+                    servers: {
+                        'server-a': {
+                            name: 'Node A',
+                            online: true,
+                            health: 'healthy',
+                            reasonCode: 'none',
+                            reasonMessage: '',
+                            status: {},
+                            inboundCount: 1,
+                            activeInbounds: 1,
+                        },
+                    },
+                },
+            },
+        };
+
+        useServer.mockReturnValue({
+            activeServerId: 'global',
+            panelApi: vi.fn(),
+            activeServer: null,
+            servers: [{ id: 'server-a', name: 'Node A' }],
+        });
+        api.get.mockImplementation((url) => {
+            if (url === '/servers/dashboard/snapshot') {
+                return never;
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<Dashboard />, { route: '/' });
+
+        const onlineCard = screen.getByText('总在线用户').closest('[role="button"]');
+        if (!onlineCard) throw new Error('Missing online users card');
+
+        await waitFor(() => {
+            expect(onlineCard).toHaveTextContent('1');
+            expect(onlineCard).not.toHaveTextContent('0');
+        });
+    });
+
     it('renders websocket throughput summaries immediately without waiting for a second client sample', async () => {
         const never = new Promise(() => {});
         webSocketState = {

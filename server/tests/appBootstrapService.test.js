@@ -1,6 +1,13 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildAppBootstrapPayload } from '../lib/appBootstrapService.js';
+import {
+    collectClusterStatusSnapshot,
+    resetClusterStatusSnapshotCache,
+} from '../lib/serverStatusService.js';
+import { invalidateServerPanelSnapshotCache } from '../lib/serverPanelSnapshotService.js';
+import serverStore from '../store/serverStore.js';
+import serverTelemetryStore from '../store/serverTelemetryStore.js';
 const trafficStatsStore = (await import('../store/trafficStatsStore.js')).default;
 
 describe('app bootstrap service', () => {
@@ -154,6 +161,71 @@ describe('app bootstrap service', () => {
         } finally {
             trafficStatsStore.collectIfStale = originalCollectIfStale;
             trafficStatsStore.getOverviewBatch = originalGetOverviewBatch;
+        }
+    });
+
+    it('does not replace a fresh zero online-node count with stale telemetry', async () => {
+        const originalServerState = serverStore.exportState();
+        const originalTelemetry = JSON.parse(JSON.stringify(serverTelemetryStore.samplesByServerId || {}));
+        const originalCollectIfStale = trafficStatsStore.collectIfStale;
+
+        resetClusterStatusSnapshotCache();
+        invalidateServerPanelSnapshotCache();
+        trafficStatsStore.collectIfStale = async () => ({
+            collected: false,
+            lastCollectionAt: null,
+            samplesAdded: 0,
+            warnings: [],
+        });
+
+        try {
+            serverStore.importState({
+                servers: [{
+                    id: 'server-a',
+                    name: 'Node A',
+                    url: 'http://127.0.0.1:65535',
+                    basePath: '/',
+                    username: '',
+                    password: '',
+                    apiToken: '',
+                    health: 'healthy',
+                }],
+            });
+            const error = new Error('connect ECONNREFUSED 127.0.0.1:65535');
+            error.code = 'ECONNREFUSED';
+            await collectClusterStatusSnapshot({
+                force: true,
+                includeDetails: false,
+                servers: [{ id: 'server-a', name: 'Node A', health: 'healthy' }],
+                ensureAuthenticated: async () => {
+                    throw error;
+                },
+            });
+            serverTelemetryStore.samplesByServerId = {
+                'server-a': [{
+                    ts: new Date().toISOString(),
+                    serverName: 'Node A',
+                    online: true,
+                    latencyMs: 12,
+                    health: 'healthy',
+                    reasonCode: 'none',
+                }],
+            };
+
+            const payload = await buildAppBootstrapPayload({
+                role: 'admin',
+                userId: 'admin-1',
+            }, { profile: 'shell' });
+
+            assert.equal(payload.dashboard.globalStats.serverCount, 1);
+            assert.equal(payload.dashboard.globalStats.onlineServers, 0);
+        } finally {
+            serverStore.importState(originalServerState);
+            serverTelemetryStore.samplesByServerId = originalTelemetry;
+            serverTelemetryStore.persist();
+            trafficStatsStore.collectIfStale = originalCollectIfStale;
+            resetClusterStatusSnapshotCache();
+            invalidateServerPanelSnapshotCache();
         }
     });
 });

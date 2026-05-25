@@ -173,6 +173,63 @@ test('buildGlobalDashboardSnapshot returns managed-user presence and traffic win
     assert.equal(snapshot.globalOnlineUsers[0].sessions, 3);
 });
 
+test('buildGlobalDashboardSnapshot derives inbound totals from panel snapshots when status polling skips details', async () => {
+    const snapshot = await buildGlobalDashboardSnapshot({ force: true }, {
+        serverStore: {
+            getAll: () => [
+                { id: 'server-a', name: 'Node A' },
+            ],
+        },
+        userStore: {
+            getAll: () => [],
+        },
+        trafficStatsStore: {
+            collectIfStale: async () => null,
+            getOverview: (options) => (options?.top ? { topUsers: [] } : { managedTotals: { upBytes: 0, downBytes: 0 } }),
+        },
+        collectClusterStatusSnapshot: async () => ({
+            summary: {
+                total: 1,
+                onlineServers: 1,
+                totalInbounds: 0,
+                activeInbounds: 0,
+                throughput: {
+                    ready: false,
+                    readyServers: 0,
+                    upPerSecond: 0,
+                    downPerSecond: 0,
+                    totalPerSecond: 0,
+                },
+            },
+            byServerId: {
+                'server-a': {
+                    serverId: 'server-a',
+                    name: 'Node A',
+                    online: true,
+                    inboundCount: 0,
+                    activeInbounds: 0,
+                    status: {},
+                },
+            },
+        }),
+        getServerPanelSnapshots: async () => [
+            {
+                server: { id: 'server-a', name: 'Node A' },
+                inbounds: [
+                    { id: 'ib-a', protocol: 'vless', enable: true, settings: JSON.stringify({ clients: [] }) },
+                    { id: 'ib-b', protocol: 'vless', enable: false, settings: JSON.stringify({ clients: [] }) },
+                ],
+                onlines: [],
+            },
+        ],
+    });
+
+    assert.equal(snapshot.serverStatuses['server-a'].inboundCount, 2);
+    assert.equal(snapshot.serverStatuses['server-a'].activeInbounds, 1);
+    assert.equal(snapshot.globalStats.totalInbounds, 2);
+    assert.equal(snapshot.globalStats.activeInbounds, 1);
+});
+
 test('buildGlobalDashboardSnapshot waits for traffic sampling before computing traffic windows', async () => {
     let resolveTrafficSampling = null;
     let getOverviewCalls = 0;

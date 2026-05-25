@@ -83,6 +83,11 @@ function normalizeGlobalStatsSnapshot(stats = {}) {
     };
 }
 
+function finiteNumberOrFallback(value, fallback = 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 function normalizeStoredTrafficWindowTotals(windows = {}) {
     const normalizeWindow = (key) => {
         const unattributedUp = Number(windows?.[key]?.unattributedUp || 0);
@@ -778,6 +783,10 @@ export default function Dashboard() {
         const activeInbounds = Number.isFinite(Number(data.activeInbounds))
             ? Number(data.activeInbounds)
             : derivedActiveInbounds;
+        const managedPresenceReady = data?.managedPresenceReady === true;
+        const wsManagedOnlineCount = Number(data?.managedOnlineUserCount);
+        const shouldApplyManagedOnlineCount = managedPresenceReady
+            || (Number.isFinite(wsManagedOnlineCount) && wsManagedOnlineCount > 0);
         setHasLiveClusterSnapshot(true);
         setServerStatuses((previous) => {
             const next = {};
@@ -798,13 +807,13 @@ export default function Dashboard() {
         setGlobalStats((previous) => ({
             totalUp: Number(data.totalUp || 0),
             totalDown: Number(data.totalDown || 0),
-            totalOnline: Number.isFinite(Number(data.managedOnlineUserCount))
-                ? Number(data.managedOnlineUserCount)
+            totalOnline: shouldApplyManagedOnlineCount
+                ? finiteNumberOrFallback(data.managedOnlineUserCount, previous.totalOnline)
                 : previous.totalOnline,
             totalInbounds,
             activeInbounds,
-            serverCount: data.serverCount || 0,
-            onlineServers: data.onlineServers || 0,
+            serverCount: finiteNumberOrFallback(data.serverCount, previous.serverCount),
+            onlineServers: finiteNumberOrFallback(data.onlineServers, previous.onlineServers),
         }));
         if (data?.accountSummary && typeof data.accountSummary === 'object') {
             setGlobalAccountSummary({
@@ -818,14 +827,16 @@ export default function Dashboard() {
         if (data?.trafficWindows && typeof data.trafficWindows === 'object') {
             syncTrafficWindowTotals(normalizeTrafficWindowPayload(data.trafficWindows));
         }
-        if (Number.isFinite(Number(data?.managedOnlineUserCount))) {
-            setGlobalManagedOnlineCount(Number(data.managedOnlineUserCount));
+        if (shouldApplyManagedOnlineCount) {
+            setGlobalManagedOnlineCount(finiteNumberOrFallback(data.managedOnlineUserCount, 0));
         }
-        if (Array.isArray(data?.managedOnlineUsers)) {
+        if (Array.isArray(data?.managedOnlineUsers) && (managedPresenceReady || data.managedOnlineUsers.length > 0)) {
             setGlobalOnlineUsers(data.managedOnlineUsers);
-            setGlobalOnlineSessionCount(Number(data?.managedOnlineSessionCount || 0));
-            setGlobalPresenceReady(data?.managedPresenceReady === true);
         }
+        if (shouldApplyManagedOnlineCount) {
+            setGlobalOnlineSessionCount(finiteNumberOrFallback(data?.managedOnlineSessionCount, 0));
+        }
+        setGlobalPresenceReady(managedPresenceReady);
         markGlobalDataLive();
         setLoading(false);
     }, [activeServerId, lastMessage, markGlobalDataLive, syncTrafficWindowTotals]);
