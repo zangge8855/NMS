@@ -13295,3 +13295,45 @@ input[type="radio"] {
   background: var(--surface-hover, rgba(51, 65, 85, 0.8));
   border-color: var(--border-stroke-hover, rgba(255, 255, 255, 0.15));
 }
+
+/* ==========================================================================
+   UI/UX Expert Alignment Sweep: Mobile Padding, Small Text line-height, Table borders
+   ========================================================================== */
+
+/* 1. Mobile Physical Safe Zone & Spacing Optimization (max-width: 768px) */
+@media (max-width: 768px) {
+  .page-content,
+  .page-content--wide {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    padding-top: 18px !important;
+    padding-bottom: 20px !important;
+  }
+}
+
+/* 2. Small Text line-height polish to prevent overlap of multi-line small fonts */
+.account-profile-verify-note,
+.account-twofactor-subtitle,
+.account-twofactor-meta,
+.account-twofactor-backup-hint,
+.header-search-item-meta,
+.sidebar-logo-subtitle {
+  line-height: 1.65 !important;
+}
+
+/* 3. Table Container Border & Nested Consistency Overrides */
+/* Standalone tables in page content */
+.page-content > .table-container,
+.page-content > div > .table-container {
+  border: 1px solid var(--border-color) !important;
+  border-radius: var(--radius-md) !important;
+  background: var(--table-container-bg) !important;
+  overflow: hidden;
+}
+
+/* Nested tables in card wrappers to eliminate busy double borders */
+.card .table-container {
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
