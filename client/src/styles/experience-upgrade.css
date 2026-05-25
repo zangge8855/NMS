@@ -7824,3 +7824,88 @@
   border-color: rgba(248, 113, 113, 0.15) !important;
 }
 
+/* ActionsDropdown Styles */
+.actions-dropdown-wrapper {
+  display: inline-block;
+  position: relative;
+}
+
+.actions-dropdown-panel {
+  z-index: 9999;
+  min-width: 150px;
+  max-width: 240px;
+  padding: 6px !important;
+  border-radius: 12px !important;
+  box-shadow: var(--shadow-lg) !important;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  opacity: 0;
+  transform: scale(0.96) translateY(4px);
+  transition: opacity 150ms cubic-bezier(0.16, 1, 0.3, 1), transform 150ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.actions-dropdown-panel.is-ready {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+.actions-dropdown-item {
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  padding: 8px 12px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 8px !important;
+  text-align: left !important;
+  cursor: pointer !important;
+  gap: 8px !important;
+  transition: all 0.15s ease !important;
+}
+
+.actions-dropdown-item:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: var(--accent-primary-hover, #38bdf8) !important;
+}
+
+[data-theme="light"] .actions-dropdown-item:hover:not(:disabled) {
+  background: rgba(14, 165, 233, 0.06) !important;
+  color: var(--accent-primary, #0ea5e9) !important;
+}
+
+.actions-dropdown-item.is-danger {
+  color: #f87171 !important;
+}
+
+.actions-dropdown-item.is-danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.1) !important;
+  color: #fca5a5 !important;
+}
+
+[data-theme="light"] .actions-dropdown-item.is-danger {
+  color: #dc2626 !important;
+}
+
+[data-theme="light"] .actions-dropdown-item.is-danger:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.08) !important;
+  color: #b91c1c !important;
+}
+
+.actions-dropdown-item.is-disabled {
+  opacity: 0.4 !important;
+  cursor: not-allowed !important;
+}
+
+.actions-dropdown-item-icon {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 15px !important;
+  flex-shrink: 0 !important;
+}
+
+

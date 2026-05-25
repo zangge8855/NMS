@@ -23,6 +23,7 @@ import { fetchServerPanelData, invalidateServerPanelDataCache } from '../../util
 import { readSessionSnapshot, SESSION_SNAPSHOT_EVENT, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
 import SubscriptionClientLinks from '../Subscriptions/SubscriptionClientLinks.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
+import ActionsDropdown from '../UI/ActionsDropdown.jsx';
 import toast from 'react-hot-toast';
 import {
     HiOutlinePlusCircle,
@@ -903,14 +904,24 @@ export default function UsersHub() {
         }
     };
 
-    const renderUserActionButtons = (user) => (
-        <>
-            <button className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn" title="详情" aria-label="详情" onClick={() => navigate(`/clients/${user.id}`)}>
-                <HiOutlineEye />
-                <span className="users-action-mobile-label">详情</span>
-            </button>
-            {user.status.key === 'pending' && (
-                <>
+    const renderUserActionButtons = (user) => {
+        const dropdownActions = [];
+
+        if (user.status.key === 'pending') {
+            dropdownActions.push({
+                label: '详情',
+                icon: HiOutlineEye,
+                onClick: () => navigate(`/clients/${user.id}`),
+            });
+            dropdownActions.push({
+                label: '删除',
+                icon: HiOutlineTrash,
+                onClick: () => handleDelete(user),
+                isDanger: true,
+            });
+
+            return (
+                <div className="flex items-center gap-2">
                     <button
                         className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn is-success"
                         title="通过审核"
@@ -920,19 +931,31 @@ export default function UsersHub() {
                         <HiOutlineCheck />
                         <span className="users-action-mobile-label">通过</span>
                     </button>
-                    <button
-                        className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn is-danger"
-                        title="删除"
-                        aria-label="删除"
-                        onClick={() => handleDelete(user)}
-                    >
-                        <HiOutlineTrash />
-                        <span className="users-action-mobile-label">删除</span>
-                    </button>
-                </>
-            )}
-            {user.status.key === 'enabled' && (
-                <>
+                    <ActionsDropdown actions={dropdownActions} />
+                </div>
+            );
+        }
+
+        if (user.status.key === 'enabled') {
+            dropdownActions.push({
+                label: '详情',
+                icon: HiOutlineEye,
+                onClick: () => navigate(`/clients/${user.id}`),
+            });
+            dropdownActions.push({
+                label: '编辑 / 状态',
+                icon: HiOutlinePencilSquare,
+                onClick: () => openEditModal(user),
+            });
+            dropdownActions.push({
+                label: '删除',
+                icon: HiOutlineTrash,
+                onClick: () => handleDelete(user),
+                isDanger: true,
+            });
+
+            return (
+                <div className="flex items-center gap-2">
                     <button
                         className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn is-primary"
                         title={copy.provisionAction}
@@ -942,72 +965,39 @@ export default function UsersHub() {
                         <HiOutlinePlusCircle />
                         <span className="users-action-mobile-label">开通</span>
                     </button>
-                    <button
-                        className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn"
-                        title="编辑 / 状态"
-                        aria-label="编辑 / 状态"
-                        onClick={() => openEditModal(user)}
-                    >
-                        <HiOutlinePencilSquare />
-                        <span className="users-action-mobile-label">编辑</span>
-                    </button>
-                    <button
-                        className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn is-danger"
-                        title="删除"
-                        aria-label="删除"
-                        onClick={() => handleDelete(user)}
-                    >
-                        <HiOutlineTrash />
-                        <span className="users-action-mobile-label">删除</span>
-                    </button>
-                </>
-            )}
-            {user.status.key === 'active' && (
-                <>
-                    <button
-                        className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn"
-                        title="编辑 / 状态"
-                        aria-label="编辑 / 状态"
-                        onClick={() => openEditModal(user)}
-                    >
-                        <HiOutlinePencilSquare />
-                        <span className="users-action-mobile-label">编辑</span>
-                    </button>
-                    <button
-                        className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn is-danger"
-                        title="删除"
-                        aria-label="删除"
-                        onClick={() => handleDelete(user)}
-                    >
-                        <HiOutlineTrash />
-                        <span className="users-action-mobile-label">删除</span>
-                    </button>
-                </>
-            )}
-            {user.status.key === 'disabled' && (
-                <>
-                    <button
-                        className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn"
-                        title="编辑 / 状态"
-                        aria-label="编辑 / 状态"
-                        onClick={() => openEditModal(user)}
-                    >
-                        <HiOutlinePencilSquare />
-                        <span className="users-action-mobile-label">编辑</span>
-                    </button>
-                    <button
-                        className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn is-danger"
-                        title="删除"
-                        aria-label="删除"
-                        onClick={() => handleDelete(user)}
-                    >
-                        <HiOutlineTrash />
-                        <span className="users-action-mobile-label">删除</span>
-                    </button>
-                </>
-            )}
-        </>
-    );
+                    <ActionsDropdown actions={dropdownActions} />
+                </div>
+            );
+        }
+
+        // active or disabled
+        dropdownActions.push({
+            label: '编辑 / 状态',
+            icon: HiOutlinePencilSquare,
+            onClick: () => openEditModal(user),
+        });
+        dropdownActions.push({
+            label: '删除',
+            icon: HiOutlineTrash,
+            onClick: () => handleDelete(user),
+            isDanger: true,
+        });
+
+        return (
+            <div className="flex items-center gap-2">
+                <button
+                    className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn"
+                    title="详情"
+                    aria-label="详情"
+                    onClick={() => navigate(`/clients/${user.id}`)}
+                >
+                    <HiOutlineEye />
+                    <span className="users-action-mobile-label">详情</span>
+                </button>
+                <ActionsDropdown actions={dropdownActions} />
+            </div>
+        );
+    };
 
     const renderMobileUserCard = (user, index) => {
         const sequenceNumber = sequenceDirection === 'asc'

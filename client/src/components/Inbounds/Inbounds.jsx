@@ -46,6 +46,7 @@ import InboundModal from './InboundModal.jsx';
 import ClientModal from '../Clients/ClientModal.jsx';
 import BatchResultModal from '../Batch/BatchResultModal.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
+import ActionsDropdown from '../UI/ActionsDropdown.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import ListToolbar from '../UI/ListToolbar.jsx';
 import SkeletonTable from '../UI/SkeletonTable.jsx';
@@ -1247,19 +1248,7 @@ export default function Inbounds() {
                             </span>
                         </div>
 
-                        <div className="inbounds-client-actions inbounds-client-mobile-actions">
-                            <button
-                                type="button"
-                                className={`btn btn-secondary btn-sm inbounds-client-action-btn ${cl.enable !== false ? 'is-danger' : 'is-success'}`}
-                                title={toggleTitle}
-                                disabled={isActioning}
-                                onClick={() => handleToggleClientEnabled(ib, cl)}
-                            >
-                                {isActioning
-                                    ? <span className="spinner" />
-                                    : (cl.enable !== false ? <HiOutlineXMark /> : <HiOutlineCheck />)}
-                                {toggleLabel}
-                            </button>
+                        <div className="inbounds-client-actions inbounds-client-mobile-actions flex gap-2">
                             <button
                                 type="button"
                                 className={`btn btn-secondary btn-sm inbounds-client-action-btn inbounds-client-limit-btn ${hasOverride ? 'is-active' : ''}`}
@@ -1269,15 +1258,23 @@ export default function Inbounds() {
                             >
                                 限制
                             </button>
-                            <button
-                                type="button"
-                                className="btn btn-secondary btn-sm inbounds-client-action-btn is-danger"
-                                title="删除该用户"
-                                disabled={isActioning}
-                                onClick={() => handleDeleteClient(ib, cl)}
-                            >
-                                <HiOutlineTrash /> 删除
-                            </button>
+                            <ActionsDropdown
+                                actions={[
+                                    {
+                                        label: toggleLabel,
+                                        icon: cl.enable !== false ? HiOutlineXMark : HiOutlineCheck,
+                                        onClick: () => handleToggleClientEnabled(ib, cl),
+                                        disabled: isActioning,
+                                    },
+                                    {
+                                        label: '删除',
+                                        icon: HiOutlineTrash,
+                                        onClick: () => handleDeleteClient(ib, cl),
+                                        isDanger: true,
+                                        disabled: isActioning,
+                                    }
+                                ]}
+                            />
                         </div>
                     </article>
                 );
@@ -1618,7 +1615,7 @@ export default function Inbounds() {
                                                     </div>
                                                 </td>
                                                 <td data-label={t('pages.inbounds.cols.actions')} className="table-cell-actions inbounds-actions-cell" onClick={(e) => e.stopPropagation()}>
-                                                    <div className="flex gap-2 inbounds-row-actions">
+                                                    <div className="flex gap-2 items-center inbounds-row-actions">
                                                         <button
                                                             className="btn btn-secondary btn-sm btn-icon table-action-btn inbounds-action-btn"
                                                             title={t('comp.common.edit')}
@@ -1627,32 +1624,26 @@ export default function Inbounds() {
                                                             <HiOutlinePencilSquare />
                                                             <span className="inbounds-action-mobile-label">{t('comp.common.edit')}</span>
                                                         </button>
-                                                        <button
-                                                            className={`btn btn-sm btn-icon table-action-btn inbounds-action-btn ${ib.enable ? 'btn-danger is-danger' : 'btn-success is-success'}`}
-                                                            title={ib.enable ? t('comp.common.disable') : t('comp.common.enable')}
-                                                            onClick={() => handleToggleInboundEnabled(ib)}
-                                                        >
-                                                            {ib.enable ? <HiOutlineXMark /> : <HiOutlineCheck />}
-                                                            <span className="inbounds-action-mobile-label">
-                                                                {ib.enable ? t('comp.common.disable') : t('comp.common.enable')}
-                                                            </span>
-                                                        </button>
-                                                        <button
-                                                            className="btn btn-secondary btn-sm btn-icon table-action-btn inbounds-action-btn"
-                                                            title={t('comp.inbounds.cleanupDepletedTitle')}
-                                                            onClick={() => handleCleanupDepletedClients(ib)}
-                                                        >
-                                                            <HiOutlineArrowPath />
-                                                            <span className="inbounds-action-mobile-label">{t('comp.inbounds.cleanupDepletedTitle')}</span>
-                                                        </button>
-                                                        <button
-                                                            className="btn btn-danger btn-sm btn-icon table-action-btn inbounds-action-btn is-danger"
-                                                            title={t('comp.common.delete')}
-                                                            onClick={() => handleDelete(ib)}
-                                                        >
-                                                            <HiOutlineTrash />
-                                                            <span className="inbounds-action-mobile-label">{t('comp.common.delete')}</span>
-                                                        </button>
+                                                        <ActionsDropdown
+                                                            actions={[
+                                                                {
+                                                                    label: ib.enable ? t('comp.common.disable') : t('comp.common.enable'),
+                                                                    icon: ib.enable ? HiOutlineXMark : HiOutlineCheck,
+                                                                    onClick: () => handleToggleInboundEnabled(ib),
+                                                                },
+                                                                {
+                                                                    label: t('comp.inbounds.cleanupDepletedTitle'),
+                                                                    icon: HiOutlineArrowPath,
+                                                                    onClick: () => handleCleanupDepletedClients(ib),
+                                                                },
+                                                                {
+                                                                    label: t('comp.common.delete'),
+                                                                    icon: HiOutlineTrash,
+                                                                    onClick: () => handleDelete(ib),
+                                                                    isDanger: true,
+                                                                }
+                                                            ]}
+                                                        />
                                                     </div>
                                                 </td>
                                             </tr>
@@ -1828,22 +1819,7 @@ export default function Inbounds() {
                                                                                 </div>
                                                                             </td>
                                                                             <td data-label="操作" className="table-cell-actions inbounds-clients-col-actions">
-                                                                                <div className="inbounds-client-actions flex gap-2">
-                                                                                    <button
-                                                                                        type="button"
-                                                                                        className={`btn btn-secondary btn-sm inbounds-client-action-btn ${cl.enable !== false ? 'is-danger' : 'is-success'}`}
-                                                                                        title={toggleTitle}
-                                                                                        disabled={isActioning}
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation();
-                                                                                            handleToggleClientEnabled(ib, cl);
-                                                                                        }}
-                                                                                    >
-                                                                                        {isActioning
-                                                                                            ? <span className="spinner" />
-                                                                                            : (cl.enable !== false ? <HiOutlineXMark /> : <HiOutlineCheck />)}
-                                                                                        {toggleLabel}
-                                                                                    </button>
+                                                                                <div className="inbounds-client-actions flex items-center gap-2">
                                                                                     <button
                                                                                         type="button"
                                                                                         className={`btn btn-secondary btn-sm inbounds-client-action-btn inbounds-client-limit-btn ${hasOverride ? 'is-active' : ''}`}
@@ -1856,18 +1832,23 @@ export default function Inbounds() {
                                                                                     >
                                                                                         限制
                                                                                     </button>
-                                                                                    <button
-                                                                                        type="button"
-                                                                                        className="btn btn-secondary btn-sm inbounds-client-action-btn is-danger"
-                                                                                        title="删除该用户"
-                                                                                        disabled={isActioning}
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation();
-                                                                                            handleDeleteClient(ib, cl);
-                                                                                        }}
-                                                                                    >
-                                                                                        <HiOutlineTrash /> 删除
-                                                                                    </button>
+                                                                                    <ActionsDropdown
+                                                                                        actions={[
+                                                                                            {
+                                                                                                label: toggleLabel,
+                                                                                                icon: cl.enable !== false ? HiOutlineXMark : HiOutlineCheck,
+                                                                                                onClick: () => handleToggleClientEnabled(ib, cl),
+                                                                                                disabled: isActioning,
+                                                                                            },
+                                                                                            {
+                                                                                                label: '删除',
+                                                                                                icon: HiOutlineTrash,
+                                                                                                onClick: () => handleDeleteClient(ib, cl),
+                                                                                                isDanger: true,
+                                                                                                disabled: isActioning,
+                                                                                            }
+                                                                                        ]}
+                                                                                    />
                                                                                 </div>
                                                                             </td>
                                                                         </tr>

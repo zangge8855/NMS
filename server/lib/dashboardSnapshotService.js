@@ -284,13 +284,14 @@ function buildManagedOnlineSummary(users, serverPayloads = [], activeTrafficEmai
                         matchedSet.add(key);
                     });
                 }
-                if (onlineSessions > 0 && serverName) {
+                const hasRealSession = matchedOnlineEntries.size > (matchedOnlineEntries.has('traffic_inferred') ? 1 : 0);
+                if (onlineSessions > 0 && serverName && hasRealSession) {
                     entry.servers.add(serverName);
                 }
-                if (onlineSessions > 0 && serverId) {
+                if (onlineSessions > 0 && serverId && hasRealSession) {
                     entry.serverIds.add(serverId);
                 }
-                if (onlineSessions > 0) {
+                if (onlineSessions > 0 && hasRealSession) {
                     const nodeLabel = String(inbound?.remark || '').trim() || serverName;
                     if (nodeLabel) {
                         entry.nodeLabels.add(nodeLabel);

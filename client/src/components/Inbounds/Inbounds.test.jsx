@@ -257,12 +257,15 @@ describe('Inbounds', () => {
         if (!bobRow) throw new Error('Missing Bob row');
 
         expect(within(aliceRow).getByText('在线')).toBeInTheDocument();
-        expect(within(aliceRow).getByRole('button', { name: /禁用/ })).toBeInTheDocument();
         expect(within(aliceRow).getByRole('button', { name: '限制' })).toBeInTheDocument();
         expect(within(aliceRow).queryByText('限定策略')).not.toBeInTheDocument();
 
+        await user.click(within(aliceRow).getByRole('button', { name: '操作菜单' }));
+        expect(await screen.findByRole('menuitem', { name: /禁用/ })).toBeInTheDocument();
+
         expect(within(bobRow).getByText('离线')).toBeInTheDocument();
-        expect(within(bobRow).getByRole('button', { name: /启用/ })).toBeInTheDocument();
+        await user.click(within(bobRow).getByRole('button', { name: '操作菜单' }));
+        expect(await screen.findByRole('menuitem', { name: /启用/ })).toBeInTheDocument();
     });
 
     it('renders a standalone empty state when the current scope has no inbounds', async () => {
@@ -319,7 +322,9 @@ describe('Inbounds', () => {
 
         expect(container.querySelector('.inbounds-clients-table')).toBeNull();
         expect(within(aliceCard).getByText('在线')).toBeInTheDocument();
-        expect(within(aliceCard).getByRole('button', { name: /禁用/ })).toBeInTheDocument();
+
+        await user.click(within(aliceCard).getByRole('button', { name: '操作菜单' }));
+        expect(await screen.findByRole('menuitem', { name: /禁用/ })).toBeInTheDocument();
     });
 
     it('prefers the expanded user-list traffic totals over stale inbound aggregate counters', async () => {

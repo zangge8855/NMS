@@ -33,8 +33,8 @@ const CpuHistoryChart = lazy(() => import('./CpuHistoryChart.jsx'));
 
 const AUTO_REFRESH_INTERVAL = 30_000;
 const GLOBAL_WS_GRACE_MS = 150;
-const MAX_SINGLE_ONLINE_ROWS = 120;
-const MAX_GLOBAL_ONLINE_ROWS = 200;
+const MAX_SINGLE_ONLINE_ROWS = 10000;
+const MAX_GLOBAL_ONLINE_ROWS = 10000;
 const MAX_NODE_TREND_POINTS = 12;
 const DASHBOARD_SNAPSHOT_KEY = 'dashboard_global_v1';
 const DASHBOARD_SNAPSHOT_TTL_MS = 90_000;

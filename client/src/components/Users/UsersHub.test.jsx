@@ -312,7 +312,8 @@ describe('UsersHub ordering', () => {
 
         expect(within(aliceRow).queryByRole('button', { name: '停用' })).not.toBeInTheDocument();
 
-        await user.click(within(aliceRow).getByRole('button', { name: '编辑 / 状态' }));
+        await user.click(within(aliceRow).getByRole('button', { name: '操作菜单' }));
+        await user.click(await screen.findByRole('menuitem', { name: '编辑 / 状态' }));
 
         expect(await screen.findByRole('button', { name: '启用' })).toBeInTheDocument();
         const disableButton = screen.getByRole('button', { name: '停用' });
@@ -671,7 +672,8 @@ describe('UsersHub ordering', () => {
         const aliceRow = aliceCell.closest('tr');
         if (!aliceRow) throw new Error('Missing Alice row');
 
-        await user.click(within(aliceRow).getByRole('button', { name: '编辑 / 状态' }));
+        await user.click(within(aliceRow).getByRole('button', { name: '操作菜单' }));
+        await user.click(await screen.findByRole('menuitem', { name: '编辑 / 状态' }));
         await screen.findByText('编辑用户 - alice');
 
         const emailInputs = document.querySelectorAll('.modal input[type="email"]');
