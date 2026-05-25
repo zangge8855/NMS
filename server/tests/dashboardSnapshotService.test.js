@@ -157,9 +157,9 @@ test('buildGlobalDashboardSnapshot returns managed-user presence and traffic win
     assert.equal(collectForce, true);
     assert.equal(snapshot.globalStats.totalUp, 220);
     assert.equal(snapshot.globalStats.totalDown, 440);
-    assert.equal(snapshot.globalStats.totalOnline, 1);
+    assert.equal(snapshot.globalStats.totalOnline, 2);
     assert.equal(snapshot.globalManagedOnlineCount, 1);
-    assert.equal(snapshot.globalOnlineSessionCount, 3);
+    assert.equal(snapshot.globalOnlineSessionCount, 4);
     assert.equal(snapshot.globalAccountSummary.totalUsers, 2);
     assert.equal(snapshot.globalAccountSummary.pendingUsers, 1);
     assert.equal(snapshot.throughputSummary.totalPerSecond, 36);

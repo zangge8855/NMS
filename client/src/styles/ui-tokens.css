@@ -2,181 +2,181 @@
 
 :root {
   /* Core base overrides for the admin console */
-  --bg-primary: #070b12;
-  --bg-secondary: #0b111a;
-  --bg-tertiary: #111827;
+  --bg-primary: #0a0a0f;
+  --bg-secondary: #12121a;
+  --bg-tertiary: #1a1a24;
 
-  --bg-card: rgba(15, 23, 42, 0.94);
-  --bg-card-hover: rgba(24, 34, 48, 0.96);
-  --bg-glass: rgba(255, 255, 255, 0.03);
-  --bg-input: rgba(11, 17, 26, 0.94);
+  --bg-card: rgba(18, 18, 26, 0.65);
+  --bg-card-hover: rgba(26, 26, 36, 0.75);
+  --bg-glass: rgba(255, 255, 255, 0.02);
+  --bg-input: rgba(18, 18, 26, 0.85);
 
-  --surface-panel: rgba(15, 23, 42, 0.94);
-  --surface-panel-hover: rgba(24, 34, 48, 0.96);
-  --surface-panel-soft: rgba(15, 23, 42, 0.78);
-  --surface-overlay: rgba(8, 13, 21, 0.98);
-  --chart-grid-color: rgba(148, 163, 184, 0.12);
+  --surface-panel: rgba(18, 18, 26, 0.65);
+  --surface-panel-hover: rgba(26, 26, 36, 0.75);
+  --surface-panel-soft: rgba(18, 18, 26, 0.45);
+  --surface-overlay: rgba(10, 10, 15, 0.85);
+  --chart-grid-color: rgba(255, 255, 255, 0.04);
 
   /* Curated fine borders */
-  --border-color: rgba(148, 163, 184, 0.16);
-  --border-highlight: rgba(14, 165, 233, 0.24);
-  --border-focus: rgba(14, 165, 233, 0.48);
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-highlight: rgba(56, 189, 248, 0.3);
+  --border-focus: rgba(56, 189, 248, 0.6);
 
   /* Text color & scaling */
-  --text-primary: #f8fafc;
-  --text-secondary: #cbd5e1;
-  --text-muted: #8b9aad;
-  --text-inverse: #05070c;
+  --text-primary: #ffffff;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-inverse: #000000;
   --text-on-accent: #ffffff;
 
   /* Blue/cyan operator accent */
-  --accent-primary: #2563eb;
-  --accent-primary-hover: #0284c7;
-  --accent-primary-glow: rgba(14, 165, 233, 0.14);
-  --accent-primary-bg: rgba(37, 99, 235, 0.12);
+  --accent-primary: #0ea5e9;
+  --accent-primary-hover: #38bdf8;
+  --accent-primary-glow: rgba(14, 165, 233, 0.35);
+  --accent-primary-bg: rgba(14, 165, 233, 0.15);
 
-  --gradient-primary: linear-gradient(135deg, #2563eb 0%, #0891b2 100%);
-  --gradient-surface: linear-gradient(180deg, rgba(15, 23, 42, 0.96) 0%, rgba(11, 17, 26, 0.98) 100%);
+  --gradient-primary: linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%);
+  --gradient-surface: linear-gradient(180deg, rgba(26, 26, 36, 0.75) 0%, rgba(18, 18, 26, 0.85) 100%);
 
   /* Quiet operational elevation */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.28);
-  --shadow-md: 0 10px 24px -18px rgba(0, 0, 0, 0.62);
-  --shadow-lg: 0 18px 40px -26px rgba(0, 0, 0, 0.68);
-  --shadow-2xl: 0 24px 64px -34px rgba(0, 0, 0, 0.72);
-  --shadow-glow: 0 10px 24px -20px rgba(14, 165, 233, 0.28);
-  --shadow-glow-primary: 0 14px 32px -24px rgba(14, 165, 233, 0.36);
+  --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.6);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+  --shadow-glow: 0 0 20px -5px var(--accent-primary-glow);
+  --shadow-glow-primary: 0 0 30px -5px rgba(14, 165, 233, 0.4);
 
   /* Extended Tokens */
-  --surface-elevated: #111827;
-  --surface-elevated-muted: #0b111a;
-  --surface-elevated-border: rgba(148, 163, 184, 0.18);
+  --surface-elevated: #1a1a24;
+  --surface-elevated-muted: #12121a;
+  --surface-elevated-border: rgba(255, 255, 255, 0.1);
   --surface-elevated-shadow: var(--shadow-lg);
-  --surface-elevated-hover: rgba(14, 165, 233, 0.08);
+  --surface-elevated-hover: rgba(56, 189, 248, 0.1);
   
-  --surface-card-bg: linear-gradient(180deg, rgba(17, 24, 39, 0.96) 0%, rgba(11, 17, 26, 0.98) 100%);
-  --surface-card-border: rgba(148, 163, 184, 0.16);
+  --surface-card-bg: linear-gradient(180deg, rgba(26, 26, 36, 0.7) 0%, rgba(18, 18, 26, 0.8) 100%);
+  --surface-card-border: rgba(255, 255, 255, 0.08);
   --surface-card-shadow: var(--shadow-md);
   --surface-card-shadow-hover: var(--shadow-lg);
   
-  --floating-panel-bg: rgba(15, 23, 42, 0.98);
-  --floating-panel-border: rgba(148, 163, 184, 0.2);
+  --floating-panel-bg: rgba(18, 18, 26, 0.85);
+  --floating-panel-border: rgba(255, 255, 255, 0.12);
   --floating-panel-shadow: var(--shadow-2xl);
   
-  --surface-table-header: rgba(11, 17, 26, 0.98);
-  --surface-table-row-hover: rgba(14, 165, 233, 0.08);
+  --surface-table-header: rgba(18, 18, 26, 0.85);
+  --surface-table-row-hover: rgba(56, 189, 248, 0.05);
   
   --focus-ring-border: var(--accent-primary);
-  --focus-ring-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px rgba(14, 165, 233, 0.48);
+  --focus-ring-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px rgba(56, 189, 248, 0.5);
   
-  --scrollbar-thumb-color: rgba(14, 165, 233, 0.2);
-  --scrollbar-thumb-hover: rgba(14, 165, 233, 0.42);
+  --scrollbar-thumb-color: rgba(56, 189, 248, 0.2);
+  --scrollbar-thumb-hover: rgba(56, 189, 248, 0.5);
   
-  --theme-transition-duration: 200ms;
+  --theme-transition-duration: 300ms;
 
   /* Dark theme form & component defaults */
-  --form-focus-bg: rgba(15, 23, 42, 0.96);
-  --btn-danger-hover-text: #ffd9d9;
-  --btn-success-hover-text: #d9ffe6;
-  --table-container-bg: rgba(11, 17, 26, 0.7);
-  --skeleton-from: rgba(14, 165, 233, 0.04);
-  --skeleton-via: rgba(255, 255, 255, 0.07);
-  --skeleton-to: rgba(14, 165, 233, 0.04);
+  --form-focus-bg: rgba(26, 26, 36, 0.85);
+  --btn-danger-hover-text: #fca5a5;
+  --btn-success-hover-text: #86efac;
+  --table-container-bg: rgba(18, 18, 26, 0.5);
+  --skeleton-from: rgba(56, 189, 248, 0.05);
+  --skeleton-via: rgba(255, 255, 255, 0.08);
+  --skeleton-to: rgba(56, 189, 248, 0.05);
 
   color-scheme: dark;
 }
 
 [data-theme="light"] {
   /* Core Base Overrides (From index.css) */
-  --bg-primary: #f8fafc;
+  --bg-primary: #f1f5f9;
   --bg-secondary: #ffffff;
-  --bg-tertiary: #f1f5f9;
+  --bg-tertiary: #e2e8f0;
 
-  --bg-card: rgba(255, 255, 255, 0.98);
-  --bg-card-hover: rgba(248, 250, 252, 0.98);
-  --bg-glass: rgba(255, 255, 255, 0.7);
+  --bg-card: rgba(255, 255, 255, 0.75);
+  --bg-card-hover: rgba(255, 255, 255, 0.95);
+  --bg-glass: rgba(255, 255, 255, 0.6);
   --bg-input: #ffffff;
   
-  --surface-panel: #ffffff;
-  --surface-panel-hover: #f8fafc;
-  --surface-panel-soft: #f1f5f9;
-  --surface-overlay: rgba(255, 255, 255, 0.98);
-  --chart-grid-color: rgba(0, 0, 0, 0.05);
+  --surface-panel: rgba(255, 255, 255, 0.75);
+  --surface-panel-hover: rgba(255, 255, 255, 0.95);
+  --surface-panel-soft: rgba(241, 245, 249, 0.65);
+  --surface-overlay: rgba(255, 255, 255, 0.85);
+  --chart-grid-color: rgba(0, 0, 0, 0.04);
 
-  --border-color: rgba(148, 163, 184, 0.2);
-  --border-highlight: rgba(148, 163, 184, 0.35);
-  --border-focus: rgba(2, 132, 199, 0.48);
-  --border-glass: 1px solid rgba(148, 163, 184, 0.15);
+  --border-color: rgba(0, 0, 0, 0.06);
+  --border-highlight: rgba(14, 165, 233, 0.25);
+  --border-focus: rgba(14, 165, 233, 0.5);
+  --border-glass: 1px solid rgba(0, 0, 0, 0.08);
 
   --text-primary: #0f172a;
-  --text-secondary: #334155;
-  --text-muted: #64748b;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
   --text-inverse: #ffffff;
   --text-on-accent: #ffffff;
 
-  --surface-soft: rgba(148, 163, 184, 0.08);
-  --surface-subtle: rgba(148, 163, 184, 0.04);
-  --surface-hover: rgba(148, 163, 184, 0.12);
-  --stroke-soft: rgba(148, 163, 184, 0.15);
-  --stroke-medium: rgba(148, 163, 184, 0.25);
-  --overlay-backdrop: rgba(15, 23, 42, 0.4);
-  --mobile-sheet-bg: rgba(255, 255, 255, 0.98);
+  --surface-soft: rgba(0, 0, 0, 0.03);
+  --surface-subtle: rgba(0, 0, 0, 0.015);
+  --surface-hover: rgba(0, 0, 0, 0.05);
+  --stroke-soft: rgba(0, 0, 0, 0.06);
+  --stroke-medium: rgba(0, 0, 0, 0.12);
+  --overlay-backdrop: rgba(15, 23, 42, 0.3);
+  --mobile-sheet-bg: rgba(255, 255, 255, 0.9);
   
   --log-bg: #f8fafc;
   --log-text: #1e293b;
 
-  --shadow-sm: 0 1px 2px rgba(148, 163, 184, 0.15);
-  --shadow-md: 0 4px 12px rgba(148, 163, 184, 0.12);
-  --shadow-lg: 0 8px 24px rgba(148, 163, 184, 0.15);
-  --shadow-2xl: 0 16px 48px rgba(148, 163, 184, 0.2);
-  --shadow-glow: 0 8px 20px -12px var(--accent-primary-glow);
-  --shadow-glow-primary: 0 12px 28px -16px rgba(2, 132, 199, 0.32);
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+  --shadow-glow: 0 0 20px -5px var(--accent-primary-glow);
+  --shadow-glow-primary: 0 0 30px -5px rgba(14, 165, 233, 0.2);
 
   /* Extended Tokens Overrides */
   --surface-elevated: #ffffff;
   --surface-elevated-muted: #f8fafc;
-  --surface-elevated-border: rgba(148, 163, 184, 0.22);
-  --surface-elevated-shadow: 0 4px 6px -1px rgba(148, 163, 184, 0.15), 0 2px 4px -1px rgba(148, 163, 184, 0.1);
+  --surface-elevated-border: rgba(0, 0, 0, 0.08);
+  --surface-elevated-shadow: var(--shadow-md);
   --surface-elevated-hover: #f1f5f9;
   
-  --surface-card-bg: #ffffff;
-  --surface-card-border: rgba(148, 163, 184, 0.2);
-  --surface-card-shadow: 0 4px 6px -1px rgba(148, 163, 184, 0.1), 0 2px 4px -1px rgba(148, 163, 184, 0.05);
-  --surface-card-shadow-hover: 0 10px 18px -10px rgba(148, 163, 184, 0.25), 0 4px 10px -4px rgba(148, 163, 184, 0.15);
+  --surface-card-bg: rgba(255, 255, 255, 0.85);
+  --surface-card-border: rgba(0, 0, 0, 0.06);
+  --surface-card-shadow: var(--shadow-sm);
+  --surface-card-shadow-hover: var(--shadow-md);
   
-  --floating-panel-bg: rgba(255, 255, 255, 0.98);
-  --floating-panel-border: rgba(148, 163, 184, 0.25);
-  --floating-panel-shadow: 0 12px 30px -18px rgba(148, 163, 184, 0.3), 0 4px 10px -4px rgba(148, 163, 184, 0.2);
+  --floating-panel-bg: rgba(255, 255, 255, 0.9);
+  --floating-panel-border: rgba(0, 0, 0, 0.08);
+  --floating-panel-shadow: var(--shadow-2xl);
   
-  --surface-table-header: rgba(248, 250, 252, 0.96);
-  --surface-table-row-hover: rgba(224, 242, 254, 0.78);
+  --surface-table-header: rgba(248, 250, 252, 0.85);
+  --surface-table-row-hover: rgba(14, 165, 233, 0.04);
   
-  --focus-ring-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px rgba(2, 132, 199, 0.44);
+  --focus-ring-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px rgba(14, 165, 233, 0.3);
   
-  --scrollbar-thumb-color: rgba(148, 163, 184, 0.3);
-  --scrollbar-thumb-hover: rgba(100, 116, 139, 0.5);
+  --scrollbar-thumb-color: rgba(14, 165, 233, 0.15);
+  --scrollbar-thumb-hover: rgba(14, 165, 233, 0.3);
 
   /* Adjust accents for better contrast in light mode */
-  --accent-primary-bg: rgba(37, 99, 235, 0.12);
-  --accent-success-bg: rgba(16, 185, 129, 0.15);
-  --accent-warning-bg: rgba(245, 158, 11, 0.15);
-  --accent-danger-bg: rgba(239, 68, 68, 0.15);
-  --accent-info-bg: rgba(59, 130, 246, 0.15);
+  --accent-primary: #0284c7;
+  --accent-primary-bg: rgba(2, 132, 199, 0.1);
+  --accent-success-bg: rgba(16, 185, 129, 0.1);
+  --accent-warning-bg: rgba(245, 158, 11, 0.1);
+  --accent-danger-bg: rgba(239, 68, 68, 0.1);
+  --accent-info-bg: rgba(59, 130, 246, 0.1);
 
   /* Light theme form & component overrides */
   --form-focus-bg: #ffffff;
-  --btn-danger-hover-text: #b91c1c;
-  --btn-success-hover-text: #047857;
-  --table-container-bg: rgba(255, 255, 255, 0.82);
-  --skeleton-from: rgba(2, 132, 199, 0.06);
-  --skeleton-via: rgba(148, 163, 184, 0.16);
-  --skeleton-to: rgba(2, 132, 199, 0.06);
-  --bg-card-hover: rgba(248, 250, 252, 0.98);
+  --btn-danger-hover-text: #991b1b;
+  --btn-success-hover-text: #065f46;
+  --table-container-bg: rgba(255, 255, 255, 0.6);
+  --skeleton-from: rgba(14, 165, 233, 0.04);
+  --skeleton-via: rgba(0, 0, 0, 0.06);
+  --skeleton-to: rgba(14, 165, 233, 0.04);
 
   color-scheme: light;
 }
 
 :where(html.theme-transition, body.theme-transition) {
-  --theme-transition-duration: 320ms;
+  --theme-transition-duration: 400ms;
 }
 
 /* Ensure global app backgrounds update smoothly */
@@ -190,6 +190,15 @@ body {
   color: var(--text-primary);
 }
 
+/* Base Glassmorphism utilities */
+.glass-panel {
+  background: var(--surface-panel);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+}
+
 .table-scroll,
 .table-container {
   scrollbar-width: thin;
@@ -198,8 +207,8 @@ body {
 
 .table-scroll::-webkit-scrollbar,
 .table-container::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 .table-scroll::-webkit-scrollbar-track,

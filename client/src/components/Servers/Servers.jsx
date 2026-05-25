@@ -608,9 +608,15 @@ export default function Servers() {
 
         if (successCount > 0) {
             closeCredentialRepair();
-            toast.success(`凭据已保存：${successCount}/${targetIds.length} 节点修复成功`);
+            const successMsg = locale === 'en-US'
+                ? `Credentials saved: ${successCount}/${targetIds.length} nodes repaired`
+                : `凭据已保存：${successCount}/${targetIds.length} 节点修复成功`;
+            toast.success(successMsg);
             if (failures.length > 0) {
-                toast.error(`仍有 ${failures.length} 个节点连接失败，请核对密码是否一致`);
+                const failMsg = locale === 'en-US'
+                    ? `Still ${failures.length} nodes failed to connect. Please verify passwords.`
+                    : `仍有 ${failures.length} 个节点连接失败，请核对密码是否一致`;
+                toast.error(failMsg);
             }
             return;
         }

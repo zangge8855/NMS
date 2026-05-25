@@ -4496,14 +4496,6 @@
   line-height: 1.5;
 }
 
-.settings-invite-table-shell {
-  border-radius: 18px;
-}
-
-.settings-invite-table td {
-  vertical-align: top;
-}
-
 .settings-invite-preview {
   display: grid;
   gap: 6px;

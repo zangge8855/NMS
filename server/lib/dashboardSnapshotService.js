@@ -170,6 +170,9 @@ function buildManagedOnlineSummary(users, serverPayloads = [], activeTrafficEmai
     const serverTrafficByServerId = {};
     const emailMatchedOnlineSessions = new Map();
 
+    const rawTotalOnlineUsers = new Set();
+    let rawTotalSessions = 0;
+
     (Array.isArray(users) ? users : [])
         .filter((user) => user?.role !== 'admin')
         .forEach((user) => {
@@ -186,6 +189,8 @@ function buildManagedOnlineSummary(users, serverPayloads = [], activeTrafficEmai
         const serverId = String(payload?.serverId || '').trim();
         const onlineMatchMap = new Map();
 
+        rawTotalSessions += onlines.length;
+
         onlines.forEach((entry, index) => {
             normalizeOnlineKeys(entry).forEach((key) => {
                 if (!onlineMatchMap.has(key)) {
@@ -196,6 +201,12 @@ function buildManagedOnlineSummary(users, serverPayloads = [], activeTrafficEmai
             const email = normalizeEmail(
                 entry?.email || entry?.user || entry?.username || entry?.clientEmail || entry?.client || entry?.remark || entry
             );
+            
+            const rawIdentifier = email || String(entry?.email || entry?.id || entry?.user || entry?.username || entry?.clientEmail || entry?.client || entry || '').trim();
+            if (rawIdentifier && rawIdentifier !== '[object Object]') {
+                rawTotalOnlineUsers.add(rawIdentifier);
+            }
+
             if (email) {
                 onlineMap.set(email, (onlineMap.get(email) || 0) + 1);
                 if (!onlineServerIdMap.has(email)) {
@@ -358,6 +369,8 @@ function buildManagedOnlineSummary(users, serverPayloads = [], activeTrafficEmai
         totalUsed: totalUp + totalDown,
         serverTrafficByServerId,
         serverOnlineUserCountByServerId,
+        rawTotalOnlineUsersCount: rawTotalOnlineUsers.size,
+        rawTotalSessions,
     };
 }
 
@@ -691,7 +704,7 @@ async function buildGlobalDashboardSnapshot(options = {}, deps = {}) {
         globalStats: {
             totalUp: Number(presence.totalUp || 0),
             totalDown: Number(presence.totalDown || 0),
-            totalOnline: presence.onlineRows.length,
+            totalOnline: presence.rawTotalOnlineUsersCount,
             totalInbounds: derivedInboundTotals.total,
             activeInbounds: derivedInboundTotals.active,
             serverCount: Number(clusterSnapshot?.summary?.total || servers.length || 0),
@@ -699,7 +712,7 @@ async function buildGlobalDashboardSnapshot(options = {}, deps = {}) {
         },
         globalManagedOnlineCount: presence.onlineRows.length,
         globalOnlineUsers: presence.onlineRows,
-        globalOnlineSessionCount: Number(presence.onlineSessionCount || 0),
+        globalOnlineSessionCount: presence.rawTotalSessions,
         globalAccountSummary: {
             totalUsers: presence.rows.length,
             pendingUsers: Number(presence.pendingCount || 0),
@@ -790,8 +803,8 @@ async function buildSingleDashboardSnapshot(serverId, options = {}, deps = {}) {
         cpuHistory,
         inbounds,
         onlineUsers: presence.onlineRows,
-        onlineCount: presence.onlineRows.length,
-        onlineSessionCount: Number(presence.onlineSessionCount || 0),
+        onlineCount: presence.rawTotalOnlineUsersCount,
+        onlineSessionCount: presence.rawTotalSessions,
         singleServerTrafficTotals: {
             totalUp: Number(presence.totalUp || 0),
             totalDown: Number(presence.totalDown || 0),
