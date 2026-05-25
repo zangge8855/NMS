@@ -4229,6 +4229,74 @@
   line-height: 1.45;
 }
 
+/* Scrollable Containers */
+.audit-page .audit-scrollable {
+  max-height: 280px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  padding-right: 4px;
+}
+
+.audit-page .audit-scrollable::-webkit-scrollbar {
+  width: 6px;
+}
+
+.audit-page .audit-scrollable::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.audit-page .audit-scrollable::-webkit-scrollbar-thumb {
+  background-color: var(--border-color);
+  border-radius: 999px;
+}
+
+.audit-page .audit-scrollable::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-muted);
+}
+
+/* Fix sticky headers in scrollable tables */
+.audit-page .audit-scrollable table th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: var(--surface-default);
+  box-shadow: 0 1px 0 var(--border-color);
+}
+
+/* Rank Badges */
+.audit-rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  background: var(--surface-hover);
+  margin-right: 12px;
+  vertical-align: middle;
+}
+
+.audit-rank-badge[data-rank="1"] {
+  color: #d97706;
+  background: rgba(245, 158, 11, 0.15);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.1);
+}
+
+.audit-rank-badge[data-rank="2"] {
+  color: #4b5563;
+  background: rgba(156, 163, 175, 0.2);
+}
+
+.audit-rank-badge[data-rank="3"] {
+  color: #b45309;
+  background: rgba(217, 119, 6, 0.12);
+}
+
 .audit-page .audit-inbound-breakdown-table-container {
   border-radius: 10px;
 }
@@ -4285,7 +4353,9 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--accent-primary);
+  background: linear-gradient(90deg, var(--accent-primary), rgba(99, 102, 241, 0.8));
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.3);
+  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .audit-page .audit-inbound-breakdown-list {
@@ -4300,6 +4370,14 @@
   border: 1px solid var(--border-color);
   border-radius: 10px;
   background: var(--surface-subtle);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.audit-page .audit-inbound-breakdown-item:hover {
+  border-color: var(--accent-primary);
+  background: var(--surface-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .audit-page .audit-inbound-breakdown-item-head,

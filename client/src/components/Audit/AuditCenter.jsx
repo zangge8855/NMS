@@ -2350,7 +2350,7 @@ export default function AuditCenter() {
                                             {copy.traffic.inboundBreakdownEmpty}
                                         </div>
                                     ) : isCompactLayout ? (
-                                        <div className="audit-inbound-breakdown-list">
+                                        <div className="audit-inbound-breakdown-list audit-scrollable">
                                             {userInboundBreakdown.map((item) => {
                                                 const shareLabel = formatTrafficShare(
                                                     item.totalBytes,
@@ -2383,7 +2383,7 @@ export default function AuditCenter() {
                                             })}
                                         </div>
                                     ) : (
-                                        <div className="table-container audit-inbound-breakdown-table-container">
+                                        <div className="table-container audit-inbound-breakdown-table-container audit-scrollable">
                                             <table className="table audit-inbound-breakdown-table">
                                                 <thead>
                                                     <tr>
@@ -2511,7 +2511,7 @@ export default function AuditCenter() {
                                         />
                                     </div>
                                 ) : (
-                                    <div className="table-container">
+                                    <div className="table-container audit-scrollable">
                                         <table className="table audit-leaderboard-table audit-top-users-table">
                                             <thead>
                                                 <tr>
@@ -2521,7 +2521,7 @@ export default function AuditCenter() {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {topUsers.map((item) => (
+                                                {topUsers.map((item, index) => (
                                                     <tr
                                                         key={item.email}
                                                         className="cursor-pointer"
@@ -2535,7 +2535,12 @@ export default function AuditCenter() {
                                                             }
                                                         }}
                                                     >
-                                                        <td data-label={copy.tables.user} className="audit-leaderboard-label-cell">{formatTrafficUserLabel(item)}</td>
+                                                        <td data-label={copy.tables.user} className="audit-leaderboard-label-cell">
+                                                            <div className="flex items-center">
+                                                                <span className="audit-rank-badge" data-rank={index + 1}>{index + 1}</span>
+                                                                {formatTrafficUserLabel(item)}
+                                                            </div>
+                                                        </td>
                                                         <td data-label={leaderboardTrendLabel} className="audit-leaderboard-trend-cell">
                                                             <MiniSparkline
                                                                 points={trafficUserRowTrends[item.email] || []}
@@ -2569,7 +2574,7 @@ export default function AuditCenter() {
                                         />
                                     </div>
                                 ) : (
-                                    <div className="table-container">
+                                    <div className="table-container audit-scrollable">
                                         <table className="table audit-leaderboard-table audit-top-servers-table">
                                             <thead>
                                                 <tr>
@@ -2579,7 +2584,7 @@ export default function AuditCenter() {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {topServers.map((item) => (
+                                                {topServers.map((item, index) => (
                                                     <tr
                                                         key={item.serverId}
                                                         className="cursor-pointer"
@@ -2593,7 +2598,12 @@ export default function AuditCenter() {
                                                             }
                                                         }}
                                                     >
-                                                        <td data-label={copy.tables.node} className="audit-leaderboard-label-cell">{item.serverName}</td>
+                                                        <td data-label={copy.tables.node} className="audit-leaderboard-label-cell">
+                                                            <div className="flex items-center">
+                                                                <span className="audit-rank-badge" data-rank={index + 1}>{index + 1}</span>
+                                                                <span className="truncate">{item.serverName || item.serverId || '-'}</span>
+                                                            </div>
+                                                        </td>
                                                         <td data-label={leaderboardTrendLabel} className="audit-leaderboard-trend-cell">
                                                             <MiniSparkline
                                                                 points={trafficServerRowTrends[item.serverId] || []}
