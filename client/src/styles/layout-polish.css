@@ -12929,10 +12929,8 @@ input[type="radio"] {
 
 /* Shared list controls: compact filter/action rows for operational pages. */
 .list-toolbar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
-  gap: 12px;
 }
 
 .list-toolbar .page-toolbar-main,
@@ -13024,9 +13022,6 @@ input[type="radio"] {
 }
 
 @media (max-width: 768px) {
-  .list-toolbar {
-    grid-template-columns: 1fr;
-  }
 
   .list-toolbar-filters,
   .list-toolbar-actions-inner,
