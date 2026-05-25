@@ -80,11 +80,12 @@ async function fetchServerPanelSnapshot(server, options = {}) {
         };
     }
 
-    const [inboundsResult, onlinesResult] = await Promise.allSettled([
+    const [inboundsResult, onlinesResult, nodesResult] = await Promise.allSettled([
         client.get('/panel/api/inbounds/list'),
         includeOnlines
             ? fetchPanelOnlineClients(client)
             : Promise.resolve({ data: { obj: [] } }),
+        client.get('/panel/api/nodes/list'),
     ]);
 
     const inbounds = inboundsResult.status === 'fulfilled' && Array.isArray(inboundsResult.value?.data?.obj)
@@ -92,6 +93,9 @@ async function fetchServerPanelSnapshot(server, options = {}) {
         : [];
     const onlines = onlinesResult.status === 'fulfilled'
         ? normalizeOnlineEntries(onlinesResult.value?.data?.obj)
+        : [];
+    const nodes = nodesResult.status === 'fulfilled' && Array.isArray(nodesResult.value?.data?.obj)
+        ? nodesResult.value.data.obj
         : [];
 
     return {
@@ -101,6 +105,7 @@ async function fetchServerPanelSnapshot(server, options = {}) {
         },
         inbounds,
         onlines,
+        nodes,
         inboundsError: inboundsResult.status === 'rejected'
             ? normalizeError(inboundsResult.reason, 'PANEL_INBOUND_LIST_FAILED')
             : null,
