@@ -5,6 +5,7 @@ import App from './App.jsx';
 import { AuthProvider } from './contexts/AuthContext.jsx';
 import { ConfirmProvider } from './contexts/ConfirmContext.jsx';
 import { LanguageProvider } from './contexts/LanguageContext.jsx';
+import '@fontsource-variable/noto-sans-sc';
 import './index.css';
 import './styles/ui-tokens.css';
 import './styles/layout-polish.css';

@@ -109,10 +109,28 @@
   --transition-spring: 600ms cubic-bezier(0.34, 1.56, 0.64, 1);
 
   /* Typography */
-  --font-family: 'Outfit', 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --font-family: 'Outfit', 'Inter', 'Noto Sans SC Variable', 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  --font-display: 'Outfit', 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Outfit', 'Inter', 'Noto Sans SC Variable', 'Segoe UI', system-ui, sans-serif;
   color-scheme: dark;
+}
+
+@font-face {
+  font-family: 'NMS Nav CJK';
+  font-style: normal;
+  font-display: block;
+  font-weight: 100 900;
+  src: url('@fontsource-variable/noto-sans-sc/files/noto-sans-sc-113-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+83DC;
+}
+
+@font-face {
+  font-family: 'NMS Nav CJK';
+  font-style: normal;
+  font-display: block;
+  font-weight: 100 900;
+  src: url('@fontsource-variable/noto-sans-sc/files/noto-sans-sc-117-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+5355;
 }
 
 /* --- Base --- */
@@ -135,8 +153,8 @@ html {
 html:lang(zh),
 html:lang(zh-CN),
 html:lang(zh-Hans) {
-  --font-family: 'Source Han Sans SC', 'Source Han Sans CN', 'Noto Sans CJK SC', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Segoe UI', system-ui, sans-serif;
-  --font-display: 'Source Han Sans SC', 'Source Han Sans CN', 'Noto Sans CJK SC', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Segoe UI', system-ui, sans-serif;
+  --font-family: 'Noto Sans SC Variable', 'Source Han Sans SC', 'Source Han Sans CN', 'Noto Sans CJK SC', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Noto Sans SC Variable', 'Source Han Sans SC', 'Source Han Sans CN', 'Noto Sans CJK SC', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Segoe UI', system-ui, sans-serif;
 }
 
 body {
@@ -17575,4 +17593,3 @@ input[type="radio"]:focus-visible {
   box-shadow: var(--shadow-glow);
   border-color: var(--accent-primary-glow);
 }
-

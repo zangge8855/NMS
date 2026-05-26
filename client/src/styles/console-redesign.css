@@ -468,6 +468,10 @@ body {
   backdrop-filter: none !important;
 }
 
+.mobile-bottom-nav-label {
+  font-family: 'NMS Nav CJK', var(--font-family);
+}
+
 @media (max-width: 1024px) {
   .page-content,
   .page-content--wide {
@@ -522,6 +526,22 @@ body {
   .page-toolbar,
   .section-header {
     align-items: stretch !important;
+    min-height: 0 !important;
+  }
+
+  .page-toolbar-main,
+  .page-toolbar-summary,
+  .page-toolbar-actions,
+  .page-toolbar-meta,
+  .users-toolbar-main,
+  .inbounds-toolbar-main,
+  .servers-toolbar-summary,
+  .subscriptions-toolbar-main,
+  .audit-filter-bar,
+  .settings-toolbar-copy {
+    flex: 0 1 auto !important;
+    flex-basis: auto !important;
+    min-height: 0 !important;
   }
 
   .list-toolbar-filters,
