@@ -29,13 +29,13 @@
   --text-inverse: #000000;
   --text-on-accent: #ffffff;
 
-  /* Blue/cyan operator accent */
-  --accent-primary: #0ea5e9;
-  --accent-primary-hover: #38bdf8;
-  --accent-primary-glow: rgba(14, 165, 233, 0.35);
-  --accent-primary-bg: rgba(14, 165, 233, 0.15);
+  /* Cyber-Modern Cyan/Purple accent */
+  --accent-primary: #00f0ff;
+  --accent-primary-hover: #5eead4;
+  --accent-primary-glow: rgba(0, 240, 255, 0.35);
+  --accent-primary-bg: rgba(0, 240, 255, 0.15);
 
-  --gradient-primary: linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%);
+  --gradient-primary: linear-gradient(135deg, #00f0ff 0%, #a855f7 100%);
   --gradient-surface: linear-gradient(180deg, rgba(26, 26, 36, 0.75) 0%, rgba(18, 18, 26, 0.85) 100%);
 
   /* Quiet operational elevation */
@@ -63,13 +63,13 @@
   --floating-panel-shadow: var(--shadow-2xl);
   
   --surface-table-header: rgba(18, 18, 26, 0.85);
-  --surface-table-row-hover: rgba(56, 189, 248, 0.05);
+  --surface-table-row-hover: rgba(0, 240, 255, 0.08);
   
   --focus-ring-border: var(--accent-primary);
-  --focus-ring-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px rgba(56, 189, 248, 0.5);
+  --focus-ring-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px rgba(0, 240, 255, 0.5);
   
-  --scrollbar-thumb-color: rgba(56, 189, 248, 0.2);
-  --scrollbar-thumb-hover: rgba(56, 189, 248, 0.5);
+  --scrollbar-thumb-color: rgba(0, 240, 255, 0.2);
+  --scrollbar-thumb-hover: rgba(0, 240, 255, 0.5);
   
   --theme-transition-duration: 300ms;
 

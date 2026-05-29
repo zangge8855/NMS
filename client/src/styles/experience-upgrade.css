@@ -86,8 +86,9 @@
 
 .mobile-bottom-nav-item.active,
 .mobile-bottom-nav-item:hover {
-  background: rgba(59, 130, 246, 0.16);
-  color: var(--text-primary);
+  background: var(--accent-primary-bg);
+  color: var(--accent-primary);
+  box-shadow: inset 0 0 12px var(--accent-primary-glow);
 }
 
 .mobile-bottom-nav-icon {
@@ -2673,11 +2674,12 @@
   --accent-primary-hover: #1d4ed8;
   --accent-primary-glow: rgba(37, 99, 235, 0.18);
   --accent-primary-bg: rgba(37, 99, 235, 0.1);
-  --accent-info: #0ea5e9;
-  --accent-info-bg: rgba(14, 165, 233, 0.1);
+  --accent-info: #00f0ff;
+  --accent-info-bg: rgba(0, 240, 255, 0.12);
+  --accent-info-glow: rgba(0, 240, 255, 0.25);
   --accent-success: #10b981;
   --accent-warning: #f59e0b;
-  --gradient-primary: linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);
+  --gradient-primary: linear-gradient(135deg, #a855f7 0%, #00f0ff 100%);
   --shadow-glow-primary: 0 14px 26px -18px rgba(37, 99, 235, 0.5);
 }
 
@@ -7874,7 +7876,7 @@
 
 [data-theme="light"] .actions-dropdown-item:hover:not(:disabled) {
   background: rgba(14, 165, 233, 0.06) !important;
-  color: var(--accent-primary, #0ea5e9) !important;
+  color: var(--accent-primary, #00f0ff) !important;
 }
 
 .actions-dropdown-item.is-danger {
