@@ -12,7 +12,7 @@ import ChartTooltip from '../UI/ChartTooltip.jsx';
 
 // NMS brand-aligned palette — driven from CSS variables so palette swaps with the theme.
 const BRAND_PALETTE = [
-    'var(--accent-primary, #6366f1)',
+    'var(--accent-primary, #22d3ee)',
     'var(--accent-success, #10b981)',
     'var(--accent-warning, #f59e0b)',
     'var(--accent-danger, #ef4444)',

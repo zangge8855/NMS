@@ -969,7 +969,7 @@
   width: 42px;
   height: 42px;
   border-radius: 14px;
-  background: color-mix(in srgb, var(--surface-soft) 72%, rgba(99, 102, 241, 0.18) 28%);
+  background: color-mix(in srgb, var(--surface-soft) 72%, rgba(34, 211, 238, 0.18) 28%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
@@ -1108,7 +1108,7 @@
 .account-identity-card {
   border-radius: 24px;
   background:
-    radial-gradient(circle at top right, rgba(99, 102, 241, 0.12), transparent 32%),
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.12), transparent 32%),
     linear-gradient(180deg, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.58));
 }
 
@@ -2674,12 +2674,12 @@
   --accent-primary-hover: #1d4ed8;
   --accent-primary-glow: rgba(37, 99, 235, 0.18);
   --accent-primary-bg: rgba(37, 99, 235, 0.1);
-  --accent-info: #00f0ff;
-  --accent-info-bg: rgba(0, 240, 255, 0.12);
-  --accent-info-glow: rgba(0, 240, 255, 0.25);
+  --accent-info: #22d3ee;
+  --accent-info-bg: rgba(34, 211, 238, 0.12);
+  --accent-info-glow: rgba(34, 211, 238, 0.25);
   --accent-success: #10b981;
   --accent-warning: #f59e0b;
-  --gradient-primary: linear-gradient(135deg, #a855f7 0%, #00f0ff 100%);
+  --gradient-primary: linear-gradient(135deg, #0891b2 0%, #0284c7 100%);
   --shadow-glow-primary: 0 14px 26px -18px rgba(37, 99, 235, 0.5);
 }
 
@@ -4355,8 +4355,8 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--accent-primary), rgba(99, 102, 241, 0.8));
-  box-shadow: 0 0 8px rgba(99, 102, 241, 0.3);
+  background: linear-gradient(90deg, var(--accent-primary), rgba(34, 211, 238, 0.8));
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.3);
   transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -6085,7 +6085,7 @@
 [data-theme="dark"] .card,
 [data-theme="dark"] .glass-panel {
   background: linear-gradient(135deg, rgba(20, 24, 46, 0.72) 0%, rgba(13, 16, 28, 0.85) 100%) !important;
-  border: 1px solid rgba(99, 102, 241, 0.16) !important;
+  border: 1px solid rgba(34, 211, 238, 0.16) !important;
   box-shadow: 0 10px 36px 0 rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.03) !important;
   backdrop-filter: blur(16px) !important;
   -webkit-backdrop-filter: blur(16px) !important;
@@ -6107,15 +6107,15 @@
 [data-theme="dark"] .card:hover,
 [data-theme="dark"] .glass-panel:hover {
   transform: translateY(-2px) !important;
-  border-color: rgba(99, 102, 241, 0.32) !important;
-  box-shadow: 0 16px 48px 0 rgba(0, 0, 0, 0.5), 0 0 20px rgba(99, 102, 241, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(34, 211, 238, 0.32) !important;
+  box-shadow: 0 16px 48px 0 rgba(0, 0, 0, 0.5), 0 0 20px rgba(34, 211, 238, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
 }
 
 [data-theme="light"] .card:hover,
 [data-theme="light"] .glass-panel:hover {
   transform: translateY(-2px) !important;
-  border-color: rgba(99, 102, 241, 0.32) !important;
-  box-shadow: 0 16px 48px 0 rgba(148, 163, 184, 0.12), 0 0 16px rgba(99, 102, 241, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(34, 211, 238, 0.32) !important;
+  box-shadow: 0 16px 48px 0 rgba(148, 163, 184, 0.12), 0 0 16px rgba(34, 211, 238, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
 }
 
 /* Dashboard Stat Card typography refinements */
@@ -6133,7 +6133,7 @@
   font-weight: 800 !important;
   letter-spacing: -0.02em !important;
   color: var(--text-primary) !important;
-  background: var(--gradient-primary, linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)) !important;
+  background: var(--gradient-primary, linear-gradient(135deg, #0891b2 0%, #0284c7 100%)) !important;
   -webkit-background-clip: text !important;
   -webkit-text-fill-color: transparent !important;
   display: inline-block !important;
@@ -6337,11 +6337,11 @@
 
 /* Hover effect on table rows */
 .table tr:hover td {
-  background: rgba(99, 102, 241, 0.05) !important;
+  background: rgba(34, 211, 238, 0.05) !important;
 }
 
 [data-theme="light"] .table tr:hover td {
-  background: rgba(99, 102, 241, 0.03) !important;
+  background: rgba(34, 211, 238, 0.03) !important;
 }
 
 /* Specific statistical numbers column right-alignment & monospaced font */
@@ -7167,7 +7167,7 @@
 .settings-page .settings-panel:hover,
 .settings-page .settings-form-cluster:hover,
 .settings-page .settings-ops-card:hover {
-  border-color: rgba(99, 102, 241, 0.24) !important;
+  border-color: rgba(34, 211, 238, 0.24) !important;
 }
 
 /* 2. Responsive Settings Dual Column Shell (Screens >= 1024px) */
@@ -7220,9 +7220,9 @@
 
   /* Active Sidebar Item Styling */
   .settings-page .settings-nav-item.is-active {
-    border-color: rgba(99, 102, 241, 0.36) !important;
-    background: rgba(99, 102, 241, 0.12) !important;
-    box-shadow: 0 0 16px rgba(99, 102, 241, 0.15) !important;
+    border-color: rgba(34, 211, 238, 0.36) !important;
+    background: rgba(34, 211, 238, 0.12) !important;
+    box-shadow: 0 0 16px rgba(34, 211, 238, 0.15) !important;
   }
 }
 
@@ -7255,13 +7255,13 @@
 .settings-kpi-card:hover {
   transform: translateY(-2px);
   background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(99, 102, 241, 0.2);
+  border-color: rgba(34, 211, 238, 0.2);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 
 [data-theme="light"] .settings-kpi-card:hover {
   background: rgba(15, 23, 42, 0.04);
-  border-color: rgba(99, 102, 241, 0.2);
+  border-color: rgba(34, 211, 238, 0.2);
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
 }
 
@@ -7393,15 +7393,15 @@
 .settings-page input:focus,
 .settings-page select:focus,
 .settings-page textarea:focus {
-  border-color: rgba(99, 102, 241, 0.5) !important;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+  border-color: rgba(34, 211, 238, 0.5) !important;
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.15) !important;
   background: rgba(15, 23, 42, 0.35) !important;
 }
 
 [data-theme="light"] .settings-page input:focus,
 [data-theme="light"] .settings-page select:focus,
 [data-theme="light"] .settings-page textarea:focus {
-  border-color: rgba(99, 102, 241, 0.5) !important;
+  border-color: rgba(34, 211, 238, 0.5) !important;
   background: rgba(255, 255, 255, 0.95) !important;
 }
 
@@ -7577,15 +7577,15 @@
 .modal-body input:focus,
 .modal-body select:focus,
 .modal-body textarea:focus {
-  border-color: rgba(99, 102, 241, 0.5) !important;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+  border-color: rgba(34, 211, 238, 0.5) !important;
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.15) !important;
   background: rgba(15, 23, 42, 0.35) !important;
 }
 
 [data-theme="light"] .modal-body input:focus,
 [data-theme="light"] .modal-body select:focus,
 [data-theme="light"] .modal-body textarea:focus {
-  border-color: rgba(99, 102, 241, 0.5) !important;
+  border-color: rgba(34, 211, 238, 0.5) !important;
   background: rgba(255, 255, 255, 0.95) !important;
 }
 
@@ -7639,14 +7639,14 @@
 }
 
 .nav-item-child.active {
-  color: var(--accent-indigo, #6366f1) !important;
+  color: var(--accent-indigo, #22d3ee) !important;
   font-weight: 600 !important;
-  background: rgba(99, 102, 241, 0.1) !important;
-  border: 1px solid rgba(99, 102, 241, 0.15) !important;
+  background: rgba(34, 211, 238, 0.1) !important;
+  border: 1px solid rgba(34, 211, 238, 0.15) !important;
 }
 
 [data-theme="light"] .nav-item-child.active {
-  background: rgba(99, 102, 241, 0.06) !important;
+  background: rgba(34, 211, 238, 0.06) !important;
 }
 
 .nav-item-child-dot {
@@ -7731,14 +7731,14 @@
 .servers-page .servers-telemetry-cell:hover {
   transform: translateY(-2px) !important;
   background: rgba(15, 23, 42, 0.35) !important;
-  border-color: rgba(99, 102, 241, 0.3) !important;
-  box-shadow: 0 6px 25px rgba(99, 102, 241, 0.18) !important;
+  border-color: rgba(34, 211, 238, 0.3) !important;
+  box-shadow: 0 6px 25px rgba(34, 211, 238, 0.18) !important;
 }
 
 [data-theme="light"] .servers-page .servers-telemetry-cell:hover {
   background: rgba(255, 255, 255, 0.9) !important;
-  border-color: rgba(99, 102, 241, 0.25) !important;
-  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.1) !important;
+  border-color: rgba(34, 211, 238, 0.25) !important;
+  box-shadow: 0 6px 20px rgba(34, 211, 238, 0.1) !important;
 }
 
 .servers-page .servers-telemetry-meta {
@@ -7876,7 +7876,7 @@
 
 [data-theme="light"] .actions-dropdown-item:hover:not(:disabled) {
   background: rgba(14, 165, 233, 0.06) !important;
-  color: var(--accent-primary, #00f0ff) !important;
+  color: var(--accent-primary, #22d3ee) !important;
 }
 
 .actions-dropdown-item.is-danger {

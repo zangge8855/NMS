@@ -2328,7 +2328,7 @@ export default function AuditCenter() {
                                     <Suspense fallback={<div className="skeleton w-full h-full opacity-10" />}>
                                         <TrafficLineChart
                                             data={userTrend.points || []}
-                                            color="#6366f1"
+                                            color="#22d3ee"
                                             granularity={userTrend.granularity}
                                             locale={locale}
                                             margin={AUDIT_TRAFFIC_CHART_MARGIN}

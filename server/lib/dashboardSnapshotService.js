@@ -254,7 +254,8 @@ function buildManagedOnlineSummary(users, serverPayloads = [], activeTrafficKeys
                 });
                 
                 let onlineSessions = matchedOnlineEntries.size;
-                if (onlineSessions === 0 && activeTrafficKeys.has(`${serverId}:${email}`)) {
+                const hasActiveTraffic = activeTrafficKeys.has(`${serverId}:${email}`) || activeTrafficKeys.has(email);
+                if (onlineSessions === 0 && hasActiveTraffic) {
                     onlineSessions = 1;
                     matchedOnlineEntries.add('traffic_inferred');
                 }

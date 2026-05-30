@@ -125,6 +125,12 @@
 - Xray 控制台：完成页面整体布局和样式的重设计，应用了更加现代化、美观的主题与玻璃质感等高级设计细节。
 - 隐私数据清理：在完成全套测试（405 项后端测试、238 项前端 Vitest 测试全部通过）后，清理了本地开发环境产生的临时数据库文件、系统设置备份、遥测数据与测试运行日志，保障代码提交与推送不泄露任何系统活动痕迹。
 
+2026-05-30 暗色现代风视觉精修（去霓虹 / 去紫 / 去发光）：
+- 按"精修现有暗色现代风"方向统一历史多层叠加遗留的主题色：强调色由霓虹青 `#00f0ff` 收敛为更耐看、文字对比更好的青 `#22d3ee`；主按钮渐变由"青→紫"(`#00f0ff → #a855f7`)改为同色系"深青→蓝"(`#0891b2 → #0284c7`)，白字满足 AA 对比，彻底移除紫色（`#a855f7` / `rgba(168,85,247)` / `#c084fc` / `#d8b4fe`）。
+- 清理旧主题残留的靛蓝 `#6366f1` / `rgba(99,102,241)`，与霓虹青字面值一并归一到强调青；登录卡、主/次按钮 hover、激活导航等处的霓虹发光改为克制的高度阴影，登录卡改为不透明 elevated 表面，符合设计文档"不透明表面、对比优先、避免单一紫蓝"。
+- 全量复核：CSS chrome 中已无 `#00f0ff` / `#6366f1` / 紫色 / 霓虹残留；图表协议分类色板按数据可视化需要保留。
+- 公开伪装首页三套城市杂志模板（blog / corporate / nginx）经复核质量在线、明暗自适应正常，本轮不改动，继续满足公开页敏感词隔离断言。
+
 ### 结论
 
 当前版本已经完成本轮最重要的后台 UI 稳定性修复，可以作为后续页面统一重构的基线。下一阶段重点应从“修 bug”转向“收敛样式与组件复用”。
@@ -238,6 +244,13 @@ Storage and camouflage follow-up added system-adaptive dark variables to all thr
 - Audit Center: Redesigned the audit log interface with polished styles and alignment, keeping standard filter controllers fully responsive and accessible across all viewport sizes.
 - Xray Console: Revamped the console workspace with modern themes, consistent grids, and subtle micro-animation details for an elevated visual presentation.
 - Privacy & Cleanup: Cleared volatile local development database files, telemetry caches, backfills, and testing runner log files under `data/`, `.playwright-cli/`, and `client/` directories after verifying 100% test completion (405 backend tests and 238 frontend Vitest specs passing).
+
+### 2026-05-30 Dark-Modern Visual Refinement (de-neon / de-purple / de-glow)
+
+- Following the "refine the existing dark-modern look" direction, the theme colors left over from many stacked historical layers were unified: the accent moved from neon cyan `#00f0ff` to a calmer, higher-contrast cyan `#22d3ee`; the primary-button gradient changed from cyan→purple (`#00f0ff → #a855f7`) to a same-family deep cyan→blue (`#0891b2 → #0284c7`) with AA-compliant white text, and all purple (`#a855f7` / `rgba(168,85,247)` / `#c084fc` / `#d8b4fe`) was removed.
+- Legacy indigo (`#6366f1` / `rgba(99,102,241)`) was cleaned up and unified to the accent cyan alongside the neon-cyan literals; neon glows on the login card, primary/secondary button hovers, and active nav were replaced with restrained elevation shadows, and the login card now uses an opaque elevated surface — matching the design-system rules (opaque surfaces, contrast first, no one-note purple-blue).
+- Full sweep: no `#00f0ff` / `#6366f1` / purple / neon residue remains in the CSS chrome; chart protocol categorical palettes are kept as needed for data visualization.
+- The three public camouflage city-magazine templates (blog / corporate / nginx) were reviewed and are in good shape with working light/dark adaptation; they were left unchanged this round and continue to satisfy the public-page sensitive-language isolation assertions.
 
 ### Conclusion
 

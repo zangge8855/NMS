@@ -32,25 +32,25 @@
   --text-muted: #94a3b8;
   --text-on-accent: #ffffff;
 
-  --accent-primary: #00f0ff;
-  --accent-primary-hover: #5eead4;
-  --accent-primary-bg: rgba(0, 240, 255, 0.15);
-  --accent-primary-glow: rgba(0, 240, 255, 0.35);
+  --accent-primary: #22d3ee;
+  --accent-primary-hover: #67e8f9;
+  --accent-primary-bg: rgba(34, 211, 238, 0.14);
+  --accent-primary-glow: rgba(34, 211, 238, 0.22);
   --accent-info: #38bdf8;
   --accent-success: #34d399;
   --accent-warning: #fbbf24;
-  --accent-danger: #fb7185;
+  --accent-danger: #f87171;
 
-  --gradient-primary: linear-gradient(135deg, #00f0ff 0%, #a855f7 100%);
+  --gradient-primary: linear-gradient(135deg, #0891b2 0%, #0284c7 100%);
   --gradient-surface: linear-gradient(180deg, #121b26 0%, #101923 100%);
-  --gradient-glow: linear-gradient(135deg, rgba(0, 240, 255, 0.25), rgba(168, 85, 247, 0.1));
+  --gradient-glow: linear-gradient(135deg, rgba(34, 211, 238, 0.16), rgba(14, 165, 233, 0.05));
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.28);
   --shadow-md: 0 10px 24px rgba(0, 0, 0, 0.22);
   --shadow-lg: 0 18px 38px rgba(0, 0, 0, 0.3);
   --shadow-2xl: 0 26px 60px rgba(0, 0, 0, 0.34);
   --shadow-glow: 0 0 20px -5px var(--accent-primary-glow);
-  --shadow-glow-primary: 0 8px 24px rgba(0, 240, 255, 0.25);
+  --shadow-glow-primary: 0 8px 24px -10px rgba(34, 211, 238, 0.4);
 
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -223,16 +223,16 @@ body {
 
 .btn-primary {
   background: var(--gradient-primary) !important;
-  border: 1px solid rgba(0, 240, 255, 0.35) !important;
+  border: 1px solid rgba(34, 211, 238, 0.4) !important;
   color: var(--text-on-accent) !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25), 0 0 8px rgba(0, 240, 255, 0.15) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, #5eead4 0%, #c084fc 100%) !important;
-  box-shadow: 0 0 20px rgba(0, 240, 255, 0.5), 0 0 10px rgba(168, 85, 247, 0.25) !important;
-  transform: translateY(-1.5px) !important;
-  border-color: rgba(0, 240, 255, 0.6) !important;
+  background: linear-gradient(135deg, #0aa6cb 0%, #0a90db 100%) !important;
+  box-shadow: 0 8px 18px -6px rgba(8, 145, 178, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
+  transform: translateY(-1px) !important;
+  border-color: rgba(34, 211, 238, 0.6) !important;
 }
 
 .btn-primary:active:not(:disabled) {
@@ -250,8 +250,8 @@ body {
 .btn-ghost:hover:not(:disabled) {
   background: var(--surface-panel-hover) !important;
   color: var(--text-primary) !important;
-  border-color: var(--accent-primary) !important;
-  box-shadow: 0 0 12px rgba(0, 240, 255, 0.2) !important;
+  border-color: color-mix(in srgb, var(--accent-primary) 55%, var(--border-color)) !important;
+  box-shadow: var(--shadow-sm) !important;
   transform: translateY(-1px) !important;
 }
 
@@ -468,10 +468,10 @@ body {
 }
 
 .login-card {
-  background: rgba(18, 18, 26, 0.65) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: color-mix(in srgb, var(--surface-elevated) 94%, transparent) !important;
+  border: 1px solid var(--surface-card-border) !important;
   border-radius: var(--radius-xl) !important;
-  box-shadow: var(--shadow-lg), 0 0 30px rgba(0, 240, 255, 0.12), 0 0 60px rgba(168, 85, 247, 0.08) !important;
+  box-shadow: var(--shadow-lg) !important;
   backdrop-filter: blur(24px) !important;
   -webkit-backdrop-filter: blur(24px) !important;
 }
