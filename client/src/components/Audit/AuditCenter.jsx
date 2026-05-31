@@ -40,6 +40,7 @@ const AUDIT_TRAFFIC_WINDOW_QUERY = Object.freeze({
     day: 'today',
     week: 'this_week',
     month: 'this_month',
+    custom: 'custom',
 });
 const AUDIT_TRAFFIC_WINDOW_ALIASES = Object.freeze({
     today: 'day',
@@ -50,6 +51,7 @@ const AUDIT_TRAFFIC_WINDOW_ALIASES = Object.freeze({
     this_month: 'month',
     month: 'month',
     30: 'month',
+    custom: 'custom',
 });
 const AUDIT_TRAFFIC_CHART_MARGIN = Object.freeze({ top: 8, right: 12, left: 8, bottom: 4 });
 const AUDIT_TRAFFIC_CHART_Y_AXIS_WIDTH = 58;
@@ -215,6 +217,7 @@ const AUDIT_COPY = {
             windowDay: '今日',
             windowWeek: '本周',
             windowMonth: '本月',
+            windowCustom: '自定义',
             userTrend: '用户流量趋势',
             serverTrend: '节点流量趋势',
             inboundBreakdown: '入站节点用量',
@@ -417,6 +420,7 @@ const AUDIT_COPY = {
             windowDay: 'Today',
             windowWeek: 'This Week',
             windowMonth: 'This Month',
+            windowCustom: 'Custom',
             userTrend: 'User Traffic Trend',
             serverTrend: 'Node Traffic Trend',
             inboundBreakdown: 'Inbound Node Usage',
@@ -622,6 +626,7 @@ function formatCopyTemplate(template, replacements = {}) {
 
 function normalizeTrafficWindowKey(value) {
     const normalized = String(value || '').trim().toLowerCase();
+    if (normalized === 'custom') return 'custom';
     return AUDIT_TRAFFIC_WINDOW_ALIASES[normalized] || AUDIT_TRAFFIC_DEFAULT_WINDOW;
 }
 
@@ -651,7 +656,9 @@ function buildTrafficWindowCopy(windowKey, copy) {
     const normalizedKey = normalizeTrafficWindowKey(windowKey);
     const label = normalizedKey === 'day'
         ? copy.traffic.windowDay
-        : (normalizedKey === 'week' ? copy.traffic.windowWeek : copy.traffic.windowMonth);
+        : (normalizedKey === 'week'
+            ? copy.traffic.windowWeek
+            : (normalizedKey === 'custom' ? (copy.traffic.windowCustom || '自定义') : copy.traffic.windowMonth));
     return {
         key: normalizedKey,
         label,
@@ -1384,6 +1391,21 @@ export default function AuditCenter() {
     const [userTrend, setUserTrend] = useState({ points: [], granularity: 'hour' });
     const [serverTrend, setServerTrend] = useState({ points: [], granularity: 'hour' });
 
+    const formatLocalDate = (date) => {
+        const offset = date.getTimezoneOffset();
+        const localDate = new Date(date.getTime() - (offset * 60 * 1000));
+        return localDate.toISOString().split('T')[0];
+    };
+
+    const [customFromDate, setCustomFromDate] = useState(() => {
+        const d = new Date();
+        d.setDate(d.getDate() - 7);
+        return formatLocalDate(d);
+    });
+    const [customToDate, setCustomToDate] = useState(() => {
+        return formatLocalDate(new Date());
+    });
+
     const [accessLoading, setAccessLoading] = useState(false);
     const [accessData, setAccessData] = useState(() => (
         accessBootstrapRef.current?.accessData || { items: [], total: 0, page: 1, totalPages: 1, statusBreakdown: {} }
@@ -1553,7 +1575,14 @@ export default function AuditCenter() {
         }));
         try {
             const params = new URLSearchParams();
-            params.append('window', resolveTrafficWindowQuery(normalizedWindowKey));
+            if (normalizedWindowKey === 'custom') {
+                const fromIso = dateInputToIso(customFromDate, 'start');
+                const toIso = dateInputToIso(customToDate, 'end');
+                if (fromIso) params.append('from', fromIso);
+                if (toIso) params.append('to', toIso);
+            } else {
+                params.append('window', resolveTrafficWindowQuery(normalizedWindowKey));
+            }
             params.append('top', String(AUDIT_TRAFFIC_TOP_LIMIT));
             if (force) params.append('refresh', 'true');
             const res = await api.get(`/traffic/overview?${params.toString()}`);
@@ -1609,7 +1638,14 @@ export default function AuditCenter() {
         }
         try {
             const params = new URLSearchParams();
-            params.append('window', resolveTrafficWindowQuery(windowKey));
+            if (windowKey === 'custom') {
+                const fromIso = dateInputToIso(customFromDate, 'start');
+                const toIso = dateInputToIso(customToDate, 'end');
+                if (fromIso) params.append('from', fromIso);
+                if (toIso) params.append('to', toIso);
+            } else {
+                params.append('window', resolveTrafficWindowQuery(windowKey));
+            }
             params.append('granularity', trafficGranularity);
             params.append('includeBreakdown', 'true');
             const res = await api.get(`/traffic/users/${encodeURIComponent(email)}/trend?${params.toString()}`);
@@ -1628,7 +1664,14 @@ export default function AuditCenter() {
         }
         try {
             const params = new URLSearchParams();
-            params.append('window', resolveTrafficWindowQuery(windowKey));
+            if (windowKey === 'custom') {
+                const fromIso = dateInputToIso(customFromDate, 'start');
+                const toIso = dateInputToIso(customToDate, 'end');
+                if (fromIso) params.append('from', fromIso);
+                if (toIso) params.append('to', toIso);
+            } else {
+                params.append('window', resolveTrafficWindowQuery(windowKey));
+            }
             params.append('granularity', trafficGranularity);
             const res = await api.get(`/traffic/servers/${encodeURIComponent(serverId)}/trend?${params.toString()}`);
             if (normalizeTrafficWindowKey(windowKey) === selectedTrafficWindowRef.current) {
@@ -1804,7 +1847,7 @@ export default function AuditCenter() {
         } else if (tab === 'subscriptions') {
             fetchAccess(1);
         }
-    }, [selectedTrafficWindow, tab]);
+    }, [selectedTrafficWindow, tab, customFromDate, customToDate]);
 
     useEffect(() => {
         if (eventFilters.actor || eventFilters.eventType || eventFilters.serverId || eventFilters.targetEmail) {
@@ -1815,12 +1858,12 @@ export default function AuditCenter() {
     useEffect(() => {
         if (tab !== 'traffic') return;
         fetchUserTrend(selectedUser, selectedTrafficWindow);
-    }, [selectedTrafficWindow, selectedUser, tab, trafficGranularity]);
+    }, [selectedTrafficWindow, selectedUser, tab, trafficGranularity, customFromDate, customToDate]);
 
     useEffect(() => {
         if (tab !== 'traffic') return;
         fetchServerTrend(selectedServerId, selectedTrafficWindow);
-    }, [selectedServerId, selectedTrafficWindow, tab, trafficGranularity]);
+    }, [selectedServerId, selectedTrafficWindow, tab, trafficGranularity, customFromDate, customToDate]);
 
     useEffect(() => {
         if (tab !== 'traffic') return undefined;
@@ -1849,6 +1892,7 @@ export default function AuditCenter() {
         { key: 'day', label: copy.traffic.windowDay },
         { key: 'week', label: copy.traffic.windowWeek },
         { key: 'month', label: copy.traffic.windowMonth },
+        { key: 'custom', label: copy.traffic.windowCustom },
     ]), [copy]);
     const trafficTotals = normalizeTrafficTotals(trafficOverview?.managedTotals || trafficOverview?.totals || EMPTY_TRAFFIC_TOTALS);
     const trafficAttributionState = resolveTrafficAttributionState(trafficOverview);
@@ -2231,6 +2275,29 @@ export default function AuditCenter() {
                                             ))}
                                         </div>
                                     </div>
+                                    {selectedTrafficWindow === 'custom' && (
+                                        <div className="audit-traffic-custom-range">
+                                            <div className="audit-traffic-window-bar">
+                                                <span className="audit-traffic-window-label">{copy.filters.fromDate}</span>
+                                                <input
+                                                    className="form-input form-input-sm"
+                                                    type="date"
+                                                    value={customFromDate}
+                                                    onChange={(e) => setCustomFromDate(e.target.value)}
+                                                />
+                                            </div>
+                                            <span className="audit-traffic-custom-range-separator">-</span>
+                                            <div className="audit-traffic-window-bar">
+                                                <span className="audit-traffic-window-label">{copy.filters.toDate}</span>
+                                                <input
+                                                    className="form-input form-input-sm"
+                                                    type="date"
+                                                    value={customToDate}
+                                                    onChange={(e) => setCustomToDate(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
                                     <div className="audit-traffic-sample-pill" title={formatDateTime(trafficStatus?.sampledAt, locale)}>
                                         <span className="audit-traffic-sample-label">{copy.traffic.recentSample}</span>
                                         <span className="audit-traffic-sample-value">{formatDateTime(trafficStatus?.sampledAt, locale)}</span>

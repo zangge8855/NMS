@@ -666,4 +666,52 @@ describe('subscriptionSyncService', () => {
         assert.equal(createdClients[0].clientData.enable, false);
         assert.equal(result.subscription.email, 'bind@example.com');
     });
+
+    it('detects changes in speedLimitUp and speedLimitDown to trigger update instead of skip', async () => {
+        const updates = [];
+        const result = await autoDeployClients('user@example.com', {
+            expiryTime: 0,
+            limitIp: 0,
+            trafficLimitBytes: 0,
+            speedLimitUp: 1000,
+            speedLimitDown: 2000,
+        }, {}, {
+            serverRepository: {
+                list: () => [{ id: 'srv-1', name: 'Server 1' }],
+            },
+            listPanelInbounds: async () => ({
+                client: { post: async () => ({}) },
+                inbounds: [
+                    {
+                        id: 101,
+                        protocol: 'vless',
+                        enable: true,
+                        remark: 'Inbound A',
+                        settings: JSON.stringify({
+                            clients: [{
+                                email: 'user@example.com',
+                                id: '11111111-1111-1111-1111-111111111111',
+                                enable: true,
+                                expiryTime: 0,
+                                limitIp: 0,
+                                totalGB: 0,
+                                speedLimitUp: 0,
+                                speedLimitDown: 0,
+                            }],
+                        }),
+                    },
+                ],
+            }),
+            postUpdateClient: async (panelClient, inboundId, clientIdentifier, clientData) => {
+                updates.push({ inboundId, clientIdentifier, clientData });
+                return { panelClient, inboundId, clientIdentifier, clientData };
+            },
+        });
+
+        assert.equal(result.updated, 1);
+        assert.equal(result.skipped, 0);
+        assert.equal(updates.length, 1);
+        assert.equal(updates[0].clientData.speedLimitUp, 1000);
+        assert.equal(updates[0].clientData.speedLimitDown, 2000);
+    });
 });

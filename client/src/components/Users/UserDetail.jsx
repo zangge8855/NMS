@@ -26,7 +26,8 @@ import { useServer } from '../../contexts/ServerContext.jsx';
 import SectionHeader from '../UI/SectionHeader.jsx';
 import ExpandableQRCode from '../UI/ExpandableQRCode.jsx';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
-import { fetchServerPanelData } from '../../utils/serverPanelDataCache.js';
+import { fetchServerPanelData, invalidateServerPanelDataCache } from '../../utils/serverPanelDataCache.js';
+import { invalidateManagedUsersCache } from '../../utils/managedUsersCache.js';
 import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
 import {
     HiOutlineArrowLeft,
@@ -1005,6 +1006,8 @@ export default function UserDetail() {
             setClientAdjustOpen(false);
             setClientAdjustDays('');
             setClientAdjustTrafficGb('');
+            invalidateManagedUsersCache();
+            invalidateServerPanelDataCache();
             fetchClients({ force: true, preserveCurrent: true });
             loadSubscription({ quiet: true });
         } catch (err) {
@@ -1258,6 +1261,8 @@ export default function UserDetail() {
         try {
             await api.post(`/subscriptions/${encodeURIComponent(targetEmail)}/reset-link`, {});
             toast.success(copy.labels.resetDone);
+            invalidateManagedUsersCache();
+            invalidateServerPanelDataCache();
             await Promise.all([
                 loadSubscription({ quiet: true }),
                 fetchDetail(),
@@ -1293,6 +1298,8 @@ export default function UserDetail() {
                 } else {
                     toast.success(message);
                 }
+                invalidateManagedUsersCache();
+                invalidateServerPanelDataCache();
                 await fetchDetail({ preserveCurrent: true });
             }
         } catch (err) {

@@ -509,7 +509,9 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
 
                     const isSameEntitlement = Number(updatedClient.expiryTime || 0) === Number(match.expiryTime || 0)
                         && Number(updatedClient.limitIp || 0) === Number(match.limitIp || 0)
-                        && Number(updatedClient.totalGB || 0) === Number(match.totalGB || 0);
+                        && Number(updatedClient.totalGB || 0) === Number(match.totalGB || 0)
+                        && Number(updatedClient.speedLimitUp || 0) === Number(match.speedLimitUp || 0)
+                        && Number(updatedClient.speedLimitDown || 0) === Number(match.speedLimitDown || 0);
                     const isSameEnableState = clientEnabled === undefined
                         ? true
                         : ((match.enable !== false) === Boolean(clientEnabled));

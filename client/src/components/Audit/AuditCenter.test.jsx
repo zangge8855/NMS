@@ -1594,4 +1594,40 @@ describe('AuditCenter localization', () => {
         expect(screen.getByText('alice@example.com')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: '查看详情' })).toBeInTheDocument();
     });
+
+    it('supports custom date range queries for traffic overview', async () => {
+        const requestedUrls = [];
+        api.get.mockImplementation((url) => {
+            requestedUrls.push(url);
+            if (url.startsWith('/traffic/overview?')) {
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            lastCollectionAt: '2026-03-13T10:00:00.000Z',
+                            sampleCount: 1,
+                            activeUsers: 1,
+                            userLevelSupported: true,
+                            managedTotals: { upBytes: 10, downBytes: 20, totalBytes: 30 },
+                            totals: { upBytes: 10, downBytes: 20, totalBytes: 30 },
+                            topUsers: [],
+                            topServers: [],
+                            collection: { warnings: [] },
+                        },
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<AuditCenter />, { route: '/audit?tab=traffic&window=custom' });
+
+        await waitFor(() => {
+            expect(requestedUrls.some((url) => url.startsWith('/traffic/overview?'))).toBe(true);
+        });
+
+        const overviewUrl = requestedUrls.find((url) => url.startsWith('/traffic/overview?'));
+        expect(overviewUrl).toContain('from=');
+        expect(overviewUrl).toContain('to=');
+        expect(overviewUrl).not.toContain('window=');
+    });
 });

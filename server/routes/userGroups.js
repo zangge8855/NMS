@@ -37,6 +37,8 @@ function normalizeGroupPayload(body = {}) {
         expiryTime: Math.max(0, Math.floor(Number(body?.expiryTime || 0))),
         limitIp: Math.max(0, Math.floor(Number(body?.limitIp || 0))),
         trafficLimitBytes: Math.max(0, Math.floor(Number(body?.trafficLimitBytes || 0))),
+        speedLimitUp: Math.max(0, Math.floor(Number(body?.speedLimitUp || 0))),
+        speedLimitDown: Math.max(0, Math.floor(Number(body?.speedLimitDown || 0))),
         trafficResetCycle: String(body?.trafficResetCycle || 'none').trim().toLowerCase(),
         ipLimitPolicy: String(body?.ipLimitPolicy || 'first-wins').trim().toLowerCase(),
     };

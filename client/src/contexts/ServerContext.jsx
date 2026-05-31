@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import api from '../api/client.js';
 import { clearSessionSnapshot, readSessionSnapshot, SESSION_SNAPSHOT_EVENT, writeSessionSnapshot } from '../utils/sessionSnapshot.js';
+import { invalidateServerPanelDataCache } from '../utils/serverPanelDataCache.js';
 
 const ServerContext = createContext(null);
 const ACTIVE_SERVER_KEY = 'nms_active_server';
@@ -199,6 +200,7 @@ export function ServerProvider({ children, enabled = true }) {
     const addServer = async (serverData) => {
         const res = await api.post('/servers', serverData);
         if (res.data.success) {
+            invalidateServerPanelDataCache();
             await fetchServers({ force: true });
             selectServer();
         }
@@ -208,6 +210,7 @@ export function ServerProvider({ children, enabled = true }) {
     const addServersBatch = async (payload) => {
         const res = await api.post('/servers/batch', payload);
         if (res.data.success) {
+            invalidateServerPanelDataCache();
             await fetchServers({ force: true });
         }
         return res.data;
@@ -216,6 +219,7 @@ export function ServerProvider({ children, enabled = true }) {
     const updateServer = async (id, serverData) => {
         const res = await api.put(`/servers/${id}`, serverData);
         if (res.data.success) {
+            invalidateServerPanelDataCache();
             await fetchServers({ force: true });
         }
         return res.data;
@@ -224,6 +228,7 @@ export function ServerProvider({ children, enabled = true }) {
     const removeServer = async (id) => {
         const res = await api.delete(`/servers/${id}`);
         if (res.data.success) {
+            invalidateServerPanelDataCache();
             if (activeServerId === id) {
                 setActiveServerId('global');
                 persistActiveServerId('global');

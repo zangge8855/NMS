@@ -144,6 +144,12 @@ router.put('/:email', async (req, res) => {
                 trafficLimitBytes: Object.prototype.hasOwnProperty.call(req.body || {}, 'trafficLimitBytes')
                     ? normalizeNonNegativeInt(req.body?.trafficLimitBytes, 0)
                     : normalizeNonNegativeInt(currentPolicy.trafficLimitBytes, 0),
+                speedLimitUp: Object.prototype.hasOwnProperty.call(req.body || {}, 'speedLimitUp')
+                    ? normalizeNonNegativeInt(req.body?.speedLimitUp, 0)
+                    : normalizeNonNegativeInt(currentPolicy.speedLimitUp, 0),
+                speedLimitDown: Object.prototype.hasOwnProperty.call(req.body || {}, 'speedLimitDown')
+                    ? normalizeNonNegativeInt(req.body?.speedLimitDown, 0)
+                    : normalizeNonNegativeInt(currentPolicy.speedLimitDown, 0),
                 trafficResetCycle: String(req.body?.trafficResetCycle || currentPolicy.trafficResetCycle || 'none').trim().toLowerCase(),
                 ipLimitPolicy: String(req.body?.ipLimitPolicy || currentPolicy.ipLimitPolicy || 'first-wins').trim().toLowerCase(),
                 inheritGroup: req.body?.inheritGroup === true,

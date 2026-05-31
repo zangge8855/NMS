@@ -53,7 +53,7 @@ import SkeletonTable from '../UI/SkeletonTable.jsx';
 import InboundRemarkPill from '../UI/InboundRemarkPill.jsx';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
 import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot.js';
-import { fetchServerPanelData } from '../../utils/serverPanelDataCache.js';
+import { fetchServerPanelData, invalidateServerPanelDataCache } from '../../utils/serverPanelDataCache.js';
 
 const INBOUNDS_SNAPSHOT_KEY = 'inbounds_page_bootstrap_v1';
 const INBOUNDS_SNAPSHOT_TTL_MS = 2 * 60_000;
@@ -214,6 +214,9 @@ export default function Inbounds() {
     const fetchAllInbounds = async (options = {}) => {
         const preserveCurrent = options.preserveCurrent === true || (options.preserveCurrent == null && inbounds.length > 0);
         const force = options.force === true;
+        if (force) {
+            invalidateServerPanelDataCache();
+        }
         if (servers.length === 0) {
             inboundsRequestIdRef.current += 1;
             if (!preserveCurrent) {
@@ -1880,7 +1883,7 @@ export default function Inbounds() {
                     isOpen={isModalOpen}
                     onClose={() => setIsModalOpen(false)}
                     editingInbound={editingInbound}
-                    onSuccess={fetchAllInbounds}
+                    onSuccess={() => fetchAllInbounds({ force: true })}
                     servers={servers}
                     onBatchResult={(title, data) => {
                         if (!data) return;
@@ -1893,7 +1896,7 @@ export default function Inbounds() {
                     isOpen={isClientModalOpen}
                     onClose={() => setIsClientModalOpen(false)}
                     targets={clientTargets}
-                    onSuccess={fetchAllInbounds}
+                    onSuccess={() => fetchAllInbounds({ force: true })}
                     onBatchResult={(title, data) => {
                         if (!data) return;
                         setBatchResultTitle(title || '批量用户结果');
