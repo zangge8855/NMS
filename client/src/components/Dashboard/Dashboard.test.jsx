@@ -1438,7 +1438,7 @@ describe('Dashboard', () => {
         });
 
         await waitFor(() => {
-            expect(onlineCard).toHaveTextContent('1');
+            expect(onlineCard).toHaveTextContent('3');
             expect(onlineCard).toHaveTextContent('已注册 8 · 在线会话 2');
             expect(weekTrafficCard).toHaveTextContent('360 B');
             expect(monthTrafficCard).toHaveTextContent('900 B');
@@ -1668,7 +1668,7 @@ describe('Dashboard', () => {
         expect(screen.getByText('alice@example.com')).toBeInTheDocument();
     });
 
-    it('keeps the global online card aligned with registered users when websocket totals report raw sessions', async () => {
+    it('updates the global online card with raw total online users and sessions from websocket', async () => {
         webSocketState = {
             status: 'connected',
             lastMessage: {
@@ -1677,6 +1677,7 @@ describe('Dashboard', () => {
                     serverCount: 1,
                     onlineServers: 1,
                     totalOnline: 9,
+                    totalOnlineSessionCount: 9,
                     totalUp: 0,
                     totalDown: 0,
                     totalInbounds: 1,
@@ -1743,7 +1744,7 @@ describe('Dashboard', () => {
                             globalStats: {
                                 totalUp: 100,
                                 totalDown: 200,
-                                totalOnline: 1,
+                                totalOnline: 9,
                                 totalInbounds: 1,
                                 activeInbounds: 1,
                                 serverCount: 1,
@@ -1763,7 +1764,7 @@ describe('Dashboard', () => {
                                     nodeLabels: ['Node A Link'],
                                 },
                             ],
-                            globalOnlineSessionCount: 2,
+                            globalOnlineSessionCount: 9,
                             globalAccountSummary: {
                                 totalUsers: 1,
                                 pendingUsers: 0,
@@ -1787,8 +1788,8 @@ describe('Dashboard', () => {
         if (!cardSurface) throw new Error('Missing online users card');
 
         await waitFor(() => {
-            expect(cardSurface).toHaveTextContent('1');
-            expect(cardSurface).toHaveTextContent('已注册 1 · 在线会话 2');
+            expect(cardSurface).toHaveTextContent('9');
+            expect(cardSurface).toHaveTextContent('已注册 1 · 在线会话 9');
         });
     });
 

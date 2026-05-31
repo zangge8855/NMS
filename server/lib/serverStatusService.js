@@ -179,6 +179,7 @@ function buildMaintenanceSnapshot(server) {
         up: 0,
         down: 0,
         onlineCount: 0,
+        onlineSessionCount: 0,
         onlineUsers: [],
         collectionIssues: [],
     };
@@ -280,6 +281,16 @@ export async function collectServerStatusSnapshot(server, options = {}) {
         const totalInboundDown = inbounds.reduce((sum, item) => sum + Number(item?.down || 0), 0);
         const status = statusResponse?.data?.obj || statusResponse?.obj || {};
 
+        const serverUniqueOnlineUsers = new Set();
+        onlineUsers.forEach((entry) => {
+            const email = String(entry?.email || '').trim();
+            if (email) {
+                serverUniqueOnlineUsers.add(email.toLowerCase());
+            }
+        });
+        const onlineCount = serverUniqueOnlineUsers.size;
+        const onlineSessionCount = onlineUsers.length;
+
         return {
             serverId: server.id,
             name: server.name,
@@ -302,7 +313,8 @@ export async function collectServerStatusSnapshot(server, options = {}) {
             activeInbounds,
             up: hasInboundTrafficTotals ? totalInboundUp : Number(status?.netTraffic?.sent || 0),
             down: hasInboundTrafficTotals ? totalInboundDown : Number(status?.netTraffic?.recv || 0),
-            onlineCount: onlineUsers.length,
+            onlineCount,
+            onlineSessionCount,
             onlineUsers,
             collectionIssues,
             panelSnapshot: includeDetails ? panelSnapshot : null,
@@ -332,6 +344,7 @@ export async function collectServerStatusSnapshot(server, options = {}) {
             up: 0,
             down: 0,
             onlineCount: 0,
+            onlineSessionCount: 0,
             onlineUsers: [],
             collectionIssues: [],
             panelSnapshot: includeDetails ? {
@@ -366,6 +379,7 @@ function buildSummary(items = []) {
         maintenance: 0,
         onlineServers: 0,
         totalOnline: 0,
+        totalOnlineSessionCount: 0,
         totalUp: 0,
         totalDown: 0,
         totalInbounds: 0,
@@ -388,6 +402,7 @@ function buildSummary(items = []) {
         if (item.health === MAINTENANCE) summary.maintenance += 1;
         if (item.online) summary.onlineServers += 1;
         summary.totalOnline += Number(item.onlineCount || 0);
+        summary.totalOnlineSessionCount += Number(item.onlineSessionCount || 0);
         summary.totalUp += Number(item.up || 0);
         summary.totalDown += Number(item.down || 0);
         summary.totalInbounds += Number(item.inboundCount || 0);

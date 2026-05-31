@@ -80,6 +80,8 @@ function buildDashboardPresenceSummary(panelSnapshots = []) {
     return {
         onlineRows: presence.onlineRows,
         onlineSessionCount: Number(presence.onlineSessionCount || 0),
+        rawTotalOnlineUsersCount: Number(presence.rawTotalOnlineUsersCount || 0),
+        rawTotalSessions: Number(presence.rawTotalSessions || 0),
         ready: true,
     };
 }
@@ -163,7 +165,8 @@ async function buildClusterStatusMessage(snapshot) {
         data: {
             serverCount: snapshot?.summary?.total || 0,
             onlineServers: snapshot?.summary?.onlineServers || 0,
-            totalOnline: snapshot?.summary?.totalOnline || 0,
+            totalOnline: presence.rawTotalOnlineUsersCount,
+            totalOnlineSessionCount: presence.rawTotalSessions,
             totalUp: snapshot?.summary?.totalUp || 0,
             totalDown: snapshot?.summary?.totalDown || 0,
             totalInbounds: snapshot?.summary?.totalInbounds || 0,

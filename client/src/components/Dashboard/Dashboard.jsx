@@ -192,6 +192,8 @@ function buildDashboardSnapshotServerStatuses(serverStatuses = {}) {
             inboundCount: Number(serverData?.inboundCount || 0),
             activeInbounds: Number(serverData?.activeInbounds || 0),
             managedOnlineCount: Number(serverData?.managedOnlineCount || 0),
+            onlineCount: Number(serverData?.onlineCount || 0),
+            onlineSessionCount: Number(serverData?.onlineSessionCount || 0),
             managedTrafficTotal: Number(serverData?.managedTrafficTotal || 0),
             managedTrafficReady: serverData?.managedTrafficReady === true,
             nodeRemarks: Array.isArray(serverData?.nodeRemarks) ? serverData.nodeRemarks : [],
@@ -824,9 +826,13 @@ export default function Dashboard() {
         setGlobalStats((previous) => ({
             totalUp: Number(data.totalUp || 0),
             totalDown: Number(data.totalDown || 0),
-            totalOnline: shouldApplyManagedOnlineCount
-                ? finiteNumberOrFallback(data.managedOnlineUserCount, previous.totalOnline)
-                : previous.totalOnline,
+            totalOnline: Number(
+                data.totalOnline !== undefined
+                    ? data.totalOnline
+                    : (shouldApplyManagedOnlineCount
+                        ? finiteNumberOrFallback(data.managedOnlineUserCount, previous.totalOnline)
+                        : previous.totalOnline)
+            ),
             totalInbounds,
             activeInbounds,
             serverCount: finiteNumberOrFallback(data.serverCount, previous.serverCount),
@@ -850,9 +856,12 @@ export default function Dashboard() {
         if (Array.isArray(data?.managedOnlineUsers) && (managedPresenceReady || data.managedOnlineUsers.length > 0)) {
             setGlobalOnlineUsers(data.managedOnlineUsers);
         }
-        if (shouldApplyManagedOnlineCount) {
-            setGlobalOnlineSessionCount(finiteNumberOrFallback(data?.managedOnlineSessionCount, 0));
-        }
+        const nextGlobalOnlineSessionCount = Number(
+            data?.totalOnlineSessionCount !== undefined
+                ? data.totalOnlineSessionCount
+                : (data?.managedOnlineSessionCount !== undefined ? data.managedOnlineSessionCount : 0)
+        );
+        setGlobalOnlineSessionCount(nextGlobalOnlineSessionCount);
         setGlobalPresenceReady(managedPresenceReady);
         markGlobalDataLive();
         setLoading(false);
@@ -1122,6 +1131,7 @@ export default function Dashboard() {
     // ── Global Dashboard ─────────────────────────────────
     if (activeServerId === 'global') {
         const clusterSummaryReady = hasLiveClusterSnapshot || Object.keys(serverStatuses || {}).length > 0;
+        const isOnlineCountReady = globalPresenceReady || globalManagedOnlineCount !== null;
         const clusterServerCount = globalStats.serverCount || servers.length;
         const effectiveManagedOnlineCount = globalManagedOnlineCount ?? (globalPresenceReady ? globalOnlineUsers.length : null);
         const effectiveThroughput = throughputSummary.ready ? throughputSummary : clusterThroughput;
@@ -1158,12 +1168,12 @@ export default function Dashboard() {
             },
             {
                 icon: HiOutlineUsers, label: t('pages.dashboardGlobal.cards.totalOnlineUsers'),
-                ...(effectiveManagedOnlineCount === null
+                ...(!isOnlineCountReady
                     ? {
                         value: '--',
                     }
                     : {
-                        animateValue: effectiveManagedOnlineCount,
+                        animateValue: globalStats.totalOnline,
                         renderAnimatedValue: (value) => String(value),
                     }),
                 sub: globalOnlineSummary,

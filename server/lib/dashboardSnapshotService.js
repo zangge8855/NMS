@@ -692,6 +692,20 @@ async function buildGlobalDashboardSnapshot(options = {}, deps = {}) {
             }
         });
 
+        const rawOnlines = Array.isArray(panelItem?.onlines) ? panelItem.onlines : [];
+        const serverUniqueOnlineUsers = new Set();
+        rawOnlines.forEach((entry) => {
+            const email = normalizeEmail(
+                entry?.email || entry?.user || entry?.username || entry?.clientEmail || entry?.client || entry?.remark || entry
+            );
+            const rawIdentifier = email || String(entry?.email || entry?.id || entry?.user || entry?.username || entry?.clientEmail || entry?.client || entry || '').trim();
+            if (rawIdentifier && rawIdentifier !== '[object Object]') {
+                serverUniqueOnlineUsers.add(rawIdentifier);
+            }
+        });
+        const serverOnlineCount = serverUniqueOnlineUsers.size;
+        const serverOnlineSessionCount = rawOnlines.length;
+
         acc[serverId] = withServerRemarkMeta({
             serverId,
             name: String(server?.name || clusterItem?.name || '').trim(),
@@ -700,11 +714,13 @@ async function buildGlobalDashboardSnapshot(options = {}, deps = {}) {
             inboundCount: Number(clusterItem?.inboundCount || rawInbounds.length || 0),
             activeInbounds: Number(clusterItem?.activeInbounds || rawInbounds.filter((item) => item?.enable !== false).length || 0),
             managedOnlineCount: Number(presence.serverOnlineUserCountByServerId?.[serverId] || 0),
+            onlineCount: serverOnlineCount,
+            onlineSessionCount: serverOnlineSessionCount,
             managedTrafficTotal: Number(presence.serverTrafficByServerId?.[serverId]?.total || 0),
             managedTrafficReady: !panelItem?.inboundsError,
             status: clusterItem?.status && typeof clusterItem.status === 'object' ? clusterItem.status : null,
             rawInbounds,
-            rawOnlines: Array.isArray(panelItem?.onlines) ? panelItem.onlines : [],
+            rawOnlines,
         }, server?.name);
         return acc;
     }, {});
