@@ -157,9 +157,11 @@ test('buildGlobalDashboardSnapshot returns managed-user presence and traffic win
     assert.equal(collectForce, true);
     assert.equal(snapshot.globalStats.totalUp, 220);
     assert.equal(snapshot.globalStats.totalDown, 440);
-    assert.equal(snapshot.globalStats.totalOnline, 2);
+    assert.equal(snapshot.globalStats.totalOnline, 1);
+    assert.equal(snapshot.globalStats.rawTotalOnline, 2);
     assert.equal(snapshot.globalManagedOnlineCount, 1);
-    assert.equal(snapshot.globalOnlineSessionCount, 4);
+    assert.equal(snapshot.globalOnlineSessionCount, 3);
+    assert.equal(snapshot.rawGlobalOnlineSessionCount, 4);
     assert.equal(snapshot.globalAccountSummary.totalUsers, 2);
     assert.equal(snapshot.globalAccountSummary.pendingUsers, 1);
     assert.equal(snapshot.throughputSummary.totalPerSecond, 36);
@@ -219,6 +221,10 @@ test('buildGlobalDashboardSnapshot derives inbound totals from panel snapshots w
                     { id: 'ib-a', protocol: 'vless', enable: true, settings: JSON.stringify({ clients: [] }) },
                     { id: 'ib-b', protocol: 'vless', enable: false, settings: JSON.stringify({ clients: [] }) },
                 ],
+                nodes: [
+                    { id: 1, remark: '3x-ui child online', status: 'online' },
+                    { id: 2, remark: '3x-ui child offline', status: 'offline' },
+                ],
                 onlines: [],
             },
         ],
@@ -228,6 +234,8 @@ test('buildGlobalDashboardSnapshot derives inbound totals from panel snapshots w
     assert.equal(snapshot.serverStatuses['server-a'].activeInbounds, 1);
     assert.equal(snapshot.globalStats.totalInbounds, 2);
     assert.equal(snapshot.globalStats.activeInbounds, 1);
+    assert.equal(snapshot.globalStats.serverCount, 1);
+    assert.equal(snapshot.globalStats.onlineServers, 1);
 });
 
 test('buildGlobalDashboardSnapshot waits for traffic sampling before computing traffic windows', async () => {

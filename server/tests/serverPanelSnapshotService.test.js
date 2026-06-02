@@ -79,3 +79,43 @@ test('getServerPanelSnapshots keeps healthy snapshots when one server auth fails
     assert.equal(snapshots[1].inboundsError?.code, 'PANEL_LOGIN_FAILED');
     assert.equal(snapshots[1].onlinesError?.code, 'PANEL_LOGIN_FAILED');
 });
+
+test('getServerPanelSnapshot includes latest 3x-ui last online timestamps when available', async () => {
+    invalidateServerPanelSnapshotCache();
+
+    const calls = [];
+    const snapshot = await getServerPanelSnapshot(
+        { id: 'server-last-online', name: 'Node Last Online' },
+        {
+            force: true,
+            includeOnlines: true,
+            getAuthenticatedPanelClient: async () => ({
+                get: async (path) => {
+                    calls.push(['get', path]);
+                    if (path === '/panel/api/inbounds/list') return { data: { obj: [] } };
+                    if (path === '/panel/api/nodes/list') return { data: { obj: [] } };
+                    throw new Error(`unexpected get ${path}`);
+                },
+                post: async (path) => {
+                    calls.push(['post', path]);
+                    if (path === '/panel/api/clients/onlines') {
+                        return { data: { obj: ['Alice@Example.com', 'alice@example.com'] } };
+                    }
+                    if (path === '/panel/api/clients/lastOnline') {
+                        return { data: { obj: { 'Alice@Example.com': 1770000000 } } };
+                    }
+                    throw new Error(`unexpected post ${path}`);
+                },
+            }),
+        }
+    );
+
+    assert.deepEqual(snapshot.onlines, [
+        { email: 'Alice@Example.com' },
+        { email: 'alice@example.com' },
+    ]);
+    assert.deepEqual(snapshot.lastOnline, {
+        'alice@example.com': 1770000000,
+    });
+    assert.ok(calls.some(([, path]) => path === '/panel/api/clients/lastOnline'));
+});

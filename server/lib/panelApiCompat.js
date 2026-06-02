@@ -252,6 +252,23 @@ export async function fetchPanelOnlineClients(panelClient) {
     }
 }
 
+export async function fetchPanelLastOnlineClients(panelClient) {
+    try {
+        return await panelClient.post('/panel/api/clients/lastOnline');
+    } catch (error) {
+        if (!isUnsupportedPanelEndpointError(error)) {
+            throw error;
+        }
+        return {
+            status: 200,
+            data: {
+                success: true,
+                obj: {},
+            },
+        };
+    }
+}
+
 export async function getClientIpsCompat(panelClient, email) {
     const encoded = encodePathSegment(email);
     try {

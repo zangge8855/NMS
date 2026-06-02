@@ -55,6 +55,10 @@ function applyEntitlementToClient(clientRecord = {}, entitlement = {}) {
         totalGB: normalizeNonNegativeInt(entitlement.trafficLimitBytes, normalizeNonNegativeInt(clientRecord.totalGB, 0)),
         speedLimitUp: normalizeNonNegativeInt(entitlement.speedLimitUp, normalizeNonNegativeInt(clientRecord.speedLimitUp, 0)),
         speedLimitDown: normalizeNonNegativeInt(entitlement.speedLimitDown, normalizeNonNegativeInt(clientRecord.speedLimitDown, 0)),
+        tgId: entitlement.tgId !== undefined ? Number(entitlement.tgId) || 0 : clientRecord.tgId,
+        group: entitlement.group !== undefined ? normalizeText(entitlement.group) : clientRecord.group,
+        comment: entitlement.comment !== undefined ? normalizeText(entitlement.comment) : clientRecord.comment,
+        reset: entitlement.reset !== undefined ? Number(entitlement.reset) || 0 : clientRecord.reset,
     };
 }
 
@@ -79,10 +83,11 @@ function buildManagedClientData({
         email: normalizeEmail(email),
         enable: true,
         id: normalizeText(sharedCredentials.uuid),
-        tgId: '',
+        tgId: entitlement.tgId !== undefined ? Number(entitlement.tgId) || 0 : 0,
         subId: normalizeText(sharedCredentials.subId),
-        comment: '',
-        reset: 0,
+        group: entitlement.group !== undefined ? normalizeText(entitlement.group) : '',
+        comment: entitlement.comment !== undefined ? normalizeText(entitlement.comment) : '',
+        reset: entitlement.reset !== undefined ? Number(entitlement.reset) || 0 : 0,
         totalGB: 0,
         expiryTime: 0,
         limitIp: 0,

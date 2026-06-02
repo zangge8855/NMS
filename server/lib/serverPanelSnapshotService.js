@@ -1,7 +1,7 @@
 import serverStore from '../store/serverStore.js';
 import config from '../config.js';
 import { getAuthenticatedPanelClient } from '../services/panelGateway.js';
-import { fetchPanelOnlineClients } from './panelApiCompat.js';
+import { fetchPanelLastOnlineClients, fetchPanelOnlineClients } from './panelApiCompat.js';
 
 const DEFAULT_WARM_INTERVAL_MS = Math.max(5_000, Number(config.performance?.panelSnapshotIntervalMs || 10_000));
 const DEFAULT_TTL_MS = DEFAULT_WARM_INTERVAL_MS;
@@ -28,6 +28,23 @@ function normalizeOnlineEntries(items = []) {
         if (!item || typeof item !== 'object') return null;
         return { ...item };
     }).filter(Boolean);
+}
+
+function normalizeLastOnlineMap(payload = {}) {
+    const source = payload && typeof payload === 'object' ? payload : {};
+    const entries = Array.isArray(source)
+        ? source.map((item) => [item?.email || item?.user || item?.username || item?.clientEmail, item?.lastOnline || item?.lastSeen || item?.time || item?.ts])
+        : Object.entries(source);
+    const out = {};
+
+    for (const [rawEmail, rawTs] of entries) {
+        const email = String(rawEmail || '').trim().toLowerCase();
+        const ts = Number(rawTs || 0);
+        if (!email || !Number.isFinite(ts) || ts <= 0) continue;
+        out[email] = ts;
+    }
+
+    return out;
 }
 
 function getRecord(serverId) {
@@ -74,17 +91,21 @@ async function fetchServerPanelSnapshot(server, options = {}) {
             },
             inbounds: [],
             onlines: [],
+            lastOnline: {},
             inboundsError: normalized,
             onlinesError: includeOnlines ? normalized : null,
             checkedAt,
         };
     }
 
-    const [inboundsResult, onlinesResult, nodesResult] = await Promise.allSettled([
+    const [inboundsResult, onlinesResult, lastOnlineResult, nodesResult] = await Promise.allSettled([
         client.get('/panel/api/inbounds/list'),
         includeOnlines
             ? fetchPanelOnlineClients(client)
             : Promise.resolve({ data: { obj: [] } }),
+        includeOnlines
+            ? fetchPanelLastOnlineClients(client)
+            : Promise.resolve({ data: { obj: {} } }),
         client.get('/panel/api/nodes/list'),
     ]);
 
@@ -94,6 +115,9 @@ async function fetchServerPanelSnapshot(server, options = {}) {
     const onlines = onlinesResult.status === 'fulfilled'
         ? normalizeOnlineEntries(onlinesResult.value?.data?.obj)
         : [];
+    const lastOnline = lastOnlineResult.status === 'fulfilled'
+        ? normalizeLastOnlineMap(lastOnlineResult.value?.data?.obj)
+        : {};
     const nodes = nodesResult.status === 'fulfilled' && Array.isArray(nodesResult.value?.data?.obj)
         ? nodesResult.value.data.obj
         : [];
@@ -105,6 +129,7 @@ async function fetchServerPanelSnapshot(server, options = {}) {
         },
         inbounds,
         onlines,
+        lastOnline,
         nodes,
         inboundsError: inboundsResult.status === 'rejected'
             ? normalizeError(inboundsResult.reason, 'PANEL_INBOUND_LIST_FAILED')

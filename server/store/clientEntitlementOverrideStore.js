@@ -53,6 +53,10 @@ function sanitizeRecord(input = {}, actor = 'admin') {
         trafficLimitBytes: normalizeNonNegativeInt(input.trafficLimitBytes, 0),
         speedLimitUp: normalizeNonNegativeInt(input.speedLimitUp, 0),
         speedLimitDown: normalizeNonNegativeInt(input.speedLimitDown, 0),
+        tgId: Number(input.tgId) || 0,
+        group: normalizeText(input.group),
+        comment: normalizeText(input.comment),
+        reset: Number(input.reset) || 0,
         updatedAt: new Date().toISOString(),
         updatedBy: normalizeText(actor) || 'admin',
     };

@@ -43,6 +43,10 @@ test('buildServerDetailSnapshot merges cached status and panel snapshot data', a
                 { id: 'ib-2', port: 8443, remark: 'B' },
             ],
             onlines: [{ email: 'alice@example.com' }, 'bob@example.com'],
+            lastOnline: {
+                'Alice@Example.com': 1770000000,
+                'bob@example.com': 1770000300,
+            },
             inboundsError: null,
             onlinesError: null,
         }),
@@ -54,6 +58,10 @@ test('buildServerDetailSnapshot merges cached status and panel snapshot data', a
     assert.equal(snapshot.statusMeta.latencyMs, 42);
     assert.deepEqual(snapshot.inbounds.map((item) => item.id), ['ib-2', 'ib-1']);
     assert.deepEqual(snapshot.onlines, ['alice@example.com', 'bob@example.com']);
+    assert.deepEqual(snapshot.lastOnline, {
+        'alice@example.com': 1770000000,
+        'bob@example.com': 1770000300,
+    });
     assert.equal(snapshot.warnings.inbounds, '');
     assert.equal(snapshot.warnings.onlines, '');
 });

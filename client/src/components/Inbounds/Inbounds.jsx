@@ -193,6 +193,12 @@ export default function Inbounds() {
     const [entitlementExpiryDate, setEntitlementExpiryDate] = useState('');
     const [entitlementLimitIp, setEntitlementLimitIp] = useState('0');
     const [entitlementTrafficLimitGb, setEntitlementTrafficLimitGb] = useState('0');
+    const [entitlementSpeedLimitUp, setEntitlementSpeedLimitUp] = useState('0');
+    const [entitlementSpeedLimitDown, setEntitlementSpeedLimitDown] = useState('0');
+    const [entitlementTgId, setEntitlementTgId] = useState('0');
+    const [entitlementGroup, setEntitlementGroup] = useState('');
+    const [entitlementComment, setEntitlementComment] = useState('');
+    const [entitlementReset, setEntitlementReset] = useState('0');
     const [entitlementSaving, setEntitlementSaving] = useState(false);
     const [overrideKeySet, setOverrideKeySet] = useState(() => new Set(bootstrapRef.current?.overrideKeys || []));
     const [clientActionKey, setClientActionKey] = useState('');
@@ -1079,6 +1085,12 @@ export default function Inbounds() {
         setEntitlementExpiryDate(toLocalDateTimeString(client.expiryTime));
         setEntitlementLimitIp(String(normalizeLimitIp(client.limitIp)));
         setEntitlementTrafficLimitGb(bytesToGigabytesInput(resolveClientQuota(client)));
+        setEntitlementSpeedLimitUp(String(client.speedLimitUp || 0));
+        setEntitlementSpeedLimitDown(String(client.speedLimitDown || 0));
+        setEntitlementTgId(String(client.tgId || 0));
+        setEntitlementGroup(client.group || '');
+        setEntitlementComment(client.comment || '');
+        setEntitlementReset(String(client.reset || 0));
         setEntitlementSaving(false);
         setEntitlementOpen(true);
     };
@@ -1089,6 +1101,12 @@ export default function Inbounds() {
         setEntitlementExpiryDate('');
         setEntitlementLimitIp('0');
         setEntitlementTrafficLimitGb('0');
+        setEntitlementSpeedLimitUp('0');
+        setEntitlementSpeedLimitDown('0');
+        setEntitlementTgId('0');
+        setEntitlementGroup('');
+        setEntitlementComment('');
+        setEntitlementReset('0');
         setEntitlementSaving(false);
     };
 
@@ -1107,6 +1125,12 @@ export default function Inbounds() {
                 expiryTime: entitlementExpiryDate ? new Date(entitlementExpiryDate).getTime() : 0,
                 limitIp: normalizeLimitIp(entitlementLimitIp),
                 trafficLimitBytes: gigabytesInputToBytes(entitlementTrafficLimitGb),
+                speedLimitUp: Number(entitlementSpeedLimitUp) || 0,
+                speedLimitDown: Number(entitlementSpeedLimitDown) || 0,
+                tgId: Number(entitlementTgId) || 0,
+                group: entitlementGroup.trim(),
+                comment: entitlementComment.trim(),
+                reset: Number(entitlementReset) || 0,
             });
             toast.success(t('comp.inbounds.entitlementSaved'));
             closeEntitlementModal();
@@ -1981,7 +2005,7 @@ export default function Inbounds() {
 
                 {entitlementOpen && entitlementTarget && (
                     <ModalShell isOpen={entitlementOpen} onClose={closeEntitlementModal}>
-                        <div className="modal modal-md" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
                                 <h3 className="modal-title">单独限制</h3>
                                 <button className="modal-close" onClick={closeEntitlementModal} aria-label="关闭" title="关闭">
@@ -1995,41 +2019,109 @@ export default function Inbounds() {
                                         <div>入站: <strong>{entitlementTarget.inbound.remark || entitlementTarget.inbound.protocol}</strong></div>
                                         <div>用户: <strong>{entitlementTarget.client.email || entitlementTarget.clientIdentifier || '-'}</strong></div>
                                     </div>
-                                    <div className="form-group">
-                                        <label className="form-label">到期时间</label>
-                                        <input
-                                            type="datetime-local"
-                                            className="form-input"
-                                            value={entitlementExpiryDate}
-                                            onChange={(e) => setEntitlementExpiryDate(e.target.value)}
-                                        />
-                                        <p className="text-xs text-muted mt-1">留空 = 永不过期</p>
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">IP 限制</label>
-                                        <input
-                                            type="number"
-                                            className="form-input"
-                                            min={0}
-                                            value={entitlementLimitIp}
-                                            onChange={(e) => setEntitlementLimitIp(e.target.value)}
-                                        />
-                                        <p className="text-xs text-muted mt-1">0 = 不限制连接 IP 数量</p>
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">总流量上限</label>
-                                        <div className="flex items-center gap-2">
+                                    <div className="grid-auto-280-tight">
+                                        <div className="form-group mb-0">
+                                            <label className="form-label">{t('comp.users.provisionExpiryLabel')}</label>
+                                            <input
+                                                type="datetime-local"
+                                                className="form-input"
+                                                value={entitlementExpiryDate}
+                                                onChange={(e) => setEntitlementExpiryDate(e.target.value)}
+                                            />
+                                            <p className="text-xs text-muted mt-1">{t('comp.users.provisionExpiryHint')}</p>
+                                        </div>
+                                        <div className="form-group mb-0">
+                                            <label className="form-label">{t('comp.users.provisionIpLimitLabel')}</label>
                                             <input
                                                 type="number"
                                                 className="form-input"
                                                 min={0}
-                                                step="0.5"
-                                                value={entitlementTrafficLimitGb}
-                                                onChange={(e) => setEntitlementTrafficLimitGb(e.target.value)}
+                                                value={entitlementLimitIp}
+                                                onChange={(e) => setEntitlementLimitIp(e.target.value)}
                                             />
-                                            <span className="text-sm text-muted">GB</span>
+                                            <p className="text-xs text-muted mt-1">{t('comp.users.provisionIpLimitHint')}</p>
                                         </div>
-                                        <p className="text-xs text-muted mt-1">0 = 不限制总流量</p>
+                                        <div className="form-group mb-0">
+                                            <label className="form-label">{t('comp.users.provisionTrafficLimitLabel')}</label>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="number"
+                                                    className="form-input"
+                                                    min={0}
+                                                    step="0.5"
+                                                    value={entitlementTrafficLimitGb}
+                                                    onChange={(e) => setEntitlementTrafficLimitGb(e.target.value)}
+                                                />
+                                                <span className="text-sm text-muted">GB</span>
+                                            </div>
+                                            <p className="text-xs text-muted mt-1">{t('comp.users.provisionTrafficLimitHint')}</p>
+                                        </div>
+                                        <div className="form-group mb-0">
+                                            <label className="form-label">{t('comp.users.provisionResetLabel')}</label>
+                                            <input
+                                                type="number"
+                                                className="form-input"
+                                                min={0}
+                                                value={entitlementReset}
+                                                onChange={(e) => setEntitlementReset(e.target.value)}
+                                            />
+                                            <p className="text-xs text-muted mt-1">{t('comp.users.provisionResetHint')}</p>
+                                        </div>
+                                        <div className="form-group mb-0">
+                                            <label className="form-label">{t('comp.users.provisionSpeedLimitUpLabel')}</label>
+                                            <input
+                                                type="number"
+                                                className="form-input"
+                                                min={0}
+                                                value={entitlementSpeedLimitUp}
+                                                onChange={(e) => setEntitlementSpeedLimitUp(e.target.value)}
+                                            />
+                                            <p className="text-xs text-muted mt-1">{t('comp.users.provisionSpeedLimitUpHint')}</p>
+                                        </div>
+                                        <div className="form-group mb-0">
+                                            <label className="form-label">{t('comp.users.provisionSpeedLimitDownLabel')}</label>
+                                            <input
+                                                type="number"
+                                                className="form-input"
+                                                min={0}
+                                                value={entitlementSpeedLimitDown}
+                                                onChange={(e) => setEntitlementSpeedLimitDown(e.target.value)}
+                                            />
+                                            <p className="text-xs text-muted mt-1">{t('comp.users.provisionSpeedLimitDownHint')}</p>
+                                        </div>
+                                        <div className="form-group mb-0">
+                                            <label className="form-label">{t('comp.users.provisionTgIdLabel')}</label>
+                                            <input
+                                                type="number"
+                                                className="form-input"
+                                                min={0}
+                                                value={entitlementTgId}
+                                                onChange={(e) => setEntitlementTgId(e.target.value)}
+                                            />
+                                            <p className="text-xs text-muted mt-1">{t('comp.users.provisionTgIdHint')}</p>
+                                        </div>
+                                        <div className="form-group mb-0">
+                                            <label className="form-label">{t('comp.users.provisionGroupLabel')}</label>
+                                            <input
+                                                type="text"
+                                                className="form-input"
+                                                value={entitlementGroup}
+                                                onChange={(e) => setEntitlementGroup(e.target.value)}
+                                                placeholder="e.g. VipGroup"
+                                            />
+                                            <p className="text-xs text-muted mt-1">{t('comp.users.provisionGroupHint')}</p>
+                                        </div>
+                                    </div>
+                                    <div className="form-group mt-4">
+                                        <label className="form-label">{t('comp.users.provisionCommentLabel')}</label>
+                                        <input
+                                            type="text"
+                                            className="form-input"
+                                            value={entitlementComment}
+                                            onChange={(e) => setEntitlementComment(e.target.value)}
+                                            placeholder="e.g. My private note"
+                                        />
+                                        <p className="text-xs text-muted mt-1">{t('comp.users.provisionCommentHint')}</p>
                                     </div>
                                 </div>
                                 <div className="modal-footer">

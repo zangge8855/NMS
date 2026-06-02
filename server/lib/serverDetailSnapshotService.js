@@ -23,6 +23,22 @@ function normalizeOnlineEntries(items = []) {
         .filter(Boolean);
 }
 
+function normalizeLastOnlineMap(input = {}) {
+    const out = {};
+    const entries = input && typeof input === 'object' && !Array.isArray(input)
+        ? Object.entries(input)
+        : [];
+
+    for (const [email, timestamp] of entries) {
+        const normalizedEmail = String(email || '').trim().toLowerCase();
+        const normalizedTimestamp = Number(timestamp || 0);
+        if (!normalizedEmail || !Number.isFinite(normalizedTimestamp) || normalizedTimestamp <= 0) continue;
+        out[normalizedEmail] = normalizedTimestamp;
+    }
+
+    return out;
+}
+
 function buildStatusMeta(item = null) {
     if (!item || typeof item !== 'object') {
         return {
@@ -81,6 +97,7 @@ async function buildServerDetailSnapshot(serverId, options = {}, deps = {}) {
             },
             inbounds: [],
             onlines: [],
+            lastOnline: {},
             inboundsError: error || null,
             onlinesError: error || null,
             checkedAt: new Date().toISOString(),
@@ -100,6 +117,7 @@ async function buildServerDetailSnapshot(serverId, options = {}, deps = {}) {
             ? settings.sortInboundList(normalizedServerId, inbounds)
             : inbounds,
         onlines: normalizeOnlineEntries(panelSnapshot?.onlines),
+        lastOnline: normalizeLastOnlineMap(panelSnapshot?.lastOnline),
         warnings: {
             inbounds: String(panelSnapshot?.inboundsError?.message || '').trim(),
             onlines: String(panelSnapshot?.onlinesError?.message || '').trim(),

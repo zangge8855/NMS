@@ -390,6 +390,12 @@ export default function UsersHub() {
     const [provisionExpiryDate, setProvisionExpiryDate] = useState('');
     const [provisionLimitIp, setProvisionLimitIp] = useState('0');
     const [provisionTrafficLimitGb, setProvisionTrafficLimitGb] = useState('0');
+    const [provisionSpeedLimitUp, setProvisionSpeedLimitUp] = useState('0');
+    const [provisionSpeedLimitDown, setProvisionSpeedLimitDown] = useState('0');
+    const [provisionTgId, setProvisionTgId] = useState('0');
+    const [provisionGroup, setProvisionGroup] = useState('');
+    const [provisionComment, setProvisionComment] = useState('');
+    const [provisionReset, setProvisionReset] = useState('0');
     const [provisionResult, setProvisionResult] = useState(null);
     const [provisionSelectedInboundKeys, setProvisionSelectedInboundKeys] = useState(new Set());
     const [inboundExpiries, setInboundExpiries] = useState(() => statsBootstrapRef.current?.inboundExpiries || []);
@@ -418,6 +424,12 @@ export default function UsersHub() {
     const [editProtocols, setEditProtocols] = useState([]);
     const [editLimitIp, setEditLimitIp] = useState('0');
     const [editTrafficLimitGb, setEditTrafficLimitGb] = useState('0');
+    const [editSpeedLimitUp, setEditSpeedLimitUp] = useState('0');
+    const [editSpeedLimitDown, setEditSpeedLimitDown] = useState('0');
+    const [editTgId, setEditTgId] = useState('0');
+    const [editGroup, setEditGroup] = useState('');
+    const [editComment, setEditComment] = useState('');
+    const [editReset, setEditReset] = useState('0');
     const [editOverrideFields, setEditOverrideFields] = useState([]);
 
     // Create user modal
@@ -1132,9 +1144,21 @@ export default function UsersHub() {
             const policy = policyRes.data?.obj || {};
             setProvisionLimitIp(String(normalizeLimitIp(policy.limitIp)));
             setProvisionTrafficLimitGb(bytesToGigabytesInput(policy.trafficLimitBytes));
+            setProvisionSpeedLimitUp(String(policy.speedLimitUp || 0));
+            setProvisionSpeedLimitDown(String(policy.speedLimitDown || 0));
+            setProvisionTgId(String(policy.tgId || 0));
+            setProvisionGroup(policy.group || '');
+            setProvisionComment(policy.comment || '');
+            setProvisionReset(String(policy.reset || 0));
         } catch {
             setProvisionLimitIp('0');
             setProvisionTrafficLimitGb('0');
+            setProvisionSpeedLimitUp('0');
+            setProvisionSpeedLimitDown('0');
+            setProvisionTgId('0');
+            setProvisionGroup('');
+            setProvisionComment('');
+            setProvisionReset('0');
         }
 
         setProvisionInitLoading(false);
@@ -1174,6 +1198,12 @@ export default function UsersHub() {
                 expiryTime,
                 limitIp: normalizeLimitIp(provisionLimitIp),
                 trafficLimitBytes: gigabytesInputToBytes(provisionTrafficLimitGb),
+                speedLimitUp: Number(provisionSpeedLimitUp) || 0,
+                speedLimitDown: Number(provisionSpeedLimitDown) || 0,
+                tgId: Number(provisionTgId) || 0,
+                group: provisionGroup.trim(),
+                comment: provisionComment.trim(),
+                reset: Number(provisionReset) || 0,
             });
             if (!res.data?.success) {
                 toast.error(res.data?.msg || t('comp.users.provisionFailed'));
@@ -1270,6 +1300,12 @@ export default function UsersHub() {
             setEditProtocols([]);
             setEditLimitIp('0');
             setEditTrafficLimitGb('0');
+            setEditSpeedLimitUp('0');
+            setEditSpeedLimitDown('0');
+            setEditTgId('0');
+            setEditGroup('');
+            setEditComment('');
+            setEditReset('0');
             setEditOverrideFields([]);
             if (policyEmail) {
                 setEditPolicyLoading(true);
@@ -1289,6 +1325,12 @@ export default function UsersHub() {
                         setEditNoProtocolLimit(pMode !== 'selected' && pMode !== 'none');
                         setEditLimitIp(String(normalizeLimitIp(p.limitIp)));
                         setEditTrafficLimitGb(bytesToGigabytesInput(p.trafficLimitBytes));
+                        setEditSpeedLimitUp(String(p.speedLimitUp || 0));
+                        setEditSpeedLimitDown(String(p.speedLimitDown || 0));
+                        setEditTgId(String(p.tgId || 0));
+                        setEditGroup(p.group || '');
+                        setEditComment(p.comment || '');
+                        setEditReset(String(p.reset || 0));
                         setEditInheritGroup(p.inheritGroup === true || (String(user.groupId || '') && !p.updatedAt));
                         setEditOverrideFields(Array.isArray(p.overrideFields) ? p.overrideFields.slice() : []);
                         // Fallback expiry pre-fill from policy when client list is empty
@@ -1370,32 +1412,43 @@ export default function UsersHub() {
             let policySyncPartialFailure = false;
             const newExpiryTime = editExpiryDate ? new Date(editExpiryDate).getTime() : 0;
             const expiryChanged = editExpiryDate !== editExpiryInitial;
-            // Preserve overrideFields; add 'expiryTime' if the user has set a value while inheriting from a group
+            // Preserve overrideFields; add fields if the user has set a custom value while inheriting from a group
             const overrideFieldsNext = new Set(editOverrideFields || []);
-            if (editGroupId && editInheritGroup && expiryChanged && newExpiryTime > 0) {
-                overrideFieldsNext.add('expiryTime');
+            if (editGroupId && editInheritGroup) {
+                if (expiryChanged && newExpiryTime > 0) {
+                    overrideFieldsNext.add('expiryTime');
+                }
+                const group = userGroups.find(g => String(g.id) === String(editGroupId));
+                if (Number(editLimitIp) !== Number(group?.limitIp ?? 0)) overrideFieldsNext.add('limitIp');
+                if (gigabytesInputToBytes(editTrafficLimitGb) !== Number(group?.trafficLimitBytes ?? 0)) overrideFieldsNext.add('trafficLimitBytes');
+                if (Number(editSpeedLimitUp) !== Number(group?.speedLimitUp ?? 0)) overrideFieldsNext.add('speedLimitUp');
+                if (Number(editSpeedLimitDown) !== Number(group?.speedLimitDown ?? 0)) overrideFieldsNext.add('speedLimitDown');
+                if (Number(editTgId) !== Number(group?.tgId ?? 0)) overrideFieldsNext.add('tgId');
+                if (editGroup.trim() !== String(group?.group || '').trim()) overrideFieldsNext.add('group');
+                if (editComment.trim() !== String(group?.comment || '').trim()) overrideFieldsNext.add('comment');
+                if (Number(editReset) !== Number(group?.reset ?? 0)) overrideFieldsNext.add('reset');
             }
             if (policyEmail) {
                 const serverScopeMode = editNoServerLimit ? 'all' : (editServerIds.length > 0 ? 'selected' : 'none');
                 const protocolScopeMode = editNoProtocolLimit ? 'all' : (editProtocols.length > 0 ? 'selected' : 'none');
                 try {
-                    const policyPayload = editGroupId && editInheritGroup
-                        ? {
-                            inheritGroup: true,
-                            overrideFields: Array.from(overrideFieldsNext),
-                            expiryTime: newExpiryTime,
-                        }
-                        : {
-                            inheritGroup: false,
-                            overrideFields: Array.from(overrideFieldsNext),
-                            allowedServerIds: serverScopeMode === 'selected' ? editServerIds : [],
-                            allowedProtocols: protocolScopeMode === 'selected' ? editProtocols : [],
-                            serverScopeMode,
-                            protocolScopeMode,
-                            limitIp: normalizeLimitIp(editLimitIp),
-                            trafficLimitBytes: gigabytesInputToBytes(editTrafficLimitGb),
-                            expiryTime: newExpiryTime,
-                        };
+                    const policyPayload = {
+                        inheritGroup: Boolean(editGroupId && editInheritGroup),
+                        overrideFields: Array.from(overrideFieldsNext),
+                        allowedServerIds: serverScopeMode === 'selected' ? editServerIds : [],
+                        allowedProtocols: protocolScopeMode === 'selected' ? editProtocols : [],
+                        serverScopeMode,
+                        protocolScopeMode,
+                        limitIp: normalizeLimitIp(editLimitIp),
+                        trafficLimitBytes: gigabytesInputToBytes(editTrafficLimitGb),
+                        expiryTime: newExpiryTime,
+                        speedLimitUp: Number(editSpeedLimitUp) || 0,
+                        speedLimitDown: Number(editSpeedLimitDown) || 0,
+                        tgId: Number(editTgId) || 0,
+                        group: editGroup.trim(),
+                        comment: editComment.trim(),
+                        reset: Number(editReset) || 0,
+                    };
                     const policyRes = await api.put(`/user-policy/${encodeURIComponent(policyEmail)}`, policyPayload);
                     policySyncPartialFailure = policyRes.data?.obj?.partialFailure === true;
                 } catch (policyErr) {
@@ -2597,6 +2650,70 @@ export default function UsersHub() {
                                                         </div>
                                                         <p className="text-muted text-sm mt-1">{t('comp.users.provisionTrafficLimitHint')}</p>
                                                     </div>
+                                                    <div className="form-group mb-0">
+                                                        <label className="form-label">{t('comp.users.provisionSpeedLimitUpLabel')}</label>
+                                                        <input
+                                                            type="number"
+                                                            className="form-input"
+                                                            min={0}
+                                                            value={editSpeedLimitUp}
+                                                            onChange={(e) => setEditSpeedLimitUp(e.target.value)}
+                                                        />
+                                                        <p className="text-muted text-sm mt-1">{t('comp.users.provisionSpeedLimitUpHint')}</p>
+                                                    </div>
+                                                    <div className="form-group mb-0">
+                                                        <label className="form-label">{t('comp.users.provisionSpeedLimitDownLabel')}</label>
+                                                        <input
+                                                            type="number"
+                                                            className="form-input"
+                                                            min={0}
+                                                            value={editSpeedLimitDown}
+                                                            onChange={(e) => setEditSpeedLimitDown(e.target.value)}
+                                                        />
+                                                        <p className="text-muted text-sm mt-1">{t('comp.users.provisionSpeedLimitDownHint')}</p>
+                                                    </div>
+                                                    <div className="form-group mb-0">
+                                                        <label className="form-label">{t('comp.users.provisionTgIdLabel')}</label>
+                                                        <input
+                                                            type="number"
+                                                            className="form-input"
+                                                            min={0}
+                                                            value={editTgId}
+                                                            onChange={(e) => setEditTgId(e.target.value)}
+                                                        />
+                                                        <p className="text-muted text-sm mt-1">{t('comp.users.provisionTgIdHint')}</p>
+                                                    </div>
+                                                    <div className="form-group mb-0">
+                                                        <label className="form-label">{t('comp.users.provisionResetLabel')}</label>
+                                                        <input
+                                                            type="number"
+                                                            className="form-input"
+                                                            min={0}
+                                                            value={editReset}
+                                                            onChange={(e) => setEditReset(e.target.value)}
+                                                        />
+                                                        <p className="text-muted text-sm mt-1">{t('comp.users.provisionResetHint')}</p>
+                                                    </div>
+                                                    <div className="form-group mb-0">
+                                                        <label className="form-label">{t('comp.users.provisionGroupLabel')}</label>
+                                                        <input
+                                                            type="text"
+                                                            className="form-input"
+                                                            value={editGroup}
+                                                            onChange={(e) => setEditGroup(e.target.value)}
+                                                        />
+                                                        <p className="text-muted text-sm mt-1">{t('comp.users.provisionGroupHint')}</p>
+                                                    </div>
+                                                    <div className="form-group mb-0">
+                                                        <label className="form-label">{t('comp.users.provisionCommentLabel')}</label>
+                                                        <input
+                                                            type="text"
+                                                            className="form-input"
+                                                            value={editComment}
+                                                            onChange={(e) => setEditComment(e.target.value)}
+                                                        />
+                                                        <p className="text-muted text-sm mt-1">{t('comp.users.provisionCommentHint')}</p>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </>
@@ -2702,6 +2819,70 @@ export default function UsersHub() {
                                                         <span className="text-sm text-muted">GB</span>
                                                     </div>
                                                     <p className="text-xs text-muted mt-1">{t('comp.users.provisionTrafficLimitHint')}</p>
+                                                </div>
+                                                <div className="form-group mb-0">
+                                                    <label className="form-label">{t('comp.users.provisionSpeedLimitUpLabel')}</label>
+                                                    <input
+                                                        type="number"
+                                                        className="form-input"
+                                                        min={0}
+                                                        value={provisionSpeedLimitUp}
+                                                        onChange={(e) => setProvisionSpeedLimitUp(e.target.value)}
+                                                    />
+                                                    <p className="text-xs text-muted mt-1">{t('comp.users.provisionSpeedLimitUpHint')}</p>
+                                                </div>
+                                                <div className="form-group mb-0">
+                                                    <label className="form-label">{t('comp.users.provisionSpeedLimitDownLabel')}</label>
+                                                    <input
+                                                        type="number"
+                                                        className="form-input"
+                                                        min={0}
+                                                        value={provisionSpeedLimitDown}
+                                                        onChange={(e) => setProvisionSpeedLimitDown(e.target.value)}
+                                                    />
+                                                    <p className="text-xs text-muted mt-1">{t('comp.users.provisionSpeedLimitDownHint')}</p>
+                                                </div>
+                                                <div className="form-group mb-0">
+                                                    <label className="form-label">{t('comp.users.provisionTgIdLabel')}</label>
+                                                    <input
+                                                        type="number"
+                                                        className="form-input"
+                                                        min={0}
+                                                        value={provisionTgId}
+                                                        onChange={(e) => setProvisionTgId(e.target.value)}
+                                                    />
+                                                    <p className="text-xs text-muted mt-1">{t('comp.users.provisionTgIdHint')}</p>
+                                                </div>
+                                                <div className="form-group mb-0">
+                                                    <label className="form-label">{t('comp.users.provisionResetLabel')}</label>
+                                                    <input
+                                                        type="number"
+                                                        className="form-input"
+                                                        min={0}
+                                                        value={provisionReset}
+                                                        onChange={(e) => setProvisionReset(e.target.value)}
+                                                    />
+                                                    <p className="text-xs text-muted mt-1">{t('comp.users.provisionResetHint')}</p>
+                                                </div>
+                                                <div className="form-group mb-0">
+                                                    <label className="form-label">{t('comp.users.provisionGroupLabel')}</label>
+                                                    <input
+                                                        type="text"
+                                                        className="form-input"
+                                                        value={provisionGroup}
+                                                        onChange={(e) => setProvisionGroup(e.target.value)}
+                                                    />
+                                                    <p className="text-xs text-muted mt-1">{t('comp.users.provisionGroupHint')}</p>
+                                                </div>
+                                                <div className="form-group mb-0">
+                                                    <label className="form-label">{t('comp.users.provisionCommentLabel')}</label>
+                                                    <input
+                                                        type="text"
+                                                        className="form-input"
+                                                        value={provisionComment}
+                                                        onChange={(e) => setProvisionComment(e.target.value)}
+                                                    />
+                                                    <p className="text-xs text-muted mt-1">{t('comp.users.provisionCommentHint')}</p>
                                                 </div>
                                             </div>
                                         </div>

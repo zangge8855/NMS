@@ -52,6 +52,8 @@ function buildDashboardPresenceSummary(panelSnapshots = []) {
         return {
             onlineRows: [],
             onlineSessionCount: 0,
+            serverOnlineUserCountByServerId: {},
+            serverTrafficByServerId: {},
             ready: false,
         };
     }
@@ -80,6 +82,8 @@ function buildDashboardPresenceSummary(panelSnapshots = []) {
     return {
         onlineRows: presence.onlineRows,
         onlineSessionCount: Number(presence.onlineSessionCount || 0),
+        serverOnlineUserCountByServerId: presence.serverOnlineUserCountByServerId || {},
+        serverTrafficByServerId: presence.serverTrafficByServerId || {},
         rawTotalOnlineUsersCount: Number(presence.rawTotalOnlineUsersCount || 0),
         rawTotalSessions: Number(presence.rawTotalSessions || 0),
         ready: true,
@@ -159,21 +163,40 @@ async function buildClusterStatusMessage(snapshot) {
     const panelSnapshots = resolveDashboardPanelSnapshots(snapshot);
     const presence = buildDashboardPresenceSummary(panelSnapshots);
     const trafficWindows = await buildDashboardTrafficWindows(panelSnapshots);
+    const panelSnapshotByServerId = new Map(
+        panelSnapshots
+            .map((item) => [String(item?.server?.id || item?.serverId || '').trim(), item])
+            .filter(([serverId]) => serverId)
+    );
+    const servers = Object.fromEntries(
+        Object.entries(snapshot?.byServerId || {}).map(([serverId, serverData]) => {
+            const normalizedServerId = String(serverData?.serverId || serverId || '').trim();
+            const panelSnapshot = panelSnapshotByServerId.get(normalizedServerId);
+            return [serverId, {
+                ...serverData,
+                managedOnlineCount: Number(presence.serverOnlineUserCountByServerId?.[normalizedServerId] || 0),
+                managedTrafficTotal: Number(presence.serverTrafficByServerId?.[normalizedServerId]?.total || 0),
+                managedTrafficReady: Boolean(panelSnapshot && !panelSnapshot?.inboundsError),
+            }];
+        })
+    );
     return {
         type: 'cluster_status',
         ts: Date.now(),
         data: {
             serverCount: snapshot?.summary?.total || 0,
             onlineServers: snapshot?.summary?.onlineServers || 0,
-            totalOnline: presence.rawTotalOnlineUsersCount,
-            totalOnlineSessionCount: presence.rawTotalSessions,
+            totalOnline: presence.onlineRows.length,
+            totalOnlineSessionCount: presence.onlineSessionCount,
+            rawTotalOnline: presence.rawTotalOnlineUsersCount,
+            rawTotalOnlineSessionCount: presence.rawTotalSessions,
             totalUp: snapshot?.summary?.totalUp || 0,
             totalDown: snapshot?.summary?.totalDown || 0,
             totalInbounds: snapshot?.summary?.totalInbounds || 0,
             activeInbounds: snapshot?.summary?.activeInbounds || 0,
             byReason: snapshot?.summary?.byReason || snapshot?.summary?.reasonCounts || {},
             reasonCounts: snapshot?.summary?.reasonCounts || {},
-            servers: snapshot?.byServerId || {},
+            servers,
             throughputSummary: snapshot?.summary?.throughput || {
                 ready: false,
                 readyServers: 0,

@@ -77,12 +77,24 @@ async function updateClientEntitlement(payload = {}, actor = 'admin', deps = {})
                 expiryTime: normalizeNonNegativeInt(policy.expiryTime, 0),
                 limitIp: normalizeNonNegativeInt(policy.limitIp, 0),
                 trafficLimitBytes: normalizeNonNegativeInt(policy.trafficLimitBytes, 0),
+                speedLimitUp: normalizeNonNegativeInt(policy.speedLimitUp, 0),
+                speedLimitDown: normalizeNonNegativeInt(policy.speedLimitDown, 0),
+                tgId: Number(policy.tgId) || 0,
+                group: String(policy.group || '').trim(),
+                comment: String(policy.comment || '').trim(),
+                reset: Number(policy.reset) || 0,
             };
         })()
         : {
             expiryTime: normalizeNonNegativeInt(payload.expiryTime, 0),
             limitIp: normalizeNonNegativeInt(payload.limitIp, 0),
             trafficLimitBytes: normalizeNonNegativeInt(payload.trafficLimitBytes, 0),
+            speedLimitUp: normalizeNonNegativeInt(payload.speedLimitUp, 0),
+            speedLimitDown: normalizeNonNegativeInt(payload.speedLimitDown, 0),
+            tgId: Number(payload.tgId) || 0,
+            group: String(payload.group || '').trim(),
+            comment: String(payload.comment || '').trim(),
+            reset: Number(payload.reset) || 0,
         };
 
     const updatedClient = applyEntitlementToClient(match, entitlement);

@@ -2489,6 +2489,13 @@
   }
 }
 
+@media (max-width: 1500px) {
+  .audit-page .audit-chart-grid,
+  .audit-page .audit-leaderboard-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 900px) {
   .audit-page .audit-filter-grid--events-primary,
   .audit-page .audit-filter-grid--events-secondary,
@@ -7885,5 +7892,4 @@
   font-size: 15px !important;
   flex-shrink: 0 !important;
 }
-
 

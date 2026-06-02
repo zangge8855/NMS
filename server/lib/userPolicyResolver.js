@@ -112,6 +112,10 @@ function sanitizePolicy(input = {}, options = {}) {
             normalizeTrafficResetCycle(defaults.trafficResetCycle, 'none')
         ),
         ipLimitPolicy: normalizeIpLimitPolicy(input.ipLimitPolicy, defaults.ipLimitPolicy || 'first-wins'),
+        tgId: Number(input.tgId ?? defaults.tgId ?? 0) || 0,
+        group: String(input.group ?? defaults.group ?? '').trim(),
+        comment: String(input.comment ?? defaults.comment ?? '').trim(),
+        reset: Number(input.reset ?? defaults.reset ?? 0) || 0,
     };
 }
 

@@ -132,6 +132,10 @@ function resolvePolicyEntitlement(policy = {}, options = {}) {
             options.speedLimitDown,
             normalizeNonNegativeInt(policy.speedLimitDown, 0)
         ),
+        tgId: options.tgId !== undefined ? Number(options.tgId) || 0 : (Number(policy.tgId) || 0),
+        group: options.group !== undefined ? String(options.group || '').trim() : String(policy.group || '').trim(),
+        comment: options.comment !== undefined ? String(options.comment || '').trim() : String(policy.comment || '').trim(),
+        reset: options.reset !== undefined ? Number(options.reset) || 0 : (Number(policy.reset) || 0),
     };
 }
 
@@ -428,14 +432,14 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
             if (!DEPLOY_CLIENT_PROTOCOLS.has(protocol)) continue;
 
             const isProtocolAllowed = !isGlobalProtocolDenied && isProtocolAllowedByPolicy(policy, protocol);
-            const isInboundKeyAllowed = !allowedInboundKeys || allowedInboundKeys.has(`${server.id}:${inbound.id}`);
+            const isInboundInDeploymentScope = !allowedInboundKeys || allowedInboundKeys.has(`${server.id}:${inbound.id}`);
             const isPolicyInboundAllowed = isInboundAllowedByPolicy(policy, server.id, inbound.id);
-            const isAllowed = isServerAllowed && isProtocolAllowed && isInboundKeyAllowed && isPolicyInboundAllowed;
+            const isPolicyAllowed = isServerAllowed && isProtocolAllowed && isPolicyInboundAllowed;
 
             const existingClients = parseInboundClients(inbound);
             const match = findManagedClientByEmail(existingClients, emailCandidates);
 
-            if (!isAllowed) {
+            if (!isPolicyAllowed) {
                 if (match) {
                     result.total += 1;
                     try {
@@ -470,6 +474,8 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
                 }
                 continue;
             }
+
+            if (!isInboundInDeploymentScope) continue;
 
             if (inbound.enable === false) continue;
 
@@ -511,7 +517,11 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
                         && Number(updatedClient.limitIp || 0) === Number(match.limitIp || 0)
                         && Number(updatedClient.totalGB || 0) === Number(match.totalGB || 0)
                         && Number(updatedClient.speedLimitUp || 0) === Number(match.speedLimitUp || 0)
-                        && Number(updatedClient.speedLimitDown || 0) === Number(match.speedLimitDown || 0);
+                        && Number(updatedClient.speedLimitDown || 0) === Number(match.speedLimitDown || 0)
+                        && Number(updatedClient.tgId || 0) === Number(match.tgId || 0)
+                        && String(updatedClient.group || '') === String(match.group || '')
+                        && String(updatedClient.comment || '') === String(match.comment || '')
+                        && Number(updatedClient.reset || 0) === Number(match.reset || 0);
                     const isSameEnableState = clientEnabled === undefined
                         ? true
                         : ((match.enable !== false) === Boolean(clientEnabled));
@@ -915,6 +925,10 @@ async function provisionSubscriptionForUser(targetUser, payload = {}, actor = 'a
             trafficLimitBytes,
             speedLimitUp,
             speedLimitDown,
+            tgId: Number(payload.tgId) || 0,
+            group: String(payload.group || '').trim(),
+            comment: String(payload.comment || '').trim(),
+            reset: Number(payload.reset) || 0,
         },
         actor
     );
@@ -930,6 +944,10 @@ async function provisionSubscriptionForUser(targetUser, payload = {}, actor = 'a
             trafficLimitBytes,
             speedLimitUp,
             speedLimitDown,
+            tgId: Number(payload.tgId) || 0,
+            group: String(payload.group || '').trim(),
+            comment: String(payload.comment || '').trim(),
+            reset: Number(payload.reset) || 0,
             allowedInboundKeys,
             allServers: servers.list(),
             clientEnabled: targetUser?.enabled !== false,

@@ -810,14 +810,21 @@ export default function Dashboard() {
         setServerStatuses((previous) => {
             const next = {};
             Object.entries(statusMap).forEach(([serverId, serverData]) => {
+                const previousServerData = previous?.[serverId] || {};
+                const wsManagedOnlineCount = Number(serverData?.managedOnlineCount);
+                const wsManagedTrafficTotal = Number(serverData?.managedTrafficTotal);
                 next[serverId] = {
                     ...serverData,
-                    managedOnlineCount: previous?.[serverId]?.managedOnlineCount ?? 0,
-                    managedTrafficTotal: previous?.[serverId]?.managedTrafficTotal ?? 0,
-                    managedTrafficReady: previous?.[serverId]?.managedTrafficReady === true,
-                    nodeRemarks: previous?.[serverId]?.nodeRemarks || [],
-                    nodeRemarkPreview: previous?.[serverId]?.nodeRemarkPreview || [],
-                    nodeRemarkCount: previous?.[serverId]?.nodeRemarkCount || 0,
+                    managedOnlineCount: Number.isFinite(wsManagedOnlineCount)
+                        ? wsManagedOnlineCount
+                        : previousServerData.managedOnlineCount,
+                    managedTrafficTotal: Number.isFinite(wsManagedTrafficTotal)
+                        ? wsManagedTrafficTotal
+                        : previousServerData.managedTrafficTotal,
+                    managedTrafficReady: serverData?.managedTrafficReady === true || previousServerData.managedTrafficReady === true,
+                    nodeRemarks: serverData?.nodeRemarks || previousServerData.nodeRemarks || [],
+                    nodeRemarkPreview: serverData?.nodeRemarkPreview || previousServerData.nodeRemarkPreview || [],
+                    nodeRemarkCount: serverData?.nodeRemarkCount || previousServerData.nodeRemarkCount || 0,
                 };
             });
             return next;
@@ -827,11 +834,9 @@ export default function Dashboard() {
             totalUp: Number(data.totalUp || 0),
             totalDown: Number(data.totalDown || 0),
             totalOnline: Number(
-                data.totalOnline !== undefined
-                    ? data.totalOnline
-                    : (shouldApplyManagedOnlineCount
-                        ? finiteNumberOrFallback(data.managedOnlineUserCount, previous.totalOnline)
-                        : previous.totalOnline)
+                shouldApplyManagedOnlineCount
+                    ? finiteNumberOrFallback(data.managedOnlineUserCount, data.totalOnline ?? previous.totalOnline)
+                    : (data.totalOnline !== undefined ? data.totalOnline : previous.totalOnline)
             ),
             totalInbounds,
             activeInbounds,

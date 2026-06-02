@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
     fetchClientRecordCompat,
+    fetchPanelLastOnlineClients,
     fetchPanelOnlineClients,
     postAttachClientToInboundsCompat,
     postAddClientCompat,
@@ -34,6 +35,21 @@ test('fetchPanelOnlineClients prefers latest clients endpoint and falls back to 
         '/panel/api/inbounds/onlines',
     ]);
     assert.deepEqual(response.data.obj, ['alice@example.com']);
+});
+
+test('fetchPanelLastOnlineClients returns an empty map on panels without the latest endpoint', async () => {
+    const calls = [];
+    const client = {
+        async post(path) {
+            calls.push(path);
+            throw notFound();
+        },
+    };
+
+    const response = await fetchPanelLastOnlineClients(client);
+
+    assert.deepEqual(calls, ['/panel/api/clients/lastOnline']);
+    assert.deepEqual(response.data.obj, {});
 });
 
 test('postAddClientCompat sends latest v3 JSON payload before legacy form fallback', async () => {

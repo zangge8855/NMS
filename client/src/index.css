@@ -17594,3 +17594,507 @@ input[type="radio"]:focus-visible {
   box-shadow: var(--shadow-glow);
   border-color: var(--accent-primary-glow);
 }
+
+/* ── Dashboard and Audit Readability Pass ─────────────────── */
+button,
+input,
+select,
+textarea {
+  font-family: var(--font-family);
+}
+
+.dashboard-stat-card {
+  min-height: 148px;
+  padding: 18px 68px 18px 20px;
+  border-radius: 10px;
+}
+
+.dashboard-stat-card::before {
+  top: 0;
+  right: 0;
+  bottom: auto;
+  left: 0;
+  width: auto;
+  height: 3px;
+  border-radius: 10px 10px 0 0;
+  opacity: 0.65;
+  transform: none;
+  box-shadow: none;
+}
+
+.dashboard-stat-card:hover::before,
+.dashboard-stat-card:focus-visible::before,
+.dashboard-stat-card:active::before {
+  opacity: 0.85;
+  transform: none;
+  box-shadow: none;
+}
+
+.dashboard-stat-card-head {
+  margin-bottom: 12px;
+}
+
+.dashboard-stat-card-label,
+.dashboard-stat-card-kicker,
+.audit-traffic-overview-eyebrow,
+.audit-traffic-window-label,
+.audit-traffic-sample-label,
+.audit-traffic-split-label,
+.audit-chart-selection-label {
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.dashboard-stat-card-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.dashboard-stat-card-value,
+.dashboard-stat-card-value-text,
+.audit-traffic-total-value,
+.stat-mini-value,
+.users-mobile-metric-value,
+.user-detail-client-metric-value,
+.settings-summary-value,
+.settings-tab-highlight-value {
+  letter-spacing: 0;
+}
+
+.dashboard-stat-card-icon {
+  top: 16px;
+  right: 16px;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--dashboard-tone-bg) !important;
+  color: var(--dashboard-tone);
+  opacity: 1;
+}
+
+.dashboard-stat-card-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.dashboard-stat-card-subtitle {
+  max-width: 32ch;
+  line-height: 1.5;
+}
+
+.dashboard-stat-card-sparkline {
+  width: 100%;
+  max-width: 180px;
+  height: 34px;
+}
+
+.audit-traffic-overview,
+.audit-traffic-total-card,
+.audit-traffic-mini-card,
+.audit-traffic-split-card,
+.audit-chart-card,
+.audit-leaderboard-card,
+.audit-inbound-breakdown {
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+.audit-traffic-overview {
+  gap: 16px;
+  padding: 16px;
+  border-color: var(--stroke-soft);
+  background: var(--surface-panel);
+}
+
+.audit-traffic-overview-head {
+  padding-bottom: 12px;
+}
+
+.audit-traffic-overview-title {
+  font-size: 20px;
+}
+
+.audit-traffic-overview-body {
+  grid-template-columns: minmax(280px, 1.05fr) minmax(300px, 0.95fr);
+}
+
+.audit-traffic-total-card,
+.audit-traffic-mini-card,
+.audit-traffic-split-card {
+  border-color: var(--stroke-soft);
+  background: var(--bg-card);
+}
+
+.audit-traffic-total-card {
+  padding: 18px;
+}
+
+.audit-traffic-total-value {
+  font-size: clamp(1.9rem, 3vw, 2.45rem);
+  overflow-wrap: anywhere;
+}
+
+.audit-traffic-split-card {
+  min-height: 76px;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.audit-traffic-split-label,
+.audit-traffic-split-value {
+  text-align: left;
+}
+
+.audit-traffic-mini-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.audit-traffic-mini-card {
+  min-height: 116px;
+  padding: 14px;
+}
+
+.audit-chart-card,
+.audit-leaderboard-card {
+  overflow: hidden;
+}
+
+.audit-chart-card .dashboard-chart {
+  height: 300px;
+  min-height: 300px;
+  padding: 10px 16px 14px;
+}
+
+.audit-chart-selection {
+  margin: 10px 0 0;
+  padding: 0 16px;
+}
+
+.audit-inbound-breakdown {
+  margin: 12px 16px 0;
+  padding: 14px;
+  border: 1px solid var(--stroke-soft);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.audit-inbound-breakdown-head,
+.audit-inbound-breakdown-item-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.audit-inbound-breakdown-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.audit-inbound-breakdown-subtitle,
+.audit-inbound-breakdown-empty,
+.audit-inbound-breakdown-item-inbound {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.audit-inbound-breakdown-total,
+.audit-inbound-breakdown-item-total {
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.audit-inbound-breakdown-table-container {
+  max-height: 320px;
+}
+
+.audit-inbound-node-cell,
+.audit-inbound-breakdown-item {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.audit-inbound-node-cell span:first-child,
+.audit-inbound-breakdown-item-node {
+  color: var(--text-primary);
+  font-weight: 650;
+}
+
+.audit-inbound-node-cell span:last-child {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.audit-inbound-breakdown-item-share {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.audit-inbound-share-cell {
+  white-space: nowrap;
+}
+
+.audit-inbound-share-cell .audit-inbound-share-track {
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.audit-inbound-share-track {
+  display: inline-flex;
+  width: 72px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.18);
+}
+
+.audit-inbound-share-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent-primary);
+}
+
+.audit-inbound-breakdown-list {
+  display: grid;
+  gap: 10px;
+  max-height: 360px;
+  margin-top: 12px;
+}
+
+.audit-inbound-breakdown-item {
+  padding: 12px;
+  border: 1px solid var(--stroke-soft);
+  border-radius: 10px;
+  background: var(--bg-card);
+}
+
+.audit-inbound-breakdown-item-split {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.audit-leaderboard-table th,
+.audit-leaderboard-table td {
+  height: 52px;
+  vertical-align: middle;
+}
+
+.audit-leaderboard-label-cell .flex {
+  min-width: 0;
+  gap: 10px;
+}
+
+.audit-rank-badge {
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid var(--stroke-soft);
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.audit-rank-badge[data-rank="1"] {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.14);
+  color: var(--accent-warning);
+}
+
+.audit-rank-badge[data-rank="2"] {
+  border-color: rgba(34, 211, 238, 0.28);
+  background: rgba(34, 211, 238, 0.12);
+  color: var(--accent-primary);
+}
+
+.audit-rank-badge[data-rank="3"] {
+  border-color: rgba(16, 185, 129, 0.28);
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--accent-success);
+}
+
+.audit-leaderboard-trend-cell {
+  width: 164px;
+}
+
+.audit-leaderboard-traffic-column,
+.audit-leaderboard-traffic-cell {
+  width: 132px;
+}
+
+.audit-protocol-chart {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.8fr) minmax(220px, 1fr);
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  height: 100%;
+  min-height: 252px;
+}
+
+.audit-protocol-chart-visual {
+  position: relative;
+  min-width: 0;
+  height: 230px;
+}
+
+.audit-protocol-chart-center {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  display: flex;
+  width: 112px;
+  transform: translate(-50%, -50%);
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.audit-protocol-chart-center span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.audit-protocol-chart-center strong {
+  color: var(--text-primary);
+  font-size: 16px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.audit-protocol-chart-legend {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.audit-protocol-chart-legend-row {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--stroke-soft);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.audit-protocol-chart-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.audit-protocol-chart-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.audit-protocol-chart-value,
+.audit-protocol-chart-share {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+[data-theme="light"] .audit-traffic-overview {
+  border-color: rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.98);
+}
+
+[data-theme="light"] .audit-traffic-total-card,
+[data-theme="light"] .audit-traffic-mini-card,
+[data-theme="light"] .audit-traffic-split-card,
+[data-theme="light"] .audit-inbound-breakdown,
+[data-theme="light"] .audit-inbound-breakdown-item,
+[data-theme="light"] .audit-protocol-chart-legend-row {
+  background: rgba(248, 250, 252, 0.92);
+}
+
+@media (max-width: 1180px) {
+  .audit-traffic-overview-body,
+  .audit-traffic-mini-grid,
+  .audit-protocol-chart {
+    grid-template-columns: 1fr;
+  }
+
+  .audit-protocol-chart-visual {
+    height: 220px;
+  }
+}
+
+@media (max-width: 1500px) {
+  .audit-chart-grid,
+  .audit-leaderboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-stat-card {
+    min-height: 132px;
+    padding: 16px 60px 16px 16px;
+  }
+
+  .dashboard-stat-card-icon {
+    top: 14px;
+    right: 14px;
+    width: 34px;
+    height: 34px;
+  }
+
+  .audit-traffic-overview,
+  .audit-traffic-total-card,
+  .audit-traffic-mini-card,
+  .audit-traffic-split-card,
+  .audit-inbound-breakdown,
+  .audit-inbound-breakdown-item,
+  .audit-protocol-chart-legend-row {
+    border-radius: 10px;
+  }
+
+  .audit-traffic-split-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .audit-chart-card .dashboard-chart {
+    height: 260px;
+    min-height: 260px;
+    padding: 8px 10px 12px;
+  }
+
+  .audit-inbound-breakdown {
+    margin: 10px 12px 0;
+    padding: 12px;
+  }
+
+  .audit-leaderboard-trend-cell {
+    width: auto;
+  }
+
+  .audit-protocol-chart {
+    gap: 12px;
+  }
+}

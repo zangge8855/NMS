@@ -782,6 +782,8 @@ describe('Dashboard', () => {
                 data: {
                     serverCount: 1,
                     onlineServers: 1,
+                    totalOnline: 9,
+                    totalOnlineSessionCount: 9,
                     totalInbounds: 1,
                     activeInbounds: 1,
                     accountSummary: {

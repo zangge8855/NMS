@@ -71,6 +71,12 @@ describe('clientEntitlementService', () => {
             expiryTime: 1000,
             limitIp: 2,
             trafficLimitBytes: 2048,
+            speedLimitUp: 0,
+            speedLimitDown: 0,
+            tgId: 0,
+            group: '',
+            comment: '',
+            reset: 0,
         });
         assert.equal(postCalls[0][0], 'post');
         assert.equal(postCalls[1][0], 'remove');

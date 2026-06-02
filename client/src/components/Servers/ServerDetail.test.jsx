@@ -87,6 +87,7 @@ function buildServerSnapshot({
     name = 'Test Server',
     inboundBytes = 0,
     onlines = [],
+    lastOnline = {},
 } = {}) {
     return {
         data: {
@@ -122,6 +123,7 @@ function buildServerSnapshot({
                     },
                 ] : [],
                 onlines,
+                lastOnline,
             },
         },
     };
@@ -337,6 +339,32 @@ describe('ServerDetail', () => {
 
         expect(screen.getByRole('button', { name: '节点能力' })).toHaveClass('active');
         expect(screen.getByTestId('embedded-capabilities')).toHaveTextContent('capabilities true server-1');
+    });
+
+    it('renders last online timestamps in the online users table', async () => {
+        const user = userEvent.setup();
+
+        api.get.mockImplementation((url) => {
+            if (url === '/servers/server-1/snapshot') {
+                return Promise.resolve(buildServerSnapshot({
+                    onlines: ['alice@example.com', 'alice@example.com'],
+                    lastOnline: { 'alice@example.com': 1770000000 },
+                }));
+            }
+            if (url === '/audit/events') {
+                return Promise.resolve({ data: { obj: { items: [] } } });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<ServerDetail />);
+
+        await screen.findByText('服务器 · Test Server');
+        await user.click(screen.getByRole('button', { name: '在线用户' }));
+
+        expect(await screen.findByText('alice@example.com')).toBeInTheDocument();
+        expect(screen.getByText('最后在线')).toBeInTheDocument();
+        expect(screen.getByText(/2026/)).toBeInTheDocument();
     });
 
     it('ignores a stale online snapshot after a newer online refresh completes', async () => {

@@ -242,8 +242,10 @@ const AUDIT_COPY = {
             serverTrendPending: '当前窗口内缺少足够的节点快照增量，暂时无法生成节点趋势。',
             topUsers: '流量 Top 用户',
             topServers: '流量 Top 节点',
+            topProtocols: '协议流量占比',
             topServersPendingTitle: '节点排行样本不足',
             topServersPendingSubtitle: '当前窗口内缺少足够的节点快照增量，先刷新采样后再查看 Top 节点和节点趋势。',
+            topProtocolsScope: '{window} · 按协议聚合',
             pv: '访问次数 (PV)',
             uv: '独立 IP (UV)',
             uniqueUsers: '访问用户数',
@@ -445,8 +447,10 @@ const AUDIT_COPY = {
             serverTrendPending: 'The current window does not have enough node snapshot deltas to build a node trend yet.',
             topUsers: 'Top Users by Traffic',
             topServers: 'Top Nodes by Traffic',
+            topProtocols: 'Protocol Share',
             topServersPendingTitle: 'Node ranking is still sampling',
             topServersPendingSubtitle: 'The current window does not have enough node snapshot deltas yet. Refresh sampling before checking top nodes and node trends.',
+            topProtocolsScope: '{window} · grouped by protocol',
             pv: 'Page Views (PV)',
             uv: 'Unique IPs (UV)',
             uniqueUsers: 'Visited Users',
@@ -673,6 +677,7 @@ function buildTrafficWindowCopy(windowKey, copy) {
         serverTrendScope: formatCopyTemplate(copy.traffic.serverTrendScope, { window: label }),
         topUsersScope: formatCopyTemplate(copy.traffic.topUsersScope, { window: label }),
         topServersScope: formatCopyTemplate(copy.traffic.topServersScope, { window: label }),
+        topProtocolsScope: formatCopyTemplate(copy.traffic.topProtocolsScope || '{window}', { window: label }),
     };
 }
 

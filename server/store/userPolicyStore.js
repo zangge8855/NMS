@@ -75,6 +75,10 @@ function sanitizePolicy(input = {}) {
             'ipLimitPolicy',
             'speedLimitUp',
             'speedLimitDown',
+            'tgId',
+            'group',
+            'comment',
+            'reset',
         ].includes(item));
     const inferredServerMode = selectedServerIds.length > 0 ? 'selected' : 'all';
     const inferredProtocolMode = selectedProtocols.length > 0 ? 'selected' : 'all';
@@ -107,6 +111,10 @@ function sanitizePolicy(input = {}) {
         ipLimitPolicy: IP_LIMIT_POLICIES.has(String(input.ipLimitPolicy || '').trim().toLowerCase())
             ? String(input.ipLimitPolicy).trim().toLowerCase()
             : 'first-wins',
+        tgId: Number(input.tgId) || 0,
+        group: String(input.group || '').trim(),
+        comment: String(input.comment || '').trim(),
+        reset: Number(input.reset) || 0,
         inheritGroup: input.inheritGroup === true,
         overrideFields,
     };
@@ -160,6 +168,10 @@ class UserPolicyStore {
                 speedLimitDown: 0,
                 trafficResetCycle: 'none',
                 ipLimitPolicy: 'first-wins',
+                tgId: 0,
+                group: '',
+                comment: '',
+                reset: 0,
                 inheritGroup: false,
                 overrideFields: [],
                 updatedAt: null,

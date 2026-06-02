@@ -419,6 +419,82 @@ describe('subscriptionSyncService', () => {
         assert.equal(updates[0].clientData.limitIp, 2);
     });
 
+    it('preserves policy-allowed clients outside a scoped deployment retry', async () => {
+        const updates = [];
+        const adds = [];
+        const removes = [];
+        const result = await autoDeployClients('user@example.com', {
+            serverScopeMode: 'selected',
+            allowedServerIds: ['srv-1'],
+            protocolScopeMode: 'all',
+            allowedInboundKeys: ['srv-1:101', 'srv-1:202'],
+            expiryTime: 0,
+            limitIp: 0,
+            trafficLimitBytes: 0,
+        }, {
+            allowedInboundKeys: ['srv-1:202'],
+        }, {
+            serverRepository: {
+                list: () => [{ id: 'srv-1', name: 'Server 1' }],
+            },
+            listPanelInbounds: async () => ({
+                client: {
+                    post: async (url) => {
+                        if (url.includes('/delClient/')) removes.push(url);
+                        return {};
+                    },
+                },
+                inbounds: [
+                    {
+                        id: 101,
+                        protocol: 'vless',
+                        enable: true,
+                        remark: 'Already deployed inbound',
+                        settings: JSON.stringify({
+                            clients: [{
+                                email: 'user@example.com',
+                                id: 'existing-client-id',
+                                enable: true,
+                                expiryTime: 0,
+                                limitIp: 0,
+                                totalGB: 0,
+                            }],
+                        }),
+                    },
+                    {
+                        id: 202,
+                        protocol: 'vless',
+                        enable: true,
+                        remark: 'Retry target inbound',
+                        settings: JSON.stringify({ clients: [] }),
+                    },
+                ],
+            }),
+            postUpdateClient: async (_panelClient, inboundId, clientIdentifier, clientData) => {
+                updates.push({ inboundId, clientIdentifier, clientData });
+                return {};
+            },
+            postAddClient: async (_panelClient, inboundId, clientData) => {
+                adds.push({ inboundId, clientData });
+                return {};
+            },
+            overrideRepository: {
+                get() {
+                    return null;
+                },
+            },
+        });
+
+        assert.equal(result.failed, 0);
+        assert.equal(result.created, 1);
+        assert.equal(result.updated, 0);
+        assert.equal(result.removed || 0, 0);
+        assert.equal(removes.length, 0);
+        assert.equal(updates.length, 0);
+        assert.equal(adds.length, 1);
+        assert.equal(adds[0].inboundId, 202);
+    });
+
     it('migrates managed subscription email in place without rotating client credentials', async () => {
         const updates = [];
         const result = await migrateManagedSubscriptionEmail('user@example.com', 'user.new@example.com', {}, {

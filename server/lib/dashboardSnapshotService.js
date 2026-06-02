@@ -675,22 +675,11 @@ async function buildGlobalDashboardSnapshot(options = {}, deps = {}) {
         ? clusterSnapshot.byServerId
         : {};
 
-    let childNodeCount = 0;
-    let onlineChildNodeCount = 0;
-
     const serverStatuses = servers.reduce((acc, server) => {
         const serverId = String(server?.id || '').trim();
         const clusterItem = clusterByServerId[serverId] || {};
         const panelItem = panelByServerId[serverId] || {};
         const rawInbounds = Array.isArray(panelItem?.inbounds) ? panelItem.inbounds : [];
-        const rawNodes = Array.isArray(panelItem?.nodes) ? panelItem.nodes : [];
-
-        rawNodes.forEach(node => {
-            childNodeCount++;
-            if (node.status === 'online') {
-                onlineChildNodeCount++;
-            }
-        });
 
         const rawOnlines = Array.isArray(panelItem?.onlines) ? panelItem.onlines : [];
         const serverUniqueOnlineUsers = new Set();
@@ -735,15 +724,18 @@ async function buildGlobalDashboardSnapshot(options = {}, deps = {}) {
         globalStats: {
             totalUp: Number(presence.totalUp || 0),
             totalDown: Number(presence.totalDown || 0),
-            totalOnline: presence.rawTotalOnlineUsersCount,
+            totalOnline: presence.onlineRows.length,
+            rawTotalOnline: presence.rawTotalOnlineUsersCount,
+            rawOnlineSessionCount: presence.rawTotalSessions,
             totalInbounds: derivedInboundTotals.total,
             activeInbounds: derivedInboundTotals.active,
-            serverCount: Number(clusterSnapshot?.summary?.total || servers.length || 0) + childNodeCount,
-            onlineServers: Number(clusterSnapshot?.summary?.onlineServers || 0) + onlineChildNodeCount,
+            serverCount: Number(clusterSnapshot?.summary?.total || servers.length || 0),
+            onlineServers: Number(clusterSnapshot?.summary?.onlineServers || 0),
         },
         globalManagedOnlineCount: presence.onlineRows.length,
         globalOnlineUsers: presence.onlineRows,
-        globalOnlineSessionCount: presence.rawTotalSessions,
+        globalOnlineSessionCount: presence.onlineSessionCount,
+        rawGlobalOnlineSessionCount: presence.rawTotalSessions,
         globalAccountSummary: {
             totalUsers: presence.rows.length,
             pendingUsers: Number(presence.pendingCount || 0),
@@ -836,8 +828,10 @@ async function buildSingleDashboardSnapshot(serverId, options = {}, deps = {}) {
         cpuHistory,
         inbounds,
         onlineUsers: presence.onlineRows,
-        onlineCount: presence.rawTotalOnlineUsersCount,
-        onlineSessionCount: presence.rawTotalSessions,
+        onlineCount: presence.onlineRows.length,
+        onlineSessionCount: presence.onlineSessionCount,
+        rawOnlineCount: presence.rawTotalOnlineUsersCount,
+        rawOnlineSessionCount: presence.rawTotalSessions,
         singleServerTrafficTotals: {
             totalUp: Number(presence.totalUp || 0),
             totalDown: Number(presence.totalDown || 0),
