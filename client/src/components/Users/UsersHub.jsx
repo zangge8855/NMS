@@ -48,6 +48,7 @@ import {
 import SkeletonTable from '../UI/SkeletonTable.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import ListToolbar from '../UI/ListToolbar.jsx';
+import Table from '../UI/Table.jsx';
 import useMediaQuery from '../../hooks/useMediaQuery.js';
 
 const PROTOCOL_OPTIONS = [
@@ -1772,7 +1773,7 @@ export default function UsersHub() {
                 title={t('pages.usersHub.title')}
             />
             <div className="page-content page-enter page-content--wide users-page">
-                <div className="flex gap-2 mb-4 flex-wrap" role="tablist" aria-label="用户与分组">
+                <div className="flex gap-2 mb-4 flex-wrap" role="tablist" aria-label={t('pages.usersHub.tabs.ariaLabel')}>
                     <button
                         type="button"
                         role="tab"
@@ -1780,7 +1781,7 @@ export default function UsersHub() {
                         className={`btn btn-sm ${activeDirectoryView === 'users' ? 'btn-primary' : 'btn-secondary'}`}
                         onClick={() => setActiveDirectoryView('users')}
                     >
-                        <HiOutlineUsers /> 用户列表
+                        <HiOutlineUsers /> {t('pages.usersHub.tabs.users')}
                     </button>
                     <button
                         type="button"
@@ -1789,7 +1790,7 @@ export default function UsersHub() {
                         className={`btn btn-sm ${activeDirectoryView === 'groups' ? 'btn-primary' : 'btn-secondary'}`}
                         onClick={() => setActiveDirectoryView('groups')}
                     >
-                        <HiOutlineUserGroup /> 入站分组
+                        <HiOutlineUserGroup /> {t('pages.usersHub.tabs.groups')}
                     </button>
                 </div>
                 {activeDirectoryView === 'users' ? (
@@ -2066,93 +2067,92 @@ export default function UsersHub() {
                         className="groups-toolbar glass-panel mb-6"
                         filters={(
                             <div>
-                                <div className="text-sm font-semibold">入站分配组</div>
-                                <div className="text-xs text-muted">选择具体入站和成员，保存后直接同步到 3x-ui。</div>
+                                <div className="text-sm font-semibold">{t('pages.usersHub.groups.toolbarTitle')}</div>
+                                <div className="text-xs text-muted">{t('pages.usersHub.groups.toolbarSubtitle')}</div>
                             </div>
                         )}
                         actions={(
                             <button type="button" className="btn btn-primary btn-sm" onClick={() => openGroupModal()}>
-                                <HiOutlineUserGroup /> 新建入站组
+                                <HiOutlineUserGroup /> {t('pages.usersHub.groups.newGroup')}
                             </button>
                         )}
                     />
-                    <div className="table-container">
-                        {groupsLoading ? (
-                            <div className="p-4">
-                                <SkeletonTable rows={4} cols={5} />
-                            </div>
-                        ) : userGroups.length === 0 ? (
-                            <div className="p-4">
-                                <EmptyState
-                                    title="暂无入站分配组"
-                                    subtitle="创建分组后，可把一组用户批量绑定到指定入站。"
-                                    action={<button type="button" className="btn btn-primary btn-sm" onClick={() => openGroupModal()}><HiOutlineUserGroup /> 新建入站组</button>}
-                                />
-                            </div>
-                        ) : (
-                            <table className="table">
-                                <thead>
-                                    <tr>
-                                        <th>入站分组</th>
-                                        <th>已分配入站</th>
-                                        <th>成员</th>
-                                        <th>限额</th>
-                                        <th className="table-cell-actions">操作</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {userGroups.map((group) => {
-                                        const inboundKeys = Array.isArray(group.allowedInboundKeys) ? group.allowedInboundKeys : [];
-                                        const inboundLabels = inboundKeys.slice(0, 3).map(formatInboundAssignmentLabel);
-                                        const memberPreview = Array.isArray(group.members)
-                                            ? group.members.slice(0, 3).map((member) => member.username).filter(Boolean)
-                                            : [];
-                                        return (
-                                            <tr key={group.id}>
-                                                <td>
-                                                    <div className="font-medium">{group.name}</div>
-                                                    <div className="text-xs text-muted">{group.description || (group.enabled === false ? '已停用' : '启用中')}</div>
-                                                </td>
-                                                <td>
-                                                    <div className="flex flex-col gap-1">
-                                                        <span className="badge badge-info w-fit">入站 {inboundKeys.length}</span>
-                                                        <span className="text-xs text-muted">
-                                                            {inboundLabels.length > 0
-                                                                ? `${inboundLabels.join('，')}${inboundKeys.length > inboundLabels.length ? ` 等 ${inboundKeys.length} 个` : ''}`
-                                                                : '未分配入站'}
-                                                        </span>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <div className="flex flex-col gap-1">
-                                                        <span>{group.memberCount || 0}</span>
-                                                        {memberPreview.length > 0 ? (
-                                                            <span className="text-xs text-muted">
-                                                                {memberPreview.join('，')}{group.memberCount > memberPreview.length ? ` 等 ${group.memberCount} 人` : ''}
-                                                            </span>
-                                                        ) : <span className="text-xs text-muted">暂无成员</span>}
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <div className="flex gap-2 flex-wrap">
-                                                        <span className="badge badge-neutral">IP {group.limitIp || 0}</span>
-                                                        <span className="badge badge-neutral">流量 {group.trafficLimitBytes ? formatBytes(group.trafficLimitBytes) : '不限'}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="table-cell-actions">
-                                                    <div className="flex gap-2 flex-wrap justify-end">
-                                                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleSyncGroup(group)}><HiOutlineArrowPath /> 同步</button>
-                                                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => openGroupModal(group)}><HiOutlinePencilSquare /> 编辑</button>
-                                                        <button type="button" className="btn btn-danger btn-sm" onClick={() => handleDeleteGroup(group)}><HiOutlineTrash /> 删除</button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        )}
-                    </div>
+                    <Table
+                        loading={groupsLoading}
+                        rows={4}
+                        cols={5}
+                        empty={userGroups.length === 0}
+                        emptyStateProps={{
+                            title: t('pages.usersHub.groups.emptyTitle'),
+                            subtitle: t('pages.usersHub.groups.emptySubtitle'),
+                            action: (
+                                <button type="button" className="btn btn-primary btn-sm" onClick={() => openGroupModal()}>
+                                    <HiOutlineUserGroup /> {t('pages.usersHub.groups.newGroup')}
+                                </button>
+                            ),
+                        }}
+                        headers={[
+                            t('pages.usersHub.groups.cols.name'),
+                            t('pages.usersHub.groups.cols.inbounds'),
+                            t('pages.usersHub.groups.cols.members'),
+                            t('pages.usersHub.groups.cols.limits'),
+                            <th key="actions" className="table-cell-actions">{t('pages.usersHub.groups.cols.actions')}</th>
+                        ]}
+                    >
+                        {userGroups.map((group) => {
+                            const inboundKeys = Array.isArray(group.allowedInboundKeys) ? group.allowedInboundKeys : [];
+                            const inboundLabels = inboundKeys.slice(0, 3).map(formatInboundAssignmentLabel);
+                            const memberPreview = Array.isArray(group.members)
+                                ? group.members.slice(0, 3).map((member) => member.username).filter(Boolean)
+                                : [];
+                            const separator = locale === 'en-US' ? ', ' : '，';
+                            return (
+                                <tr key={group.id}>
+                                    <td>
+                                        <div className="font-medium">{group.name}</div>
+                                        <div className="text-xs text-muted">
+                                            {group.description || (group.enabled === false ? t('pages.usersHub.groups.statusDisabled') : t('pages.usersHub.groups.statusActive'))}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div className="flex flex-col gap-1">
+                                            <span className="badge badge-info w-fit">{t('pages.usersHub.groups.inboundsCount', { count: inboundKeys.length })}</span>
+                                            <span className="text-xs text-muted">
+                                                {inboundLabels.length > 0
+                                                    ? `${inboundLabels.join(separator)}${inboundKeys.length > inboundLabels.length ? t('pages.usersHub.groups.inboundsMore', { count: inboundKeys.length - inboundLabels.length }) : ''}`
+                                                    : t('pages.usersHub.groups.noInbounds')}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div className="flex flex-col gap-1">
+                                            <span>{group.memberCount || 0}</span>
+                                            {memberPreview.length > 0 ? (
+                                                <span className="text-xs text-muted">
+                                                    {memberPreview.join(separator)}${group.memberCount > memberPreview.length ? t('pages.usersHub.groups.membersMore', { count: group.memberCount - memberPreview.length }) : ''}
+                                                </span>
+                                            ) : <span className="text-xs text-muted">{t('pages.usersHub.groups.noMembers')}</span>}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div className="flex gap-2 flex-wrap">
+                                            <span className="badge badge-neutral">{t('pages.usersHub.groups.limitIp', { count: group.limitIp || 0 })}</span>
+                                            <span className="badge badge-neutral">
+                                                {t('pages.usersHub.groups.limitTraffic', { limit: group.trafficLimitBytes ? formatBytes(group.trafficLimitBytes) : t('pages.usersHub.groups.limitTrafficNone') })}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td className="table-cell-actions">
+                                        <div className="flex gap-2 flex-wrap justify-end">
+                                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleSyncGroup(group)}><HiOutlineArrowPath /> {t('pages.usersHub.groups.actionSync')}</button>
+                                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => openGroupModal(group)}><HiOutlinePencilSquare /> {t('pages.usersHub.groups.actionEdit')}</button>
+                                            <button type="button" className="btn btn-danger btn-sm" onClick={() => handleDeleteGroup(group)}><HiOutlineTrash /> {t('pages.usersHub.groups.actionDelete')}</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </Table>
                     </>
                 )}
             </div>
@@ -2161,40 +2161,40 @@ export default function UsersHub() {
                 <ModalShell isOpen={groupModalOpen} onClose={closeGroupModal}>
                     <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h3 className="modal-title">{editingGroup ? '编辑入站分配组' : '新建入站分配组'}</h3>
-                            <button type="button" className="modal-close" onClick={closeGroupModal} aria-label="关闭" title="关闭"><HiOutlineXMark /></button>
+                            <h3 className="modal-title">{editingGroup ? t('pages.usersHub.groups.modal.titleEdit') : t('pages.usersHub.groups.modal.titleNew')}</h3>
+                            <button type="button" className="modal-close" onClick={closeGroupModal} aria-label={t('pages.usersHub.groups.modal.close')} title={t('pages.usersHub.groups.modal.close')}><HiOutlineXMark /></button>
                         </div>
                         <form onSubmit={submitGroup}>
                             <div className="modal-body">
                                 <div className="grid-auto-280-tight">
                                     <div className="form-group">
-                                        <label className="form-label">分组名称（可选）</label>
-                                        <input className="form-input" value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder="留空时使用第一个入站名称" />
+                                        <label className="form-label">{t('pages.usersHub.groups.modal.nameLabel')}</label>
+                                        <input className="form-input" value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder={t('pages.usersHub.groups.modal.namePlaceholder')} />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">状态</label>
+                                        <label className="form-label">{t('pages.usersHub.groups.modal.statusLabel')}</label>
                                         <select className="form-select" value={groupEnabled ? 'enabled' : 'disabled'} onChange={(e) => setGroupEnabled(e.target.value === 'enabled')}>
-                                            <option value="enabled">启用</option>
-                                            <option value="disabled">停用</option>
+                                            <option value="enabled">{t('pages.usersHub.groups.modal.statusEnable')}</option>
+                                            <option value="disabled">{t('pages.usersHub.groups.modal.statusDisable')}</option>
                                         </select>
                                     </div>
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">说明</label>
-                                    <input className="form-input" value={groupDescription} onChange={(e) => setGroupDescription(e.target.value)} placeholder="例如：香港入口 / 高级用户 / 测试入站" />
+                                    <label className="form-label">{t('pages.usersHub.groups.modal.descriptionLabel')}</label>
+                                    <input className="form-input" value={groupDescription} onChange={(e) => setGroupDescription(e.target.value)} placeholder={t('pages.usersHub.groups.modal.descriptionPlaceholder')} />
                                 </div>
 
                                 <div className="mb-3">
                                     <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
                                         <div>
-                                            <div className="text-sm font-medium">1. 分配入站</div>
-                                            <div className="text-xs text-muted">成员只会同步到这里勾选的具体入站。</div>
+                                            <div className="text-sm font-medium">{t('pages.usersHub.groups.modal.stepInbounds')}</div>
+                                            <div className="text-xs text-muted">{t('pages.usersHub.groups.modal.stepInboundsHint')}</div>
                                         </div>
-                                        <span className="badge badge-info">已选 {groupAllowedInboundKeys.length}</span>
+                                        <span className="badge badge-info">{t('pages.usersHub.groups.modal.selectedCount', { count: groupAllowedInboundKeys.length })}</span>
                                     </div>
                                     <div className="list-selection-container">
                                         {allInbounds.length === 0 ? (
-                                            <span className="text-sm text-muted">暂无可用入站</span>
+                                            <span className="text-sm text-muted">{t('pages.usersHub.groups.modal.noAvailableInbounds')}</span>
                                         ) : allInbounds.map((inbound) => (
                                             <label key={inbound.key} className="list-selection-item">
                                                 <span className="font-medium text-sm">{inbound.serverName}</span>
@@ -2206,7 +2206,7 @@ export default function UsersHub() {
                                                         checked={groupAllowedInboundKeys.includes(inbound.key)}
                                                         onChange={(e) => toggleGroupAllowedInbound(inbound.key, e.target.checked)}
                                                     />
-                                                    分配
+                                                    {t('pages.usersHub.groups.modal.assignAction')}
                                                 </span>
                                             </label>
                                         ))}
@@ -2216,17 +2216,17 @@ export default function UsersHub() {
                                 <div className="mb-3">
                                     <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
                                         <div>
-                                            <div className="text-sm font-medium">2. 选择成员</div>
-                                            <div className="text-xs text-muted">保存后会批量绑定这些用户，并按分组入站同步 3x-ui。</div>
+                                            <div className="text-sm font-medium">{t('pages.usersHub.groups.modal.stepMembers')}</div>
+                                            <div className="text-xs text-muted">{t('pages.usersHub.groups.modal.stepMembersHint')}</div>
                                         </div>
-                                        <span className="badge badge-info">已选 {groupMemberIds.length}</span>
+                                        <span className="badge badge-info">{t('pages.usersHub.groups.modal.selectedCount', { count: groupMemberIds.length })}</span>
                                     </div>
                                     <div className="flex items-center gap-2 mb-2">
                                         <input
                                             className="form-input"
                                             value={groupMemberQuery}
                                             onChange={(e) => setGroupMemberQuery(e.target.value)}
-                                            placeholder="搜索用户名、邮箱或当前分组"
+                                            placeholder={t('pages.usersHub.groups.modal.memberSearchPlaceholder')}
                                         />
                                         <button
                                             type="button"
@@ -2236,15 +2236,15 @@ export default function UsersHub() {
                                                 ...visibleGroupMemberCandidates.map((user) => user.id),
                                             ])))}
                                         >
-                                            全选当前
+                                            {t('pages.usersHub.groups.modal.selectAllCurrent')}
                                         </button>
                                         <button type="button" className="btn btn-secondary btn-sm" onClick={() => setGroupMemberIds([])}>
-                                            清空
+                                            {t('pages.usersHub.groups.modal.clearAll')}
                                         </button>
                                     </div>
                                     <div className="list-selection-container">
                                         {visibleGroupMemberCandidates.length === 0 ? (
-                                            <span className="text-sm text-muted">没有匹配用户</span>
+                                            <span className="text-sm text-muted">{t('pages.usersHub.groups.modal.noMatchingUsers')}</span>
                                         ) : visibleGroupMemberCandidates.map((user) => {
                                             const currentGroupName = user.groupName || userGroupMap.get(String(user.groupId || ''))?.name || '';
                                             const movingFromOtherGroup = currentGroupName && String(user.groupId || '') !== String(editingGroup?.id || '');
@@ -2256,12 +2256,12 @@ export default function UsersHub() {
                                                         onChange={(e) => toggleGroupMember(user.id, e.target.checked)}
                                                     />
                                                     <span className="font-medium text-sm">{user.username}</span>
-                                                    <span className="text-xs text-muted">{user.subscriptionEmail || user.email || '未绑定订阅邮箱'}</span>
+                                                    <span className="text-xs text-muted">{user.subscriptionEmail || user.email || t('pages.usersHub.groups.modal.noSubEmail')}</span>
                                                     {currentGroupName ? (
                                                         <span className={`badge ${movingFromOtherGroup ? 'badge-warning' : 'badge-neutral'} text-xs ml-auto`}>
-                                                            {movingFromOtherGroup ? `将从 ${currentGroupName} 移入` : currentGroupName}
+                                                            {movingFromOtherGroup ? t('pages.usersHub.groups.modal.moveFromGroup', { name: currentGroupName }) : currentGroupName}
                                                         </span>
-                                                    ) : <span className="badge badge-neutral text-xs ml-auto">未分组</span>}
+                                                    ) : <span className="badge badge-neutral text-xs ml-auto">{t('pages.usersHub.groups.modal.ungrouped')}</span>}
                                                 </label>
                                             );
                                         })}
@@ -2269,14 +2269,14 @@ export default function UsersHub() {
                                 </div>
 
                                 <div>
-                                    <div className="text-sm font-medium mb-2">统一限额</div>
+                                    <div className="text-sm font-medium mb-2">{t('pages.usersHub.groups.modal.limitsLabel')}</div>
                                     <div className="grid-auto-280-tight">
                                         <div className="form-group mb-0">
-                                            <label className="form-label">IP 限制</label>
+                                            <label className="form-label">{t('pages.usersHub.groups.modal.limitIpLabel')}</label>
                                             <input className="form-input" type="number" min={0} value={groupLimitIp} onChange={(e) => setGroupLimitIp(e.target.value)} />
                                         </div>
                                         <div className="form-group mb-0">
-                                            <label className="form-label">总流量上限</label>
+                                            <label className="form-label">{t('pages.usersHub.groups.modal.limitTrafficLabel')}</label>
                                             <div className="flex items-center gap-2">
                                                 <input className="form-input" type="number" min={0} step="0.5" value={groupTrafficLimitGb} onChange={(e) => setGroupTrafficLimitGb(e.target.value)} />
                                                 <span className="text-sm text-muted">GB</span>
@@ -2286,9 +2286,9 @@ export default function UsersHub() {
                                 </div>
                             </div>
                             <div className="modal-footer">
-                                <button type="button" className="btn btn-secondary" onClick={closeGroupModal}>取消</button>
+                                <button type="button" className="btn btn-secondary" onClick={closeGroupModal}>{t('pages.usersHub.groups.modal.cancel')}</button>
                                 <button type="submit" className="btn btn-primary" disabled={groupSaving}>
-                                    {groupSaving ? <span className="spinner" /> : <><HiOutlineCheck /> 保存并同步</>}
+                                    {groupSaving ? <span className="spinner" /> : <><HiOutlineCheck /> {t('pages.usersHub.groups.modal.saveAndSync')}</>}
                                 </button>
                             </div>
                         </form>
@@ -2301,61 +2301,61 @@ export default function UsersHub() {
                 <ModalShell isOpen={createOpen} onClose={closeCreateModal}>
                     <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h3 className="modal-title">添加用户账号</h3>
-                            <button type="button" className="modal-close" onClick={closeCreateModal} aria-label="关闭" title="关闭"><HiOutlineXMark /></button>
+                            <h3 className="modal-title">{t('pages.usersHub.createModal.title')}</h3>
+                            <button type="button" className="modal-close" onClick={closeCreateModal} aria-label={t('pages.usersHub.groups.modal.close')} title={t('pages.usersHub.groups.modal.close')}><HiOutlineXMark /></button>
                         </div>
                         <form onSubmit={submitCreate}>
                             <div className="modal-body">
                                 <div className="page-field-grid">
                                     <div className="form-group">
-                                    <label className="form-label">用户名</label>
+                                    <label className="form-label">{t('pages.usersHub.createModal.username')}</label>
                                     <input
                                         className="form-input"
                                         value={createUsername}
                                         onChange={(e) => setCreateUsername(e.target.value)}
-                                        placeholder="例如: user001"
+                                        placeholder={locale === 'en-US' ? 'e.g. user001' : '例如: user001'}
                                         autoComplete="off"
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">邮箱</label>
+                                    <label className="form-label">{t('pages.usersHub.createModal.email')}</label>
                                     <input
                                         type="email"
                                         className="form-input"
                                         value={createEmail}
                                         onChange={(e) => setCreateEmail(e.target.value)}
-                                        placeholder="同时作为登录邮箱和订阅绑定邮箱"
+                                        placeholder={t('pages.usersHub.createModal.emailHint')}
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">用户分组</label>
+                                    <label className="form-label">{t('pages.usersHub.createModal.userGroup')}</label>
                                     <select
                                         className="form-select"
                                         value={createGroupId}
                                         onChange={(e) => setCreateGroupId(e.target.value)}
                                     >
-                                        <option value="">不分组</option>
+                                        <option value="">{t('pages.usersHub.createModal.noGroup')}</option>
                                         {userGroups.map((group) => (
                                             <option key={group.id} value={group.id}>{group.name}</option>
                                         ))}
                                     </select>
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">初始密码</label>
+                                    <label className="form-label">{t('pages.usersHub.createModal.initialPassword')}</label>
                                     <div className="flex gap-2">
                                         <input
                                             type={showCreatePassword ? 'text' : 'password'}
                                             className="form-input font-mono"
                                             value={createPassword}
                                             onChange={(e) => setCreatePassword(e.target.value)}
-                                            placeholder="至少8位，含3类字符"
+                                            placeholder={locale === 'en-US' ? 'At least 8 chars, 3 character groups' : '至少8位，含3类字符'}
                                         />
                                         <button
                                             type="button"
                                             className="btn btn-secondary btn-sm btn-icon"
                                             onClick={() => setShowCreatePassword((v) => !v)}
-                                            title={showCreatePassword ? '隐藏密码' : '显示密码'}
-                                            aria-label={showCreatePassword ? '隐藏密码' : '显示密码'}
+                                            title={showCreatePassword ? (locale === 'en-US' ? 'Hide password' : '隐藏密码') : (locale === 'en-US' ? 'Show password' : '显示密码')}
+                                            aria-label={showCreatePassword ? (locale === 'en-US' ? 'Hide password' : '隐藏密码') : (locale === 'en-US' ? 'Show password' : '显示密码')}
                                         >
                                             {showCreatePassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
                                         </button>
@@ -2363,8 +2363,8 @@ export default function UsersHub() {
                                             type="button"
                                             className="btn btn-secondary btn-sm btn-icon"
                                             onClick={() => { copyToClipboard(createPassword); toast.success(copy.passwordCopied); }}
-                                            title="复制密码"
-                                            aria-label="复制密码"
+                                            title={locale === 'en-US' ? 'Copy password' : '复制密码'}
+                                            aria-label={locale === 'en-US' ? 'Copy password' : '复制密码'}
                                         >
                                             <HiOutlineClipboard />
                                         </button>
@@ -2372,8 +2372,8 @@ export default function UsersHub() {
                                             type="button"
                                             className="btn btn-secondary btn-sm btn-icon"
                                             onClick={() => setCreatePassword(generateSecurePassword())}
-                                            title="生成强密码"
-                                            aria-label="生成强密码"
+                                            title={locale === 'en-US' ? 'Generate strong password' : '生成强密码'}
+                                            aria-label={locale === 'en-US' ? 'Generate strong password' : '生成强密码'}
                                         >
                                             <HiOutlineArrowPath />
                                         </button>
@@ -2393,9 +2393,9 @@ export default function UsersHub() {
                                 </div>
                             </div>
                             <div className="modal-footer">
-                                <button type="button" className="btn btn-secondary" onClick={closeCreateModal}>取消</button>
+                                <button type="button" className="btn btn-secondary" onClick={closeCreateModal}>{t('pages.usersHub.groups.modal.cancel')}</button>
                                 <button type="submit" className="btn btn-primary" disabled={createSaving}>
-                                    {createSaving ? <span className="spinner" /> : <><HiOutlineCheck /> 创建账号</>}
+                                    {createSaving ? <span className="spinner" /> : <><HiOutlineCheck /> {locale === 'en-US' ? 'Create Account' : '创建账号'}</>}
                                 </button>
                             </div>
                         </form>
