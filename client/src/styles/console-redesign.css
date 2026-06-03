@@ -1347,3 +1347,11 @@ body::after {
     display: none;
   }
 }
+
+/* Highlight selected user/server in the Audit traffic leaderboards */
+.audit-leaderboard-table tr.active td {
+  background: color-mix(in srgb, var(--bg-card-hover) 85%, var(--accent-primary) 15%) !important;
+  border-left: 2px solid var(--accent-primary) !important;
+  box-shadow: inset 2px 0 0 var(--accent-primary) !important;
+  font-weight: 600;
+}

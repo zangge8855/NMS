@@ -131,3 +131,51 @@ test('online count — official 3x-ui /clients/onlines email strings match manag
     assert.equal(result.onlineRows[0].email, 'alice@example.com');
     assert.equal(result.onlineSessionCount, 1);
 });
+
+test('online matching — filters out mismatched client ID or password entries', () => {
+    const users = [
+        { id: 'u1', role: 'user', email: 'alice@example.com', subscriptionEmail: 'alice@example.com', enabled: true },
+    ];
+    const snapshots = [
+        {
+            server: { id: 'sv-1', name: 'Node 1' },
+            inbounds: [
+                {
+                    protocol: 'vless',
+                    remark: 'Inbound 1',
+                    settings: {
+                        clients: [
+                            { id: 'uuid-a', email: 'alice@example.com' },
+                        ],
+                    },
+                    clientStats: [
+                        { id: 'uuid-a', email: 'alice@example.com', up: 100, down: 200 },
+                    ],
+                },
+                {
+                    protocol: 'vless',
+                    remark: 'Inbound 2',
+                    settings: {
+                        clients: [
+                            { id: 'uuid-b', email: 'alice@example.com' },
+                        ],
+                    },
+                    clientStats: [
+                        { id: 'uuid-b', email: 'alice@example.com', up: 0, down: 0 },
+                    ],
+                },
+            ],
+            // Online entry has same email but ID matches uuid-a
+            onlines: [
+                { email: 'alice@example.com', id: 'uuid-a' }
+            ],
+        },
+    ];
+
+    const result = buildDashboardPresenceFromPanelSnapshots(users, snapshots);
+
+    const aliceRow = result.onlineRows.find(r => r.email === 'alice@example.com');
+    assert.ok(aliceRow, 'alice should be online');
+    // It should match Inbound 1 but NOT Inbound 2 (due to UUID mismatch)
+    assert.deepEqual(Array.from(aliceRow.nodeLabels), ['Inbound 1']);
+});

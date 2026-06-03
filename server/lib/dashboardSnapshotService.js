@@ -250,7 +250,22 @@ function buildManagedOnlineSummary(users, serverPayloads = [], activeTrafficKeys
                 buildClientOnlineKeys(client, protocol).forEach((key) => {
                     const matches = onlineMatchMap.get(key);
                     if (!matches) return;
-                    matches.forEach((matchIndex) => matchedOnlineEntries.add(matchIndex));
+                    matches.forEach((matchIndex) => {
+                        const onlineEntry = onlines[matchIndex];
+                        if (onlineEntry && typeof onlineEntry === 'object') {
+                            const onlineId = normalizeOnlineValue(onlineEntry.id);
+                            const clientId = normalizeOnlineValue(client.id);
+                            if (onlineId && clientId && onlineId !== clientId) {
+                                return;
+                            }
+                            const onlinePassword = normalizeOnlineValue(onlineEntry.password);
+                            const clientPassword = normalizeOnlineValue(client.password);
+                            if (onlinePassword && clientPassword && onlinePassword !== clientPassword) {
+                                return;
+                            }
+                        }
+                        matchedOnlineEntries.add(matchIndex);
+                    });
                 });
                 
                 let onlineSessions = matchedOnlineEntries.size;

@@ -11,6 +11,8 @@ import {
     HiOutlineTrash,
     HiOutlineArrowDownTray,
     HiOutlineXMark,
+    HiOutlineArrowUpRight,
+    HiOutlineArrowDownLeft,
 } from 'react-icons/hi2';
 import Header from '../Layout/Header.jsx';
 import api from '../../api/client.js';
@@ -2256,14 +2258,13 @@ export default function AuditCenter() {
 
                 {tab === 'traffic' && (
                     <>
-                        <div className="card audit-traffic-overview">
-                            <div className="audit-traffic-overview-head">
-                                <div className="audit-traffic-overview-copy">
-                                    <div className="audit-traffic-overview-eyebrow">{copy.workspace.trafficEyebrow}</div>
-                                    <div className="audit-traffic-overview-title">{copy.tabs.traffic}</div>
-                                    <div className="audit-traffic-overview-text">{copy.workspace.trafficSummary}</div>
+                        <div className="card p-4 audit-control-card audit-traffic-toolbar mb-6">
+                            <div className="audit-control-head">
+                                <div className="audit-control-copy">
+                                    <div className="audit-control-title">{copy.tabs.traffic}</div>
+                                    <div className="audit-control-text">{copy.workspace.trafficSummary}</div>
                                 </div>
-                                <div className="audit-traffic-overview-actions">
+                                <div className="audit-traffic-toolbar-actions">
                                     <div className="audit-traffic-window-bar">
                                         <span className="audit-traffic-window-label">{copy.traffic.windowLabel}</span>
                                         <div className="tabs audit-traffic-window-tabs" role="tablist" aria-label={copy.traffic.windowLabel}>
@@ -2318,53 +2319,69 @@ export default function AuditCenter() {
                                     </select>
                                 </div>
                             </div>
-                            <div className="audit-traffic-overview-body">
-                                <div className="audit-traffic-total-card">
-                                    <div className="audit-traffic-total-label">{trafficWindowCopy.totalTrafficScope}</div>
-                                    <div className="audit-traffic-total-value">{formatBytes(trafficTotals.totalBytes || 0)}</div>
-                                    <div className="audit-traffic-total-note">{trafficTotalsNote}</div>
-                                    <div className="audit-traffic-split-grid">
-                                        <div className="audit-traffic-split-card audit-traffic-split-card--up">
+                        </div>
+
+                        <div className="audit-traffic-overview-body mb-6">
+                            <div className="card audit-traffic-total-card">
+                                <div className="audit-traffic-total-label">{trafficWindowCopy.totalTrafficScope}</div>
+                                <div className="audit-traffic-total-value">{formatBytes(trafficTotals.totalBytes || 0)}</div>
+                                <div className="audit-traffic-total-note">{trafficTotalsNote}</div>
+                                <div className="audit-traffic-split-grid">
+                                    <div className="card audit-traffic-split-card audit-traffic-split-card--up">
+                                        <div className="flex items-center gap-1.5 mb-1">
+                                            <HiOutlineArrowUpRight className="text-success text-lg" />
                                             <div className="audit-traffic-split-label">{copy.traffic.uploadTraffic}</div>
-                                            <div className="audit-traffic-split-value">{formatBytes(trafficTotals.upBytes || 0)}</div>
                                         </div>
-                                        <div className="audit-traffic-split-card audit-traffic-split-card--down">
+                                        <div className="audit-traffic-split-value">{formatBytes(trafficTotals.upBytes || 0)}</div>
+                                    </div>
+                                    <div className="card audit-traffic-split-card audit-traffic-split-card--down">
+                                        <div className="flex items-center gap-1.5 mb-1">
+                                            <HiOutlineArrowDownLeft className="text-info text-lg" />
                                             <div className="audit-traffic-split-label">{copy.traffic.downloadTraffic}</div>
-                                            <div className="audit-traffic-split-value">{formatBytes(trafficTotals.downBytes || 0)}</div>
                                         </div>
+                                        <div className="audit-traffic-split-value">{formatBytes(trafficTotals.downBytes || 0)}</div>
                                     </div>
                                 </div>
-                                <div className="audit-traffic-mini-grid">
-                                    <div className="audit-traffic-mini-card">
+                            </div>
+                            <div className="audit-traffic-mini-grid">
+                                <div className="card audit-traffic-mini-card">
+                                    <div className="flex items-center justify-between mb-2">
                                         <div className="audit-traffic-mini-label">{copy.traffic.activeAccounts}</div>
-                                        <div className="audit-traffic-mini-value">{trafficActiveUsers}</div>
-                                        <div className="audit-traffic-mini-note">{trafficWindowCopy.activeAccountsScope}</div>
+                                        <HiOutlineUsers className="text-primary text-xl" />
                                     </div>
-                                    <div className="audit-traffic-mini-card">
+                                    <div className="audit-traffic-mini-value">{trafficActiveUsers}</div>
+                                    <div className="audit-traffic-mini-note">{trafficWindowCopy.activeAccountsScope}</div>
+                                </div>
+                                <div className="card audit-traffic-mini-card">
+                                    <div className="flex items-center justify-between mb-2">
                                         <div className="audit-traffic-mini-label">{copy.workspace.sampleStatus}</div>
-                                        <div className="audit-traffic-mini-value">
-                                            {trafficStatus.collecting
-                                                ? copy.workspace.loading
-                                                : (trafficStatus.baselineReady ? copy.workspace.ready : copy.states.noData)}
-                                        </div>
-                                        <div className="audit-traffic-mini-note">
-                                            {trafficStatus.sampledAt
-                                                ? formatDateTime(trafficStatus.sampledAt, locale)
-                                                : trafficWindowCopy.label}
-                                        </div>
+                                        <HiOutlineArrowPath className={`text-xl ${trafficStatus.collecting ? 'spinning text-warning' : 'text-success'}`} />
                                     </div>
-                                    <div className="audit-traffic-mini-card">
+                                    <div className="audit-traffic-mini-value">
+                                        {trafficStatus.collecting
+                                            ? copy.workspace.loading
+                                            : (trafficStatus.baselineReady ? copy.workspace.ready : copy.states.noData)}
+                                    </div>
+                                    <div className="audit-traffic-mini-note">
+                                        {trafficStatus.sampledAt
+                                            ? formatDateTime(trafficStatus.sampledAt, locale)
+                                            : trafficWindowCopy.label}
+                                    </div>
+                                </div>
+                                <div className="card audit-traffic-mini-card">
+                                    <div className="flex items-center justify-between mb-2">
                                         <div className="audit-traffic-mini-label">{copy.workspace.userTrafficSupport}</div>
-                                        <div className="audit-traffic-mini-value">
-                                            {trafficSupportLabel}
-                                        </div>
-                                        <div className="audit-traffic-mini-note">{trafficSupportNote}</div>
+                                        <HiOutlineChartBarSquare className="text-info text-xl" />
                                     </div>
+                                    <div className="audit-traffic-mini-value">
+                                        {trafficSupportLabel}
+                                    </div>
+                                    <div className="audit-traffic-mini-note">{trafficSupportNote}</div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="grid-auto-280-tight audit-chart-grid">
+                        <div className="grid-auto-280-tight audit-chart-grid mb-6">
                             <div className="card audit-chart-card">
                                 <SectionHeader
                                     compact divider
@@ -2386,7 +2403,7 @@ export default function AuditCenter() {
                                     )}
                                 />
                                 {trafficAttributionState === 'limited' && (
-                                    <div className="text-xs text-muted mb-2">
+                                    <div className="text-xs text-muted mb-2 px-4">
                                         {copy.traffic.userLevelUnsupported}
                                     </div>
                                 )}
@@ -2411,101 +2428,6 @@ export default function AuditCenter() {
                                             trendLabel={trendLabel}
                                         />
                                     </Suspense>
-                                </div>
-                                <div className="audit-inbound-breakdown">
-                                    <div className="audit-inbound-breakdown-head">
-                                        <div>
-                                            <div className="audit-inbound-breakdown-title">{copy.traffic.inboundBreakdown}</div>
-                                            <div className="audit-inbound-breakdown-subtitle">{trafficWindowCopy.inboundBreakdownScope}</div>
-                                        </div>
-                                        <div className="audit-inbound-breakdown-total">
-                                            {formatBytes(userInboundBreakdownTotals.totalBytes || 0)}
-                                        </div>
-                                    </div>
-                                    {userInboundBreakdown.length === 0 ? (
-                                        <div className="audit-inbound-breakdown-empty">
-                                            {copy.traffic.inboundBreakdownEmpty}
-                                        </div>
-                                    ) : isCompactLayout ? (
-                                        <div className="audit-inbound-breakdown-list audit-scrollable">
-                                            {userInboundBreakdown.map((item) => {
-                                                const shareLabel = formatTrafficShare(
-                                                    item.totalBytes,
-                                                    userInboundBreakdownTotals.totalBytes
-                                                );
-                                                const shareValue = userInboundBreakdownTotals.totalBytes > 0
-                                                    ? Math.max(0, Math.min(100, (Number(item.totalBytes || 0) / userInboundBreakdownTotals.totalBytes) * 100))
-                                                    : 0;
-                                                return (
-                                                    <div className="audit-inbound-breakdown-item" key={`${item.serverId || 'server'}-${item.inboundId || item.inboundRemark || 'inbound'}`}>
-                                                        <div className="audit-inbound-breakdown-item-head">
-                                                            <div>
-                                                                <div className="audit-inbound-breakdown-item-node">{item.serverName || item.serverId || '-'}</div>
-                                                                <div className="audit-inbound-breakdown-item-inbound">{formatInboundBreakdownLabel(item, copy)}</div>
-                                                            </div>
-                                                            <div className="audit-inbound-breakdown-item-total">{formatBytes(item.totalBytes || 0)}</div>
-                                                        </div>
-                                                        <div className="audit-inbound-breakdown-item-split">
-                                                            <span>{copy.traffic.uploadTraffic} {formatBytes(item.upBytes || 0)}</span>
-                                                            <span>{copy.traffic.downloadTraffic} {formatBytes(item.downBytes || 0)}</span>
-                                                        </div>
-                                                        <div className="audit-inbound-breakdown-item-share">
-                                                            <span>{shareLabel}</span>
-                                                            <span className="audit-inbound-share-track" aria-hidden="true">
-                                                                <span style={{ width: `${shareValue}%` }} />
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    ) : (
-                                        <div className="table-container audit-inbound-breakdown-table-container audit-scrollable">
-                                            <table className="table audit-inbound-breakdown-table">
-                                                <thead>
-                                                    <tr>
-                                                        <th>{copy.tables.node}</th>
-                                                        <th>{copy.tables.inbound}</th>
-                                                        <th className="table-cell-right">{copy.traffic.uploadTraffic}</th>
-                                                        <th className="table-cell-right">{copy.traffic.downloadTraffic}</th>
-                                                        <th className="table-cell-right">{copy.tables.traffic}</th>
-                                                        <th className="table-cell-right">{copy.tables.share}</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {userInboundBreakdown.map((item) => {
-                                                        const shareLabel = formatTrafficShare(
-                                                            item.totalBytes,
-                                                            userInboundBreakdownTotals.totalBytes
-                                                        );
-                                                        const shareValue = userInboundBreakdownTotals.totalBytes > 0
-                                                            ? Math.max(0, Math.min(100, (Number(item.totalBytes || 0) / userInboundBreakdownTotals.totalBytes) * 100))
-                                                            : 0;
-                                                        return (
-                                                            <tr key={`${item.serverId || 'server'}-${item.inboundId || item.inboundRemark || 'inbound'}`}>
-                                                                <td data-label={copy.tables.node}>
-                                                                    <div className="audit-inbound-node-cell">
-                                                                        <span>{item.serverName || item.serverId || '-'}</span>
-                                                                        {item.serverId ? <span>{item.serverId}</span> : null}
-                                                                    </div>
-                                                                </td>
-                                                                <td data-label={copy.tables.inbound}>{formatInboundBreakdownLabel(item, copy)}</td>
-                                                                <td data-label={copy.traffic.uploadTraffic} className="table-cell-right cell-mono-right">{formatBytes(item.upBytes || 0)}</td>
-                                                                <td data-label={copy.traffic.downloadTraffic} className="table-cell-right cell-mono-right">{formatBytes(item.downBytes || 0)}</td>
-                                                                <td data-label={copy.tables.traffic} className="table-cell-right cell-mono-right">{formatBytes(item.totalBytes || 0)}</td>
-                                                                <td data-label={copy.tables.share} className="table-cell-right audit-inbound-share-cell">
-                                                                    <span>{shareLabel}</span>
-                                                                    <span className="audit-inbound-share-track" aria-hidden="true">
-                                                                        <span style={{ width: `${shareValue}%` }} />
-                                                                    </span>
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    })}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    )}
                                 </div>
                             </div>
 
@@ -2566,6 +2488,104 @@ export default function AuditCenter() {
                             </div>
                         </div>
 
+                        <div className="card p-4 audit-chart-card mb-6">
+                            <div className="audit-inbound-breakdown">
+                                <div className="audit-inbound-breakdown-head">
+                                    <div>
+                                        <div className="audit-inbound-breakdown-title">{copy.traffic.inboundBreakdown}</div>
+                                        <div className="audit-inbound-breakdown-subtitle">{trafficWindowCopy.inboundBreakdownScope}</div>
+                                    </div>
+                                    <div className="audit-inbound-breakdown-total">
+                                        {formatBytes(userInboundBreakdownTotals.totalBytes || 0)}
+                                    </div>
+                                </div>
+                                {userInboundBreakdown.length === 0 ? (
+                                    <div className="audit-inbound-breakdown-empty">
+                                        {copy.traffic.inboundBreakdownEmpty}
+                                    </div>
+                                ) : isCompactLayout ? (
+                                    <div className="audit-inbound-breakdown-list audit-scrollable">
+                                        {userInboundBreakdown.map((item) => {
+                                            const shareLabel = formatTrafficShare(
+                                                item.totalBytes,
+                                                userInboundBreakdownTotals.totalBytes
+                                            );
+                                            const shareValue = userInboundBreakdownTotals.totalBytes > 0
+                                                ? Math.max(0, Math.min(100, (Number(item.totalBytes || 0) / userInboundBreakdownTotals.totalBytes) * 100))
+                                                : 0;
+                                            return (
+                                                <div className="audit-inbound-breakdown-item" key={`${item.serverId || 'server'}-${item.inboundId || item.inboundRemark || 'inbound'}`}>
+                                                    <div className="audit-inbound-breakdown-item-head">
+                                                        <div>
+                                                            <div className="audit-inbound-breakdown-item-node">{item.serverName || item.serverId || '-'}</div>
+                                                            <div className="audit-inbound-breakdown-item-inbound">{formatInboundBreakdownLabel(item, copy)}</div>
+                                                        </div>
+                                                        <div className="audit-inbound-breakdown-item-total">{formatBytes(item.totalBytes || 0)}</div>
+                                                    </div>
+                                                    <div className="audit-inbound-breakdown-item-split">
+                                                        <span>{copy.traffic.uploadTraffic} {formatBytes(item.upBytes || 0)}</span>
+                                                        <span>{copy.traffic.downloadTraffic} {formatBytes(item.downBytes || 0)}</span>
+                                                    </div>
+                                                    <div className="audit-inbound-breakdown-item-share">
+                                                        <span>{shareLabel}</span>
+                                                        <span className="audit-inbound-share-track" aria-hidden="true">
+                                                            <span style={{ width: `${shareValue}%` }} />
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <div className="table-container audit-inbound-breakdown-table-container audit-scrollable">
+                                        <table className="table audit-inbound-breakdown-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>{copy.tables.node}</th>
+                                                    <th>{copy.tables.inbound}</th>
+                                                    <th className="table-cell-right">{copy.traffic.uploadTraffic}</th>
+                                                    <th className="table-cell-right">{copy.traffic.downloadTraffic}</th>
+                                                    <th className="table-cell-right">{copy.tables.traffic}</th>
+                                                    <th className="table-cell-right">{copy.tables.share}</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {userInboundBreakdown.map((item) => {
+                                                    const shareLabel = formatTrafficShare(
+                                                        item.totalBytes,
+                                                        userInboundBreakdownTotals.totalBytes
+                                                    );
+                                                    const shareValue = userInboundBreakdownTotals.totalBytes > 0
+                                                        ? Math.max(0, Math.min(100, (Number(item.totalBytes || 0) / userInboundBreakdownTotals.totalBytes) * 100))
+                                                        : 0;
+                                                    return (
+                                                        <tr key={`${item.serverId || 'server'}-${item.inboundId || item.inboundRemark || 'inbound'}`}>
+                                                            <td data-label={copy.tables.node}>
+                                                                <div className="audit-inbound-node-cell">
+                                                                    <span>{item.serverName || item.serverId || '-'}</span>
+                                                                    {item.serverId ? <span>{item.serverId}</span> : null}
+                                                                </div>
+                                                            </td>
+                                                            <td data-label={copy.tables.inbound}>{formatInboundBreakdownLabel(item, copy)}</td>
+                                                            <td data-label={copy.traffic.uploadTraffic} className="table-cell-right cell-mono-right">{formatBytes(item.upBytes || 0)}</td>
+                                                            <td data-label={copy.traffic.downloadTraffic} className="table-cell-right cell-mono-right">{formatBytes(item.downBytes || 0)}</td>
+                                                            <td data-label={copy.tables.traffic} className="table-cell-right cell-mono-right">{formatBytes(item.totalBytes || 0)}</td>
+                                                            <td data-label={copy.tables.share} className="table-cell-right audit-inbound-share-cell">
+                                                                <span>{shareLabel}</span>
+                                                                <span className="audit-inbound-share-track" aria-hidden="true">
+                                                                    <span style={{ width: `${shareValue}%` }} />
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
                         <div className="grid-auto-280-tight audit-leaderboard-grid">
                             <div className="card audit-leaderboard-card">
                                 <SectionHeader
@@ -2601,7 +2621,7 @@ export default function AuditCenter() {
                                                 {topUsers.map((item, index) => (
                                                     <tr
                                                         key={item.email}
-                                                        className="cursor-pointer"
+                                                        className={`cursor-pointer${selectedUser === item.email ? ' active' : ''}`}
                                                         tabIndex={0}
                                                         role="button"
                                                         onClick={() => setSelectedUser(item.email)}
@@ -2664,7 +2684,7 @@ export default function AuditCenter() {
                                                 {topServers.map((item, index) => (
                                                     <tr
                                                         key={item.serverId}
-                                                        className="cursor-pointer"
+                                                        className={`cursor-pointer${selectedServerId === item.serverId ? ' active' : ''}`}
                                                         tabIndex={0}
                                                         role="button"
                                                         onClick={() => setSelectedServerId(item.serverId)}
