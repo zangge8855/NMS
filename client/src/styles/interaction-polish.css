@@ -94,8 +94,8 @@
   -moz-appearance: none;
   background-color: var(--surface-elevated-muted);
   background-image:
-    linear-gradient(45deg, transparent 50%, #94a3b8 50%),
-    linear-gradient(135deg, #94a3b8 50%, transparent 50%);
+    linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
+    linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
   background-position:
     calc(100% - 18px) calc(50% - 2px),
     calc(100% - 12px) calc(50% - 2px);
@@ -116,10 +116,10 @@
 [data-theme="light"] :is(select, .form-select, .inbounds-filter-select) {
   color-scheme: normal !important;
   background-image:
-    linear-gradient(45deg, transparent 50%, #64748b 50%),
-    linear-gradient(135deg, #64748b 50%, transparent 50%);
-  background-color: #ffffff;
-  color: #0f172a;
+    linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
+    linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+  background-color: var(--bg-input);
+  color: var(--text-primary);
 }
 
 [data-theme="light"] :is(select, .form-select, .inbounds-filter-select) option,
@@ -641,8 +641,8 @@ body,
   color-scheme: normal !important;
   background-color: var(--surface-elevated-muted) !important;
   background-image:
-    linear-gradient(45deg, transparent 50%, #94a3b8 50%),
-    linear-gradient(135deg, #94a3b8 50%, transparent 50%) !important;
+    linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
+    linear-gradient(135deg, var(--text-muted) 50%, transparent 50%) !important;
   background-position:
     calc(100% - 18px) calc(50% - 2px),
     calc(100% - 12px) calc(50% - 2px) !important;

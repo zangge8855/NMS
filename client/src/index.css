@@ -16097,7 +16097,7 @@ input[type="radio"]:focus-visible {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--accent-primary) 0%, #4f46e5 100%);
+  background: linear-gradient(90deg, var(--accent-primary) 0%, #0ea5e9 100%);
   transition: width 0.2s ease;
 }
 
