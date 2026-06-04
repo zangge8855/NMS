@@ -160,7 +160,7 @@
 .logs-level-chip-count {
   padding: 2px 7px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--surface-soft);
   font-size: 11px;
 }
 
@@ -2675,30 +2675,6 @@
   }
 }
 
-/* Authoritative backend design pass: stable grids, visible actions, restrained blue/teal controls. */
-:root {
-  --accent-primary: #2563eb;
-  --accent-primary-hover: #1d4ed8;
-  --accent-primary-glow: rgba(37, 99, 235, 0.18);
-  --accent-primary-bg: rgba(37, 99, 235, 0.1);
-  --accent-info: #22d3ee;
-  --accent-info-bg: rgba(34, 211, 238, 0.12);
-  --accent-info-glow: rgba(34, 211, 238, 0.25);
-  --accent-success: #10b981;
-  --accent-warning: #f59e0b;
-  --gradient-primary: linear-gradient(135deg, #0891b2 0%, #0284c7 100%);
-  --shadow-glow-primary: 0 14px 26px -18px rgba(37, 99, 235, 0.5);
-}
-
-[data-theme="light"] {
-  --accent-primary: #1d4ed8;
-  --accent-primary-hover: #1e40af;
-  --accent-primary-glow: rgba(29, 78, 216, 0.14);
-  --accent-primary-bg: rgba(37, 99, 235, 0.08);
-  --accent-info: #0284c7;
-  --accent-info-bg: rgba(2, 132, 199, 0.08);
-}
-
 .btn {
   display: inline-flex;
   align-items: center;
@@ -3963,82 +3939,6 @@
   }
 }
 
-/* Final operating-console pass: restrained palette, compact audit workspace, scalable node health. */
-:root {
-  --bg-primary: #070b12;
-  --bg-secondary: #0b111c;
-  --bg-tertiary: #101826;
-  --bg-card: rgba(15, 23, 36, 0.94);
-  --bg-card-hover: rgba(20, 31, 48, 0.98);
-  --bg-input: rgba(11, 17, 28, 0.82);
-  --surface-panel: rgba(15, 23, 36, 0.96);
-  --surface-panel-hover: rgba(20, 31, 48, 0.98);
-  --surface-panel-soft: rgba(15, 23, 36, 0.9);
-  --surface-overlay: rgba(10, 16, 26, 0.98);
-  --surface-soft: rgba(148, 163, 184, 0.09);
-  --surface-subtle: rgba(148, 163, 184, 0.05);
-  --surface-hover: rgba(148, 163, 184, 0.12);
-  --stroke-soft: rgba(148, 163, 184, 0.1);
-  --stroke-medium: rgba(148, 163, 184, 0.16);
-  --border-color: rgba(148, 163, 184, 0.13);
-  --border-highlight: rgba(203, 213, 225, 0.18);
-  --border-focus: rgba(47, 123, 246, 0.42);
-  --text-primary: #f8fafc;
-  --text-secondary: #cbd5e1;
-  --text-muted: #94a3b8;
-  --accent-primary: #2f7bf6;
-  --accent-primary-hover: #60a5fa;
-  --accent-primary-bg: rgba(47, 123, 246, 0.11);
-  --accent-primary-glow: rgba(47, 123, 246, 0.16);
-  --accent-info: #06a7d8;
-  --accent-info-bg: rgba(6, 167, 216, 0.1);
-  --accent-success: #12b981;
-  --accent-success-bg: rgba(18, 185, 129, 0.1);
-  --accent-warning: #e6a100;
-  --accent-warning-bg: rgba(230, 161, 0, 0.12);
-  --accent-danger: #ef4444;
-  --accent-danger-bg: rgba(239, 68, 68, 0.11);
-  --gradient-primary: linear-gradient(135deg, #2563eb 0%, #06a7d8 100%);
-  --gradient-success: linear-gradient(135deg, #059669 0%, #12b981 100%);
-  --gradient-danger: linear-gradient(135deg, #dc2626 0%, #f97373 100%);
-  --gradient-surface: linear-gradient(180deg, rgba(15, 23, 36, 0.96) 0%, rgba(11, 17, 28, 0.94) 100%);
-  --chart-grid-color: rgba(148, 163, 184, 0.14);
-  --shadow-md: 0 8px 24px -18px rgba(0, 0, 0, 0.72);
-  --shadow-lg: 0 16px 34px -26px rgba(0, 0, 0, 0.82);
-  --shadow-2xl: 0 24px 60px -36px rgba(0, 0, 0, 0.86);
-  --shadow-glow-primary: 0 14px 28px -20px rgba(47, 123, 246, 0.44);
-}
-
-[data-theme="light"] {
-  --bg-primary: #f7f9fc;
-  --bg-secondary: #eef3f9;
-  --bg-tertiary: #e7edf5;
-  --bg-card: rgba(255, 255, 255, 0.96);
-  --bg-card-hover: #ffffff;
-  --bg-input: #ffffff;
-  --surface-panel: rgba(255, 255, 255, 0.96);
-  --surface-panel-hover: #ffffff;
-  --surface-panel-soft: rgba(248, 250, 252, 0.94);
-  --surface-overlay: #ffffff;
-  --surface-soft: rgba(15, 23, 42, 0.055);
-  --surface-subtle: rgba(15, 23, 42, 0.035);
-  --surface-hover: rgba(37, 99, 235, 0.075);
-  --stroke-soft: rgba(15, 23, 42, 0.08);
-  --stroke-medium: rgba(15, 23, 42, 0.13);
-  --border-color: rgba(15, 23, 42, 0.11);
-  --border-highlight: rgba(15, 23, 42, 0.16);
-  --text-primary: #0f172a;
-  --text-secondary: #334155;
-  --text-muted: #64748b;
-  --accent-primary: #2563eb;
-  --accent-primary-hover: #1d4ed8;
-  --accent-primary-bg: rgba(37, 99, 235, 0.08);
-  --accent-info: #0284c7;
-  --accent-info-bg: rgba(2, 132, 199, 0.08);
-  --chart-grid-color: rgba(100, 116, 139, 0.18);
-  --shadow-md: 0 8px 24px -18px rgba(15, 23, 42, 0.24);
-  --shadow-lg: 0 16px 34px -26px rgba(15, 23, 42, 0.28);
-}
 
 .card,
 .glass-panel,
@@ -6088,42 +5988,6 @@
    PREMIUM GLASSMORPHIC OBSIDIAN DARK/LIGHT SURFACES & COMPONENT OVERRIDES
    ========================================================================== */
 
-/* Frosted Glass & Border parameter adjustments */
-[data-theme="dark"] .card,
-[data-theme="dark"] .glass-panel {
-  background: linear-gradient(135deg, rgba(20, 24, 46, 0.72) 0%, rgba(13, 16, 28, 0.85) 100%) !important;
-  border: 1px solid rgba(34, 211, 238, 0.16) !important;
-  box-shadow: 0 10px 36px 0 rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.03) !important;
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
-  border-radius: 16px !important;
-  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1) !important;
-}
-
-[data-theme="light"] .card,
-[data-theme="light"] .glass-panel {
-  background: rgba(255, 255, 255, 0.82) !important;
-  border: 1px solid rgba(148, 163, 184, 0.22) !important;
-  box-shadow: 0 10px 36px 0 rgba(148, 163, 184, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.85) !important;
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
-  border-radius: 16px !important;
-  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1) !important;
-}
-
-[data-theme="dark"] .card:hover,
-[data-theme="dark"] .glass-panel:hover {
-  transform: translateY(-2px) !important;
-  border-color: rgba(34, 211, 238, 0.32) !important;
-  box-shadow: 0 16px 48px 0 rgba(0, 0, 0, 0.5), 0 0 20px rgba(34, 211, 238, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
-}
-
-[data-theme="light"] .card:hover,
-[data-theme="light"] .glass-panel:hover {
-  transform: translateY(-2px) !important;
-  border-color: rgba(34, 211, 238, 0.32) !important;
-  box-shadow: 0 16px 48px 0 rgba(148, 163, 184, 0.12), 0 0 16px rgba(34, 211, 238, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
-}
 
 /* Dashboard Stat Card typography refinements */
 .card-title {
@@ -6279,8 +6143,8 @@
 }
 
 [data-theme="light"] .table-container {
-  border: 1px solid rgba(148, 163, 184, 0.15) !important;
-  background: rgba(255, 255, 255, 0.4) !important;
+  border: 1px solid var(--border-color) !important;
+  background: var(--surface-card-bg) !important;
 }
 
 .table {
@@ -6291,40 +6155,27 @@
 }
 
 .table th {
-  background: rgba(20, 24, 46, 0.9) !important;
+  background: var(--surface-table-header) !important;
   color: var(--text-secondary) !important;
   font-weight: 600 !important;
   text-transform: uppercase !important;
   font-size: 11px !important;
   letter-spacing: 0.05em !important;
   padding: 12px 16px !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-
-[data-theme="light"] .table th {
-  background: #f8fafc !important;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.15) !important;
+  border-bottom: 1px solid var(--border-color) !important;
 }
 
 .table td {
   padding: 14px 16px !important;
   color: var(--text-primary) !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+  border-bottom: 1px solid var(--stroke-soft) !important;
   vertical-align: middle !important;
-  transition: all 150ms ease !important;
+  transition: background-color 150ms ease, color 150ms ease !important;
 }
 
-[data-theme="light"] .table td {
-  border-bottom: 1px solid rgba(148, 163, 184, 0.08) !important;
-}
-
-/* Hover effect on table rows */
+/* Hover effect on table rows — brand-tinted, theme-aware via token */
 .table tr:hover td {
-  background: rgba(34, 211, 238, 0.05) !important;
-}
-
-[data-theme="light"] .table tr:hover td {
-  background: rgba(34, 211, 238, 0.03) !important;
+  background: var(--surface-table-row-hover) !important;
 }
 
 /* Specific statistical numbers column right-alignment & monospaced font */
@@ -6355,10 +6206,11 @@
 /* ── Premium Unified Space Glassmorphic Dashboard Status Card Color System ── */
 
 .dashboard-stat-card[data-tone="primary"] {
-  --dashboard-tone: HSL(242, 85%, 68%);
-  --dashboard-tone-bg: HSLA(242, 85%, 68%, 0.07);
-  --dashboard-tone-border: HSLA(242, 85%, 68%, 0.16);
-  --dashboard-tone-glow: HSLA(242, 85%, 68%, 0.14);
+  /* Hero metric tracks the brand cyan (no off-brand indigo per design system). */
+  --dashboard-tone: HSL(189, 84%, 62%);
+  --dashboard-tone-bg: HSLA(189, 84%, 62%, 0.07);
+  --dashboard-tone-border: HSLA(189, 84%, 62%, 0.16);
+  --dashboard-tone-glow: HSLA(189, 84%, 62%, 0.14);
 }
 
 .dashboard-stat-card[data-tone="info"] {
@@ -6391,10 +6243,11 @@
 
 /* Light Theme overrides for higher visibility and readability contrast */
 [data-theme="light"] .dashboard-stat-card[data-tone="primary"] {
-  --dashboard-tone: HSL(242, 75%, 52%);
-  --dashboard-tone-bg: HSLA(242, 75%, 52%, 0.06);
-  --dashboard-tone-border: HSLA(242, 75%, 52%, 0.14);
-  --dashboard-tone-glow: HSLA(242, 75%, 52%, 0.08);
+  /* Deeper brand cyan for light-mode contrast (no off-brand indigo). */
+  --dashboard-tone: HSL(192, 90%, 38%);
+  --dashboard-tone-bg: HSLA(192, 90%, 38%, 0.06);
+  --dashboard-tone-border: HSLA(192, 90%, 38%, 0.14);
+  --dashboard-tone-glow: HSLA(192, 90%, 38%, 0.08);
 }
 
 [data-theme="light"] .dashboard-stat-card[data-tone="info"] {
@@ -7262,15 +7115,10 @@
   width: 32px;
   height: 32px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--surface-soft);
+  border: 1px solid var(--border-color);
   font-size: 16px;
   color: var(--text-secondary);
-}
-
-[data-theme="light"] .settings-kpi-card-icon {
-  background: rgba(15, 23, 42, 0.04);
-  border: 1px solid rgba(15, 23, 42, 0.06);
 }
 
 .settings-kpi-card-icon--success {
@@ -7593,12 +7441,8 @@
   padding-left: 18px !important;
   margin-top: 4px !important;
   margin-bottom: 6px !important;
-  border-left: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-left: 1px solid var(--border-color) !important;
   margin-left: 18px !important; /* aligned under the parent icon */
-}
-
-[data-theme="light"] .nav-item-children {
-  border-left: 1px solid rgba(0, 0, 0, 0.08) !important;
 }
 
 .nav-item-child {
@@ -7667,23 +7511,18 @@
 
 /* 3. Server Telemetry Card (Desktop & Mobile Unified Premium Styles) */
 .servers-page .servers-telemetry-cell {
-  display: grid !important;
+  display: flex !important;
+  align-items: center !important;
   gap: 10px !important;
   padding: 12px 14px !important;
   border-radius: 14px !important;
-  background: rgba(15, 23, 42, 0.25) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+  background: var(--surface-soft) !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: var(--shadow-sm) !important;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
   position: relative !important;
   overflow: hidden !important;
   min-width: 172px !important;
-}
-
-[data-theme="light"] .servers-page .servers-telemetry-cell {
-  background: rgba(255, 255, 255, 0.6) !important;
-  border: 1px solid rgba(148, 163, 184, 0.16) !important;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03) !important;
 }
 
 /* Status indicator stripe on the left edge */

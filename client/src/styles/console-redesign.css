@@ -47,6 +47,11 @@
   --log-text: #c3cee0;
   --overlay-backdrop: rgba(5, 8, 13, 0.66);
 
+  /* — Surface overlays derived from text color to adapt dynamically across themes — */
+  --surface-soft: color-mix(in srgb, var(--text-primary) 3%, transparent);
+  --surface-subtle: color-mix(in srgb, var(--text-primary) 1.5%, transparent);
+  --surface-hover: color-mix(in srgb, var(--text-primary) 5%, transparent);
+
   /* — Borders & strokes: neutral hairlines, accent only for highlight/focus — */
   --border-color: rgba(148, 163, 184, 0.14);
   --border-highlight: color-mix(in srgb, var(--accent-primary) 30%, transparent);
@@ -123,6 +128,11 @@
   --sidebar-collapsed: 80px;
   --header-height: 64px;
 
+  /* — Modal Spacing Tokens — */
+  --modal-header-padding: 18px 24px;
+  --modal-body-padding: 20px 24px;
+  --modal-footer-padding: 16px 24px;
+
   /* — Focus: single clean ring — */
   --focus-ring-border: var(--accent-primary);
   --focus-ring-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 45%, transparent);
@@ -151,6 +161,10 @@
   --line-tight: 1.15;
   --line-snug: 1.35;
   --line-base: 1.6;
+
+  /* — Migrated from ui-tokens.css so this authoritative layer owns every global token — */
+  --surface-elevated-shadow: var(--shadow-lg);
+  --theme-transition-duration: 300ms;
 
   color-scheme: dark;
 }
@@ -221,6 +235,8 @@
   --skeleton-via: rgba(15, 23, 42, 0.10);
   --skeleton-to: rgba(15, 23, 42, 0.05);
 
+  --surface-elevated-shadow: var(--shadow-md);
+
   color-scheme: light;
 }
 
@@ -274,8 +290,12 @@ body {
 }
 
 .form-label {
+  display: block;
+  font-size: var(--font-size-sm) !important;
+  font-weight: 560 !important;
+  color: var(--text-secondary) !important;
+  margin-bottom: 6px !important;
   letter-spacing: 0 !important;
-  font-weight: 560;
 }
 
 .dashboard-stat-card-value,
@@ -468,18 +488,34 @@ body {
   box-shadow: 0 8px 18px -8px var(--accent-success-glow) !important;
 }
 
-.btn-sm { min-height: 34px; }
-.btn-xs { min-height: 28px; }
+/* Smaller buttons get proportionally tighter padding + type, not just height. */
+.btn-sm { min-height: 34px; padding: 7px 14px !important; font-size: 12px !important; gap: 6px !important; }
+.btn-xs { min-height: 28px; padding: 4px 11px !important; font-size: 11px !important; gap: 5px !important; }
 
+/* Icon buttons stay perfectly square at every size for stable rhythm. */
 .btn-icon,
 .notification-trigger {
   position: relative;
-  width: 42px !important;
-  min-width: 42px !important;
+  width: 38px !important;
+  min-width: 38px !important;
   height: 38px !important;
   min-height: 38px !important;
   padding: 0 !important;
   overflow: visible !important;
+}
+
+.btn-sm.btn-icon {
+  width: 34px !important;
+  min-width: 34px !important;
+  height: 34px !important;
+  min-height: 34px !important;
+}
+
+.btn-xs.btn-icon {
+  width: 28px !important;
+  min-width: 28px !important;
+  height: 28px !important;
+  min-height: 28px !important;
 }
 
 .notification-count-badge {
@@ -516,6 +552,14 @@ body {
   transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease !important;
 }
 
+/* Prevent Chromium black block flashing by removing background transitions on closed-state selects */
+select,
+.form-select,
+.inbounds-filter-select,
+.servers-filter-select {
+  transition: border-color 0.18s ease, box-shadow 0.18s ease !important;
+}
+
 .form-input:hover,
 .form-select:hover,
 .form-textarea:hover {
@@ -535,6 +579,12 @@ body {
   border-color: var(--border-focus) !important;
   box-shadow: var(--focus-ring-shadow) !important;
   background: var(--form-focus-bg) !important;
+}
+
+/* Compact inputs share the .btn-sm height (34px) so toolbars stay axis-aligned. */
+.form-input-sm,
+.form-select-sm {
+  min-height: 34px !important;
 }
 
 /* ==========================================================================
@@ -593,6 +643,9 @@ body {
 }
 
 .table th {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
   padding: 13px 18px !important;
   font-weight: 600 !important;
   font-size: var(--font-size-xs) !important;
@@ -634,20 +687,44 @@ body {
 }
 
 .table th.table-cell-center,
-.table td.table-cell-center { text-align: center !important; }
+.table td.table-cell-center {
+  text-align: center !important;
+}
 .table th.table-cell-right,
-.table td.table-cell-right { text-align: right !important; }
+.table td.table-cell-right,
+.table-cell-number,
+.table td.font-mono,
+.table th.table-cell-number {
+  text-align: right !important;
+}
 
 .table-cell-actions,
 .server-card-actions,
 .users-row-actions,
 .inbounds-row-actions,
-.inbounds-client-actions { white-space: nowrap; }
+.inbounds-client-actions {
+  white-space: nowrap !important;
+  text-align: right !important;
+}
+
+.table td.table-cell-center > :is(.badge, .btn, .btn-icon, .spinner, .status-indicator),
+.table td.table-cell-actions > :is(.badge, .btn, .btn-icon, .spinner, .status-indicator) {
+  margin-inline: auto !important;
+}
 
 .subscription-url-input {
   overflow-x: auto !important;
   text-overflow: clip !important;
   white-space: nowrap !important;
+}
+
+/* Settings panels size naturally to content (no forced equal height stretch) */
+.settings-grid,
+.settings-grid--basic,
+.settings-grid--access-workspace,
+.settings-grid--operations-workspace,
+.settings-grid--backup-workspace {
+  align-items: start !important;
 }
 
 /* ==========================================================================
@@ -658,7 +735,8 @@ body {
 .audit-stats-grid { gap: 14px !important; }
 
 .dashboard-stat-card {
-  min-height: 152px;
+  height: 148px !important;
+  min-height: 148px !important;
   padding: 18px !important;
 }
 
@@ -705,6 +783,16 @@ body {
 
 .modal-header,
 .modal-footer { border-color: var(--border-color) !important; }
+
+.modal-header {
+  padding: var(--modal-header-padding) !important;
+}
+.modal-body {
+  padding: var(--modal-body-padding) !important;
+}
+.modal-footer {
+  padding: var(--modal-footer-padding) !important;
+}
 
 /* ==========================================================================
    Dropdowns / popovers — opaque float, subtle entrance, light blur only
@@ -779,6 +867,22 @@ body {
   background: #ffffff !important;
   border: 1px solid var(--surface-card-border) !important;
   box-shadow: var(--shadow-lg) !important;
+}
+
+.success-alert {
+  background: var(--accent-success-bg) !important;
+  border: 1px solid var(--accent-success-border) !important;
+  color: var(--accent-success) !important;
+  padding: 10px 14px !important;
+  font-size: var(--font-size-sm) !important;
+}
+
+.error-alert {
+  background: var(--accent-danger-bg) !important;
+  border: 1px solid var(--accent-danger-border) !important;
+  color: var(--accent-danger) !important;
+  padding: 10px 14px !important;
+  font-size: var(--font-size-sm) !important;
 }
 
 /* ==========================================================================
@@ -1011,7 +1115,7 @@ body {
     grid-template-columns: minmax(0, 1fr) !important;
   }
 
-  .dashboard-stat-card { min-height: 132px; }
+  .dashboard-stat-card { height: 124px !important; min-height: 124px !important; }
 
   .list-toolbar,
   .page-toolbar,
@@ -1179,11 +1283,11 @@ body::after {
 }
 
 .btn:hover:not(:disabled) {
-  transform: translateY(-1px) scale(1.01) !important;
+  transform: translateY(-1px) !important;
 }
 
 .btn:active:not(:disabled) {
-  transform: translateY(1px) scale(0.98) !important;
+  transform: translateY(0.5px) !important;
 }
 
 .btn-primary:hover:not(:disabled) {

@@ -1,185 +1,20 @@
-/* Shared UI tokens for global themes (Dark & Light modes). */
+/* Shared UI utilities (theme transition, global surface, scrollbars).
+ *
+ * NOTE: This file intentionally no longer defines design tokens. The single
+ * authoritative token layer is `console-redesign.css` (Design System v2),
+ * which loads last and owns every global `:root` / `[data-theme="light"]`
+ * color, shadow, radius and typography token. Per docs/UI_DESIGN_SYSTEM.md,
+ * other style files must not redefine conflicting `:root` colors. The two
+ * tokens that previously only lived here (`--surface-elevated-shadow`,
+ * `--theme-transition-duration`) have been migrated into console-redesign.css.
+ */
 
-:root {
-  /* Core base overrides for the admin console */
-  --bg-primary: #0a0a0f;
-  --bg-secondary: #12121a;
-  --bg-tertiary: #1a1a24;
-
-  --bg-card: rgba(18, 18, 26, 0.65);
-  --bg-card-hover: rgba(26, 26, 36, 0.75);
-  --bg-glass: rgba(255, 255, 255, 0.02);
-  --bg-input: rgba(18, 18, 26, 0.85);
-
-  --surface-panel: rgba(18, 18, 26, 0.65);
-  --surface-panel-hover: rgba(26, 26, 36, 0.75);
-  --surface-panel-soft: rgba(18, 18, 26, 0.45);
-  --surface-overlay: rgba(10, 10, 15, 0.85);
-  --chart-grid-color: rgba(255, 255, 255, 0.04);
-
-  /* Curated fine borders */
-  --border-color: rgba(255, 255, 255, 0.08);
-  --border-highlight: rgba(56, 189, 248, 0.3);
-  --border-focus: rgba(56, 189, 248, 0.6);
-
-  /* Text color & scaling */
-  --text-primary: #ffffff;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --text-inverse: #000000;
-  --text-on-accent: #ffffff;
-
-  /* Cyber-Modern cyan accent (purple removed per design system) */
-  --accent-primary: #22d3ee;
-  --accent-primary-hover: #67e8f9;
-  --accent-primary-glow: rgba(34, 211, 238, 0.22);
-  --accent-primary-bg: rgba(34, 211, 238, 0.14);
-
-  --gradient-primary: linear-gradient(135deg, #0891b2 0%, #0284c7 100%);
-  --gradient-surface: linear-gradient(180deg, rgba(26, 26, 36, 0.75) 0%, rgba(18, 18, 26, 0.85) 100%);
-
-  /* Quiet operational elevation */
-  --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.6);
-  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
-  --shadow-glow: 0 0 20px -5px var(--accent-primary-glow);
-  --shadow-glow-primary: 0 0 30px -5px rgba(14, 165, 233, 0.4);
-
-  /* Extended Tokens */
-  --surface-elevated: #1a1a24;
-  --surface-elevated-muted: #12121a;
-  --surface-elevated-border: rgba(255, 255, 255, 0.1);
-  --surface-elevated-shadow: var(--shadow-lg);
-  --surface-elevated-hover: rgba(56, 189, 248, 0.1);
-  
-  --surface-card-bg: linear-gradient(180deg, rgba(26, 26, 36, 0.7) 0%, rgba(18, 18, 26, 0.8) 100%);
-  --surface-card-border: rgba(255, 255, 255, 0.08);
-  --surface-card-shadow: var(--shadow-md);
-  --surface-card-shadow-hover: var(--shadow-lg);
-  
-  --floating-panel-bg: rgba(18, 18, 26, 0.85);
-  --floating-panel-border: rgba(255, 255, 255, 0.12);
-  --floating-panel-shadow: var(--shadow-2xl);
-  
-  --surface-table-header: rgba(18, 18, 26, 0.85);
-  --surface-table-row-hover: rgba(34, 211, 238, 0.08);
-
-  --focus-ring-border: var(--accent-primary);
-  --focus-ring-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px rgba(34, 211, 238, 0.5);
-
-  --scrollbar-thumb-color: rgba(34, 211, 238, 0.2);
-  --scrollbar-thumb-hover: rgba(34, 211, 238, 0.45);
-  
-  --theme-transition-duration: 300ms;
-
-  /* Dark theme form & component defaults */
-  --form-focus-bg: rgba(26, 26, 36, 0.85);
-  --btn-danger-hover-text: #fca5a5;
-  --btn-success-hover-text: #86efac;
-  --table-container-bg: rgba(18, 18, 26, 0.5);
-  --skeleton-from: rgba(56, 189, 248, 0.05);
-  --skeleton-via: rgba(255, 255, 255, 0.08);
-  --skeleton-to: rgba(56, 189, 248, 0.05);
-
-  color-scheme: dark;
-}
-
-[data-theme="light"] {
-  /* Core Base Overrides (From index.css) */
-  --bg-primary: #f1f5f9;
-  --bg-secondary: #ffffff;
-  --bg-tertiary: #e2e8f0;
-
-  --bg-card: rgba(255, 255, 255, 0.75);
-  --bg-card-hover: rgba(255, 255, 255, 0.95);
-  --bg-glass: rgba(255, 255, 255, 0.6);
-  --bg-input: #ffffff;
-  
-  --surface-panel: rgba(255, 255, 255, 0.75);
-  --surface-panel-hover: rgba(255, 255, 255, 0.95);
-  --surface-panel-soft: rgba(241, 245, 249, 0.65);
-  --surface-overlay: rgba(255, 255, 255, 0.85);
-  --chart-grid-color: rgba(0, 0, 0, 0.04);
-
-  --border-color: rgba(0, 0, 0, 0.06);
-  --border-highlight: rgba(14, 165, 233, 0.25);
-  --border-focus: rgba(14, 165, 233, 0.5);
-  --border-glass: 1px solid rgba(0, 0, 0, 0.08);
-
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
-  --text-inverse: #ffffff;
-  --text-on-accent: #ffffff;
-
-  --surface-soft: rgba(0, 0, 0, 0.03);
-  --surface-subtle: rgba(0, 0, 0, 0.015);
-  --surface-hover: rgba(0, 0, 0, 0.05);
-  --stroke-soft: rgba(0, 0, 0, 0.06);
-  --stroke-medium: rgba(0, 0, 0, 0.12);
-  --overlay-backdrop: rgba(15, 23, 42, 0.3);
-  --mobile-sheet-bg: rgba(255, 255, 255, 0.9);
-  
-  --log-bg: #f8fafc;
-  --log-text: #1e293b;
-
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
-  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
-  --shadow-glow: 0 0 20px -5px var(--accent-primary-glow);
-  --shadow-glow-primary: 0 0 30px -5px rgba(14, 165, 233, 0.2);
-
-  /* Extended Tokens Overrides */
-  --surface-elevated: #ffffff;
-  --surface-elevated-muted: #f8fafc;
-  --surface-elevated-border: rgba(0, 0, 0, 0.08);
-  --surface-elevated-shadow: var(--shadow-md);
-  --surface-elevated-hover: #f1f5f9;
-  
-  --surface-card-bg: rgba(255, 255, 255, 0.85);
-  --surface-card-border: rgba(0, 0, 0, 0.06);
-  --surface-card-shadow: var(--shadow-sm);
-  --surface-card-shadow-hover: var(--shadow-md);
-  
-  --floating-panel-bg: rgba(255, 255, 255, 0.9);
-  --floating-panel-border: rgba(0, 0, 0, 0.08);
-  --floating-panel-shadow: var(--shadow-2xl);
-  
-  --surface-table-header: rgba(248, 250, 252, 0.85);
-  --surface-table-row-hover: rgba(14, 165, 233, 0.04);
-  
-  --focus-ring-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px rgba(14, 165, 233, 0.3);
-  
-  --scrollbar-thumb-color: rgba(14, 165, 233, 0.15);
-  --scrollbar-thumb-hover: rgba(14, 165, 233, 0.3);
-
-  /* Adjust accents for better contrast in light mode */
-  --accent-primary: #0284c7;
-  --accent-primary-bg: rgba(2, 132, 199, 0.1);
-  --accent-success-bg: rgba(16, 185, 129, 0.1);
-  --accent-warning-bg: rgba(245, 158, 11, 0.1);
-  --accent-danger-bg: rgba(239, 68, 68, 0.1);
-  --accent-info-bg: rgba(59, 130, 246, 0.1);
-
-  /* Light theme form & component overrides */
-  --form-focus-bg: #ffffff;
-  --btn-danger-hover-text: #991b1b;
-  --btn-success-hover-text: #065f46;
-  --table-container-bg: rgba(255, 255, 255, 0.6);
-  --skeleton-from: rgba(14, 165, 233, 0.04);
-  --skeleton-via: rgba(0, 0, 0, 0.06);
-  --skeleton-to: rgba(14, 165, 233, 0.04);
-
-  color-scheme: light;
-}
-
+/* Slightly longer easing while a theme switch is animating. */
 :where(html.theme-transition, body.theme-transition) {
   --theme-transition-duration: 400ms;
 }
 
-/* Ensure global app backgrounds update smoothly */
+/* Ensure global app backgrounds follow the active theme. */
 html {
   background-color: var(--bg-primary);
   color: var(--text-primary);
@@ -190,7 +25,7 @@ body {
   color: var(--text-primary);
 }
 
-/* Base Glassmorphism utilities */
+/* Base glassmorphism utility (used by true overlays only). */
 .glass-panel {
   background: var(--surface-panel);
   backdrop-filter: blur(12px);
@@ -199,6 +34,7 @@ body {
   box-shadow: var(--shadow-md);
 }
 
+/* Slim, theme-aware scrollbars for scroll regions. */
 .table-scroll,
 .table-container {
   scrollbar-width: thin;
