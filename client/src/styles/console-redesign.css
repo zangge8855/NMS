@@ -12,40 +12,40 @@
    ========================================================================== */
 
 :root {
-  /* — Background: layered, opaque deep ink-blue (depth via lightness, not blur) — */
-  --bg-primary: #0a0f17;
-  --bg-secondary: #0d131c;
-  --bg-tertiary: #121a26;
-  --bg-card: #111824;
-  --bg-card-hover: #161f2c;
-  --bg-glass: #111824;
-  --bg-input: #0c121b;
+  /* — Background: layered graphite-navy, opaque (depth via lightness, not blur) — */
+  --bg-primary: #0a0e17;
+  --bg-secondary: #0d1220;
+  --bg-tertiary: #131a29;
+  --bg-card: #141b2b;
+  --bg-card-hover: #1a2336;
+  --bg-glass: #141b2b;
+  --bg-input: #0c111c;
 
-  --surface-panel: #111824;
-  --surface-panel-hover: #161f2c;
-  --surface-panel-soft: #0e1521;
-  --surface-overlay: #121a26;
-  --surface-elevated: #1a2433;
-  --surface-elevated-muted: #0e1521;
+  --surface-panel: #141b2b;
+  --surface-panel-hover: #1a2336;
+  --surface-panel-soft: #0f1623;
+  --surface-overlay: #131a29;
+  --surface-elevated: #1b2336;
+  --surface-elevated-muted: #0f1623;
   --surface-elevated-border: rgba(148, 163, 184, 0.16);
-  --surface-elevated-hover: #1f2a3a;
-  --surface-card-bg: #111824;
+  --surface-elevated-hover: #212a3d;
+  --surface-card-bg: #141b2b;
   --surface-card-border: rgba(148, 163, 184, 0.14);
   --surface-card-shadow: var(--shadow-sm);
   --surface-card-shadow-hover: var(--shadow-md);
 
-  --floating-panel-bg: #141d2a;
+  --floating-panel-bg: #161d2e;
   --floating-panel-border: rgba(148, 163, 184, 0.18);
   --floating-panel-shadow: var(--shadow-lg);
 
-  --surface-table-header: #0e151f;
-  --surface-table-row-hover: color-mix(in srgb, var(--accent-primary) 7%, transparent);
-  --table-container-bg: #111824;
+  --surface-table-header: #10141f;
+  --surface-table-row-hover: color-mix(in srgb, var(--accent-primary) 9%, transparent);
+  --table-container-bg: #141b2b;
   --chart-grid-color: rgba(148, 163, 184, 0.10);
-  --mobile-sheet-bg: #121a26;
-  --log-bg: #0a0e15;
+  --mobile-sheet-bg: #131a29;
+  --log-bg: #080b12;
   --log-text: #c3cee0;
-  --overlay-backdrop: rgba(5, 8, 13, 0.66);
+  --overlay-backdrop: rgba(4, 6, 12, 0.68);
 
   /* — Surface overlays derived from text color to adapt dynamically across themes — */
   --surface-soft: color-mix(in srgb, var(--text-primary) 3%, transparent);
@@ -66,11 +66,11 @@
   --text-muted: #8a99b0;
   --text-inverse: #0a0f17;
   --text-on-accent: #ffffff;            /* on translucent/deep accent surfaces */
-  --btn-primary-fg: #04131c;            /* dark text on the bright cyan button */
+  --btn-primary-fg: #ffffff;            /* white text on the Aurora Indigo button */
 
-  /* — Accent: brand cyan (single source; matches existing assets) — */
-  --accent-primary: #22d3ee;
-  --accent-primary-hover: #67e8f9;
+  /* — Accent: Aurora Indigo (single source; Latin/UI brand) — */
+  --accent-primary: #6366f1;
+  --accent-primary-hover: #818cf8;
   --accent-primary-bg: color-mix(in srgb, var(--accent-primary) 12%, transparent);
   --accent-primary-soft: color-mix(in srgb, var(--accent-primary) 16%, transparent);
   --accent-primary-border: color-mix(in srgb, var(--accent-primary) 30%, transparent);
@@ -98,11 +98,11 @@
   --accent-info-glow: color-mix(in srgb, var(--accent-info) 22%, transparent);
 
   /* — Gradients: reserved for signature moments only — */
-  --gradient-primary: linear-gradient(135deg, #22d3ee 0%, #0ea5e9 100%);
-  --gradient-primary-hover: linear-gradient(135deg, #3bd8ef 0%, #1aa9ed 100%);
+  --gradient-primary: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+  --gradient-primary-hover: linear-gradient(135deg, #5b53ec 0%, #6d74f4 100%);
   --gradient-success: linear-gradient(135deg, #34d399 0%, #10b981 100%);
   --gradient-danger: linear-gradient(135deg, #fb7185 0%, #f43f5e 100%);
-  --gradient-surface: linear-gradient(180deg, #131c29 0%, #0f1620 100%);
+  --gradient-surface: linear-gradient(180deg, #161d2e 0%, #0f1623 100%);
   --gradient-glow: linear-gradient(135deg,
     color-mix(in srgb, var(--accent-primary) 14%, transparent),
     color-mix(in srgb, var(--accent-primary) 4%, transparent));
@@ -166,6 +166,11 @@
   --surface-elevated-shadow: var(--shadow-lg);
   --theme-transition-duration: 300ms;
 
+  /* — Type families: distinctive display + instrument mono (Latin-led; CJK falls back to Noto Sans SC) — */
+  --font-display: 'Schibsted Grotesk Variable', 'Noto Sans SC Variable', 'Noto Sans SC', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', monospace;
+  --font-numeric: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
   color-scheme: dark;
 }
 
@@ -214,15 +219,15 @@
   --btn-primary-fg: #ffffff;            /* white on the deeper light-mode button */
 
   /* Bases shift to deeper, higher-contrast tones for light surfaces */
-  --accent-primary: #0284c7;
-  --accent-primary-hover: #0369a1;
+  --accent-primary: #4f46e5;
+  --accent-primary-hover: #4338ca;
   --accent-success: #059669;
   --accent-warning: #b45309;
   --accent-danger: #e11d48;
   --accent-info: #2563eb;
 
-  --gradient-primary: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
-  --gradient-primary-hover: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  --gradient-primary: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  --gradient-primary-hover: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
 
   --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.05);
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
@@ -236,6 +241,9 @@
   --skeleton-to: rgba(15, 23, 42, 0.05);
 
   --surface-elevated-shadow: var(--shadow-md);
+
+  /* Display family also leads with the grotesque on light surfaces (CJK falls back to Noto Sans SC) */
+  --font-display: 'Schibsted Grotesk Variable', 'Noto Sans SC Variable', 'Noto Sans SC', system-ui, sans-serif;
 
   color-scheme: light;
 }
@@ -263,6 +271,7 @@ body {
    Typography — apply the scale; solid color (no gradient clip); CJK-safe
    ========================================================================== */
 .header-title {
+  font-family: var(--font-display) !important;
   font-size: var(--font-size-h1) !important;
   line-height: var(--line-tight) !important;
   font-weight: 680 !important;
@@ -273,6 +282,7 @@ body {
 }
 
 .section-header-title {
+  font-family: var(--font-display) !important;
   font-size: var(--font-size-h2) !important;
   line-height: var(--line-snug) !important;
   font-weight: 660 !important;
@@ -283,6 +293,7 @@ body {
 }
 
 .card-title {
+  font-family: var(--font-display) !important;
   font-size: var(--font-size-h3) !important;
   font-weight: 620 !important;
   letter-spacing: 0 !important;
@@ -300,8 +311,10 @@ body {
 
 .dashboard-stat-card-value,
 .card-value {
+  font-family: var(--font-numeric) !important;
   letter-spacing: -0.01em !important;
   font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "zero" 1;
 }
 
 .cell-mono,
@@ -348,9 +361,12 @@ body {
    ========================================================================== */
 .header {
   min-height: var(--header-height);
-  background: color-mix(in srgb, var(--surface-panel) 96%, transparent) !important;
-  border-bottom: 1px solid var(--border-color);
-  box-shadow: none !important;
+  background: color-mix(in srgb, var(--surface-panel) 80%, transparent) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--text-primary) 4%, transparent),
+              0 14px 34px -28px rgba(0, 0, 0, 0.75) !important;
+  backdrop-filter: blur(18px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(140%) !important;
 }
 
 .header-icon,
@@ -1219,10 +1235,11 @@ body::after {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background-image: 
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.022'/%3E%3C/svg%3E"),
     linear-gradient(rgba(148, 163, 184, 0.012) 1px, transparent 1px),
     linear-gradient(90deg, rgba(148, 163, 184, 0.012) 1px, transparent 1px);
-  background-size: 32px 32px;
+  background-size: 140px 140px, 32px 32px, 32px 32px;
   z-index: -1;
 }
 
@@ -1254,7 +1271,7 @@ body::after {
 .user-profile-card, .detail-hero-card, .settings-mini-card, .settings-db-control-card {
   border: 1px solid var(--border-color) !important;
   background: var(--surface-card-bg) !important;
-  box-shadow: var(--shadow-sm) !important;
+  box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.045) !important;
   transition: border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1),
               box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1),
               background-color 0.25s cubic-bezier(0.16, 1, 0.3, 1),
@@ -1458,4 +1475,142 @@ body::after {
   border-left: 2px solid var(--accent-primary) !important;
   box-shadow: inset 2px 0 0 var(--accent-primary) !important;
   font-weight: 600;
+}
+
+/* ==========================================================================
+   Dashboard Hero — signature first-screen command band (Advanced tier)
+   ========================================================================== */
+.dashboard-hero {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  padding: clamp(20px, 2.4vw, 30px);
+  border: 1px solid var(--surface-card-border);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(125% 165% at 0% 0%, color-mix(in srgb, var(--accent-primary) 17%, transparent), transparent 55%),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-elevated) 92%, transparent), var(--surface-card-bg));
+  box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.dashboard-hero-glow {
+  position: absolute;
+  inset: -42% -8% auto auto;
+  width: 440px;
+  height: 440px;
+  pointer-events: none;
+  z-index: -1;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent-primary-hover) 26%, transparent), transparent 62%);
+  filter: blur(10px);
+}
+
+.dashboard-hero-main { min-width: 0; }
+
+.dashboard-hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: var(--font-size-sm);
+  font-weight: 560;
+  letter-spacing: 0.02em;
+  color: var(--accent-primary);
+}
+
+.dashboard-hero-eyebrow::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background: var(--accent-primary);
+  box-shadow: 0 0 0 4px var(--accent-primary-bg);
+}
+
+.dashboard-hero-title {
+  font-family: var(--font-display);
+  font-size: clamp(24px, 3vw, 34px);
+  line-height: var(--line-tight);
+  font-weight: 640;
+  letter-spacing: -0.022em;
+  color: var(--text-primary);
+  margin: 10px 0 0;
+}
+
+.dashboard-hero-subtitle {
+  margin: 9px 0 0;
+  max-width: 58ch;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-snug);
+  color: var(--text-muted);
+}
+
+.dashboard-hero-kpis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.dashboard-hero-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 18px;
+  min-width: 118px;
+  border: 1px solid var(--surface-card-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-card-bg) 64%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.dashboard-hero-kpi-value {
+  font-family: var(--font-numeric);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-hero-kpi-label {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+/* One orchestrated load: staggered hero + KPI reveal (skill: one composed entrance) */
+@keyframes heroRise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dashboard-page .dashboard-hero { animation: heroRise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.dashboard-page .dashboard-hero-kpi { animation: heroRise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.dashboard-page .dashboard-hero-kpi:nth-child(1) { animation-delay: 0.06s; }
+.dashboard-page .dashboard-hero-kpi:nth-child(2) { animation-delay: 0.12s; }
+.dashboard-page .dashboard-hero-kpi:nth-child(3) { animation-delay: 0.18s; }
+.dashboard-page .dashboard-hero-kpi:nth-child(4) { animation-delay: 0.24s; }
+
+@media (max-width: 768px) {
+  .dashboard-hero { align-items: flex-start; padding: 18px; }
+  .dashboard-hero-kpis { width: 100%; }
+  .dashboard-hero-kpi { flex: 1 1 calc(50% - 12px); min-width: 0; }
+}
+
+/* ==========================================================================
+   Signature data-viz polish — richer gradient fills, refined active marker
+   ========================================================================== */
+.recharts-area-area { opacity: 0.92; }
+
+.recharts-line .recharts-line-curve,
+.recharts-area .recharts-area-curve {
+  stroke-linecap: round;
+}
+
+.mini-sparkline-end {
+  filter: drop-shadow(0 0 3px var(--accent-primary-glow));
 }

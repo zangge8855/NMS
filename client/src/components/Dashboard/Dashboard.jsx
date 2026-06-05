@@ -600,6 +600,37 @@ function getWsUrl(ticket) {
 
 
 
+function resolveDashboardGreeting(t) {
+    const hour = new Date().getHours();
+    if (hour < 5) return t('pages.dashboardHero.greetingNight');
+    if (hour < 12) return t('pages.dashboardHero.greetingMorning');
+    if (hour < 18) return t('pages.dashboardHero.greetingAfternoon');
+    return t('pages.dashboardHero.greetingEvening');
+}
+
+function DashboardHero({ greeting, title, subtitle, kpis = [] }) {
+    return (
+        <section className="dashboard-hero" aria-label={typeof title === 'string' ? title : undefined}>
+            <span className="dashboard-hero-glow" aria-hidden="true" />
+            <div className="dashboard-hero-main">
+                {greeting ? <span className="dashboard-hero-eyebrow">{greeting}</span> : null}
+                <h1 className="dashboard-hero-title">{title}</h1>
+                {subtitle ? <p className="dashboard-hero-subtitle">{subtitle}</p> : null}
+            </div>
+            {kpis.length > 0 ? (
+                <div className="dashboard-hero-kpis">
+                    {kpis.map((kpi) => (
+                        <div className="dashboard-hero-kpi" key={kpi.label}>
+                            <span className="dashboard-hero-kpi-value">{kpi.value}</span>
+                            <span className="dashboard-hero-kpi-label">{kpi.label}</span>
+                        </div>
+                    ))}
+                </div>
+            ) : null}
+        </section>
+    );
+}
+
 export default function Dashboard() {
     const { activeServerId, activeServer, servers, loading: serverContextLoading } = useServer();
     const { token } = useAuth();
@@ -1294,6 +1325,22 @@ export default function Dashboard() {
             },
         ];
 
+        const heroGreeting = `${resolveDashboardGreeting(t)} · ${t('pages.dashboardHero.welcome')}`;
+        const globalHeroKpis = [
+            {
+                label: t('pages.dashboardHero.kpiOnlineUsers'),
+                value: Number(globalManagedOnlineCount ?? globalStats.totalOnline ?? 0).toLocaleString(),
+            },
+            {
+                label: t('pages.dashboardHero.kpiNodesOnline'),
+                value: `${globalStats.onlineServers}/${globalStats.serverCount}`,
+            },
+            {
+                label: t('pages.dashboardHero.kpiTotalTraffic'),
+                value: formatBytes((globalStats.totalUp || 0) + (globalStats.totalDown || 0)),
+            },
+        ];
+
         return (
             <>
                 <Header
@@ -1312,6 +1359,12 @@ export default function Dashboard() {
                     </button>
                 </Header>
                 <div className="page-content page-content--wide page-enter dashboard-page">
+                    <DashboardHero
+                        greeting={heroGreeting}
+                        title={t('pages.dashboardGlobal.title')}
+                        subtitle={t('pages.dashboardHero.globalSubtitle')}
+                        kpis={globalHeroKpis}
+                    />
                     <div className="stats-grid dashboard-stats-grid mb-8">
                         {globalCards.map((card, index) => (
                             <StatCard
@@ -1524,6 +1577,11 @@ export default function Dashboard() {
                 </button>
             </Header>
             <div className="page-content page-content--wide page-enter dashboard-page">
+                <DashboardHero
+                    greeting={`${resolveDashboardGreeting(t)} · ${t('pages.dashboardHero.welcome')}`}
+                    title={activeServer?.name || t('pages.dashboardNode.title')}
+                    subtitle={t('pages.dashboardHero.nodeSubtitle')}
+                />
                 <div className="stats-grid dashboard-stats-grid">
                     {statCards.map((card, index) => (
                         <StatCard

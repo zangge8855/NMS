@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useId } from 'react';
 import {
-    LineChart,
-    Line,
+    AreaChart,
+    Area,
     XAxis,
     YAxis,
     Tooltip,
@@ -22,9 +22,17 @@ export default function TrafficLineChart({
     formatLabel,
     trendLabel,
 }) {
+    const gradientId = `traffic-${useId().replace(/:/g, '')}`;
+    const stroke = color || 'var(--accent-primary)';
     return (
         <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data || []} margin={margin}>
+            <AreaChart data={data || []} margin={margin}>
+                <defs>
+                    <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={stroke} stopOpacity={0.26} />
+                        <stop offset="92%" stopColor={stroke} stopOpacity={0} />
+                    </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="4 8" stroke="var(--chart-grid-color)" vertical={false} />
                 <XAxis
                     dataKey="ts"
@@ -50,16 +58,17 @@ export default function TrafficLineChart({
                         />
                     )}
                 />
-                <Line
+                <Area
                     type="monotone"
                     dataKey="totalBytes"
-                    stroke={color || 'var(--accent-primary)'}
+                    stroke={stroke}
                     strokeWidth={2.5}
+                    fill={`url(#${gradientId})`}
                     dot={false}
                     activeDot={{ r: 4, strokeWidth: 2, stroke: 'var(--bg-card)' }}
                     connectNulls
                 />
-            </LineChart>
+            </AreaChart>
         </ResponsiveContainer>
     );
 }

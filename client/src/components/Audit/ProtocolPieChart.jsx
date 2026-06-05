@@ -10,13 +10,13 @@ import { formatBytes } from '../../utils/format.js';
 import ChartTooltip from '../UI/ChartTooltip.jsx';
 
 const BRAND_PALETTE = [
-    '#22d3ee',
-    '#10b981',
-    '#f59e0b',
-    '#8b5cf6',
-    '#ef4444',
-    '#14b8a6',
-    '#64748b',
+    '#6366f1',
+    '#818cf8',
+    '#38bdf8',
+    '#34d399',
+    '#fbbf24',
+    '#fb7185',
+    '#a78bfa',
 ];
 
 export default function ProtocolPieChart({ data = [], locale = 'zh-CN' }) {

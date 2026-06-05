@@ -8,7 +8,8 @@ export default function CpuHistoryChart({ cpuHistory, endTick, t }) {
             <AreaChart data={cpuHistory}>
                 <defs>
                     <linearGradient id="cpuGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="var(--accent-primary)" stopOpacity={0.3} />
+                        <stop offset="0%" stopColor="var(--accent-primary-hover)" stopOpacity={0.34} />
+                        <stop offset="55%" stopColor="var(--accent-primary)" stopOpacity={0.14} />
                         <stop offset="95%" stopColor="var(--accent-primary)" stopOpacity={0} />
                     </linearGradient>
                 </defs>
