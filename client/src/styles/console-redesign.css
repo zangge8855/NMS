@@ -325,6 +325,8 @@ body {
   background: linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 100%) fixed;
   color: var(--text-primary);
   letter-spacing: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .app-layout { background: transparent; }
@@ -1829,4 +1831,72 @@ body::after {
 .nav-item.active::before {
   background: var(--aurora-ramp) !important;
   box-shadow: 0 0 10px -1px var(--accent-primary-glow) !important;
+}
+
+/* ==========================================================================
+   UI/UX Expert Beautification & Aesthetics Upgrades
+   ========================================================================== */
+
+/* 1. Horizontal Tab Slide Transitions */
+.tab {
+  position: relative !important;
+  overflow: visible !important;
+}
+.tab::after {
+  content: "" !important;
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 2px !important;
+  background: var(--accent-primary) !important;
+  transform: scaleX(0) !important;
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transform-origin: bottom center !important;
+}
+.tab.active::after {
+  transform: scaleX(1) !important;
+}
+.tab.active {
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+/* 2. Global Scrollbar Consistency */
+::-webkit-scrollbar {
+  width: 8px !important;
+  height: 8px !important;
+}
+::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+::-webkit-scrollbar-thumb {
+  border-radius: 999px !important;
+  background: var(--scrollbar-thumb-color) !important;
+  border: 2px solid transparent !important;
+  background-clip: padding-box !important;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover) !important;
+}
+
+/* 3. EmptyState SVG Glowing Effects */
+.empty-state-svg {
+  filter: drop-shadow(0 0 8px var(--accent-primary-glow)) !important;
+  transition: filter 0.3s ease, transform 0.3s ease !important;
+}
+.empty-state:hover .empty-state-svg {
+  filter: drop-shadow(0 0 14px var(--accent-primary)) !important;
+  transform: scale(1.02) !important;
+}
+
+/* 4. Multi-line Form Label Spacing & Typography Polish */
+label,
+.form-label,
+.form-note,
+.form-help,
+.settings-form-cluster-note,
+.account-profile-verify-note,
+.sidebar-logo-subtitle {
+  line-height: 1.55 !important;
 }
