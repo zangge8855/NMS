@@ -3228,7 +3228,7 @@ export default function SystemSettings() {
                 ? { label: '运行稳定', tone: 'success' }
                 : { label: '需关注', tone: 'warning' },
             content: renderStatusContent(),
-            heroMode: 'cards',
+            heroMode: 'hidden',
         },
         {
             id: 'access',
@@ -3247,7 +3247,7 @@ export default function SystemSettings() {
             summary: '先确认高风险确认规则与留存周期，再检查归属地增强的 provider 和缓存策略。',
             highlights: [],
             content: renderPolicyContent(),
-            heroMode: 'cards',
+            heroMode: 'hidden',
         },
         {
             id: 'operations',

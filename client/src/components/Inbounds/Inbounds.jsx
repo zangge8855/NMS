@@ -1390,7 +1390,12 @@ export default function Inbounds() {
                         <button className="btn btn-primary btn-sm" onClick={handleAdd}>
                             <HiOutlinePlusCircle /> {t('pages.inbounds.toolbar.add')}
                         </button>
-                        <button className="btn btn-secondary btn-sm" onClick={fetchAllInbounds} title={t('pages.inbounds.toolbar.refresh')}>
+                        <button
+                            className="btn btn-secondary btn-sm btn-icon inbounds-refresh-btn"
+                            onClick={fetchAllInbounds}
+                            title={t('pages.inbounds.toolbar.refresh')}
+                            aria-label={t('pages.inbounds.toolbar.refresh')}
+                        >
                             <HiOutlineArrowPath />
                         </button>
                         </>

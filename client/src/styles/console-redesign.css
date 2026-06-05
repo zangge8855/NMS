@@ -1900,3 +1900,1042 @@ label,
 .sidebar-logo-subtitle {
   line-height: 1.55 !important;
 }
+
+/* ==========================================================================
+   Cross-page UI QA fixes
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .main-content {
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow: hidden !important;
+  }
+
+  .main-scroll-region {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: calc(100dvh - var(--mobile-bottom-nav-height, 78px) - env(safe-area-inset-bottom, 0px)) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    scroll-padding-bottom: calc(var(--mobile-bottom-nav-height, 78px) + 16px) !important;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px) !important;
+  }
+}
+
+.table-action-btn.btn-sm.btn-icon,
+.inbounds-row-actions .btn.btn-icon,
+.users-row-actions .btn.btn-icon,
+.servers-row-action-icon.btn-icon {
+  width: 38px !important;
+  min-width: 38px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  border-radius: 12px !important;
+}
+
+@media (max-width: 768px) {
+  .table-action-btn.btn-sm.btn-icon,
+  .inbounds-row-actions .btn.btn-icon,
+  .users-row-actions .btn.btn-icon,
+  .servers-row-action-icon.btn-icon {
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+  }
+}
+
+.table td,
+.table th {
+  min-width: 0;
+}
+
+.table :is(.badge, .inbound-remark-pill, .server-tag, .server-status-pill, .protocol-pill),
+.inbounds-table :is(.badge, .inbound-remark-pill),
+.servers-table :is(.badge, .server-tag),
+.audit-subscriptions-table :is(.badge, .audit-access-source-pill) {
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inbounds-table td,
+.servers-table td,
+.audit-subscriptions-table td,
+.audit-events-table td {
+  overflow: hidden;
+}
+
+.inbounds-table td[data-label="协议"],
+.inbounds-table td[data-label="Protocol"],
+.inbounds-table td:nth-child(6) {
+  text-align: center;
+}
+
+.inbounds-table td[data-label="协议"] > *,
+.inbounds-table td[data-label="Protocol"] > *,
+.inbounds-table td:nth-child(6) > * {
+  margin-inline: auto;
+}
+
+.audit-subscriptions-table {
+  width: max(100%, 940px) !important;
+}
+
+.servers-page .servers-telemetry-column {
+  min-width: 236px !important;
+}
+
+.servers-page .servers-telemetry-cell {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-items: stretch !important;
+  gap: 8px !important;
+  min-width: 220px !important;
+  width: min(100%, 320px) !important;
+  padding: 12px 14px 12px 16px !important;
+  overflow: hidden !important;
+}
+
+.servers-page .servers-telemetry-meta {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  align-items: start !important;
+  gap: 10px !important;
+  min-width: 0 !important;
+}
+
+.servers-page .servers-telemetry-metric {
+  min-width: 0 !important;
+  line-height: 1.15 !important;
+}
+
+.servers-page .servers-telemetry-label,
+.servers-page .servers-telemetry-value {
+  display: block !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.servers-page .servers-telemetry-label {
+  font-size: 10px !important;
+  line-height: 1.15 !important;
+}
+
+.servers-page .servers-telemetry-value {
+  margin-top: 3px !important;
+  font-size: 13px !important;
+  line-height: 1.25 !important;
+}
+
+.servers-page .servers-telemetry-sparkline {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 28px !important;
+  margin: 0 !important;
+}
+
+.servers-page .servers-telemetry-sparkline svg {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.servers-page .servers-telemetry-foot {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) !important;
+  align-items: center !important;
+  justify-content: initial !important;
+  gap: 8px !important;
+  min-width: 0 !important;
+}
+
+.servers-page .servers-telemetry-checked-at {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+@media (max-width: 1220px) {
+  .servers-page .servers-telemetry-column {
+    min-width: 216px !important;
+  }
+
+  .servers-page .servers-telemetry-cell {
+    min-width: 204px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .servers-page .servers-telemetry-cell {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+  }
+
+  .servers-page .servers-telemetry-foot {
+    grid-template-columns: auto minmax(0, 1fr) !important;
+  }
+}
+
+/* ==========================================================================
+   Operational clarity pass
+   ========================================================================== */
+
+.header-title {
+  font-size: 24px !important;
+  line-height: 1.18 !important;
+  letter-spacing: 0 !important;
+}
+
+.section-header-title,
+.settings-panel-title,
+.audit-control-title,
+.audit-inbound-breakdown-title {
+  font-size: 16px !important;
+  line-height: 1.28 !important;
+  letter-spacing: 0 !important;
+  font-weight: 680 !important;
+}
+
+.card-title,
+.audit-traffic-total-label,
+.audit-traffic-mini-label,
+.audit-traffic-split-label,
+.settings-tab-highlight-label {
+  font-size: 12px !important;
+  line-height: 1.25 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.section-header-subtitle,
+.header-subtitle,
+.card-subtitle,
+.settings-panel-subtitle,
+.settings-workspace-hero-subtitle,
+.settings-tab-hero-summary,
+.audit-control-text,
+.audit-nav-summary,
+.audit-inbound-breakdown-subtitle,
+.audit-traffic-total-note,
+.audit-traffic-mini-note,
+.subscription-user-subtitle,
+.subscription-hero-text,
+.subscription-device-text,
+.subscription-guide-card .card-subtitle {
+  color: var(--text-muted) !important;
+  font-size: 12px !important;
+  line-height: 1.42 !important;
+  display: -webkit-box !important;
+  overflow: hidden !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 2 !important;
+}
+
+.settings-page :is(.card, .glass-panel, .table-container):hover,
+.servers-page :is(.card, .glass-panel, .table-container):hover,
+.audit-page :is(.card, .glass-panel, .table-container):hover,
+.subscriptions-page :is(.subscription-primary-card, .subscription-guide-card, .subscription-summary-card, .subscription-downloads-card, .subscription-downloads-page-card, .subscription-device-card):hover {
+  transform: none !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+.settings-page .settings-shell,
+.settings-page .settings-main,
+.settings-page .settings-tab-panel,
+.settings-page .settings-workspace-section-body,
+.settings-page .settings-section-stack,
+.audit-page .audit-main,
+.audit-page .audit-tab-panel,
+.servers-page,
+.subscriptions-page {
+  gap: 12px !important;
+}
+
+.settings-page .settings-tab-hero,
+.settings-page .settings-workspace-hero {
+  padding: 12px 14px !important;
+  border-radius: 12px !important;
+  gap: 10px !important;
+}
+
+.settings-page .settings-tab-hero-title {
+  max-width: none !important;
+  font-size: 18px !important;
+  line-height: 1.22 !important;
+  letter-spacing: 0 !important;
+}
+
+.settings-page .settings-tab-hero-eyebrow {
+  min-height: 22px !important;
+  padding: 0 8px !important;
+  font-size: 10px !important;
+  letter-spacing: 0 !important;
+}
+
+.settings-page .settings-tab-hero-grid,
+.settings-page .settings-workspace-highlight-grid {
+  gap: 8px !important;
+}
+
+.settings-page .settings-tab-highlight-card,
+.settings-page .settings-workspace-highlight-card {
+  padding: 10px 12px !important;
+  border-radius: 12px !important;
+  gap: 5px !important;
+}
+
+.settings-page .settings-tab-highlight-value {
+  font-size: 17px !important;
+  line-height: 1.2 !important;
+}
+
+.settings-page .settings-nav-item {
+  min-height: 44px !important;
+  padding: 8px 10px !important;
+  border-radius: 11px !important;
+}
+
+.settings-page .settings-nav-item-summary {
+  display: none !important;
+}
+
+.settings-page .settings-panel,
+.settings-page .settings-mini-card,
+.settings-page .settings-db-control-card,
+.settings-page .settings-kpi-card {
+  padding: 12px !important;
+  border-radius: 12px !important;
+}
+
+.settings-page .settings-panel .section-header,
+.settings-page .settings-panel-head {
+  padding-bottom: 5px !important;
+}
+
+.settings-page .settings-panel > .section-header {
+  align-items: center !important;
+  min-height: 0 !important;
+}
+
+.settings-page .settings-panel > .section-header .section-header-copy {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+}
+
+.settings-page .settings-panel > .section-header .section-header-side {
+  flex: 0 0 auto !important;
+  width: auto !important;
+  min-height: 0 !important;
+}
+
+.settings-page .settings-panel > .section-header .section-header-actions {
+  flex-wrap: nowrap !important;
+  justify-content: flex-end !important;
+  width: auto !important;
+}
+
+.settings-page .settings-panel-subtitle,
+.settings-page .settings-panel .section-header-subtitle {
+  -webkit-line-clamp: 1 !important;
+}
+
+.settings-page .settings-grid,
+.settings-page .settings-summary-grid,
+.settings-page .settings-kpi-grid {
+  gap: 10px !important;
+}
+
+.settings-page .settings-toggle-card,
+.settings-page .settings-basic-note,
+.settings-page .settings-form-cluster {
+  border-radius: 12px !important;
+}
+
+.settings-page .settings-save-dock {
+  padding: 10px 12px !important;
+  border-radius: 12px !important;
+}
+
+.settings-page .settings-save-dock-inner {
+  gap: 10px !important;
+}
+
+.servers-page .servers-toolbar {
+  align-items: center !important;
+  padding: 12px 14px !important;
+  gap: 10px !important;
+  margin-bottom: 12px !important;
+}
+
+.servers-page .servers-toolbar :is(.form-input, .form-select) {
+  min-height: 36px !important;
+  height: 36px !important;
+  font-size: 12px !important;
+}
+
+.servers-page .servers-filter-search {
+  width: min(300px, 100%) !important;
+  flex-basis: 240px !important;
+}
+
+.servers-page .servers-filter-select {
+  min-width: 108px !important;
+  max-width: 140px !important;
+  flex-basis: 120px !important;
+}
+
+.servers-page .servers-toolbar-summary {
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+.servers-page .servers-summary-pill {
+  display: flex !important;
+  align-items: center !important;
+  min-width: 0 !important;
+  min-height: 32px !important;
+  padding: 5px 9px !important;
+  gap: 6px !important;
+  border-radius: 10px !important;
+}
+
+.servers-page .servers-summary-pill--wide {
+  flex: 1 1 170px !important;
+  min-width: 150px !important;
+}
+
+.servers-page .servers-summary-label {
+  font-size: 10px !important;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.servers-page .servers-summary-value,
+.servers-page .servers-filter-summary {
+  font-size: 12px !important;
+  line-height: 1.25 !important;
+}
+
+.servers-page .servers-filter-summary {
+  min-height: 32px !important;
+  padding: 5px 9px !important;
+  border-radius: 10px !important;
+  max-width: 220px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.servers-page .servers-toolbar .btn {
+  min-height: 36px !important;
+  padding-inline: 11px !important;
+  border-radius: 10px !important;
+}
+
+.servers-page .table-container,
+.audit-page .table-container {
+  border-radius: 12px !important;
+}
+
+.servers-page .servers-table th,
+.servers-page .servers-table td,
+.audit-page :is(.audit-events-table, .audit-subscriptions-table, .audit-leaderboard-table, .audit-inbound-breakdown-table) th,
+.audit-page :is(.audit-events-table, .audit-subscriptions-table, .audit-leaderboard-table, .audit-inbound-breakdown-table) td {
+  padding: 10px 12px !important;
+  vertical-align: middle !important;
+}
+
+.servers-page .servers-table th,
+.audit-page :is(.audit-events-table, .audit-subscriptions-table, .audit-leaderboard-table, .audit-inbound-breakdown-table) th {
+  font-size: 11px !important;
+  line-height: 1.2 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.servers-page .servers-name-stack,
+.servers-page .servers-status-stack,
+.servers-page .servers-account-stack {
+  gap: 3px !important;
+}
+
+.servers-page .servers-row-actions {
+  gap: 6px !important;
+}
+
+.servers-page .servers-row-action-main {
+  min-height: 34px !important;
+  padding-inline: 10px !important;
+}
+
+.audit-page .audit-shell {
+  gap: 12px !important;
+}
+
+.audit-page .audit-nav {
+  padding: 10px 12px !important;
+  gap: 8px !important;
+  border-radius: 12px !important;
+}
+
+.audit-page .audit-nav-topbar {
+  min-height: 28px !important;
+}
+
+.audit-page .audit-nav-label {
+  font-size: 11px !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.audit-page .audit-nav-summary {
+  -webkit-line-clamp: 1 !important;
+}
+
+.audit-page .audit-tabs {
+  gap: 6px !important;
+}
+
+.audit-page .audit-tabs .tab {
+  min-height: 34px !important;
+  padding: 6px 10px !important;
+  border-radius: 10px !important;
+  font-size: 12px !important;
+}
+
+.audit-page .audit-control-card {
+  padding: 12px !important;
+  gap: 10px !important;
+  border-radius: 12px !important;
+}
+
+.audit-page .audit-control-head {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+  flex-wrap: wrap !important;
+}
+
+.audit-page .audit-control-copy {
+  flex: 1 1 220px !important;
+}
+
+.audit-page .audit-control-text {
+  -webkit-line-clamp: 1 !important;
+}
+
+.audit-page .audit-control-actions,
+.audit-page .audit-control-action-group {
+  gap: 7px !important;
+}
+
+.audit-page .audit-control-action-group--secondary {
+  margin-left: 0 !important;
+}
+
+.audit-page .audit-control-actions .btn {
+  min-height: 34px !important;
+  padding-inline: 10px !important;
+  border-radius: 10px !important;
+}
+
+.audit-page .audit-control-meta {
+  gap: 6px !important;
+}
+
+.audit-page .audit-control-pill {
+  min-height: 26px !important;
+  padding: 4px 8px !important;
+  border-radius: 999px !important;
+  font-size: 11px !important;
+  line-height: 1.2 !important;
+}
+
+.audit-page .audit-filter-stack,
+.audit-page .audit-filter-grid {
+  gap: 8px !important;
+}
+
+.audit-page .audit-filter-grid--events-primary {
+  grid-template-columns: minmax(180px, 1.2fr) minmax(120px, 0.7fr) repeat(2, minmax(140px, 0.8fr)) !important;
+}
+
+.audit-page .audit-filter-grid--events-secondary {
+  grid-template-columns: repeat(4, minmax(140px, 1fr)) !important;
+}
+
+.audit-page .audit-filter-grid--subscriptions {
+  grid-template-columns: repeat(7, minmax(112px, 1fr)) !important;
+  gap: 8px !important;
+}
+
+.audit-page .audit-filter-field {
+  gap: 4px !important;
+}
+
+.audit-page .audit-filter-field-label {
+  font-size: 10px !important;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
+}
+
+.audit-page :is(.audit-filter-grid, .audit-filter-stack) :is(.form-input, .form-select) {
+  min-height: 34px !important;
+  height: 34px !important;
+  font-size: 12px !important;
+}
+
+.audit-page .audit-stats-grid {
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)) !important;
+  gap: 8px !important;
+  margin-bottom: 12px !important;
+}
+
+.audit-page .audit-stat-card {
+  min-height: 74px !important;
+  padding: 10px 12px !important;
+  gap: 5px !important;
+  border-radius: 12px !important;
+}
+
+.audit-page .audit-stat-card .card-header {
+  min-height: 20px !important;
+  gap: 6px !important;
+}
+
+.audit-page .audit-stat-card .card-value {
+  font-size: 22px !important;
+  line-height: 1 !important;
+}
+
+.audit-page .audit-stat-card .text-xs {
+  display: none !important;
+}
+
+.audit-page .audit-traffic-toolbar {
+  margin-bottom: 12px !important;
+}
+
+.audit-page .audit-traffic-toolbar-actions {
+  gap: 8px !important;
+}
+
+.audit-page .audit-traffic-window-bar {
+  gap: 6px !important;
+}
+
+.audit-page .audit-traffic-window-label {
+  font-size: 11px !important;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
+}
+
+.audit-page .audit-traffic-overview-body {
+  display: grid !important;
+  grid-template-columns: minmax(260px, 0.85fr) minmax(0, 1.15fr) !important;
+  gap: 10px !important;
+  align-items: stretch !important;
+  margin-bottom: 12px !important;
+}
+
+.audit-page .audit-traffic-total-card,
+.audit-page .audit-traffic-split-card,
+.audit-page .audit-traffic-mini-card {
+  padding: 10px 12px !important;
+  border-radius: 12px !important;
+}
+
+.audit-page .audit-traffic-total-card {
+  gap: 8px !important;
+}
+
+.audit-page .audit-traffic-total-value {
+  font-size: 28px !important;
+  line-height: 1.05 !important;
+}
+
+.audit-page .audit-traffic-split-grid,
+.audit-page .audit-traffic-mini-grid {
+  gap: 8px !important;
+}
+
+.audit-page .audit-traffic-mini-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+.audit-page .audit-traffic-mini-card {
+  min-height: 86px !important;
+}
+
+.audit-page .audit-traffic-mini-value,
+.audit-page .audit-traffic-split-value {
+  font-size: 20px !important;
+  line-height: 1.1 !important;
+}
+
+.audit-page .audit-chart-grid,
+.audit-page .audit-leaderboard-grid {
+  gap: 10px !important;
+  margin-bottom: 12px !important;
+}
+
+.audit-page .audit-chart-card,
+.audit-page .audit-leaderboard-card {
+  border-radius: 12px !important;
+}
+
+.audit-page .audit-chart-card .section-header,
+.audit-page .audit-leaderboard-card .section-header,
+.audit-page .audit-inbound-breakdown-head {
+  padding: 10px 12px !important;
+  gap: 8px !important;
+}
+
+.audit-page .audit-chart-selection {
+  margin: 0 12px 8px !important;
+}
+
+.audit-page .audit-chart-body {
+  min-height: 240px !important;
+}
+
+.audit-page .audit-inbound-breakdown {
+  gap: 10px !important;
+}
+
+.audit-page .audit-inbound-breakdown-subtitle {
+  -webkit-line-clamp: 1 !important;
+}
+
+.subscriptions-page .subscription-user-hero-strip {
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  padding: 12px 14px !important;
+  gap: 10px !important;
+  border-radius: 12px !important;
+}
+
+.subscriptions-page .subscription-user-kicker {
+  display: none !important;
+}
+
+.subscriptions-page .subscription-user-title,
+.subscriptions-page .subscription-hero-title {
+  font-size: 19px !important;
+  line-height: 1.22 !important;
+  letter-spacing: 0 !important;
+  font-weight: 720 !important;
+}
+
+.subscriptions-page .subscription-user-subtitle,
+.subscriptions-page .subscription-hero-text {
+  margin-top: 3px !important;
+  -webkit-line-clamp: 1 !important;
+}
+
+.subscriptions-page .subscription-user-status-pills {
+  gap: 6px !important;
+  max-width: 320px !important;
+}
+
+.subscriptions-page .subscription-summary-grid,
+.subscriptions-page .subscription-address-status-grid,
+.subscriptions-page .subscription-guide-grid,
+.subscriptions-page .subscription-device-grid {
+  gap: 8px !important;
+}
+
+.subscriptions-page .subscription-guide-card,
+.subscriptions-page .subscription-downloads-page-card,
+.subscriptions-page .subscription-device-card,
+.subscriptions-page .subscription-summary-item,
+.subscriptions-page .subscription-address-status-card {
+  padding: 10px 12px !important;
+  border-radius: 12px !important;
+}
+
+.subscriptions-page .subscription-device-title,
+.subscriptions-page .subscription-guide-title {
+  font-size: 13px !important;
+  line-height: 1.28 !important;
+}
+
+.subscriptions-page .subscription-device-text,
+.subscriptions-page .subscription-guide-text {
+  font-size: 12px !important;
+  line-height: 1.38 !important;
+}
+
+.subscriptions-page .subscription-url-input,
+.user-detail-page .subscription-url-input {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.login-form-heading {
+  margin-bottom: 12px !important;
+}
+
+.login-form-heading h1 {
+  font-size: 22px !important;
+  line-height: 1.18 !important;
+  letter-spacing: 0 !important;
+}
+
+@media (max-width: 1220px) {
+  .audit-page .audit-filter-grid--events-primary,
+  .audit-page .audit-filter-grid--events-secondary,
+  .audit-page .audit-filter-grid--subscriptions {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .audit-page .audit-traffic-overview-body {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .header-title {
+    font-size: 18px !important;
+    line-height: 1.22 !important;
+  }
+
+  .section-header-title,
+  .settings-panel-title,
+  .audit-control-title,
+  .audit-inbound-breakdown-title {
+    font-size: 15px !important;
+  }
+
+  .section-header-subtitle,
+  .header-subtitle,
+  .card-subtitle,
+  .settings-panel-subtitle,
+  .audit-control-text,
+  .audit-nav-summary,
+  .subscription-user-subtitle,
+  .subscription-hero-text {
+    -webkit-line-clamp: 1 !important;
+  }
+
+  .settings-page .settings-nav-item {
+    min-height: 40px !important;
+  }
+
+  .settings-page .settings-panel,
+  .settings-page .settings-mini-card,
+  .settings-page .settings-db-control-card,
+  .settings-page .settings-kpi-card,
+  .settings-page .settings-save-dock {
+    padding: 10px !important;
+  }
+
+  .settings-page .settings-save-dock {
+    position: relative !important;
+    bottom: auto !important;
+    z-index: 1 !important;
+    margin-top: 10px !important;
+    box-shadow: var(--shadow-sm) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .settings-page .settings-save-dock-inner,
+  .settings-page .settings-save-dock-main,
+  .settings-page .settings-save-dock-actions {
+    width: 100% !important;
+  }
+
+  .settings-page .settings-save-dock-actions .btn {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .servers-page .servers-toolbar {
+    align-items: stretch !important;
+    padding: 10px !important;
+  }
+
+  .servers-page .servers-toolbar-summary {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .servers-page .servers-summary-pill,
+  .servers-page .servers-summary-pill--wide,
+  .servers-page .servers-filter-summary {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+  }
+
+  .servers-page .servers-mobile-card {
+    padding: 12px !important;
+    border-radius: 12px !important;
+    gap: 8px !important;
+  }
+
+  .servers-page .servers-mobile-badges {
+    gap: 6px !important;
+  }
+
+  .servers-page .servers-mobile-actions {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .servers-page .servers-mobile-actions .btn {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .audit-page .audit-nav,
+  .audit-page .audit-control-card {
+    padding: 10px !important;
+  }
+
+  .audit-page .audit-tabs {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .audit-page .audit-tabs .tab {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .audit-page .audit-control-head,
+  .audit-page .audit-control-actions,
+  .audit-page .audit-control-action-group,
+  .audit-page .audit-control-action-group--secondary {
+    width: 100% !important;
+    justify-content: flex-start !important;
+  }
+
+  .audit-page .audit-control-head {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .audit-page .audit-control-copy {
+    flex: 0 1 auto !important;
+    width: 100% !important;
+  }
+
+  .audit-page .audit-traffic-toolbar-actions {
+    width: 100% !important;
+    margin-left: 0 !important;
+    justify-content: flex-start !important;
+  }
+
+  .audit-page .audit-traffic-window-bar,
+  .audit-page .audit-traffic-window-tabs,
+  .audit-page .audit-traffic-custom-range,
+  .audit-page .audit-traffic-sample-pill {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .audit-page .audit-traffic-window-tabs {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+
+  .audit-page .audit-traffic-window-tabs .tab {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .audit-page .audit-control-actions .btn {
+    flex: 1 1 calc(50% - 4px) !important;
+    justify-content: center !important;
+  }
+
+  .audit-page .audit-chart-selection {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 6px !important;
+    margin: 0 10px 8px !important;
+  }
+
+  .audit-page .audit-chart-selection :is(.form-select, .w-220) {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .audit-page .audit-filter-grid--events-primary,
+  .audit-page .audit-filter-grid--events-secondary,
+  .audit-page .audit-filter-grid--subscriptions {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .audit-page .audit-stats-grid,
+  .audit-page .audit-traffic-mini-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .audit-page .audit-traffic-total-value {
+    font-size: 24px !important;
+  }
+
+  .subscriptions-page .subscription-user-hero-strip {
+    grid-template-columns: minmax(0, 1fr) !important;
+    padding: 10px 12px !important;
+  }
+
+  .subscriptions-page .subscription-user-status-pills {
+    justify-content: flex-start !important;
+    max-width: none !important;
+  }
+
+  .subscriptions-page .subscription-user-title,
+  .subscriptions-page .subscription-hero-title {
+    font-size: 18px !important;
+  }
+
+  .subscriptions-page .subscription-device-grid,
+  .subscriptions-page .subscription-guide-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .settings-page .settings-panel > .section-header {
+    align-items: flex-start !important;
+  }
+
+  .settings-page .settings-panel > .section-header .section-header-actions {
+    flex-wrap: wrap !important;
+    justify-content: flex-start !important;
+  }
+
+  .login-form-heading h1 {
+    font-size: 20px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  body .settings-page .settings-save-dock.card {
+    position: relative !important;
+    inset: auto !important;
+    bottom: auto !important;
+    top: auto !important;
+    z-index: 1 !important;
+    margin-top: 10px !important;
+    transform: none !important;
+    box-shadow: var(--shadow-sm) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
