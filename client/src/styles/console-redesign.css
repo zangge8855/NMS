@@ -2939,3 +2939,720 @@ label,
     -webkit-backdrop-filter: none !important;
   }
 }
+
+/* Visual QA convergence pass: keep operational pages composed instead of drifting across wide screens. */
+.account-page .account-shell {
+  width: min(100%, 980px) !important;
+  max-width: 980px !important;
+  margin-inline: auto !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 14px !important;
+  align-items: stretch !important;
+}
+
+.account-page :is(.account-identity-card, .account-profile-card, .account-password-card, .account-twofactor-card) {
+  grid-column: 1 / -1 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  padding: 16px 18px !important;
+  border-radius: 14px !important;
+}
+
+.account-page .account-identity-card {
+  padding-block: 14px !important;
+}
+
+.account-page .account-profile-grid,
+.account-page .account-password-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 14px !important;
+  align-items: end !important;
+}
+
+.account-page .account-password-grid .form-group:first-child,
+.account-page .account-password-submit,
+.account-page .account-card-note {
+  grid-column: 1 / -1 !important;
+}
+
+.account-page .account-password-submit {
+  display: flex !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  padding-top: 2px !important;
+}
+
+.account-page .account-password-submit .btn,
+.account-page .account-actions .btn {
+  min-width: 132px !important;
+  min-height: 38px !important;
+  justify-content: center !important;
+}
+
+.account-page .account-card-note {
+  margin-top: 2px !important;
+  max-width: none !important;
+  font-size: 12px !important;
+  line-height: 1.45 !important;
+}
+
+.account-page .account-twofactor-head {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 12px !important;
+  align-items: start !important;
+}
+
+.account-page .account-twofactor-subtitle {
+  max-width: 54ch !important;
+  margin-top: 4px !important;
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+}
+
+.account-page .account-twofactor-actions {
+  align-items: center !important;
+}
+
+.account-page :is(.form-input, .form-select) {
+  min-height: 42px !important;
+}
+
+.users-page .users-toolbar,
+.servers-page .servers-toolbar,
+.inbounds-page .inbounds-toolbar {
+  display: grid !important;
+  align-items: center !important;
+  border-radius: 14px !important;
+  padding: 14px 18px !important;
+  gap: 12px !important;
+}
+
+.users-page .users-toolbar {
+  grid-template-columns: minmax(0, 1fr) auto auto !important;
+}
+
+.inbounds-page .inbounds-toolbar {
+  grid-template-columns: minmax(220px, 360px) auto 1fr !important;
+}
+
+.servers-page .servers-toolbar {
+  grid-template-columns: minmax(0, 1fr) minmax(320px, auto) !important;
+  grid-template-areas:
+    "filters summary"
+    "filters actions" !important;
+}
+
+.users-page .users-toolbar .page-toolbar-main,
+.inbounds-page .inbounds-toolbar .page-toolbar-main,
+.servers-page .servers-toolbar .page-toolbar-main {
+  min-width: 0 !important;
+}
+
+.servers-page .servers-toolbar .page-toolbar-main {
+  grid-area: filters !important;
+}
+
+.servers-page .servers-toolbar .page-toolbar-summary {
+  grid-area: summary !important;
+}
+
+.servers-page .servers-toolbar .page-toolbar-actions {
+  grid-area: actions !important;
+}
+
+.users-page .users-toolbar .list-toolbar-filters {
+  display: grid !important;
+  grid-template-columns: minmax(280px, 1fr) minmax(170px, 240px) !important;
+  gap: 10px !important;
+  align-items: center !important;
+}
+
+.servers-page .servers-toolbar .list-toolbar-filters {
+  display: grid !important;
+  grid-template-columns: minmax(260px, 1.4fr) repeat(4, minmax(116px, 0.72fr)) !important;
+  gap: 10px !important;
+  align-items: center !important;
+}
+
+.inbounds-page .inbounds-toolbar .list-toolbar-filters {
+  display: grid !important;
+  grid-template-columns: minmax(220px, 360px) !important;
+  gap: 10px !important;
+  align-items: center !important;
+}
+
+.users-page .users-toolbar .account-search-shell,
+.servers-page .servers-toolbar .servers-filter-search,
+.inbounds-page .inbounds-toolbar .inbounds-filter-select {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+.users-page .users-toolbar .users-filter-select,
+.servers-page .servers-toolbar .servers-filter-select {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+}
+
+.users-page .users-toolbar .page-toolbar-summary,
+.servers-page .servers-toolbar .page-toolbar-summary,
+.inbounds-page .inbounds-toolbar .page-toolbar-summary {
+  justify-self: end !important;
+  min-width: 0 !important;
+}
+
+.users-page .users-toolbar-summary,
+.inbounds-page .inbounds-toolbar-summary,
+.servers-page .servers-filter-summary {
+  white-space: nowrap !important;
+  font-size: 13px !important;
+  line-height: 1.35 !important;
+}
+
+.users-page .users-toolbar .page-toolbar-actions,
+.servers-page .servers-toolbar .page-toolbar-actions,
+.inbounds-page .inbounds-toolbar .page-toolbar-actions {
+  justify-self: end !important;
+}
+
+.users-page .users-toolbar .list-toolbar-actions-inner,
+.servers-page .servers-toolbar .list-toolbar-actions-inner,
+.inbounds-page .inbounds-toolbar .list-toolbar-actions-inner {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+.users-page .users-toolbar .btn,
+.servers-page .servers-toolbar .btn,
+.inbounds-page .inbounds-toolbar .btn {
+  min-height: 40px !important;
+  padding-inline: 14px !important;
+  border-radius: 11px !important;
+  white-space: nowrap !important;
+}
+
+.inbounds-page .inbounds-toolbar .inbounds-refresh-btn {
+  width: 40px !important;
+  min-width: 40px !important;
+  padding: 0 !important;
+}
+
+.servers-page .servers-toolbar-summary {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(92px, auto)) minmax(150px, 1fr) !important;
+  gap: 8px !important;
+  align-items: center !important;
+  justify-content: end !important;
+}
+
+.servers-page .servers-summary-pill,
+.servers-page .servers-filter-summary {
+  min-height: 36px !important;
+}
+
+.table-container {
+  border-radius: 14px !important;
+}
+
+.users-table,
+.servers-table,
+.inbounds-table,
+.audit-events-table,
+.audit-subscriptions-table,
+.audit-leaderboard-table,
+.audit-inbound-breakdown-table {
+  table-layout: fixed !important;
+  border-spacing: 0 !important;
+}
+
+.users-table thead th,
+.servers-table thead th,
+.inbounds-table thead th,
+.audit-events-table thead th,
+.audit-subscriptions-table thead th,
+.audit-leaderboard-table thead th,
+.audit-inbound-breakdown-table thead th {
+  height: 52px !important;
+  padding-block: 0 !important;
+  vertical-align: middle !important;
+}
+
+.users-table tbody td,
+.servers-table tbody td,
+.inbounds-table tbody td,
+.audit-events-table tbody td,
+.audit-subscriptions-table tbody td,
+.audit-leaderboard-table tbody td,
+.audit-inbound-breakdown-table tbody td {
+  min-height: 60px !important;
+  padding-block: 10px !important;
+  vertical-align: middle !important;
+}
+
+.users-table :is(th, td),
+.servers-table :is(th, td),
+.inbounds-table :is(th, td),
+.audit-events-table :is(th, td),
+.audit-subscriptions-table :is(th, td) {
+  overflow: hidden !important;
+}
+
+.users-table .users-select-column,
+.users-table .users-select-cell,
+.servers-table .servers-select-column,
+.servers-table .mobile-checkbox-cell,
+.inbounds-table .cell-checkbox,
+.inbounds-table .mobile-checkbox-cell {
+  width: 52px !important;
+  text-align: center !important;
+}
+
+.inbounds-table .inbounds-expand-col {
+  width: 48px !important;
+}
+
+.inbounds-table .inbounds-sequence-col {
+  width: 76px !important;
+}
+
+.inbounds-table .inbounds-port-col {
+  width: 150px !important;
+}
+
+.inbounds-table .inbounds-actions-col,
+.servers-table .servers-actions-column,
+.users-table .users-actions-column {
+  width: 132px !important;
+}
+
+.users-table .users-identity-column {
+  width: 22% !important;
+}
+
+.users-table .users-traffic-column {
+  width: 132px !important;
+}
+
+.servers-table .servers-move-column,
+.servers-table .servers-order-column {
+  width: 58px !important;
+}
+
+.servers-table .servers-telemetry-column {
+  width: 210px !important;
+}
+
+.servers-table .servers-status-column,
+.servers-table .servers-credential-column {
+  width: 112px !important;
+}
+
+.inbounds-table :is(.inbounds-sequence-actions, .inbounds-node-order-actions, .inbounds-row-actions),
+.servers-table :is(.servers-order-actions, .servers-row-actions),
+.users-table :is(.users-row-actions, .table-cell-actions) {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+}
+
+.inbounds-table .inbounds-sequence-btn,
+.servers-table .servers-order-actions .btn-icon,
+.users-table .table-action-btn,
+.servers-table .servers-row-action-icon,
+.inbounds-table .inbounds-row-actions .btn-icon {
+  width: 38px !important;
+  min-width: 38px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  border-radius: 10px !important;
+}
+
+.audit-page .audit-control-card {
+  border-radius: 14px !important;
+  padding: 16px 18px !important;
+}
+
+.audit-page .audit-control-card-events .audit-control-head,
+.audit-page .audit-control-card-subscriptions .audit-control-head {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: start !important;
+}
+
+.audit-page .audit-control-card-events .audit-control-actions,
+.audit-page .audit-control-card-subscriptions .audit-control-actions {
+  justify-self: end !important;
+}
+
+.audit-page .audit-filter-grid--events-primary {
+  grid-template-columns: minmax(260px, 1.4fr) minmax(150px, 0.8fr) repeat(2, minmax(170px, 0.9fr)) !important;
+}
+
+.audit-page .audit-filter-grid--events-secondary {
+  grid-template-columns: repeat(4, minmax(150px, 1fr)) !important;
+}
+
+.settings-page .settings-panel {
+  border-radius: 14px !important;
+}
+
+.settings-page .settings-panel > .section-header {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: 14px !important;
+  padding-bottom: 10px !important;
+}
+
+.settings-page .settings-panel > .section-header .section-header-side {
+  justify-self: end !important;
+}
+
+@media (max-width: 1280px) {
+  .users-page .users-toolbar,
+  .servers-page .servers-toolbar,
+  .inbounds-page .inbounds-toolbar {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-areas: none !important;
+  }
+
+  .servers-page .servers-toolbar .page-toolbar-main,
+  .servers-page .servers-toolbar .page-toolbar-summary,
+  .servers-page .servers-toolbar .page-toolbar-actions {
+    grid-area: auto !important;
+  }
+
+  .users-page .users-toolbar .page-toolbar-summary,
+  .servers-page .servers-toolbar .page-toolbar-summary,
+  .inbounds-page .inbounds-toolbar .page-toolbar-summary,
+  .users-page .users-toolbar .page-toolbar-actions,
+  .servers-page .servers-toolbar .page-toolbar-actions,
+  .inbounds-page .inbounds-toolbar .page-toolbar-actions {
+    justify-self: stretch !important;
+  }
+
+  .users-page .users-toolbar .list-toolbar-actions-inner,
+  .servers-page .servers-toolbar .list-toolbar-actions-inner,
+  .inbounds-page .inbounds-toolbar .list-toolbar-actions-inner {
+    justify-content: flex-start !important;
+  }
+
+  .servers-page .servers-toolbar-summary {
+    justify-content: start !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .account-page .account-shell {
+    width: 100% !important;
+  }
+
+  .account-page .account-profile-grid,
+  .account-page .account-password-grid,
+  .users-page .users-toolbar .list-toolbar-filters,
+  .servers-page .servers-toolbar .list-toolbar-filters,
+  .inbounds-page .inbounds-toolbar .list-toolbar-filters,
+  .audit-page .audit-filter-grid--events-primary,
+  .audit-page .audit-filter-grid--events-secondary {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .account-page .account-twofactor-head,
+  .audit-page .audit-control-card-events .audit-control-head,
+  .audit-page .audit-control-card-subscriptions .audit-control-head,
+  .settings-page .settings-panel > .section-header {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .account-page .account-password-submit,
+  .account-page .account-actions,
+  .audit-page .audit-control-card-events .audit-control-actions,
+  .audit-page .audit-control-card-subscriptions .audit-control-actions,
+  .settings-page .settings-panel > .section-header .section-header-side {
+    justify-self: stretch !important;
+    justify-content: flex-start !important;
+  }
+
+  .account-page .account-password-submit .btn,
+  .account-page .account-actions .btn {
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .account-page :is(.account-identity-card, .account-profile-card, .account-password-card, .account-twofactor-card),
+  .users-page .users-toolbar,
+  .servers-page .servers-toolbar,
+  .inbounds-page .inbounds-toolbar,
+  .audit-page .audit-control-card {
+    padding: 12px !important;
+    border-radius: 12px !important;
+  }
+
+  .users-page .users-toolbar .list-toolbar-actions-inner,
+  .servers-page .servers-toolbar .list-toolbar-actions-inner,
+  .inbounds-page .inbounds-toolbar .list-toolbar-actions-inner {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    width: 100% !important;
+  }
+
+  .users-page .users-toolbar .list-toolbar-actions-inner .btn,
+  .servers-page .servers-toolbar .list-toolbar-actions-inner .btn,
+  .inbounds-page .inbounds-toolbar .list-toolbar-actions-inner .btn {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
+
+@media (min-width: 1180px) {
+  .page-content.page-content--wide:is(.users-page, .servers-page, .inbounds-page, .audit-page, .settings-page) {
+    width: min(100%, 1480px) !important;
+    max-width: 1480px !important;
+  }
+}
+
+.servers-page .table-container {
+  overflow-x: auto !important;
+}
+
+.servers-page .servers-table {
+  min-width: 1360px !important;
+  table-layout: fixed !important;
+}
+
+.servers-table .servers-name-column {
+  width: 230px !important;
+}
+
+.servers-table .servers-group-column {
+  width: 150px !important;
+}
+
+.servers-table .servers-account-column {
+  width: 160px !important;
+}
+
+.servers-table .servers-actions-column {
+  width: 170px !important;
+}
+
+.servers-table .servers-tags-cell,
+.servers-table .servers-account-cell,
+.servers-table .servers-status-cell,
+.servers-table .servers-credential-cell {
+  white-space: normal !important;
+  overflow: visible !important;
+}
+
+.servers-table .server-card-tags {
+  flex-wrap: wrap !important;
+  gap: 6px !important;
+  max-width: 100% !important;
+}
+
+.servers-table .server-card-tags .badge {
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.servers-table .servers-account-stack,
+.servers-table .servers-status-stack {
+  width: 100% !important;
+  min-width: 0 !important;
+  align-items: flex-start !important;
+}
+
+.servers-table .servers-account-stack > *,
+.servers-table .servers-status-stack > * {
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.servers-page .servers-telemetry-column {
+  width: 230px !important;
+}
+
+.servers-page .servers-telemetry-cell {
+  min-height: 94px !important;
+  padding: 10px 12px !important;
+  border-radius: 12px !important;
+  gap: 7px !important;
+}
+
+.servers-page .servers-telemetry-meta {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+}
+
+.servers-page .servers-telemetry-sparkline {
+  height: 24px !important;
+}
+
+.servers-page .servers-telemetry-sparkline svg {
+  height: 24px !important;
+}
+
+.servers-page .servers-row-actions {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 7px !important;
+  justify-items: stretch !important;
+}
+
+.servers-page .servers-row-action-main {
+  width: 100% !important;
+  min-height: 34px !important;
+  padding-inline: 8px !important;
+  justify-content: center !important;
+}
+
+.servers-page .servers-row-action-icon {
+  justify-self: center !important;
+}
+
+.users-table .users-select-column,
+.users-table .users-select-cell,
+.inbounds-table .cell-checkbox,
+.inbounds-table .mobile-checkbox-cell {
+  overflow: visible !important;
+}
+
+.inbounds-page .inbounds-table {
+  min-width: 1120px !important;
+}
+
+.users-page .users-table {
+  width: 100% !important;
+  min-width: 0 !important;
+  overflow-x: hidden !important;
+}
+
+.users-table .users-select-column,
+.users-table .users-select-cell {
+  width: 48px !important;
+}
+
+.users-table th:nth-child(2),
+.users-table td:nth-child(2) {
+  width: 64px !important;
+}
+
+.users-table .users-identity-column,
+.users-table .users-identity-cell {
+  width: 240px !important;
+}
+
+.users-table .users-status-column,
+.users-table .users-status-cell {
+  width: 96px !important;
+}
+
+.users-table .users-online-column,
+.users-table .users-online-cell {
+  width: 120px !important;
+}
+
+.users-table .users-node-count-column,
+.users-table .users-node-count-cell {
+  width: 82px !important;
+}
+
+.users-table .users-traffic-column,
+.users-table .users-traffic-cell {
+  width: 116px !important;
+}
+
+.users-table .users-expiry-column,
+.users-table .users-expiry-cell {
+  width: 118px !important;
+}
+
+.users-table .users-actions-column,
+.users-table .users-actions-cell {
+  width: 110px !important;
+}
+
+@media (max-width: 1180px) and (min-width: 769px) {
+  .users-page .users-table {
+    display: block !important;
+    overflow-x: auto !important;
+    max-width: 100% !important;
+  }
+
+  .users-page .users-table thead,
+  .users-page .users-table tbody {
+    display: table !important;
+    width: 100% !important;
+    min-width: 686px !important;
+  }
+
+  .users-page .users-table :is(th, td) {
+    padding-inline: 6px !important;
+    font-size: 11px !important;
+  }
+
+  .users-table .users-select-column,
+  .users-table .users-select-cell {
+    width: 38px !important;
+  }
+
+  .users-table th:nth-child(2),
+  .users-table td:nth-child(2) {
+    width: 44px !important;
+  }
+
+  .users-table .users-identity-column,
+  .users-table .users-identity-cell {
+    width: 160px !important;
+  }
+
+  .users-table .users-status-column,
+  .users-table .users-status-cell {
+    width: 70px !important;
+  }
+
+  .users-table .users-online-column,
+  .users-table .users-online-cell {
+    width: 86px !important;
+  }
+
+  .users-table .users-node-count-column,
+  .users-table .users-node-count-cell {
+    width: 54px !important;
+  }
+
+  .users-table .users-traffic-column,
+  .users-table .users-traffic-cell {
+    width: 82px !important;
+  }
+
+  .users-table .users-expiry-column,
+  .users-table .users-expiry-cell {
+    width: 82px !important;
+  }
+
+  .users-table .users-actions-column,
+  .users-table .users-actions-cell {
+    width: 70px !important;
+  }
+
+  .users-table .users-actions-cell .btn-icon {
+    width: 32px !important;
+    min-width: 32px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+  }
+}
