@@ -111,6 +111,21 @@ function ProtectedLayout() {
     }, [isMobile]);
 
     useEffect(() => {
+        const handleGlobalKeyDown = (e) => {
+            if (e.altKey && e.key.toLowerCase() === 's') {
+                e.preventDefault();
+                if (isMobile) {
+                    setSidebarOpen((current) => !current);
+                } else {
+                    setSidebarCollapsed((current) => !current);
+                }
+            }
+        };
+        window.addEventListener('keydown', handleGlobalKeyDown);
+        return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+    }, [isMobile]);
+
+    useEffect(() => {
         if (!token) return undefined;
         let cancelled = false;
         const timer = window.setTimeout(async () => {

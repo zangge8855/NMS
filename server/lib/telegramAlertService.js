@@ -65,22 +65,24 @@ const AGGREGATE_SAMPLE_LIMIT = 5;
 
 // ── Telegram 消息排版 emoji 映射 ──────────────────────────
 const MESSAGE_TYPE_ICONS = new Map([
-    ['NMS 系统通知', '🔔'],
-    ['NMS 安全审计', '🛡'],
-    ['NMS 聚合告警', '📊'],
-    ['NMS 状态总览', '📡'],
-    ['NMS 在线概览', '👥'],
-    ['NMS 24h 流量摘要', '📶'],
-    ['NMS 最近告警摘要', '🔔'],
-    ['NMS 安全事件摘要', '🛡'],
-    ['NMS 节点异常摘要', '🖥'],
-    ['NMS 公开订阅异常访问摘要', '🚫'],
-    ['NMS 用户到期提醒摘要', '⏰'],
-    ['NMS 运维汇总摘要', '📋'],
-    ['NMS 每日巡检摘要', '📅'],
-    ['NMS 手动巡检完成', '✅'],
-    ['NMS Telegram 测试通知', '🧪'],
-    ['NMS Telegram 控制台', '🤖'],
+    ['【NMS · 系统通知】', '🔔'],
+    ['【NMS · 安全审计】', '🛡'],
+    ['【NMS · 聚合告警】', '📊'],
+    ['【NMS · 状态总览】', '📡'],
+    ['【NMS · 在线概览】', '👥'],
+    ['【NMS · 流量摘要】', '📶'],
+    ['【NMS · 告警摘要】', '🔔'],
+    ['【NMS · 安全事件摘要】', '🛡'],
+    ['【NMS · 节点异常摘要】', '🖥'],
+    ['【NMS · 订阅异常摘要】', '🚫'],
+    ['【NMS · 到期提醒摘要】', '⏰'],
+    ['【NMS · 运维汇总摘要】', '📋'],
+    ['【NMS · 每日巡检摘要】', '📅'],
+    ['【NMS · 巡检完成】', '✅'],
+    ['【NMS · 测试通知】', '🧪'],
+    ['【NMS · 控制台】', '🤖'],
+    ['【NMS · 每日加密备份】', '💾'],
+    ['【NMS · 加密备份】', '💾'],
 ]);
 
 const SECTION_ICONS = new Map([
@@ -292,9 +294,9 @@ export function computeDailyBackupSchedule(options = {}) {
 
 function severityLabel(severity = 'info') {
     const normalized = String(severity || 'info').trim().toLowerCase();
-    if (normalized === 'critical') return 'Critical';
-    if (normalized === 'warning') return 'Warning';
-    return 'Info';
+    if (normalized === 'critical') return '🔴 致命 (CRITICAL)';
+    if (normalized === 'warning') return '🟡 警告 (WARNING)';
+    return '🟢 提示 (INFO)';
 }
 
 function formatDateTime(value) {
@@ -369,9 +371,71 @@ function escapeTelegramHtml(value = '') {
         .replace(/>/g, '&gt;');
 }
 
+function standardizeTelegramTitle(title = '') {
+    let t = String(title || '').trim();
+    if (t.startsWith('NMS ')) {
+        t = t.substring(4).trim();
+        if (t.startsWith('系统通知 · ')) {
+            return `【NMS · 系统通知】${t.substring(6)}`;
+        }
+        if (t.startsWith('安全审计 · ')) {
+            return `【NMS · 安全审计】${t.substring(6)}`;
+        }
+        if (t.startsWith('聚合告警 · ')) {
+            return `【NMS · 聚合告警】${t.substring(6)}`;
+        }
+        if (t.startsWith('Telegram 测试通知')) {
+            return '【NMS · 测试通知】';
+        }
+        if (t.startsWith('Telegram 控制台')) {
+            return '【NMS · 控制台】';
+        }
+        if (t.startsWith('24h 流量摘要')) {
+            return '【NMS · 流量摘要】';
+        }
+        if (t.startsWith('最近告警摘要')) {
+            return '【NMS · 告警摘要】';
+        }
+        if (t.startsWith('安全事件摘要')) {
+            return '【NMS · 安全事件摘要】';
+        }
+        if (t.startsWith('节点异常摘要')) {
+            return '【NMS · 节点异常摘要】';
+        }
+        if (t.startsWith('公开订阅异常访问摘要')) {
+            return '【NMS · 订阅异常摘要】';
+        }
+        if (t.startsWith('用户到期提醒摘要')) {
+            return '【NMS · 到期提醒摘要】';
+        }
+        if (t.startsWith('运维汇总摘要')) {
+            return '【NMS · 运维汇总摘要】';
+        }
+        if (t.startsWith('每日巡检摘要')) {
+            return '【NMS · 每日巡检摘要】';
+        }
+        if (t.startsWith('手动巡检完成')) {
+            return '【NMS · 巡检完成】';
+        }
+        if (t.startsWith('每日加密备份')) {
+            return '【NMS · 每日加密备份】';
+        }
+        if (t.startsWith('加密备份')) {
+            return '【NMS · 加密备份】';
+        }
+        const parts = t.split(' · ');
+        if (parts.length > 1) {
+            return `【NMS · ${parts[0]}】${parts.slice(1).join(' · ')}`;
+        }
+        return `【NMS · ${t}】`;
+    }
+    return t;
+}
+
 function getMessageIcon(title) {
+    const stdTitle = standardizeTelegramTitle(title);
     for (const [prefix, icon] of MESSAGE_TYPE_ICONS) {
-        if (title.startsWith(prefix)) return icon;
+        if (stdTitle.startsWith(prefix)) return icon;
     }
     return '';
 }
@@ -655,9 +719,10 @@ function appendHtmlSection(blocks, title, rows = [], { rawRows = false } = {}) {
 }
 
 function joinHtmlMessage(title, blocks = [], options = {}) {
-    const icon = options.icon ?? getMessageIcon(title);
+    const stdTitle = standardizeTelegramTitle(title);
+    const icon = options.icon ?? getMessageIcon(stdTitle);
     const iconPrefix = icon ? `${icon} ` : '';
-    const header = `<b>${iconPrefix}${escapeTelegramHtml(title)}</b>`;
+    const header = `<b>${iconPrefix}${escapeTelegramHtml(stdTitle)}</b>`;
     const parts = [];
     if (options?.subtitle) {
         parts.push(`${header}\n<i>${escapeTelegramHtml(options.subtitle)}</i>`);
@@ -1274,7 +1339,7 @@ export function createTelegramAlertService(options = {}) {
             archive = buildBackupArchive({
                 keys: options.keys,
             });
-            const title = reason === 'daily' ? 'NMS 每日加密备份' : 'NMS 加密备份';
+            const title = reason === 'daily' ? '【NMS · 每日加密备份】' : '【NMS · 加密备份】';
             const caption = [
                 `<b>${escapeTelegramHtml(title)}</b>`,
                 `文件: <code>${escapeTelegramHtml(archive.filename)}</code>`,

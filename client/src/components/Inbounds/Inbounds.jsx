@@ -1728,7 +1728,8 @@ export default function Inbounds() {
                                                                 )}
                                                             </div>
                                                             {isCompactLayout ? renderMobileClientCards(ib, clients) : (
-                                                            <table className="table w-full text-xs inbounds-clients-table">
+                                                            <div className="table-container">
+                                                                <table className="table w-full text-xs inbounds-clients-table">
                                                                 <thead>
                                                                     <tr>
                                                                         <th className="cell-checkbox">
@@ -1895,6 +1896,7 @@ export default function Inbounds() {
                                                                     })}
                                                                 </tbody>
                                                             </table>
+                                                            </div>
                                                             )}
                                                         </div>
                                                     </td>

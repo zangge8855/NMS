@@ -2754,7 +2754,10 @@ export default function SystemSettings() {
                         <span className="badge badge-neutral">{localBackups.length} {t('comp.system.sysBackupCount')}</span>
                     </div>
                     {localBackups.length === 0 ? (
-                        <div className="text-sm text-muted">{t('comp.system.sysNoLocalBackups')}</div>
+                        <EmptyState
+                            title={t('comp.system.sysNoLocalBackups')}
+                            size="compact"
+                        />
                     ) : (
                         <div className="settings-backup-local-grid">
                             {localBackups.map((item) => (

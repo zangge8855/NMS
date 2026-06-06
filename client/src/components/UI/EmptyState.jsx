@@ -30,7 +30,9 @@ export default function EmptyState({
     const classes = [
         'empty-state',
         size !== 'default' ? `empty-state--${size}` : '',
+        size !== 'default' ? `empty-state-${size}` : '',
         surface ? 'empty-state--surface' : '',
+        surface ? 'empty-state-surface' : '',
         className,
     ].filter(Boolean);
     const shouldRenderIcon = !hideIcon;

@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import api from '../../api/client.js';
 import { bytesToGigabytesInput, gigabytesInputToBytes, normalizeLimitIp } from '../../utils/entitlements.js';
 import ModalShell from '../UI/ModalShell.jsx';
+import EmptyState from '../UI/EmptyState.jsx';
 
 const PROTOCOL_OPTIONS = [
     { key: 'vless', label: 'VLESS' },
@@ -175,7 +176,7 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                                                 <span>{server.name}</span>
                                             </label>
                                         ))}
-                                        {servers.length === 0 && <span className="text-sm text-muted">暂无服务器</span>}
+                                        {servers.length === 0 && <EmptyState title="暂无服务器" size="compact" />}
                                     </div>
                                 </div>
 

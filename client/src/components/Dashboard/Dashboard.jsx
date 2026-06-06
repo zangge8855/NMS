@@ -608,14 +608,12 @@ function resolveDashboardGreeting(t) {
     return t('pages.dashboardHero.greetingEvening');
 }
 
-function DashboardHero({ greeting, title, subtitle, kpis = [] }) {
+function DashboardHero({ title, kpis = [] }) {
     return (
         <section className="dashboard-hero" aria-label={typeof title === 'string' ? title : undefined}>
             <span className="dashboard-hero-glow" aria-hidden="true" />
             <div className="dashboard-hero-main">
-                {greeting ? <span className="dashboard-hero-eyebrow">{greeting}</span> : null}
                 <h1 className="dashboard-hero-title">{title}</h1>
-                {subtitle ? <p className="dashboard-hero-subtitle">{subtitle}</p> : null}
             </div>
             {kpis.length > 0 ? (
                 <div className="dashboard-hero-kpis">
@@ -1360,9 +1358,7 @@ export default function Dashboard() {
                 </Header>
                 <div className="page-content page-content--wide page-enter dashboard-page">
                     <DashboardHero
-                        greeting={heroGreeting}
                         title={t('pages.dashboardGlobal.title')}
-                        subtitle={t('pages.dashboardHero.globalSubtitle')}
                         kpis={globalHeroKpis}
                     />
                     <div className="stats-grid dashboard-stats-grid mb-8">
@@ -1578,9 +1574,7 @@ export default function Dashboard() {
             </Header>
             <div className="page-content page-content--wide page-enter dashboard-page">
                 <DashboardHero
-                    greeting={`${resolveDashboardGreeting(t)} · ${t('pages.dashboardHero.welcome')}`}
                     title={activeServer?.name || t('pages.dashboardNode.title')}
-                    subtitle={t('pages.dashboardHero.nodeSubtitle')}
                 />
                 <div className="stats-grid dashboard-stats-grid">
                     {statCards.map((card, index) => (

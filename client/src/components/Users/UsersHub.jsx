@@ -2194,7 +2194,7 @@ export default function UsersHub() {
                                     </div>
                                     <div className="list-selection-container">
                                         {allInbounds.length === 0 ? (
-                                            <span className="text-sm text-muted">{t('pages.usersHub.groups.modal.noAvailableInbounds')}</span>
+                                            <EmptyState title={t('pages.usersHub.groups.modal.noAvailableInbounds')} size="compact" />
                                         ) : allInbounds.map((inbound) => (
                                             <label key={inbound.key} className="list-selection-item">
                                                 <span className="font-medium text-sm">{inbound.serverName}</span>
@@ -2244,7 +2244,7 @@ export default function UsersHub() {
                                     </div>
                                     <div className="list-selection-container">
                                         {visibleGroupMemberCandidates.length === 0 ? (
-                                            <span className="text-sm text-muted">{t('pages.usersHub.groups.modal.noMatchingUsers')}</span>
+                                            <EmptyState title={t('pages.usersHub.groups.modal.noMatchingUsers')} size="compact" />
                                         ) : visibleGroupMemberCandidates.map((user) => {
                                             const currentGroupName = user.groupName || userGroupMap.get(String(user.groupId || ''))?.name || '';
                                             const movingFromOtherGroup = currentGroupName && String(user.groupId || '') !== String(editingGroup?.id || '');
@@ -2912,7 +2912,7 @@ export default function UsersHub() {
                                             </div>
                                             <div className="list-selection-container" style={{ maxHeight: '240px' }}>
                                                 {allInbounds.length === 0 ? (
-                                                    <span className="text-sm text-muted">{t('comp.users.provisionNoInbounds')}</span>
+                                                    <EmptyState title={t('comp.users.provisionNoInbounds')} size="compact" />
                                                 ) : allInbounds.map((ib) => {
                                                     const checked = provisionSelectedInboundKeys.has(ib.key);
                                                     const expiryLabel = ib.expiryTime > 0

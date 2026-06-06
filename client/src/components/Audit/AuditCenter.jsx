@@ -2500,9 +2500,10 @@ export default function AuditCenter() {
                                     </div>
                                 </div>
                                 {userInboundBreakdown.length === 0 ? (
-                                    <div className="audit-inbound-breakdown-empty">
-                                        {copy.traffic.inboundBreakdownEmpty}
-                                    </div>
+                                    <EmptyState
+                                        title={copy.traffic.inboundBreakdownEmpty}
+                                        size="compact"
+                                    />
                                 ) : isCompactLayout ? (
                                     <div className="audit-inbound-breakdown-list audit-scrollable">
                                         {userInboundBreakdown.map((item) => {

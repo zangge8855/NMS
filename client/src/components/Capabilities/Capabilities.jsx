@@ -330,13 +330,7 @@ export default function Capabilities({ serverId = '', embedded = false } = {}) {
                             meta={<span className="text-sm text-muted">{copy.protocolCount(protocolList.length)}</span>}
                         />
                         {protocolList.length === 0 ? (
-                            <div className="card rounded-xl p-6 mb-8">
-                                <EmptyState
-                                    title={copy.noProtocols}
-                                    size="compact"
-                                    hideIcon
-                                />
-                            </div>
+                            <EmptyState title={copy.noProtocols} size="compact" className="mb-8" hideIcon />
                         ) : (
                             <div className="capability-protocol-grid mb-8">
                                 {protocolList.map((item) => (
@@ -361,19 +355,7 @@ export default function Capabilities({ serverId = '', embedded = false } = {}) {
                             title={copy.matrixSectionTitle}
                         />
                         {systemModules.length === 0 ? (
-                            <div className="card rounded-xl p-6 mb-8">
-                                <EmptyState
-                                    title={copy.noMatrixTitle}
-                                    subtitle={copy.noMatrixSubtitle}
-                                    size="compact"
-                                    hideIcon
-                                    action={(
-                                        <button type="button" className="btn btn-secondary btn-sm" onClick={fetchCapabilities} disabled={loading}>
-                                            <HiOutlineArrowPath /> {copy.refresh}
-                                        </button>
-                                    )}
-                                />
-                            </div>
+                            <EmptyState title={copy.noMatrixTitle} subtitle={copy.noMatrixSubtitle} size="compact" className="mb-8" hideIcon action={(<button type="button" className="btn btn-secondary btn-sm" onClick={fetchCapabilities} disabled={loading}><HiOutlineArrowPath /> {copy.refresh}</button>)} />
                         ) : (
                             <Table
                                 className="mb-8"
@@ -413,19 +395,7 @@ export default function Capabilities({ serverId = '', embedded = false } = {}) {
                             title={copy.toolsSectionTitle}
                         />
                         {toolEntries.length === 0 ? (
-                            <div className="card rounded-xl p-6 mb-8">
-                                <EmptyState
-                                    title={copy.noToolsTitle}
-                                    subtitle={copy.noToolsSubtitle}
-                                    size="compact"
-                                    hideIcon
-                                    action={(
-                                        <button type="button" className="btn btn-secondary btn-sm" onClick={fetchCapabilities} disabled={loading}>
-                                            <HiOutlineArrowPath /> {copy.refresh}
-                                        </button>
-                                    )}
-                                />
-                            </div>
+                            <EmptyState title={copy.noToolsTitle} subtitle={copy.noToolsSubtitle} size="compact" className="mb-8" hideIcon action={(<button type="button" className="btn btn-secondary btn-sm" onClick={fetchCapabilities} disabled={loading}><HiOutlineArrowPath /> {copy.refresh}</button>)} />
                         ) : (
                             <Table
                                 className="mb-8"
