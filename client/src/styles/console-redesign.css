@@ -3656,3 +3656,202 @@ label,
     min-height: 32px !important;
   }
 }
+
+/* Dense operational QA pass: reduce empty vertical mass in long admin workspaces. */
+.audit-page .dashboard-chart.audit-chart-body,
+.audit-page .audit-chart-body {
+  height: 260px !important;
+  min-height: 260px !important;
+  max-height: 260px !important;
+}
+
+.audit-page .audit-chart-card {
+  overflow: hidden !important;
+}
+
+.audit-page .audit-chart-card .section-header {
+  min-height: 58px !important;
+}
+
+.audit-page .audit-chart-card .section-header-actions,
+.audit-page .audit-chart-card .section-header-side {
+  align-self: center !important;
+}
+
+.audit-page .audit-chart-selection {
+  min-height: 30px !important;
+  padding: 6px 10px !important;
+  border-radius: 10px !important;
+  background: rgba(248, 250, 252, 0.72) !important;
+}
+
+.audit-page .audit-inbound-breakdown-empty {
+  min-height: 64px !important;
+  display: grid !important;
+  place-items: center start !important;
+}
+
+.audit-page .audit-leaderboard-card .table-container {
+  max-height: 360px !important;
+  overflow: auto !important;
+}
+
+.settings-page .settings-grid--operations-workspace,
+.settings-page .settings-grid--access-workspace,
+.settings-page .settings-grid--backup-workspace {
+  align-items: start !important;
+}
+
+.settings-page .settings-grid--operations-workspace > .settings-panel,
+.settings-page .settings-grid--access-workspace > .settings-panel,
+.settings-page .settings-grid--backup-workspace > .settings-panel {
+  align-self: start !important;
+  height: auto !important;
+  min-height: 0 !important;
+}
+
+.settings-page .settings-ops-panel {
+  align-self: start !important;
+}
+
+.settings-page .settings-ops-grid {
+  align-items: start !important;
+}
+
+.settings-page .settings-ops-card {
+  min-height: 0 !important;
+  height: auto !important;
+}
+
+.settings-page .settings-ops-card-head {
+  gap: 6px !important;
+}
+
+.settings-page .settings-ops-card .settings-form-cluster-note {
+  -webkit-line-clamp: 2 !important;
+  display: -webkit-box !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+}
+
+.settings-page .settings-form-cluster,
+.settings-page .settings-toggle-card {
+  min-height: 0 !important;
+}
+
+.user-detail-page .timeline-list {
+  display: grid !important;
+  gap: 10px !important;
+}
+
+.user-detail-page .timeline-item {
+  display: grid !important;
+  grid-template-columns: 14px minmax(0, 1fr) !important;
+  gap: 10px !important;
+  padding: 12px !important;
+  border: 1px solid rgba(148, 163, 184, 0.24) !important;
+  border-radius: 12px !important;
+  background: rgba(255, 255, 255, 0.78) !important;
+  box-shadow: none !important;
+}
+
+.user-detail-page .timeline-dot {
+  width: 7px !important;
+  height: 7px !important;
+  margin-top: 8px !important;
+}
+
+.user-detail-page .timeline-content {
+  min-width: 0 !important;
+}
+
+.user-detail-page .timeline-head {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: start !important;
+  gap: 8px !important;
+}
+
+.user-detail-page .timeline-head .font-medium {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.user-detail-page .timeline-time {
+  white-space: nowrap !important;
+  color: var(--text-muted) !important;
+}
+
+.user-detail-page .timeline-content > .flex.gap-2 {
+  gap: 5px !important;
+  margin-top: 6px !important;
+}
+
+.user-detail-page .timeline-content > .text-sm {
+  margin-top: 6px !important;
+  font-size: 12px !important;
+  line-height: 1.45 !important;
+}
+
+.user-detail-page .timeline-fact-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+  margin-top: 8px !important;
+}
+
+.user-detail-page .timeline-fact-card {
+  min-height: 50px !important;
+  padding: 8px 10px !important;
+  border-radius: 10px !important;
+}
+
+.user-detail-page .timeline-fact-label {
+  margin-bottom: 3px !important;
+  font-size: 10px !important;
+  line-height: 1.2 !important;
+}
+
+.user-detail-page .timeline-fact-value {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+@media (max-width: 900px) {
+  .audit-page .dashboard-chart.audit-chart-body,
+  .audit-page .audit-chart-body {
+    height: 200px !important;
+    min-height: 200px !important;
+    max-height: 200px !important;
+  }
+
+  .user-detail-page .timeline-fact-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .audit-page .dashboard-chart.audit-chart-body,
+  .audit-page .audit-chart-body {
+    height: 176px !important;
+    min-height: 176px !important;
+    max-height: 176px !important;
+  }
+
+  .user-detail-page .timeline-item {
+    padding: 10px !important;
+    gap: 8px !important;
+  }
+
+  .user-detail-page .timeline-head {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .user-detail-page .timeline-fact-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
