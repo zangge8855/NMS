@@ -1915,11 +1915,11 @@ label,
   .main-scroll-region {
     flex: 1 1 auto !important;
     min-height: 0 !important;
-    height: calc(100dvh - var(--mobile-bottom-nav-height, 78px) - env(safe-area-inset-bottom, 0px)) !important;
+    height: calc(100dvh - var(--header-height, 58px) - var(--mobile-bottom-nav-height, 78px) - env(safe-area-inset-bottom, 0px)) !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
     scroll-padding-bottom: calc(var(--mobile-bottom-nav-height, 78px) + 16px) !important;
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px) !important;
+    padding-bottom: calc(var(--mobile-bottom-nav-height, 78px) + env(safe-area-inset-bottom, 0px) + 16px) !important;
   }
 }
 
@@ -3894,4 +3894,640 @@ label,
 [data-theme="light"] .header-search-results,
 [data-theme="light"] .recharts-default-tooltip {
   background: #ffffff !important;
+}
+
+/* ==========================================================================
+   Operational Page Final Pass
+   ========================================================================== */
+
+.users-page,
+.inbounds-page,
+.servers-page,
+.audit-page,
+.settings-page {
+  --ops-card-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 12px 28px rgba(15, 23, 42, 0.06);
+  --ops-row-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+:is(.users-page, .inbounds-page, .servers-page, .audit-page, .settings-page)
+  :is(.card, .glass-panel, .table-container, .page-toolbar, .list-toolbar, .section-header) {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: var(--ops-card-shadow) !important;
+}
+
+:is(.users-page, .inbounds-page, .servers-page, .audit-page, .settings-page)
+  :is(.card, .glass-panel, .table-container):hover {
+  transform: none !important;
+  box-shadow: var(--ops-card-shadow) !important;
+}
+
+:is(.users-page, .inbounds-page, .servers-page, .audit-page, .settings-page)
+  :is(.btn, .nav-item, .table tbody tr, .table td, .badge, .inbound-remark-pill) {
+  transition-property: background-color, border-color, color, opacity, box-shadow !important;
+  transition-duration: 0.14s !important;
+}
+
+.inbounds-page
+  :is(.inbounds-online-dot-ping, .inbounds-client-online-dot-ping),
+.users-page .status-indicator::after,
+.servers-page .status-indicator::after {
+  animation: none !important;
+}
+
+.users-page .users-toolbar,
+.inbounds-page .inbounds-toolbar,
+.servers-page .servers-toolbar {
+  padding: 12px 14px !important;
+  gap: 10px !important;
+  border-radius: 12px !important;
+}
+
+.users-page .users-toolbar {
+  grid-template-columns: minmax(360px, 1fr) auto auto !important;
+}
+
+.inbounds-page .inbounds-toolbar {
+  grid-template-columns: minmax(260px, 420px) auto minmax(0, 1fr) !important;
+}
+
+.users-page .users-toolbar .page-toolbar-main,
+.inbounds-page .inbounds-toolbar .page-toolbar-main {
+  min-width: 0 !important;
+}
+
+.users-page .users-toolbar .list-toolbar-filters {
+  grid-template-columns: minmax(260px, 1fr) minmax(154px, 220px) !important;
+}
+
+.inbounds-page .inbounds-toolbar .list-toolbar-filters {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.users-page .users-toolbar .page-toolbar-summary,
+.inbounds-page .inbounds-toolbar .page-toolbar-summary {
+  align-self: center !important;
+}
+
+.users-page .users-toolbar .page-toolbar-actions,
+.inbounds-page .inbounds-toolbar .page-toolbar-actions {
+  align-self: center !important;
+}
+
+.users-page .users-toolbar .list-toolbar-actions-inner,
+.inbounds-page .inbounds-toolbar .list-toolbar-actions-inner {
+  flex-wrap: nowrap !important;
+}
+
+.users-page .users-toolbar .btn,
+.inbounds-page .inbounds-toolbar .btn {
+  min-height: 38px !important;
+  border-radius: 10px !important;
+}
+
+.users-page .users-toolbar .btn-icon,
+.inbounds-page .inbounds-toolbar .btn-icon {
+  width: 38px !important;
+  min-width: 38px !important;
+}
+
+.users-page .users-degraded-panel {
+  padding: 12px 14px !important;
+  border-radius: 12px !important;
+}
+
+.users-page .users-degraded-title {
+  margin-bottom: 4px !important;
+}
+
+.users-page .users-degraded-copy,
+.users-page .users-degraded-detail {
+  max-width: 82ch !important;
+  line-height: 1.55 !important;
+}
+
+.users-page .table-container,
+.inbounds-page .table-container {
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+  border-radius: 12px !important;
+}
+
+.users-page .users-table,
+.inbounds-page .inbounds-table {
+  width: 100% !important;
+  border-spacing: 0 !important;
+}
+
+.inbounds-page .inbounds-table {
+  min-width: 0 !important;
+  table-layout: fixed !important;
+}
+
+.inbounds-table .cell-checkbox {
+  width: 48px !important;
+}
+
+.inbounds-table .inbounds-expand-col,
+.inbounds-table .inbounds-expand-cell {
+  width: 44px !important;
+}
+
+.inbounds-table .inbounds-sequence-col,
+.inbounds-table .inbounds-sequence-cell-td {
+  width: 60px !important;
+}
+
+.inbounds-table .inbounds-node-col,
+.inbounds-table .inbounds-node-cell {
+  width: 136px !important;
+}
+
+.inbounds-table .inbounds-remark-col,
+.inbounds-table .inbounds-remark-cell {
+  width: 166px !important;
+}
+
+.inbounds-table .inbounds-protocol-col,
+.inbounds-table .inbounds-protocol-cell {
+  width: 72px !important;
+}
+
+.inbounds-table .inbounds-port-col,
+.inbounds-table .inbounds-port-cell {
+  width: 118px !important;
+}
+
+.inbounds-table .inbounds-users-col,
+.inbounds-table .inbounds-users-cell {
+  width: 72px !important;
+}
+
+.inbounds-table .inbounds-traffic-col,
+.inbounds-table .inbounds-traffic-cell {
+  width: 116px !important;
+}
+
+.inbounds-table .inbounds-status-col,
+.inbounds-table .inbounds-status-cell-wrap {
+  width: 110px !important;
+}
+
+.inbounds-table .inbounds-actions-col,
+.inbounds-table .inbounds-actions-cell {
+  width: 104px !important;
+  overflow: visible !important;
+}
+
+.inbounds-table .inbounds-row-actions,
+.users-table .users-row-actions {
+  justify-content: flex-end !important;
+  gap: 6px !important;
+}
+
+.inbounds-table .inbounds-row-actions .btn-icon,
+.users-table .users-row-actions .btn-icon,
+.users-table .table-action-btn {
+  width: 48px !important;
+  min-width: 48px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  border-radius: 10px !important;
+}
+
+.inbounds-table .actions-dropdown-wrapper,
+.users-table .actions-dropdown-wrapper {
+  flex: 0 0 auto !important;
+}
+
+.inbounds-table :is(.inbounds-node-badge, .inbound-remark-pill, .badge) {
+  max-width: 100% !important;
+}
+
+.inbounds-table .inbounds-traffic-stack,
+.users-table .users-traffic-stack {
+  line-height: 1.35 !important;
+}
+
+@media (max-width: 1280px) {
+  .users-page .users-toolbar {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+  }
+
+  .users-page .users-toolbar .page-toolbar-summary {
+    justify-self: start !important;
+  }
+
+  .users-page .users-toolbar .page-toolbar-actions {
+    justify-self: end !important;
+  }
+}
+
+@media (max-width: 1100px) {
+  .inbounds-page .inbounds-toolbar,
+  .users-page .users-toolbar {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .inbounds-page .inbounds-toolbar .page-toolbar-summary,
+  .users-page .users-toolbar .page-toolbar-summary,
+  .inbounds-page .inbounds-toolbar .page-toolbar-actions,
+  .users-page .users-toolbar .page-toolbar-actions {
+    justify-self: stretch !important;
+  }
+
+  .inbounds-page .inbounds-toolbar .list-toolbar-actions-inner,
+  .users-page .users-toolbar .list-toolbar-actions-inner {
+    justify-content: flex-start !important;
+    flex-wrap: wrap !important;
+  }
+
+  .inbounds-page .table-container {
+    overflow-x: visible !important;
+  }
+
+  .inbounds-page .inbounds-table,
+  .inbounds-page .inbounds-table thead,
+  .inbounds-page .inbounds-table tbody,
+  .inbounds-page .inbounds-table tr,
+  .inbounds-page .inbounds-table th,
+  .inbounds-page .inbounds-table td {
+    display: block !important;
+  }
+
+  .inbounds-page .inbounds-table {
+    min-width: 0 !important;
+    width: 100% !important;
+    border-spacing: 0 !important;
+  }
+
+  .inbounds-page .inbounds-table thead {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+  }
+
+  .inbounds-page .inbounds-table tbody {
+    display: grid !important;
+    gap: 12px !important;
+  }
+
+  .inbounds-page .inbounds-table tr {
+    position: relative !important;
+    margin: 0 !important;
+    padding: 14px 16px !important;
+    border: 1px solid var(--stroke-soft) !important;
+    border-radius: 14px !important;
+    background: var(--surface-card-bg) !important;
+    box-shadow: var(--ops-row-shadow) !important;
+  }
+
+  .inbounds-page .inbounds-table tr.inbounds-row-selected {
+    border-color: var(--accent-primary-border) !important;
+    box-shadow: inset 3px 0 0 var(--accent-primary), var(--ops-row-shadow) !important;
+  }
+
+  .inbounds-page .inbounds-table td {
+    width: 100% !important;
+    min-height: 0 !important;
+    padding: 7px 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    overflow: visible !important;
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    text-align: left !important;
+  }
+
+  .inbounds-page .inbounds-table td::before {
+    content: attr(data-label) !important;
+    flex: 0 0 92px !important;
+    max-width: 92px !important;
+    color: var(--text-muted) !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    line-height: 1.45 !important;
+  }
+
+  .inbounds-page .inbounds-table td[data-label=""]::before,
+  .inbounds-page .inbounds-table td:not([data-label])::before {
+    display: none !important;
+  }
+
+  .inbounds-page .inbounds-table td.mobile-checkbox-cell {
+    position: absolute !important;
+    top: 14px !important;
+    right: 14px !important;
+    width: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .inbounds-page .inbounds-table .inbounds-expand-cell {
+    padding-right: 44px !important;
+  }
+
+  .inbounds-page .inbounds-table .inbounds-actions-cell {
+    align-items: center !important;
+    margin-top: 8px !important;
+    padding-top: 10px !important;
+    border-top: 1px solid var(--stroke-soft) !important;
+  }
+
+  .inbounds-page .inbounds-table .inbounds-row-actions {
+    width: auto !important;
+    justify-content: flex-end !important;
+  }
+
+  .inbounds-page .inbounds-table .inbounds-status-cell,
+  .inbounds-page .inbounds-table .inbounds-node-cell-inner,
+  .inbounds-page .inbounds-table .inbounds-sequence-cell {
+    justify-content: flex-end !important;
+  }
+
+  .inbounds-page .inbounds-table .inbounds-clients-cell {
+    display: block !important;
+    padding: 0 !important;
+  }
+
+  .inbounds-page .inbounds-table .inbounds-clients-cell::before {
+    display: none !important;
+  }
+
+  .inbounds-page .inbounds-clients-panel {
+    padding: 12px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .users-page .users-toolbar .list-toolbar-filters {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .users-page .users-toolbar,
+  .inbounds-page .inbounds-toolbar {
+    padding: 12px !important;
+  }
+}
+
+@media (max-width: 1100px) {
+  .inbounds-page .inbounds-table {
+    min-width: 0 !important;
+    table-layout: auto !important;
+  }
+
+  .inbounds-page .inbounds-table tbody {
+    gap: 10px !important;
+  }
+
+  .inbounds-page .inbounds-table tr.inbounds-row {
+    display: grid !important;
+    grid-template-columns: 32px minmax(0, 1fr) minmax(0, 1fr) auto !important;
+    grid-template-areas:
+      "expand remark remark check"
+      "sequence node node node"
+      "protocol protocol port users"
+      "traffic traffic status status"
+      "actions actions actions actions" !important;
+    gap: 10px 14px !important;
+    padding: 14px !important;
+    background: var(--surface-panel) !important;
+  }
+
+  .inbounds-page .inbounds-table tr:not(.inbounds-row) {
+    padding: 0 !important;
+  }
+
+  .inbounds-page .inbounds-table td {
+    width: auto !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+    gap: 4px !important;
+    text-align: left !important;
+    background: transparent !important;
+  }
+
+  .inbounds-page .inbounds-table tr.inbounds-row > td,
+  .inbounds-page .inbounds-table tr.inbounds-row:hover > td {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .inbounds-page .inbounds-table td::before {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    font-size: 11px !important;
+    line-height: 1.25 !important;
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+  }
+
+  .inbounds-page .inbounds-table .mobile-checkbox-cell {
+    grid-area: check !important;
+    position: static !important;
+    justify-self: end !important;
+    align-self: start !important;
+  }
+
+  .inbounds-page .inbounds-table .inbounds-expand-cell {
+    grid-area: expand !important;
+    align-self: start !important;
+    padding: 0 !important;
+  }
+
+  .inbounds-page .inbounds-table .inbounds-sequence-cell-td {
+    grid-area: sequence !important;
+  }
+
+  .inbounds-page .inbounds-table .inbounds-node-cell {
+    grid-area: node !important;
+  }
+
+  .inbounds-page .inbounds-table .inbounds-remark-cell {
+    grid-area: remark !important;
+    padding-right: 36px !important;
+  }
+
+  .inbounds-page .inbounds-table .inbounds-protocol-cell {
+    grid-area: protocol !important;
+  }
+
+  .inbounds-page .inbounds-table .inbounds-port-cell {
+    grid-area: port !important;
+  }
+
+  .inbounds-page .inbounds-table .inbounds-users-cell {
+    grid-area: users !important;
+  }
+
+  .inbounds-page .inbounds-table .inbounds-traffic-cell {
+    grid-area: traffic !important;
+  }
+
+  .inbounds-page .inbounds-table .inbounds-status-cell-wrap {
+    grid-area: status !important;
+  }
+
+  .inbounds-page .inbounds-table .inbounds-actions-cell {
+    grid-area: actions !important;
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr) !important;
+    align-items: center !important;
+    gap: 12px !important;
+    margin-top: 2px !important;
+    padding-top: 10px !important;
+    border-top: 1px solid var(--stroke-soft) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .inbounds-page .inbounds-table .inbounds-actions-cell::before {
+    display: block !important;
+  }
+
+  .inbounds-page .inbounds-table .inbounds-row-actions {
+    width: auto !important;
+    justify-self: end !important;
+    justify-content: flex-end !important;
+  }
+
+  .inbounds-page .inbounds-table .inbounds-status-cell,
+  .inbounds-page .inbounds-table .inbounds-node-cell-inner,
+  .inbounds-page .inbounds-table .inbounds-sequence-cell,
+  .inbounds-page .inbounds-table .inbounds-traffic-stack {
+    width: 100% !important;
+    justify-content: flex-start !important;
+    align-items: flex-start !important;
+  }
+
+  .inbounds-page .inbounds-table .inbounds-node-order-actions,
+  .inbounds-page .inbounds-table .inbounds-sequence-actions {
+    justify-content: flex-start !important;
+  }
+}
+
+@media (max-width: 680px) {
+  .inbounds-page .inbounds-table tr.inbounds-row {
+    grid-template-columns: 28px minmax(0, 1fr) auto !important;
+    grid-template-areas:
+      "expand remark check"
+      "sequence sequence sequence"
+      "node node node"
+      "protocol protocol users"
+      "port port port"
+      "traffic traffic traffic"
+      "status status status"
+      "actions actions actions" !important;
+  }
+}
+
+/* Final audit hardening: keep touch targets stable and prevent fixed mobile nav overlap. */
+.header .language-toggle-btn,
+.login-top-actions .language-toggle-btn,
+.header .notification-trigger {
+  width: 48px !important;
+  min-width: 48px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  border-radius: 12px !important;
+}
+
+.header-search-input {
+  min-height: 34px !important;
+  line-height: 34px !important;
+}
+
+.audit-page .tab {
+  min-width: 52px !important;
+  min-height: 36px !important;
+}
+
+.inbounds-page .inbounds-table {
+  overflow-x: hidden !important;
+}
+
+@media (min-width: 1101px) {
+  .inbounds-page .inbounds-table {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .inbounds-page .inbounds-actions-col,
+  .inbounds-page .inbounds-actions-cell {
+    width: 116px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    display: flex !important;
+    flex-direction: column !important;
+    padding-bottom: 0 !important;
+  }
+
+  .main-scroll-region {
+    flex: 1 1 auto !important;
+    height: auto !important;
+    max-height: none !important;
+    padding-bottom: 16px !important;
+    scroll-padding-bottom: 16px !important;
+  }
+
+  .mobile-bottom-nav {
+    position: relative !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    flex: 0 0 auto !important;
+    z-index: 20 !important;
+    padding: 0 10px calc(env(safe-area-inset-bottom, 0px) + 8px) !important;
+    pointer-events: auto !important;
+  }
+
+  .mobile-bottom-nav-track {
+    pointer-events: auto !important;
+  }
+}
+
+@media (max-width: 1180px) {
+  .subscriptions-page .subscriptions-workbench {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 16px !important;
+  }
+
+  .subscriptions-page .subscriptions-main-column,
+  .subscriptions-page .subscriptions-side-column {
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .subscriptions-page .subscription-link-with-qr {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .subscriptions-page .subscription-inline-qr {
+    width: 100% !important;
+    max-width: none !important;
+    align-items: flex-start !important;
+  }
+
+  .subscriptions-page .subscription-meter-grid,
+  .subscriptions-page .subscription-summary-grid {
+    grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)) !important;
+  }
+
+  .subscriptions-page .subscription-summary-grid {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)) !important;
+  }
 }

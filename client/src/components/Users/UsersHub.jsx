@@ -729,7 +729,7 @@ export default function UsersHub() {
             allInbounds,
             partialErrors,
             statsReady,
-        });
+        }, { defer: true, includeEventValue: false });
     }, [allInbounds, clientsMap, inboundExpiries, onlineMap, partialErrors, statsLoading, statsReady, usersStatsSnapshotKey]);
 
     const allOrderedUsers = useMemo(() => {

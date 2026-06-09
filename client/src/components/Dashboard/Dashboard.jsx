@@ -598,16 +598,6 @@ function getWsUrl(ticket) {
     return `${proto}://${host}/ws?ticket=${encodeURIComponent(ticket)}`;
 }
 
-
-
-function resolveDashboardGreeting(t) {
-    const hour = new Date().getHours();
-    if (hour < 5) return t('pages.dashboardHero.greetingNight');
-    if (hour < 12) return t('pages.dashboardHero.greetingMorning');
-    if (hour < 18) return t('pages.dashboardHero.greetingAfternoon');
-    return t('pages.dashboardHero.greetingEvening');
-}
-
 function DashboardHero({ title, kpis = [] }) {
     return (
         <section className="dashboard-hero" aria-label={typeof title === 'string' ? title : undefined}>
@@ -1323,7 +1313,6 @@ export default function Dashboard() {
             },
         ];
 
-        const heroGreeting = `${resolveDashboardGreeting(t)} · ${t('pages.dashboardHero.welcome')}`;
         const globalHeroKpis = [
             {
                 label: t('pages.dashboardHero.kpiOnlineUsers'),

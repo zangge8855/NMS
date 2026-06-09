@@ -895,6 +895,12 @@ function formatTrafficUserLabel(item) {
     return username || email || '-';
 }
 
+function formatTrafficUserSelectLabel(item) {
+    const username = String(item?.username || '').trim();
+    const email = String(item?.email || '').trim();
+    return username || email || formatTrafficUserLabel(item);
+}
+
 function formatTrafficShare(value, total) {
     const amount = Number(value || 0);
     const base = Number(total || 0);
@@ -2396,7 +2402,7 @@ export default function AuditCenter() {
                                             <option value="">{copy.traffic.selectUser}</option>
                                             {topUsers.map((item) => (
                                                 <option key={item.email} value={item.email}>
-                                                    {formatTrafficUserLabel(item)} ({formatBytes(item.totalBytes)})
+                                                    {formatTrafficUserSelectLabel(item)} ({formatBytes(item.totalBytes)})
                                                 </option>
                                             ))}
                                         </select>

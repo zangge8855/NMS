@@ -62,6 +62,19 @@ function normalizeInactiveReason(reason, locale = 'zh-CN') {
     return reason;
 }
 
+function compactSubscriptionUrl(url) {
+    const value = String(url || '').trim();
+    if (value.length <= 34) return value;
+    try {
+        const parsed = new URL(value);
+        const token = parsed.pathname.split('/').filter(Boolean).pop() || '';
+        const tokenLabel = token.length > 8 ? `${token.slice(0, 4)}...${token.slice(-4)}` : token;
+        return `${parsed.origin}/.../${tokenLabel}`;
+    } catch {
+        return `${value.slice(0, 18)}...${value.slice(-10)}`;
+    }
+}
+
 function clampProgress(value) {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return 0;
@@ -389,6 +402,10 @@ export default function Subscriptions() {
     const activeProfileLabel = useMemo(
         () => (isUserOnly ? getUserFacingProfileLabel(activeProfile) : String(activeProfile?.label || '').trim()),
         [activeProfile, isUserOnly]
+    );
+    const activeProfileUrlDisplay = useMemo(
+        () => (isCompactViewport ? compactSubscriptionUrl(activeProfile?.url || '') : (activeProfile?.url || '')),
+        [activeProfile?.url, isCompactViewport]
     );
     const shouldShowProfileContext = activeProfileSupportedClients.length > 0;
     const availableProfiles = useMemo(
@@ -789,7 +806,7 @@ export default function Subscriptions() {
                             <div className="subscription-user-address-main">
                                 <input
                                     className="form-input font-mono text-xs subscription-url-input"
-                                    value={activeProfile?.url || ''}
+                                    value={activeProfileUrlDisplay}
                                     readOnly
                                     title={activeProfile?.url || ''}
                                     dir="ltr"
@@ -1098,7 +1115,7 @@ export default function Subscriptions() {
                                                     <div className="subscription-link-grid">
                                                         <input
                                                             className="form-input font-mono text-xs subscription-url-input"
-                                                            value={activeProfile?.url || ''}
+                                                            value={activeProfileUrlDisplay}
                                                             readOnly
                                                             title={activeProfile?.url || ''}
                                                             dir="ltr"

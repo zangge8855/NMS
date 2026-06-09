@@ -161,7 +161,7 @@ function buildClientOnlineKeys(client, protocol) {
 export default function Inbounds() {
     const { servers, activeServerId } = useServer();
     const { locale, t } = useI18n();
-    const isCompactLayout = useMediaQuery('(max-width: 768px)');
+    const isCompactLayout = useMediaQuery('(max-width: 1100px), (max-width: 768px)');
     const navigate = useNavigate();
     const confirmAction = useConfirm();
     const bootstrapRef = useRef(readInboundsSnapshot());
@@ -397,7 +397,7 @@ export default function Inbounds() {
             inboundOrder,
             serverOrder,
             overrideKeys: Array.from(overrideKeySet),
-        });
+        }, { defer: true, includeEventValue: false });
     }, [inbounds, inboundOrder, overrideKeySet, serverOrder]);
 
     useEffect(() => {
