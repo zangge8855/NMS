@@ -258,7 +258,7 @@ function buildHealthyPanelState() {
         xrayVersions: ['1.8.13', '1.8.12', '1.8.11'],
         config: {
             log: { level: 'warning' },
-            inbounds: ['review-vless-main', 'review-trojan-edge'],
+            inbounds: ['review-vless-main', 'review-trojan-edge', 'review-mtproto-sidecar'],
             routing: { domainStrategy: 'AsIs' },
         },
         logs: {
@@ -416,6 +416,22 @@ function buildHealthyPanelState() {
                     network: 'tcp',
                     security: 'none',
                 }),
+            },
+            {
+                id: 104,
+                remark: 'review-mtproto-sidecar',
+                protocol: 'mtproto',
+                port: 9444,
+                listen: '',
+                enable: true,
+                total: 0,
+                up: 0,
+                down: 0,
+                settings: JSON.stringify({
+                    fakeTlsDomain: 'www.cloudflare.com',
+                    secret: 'ee0123456789abcdeffedcba98765432107777772e636c6f7564666c6172652e636f6d',
+                }),
+                streamSettings: JSON.stringify({}),
             },
         ],
         onlineSessions: [

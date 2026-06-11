@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { isBlockedHostname, normalizeTokenRows, validateServerUrl } from '../routes/servers.js';
+import { isBlockedHostname, normalizeTokenRows, requestPanelApiTokenRoute, validateServerUrl } from '../routes/servers.js';
 
 describe('servers route hostname guards', () => {
     it('blocks localhost and single-label hostnames', () => {
@@ -49,5 +49,55 @@ describe('panel api token helpers', () => {
         assert.equal(rows[0].token, undefined);
         assert.equal(rows[0].tokenConfigured, true);
         assert.equal(rows[0].tokenPreview, 'abcdef...7890');
+    });
+
+    it('requests v3.3.0 API token routes before legacy /panel/setting paths', async () => {
+        const calls = [];
+        const client = async (request) => {
+            calls.push(request);
+            return { data: { success: true, obj: [] } };
+        };
+
+        await requestPanelApiTokenRoute(client, 'get');
+
+        assert.equal(calls.length, 1);
+        assert.equal(calls[0].method, 'get');
+        assert.equal(calls[0].url, '/panel/api/setting/apiTokens');
+    });
+
+    it('falls back to legacy API token routes when the v3.3.0 route is unsupported', async () => {
+        const calls = [];
+        const client = async (request) => {
+            calls.push(request.url);
+            if (request.url.startsWith('/panel/api/setting/')) {
+                const error = new Error('no route');
+                error.response = { status: 404, data: { msg: 'no route' } };
+                throw error;
+            }
+            return { data: { success: true, obj: { id: 1 } } };
+        };
+
+        await requestPanelApiTokenRoute(client, 'post', 'delete/1');
+
+        assert.deepEqual(calls, [
+            '/panel/api/setting/apiTokens/delete/1',
+            '/panel/setting/apiTokens/delete/1',
+        ]);
+    });
+
+    it('does not hide real token-not-found errors behind legacy fallback', async () => {
+        const calls = [];
+        const expected = new Error('token not found');
+        expected.response = { status: 404, data: { msg: 'token not found' } };
+        const client = async (request) => {
+            calls.push(request.url);
+            throw expected;
+        };
+
+        await assert.rejects(
+            () => requestPanelApiTokenRoute(client, 'post', 'delete/missing'),
+            (error) => error === expected,
+        );
+        assert.deepEqual(calls, ['/panel/api/setting/apiTokens/delete/missing']);
     });
 });

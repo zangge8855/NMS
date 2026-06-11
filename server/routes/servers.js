@@ -246,6 +246,31 @@ function normalizeTokenRows(payload) {
     });
 }
 
+async function requestPanelApiTokenRoute(client, method, suffix = '', data) {
+    const normalizedSuffix = suffix ? `/${String(suffix).replace(/^\/+/, '')}` : '';
+    const attempts = [
+        `/panel/api/setting/apiTokens${normalizedSuffix}`,
+        `/panel/setting/apiTokens${normalizedSuffix}`,
+    ];
+    let lastError = null;
+    for (const url of attempts) {
+        try {
+            return await client({
+                method,
+                url,
+                data,
+                timeout: 15_000,
+            });
+        } catch (err) {
+            lastError = err;
+            if (!isUnsupportedPanelSettingEndpoint(err)) {
+                throw err;
+            }
+        }
+    }
+    throw lastError || new Error('No panel API token route attempts were provided');
+}
+
 function sendPanelTokenRouteError(res, error, fallbackMessage) {
     if (isUnsupportedPanelSettingEndpoint(error)) {
         return res.status(501).json({
@@ -484,7 +509,7 @@ router.get('/:id/snapshot', async (req, res) => {
 router.get('/:id/panel-api-tokens', adminOnly, async (req, res) => {
     try {
         const client = await ensureAuthenticated(req.params.id);
-        const response = await client.get('/panel/setting/apiTokens');
+        const response = await requestPanelApiTokenRoute(client, 'get');
         return res.json({
             success: true,
             obj: normalizeTokenRows(response.data),
@@ -505,7 +530,7 @@ router.post('/:id/panel-api-tokens', adminOnly, async (req, res) => {
 
     try {
         const client = await ensureAuthenticated(req.params.id);
-        const response = await client.post('/panel/setting/apiTokens/create', { name });
+        const response = await requestPanelApiTokenRoute(client, 'post', 'create', { name });
         appendSecurityAudit('panel_api_token_created', req, {
             serverId: req.params.id,
             name,
@@ -520,7 +545,7 @@ router.patch('/:id/panel-api-tokens/:tokenId', adminOnly, async (req, res) => {
     try {
         const client = await ensureAuthenticated(req.params.id);
         const enabled = parseBoolean(req.body?.enabled, true);
-        const response = await client.post(`/panel/setting/apiTokens/setEnabled/${encodeURIComponent(req.params.tokenId)}`, {
+        const response = await requestPanelApiTokenRoute(client, 'post', `setEnabled/${encodeURIComponent(req.params.tokenId)}`, {
             enabled,
         });
         appendSecurityAudit('panel_api_token_enabled_changed', req, {
@@ -537,7 +562,7 @@ router.patch('/:id/panel-api-tokens/:tokenId', adminOnly, async (req, res) => {
 router.delete('/:id/panel-api-tokens/:tokenId', adminOnly, async (req, res) => {
     try {
         const client = await ensureAuthenticated(req.params.id);
-        const response = await client.post(`/panel/setting/apiTokens/delete/${encodeURIComponent(req.params.tokenId)}`);
+        const response = await requestPanelApiTokenRoute(client, 'post', `delete/${encodeURIComponent(req.params.tokenId)}`);
         appendSecurityAudit('panel_api_token_deleted', req, {
             serverId: req.params.id,
             tokenId: String(req.params.tokenId || ''),
@@ -990,5 +1015,5 @@ router.patch('/batch', (req, res) => {
     });
 });
 
-export { isBlockedHostname, normalizeTokenRows, validateServerUrl };
+export { isBlockedHostname, normalizeTokenRows, requestPanelApiTokenRoute, validateServerUrl };
 export default router;

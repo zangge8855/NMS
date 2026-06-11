@@ -51,4 +51,12 @@ describe('protocol catalog canonicalization', () => {
         assert.ok(Array.isArray(hysteria2.defaultSettings.clients));
         assert.equal(getProtocolSchema('hy2'), hysteria2);
     });
+
+    it('exposes the 3x-ui v3.3.0 MTProto protocol defaults', () => {
+        const mtproto = getProtocolSchema('mtproto');
+        assert.ok(mtproto, 'mtproto schema should exist');
+        assert.equal(mtproto.label, 'MTProto');
+        assert.equal(mtproto.defaultSettings.fakeTlsDomain, 'www.cloudflare.com');
+        assert.equal(mtproto.defaultSettings.secret, '');
+    });
 });

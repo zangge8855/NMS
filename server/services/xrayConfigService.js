@@ -19,7 +19,7 @@ const XRAY_SECTION_KEYS = new Set([
 
 const SUPPORTED_WRITE_SECTIONS = new Set(['routing', 'outbounds', 'dns', 'balancers', 'reverse', 'template', 'log', 'policy']);
 
-function parseJsonTemplate(raw) {
+function parseJsonObject(raw) {
     if (!raw) return null;
     if (typeof raw === 'object') return raw;
     try {
@@ -28,6 +28,37 @@ function parseJsonTemplate(raw) {
     } catch {
         return null;
     }
+}
+
+function parseJsonTemplate(raw) {
+    return parseJsonObject(raw);
+}
+
+function isUnsupportedPanelRouteError(err) {
+    const status = Number(err?.response?.status || 0);
+    return status === 404 || status === 405;
+}
+
+async function requestFirstSupportedPanelRoute(client, attempts) {
+    let lastError = null;
+    for (const attempt of attempts) {
+        try {
+            return await client({
+                method: attempt.method,
+                url: attempt.url,
+                data: attempt.data,
+                headers: attempt.headers,
+                timeout: attempt.timeout || 15_000,
+            });
+        } catch (err) {
+            lastError = err;
+            if (!isUnsupportedPanelRouteError(err)) {
+                throw err;
+            }
+        }
+    }
+    if (lastError) throw lastError;
+    throw new Error('No panel route attempts were provided');
 }
 
 function buildXrayConfigSnapshot(template) {
@@ -43,49 +74,63 @@ function buildXrayConfigSnapshot(template) {
 
 async function fetchPanelSettings(client) {
     const directAttempts = [
+        {
+            method: 'post',
+            url: '/panel/api/xray/',
+            data: '',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        },
+        {
+            method: 'post',
+            url: '/panel/api/setting/all',
+            data: '',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        },
         { method: 'get', url: '/panel/xray/getXrayConfig' },
         { method: 'get', url: '/panel/setting/all' },
         { method: 'post', url: '/panel/setting/all', data: '' },
     ];
 
-    let lastError = null;
-    for (const attempt of directAttempts) {
-        try {
-            const res = await client({
-                method: attempt.method,
-                url: attempt.url,
-                data: attempt.data,
-                headers: attempt.method === 'post' ? { 'Content-Type': 'application/x-www-form-urlencoded' } : undefined,
-                timeout: 15_000,
-            });
-            const payload = res?.data;
-            if (payload && typeof payload === 'object') {
-                return payload;
-            }
-        } catch (err) {
-            lastError = err;
-            const status = Number(err?.response?.status || 0);
-            if (status >= 400 && status < 500 && status !== 404 && status !== 405) {
-                throw err;
-            }
-        }
-    }
-
-    if (lastError) {
-        throw lastError;
+    const res = await requestFirstSupportedPanelRoute(client, directAttempts);
+    const payload = res?.data;
+    if (payload && typeof payload === 'object') {
+        return payload;
     }
     throw new Error('Panel settings endpoint did not return a valid payload');
 }
 
+function resolvePayloadObject(payload) {
+    if (!payload) return null;
+    if (payload?.obj !== undefined) {
+        const parsedObj = parseJsonObject(payload.obj);
+        if (parsedObj) {
+            return parsedObj;
+        }
+        if (payload.obj && typeof payload.obj === 'object') {
+            return payload.obj;
+        }
+        return payload;
+    }
+    return parseJsonObject(payload) || payload;
+}
+
 function extractTemplateConfig(payload) {
     if (!payload) return null;
-    const obj = payload?.obj && typeof payload.obj === 'object' ? payload.obj : payload;
+    const obj = resolvePayloadObject(payload);
 
     if (obj?.xrayTemplateConfig !== undefined) {
         return {
             template: parseJsonTemplate(obj.xrayTemplateConfig),
             rawSettings: obj,
             source: 'xrayTemplateConfig',
+        };
+    }
+
+    if (obj?.xraySetting !== undefined) {
+        return {
+            template: parseJsonTemplate(obj.xraySetting),
+            rawSettings: obj,
+            source: 'xraySetting',
         };
     }
 
@@ -223,12 +268,46 @@ async function persistTemplate(client, source, rawSettings, nextTemplate) {
     const serialized = JSON.stringify(nextTemplate);
 
     if (source === 'inline') {
-        const res = await client({
-            method: 'post',
-            url: '/panel/xray/updateXrayConfig',
-            data: { xrayConfig: serialized },
-            timeout: 15_000,
-        });
+        const formBody = new URLSearchParams();
+        formBody.set('xraySetting', serialized);
+        const res = await requestFirstSupportedPanelRoute(client, [
+            {
+                method: 'post',
+                url: '/panel/api/xray/update',
+                data: formBody.toString(),
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            },
+            {
+                method: 'post',
+                url: '/panel/xray/updateXrayConfig',
+                data: { xrayConfig: serialized },
+            },
+        ]);
+        if (res?.data && res.data.success === false) {
+            throw new Error(normalizePanelErrorMessage({ response: res }, '更新失败'));
+        }
+        return res?.data;
+    }
+
+    if (source === 'xraySetting') {
+        const formBody = new URLSearchParams();
+        formBody.set('xraySetting', serialized);
+        if (rawSettings?.outboundTestUrl) {
+            formBody.set('outboundTestUrl', String(rawSettings.outboundTestUrl));
+        }
+        const res = await requestFirstSupportedPanelRoute(client, [
+            {
+                method: 'post',
+                url: '/panel/api/xray/update',
+                data: formBody.toString(),
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            },
+            {
+                method: 'post',
+                url: '/panel/xray/updateXrayConfig',
+                data: { xrayConfig: serialized },
+            },
+        ]);
         if (res?.data && res.data.success === false) {
             throw new Error(normalizePanelErrorMessage({ response: res }, '更新失败'));
         }
@@ -249,13 +328,20 @@ async function persistTemplate(client, source, rawSettings, nextTemplate) {
     }
     formBody.set(source, serialized);
 
-    const res = await client({
-        method: 'post',
-        url: '/panel/setting/update',
-        data: formBody.toString(),
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        timeout: 15_000,
-    });
+    const res = await requestFirstSupportedPanelRoute(client, [
+        {
+            method: 'post',
+            url: '/panel/api/setting/update',
+            data: formBody.toString(),
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        },
+        {
+            method: 'post',
+            url: '/panel/setting/update',
+            data: formBody.toString(),
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        },
+    ]);
 
     if (res?.data && res.data.success === false) {
         throw new Error(normalizePanelErrorMessage({ response: res }, '更新失败'));
@@ -301,4 +387,7 @@ export {
     buildXrayConfigSnapshot,
     ensureApiRuleFirst,
     extractTemplateConfig,
+    fetchPanelSettings,
+    persistTemplate,
+    requestFirstSupportedPanelRoute,
 };

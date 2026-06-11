@@ -17,6 +17,7 @@ const PROTOCOL_SCHEMA_FALLBACK = [
     { key: 'mixed', label: 'Mixed', legacyKeys: ['socks'], supports: { transports: [], securities: [] } },
     { key: 'wireguard', label: 'WireGuard', legacyKeys: [], supports: { transports: [], securities: [] } },
     { key: 'tun', label: 'TUN', legacyKeys: [], supports: { transports: [], securities: [] } },
+    { key: 'mtproto', label: 'MTProto', legacyKeys: [], supports: { transports: [], securities: [] } },
     { key: 'hysteria', label: 'Hysteria', legacyKeys: [], supports: { transports: [], securities: ['tls'] } },
     { key: 'hysteria2', label: 'Hysteria2', legacyKeys: ['hy2'], supports: { transports: [], securities: ['tls'] } },
 ];
@@ -89,6 +90,7 @@ const XHTTP_PADDING_METHOD_OPTIONS = ['', 'repeat-x', 'tokenish'];
 const XHTTP_HTTP_METHOD_OPTIONS = ['', 'POST', 'PUT', 'GET'];
 const XHTTP_SESSION_SEQ_PLACEMENT_OPTIONS = ['', 'path', 'header', 'cookie', 'query'];
 const XHTTP_UPLINK_DATA_PLACEMENT_OPTIONS = ['', 'body', 'header', 'query'];
+const DEFAULT_MTPROTO_FAKE_TLS_DOMAIN = 'www.cloudflare.com';
 
 const STREAM_PROTOCOLS = new Set(['vmess', 'vless', 'trojan', 'shadowsocks']);
 const LOWER_NUM_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -119,6 +121,22 @@ function randomUuid() {
 
 function randomShadowsocksPassword() {
     return randomString(32, `${ALPHA_NUM_CHARS}_-`);
+}
+
+function stringToUtf8Hex(value) {
+    const text = String(value || '');
+    if (typeof TextEncoder !== 'undefined') {
+        return Array.from(new TextEncoder().encode(text))
+            .map((byte) => byte.toString(16).padStart(2, '0'))
+            .join('');
+    }
+    return Array.from(text)
+        .map((char) => char.charCodeAt(0).toString(16).padStart(2, '0'))
+        .join('');
+}
+
+function randomMtprotoSecret(domain = DEFAULT_MTPROTO_FAKE_TLS_DOMAIN) {
+    return `ee${randomString(32, HEX_CHARS)}${stringToUtf8Hex(domain)}`;
 }
 
 function deepClone(value) {
@@ -295,6 +313,13 @@ function createDefaultSettings(protocolKey = 'vmess') {
 
     if (protocol === 'tun') {
         return { name: 'xray0', mtu: 1500, userLevel: 0 };
+    }
+
+    if (protocol === 'mtproto') {
+        return {
+            fakeTlsDomain: DEFAULT_MTPROTO_FAKE_TLS_DOMAIN,
+            secret: randomMtprotoSecret(DEFAULT_MTPROTO_FAKE_TLS_DOMAIN),
+        };
     }
 
     if (protocol === 'hysteria') {

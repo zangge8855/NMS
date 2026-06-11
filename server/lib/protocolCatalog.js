@@ -190,6 +190,19 @@ const PROTOCOL_SCHEMAS = [
         },
     },
     {
+        key: 'mtproto',
+        label: 'MTProto',
+        legacyKeys: [],
+        defaultSettings: {
+            fakeTlsDomain: 'www.cloudflare.com',
+            secret: '',
+        },
+        supports: {
+            transports: [],
+            securities: [],
+        },
+    },
+    {
         key: 'hysteria',
         label: 'Hysteria',
         legacyKeys: [],

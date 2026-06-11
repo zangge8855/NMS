@@ -5,6 +5,8 @@ import {
     buildXrayConfigSnapshot,
     ensureApiRuleFirst,
     extractTemplateConfig,
+    fetchPanelSettings,
+    persistTemplate,
 } from '../services/xrayConfigService.js';
 
 describe('xrayConfigService.extractTemplateConfig', () => {
@@ -36,6 +38,23 @@ describe('xrayConfigService.extractTemplateConfig', () => {
         assert.equal(result.template.outbounds[0].tag, 'block');
     });
 
+    it('extracts v3.3.0 xraySetting from a string obj payload', () => {
+        const payload = {
+            success: true,
+            obj: JSON.stringify({
+                xraySetting: {
+                    routing: { rules: [] },
+                    outbounds: [{ tag: 'direct', protocol: 'freedom' }],
+                },
+                outboundTestUrl: 'https://www.google.com/generate_204',
+            }),
+        };
+        const result = extractTemplateConfig(payload);
+        assert.equal(result.source, 'xraySetting');
+        assert.equal(result.template.outbounds[0].tag, 'direct');
+        assert.equal(result.rawSettings.outboundTestUrl, 'https://www.google.com/generate_204');
+    });
+
     it('recognizes inline templates without an envelope', () => {
         const payload = { outbounds: [{ tag: 'direct' }], routing: { rules: [] } };
         const result = extractTemplateConfig(payload);
@@ -47,6 +66,88 @@ describe('xrayConfigService.extractTemplateConfig', () => {
     it('returns null template for unknown payloads', () => {
         const result = extractTemplateConfig({ obj: { webPort: 2053 } });
         assert.equal(result.template, null);
+    });
+});
+
+describe('xrayConfigService panel route compatibility', () => {
+    it('reads v3.3.0 xray settings from /panel/api/xray/ before legacy settings paths', async () => {
+        const calls = [];
+        const client = async (request) => {
+            calls.push(request.url);
+            assert.equal(request.method, 'post');
+            assert.equal(request.url, '/panel/api/xray/');
+            return {
+                data: {
+                    success: true,
+                    obj: JSON.stringify({ xraySetting: { outbounds: [{ tag: 'direct' }] } }),
+                },
+            };
+        };
+
+        const payload = await fetchPanelSettings(client);
+        assert.deepEqual(calls, ['/panel/api/xray/']);
+        assert.equal(extractTemplateConfig(payload).source, 'xraySetting');
+    });
+
+    it('falls back to legacy settings reads only when new v3.3.0 routes are unsupported', async () => {
+        const calls = [];
+        const client = async (request) => {
+            calls.push(request.url);
+            if (request.url === '/panel/setting/all') {
+                return { data: { success: true, obj: { xrayTemplateConfig: '{"outbounds":[]}' } } };
+            }
+            const error = new Error('not found');
+            error.response = { status: 404, data: { msg: 'not found' } };
+            throw error;
+        };
+
+        const payload = await fetchPanelSettings(client);
+        assert.deepEqual(calls, [
+            '/panel/api/xray/',
+            '/panel/api/setting/all',
+            '/panel/xray/getXrayConfig',
+            '/panel/setting/all',
+        ]);
+        assert.equal(extractTemplateConfig(payload).source, 'xrayTemplateConfig');
+    });
+
+    it('persists v3.3.0 xraySetting through /panel/api/xray/update', async () => {
+        const calls = [];
+        const client = async (request) => {
+            calls.push(request);
+            return { data: { success: true, obj: { updated: true } } };
+        };
+
+        await persistTemplate(client, 'xraySetting', {
+            outboundTestUrl: 'https://example.test/generate_204',
+        }, { outbounds: [{ tag: 'direct' }] });
+
+        assert.equal(calls.length, 1);
+        assert.equal(calls[0].url, '/panel/api/xray/update');
+        assert.equal(calls[0].headers['Content-Type'], 'application/x-www-form-urlencoded');
+        const body = new URLSearchParams(calls[0].data);
+        assert.equal(JSON.parse(body.get('xraySetting')).outbounds[0].tag, 'direct');
+        assert.equal(body.get('outboundTestUrl'), 'https://example.test/generate_204');
+    });
+
+    it('falls back to the legacy setting update route for older panels', async () => {
+        const calls = [];
+        const client = async (request) => {
+            calls.push(request.url);
+            if (request.url === '/panel/api/setting/update') {
+                const error = new Error('not found');
+                error.response = { status: 404, data: { msg: 'not found' } };
+                throw error;
+            }
+            return { data: { success: true, obj: { updated: true } } };
+        };
+
+        await persistTemplate(client, 'xrayTemplateConfig', {
+            webPort: 2053,
+            xrayTemplateConfig: '{"outbounds":[]}',
+        }, { outbounds: [{ tag: 'proxy' }] });
+
+        assert.deepEqual(calls, ['/panel/api/setting/update', '/panel/setting/update']);
     });
 });
 

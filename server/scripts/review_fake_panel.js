@@ -930,23 +930,24 @@ function createPanelApp(definition) {
         return makeSuccess(res, []);
     });
 
-    app.get('/panel/setting/all', (_req, res) => {
-        return makeSuccess(res, {
-            webPort: 2053,
-            webDomain: definition.host,
-            xrayTemplateConfig: JSON.stringify(state.xrayTemplate),
-        });
+    const buildSettingsPayload = () => ({
+        webPort: 2053,
+        webDomain: definition.host,
+        xrayTemplateConfig: JSON.stringify(state.xrayTemplate),
     });
 
-    app.post('/panel/setting/all', (_req, res) => {
-        return makeSuccess(res, {
-            webPort: 2053,
-            webDomain: definition.host,
-            xrayTemplateConfig: JSON.stringify(state.xrayTemplate),
-        });
+    const buildXrayPayload = () => JSON.stringify({
+        xraySetting: state.xrayTemplate,
+        inboundTags: [],
+        clientReverseTags: [],
+        outboundTestUrl: 'https://www.google.com/generate_204',
     });
 
-    app.post('/panel/setting/update', (req, res) => {
+    const handleSettingsRead = (_req, res) => {
+        return makeSuccess(res, buildSettingsPayload());
+    };
+
+    const handleSettingsUpdate = (req, res) => {
         if (typeof req.body?.xrayTemplateConfig === 'string') {
             try {
                 state.xrayTemplate = JSON.parse(req.body.xrayTemplateConfig);
@@ -955,13 +956,40 @@ function createPanelApp(definition) {
             }
         }
         return makeSuccess(res, { updated: true });
-    });
+    };
 
-    app.get('/panel/setting/apiTokens', (_req, res) => {
+    const handleXrayRead = (_req, res) => {
+        return makeSuccess(res, buildXrayPayload());
+    };
+
+    const handleXrayUpdate = (req, res) => {
+        const raw = typeof req.body?.xraySetting === 'string' ? req.body.xraySetting : req.body?.xrayConfig;
+        if (typeof raw === 'string') {
+            try {
+                state.xrayTemplate = JSON.parse(raw);
+            } catch {
+                return res.status(400).json({ success: false, msg: 'invalid xraySetting' });
+            }
+        }
+        return makeSuccess(res, { updated: true });
+    };
+
+    app.get('/panel/setting/all', handleSettingsRead);
+    app.post('/panel/setting/all', handleSettingsRead);
+    app.post('/panel/api/setting/all', handleSettingsRead);
+
+    app.post('/panel/api/xray/', handleXrayRead);
+    app.post('/panel/api/xray/update', handleXrayUpdate);
+    app.post('/panel/xray/updateXrayConfig', handleXrayUpdate);
+
+    app.post('/panel/setting/update', handleSettingsUpdate);
+    app.post('/panel/api/setting/update', handleSettingsUpdate);
+
+    const handleTokenList = (_req, res) => {
         return makeSuccess(res, state.apiTokens);
-    });
+    };
 
-    app.post('/panel/setting/apiTokens/create', (req, res) => {
+    const handleTokenCreate = (req, res) => {
         const name = toText(req.body?.name).trim();
         if (!name) {
             return res.status(400).json({
@@ -984,17 +1012,17 @@ function createPanelApp(definition) {
         };
         state.apiTokens.push(row);
         return makeSuccess(res, row);
-    });
+    };
 
-    app.post('/panel/setting/apiTokens/delete/:id', (req, res) => {
+    const handleTokenDelete = (req, res) => {
         const before = state.apiTokens.length;
         state.apiTokens = state.apiTokens.filter((token) => String(token.id) !== String(req.params.id));
         return makeSuccess(res, {
             deleted: before - state.apiTokens.length,
         });
-    });
+    };
 
-    app.post('/panel/setting/apiTokens/setEnabled/:id', (req, res) => {
+    const handleTokenSetEnabled = (req, res) => {
         const target = state.apiTokens.find((token) => String(token.id) === String(req.params.id));
         if (!target) {
             return res.status(404).json({
@@ -1004,7 +1032,16 @@ function createPanelApp(definition) {
         }
         target.enabled = normalizeBoolean(req.body?.enabled, target.enabled !== false);
         return makeSuccess(res, target);
-    });
+    };
+
+    app.get('/panel/setting/apiTokens', handleTokenList);
+    app.get('/panel/api/setting/apiTokens', handleTokenList);
+    app.post('/panel/setting/apiTokens/create', handleTokenCreate);
+    app.post('/panel/api/setting/apiTokens/create', handleTokenCreate);
+    app.post('/panel/setting/apiTokens/delete/:id', handleTokenDelete);
+    app.post('/panel/api/setting/apiTokens/delete/:id', handleTokenDelete);
+    app.post('/panel/setting/apiTokens/setEnabled/:id', handleTokenSetEnabled);
+    app.post('/panel/api/setting/apiTokens/setEnabled/:id', handleTokenSetEnabled);
 
     return app;
 }
