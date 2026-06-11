@@ -80,6 +80,10 @@ router.put('/:serverId/:section', async (req, res) => {
                 section: result.section,
                 snapshot: result.snapshot,
                 source: result.source,
+                // Return the full template so the client can refresh its editors'
+                // baseline; otherwise the Log/Policy/Advanced editors keep the pre-save
+                // template and re-saving from Advanced silently reverts the change.
+                template: result.template,
             },
         });
     } catch (error) {

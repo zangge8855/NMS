@@ -1027,20 +1027,30 @@ class TrafficStatsStore {
     }
 
     async _collectFromServer(serverMeta, collectedAtIso, options = {}) {
-        const result = { samples: [], warning: null, inbounds: [] };
+        // `inbounds: null` marks a failed/unreachable collection so the caller can
+        // distinguish it from a genuine "zero inbounds" snapshot. Recording a 0-byte
+        // snapshot for an unreachable panel corrupts traffic stats: the next successful
+        // poll computes the delta against 0 and reports the entire lifetime counter as a
+        // single interval's traffic (a huge fake spike), and a full outage zeroes the
+        // registered/server baselines.
+        const result = { samples: [], warning: null, inbounds: null };
         try {
             const panelSnapshot = await getServerPanelSnapshot(serverMeta, {
                 includeOnlines: false,
                 force: options.force === true,
             });
             const inbounds = Array.isArray(panelSnapshot?.inbounds) ? panelSnapshot.inbounds : [];
-            result.inbounds = inbounds;
             if (panelSnapshot?.inboundsError) {
+                // Panel unreachable: keep inbounds null so this server is excluded from the
+                // totals snapshot and its counters are left untouched (no spurious delta).
+                result.inbounds = null;
                 result.warning = {
                     serverId: serverMeta.id,
                     server: serverMeta.name,
                     reason: panelSnapshot.inboundsError.message || 'panel inbounds unavailable',
                 };
+            } else {
+                result.inbounds = inbounds;
             }
 
             for (const inbound of inbounds) {

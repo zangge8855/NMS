@@ -295,18 +295,18 @@ export async function clearClientIpsCompat(panelClient, email) {
 
 export async function postAddClientCompat(panelClient, inboundId, clientData) {
     try {
-        return await postJson(panelClient, '/panel/api/clients/add', {
+        return assertPanelResponseSuccess(await postJson(panelClient, '/panel/api/clients/add', {
             client: clientData,
             inboundIds: normalizeInboundIds([inboundId]),
-        });
+        }), 'add client failed');
     } catch (error) {
         if (!isUnsupportedPanelEndpointError(error)) {
             throw error;
         }
-        return postForm(panelClient, '/panel/api/inbounds/addClient', {
+        return assertPanelResponseSuccess(await postForm(panelClient, '/panel/api/inbounds/addClient', {
             id: inboundId,
             settings: { clients: [clientData] },
-        });
+        }), 'add client failed');
     }
 }
 
@@ -537,7 +537,10 @@ export async function postDeleteClientFromInboundCompat(panelClient, inboundId, 
     let oldPathError = null;
 
     try {
-        return await panelClient.post(`/panel/api/inbounds/${encodePathSegment(inboundId)}/delClient/${encodedId}`);
+        return assertPanelResponseSuccess(
+            await panelClient.post(`/panel/api/inbounds/${encodePathSegment(inboundId)}/delClient/${encodedId}`),
+            'delete client failed'
+        );
     } catch (error) {
         oldPathError = error;
         if (!isUnsupportedPanelEndpointError(error)) {
@@ -546,9 +549,12 @@ export async function postDeleteClientFromInboundCompat(panelClient, inboundId, 
     }
 
     try {
-        return await panelClient.post(`/panel/api/inbounds/delClient/${encodePathSegment(inboundId)}`, {
-            id: clientIdentifier,
-        });
+        return assertPanelResponseSuccess(
+            await panelClient.post(`/panel/api/inbounds/delClient/${encodePathSegment(inboundId)}`, {
+                id: clientIdentifier,
+            }),
+            'delete client failed'
+        );
     } catch (error) {
         if (!isUnsupportedPanelEndpointError(error)) {
             throw error;

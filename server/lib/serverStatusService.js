@@ -39,6 +39,10 @@ const snapshotCache = {
     valueIncludeDetails: false,
     checkedAtMs: 0,
 };
+// Per-server throughput baseline, kept separately from the cluster snapshot cache so that
+// scoped (single-server) collections can maintain throughput continuity without writing
+// the shared cluster cache. Updated on every collection, scoped or not.
+const throughputBaselineByServerId = new Map();
 let warmLoopTimer = null;
 let warmLoopFollowupTimer = null;
 
@@ -427,23 +431,33 @@ export async function collectClusterStatusSnapshot(options = {}) {
     const force = options.force === true;
     const maxAgeMs = Number(options.maxAgeMs || 0);
     const includeDetails = options.includeDetails !== false;
-    const ageMs = Date.now() - snapshotCache.checkedAtMs;
-    const cachedSupportsRequest = !includeDetails || snapshotCache.valueIncludeDetails === true;
-    const pendingSupportsRequest = !includeDetails || snapshotCache.promiseIncludeDetails === true;
+    // A scoped request (explicit `servers` subset, e.g. a single-server dashboard or
+    // server-detail refresh) must NOT read-hit or write back the shared cluster cache.
+    // Writing a partial snapshot there would publish a one-server "cluster" to every
+    // cluster-wide consumer (global dashboard, WS broadcast, app bootstrap, Telegram,
+    // subscriptions reachability filter) for the cache window, and would also destroy
+    // the other servers' throughput baselines.
+    const scoped = Array.isArray(options.servers);
 
-    if (!force && cachedSupportsRequest && snapshotCache.value && ageMs >= 0 && ageMs <= maxAgeMs) {
-        return snapshotCache.value;
+    if (!scoped) {
+        const ageMs = Date.now() - snapshotCache.checkedAtMs;
+        const cachedSupportsRequest = !includeDetails || snapshotCache.valueIncludeDetails === true;
+        const pendingSupportsRequest = !includeDetails || snapshotCache.promiseIncludeDetails === true;
+
+        if (!force && cachedSupportsRequest && snapshotCache.value && ageMs >= 0 && ageMs <= maxAgeMs) {
+            return snapshotCache.value;
+        }
+
+        if (pendingSupportsRequest && snapshotCache.promise) {
+            return snapshotCache.promise;
+        }
     }
 
-    if (pendingSupportsRequest && snapshotCache.promise) {
-        return snapshotCache.promise;
-    }
-
-    const task = (async () => {
+    const compute = async () => {
         const servers = Array.isArray(options.servers) ? options.servers : serverStore.getAll();
-        const previousByServerId = snapshotCache.value?.byServerId && typeof snapshotCache.value.byServerId === 'object'
-            ? snapshotCache.value.byServerId
-            : {};
+        // Throughput baselines come from the dedicated per-server map (updated on every
+        // collection), not the cluster cache, so scoped requests keep throughput continuity.
+        const previousByServerId = Object.fromEntries(throughputBaselineByServerId);
         const rawItems = await runWithConcurrency(
             servers,
             (server) => collectServerStatusSnapshot(server, options),
@@ -460,6 +474,12 @@ export async function collectClusterStatusSnapshot(options = {}) {
             }),
             previousByServerId
         );
+        // Refresh the per-server throughput baseline for every server we just collected,
+        // regardless of scope.
+        items.forEach((item) => {
+            const serverId = String(item?.serverId || '').trim();
+            if (serverId) throughputBaselineByServerId.set(serverId, item);
+        });
         const byServerId = Object.fromEntries(items.map((item) => [item.serverId, item]));
         const snapshot = {
             summary: buildSummary(items),
@@ -468,12 +488,20 @@ export async function collectClusterStatusSnapshot(options = {}) {
             includeDetails,
             panelSnapshots,
         };
-        serverTelemetryStore.recordSnapshot(snapshot);
-        snapshotCache.value = snapshot;
-        snapshotCache.valueIncludeDetails = includeDetails;
-        snapshotCache.checkedAtMs = Date.now();
+        if (!scoped) {
+            serverTelemetryStore.recordSnapshot(snapshot);
+            snapshotCache.value = snapshot;
+            snapshotCache.valueIncludeDetails = includeDetails;
+            snapshotCache.checkedAtMs = Date.now();
+        }
         return snapshot;
-    })();
+    };
+
+    if (scoped) {
+        return compute();
+    }
+
+    const task = compute();
 
     snapshotCache.promise = task;
     snapshotCache.promiseIncludeDetails = includeDetails;
@@ -497,6 +525,7 @@ export function resetClusterStatusSnapshotCache() {
     snapshotCache.value = null;
     snapshotCache.valueIncludeDetails = false;
     snapshotCache.checkedAtMs = 0;
+    throughputBaselineByServerId.clear();
 }
 
 function runWarmSnapshotCycle(options = {}) {

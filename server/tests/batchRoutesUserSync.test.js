@@ -14,6 +14,9 @@ function writeJson(filePath, value) {
 
 function seedDataDir(dataDir) {
     const subscriptionEmail = 'retry-sub@example.com';
+    // Use a recent timestamp so the seeded job stays inside the retention window
+    // regardless of the wall-clock date the suite runs on.
+    const recentIso = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     writeJson(path.join(dataDir, 'users.json'), [
         {
             id: 'user-retry-1',
@@ -64,8 +67,8 @@ function seedDataDir(dataDir) {
             type: 'user_sync',
             action: 'set_enabled',
             status: 'partial_success',
-            createdAt: '2026-03-12T00:00:00.000Z',
-            updatedAt: '2026-03-12T00:00:00.000Z',
+            createdAt: recentIso,
+            updatedAt: recentIso,
             actor: 'tester',
             summary: {
                 total: 2,

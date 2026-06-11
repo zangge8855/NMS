@@ -6,6 +6,11 @@ const BODY_MODAL_OVERFLOW_KEY = 'nmsModalOverflow';
 const BODY_MODAL_PADDING_KEY = 'nmsModalPaddingRight';
 const APP_ROOT_MODAL_INERT_COUNT_KEY = 'nmsModalInertCount';
 const MODAL_EXIT_DURATION_MS = 240;
+// Stack of currently-open ModalShell instance ids. Only the topmost entry reacts to Escape
+// and enforces the focus trap, so stacking a confirm/QR dialog over another modal doesn't
+// close them both at once or make the two focus traps fight each other.
+let modalInstanceSeq = 0;
+const modalStack = [];
 const FOCUSABLE_SELECTOR = [
     'a[href]',
     'area[href]',
@@ -123,7 +128,23 @@ export default function ModalShell({
     const previousFocusRef = useRef(null);
     const startSentinelRef = useRef(null);
     const endSentinelRef = useRef(null);
+    const instanceIdRef = useRef(0);
     const [shouldRender, setShouldRender] = useState(isOpen);
+
+    // Register/unregister this modal on the shared open-modal stack while it is open.
+    useEffect(() => {
+        if (!isOpen) return undefined;
+        const id = ++modalInstanceSeq;
+        instanceIdRef.current = id;
+        modalStack.push(id);
+        return () => {
+            const idx = modalStack.indexOf(id);
+            if (idx !== -1) modalStack.splice(idx, 1);
+        };
+    }, [isOpen]);
+
+    const isTopmostModal = () => modalStack.length === 0
+        || modalStack[modalStack.length - 1] === instanceIdRef.current;
 
     useEffect(() => {
         if (isOpen) {
@@ -194,11 +215,17 @@ export default function ModalShell({
         if (!isOpen) return undefined;
         const handleKeyDown = (event) => {
             if (event.key === 'Escape') {
+                // Only the topmost modal should consume Escape, so a stacked dialog closes
+                // alone instead of dismissing everything beneath it.
+                if (!isTopmostModal()) return;
                 event.preventDefault();
                 onClose?.();
             }
         };
         const handleFocusIn = (event) => {
+            // Defer to the topmost modal's focus trap; otherwise two stacked traps fight
+            // over focus.
+            if (!isTopmostModal()) return;
             const overlay = overlayRef.current;
             if (!overlay || overlay.contains(event.target)) return;
             focusDialogBoundary('start');

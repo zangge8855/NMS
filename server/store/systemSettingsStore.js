@@ -758,8 +758,8 @@ export class SystemSettingsStore {
         return { ...this.settings.auditIpGeo };
     }
 
-    getTelegram() {
-        const section = this.settings?.telegram || this._defaults().telegram;
+    getTelegram(sectionOverride) {
+        const section = sectionOverride || this.settings?.telegram || this._defaults().telegram;
         const decrypted = this._decryptTelegramTokenDetailed(section.botTokenEnc);
         const botToken = String(decrypted.value || '').trim();
         return {
@@ -905,9 +905,13 @@ export class SystemSettingsStore {
         if (candidateCamouflageEnabled && candidateSiteAccessPath === '/') {
             throw new Error('site.camouflageEnabled requires a non-root site.accessPath');
         }
-        this.settings = this._normalizeSettings(candidate, this.settings);
-        if (this.settings.telegram?.enabled === true) {
-            const telegram = this.getTelegram();
+        // Validate the candidate BEFORE committing it to this.settings. Mutating
+        // this.settings first and then throwing would leave in-memory state poisoned
+        // (e.g. telegram.enabled=true with no token), diverging from disk and making
+        // every subsequent update() re-merge from — and re-throw on — the bad state.
+        const nextSettings = this._normalizeSettings(candidate, this.settings);
+        if (nextSettings.telegram?.enabled === true) {
+            const telegram = this.getTelegram(nextSettings.telegram);
             if (!telegram.botTokenConfigured) {
                 throw new Error('telegram.botToken is required when Telegram alerts are enabled');
             }
@@ -915,6 +919,7 @@ export class SystemSettingsStore {
                 throw new Error('telegram.chatId is required when Telegram alerts are enabled');
             }
         }
+        this.settings = nextSettings;
         this._save();
         return this.getAll();
     }

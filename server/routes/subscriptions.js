@@ -3216,13 +3216,27 @@ function buildScopeTokenName(serverId = '') {
     return `auto-persistent:${serverId || 'all'}`;
 }
 
-function getOrCreateScopeToken(email, serverId = '', actor = 'admin') {
+function getOrCreateScopeToken(email, serverId = '', actor = 'admin', options = {}) {
     const scopeName = buildScopeTokenName(serverId);
     const existing = subscriptionTokenStore.getFirstActiveTokenByName(email, scopeName);
     if (existing?.token) {
         return {
             token: existing.token,
             metadata: existing.metadata,
+            scopeName,
+            autoIssued: false,
+            issueError: null,
+        };
+    }
+
+    // Only mint a new persistent token when the caller confirms this email resolves to a
+    // real subscription. The admin subscription preview fetches on every keystroke, so
+    // auto-issuing for any arbitrary string would mint never-expiring tokens (and audit
+    // noise) for partial emails like "a", "al", "ali"…
+    if (options.allowIssue === false) {
+        return {
+            token: '',
+            metadata: null,
             scopeName,
             autoIssued: false,
             issueError: null,
@@ -3869,7 +3883,14 @@ router.get('/:email', authMiddleware, ensureEmailAccess, async (req, res) => {
     }
 
     const { raw, encoded } = buildSubscriptionPayload(links);
-    const scopeToken = getOrCreateScopeToken(email, serverId, req.user?.role || 'admin');
+    // Don't auto-issue a persistent token unless this email actually resolved to a
+    // subscription (matched at least one client / produced links). Prevents per-keystroke
+    // token minting from the admin preview UI.
+    const hasResolvedSubscription = (Array.isArray(links) && links.length > 0)
+        || Number(matchedClientsRaw || 0) > 0;
+    const scopeToken = getOrCreateScopeToken(email, serverId, req.user?.role || 'admin', {
+        allowIssue: hasResolvedSubscription,
+    });
     const tokenRequired = !scopeToken?.token;
     if (scopeToken.autoIssued && scopeToken.metadata?.id) {
         appendSecurityAudit('subscription_token_auto_issued', req, {

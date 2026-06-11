@@ -274,7 +274,17 @@ export function computeDailyBackupSchedule(options = {}) {
     const targetToday = new Date(now);
     targetToday.setHours(Number(hoursText), Number(minutesText), 0, 0);
     const todayKey = buildDayKey(now);
-    const lastHandledDayKey = buildDayKey(options.lastBackupAt || options.lastBackupAttemptAt);
+    // "Handled today" must reflect the most recent attempt OR success — whichever is newer.
+    // Using `lastBackupAt || lastBackupAttemptAt` lets an OLD success short-circuit a
+    // failed attempt made today, so today never gets marked handled and the scheduler
+    // retries with zero delay forever (each retry re-runs gzip+encrypt+Telegram send).
+    const lastSuccessMs = new Date(options.lastBackupAt || 0).getTime();
+    const lastAttemptMs = new Date(options.lastBackupAttemptAt || 0).getTime();
+    const lastHandledMs = Math.max(
+        Number.isFinite(lastSuccessMs) ? lastSuccessMs : 0,
+        Number.isFinite(lastAttemptMs) ? lastAttemptMs : 0,
+    );
+    const lastHandledDayKey = lastHandledMs > 0 ? buildDayKey(lastHandledMs) : '';
     const handledToday = Boolean(todayKey && lastHandledDayKey && todayKey === lastHandledDayKey);
     const missedToday = !handledToday && nowMs >= targetToday.getTime();
     const shouldSendNow = !deferMissedRun && missedToday;

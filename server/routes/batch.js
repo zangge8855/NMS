@@ -15,6 +15,7 @@ import batchRiskTokenStore, {
     buildBatchRiskOperationKey,
 } from '../lib/batchRiskControl.js';
 import { normalizeBoolean } from '../lib/normalize.js';
+import { toHttpError } from '../lib/httpError.js';
 import {
     fetchPanelInboundByIdCompat,
     parseInboundClients,
@@ -926,6 +927,15 @@ function filterFailedResultsByGroup(failedResults, groupBy, groupKey) {
     return failedResults.filter((item) => buildRetryGroupKey(item, groupBy) === groupKey);
 }
 
+function requestContainsRedactedSecret(value) {
+    if (value === '[REDACTED]') return true;
+    if (Array.isArray(value)) return value.some((item) => requestContainsRedactedSecret(item));
+    if (value && typeof value === 'object') {
+        return Object.values(value).some((item) => requestContainsRedactedSecret(item));
+    }
+    return false;
+}
+
 function buildRetryRequestSnapshot(entry, options = {}) {
     const failedOnly = options.failedOnly !== false;
     const overrideConcurrency = options.overrideConcurrency;
@@ -1112,6 +1122,22 @@ async function retryHistoryItem(historyItem, req) {
         };
     }
 
+    // Prefer the unredacted request snapshot (in-session cache). Job history persisted to
+    // disk/DB and shown in the UI is redacted, so retrying off `historyItem.request` would
+    // either select zero targets (key mismatch) or replay the literal '[REDACTED]' as a real
+    // password, overwriting client credentials with a guessable constant.
+    const unredactedRequest = jobStore.getUnredactedRequest(historyItem.id);
+    if (unredactedRequest) {
+        historyItem = { ...historyItem, request: unredactedRequest };
+    } else if (requestContainsRedactedSecret(historyItem.request)) {
+        return {
+            error: {
+                status: 409,
+                msg: '该批量任务包含已脱敏的凭据（通常因服务重启导致），无法安全重试，请重新发起批量操作',
+            },
+        };
+    }
+
     const failedOnly = normalizeBoolean(req.body?.failedOnly, true);
     const overrideConcurrency = req.body?.concurrency !== undefined
         ? normalizeConcurrency(req.body?.concurrency, defaultConcurrencyFallback())
@@ -1194,65 +1220,79 @@ async function retryHistoryItem(historyItem, req) {
     }
 
     let run;
-    if (historyItem.type === 'clients') {
-        run = await performClientBatch({
-            action: historyItem.action,
-            targets: retryRequest.targets || [],
-            concurrency: normalizeConcurrency(retryRequest.concurrency, defaultConcurrencyFallback()),
-            globalClient: retryRequest.client,
-            payload: retryRequest.payload,
-        });
-    } else if (historyItem.type === 'inbounds') {
-        run = await performInboundBatch({
-            action: historyItem.action,
-            targets: retryRequest.targets || [],
-            payload: retryRequest.payload || null,
-            serverIds: retryRequest.serverIds || [],
-            concurrency: normalizeConcurrency(retryRequest.concurrency, defaultConcurrencyFallback()),
-            syncExistingSubscriptions: normalizeBoolean(retryRequest.syncExistingSubscriptions, false),
-            actor: req.user?.username || req.user?.role || 'admin',
-        });
-    } else if (historyItem.type === 'user_sync') {
-        const selectedTargets = Array.isArray(retryRequest.targets) ? retryRequest.targets : [];
-        const targetServerIds = Array.from(new Set(
-            selectedTargets
-                .map((item) => toStringValue(item.serverId))
-                .filter(Boolean)
-        ));
-        const targetInboundKeys = Array.from(new Set(
-            selectedTargets
-                .filter((item) => toStringValue(item.serverId) && item.inboundId !== null && item.inboundId !== undefined && item.inboundId !== '')
-                .map((item) => `${toStringValue(item.serverId)}:${toStringValue(item.inboundId)}`)
-        ));
-        const stages = new Set(selectedTargets.map((item) => toStringValue(item.stage)));
-        const syncResult = await resyncManagedUserNodes(
-            retryRequest.userId,
-            {
+    try {
+        if (historyItem.type === 'clients') {
+            run = await performClientBatch({
+                action: historyItem.action,
+                targets: retryRequest.targets || [],
+                concurrency: normalizeConcurrency(retryRequest.concurrency, defaultConcurrencyFallback()),
+                globalClient: retryRequest.client,
+                payload: retryRequest.payload,
+            });
+        } else if (historyItem.type === 'inbounds') {
+            run = await performInboundBatch({
+                action: historyItem.action,
+                targets: retryRequest.targets || [],
+                payload: retryRequest.payload || null,
+                serverIds: retryRequest.serverIds || [],
+                concurrency: normalizeConcurrency(retryRequest.concurrency, defaultConcurrencyFallback()),
+                syncExistingSubscriptions: normalizeBoolean(retryRequest.syncExistingSubscriptions, false),
+                actor: req.user?.username || req.user?.role || 'admin',
+            });
+        } else if (historyItem.type === 'user_sync') {
+            const selectedTargets = Array.isArray(retryRequest.targets) ? retryRequest.targets : [];
+            const targetServerIds = Array.from(new Set(
+                selectedTargets
+                    .map((item) => toStringValue(item.serverId))
+                    .filter(Boolean)
+            ));
+            const targetInboundKeys = Array.from(new Set(
+                selectedTargets
+                    .filter((item) => toStringValue(item.serverId) && item.inboundId !== null && item.inboundId !== undefined && item.inboundId !== '')
+                    .map((item) => `${toStringValue(item.serverId)}:${toStringValue(item.inboundId)}`)
+            ));
+            const stages = new Set(selectedTargets.map((item) => toStringValue(item.stage)));
+            const syncResult = await resyncManagedUserNodes(
+                retryRequest.userId,
+                {
+                    operation: retryRequest.operation,
+                    includeToggle: selectedTargets.length > 0 ? stages.has('client_toggle') : undefined,
+                    includeDeploy: selectedTargets.length > 0 ? stages.has('client_deploy') : undefined,
+                    targetServerIds,
+                    targetInboundKeys,
+                },
+                String(req.user?.username || req.user?.role || 'admin')
+            );
+            const payload = buildManagedUserSyncJobPayload({
                 operation: retryRequest.operation,
-                includeToggle: selectedTargets.length > 0 ? stages.has('client_toggle') : undefined,
-                includeDeploy: selectedTargets.length > 0 ? stages.has('client_deploy') : undefined,
-                targetServerIds,
-                targetInboundKeys,
-            },
-            String(req.user?.username || req.user?.role || 'admin')
-        );
-        const payload = buildManagedUserSyncJobPayload({
-            operation: retryRequest.operation,
-            target: syncResult.target,
-            subscriptionEmail: syncResult.subscriptionEmail,
-            enabled: syncResult.enabled,
-            clientSync: syncResult.clientSync,
-            deployment: syncResult.deployment,
-        });
-        run = {
-            output: payload.output,
-        };
-    } else {
+                target: syncResult.target,
+                subscriptionEmail: syncResult.subscriptionEmail,
+                enabled: syncResult.enabled,
+                clientSync: syncResult.clientSync,
+                deployment: syncResult.deployment,
+            });
+            run = {
+                output: payload.output,
+            };
+        } else {
+            return {
+                error: {
+                    status: 400,
+                    msg: `Unsupported history type: ${historyItem.type}`,
+                },
+            };
+        }
+    } catch (err) {
+        // Without this, a thrown error (e.g. resyncManagedUserNodes throwing 404 when the
+        // target user was since deleted) would reject up through the bare async route
+        // handler and, on Express 4, leave the HTTP request hanging forever.
+        const httpError = toHttpError(err, 400, '重试失败');
         return {
             error: {
-                status: 400,
-                msg: `Unsupported history type: ${historyItem.type}`,
+                status: httpError.status,
+                msg: httpError.message,
             },
+            risk: riskCheck.risk,
         };
     }
 

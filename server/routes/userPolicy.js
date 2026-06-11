@@ -63,6 +63,34 @@ function normalizeNonNegativeInt(value, fallback = 0) {
     return Math.max(0, Math.floor(parsed));
 }
 
+// Project a raw user record down to non-sensitive fields. The service returns the live
+// store record (which carries passwordHash/passwordSalt/pbkdf2Iterations and 2FA/verification
+// bookkeeping); never ship that to the client.
+function sanitizeUserRecord(user) {
+    if (!user || typeof user !== 'object') return user;
+    return {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        subscriptionEmail: user.subscriptionEmail,
+        groupId: user.groupId,
+        role: user.role,
+        enabled: user.enabled !== false,
+        emailVerified: !!user.emailVerified,
+        createdAt: user.createdAt,
+        lastLoginAt: user.lastLoginAt || null,
+    };
+}
+
+function sanitizePolicyResult(result) {
+    if (!result || typeof result !== 'object') return result;
+    const next = { ...result };
+    if (next.target) next.target = sanitizeUserRecord(next.target);
+    if (next.updated) next.updated = sanitizeUserRecord(next.updated);
+    if (next.user) next.user = sanitizeUserRecord(next.user);
+    return next;
+}
+
 router.use(authMiddleware);
 
 router.get('/:email', (req, res) => {
@@ -180,7 +208,7 @@ router.put('/:email', async (req, res) => {
             msg: result.partialFailure
                 ? '订阅策略已保存，但部分节点同步失败'
                 : '订阅策略已保存',
-            obj: result,
+            obj: sanitizePolicyResult(result),
         });
     } catch (error) {
         return res.status(400).json({

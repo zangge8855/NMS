@@ -21,6 +21,16 @@ const REDACTED_KEYS = new Set([
     'sshprivatekey',
 ]);
 
+const REDACTED_SENTINEL = '[REDACTED]';
+
+// In-memory-only (never persisted) cache of UNREDACTED request snapshots, keyed by job id.
+// Job history persisted to disk/DB and returned to the UI is redacted, but retry needs the
+// real credentials. Keeping them here — and only here — lets same-session retry replay the
+// true request without ever writing plaintext secrets to disk. Cleared on restart, so
+// post-restart retries fall back to the redacted snapshot (and are guarded against replaying
+// the [REDACTED] sentinel as a real value).
+const retryRequestCache = new Map();
+
 function ensureDataDir() {
     if (!fs.existsSync(config.dataDir)) {
         fs.mkdirSync(config.dataDir, { recursive: true });
@@ -176,6 +186,7 @@ class JobStore {
         }
 
         if (this.jobs.length !== oldLen) {
+            this._syncRetryCache();
             this._save();
         }
     }
@@ -216,8 +227,28 @@ class JobStore {
         if (this.jobs.length > this._maxRecords()) {
             this.jobs.length = this._maxRecords();
         }
+        // Stash the unredacted request for in-session retry (never persisted).
+        if (requestSnapshot && typeof requestSnapshot === 'object') {
+            retryRequestCache.set(entry.id, safeClone(requestSnapshot) || {});
+        }
+        this._syncRetryCache();
         this._save();
         return this._sanitizeEntry(entry);
+    }
+
+    // Returns the unredacted request snapshot for a job, if still cached this session.
+    getUnredactedRequest(id) {
+        const cached = retryRequestCache.get(id);
+        return cached ? safeClone(cached) : null;
+    }
+
+    // Drop cached retry requests for jobs no longer retained in memory.
+    _syncRetryCache() {
+        if (retryRequestCache.size === 0) return;
+        const liveIds = new Set(this.jobs.map((item) => item.id));
+        for (const id of retryRequestCache.keys()) {
+            if (!liveIds.has(id)) retryRequestCache.delete(id);
+        }
     }
 
     list(filters = {}) {
@@ -256,6 +287,7 @@ class JobStore {
     clear() {
         const cleared = this.jobs.length;
         this.jobs = [];
+        retryRequestCache.clear();
         this._save();
         return cleared;
     }

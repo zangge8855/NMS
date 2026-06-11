@@ -15,9 +15,13 @@ import { applyAppBootstrapSnapshots } from './utils/appBootstrap.js';
 
 const Login = lazy(() => import('./components/Login/Login.jsx'));
 const Sidebar = lazy(() => import('./components/Layout/Sidebar.jsx'));
-const Dashboard = lazy(() => import('./components/Dashboard/Dashboard.jsx'));
-const Inbounds = lazy(() => import('./components/Inbounds/Inbounds.jsx'));
-const UsersHub = lazy(() => import('./components/Users/UsersHub.jsx'));
+const loadDashboardPage = () => import('./components/Dashboard/Dashboard.jsx');
+const loadInboundsPage = () => import('./components/Inbounds/Inbounds.jsx');
+const loadUsersHubPage = () => import('./components/Users/UsersHub.jsx');
+
+const Dashboard = lazy(loadDashboardPage);
+const Inbounds = lazy(loadInboundsPage);
+const UsersHub = lazy(loadUsersHubPage);
 const UserDetail = lazy(() => import('./components/Users/UserDetail.jsx'));
 const Subscriptions = lazy(() => import('./components/Subscriptions/Subscriptions.jsx'));
 const DownloadsCenter = lazy(() => import('./components/Subscriptions/DownloadsCenter.jsx'));
@@ -145,6 +149,20 @@ function ProtectedLayout() {
             window.clearTimeout(timer);
         };
     }, [token]);
+
+    useEffect(() => {
+        if (!isAdmin || !token) return undefined;
+        const preloadAdminWorkspaces = () => {
+            loadUsersHubPage().catch(() => {});
+            loadInboundsPage().catch(() => {});
+        };
+        if (typeof window.requestIdleCallback === 'function') {
+            const idleId = window.requestIdleCallback(preloadAdminWorkspaces, { timeout: 2500 });
+            return () => window.cancelIdleCallback?.(idleId);
+        }
+        const timer = window.setTimeout(preloadAdminWorkspaces, 1200);
+        return () => window.clearTimeout(timer);
+    }, [isAdmin, token]);
 
     const fetchRootWsTicket = useCallback(async ({ force = false } = {}) => {
         if (!isAdmin || !token) {

@@ -68,8 +68,8 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                 setNoProtocolLimit(protocolScopeMode === 'all');
                 setLimitIp(String(normalizeLimitIp(payload.limitIp)));
                 setTrafficLimitGb(bytesToGigabytesInput(payload.trafficLimitBytes));
-                setSpeedLimitUp(String(Number(payload.speedLimitUp || 0) / (1024 * 1024)));
-                setSpeedLimitDown(String(Number(payload.speedLimitDown || 0) / (1024 * 1024)));
+                setSpeedLimitUp(String(Number(payload.speedLimitUp || 0)));
+                setSpeedLimitDown(String(Number(payload.speedLimitDown || 0)));
             } catch (error) {
                 if (!cancelled) {
                     const msg = error.response?.data?.msg || error.message || '权限策略加载失败';
@@ -117,8 +117,10 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
             protocolScopeMode,
             limitIp: normalizeLimitIp(limitIp),
             trafficLimitBytes: gigabytesInputToBytes(trafficLimitGb),
-            speedLimitUp: Number(speedLimitUp || 0) * 1024 * 1024,
-            speedLimitDown: Number(speedLimitDown || 0) * 1024 * 1024,
+            // Speed limits are stored and forwarded verbatim as KB/s — match the unit used
+            // by the UsersHub provision/edit modals and the Inbounds entitlement modal.
+            speedLimitUp: Number(speedLimitUp || 0),
+            speedLimitDown: Number(speedLimitDown || 0),
         };
 
         setSaving(true);
@@ -246,7 +248,7 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                                                     value={speedLimitUp}
                                                     onChange={(e) => setSpeedLimitUp(e.target.value)}
                                                 />
-                                                <span className="text-sm text-muted">MB/s</span>
+                                                <span className="text-sm text-muted">KB/s</span>
                                             </div>
                                             <div className="text-xs text-muted mt-1">0 表示不限速</div>
                                         </div>
@@ -260,7 +262,7 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                                                     value={speedLimitDown}
                                                     onChange={(e) => setSpeedLimitDown(e.target.value)}
                                                 />
-                                                <span className="text-sm text-muted">MB/s</span>
+                                                <span className="text-sm text-muted">KB/s</span>
                                             </div>
                                             <div className="text-xs text-muted mt-1">0 表示不限速</div>
                                         </div>

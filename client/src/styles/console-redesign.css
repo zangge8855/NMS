@@ -3682,7 +3682,7 @@ label,
   min-height: 30px !important;
   padding: 6px 10px !important;
   border-radius: 10px !important;
-  background: rgba(248, 250, 252, 0.72) !important;
+  background: var(--surface-soft) !important;
 }
 
 .audit-page .audit-inbound-breakdown-empty {
@@ -3749,9 +3749,9 @@ label,
   grid-template-columns: 14px minmax(0, 1fr) !important;
   gap: 10px !important;
   padding: 12px !important;
-  border: 1px solid rgba(148, 163, 184, 0.24) !important;
+  border: 1px solid var(--surface-card-border) !important;
   border-radius: 12px !important;
-  background: rgba(255, 255, 255, 0.78) !important;
+  background: var(--surface-elevated-muted) !important;
   box-shadow: none !important;
 }
 
@@ -4050,7 +4050,16 @@ label,
 
 .inbounds-table .inbounds-protocol-col,
 .inbounds-table .inbounds-protocol-cell {
-  width: 72px !important;
+  width: 112px !important;
+}
+
+/* Keep long protocol names (e.g. SHADOWSOCKS, DOKODEMO-DOOR) readable: size the badge to
+   the cell and ellipsize at the end instead of clipping mid-word on both sides. */
+.inbounds-table .inbounds-protocol-cell .badge {
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
 }
 
 .inbounds-table .inbounds-port-col,

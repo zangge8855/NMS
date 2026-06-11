@@ -41,9 +41,27 @@ function loadArray(file) {
     }
 }
 
+// Serialize async saves per file. Without this, two fire-and-forget saves of the same
+// audit file (e.g. an append that also prunes) race: their renames can land out of order
+// so an older snapshot wins, dropping the newest entries, and interleaved writes can
+// corrupt the file (which then loads as [] on restart, wiping audit history).
+const saveChains = new Map();
+
 function saveArray(file, data) {
-    saveObjectAtomicAsync(file, data).catch((err) => {
-        console.error(`[AuditStore Error] Failed async save to ${file}:`, err);
+    // Snapshot the content synchronously so a later mutation of `data` can't change what
+    // this particular save was asked to persist.
+    const content = Array.isArray(data) ? data.slice() : data;
+    const prev = saveChains.get(file) || Promise.resolve();
+    const next = prev
+        .catch(() => {})
+        .then(() => saveObjectAtomicAsync(file, content))
+        .catch((err) => {
+            console.error(`[AuditStore Error] Failed async save to ${file}:`, err);
+        });
+    saveChains.set(file, next);
+    // Avoid unbounded chain growth: once this link settles and is still the tail, drop it.
+    next.finally(() => {
+        if (saveChains.get(file) === next) saveChains.delete(file);
     });
 }
 

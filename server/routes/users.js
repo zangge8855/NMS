@@ -170,12 +170,20 @@ router.post('/:id/tokens', (req, res) => {
         return res.status(400).json({ success: false, msg: '用户未配置邮箱' });
     }
     try {
-        const result = subscriptionTokenStore.issue(email, {
+        const explicitNoExpiry = req.body?.noExpiry === true;
+        const rawTtl = Number(req.body?.ttlDays);
+        const issueOptions = {
             name: String(req.body?.name || '').trim() || 'manual',
-            ttlDays: Number(req.body?.ttlDays) || 0,
-            noExpiry: req.body?.noExpiry === true,
+            noExpiry: explicitNoExpiry,
             createdBy: req.user?.username || 'admin',
-        });
+        };
+        // Only honor an explicit positive ttlDays. Omitting it lets the store fall back to
+        // the configured default TTL — a missing/invalid ttlDays must NOT silently mint a
+        // never-expiring token; only the explicit noExpiry flag may do that.
+        if (!explicitNoExpiry && Number.isFinite(rawTtl) && rawTtl > 0) {
+            issueOptions.ttlDays = rawTtl;
+        }
+        const result = subscriptionTokenStore.issue(email, issueOptions);
         appendSecurityAudit('subscription_token_issued', req, {
             ...buildAuditTarget(user),
             tokenId: result.tokenId,

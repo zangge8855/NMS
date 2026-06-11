@@ -183,16 +183,23 @@ export async function copyToClipboard(text) {
         await navigator.clipboard.writeText(text);
         return true;
     } catch {
-        // Fallback
+        // Fallback for non-secure contexts where navigator.clipboard is unavailable.
         const ta = document.createElement('textarea');
         ta.value = text;
         ta.style.position = 'fixed';
         ta.style.opacity = '0';
         document.body.appendChild(ta);
         ta.select();
-        document.execCommand('copy');
+        let ok = false;
+        try {
+            // execCommand returns false (or throws) when the copy is blocked; surface that
+            // so callers don't show a false "copied" confirmation.
+            ok = document.execCommand('copy');
+        } catch {
+            ok = false;
+        }
         document.body.removeChild(ta);
-        return true;
+        return ok;
     }
 }
 

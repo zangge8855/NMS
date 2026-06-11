@@ -1392,7 +1392,7 @@ export default function Inbounds() {
                         </button>
                         <button
                             className="btn btn-secondary btn-sm btn-icon inbounds-refresh-btn"
-                            onClick={fetchAllInbounds}
+                            onClick={() => fetchAllInbounds({ force: true })}
                             title={t('pages.inbounds.toolbar.refresh')}
                             aria-label={t('pages.inbounds.toolbar.refresh')}
                         >
@@ -1618,7 +1618,7 @@ export default function Inbounds() {
                                                 >
                                                     <InboundRemarkPill remark={ib.remark} protocol={ib.protocol} />
                                                 </td>
-                                                <td data-label={t('pages.inbounds.cols.protocol')} className="table-cell-center whitespace-nowrap inbounds-protocol-cell"><span className="badge badge-info">{ib.protocol}</span></td>
+                                                <td data-label={t('pages.inbounds.cols.protocol')} className="table-cell-center whitespace-nowrap inbounds-protocol-cell"><span className="badge badge-info" title={ib.protocol}>{ib.protocol}</span></td>
                                                 <td data-label={t('pages.inbounds.cols.listenPort')} className="table-cell-right cell-mono text-sm whitespace-nowrap inbounds-port-cell">{ib.listen || '*'}:{ib.port}</td>
                                                 <td data-label={t('pages.inbounds.cols.users')} className="table-cell-center inbounds-users-cell">
                                                     <span className="cell-mono inbounds-user-count" title={t('pages.inbounds.toolbar.summary', { count: clients.length })}>

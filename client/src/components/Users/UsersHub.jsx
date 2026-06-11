@@ -2129,7 +2129,7 @@ export default function UsersHub() {
                                             <span>{group.memberCount || 0}</span>
                                             {memberPreview.length > 0 ? (
                                                 <span className="text-xs text-muted">
-                                                    {memberPreview.join(separator)}${group.memberCount > memberPreview.length ? t('pages.usersHub.groups.membersMore', { count: group.memberCount - memberPreview.length }) : ''}
+                                                    {memberPreview.join(separator)}{group.memberCount > memberPreview.length ? t('pages.usersHub.groups.membersMore', { count: group.memberCount - memberPreview.length }) : ''}
                                                 </span>
                                             ) : <span className="text-xs text-muted">{t('pages.usersHub.groups.noMembers')}</span>}
                                         </div>

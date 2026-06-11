@@ -1,5 +1,18 @@
 import fs from 'fs';
+import crypto from 'crypto';
 import { shouldWriteFile } from './dbMirror.js';
+
+// Monotonic counter so two writers entering in the same millisecond (and even with the
+// same PID) never derive the same temp filename. A same-name collision would let two
+// concurrent writers truncate and interleave into one temp file, corrupting it before
+// either rename publishes.
+let tempCounter = 0;
+
+function makeTempFile(file) {
+    tempCounter = (tempCounter + 1) % Number.MAX_SAFE_INTEGER;
+    const rand = crypto.randomBytes(6).toString('hex');
+    return `${file}.${process.pid}.${Date.now()}.${tempCounter}.${rand}.tmp`;
+}
 
 /**
  * Saves a JSON object to a file atomically by writing to a temporary file
@@ -10,16 +23,24 @@ import { shouldWriteFile } from './dbMirror.js';
  */
 export function saveObjectAtomic(file, data) {
     if (!shouldWriteFile()) return;
-    
+
     const content = JSON.stringify(data, null, 2);
-    const tempFile = `${file}.${process.pid}.${Date.now()}.tmp`;
-    
+    const tempFile = makeTempFile(file);
+
+    let tempWritten = false;
     try {
         fs.writeFileSync(tempFile, content, 'utf8');
+        tempWritten = true;
         fs.renameSync(tempFile, file);
     } catch (e) {
-        // Fallback: renameSync may fail on Windows due to file locks or cross-device links;
-        // fall back to direct write.
+        // Only fall back to a direct write when the temp file was fully written but the
+        // rename failed (e.g. Windows file locks / cross-device links). If the temp write
+        // itself failed (ENOSPC, EACCES, …), a direct write would truncate the real file
+        // first and could fail mid-write, destroying the last good copy — so rethrow.
+        if (!tempWritten) {
+            console.error(`[Store Error] Failed to write temp file for ${file}:`, e);
+            throw e;
+        }
         try {
             fs.writeFileSync(file, content, 'utf8');
         } catch (writeErr) {
@@ -46,14 +67,20 @@ export function saveObjectAtomic(file, data) {
  */
 export async function saveObjectAtomicAsync(file, data) {
     if (!shouldWriteFile()) return;
-    
+
     const content = JSON.stringify(data, null, 2);
-    const tempFile = `${file}.${process.pid}.${Date.now()}.tmp`;
-    
+    const tempFile = makeTempFile(file);
+
+    let tempWritten = false;
     try {
         await fs.promises.writeFile(tempFile, content, 'utf8');
+        tempWritten = true;
         await fs.promises.rename(tempFile, file);
     } catch (e) {
+        if (!tempWritten) {
+            console.error(`[Store Error] Failed to write temp file for ${file}:`, e);
+            throw e;
+        }
         try {
             await fs.promises.writeFile(file, content, 'utf8');
         } catch (writeErr) {
@@ -68,4 +95,3 @@ export async function saveObjectAtomicAsync(file, data) {
         }
     }
 }
-

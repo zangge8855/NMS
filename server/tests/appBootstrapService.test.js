@@ -193,10 +193,12 @@ describe('app bootstrap service', () => {
             });
             const error = new Error('connect ECONNREFUSED 127.0.0.1:65535');
             error.code = 'ECONNREFUSED';
+            // Use the full-cluster collection path (no `servers` override) so the shared
+            // cluster snapshot cache is populated, mirroring the production warm loop.
+            // Scoped (single-server) collections deliberately no longer write that cache.
             await collectClusterStatusSnapshot({
                 force: true,
                 includeDetails: false,
-                servers: [{ id: 'server-a', name: 'Node A', health: 'healthy' }],
                 ensureAuthenticated: async () => {
                     throw error;
                 },
