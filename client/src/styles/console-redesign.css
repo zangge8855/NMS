@@ -3146,7 +3146,9 @@ label,
 
 .servers-page .servers-toolbar-summary {
   display: grid !important;
-  grid-template-columns: repeat(3, minmax(92px, auto)) minmax(150px, 1fr) !important;
+  /* Size every chip to its content; stretching the last one made it read
+     as a misaligned, oversized pill. */
+  grid-template-columns: repeat(4, minmax(92px, auto)) !important;
   gap: 8px !important;
   align-items: center !important;
   justify-content: end !important;
@@ -3214,16 +3216,19 @@ label,
   text-align: center !important;
 }
 
-.inbounds-table .inbounds-expand-col {
-  width: 48px !important;
-}
+/* Inbounds column widths live in the consolidated block further down
+   (search for "Inbounds column budget"); keep a single source of truth. */
 
-.inbounds-table .inbounds-sequence-col {
-  width: 76px !important;
-}
-
-.inbounds-table .inbounds-port-col {
+/* Long node ids wrapped at every hyphen into a tall stack; keep them on
+   one line and let the wide user column absorb the difference. */
+.audit-page .audit-events-table th.audit-event-node-column {
   width: 150px !important;
+}
+
+.audit-events-table td.audit-event-node-cell {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
 
 .inbounds-table .inbounds-actions-col,
@@ -3242,16 +3247,19 @@ label,
 
 .servers-table .servers-move-column,
 .servers-table .servers-order-column {
-  width: 58px !important;
+  width: 46px !important;
 }
 
 .servers-table .servers-telemetry-column {
-  width: 210px !important;
+  width: 200px !important;
 }
 
-.servers-table .servers-status-column,
 .servers-table .servers-credential-column {
-  width: 112px !important;
+  width: 102px !important;
+}
+
+.servers-table .servers-status-column {
+  width: 96px !important;
 }
 
 .inbounds-table :is(.inbounds-sequence-actions, .inbounds-node-order-actions, .inbounds-row-actions),
@@ -3425,24 +3433,48 @@ label,
 }
 
 .servers-page .servers-table {
-  min-width: 1360px !important;
+  min-width: 1180px !important;
   table-layout: fixed !important;
 }
 
+/* Column budget at the common 1500-1700px desktop: fixed columns total ~994px,
+   the name column absorbs the remainder, so the table fits without a
+   horizontal scrollbar and nothing gets clipped behind the actions column. */
 .servers-table .servers-name-column {
-  width: 230px !important;
+  width: auto !important;
 }
 
 .servers-table .servers-group-column {
-  width: 150px !important;
+  width: 138px !important;
 }
 
 .servers-table .servers-account-column {
-  width: 160px !important;
+  width: 146px !important;
 }
 
 .servers-table .servers-actions-column {
-  width: 170px !important;
+  width: 168px !important;
+}
+
+/* Keep the 2x2 action grid aligned: every control fills its track so the
+   icon-only row sits flush under the labelled row. */
+.servers-table .servers-row-actions {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+  width: 100% !important;
+}
+
+.servers-table .servers-row-actions > * {
+  width: 100% !important;
+  min-width: 0 !important;
+  justify-content: center !important;
+}
+
+.servers-table .servers-telemetry-cell,
+.servers-table .servers-telemetry-cell > * {
+  max-width: 100% !important;
+  min-width: 0 !important;
 }
 
 .servers-table .servers-tags-cell,
@@ -3547,12 +3579,14 @@ label,
 
 .users-table th:nth-child(2),
 .users-table td:nth-child(2) {
-  width: 64px !important;
+  /* The sequence header holds label + sort caret (~94px incl. padding);
+     64px clipped it. The identity column gives the difference back. */
+  width: 88px !important;
 }
 
 .users-table .users-identity-column,
 .users-table .users-identity-cell {
-  width: 240px !important;
+  width: 216px !important;
 }
 
 .users-table .users-status-column,
@@ -4024,33 +4058,39 @@ label,
   table-layout: fixed !important;
 }
 
+/* Inbounds column budget: the declared widths used to sum past the
+   container, so fixed layout compressed every column and truncated node
+   badges, protocol badges and the actions cell. Fixed columns now total
+   ~832px; node and remark stay auto and split the remainder (~211px each
+   at the common desktop width). */
 .inbounds-table .cell-checkbox {
-  width: 48px !important;
+  width: 44px !important;
 }
 
 .inbounds-table .inbounds-expand-col,
 .inbounds-table .inbounds-expand-cell {
-  width: 44px !important;
+  width: 36px !important;
 }
 
 .inbounds-table .inbounds-sequence-col,
 .inbounds-table .inbounds-sequence-cell-td {
-  width: 60px !important;
+  width: 56px !important;
 }
 
 .inbounds-table .inbounds-node-col,
 .inbounds-table .inbounds-node-cell {
-  width: 136px !important;
+  width: auto !important;
 }
 
 .inbounds-table .inbounds-remark-col,
 .inbounds-table .inbounds-remark-cell {
-  width: 166px !important;
+  width: auto !important;
 }
 
 .inbounds-table .inbounds-protocol-col,
 .inbounds-table .inbounds-protocol-cell {
-  width: 112px !important;
+  /* Widest protocol badge (DOKODEMO-DOOR) needs ~128px untruncated. */
+  width: 140px !important;
 }
 
 /* Keep long protocol names (e.g. SHADOWSOCKS, DOKODEMO-DOOR) readable: size the badge to
@@ -4064,27 +4104,29 @@ label,
 
 .inbounds-table .inbounds-port-col,
 .inbounds-table .inbounds-port-cell {
-  width: 118px !important;
+  /* "127.0.0.1:1053" measures ~147px in the mono cell font. */
+  width: 148px !important;
 }
 
 .inbounds-table .inbounds-users-col,
 .inbounds-table .inbounds-users-cell {
-  width: 72px !important;
+  width: 64px !important;
 }
 
 .inbounds-table .inbounds-traffic-col,
 .inbounds-table .inbounds-traffic-cell {
-  width: 116px !important;
+  width: 120px !important;
 }
 
 .inbounds-table .inbounds-status-col,
 .inbounds-table .inbounds-status-cell-wrap {
-  width: 110px !important;
+  width: 92px !important;
 }
 
 .inbounds-table .inbounds-actions-col,
 .inbounds-table .inbounds-actions-cell {
-  width: 104px !important;
+  /* Edit + overflow menu are 48px each plus gap and cell padding. */
+  width: 132px !important;
   overflow: visible !important;
 }
 
@@ -4450,6 +4492,13 @@ label,
   height: 44px !important;
   min-height: 44px !important;
   border-radius: 12px !important;
+  /* Fixed-width pills must center their content; the inherited flex button
+     base is start-justified with side padding, which shifts the label left. */
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  gap: 0 !important;
 }
 
 .header-search-input {
@@ -4474,7 +4523,9 @@ label,
 
   .inbounds-page .inbounds-actions-col,
   .inbounds-page .inbounds-actions-cell {
-    width: 116px !important;
+    /* Edit + overflow menu need 48px each plus gap and cell padding;
+       116px clipped the second control. */
+    width: 132px !important;
   }
 }
 
@@ -4507,6 +4558,19 @@ label,
   .mobile-bottom-nav-track {
     pointer-events: auto !important;
   }
+}
+
+/* Emails in the narrow status card used to break mid-word
+   ("...@fixtures.inval / id"); truncate on one line instead. */
+.subscription-summary-item > .subscription-email-link {
+  display: block !important;
+  max-width: 100% !important;
+  min-height: 0 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
 }
 
 @media (max-width: 1180px) {
