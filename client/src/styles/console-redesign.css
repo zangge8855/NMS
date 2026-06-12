@@ -4604,3 +4604,283 @@ label,
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)) !important;
   }
 }
+
+/* ==========================================================================
+   UI QA stabilization: light/dark parity, contained tables, compact controls
+   ========================================================================== */
+
+[data-theme="light"] {
+  --bg-primary: #f3f6fa;
+  --bg-secondary: #eef3f8;
+  --bg-tertiary: #e7edf5;
+  --surface-panel-soft: #f7f9fc;
+  --surface-table-header: #f8fafc;
+  --surface-card-border: rgba(15, 23, 42, 0.09);
+  --surface-elevated-border: rgba(15, 23, 42, 0.10);
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05), 0 6px 18px -16px rgba(15, 23, 42, 0.16);
+  --shadow-md: 0 1px 3px rgba(15, 23, 42, 0.06), 0 16px 36px -24px rgba(15, 23, 42, 0.20);
+  --surface-elevated-shadow: var(--shadow-sm);
+}
+
+[data-theme="dark"] {
+  --bg-input: #111827;
+  --surface-panel-soft: #111827;
+  --surface-table-header: #111827;
+  --surface-elevated-border: rgba(148, 163, 184, 0.18);
+}
+
+:is(.card, .table-container, .modal, .settings-panel, .page-toolbar, .list-toolbar) {
+  border-radius: 10px !important;
+}
+
+:is(.table-container, .page-toolbar, .list-toolbar, .settings-panel) {
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.table {
+  min-width: 100%;
+}
+
+.table :is(th, td) {
+  box-sizing: border-box !important;
+}
+
+.table td :is(.badge, .inbound-remark-pill, .server-card-name, .subscription-email-link, .mono-truncate) {
+  min-width: 0 !important;
+}
+
+.table td.table-cell-actions {
+  overflow: visible !important;
+}
+
+.table-cell-actions :is(.table-row-actions, .users-row-actions, .servers-row-actions, .inbounds-row-actions) {
+  max-width: 100% !important;
+}
+
+.table-cell-actions :is(.btn-icon, .table-action-btn, .actions-dropdown-trigger) {
+  width: 40px !important;
+  min-width: 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  padding: 0 !important;
+  border-radius: 9px !important;
+}
+
+.inbounds-page .table-container {
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+}
+
+.inbounds-page .inbounds-table {
+  width: 100% !important;
+  min-width: 1088px !important;
+  max-width: none !important;
+  overflow: visible !important;
+}
+
+.inbounds-table .inbounds-expand-col,
+.inbounds-table .inbounds-expand-cell {
+  width: 34px !important;
+}
+
+.inbounds-table .inbounds-sequence-col,
+.inbounds-table .inbounds-sequence-cell-td {
+  width: 52px !important;
+}
+
+.inbounds-table .inbounds-protocol-col,
+.inbounds-table .inbounds-protocol-cell {
+  width: 126px !important;
+}
+
+.inbounds-table .inbounds-port-col,
+.inbounds-table .inbounds-port-cell {
+  width: 134px !important;
+}
+
+.inbounds-table .inbounds-users-col,
+.inbounds-table .inbounds-users-cell {
+  width: 68px !important;
+}
+
+.inbounds-table .inbounds-traffic-col,
+.inbounds-table .inbounds-traffic-cell {
+  width: 112px !important;
+}
+
+.inbounds-table .inbounds-status-col,
+.inbounds-table .inbounds-status-cell-wrap {
+  width: 86px !important;
+}
+
+.inbounds-table .inbounds-actions-col,
+.inbounds-table .inbounds-actions-cell {
+  width: 112px !important;
+  min-width: 112px !important;
+}
+
+.inbounds-table .inbounds-row-actions {
+  display: inline-flex !important;
+  justify-content: flex-end !important;
+  gap: 4px !important;
+  width: 100% !important;
+}
+
+.inbounds-table .actions-dropdown-wrapper {
+  display: inline-flex !important;
+}
+
+.audit-events-table td.audit-event-node-cell {
+  max-width: 150px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.settings-grid,
+.settings-grid--access-workspace,
+.settings-grid--operations-workspace,
+.settings-grid--backup-workspace {
+  align-items: start !important;
+}
+
+.settings-workspace-section,
+.settings-workspace-section-body,
+.settings-panel,
+.settings-ops-panel,
+.settings-telegram-panel {
+  min-width: 0 !important;
+}
+
+.settings-workspace-section[data-workspace="operations"],
+.settings-workspace-section[data-workspace="access"],
+.settings-workspace-section[data-workspace="backup"] {
+  align-self: start !important;
+}
+
+.settings-page .settings-workspace-section-body {
+  align-content: start !important;
+}
+
+.settings-page .settings-panel,
+.settings-page .settings-ops-card,
+.settings-page .settings-mini-card,
+.settings-page .settings-backup-action-card,
+.settings-page .settings-db-control-card {
+  background: var(--surface-panel) !important;
+  border-color: var(--surface-elevated-border) !important;
+  box-shadow: none !important;
+}
+
+.settings-page .settings-save-dock {
+  border-radius: 10px !important;
+  background: var(--surface-panel) !important;
+  border-color: var(--surface-elevated-border) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+.settings-page .settings-main,
+.settings-page .settings-workspace-section,
+.settings-page .settings-workspace-section-body,
+.settings-page .settings-section-stack,
+.settings-page .settings-grid,
+.settings-page .settings-panel,
+.settings-page .settings-save-dock {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.dashboard-hero-glow {
+  max-width: 100% !important;
+  inset: -26% 0 auto auto !important;
+  width: min(360px, 58%) !important;
+  height: 360px !important;
+  opacity: 0.56 !important;
+}
+
+.dashboard-hero {
+  overflow: hidden !important;
+}
+
+@media (max-width: 768px) {
+  .page-content,
+  .page-content--wide {
+    padding-inline: 12px !important;
+    max-width: 100% !important;
+    overflow-x: clip !important;
+  }
+
+  .page-toolbar,
+  .page-toolbar--stack-tablet,
+  .list-toolbar {
+    width: 100% !important;
+    overflow: hidden !important;
+    gap: 10px !important;
+  }
+
+  .page-toolbar > *,
+  .list-toolbar > *,
+  .page-toolbar :is(.page-toolbar-main, .page-toolbar-actions, .page-toolbar-summary),
+  .list-toolbar :is(.page-toolbar-main, .page-toolbar-actions, .page-toolbar-summary),
+  .servers-toolbar :is(.servers-toolbar-summary, .servers-selection-bar, .servers-filter-summary) {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .servers-page .servers-toolbar-summary {
+    display: grid !important;
+    width: 100% !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    justify-content: stretch !important;
+  }
+
+  .servers-page .servers-summary-pill,
+  .servers-page .servers-filter-summary {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .servers-page .servers-filter-summary {
+    grid-column: 1 / -1 !important;
+    text-align: center !important;
+  }
+
+  .servers-page .servers-toolbar .btn {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .inbounds-page .inbounds-table {
+    min-width: 0 !important;
+  }
+
+  .table-cell-actions :is(.btn-icon, .table-action-btn, .actions-dropdown-trigger) {
+    width: 38px !important;
+    min-width: 38px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1500px) {
+  .settings-page .settings-grid--access-workspace,
+  .settings-page .settings-grid--operations-workspace {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .settings-page .settings-telegram-panel .settings-toggle-collection--telegram {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
+  }
+}
+
+@media (min-width: 1501px) {
+  .settings-page .settings-grid--operations-workspace {
+    grid-template-columns: minmax(0, 1fr) minmax(460px, 0.9fr) !important;
+  }
+
+  .settings-page .settings-telegram-panel .settings-toggle-collection--telegram {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
