@@ -4864,6 +4864,330 @@ label,
   }
 }
 
+/* ==========================================================================
+   Whole-console visual unification pass
+   ========================================================================== */
+
+:is(.users-page, .inbounds-page, .servers-page, .audit-page, .settings-page, .logs-page, .tools-page, .capabilities-page, .xray-page, .account-page, .subscriptions-page)
+  :is(.card, .glass-panel, .table-container, .page-toolbar, .list-toolbar, .section-header) {
+  border-radius: 10px !important;
+  border-color: var(--surface-elevated-border) !important;
+  background: var(--surface-panel) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+:is(.users-page, .inbounds-page, .servers-page, .audit-page, .settings-page, .logs-page, .tools-page, .capabilities-page, .xray-page, .account-page, .subscriptions-page)
+  :is(.section-header-title, .card-title) {
+  font-size: 15px !important;
+  line-height: 1.35 !important;
+  font-weight: 640 !important;
+}
+
+:is(.users-page, .inbounds-page, .servers-page, .audit-page, .settings-page, .logs-page, .tools-page, .capabilities-page, .xray-page, .account-page, .subscriptions-page)
+  :is(.section-header-subtitle, .card-subtitle, .text-muted) {
+  line-height: 1.5 !important;
+}
+
+.table-container > .table {
+  width: 100% !important;
+}
+
+.users-page .table-container,
+.inbounds-page .table-container,
+.servers-page .table-container,
+.audit-page .table-container {
+  background: var(--surface-panel) !important;
+}
+
+.users-page .users-table {
+  width: 100% !important;
+  min-width: 1040px !important;
+}
+
+.users-table .users-identity-column,
+.users-table .users-identity-cell {
+  width: auto !important;
+}
+
+.users-table .users-actions-column,
+.users-table .users-actions-cell {
+  width: 128px !important;
+  min-width: 128px !important;
+  overflow: visible !important;
+}
+
+.users-table .users-row-actions,
+.inbounds-table .inbounds-row-actions,
+.servers-table .servers-row-actions {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 6px !important;
+  width: 100% !important;
+  flex-wrap: nowrap !important;
+}
+
+.users-table .users-row-actions :is(.btn-icon, .table-action-btn, .actions-dropdown-trigger),
+.inbounds-table .inbounds-row-actions :is(.btn-icon, .table-action-btn, .actions-dropdown-trigger),
+.servers-table .servers-row-actions :is(.btn-icon, .table-action-btn, .actions-dropdown-trigger) {
+  width: 38px !important;
+  min-width: 38px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  border-radius: 9px !important;
+}
+
+.inbound-remark-pill,
+.inbound-remark-pill:is(.is-cyan, .is-blue, .is-amber, .is-violet, .is-emerald, .is-rose, .is-indigo, .is-slate, .is-neutral),
+.inbounds-table .inbounds-protocol-cell .badge,
+.users-table .badge-info,
+.servers-table .server-tag,
+.capabilities-page .badge-neutral {
+  background: var(--surface-panel-soft) !important;
+  color: var(--text-secondary) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: none !important;
+}
+
+.inbounds-table .inbounds-node-badge {
+  color: var(--text-secondary) !important;
+  background: var(--surface-panel-soft) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: none !important;
+}
+
+.inbounds-table .inbounds-node-badge svg {
+  color: var(--accent-primary) !important;
+}
+
+.inbounds-table .inbounds-protocol-cell .badge {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  text-align: left !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.inbounds-table .inbounds-traffic-stack,
+.users-table .users-traffic-stack,
+.inbounds-client-traffic-stack {
+  color: var(--text-secondary) !important;
+  font-weight: 560 !important;
+}
+
+.inbounds-table .inbounds-traffic-stack :is(.text-success, .text-info),
+.users-table .users-traffic-stack :is(.text-success, .text-info),
+.inbounds-client-traffic-stack :is(.text-success, .text-info) {
+  color: var(--text-secondary) !important;
+}
+
+.inbounds-table .inbounds-traffic-stack .text-success::first-letter,
+.users-table .users-traffic-stack .text-success::first-letter,
+.inbounds-client-traffic-stack .text-success::first-letter {
+  color: var(--accent-success) !important;
+}
+
+.inbounds-table .inbounds-traffic-stack .text-info::first-letter,
+.users-table .users-traffic-stack .text-info::first-letter,
+.inbounds-client-traffic-stack .text-info::first-letter {
+  color: var(--accent-info) !important;
+}
+
+.subscriptions-page :is(.subscription-primary-card, .subscription-guide-card, .subscription-summary-card, .subscription-downloads-card, .subscription-downloads-page-card, .subscription-device-card) {
+  border-color: var(--surface-elevated-border) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+.subscriptions-page .subscription-primary-card--user {
+  border-color: var(--surface-elevated-border) !important;
+  background: var(--surface-panel) !important;
+}
+
+@media (min-width: 1101px) and (max-width: 1500px) {
+  .inbounds-page .table-container {
+    overflow-x: hidden !important;
+  }
+
+  .inbounds-page .inbounds-table {
+    width: 100% !important;
+    min-width: 100% !important;
+    table-layout: fixed !important;
+  }
+
+  .inbounds-table .cell-checkbox {
+    width: 38px !important;
+  }
+
+  .inbounds-table .inbounds-expand-col,
+  .inbounds-table .inbounds-expand-cell {
+    width: 30px !important;
+  }
+
+  .inbounds-table .inbounds-sequence-col,
+  .inbounds-table .inbounds-sequence-cell-td {
+    width: 46px !important;
+  }
+
+  .inbounds-table .inbounds-protocol-col,
+  .inbounds-table .inbounds-protocol-cell {
+    width: 104px !important;
+  }
+
+  .inbounds-table .inbounds-port-col,
+  .inbounds-table .inbounds-port-cell {
+    width: 118px !important;
+  }
+
+  .inbounds-table .inbounds-users-col,
+  .inbounds-table .inbounds-users-cell {
+    width: 56px !important;
+  }
+
+  .inbounds-table .inbounds-traffic-col,
+  .inbounds-table .inbounds-traffic-cell {
+    width: 98px !important;
+  }
+
+  .inbounds-table .inbounds-status-col,
+  .inbounds-table .inbounds-status-cell-wrap {
+    width: 82px !important;
+  }
+
+  .inbounds-table .inbounds-actions-col,
+  .inbounds-table .inbounds-actions-cell {
+    width: 104px !important;
+    min-width: 104px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .header {
+    min-height: 60px !important;
+  }
+
+  .header-shell {
+    padding-inline: 12px !important;
+    gap: 8px !important;
+  }
+
+  .header-left {
+    min-width: 0 !important;
+  }
+
+  .header-title {
+    font-size: 20px !important;
+  }
+
+  .header-icon {
+    width: 40px !important;
+    min-width: 40px !important;
+    height: 40px !important;
+  }
+
+  .settings-page .section-header,
+  .logs-page .section-header {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 8px 10px !important;
+    min-height: 0 !important;
+    padding: 14px !important;
+  }
+
+  .settings-page .section-header-side,
+  .logs-page .section-header-side {
+    justify-self: end !important;
+    width: auto !important;
+  }
+
+  .settings-page .settings-panel > .section-header .section-header-side,
+  .logs-page .section-header .section-header-side {
+    justify-self: end !important;
+    align-self: center !important;
+    width: auto !important;
+    max-width: 220px !important;
+  }
+
+  .settings-page .settings-panel > .section-header .section-header-actions,
+  .logs-page .section-header .section-header-actions {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+    justify-content: flex-end !important;
+    width: auto !important;
+  }
+
+  .settings-page .settings-panel > .section-header .section-header-actions .btn,
+  .logs-page .section-header .section-header-actions .btn {
+    min-height: 36px !important;
+    padding-inline: 10px !important;
+    border-radius: 9px !important;
+    font-size: 12px !important;
+    white-space: nowrap !important;
+  }
+
+  .settings-page .section-header-subtitle,
+  .logs-page .section-header-subtitle {
+    max-width: 100% !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .settings-page .settings-panel > .section-header {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 6px 8px !important;
+    padding: 12px !important;
+  }
+
+  .settings-page .settings-panel > .section-header .section-header-copy {
+    min-width: 0 !important;
+  }
+
+  .settings-page .settings-panel > .section-header .section-header-side {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+    justify-self: end !important;
+    justify-content: flex-end !important;
+    align-self: center !important;
+    width: auto !important;
+    max-width: 190px !important;
+  }
+
+  .settings-page .settings-panel > .section-header .section-header-actions {
+    width: auto !important;
+    max-width: 190px !important;
+  }
+
+  .settings-page .settings-panel > .section-header .settings-panel-actions {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+    width: auto !important;
+  }
+
+  .settings-page .settings-panel > .section-header :is(.section-header-actions, .settings-panel-actions) .btn {
+    width: auto !important;
+    min-width: 0 !important;
+    min-height: 34px !important;
+    padding-inline: 9px !important;
+    font-size: 12px !important;
+  }
+
+  .users-page .users-table,
+  .inbounds-page .inbounds-table {
+    min-width: 0 !important;
+  }
+}
+
 @media (min-width: 769px) and (max-width: 1500px) {
   .settings-page .settings-grid--access-workspace,
   .settings-page .settings-grid--operations-workspace {

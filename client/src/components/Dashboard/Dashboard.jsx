@@ -146,9 +146,12 @@ function readDashboardBootstrapSnapshot() {
         pendingUsers: Number(snapshot?.globalAccountSummary?.pendingUsers || 0),
     };
     const globalOnlineUsers = Array.isArray(snapshot?.globalOnlineUsers) ? snapshot.globalOnlineUsers : [];
+    const fallbackManagedOnlineCount = snapshot?.globalPresenceReady === true
+        ? normalizeManagedOnlineCount(globalStats.totalOnline, globalOnlineUsers.length)
+        : null;
     const globalManagedOnlineCount = normalizeManagedOnlineCount(
         snapshot?.globalManagedOnlineCount,
-        snapshot?.globalPresenceReady === true ? globalOnlineUsers.length : null
+        fallbackManagedOnlineCount
     );
     const globalOnlineSessionCount = Number(snapshot?.globalOnlineSessionCount || 0);
     const throughputSummary = normalizeThroughputSummary(snapshot?.throughputSummary || null);
@@ -1197,8 +1200,7 @@ export default function Dashboard() {
                         value: '--',
                     }
                     : {
-                        animateValue: globalStats.totalOnline,
-                        renderAnimatedValue: (value) => String(value),
+                        value: String(effectiveManagedOnlineCount ?? globalStats.totalOnline ?? 0),
                     }),
                 sub: globalOnlineSummary,
                 onClick: () => setShowOnlineDetail((v) => !v),

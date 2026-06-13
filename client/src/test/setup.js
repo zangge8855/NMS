@@ -2,6 +2,60 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterEach, beforeAll, vi } from 'vitest';
 
+function createMemoryStorage() {
+    const items = new Map();
+
+    return {
+        get length() {
+            return items.size;
+        },
+        key(index) {
+            return Array.from(items.keys())[index] ?? null;
+        },
+        getItem(key) {
+            const normalizedKey = String(key);
+            return items.has(normalizedKey) ? items.get(normalizedKey) : null;
+        },
+        setItem(key, value) {
+            items.set(String(key), String(value));
+        },
+        removeItem(key) {
+            items.delete(String(key));
+        },
+        clear() {
+            items.clear();
+        },
+    };
+}
+
+function readStorage(target, name) {
+    try {
+        return target?.[name];
+    } catch {
+        return undefined;
+    }
+}
+
+function ensureStorage(name) {
+    const existing = readStorage(globalThis, name) || readStorage(window, name);
+    if (existing && typeof existing.clear === 'function') return;
+
+    const storage = createMemoryStorage();
+    Object.defineProperty(window, name, {
+        configurable: true,
+        writable: true,
+        value: storage,
+    });
+    Object.defineProperty(globalThis, name, {
+        configurable: true,
+        writable: true,
+        value: storage,
+    });
+}
+
+ensureStorage('localStorage');
+ensureStorage('sessionStorage');
+
 afterEach(() => {
     cleanup();
     sessionStorage.clear();
