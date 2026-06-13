@@ -30,7 +30,7 @@ export default function useServerTelemetry(options = {}) {
     const enabled = options.enabled !== false;
     const hours = Number(options.hours || 24);
     const points = Number(options.points || 24);
-    const refreshIntervalMs = Number(options.refreshIntervalMs || 60_000);
+    const refreshIntervalMs = Number(options.refreshIntervalMs || 120_000);
     const snapshotKey = buildTelemetrySnapshotKey(hours, points);
     const requestIdRef = useRef(0);
     const telemetryBootstrapRef = useRef(readTelemetrySnapshot(hours, points));

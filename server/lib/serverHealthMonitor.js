@@ -12,6 +12,14 @@ import {
 } from './serverStatusService.js';
 
 const DEFAULT_INTERVAL_MS = 5 * 60 * 1000;
+const DEFAULT_RETRYABLE_FAILURE_CONFIRMATIONS = 2;
+const TRANSIENT_FAILURE_REASONS = new Set([
+    STATUS_REASON.DNS_ERROR,
+    STATUS_REASON.CONNECT_TIMEOUT,
+    STATUS_REASON.CONNECTION_REFUSED,
+    STATUS_REASON.NETWORK_ERROR,
+    STATUS_REASON.PANEL_REQUEST_FAILED,
+]);
 
 function startBackgroundInterval(fn, delayMs) {
     const timer = setInterval(fn, delayMs);
@@ -170,14 +178,75 @@ function buildNotificationForState(previous, next) {
     return null;
 }
 
+function isTransientPanelFailure(result = {}) {
+    return result.retryable === true
+        && result.health !== HEALTHY
+        && result.health !== MAINTENANCE
+        && TRANSIENT_FAILURE_REASONS.has(String(result.reasonCode || ''));
+}
+
+function shouldConfirmTransientFailure(previous = {}, result = {}) {
+    if (!isTransientPanelFailure(result)) return false;
+    const previousHealth = String(previous.health || '').trim().toLowerCase();
+    return !previousHealth || previousHealth === 'unknown' || previousHealth === HEALTHY;
+}
+
+function buildPendingStableResult(previous = {}, result = {}, pending = {}) {
+    const previousHealth = String(previous.health || '').trim().toLowerCase() || 'unknown';
+    return {
+        ...previous,
+        serverId: result.serverId,
+        name: result.name,
+        health: previousHealth,
+        online: previousHealth === HEALTHY ? true : previous.online === true,
+        checkedAt: result.checkedAt || previous.checkedAt || new Date().toISOString(),
+        transientFailure: {
+            count: pending.count || 1,
+            reasonCode: result.reasonCode || '',
+            reasonMessage: result.reasonMessage || '',
+            firstSeenAt: pending.firstSeenAt || result.checkedAt || new Date().toISOString(),
+            checkedAt: result.checkedAt || new Date().toISOString(),
+        },
+    };
+}
+
+function buildMonitorSummary(items = []) {
+    const summary = {
+        total: items.length,
+        healthy: 0,
+        degraded: 0,
+        unreachable: 0,
+        maintenance: 0,
+        onlineServers: 0,
+        checkedAt: new Date().toISOString(),
+        byReason: {},
+    };
+
+    for (const item of items) {
+        const health = String(item?.health || '').trim().toLowerCase();
+        if (health === HEALTHY) summary.healthy += 1;
+        if (health === DEGRADED) summary.degraded += 1;
+        if (health === UNREACHABLE) summary.unreachable += 1;
+        if (health === MAINTENANCE) summary.maintenance += 1;
+        if (item?.online === true) summary.onlineServers += 1;
+        const reasonCode = String(item?.reasonCode || STATUS_REASON.NONE);
+        summary.byReason[reasonCode] = (summary.byReason[reasonCode] || 0) + 1;
+        if (item?.checkedAt) summary.checkedAt = item.checkedAt;
+    }
+    summary.reasonCounts = summary.byReason;
+    return summary;
+}
+
 class ServerHealthMonitor {
     constructor() {
         this.timer = null;
         this.running = false;
         this.intervalMs = DEFAULT_INTERVAL_MS;
+        this.retryableFailureConfirmationCount = DEFAULT_RETRYABLE_FAILURE_CONFIRMATIONS;
         this.lastRunAt = null;
         this.lastSummary = null;
         this.serverStates = new Map();
+        this.pendingFailures = new Map();
     }
 
     configure(options = {}) {
@@ -185,6 +254,40 @@ class ServerHealthMonitor {
         if (Number.isFinite(intervalMs) && intervalMs >= 30_000) {
             this.intervalMs = intervalMs;
         }
+        const retryableFailureConfirmationCount = Number(options.retryableFailureConfirmationCount || 0);
+        if (Number.isFinite(retryableFailureConfirmationCount) && retryableFailureConfirmationCount >= 1) {
+            this.retryableFailureConfirmationCount = Math.floor(retryableFailureConfirmationCount);
+        }
+    }
+
+    resolveEffectiveResult(server, previous, result) {
+        if (!shouldConfirmTransientFailure(previous, result)) {
+            this.pendingFailures.delete(server.id);
+            return result;
+        }
+
+        const signature = `${result.health}:${result.reasonCode || ''}`;
+        const existing = this.pendingFailures.get(server.id);
+        const nextPending = existing?.signature === signature
+            ? {
+                ...existing,
+                count: existing.count + 1,
+                latest: result,
+            }
+            : {
+                signature,
+                count: 1,
+                firstSeenAt: result.checkedAt || new Date().toISOString(),
+                latest: result,
+            };
+        this.pendingFailures.set(server.id, nextPending);
+
+        if (nextPending.count < this.retryableFailureConfirmationCount) {
+            return buildPendingStableResult(previous, result, nextPending);
+        }
+
+        this.pendingFailures.delete(server.id);
+        return result;
     }
 
     start(options = {}) {
@@ -227,7 +330,7 @@ class ServerHealthMonitor {
             maxAgeMs: forceRefresh ? 0 : (Number(deps.maxAgeMs || 0) || 20_000),
         });
         const results = Array.isArray(snapshot?.items) ? snapshot.items : [];
-        const summary = snapshot?.summary || {
+        const fallbackSummary = snapshot?.summary || {
             total: 0,
             healthy: 0,
             degraded: 0,
@@ -236,18 +339,25 @@ class ServerHealthMonitor {
             checkedAt: new Date().toISOString(),
             byReason: {},
         };
+        const effectiveResults = [];
 
         for (const result of results) {
             const server = serverList.find((item) => item.id === result.serverId) || { id: result.serverId, name: result.name };
             const previous = this.serverStates.get(server.id) || {
+                serverId: server.id,
+                name: server.name,
                 health: String(server.health || 'unknown').trim().toLowerCase() || 'unknown',
+                online: String(server.health || '').trim().toLowerCase() === HEALTHY,
                 reasonCode: '',
+                reasonMessage: '',
                 error: '',
                 checkedAt: null,
             };
-            this.serverStates.set(server.id, result);
+            const effectiveResult = this.resolveEffectiveResult(server, previous, result);
+            this.serverStates.set(server.id, effectiveResult);
+            effectiveResults.push(effectiveResult);
 
-            const notification = buildNotificationForState(previous, result);
+            const notification = buildNotificationForState(previous, effectiveResult);
             if (notification) {
                 const notificationMeta = notification.meta || {};
                 const defaultTopics = new Set(Array.isArray(notificationMeta.telegramTopics) ? notificationMeta.telegramTopics : []);
@@ -259,28 +369,29 @@ class ServerHealthMonitor {
                     ...notification,
                     meta: {
                         ...notificationMeta,
-                        serverId: result.serverId,
+                        serverId: effectiveResult.serverId,
                         previousHealth: previous.health,
-                        currentHealth: result.health,
-                        reasonCode: result.reasonCode,
-                        reasonMessage: result.reasonMessage,
-                        retryable: result.retryable,
+                        currentHealth: effectiveResult.health,
+                        reasonCode: effectiveResult.reasonCode,
+                        reasonMessage: effectiveResult.reasonMessage,
+                        retryable: effectiveResult.retryable,
                         telegramTopics: [...defaultTopics],
                     },
                 });
             }
 
-            if (result.health !== previous.health) {
-                updater(server.id, { health: result.health });
+            if (effectiveResult.health !== previous.health) {
+                updater(server.id, { health: effectiveResult.health });
             }
         }
 
+        const summary = results.length > 0 ? buildMonitorSummary(effectiveResults) : fallbackSummary;
         this.lastRunAt = summary.checkedAt;
         this.lastSummary = summary;
 
         return {
             summary,
-            items: results,
+            items: effectiveResults,
         };
     }
 
@@ -300,9 +411,11 @@ class ServerHealthMonitor {
     resetForTests() {
         this.stop();
         this.intervalMs = DEFAULT_INTERVAL_MS;
+        this.retryableFailureConfirmationCount = DEFAULT_RETRYABLE_FAILURE_CONFIRMATIONS;
         this.lastRunAt = null;
         this.lastSummary = null;
         this.serverStates.clear();
+        this.pendingFailures.clear();
         resetClusterStatusSnapshotCache();
     }
 }

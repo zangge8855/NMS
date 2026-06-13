@@ -74,7 +74,7 @@ describe('Servers', () => {
     });
 
     it('renders the cached telemetry snapshot before the live telemetry request finishes', async () => {
-        window.sessionStorage.setItem('nms_session_snapshot:server_telemetry_overview_v1:24:24', JSON.stringify({
+        window.sessionStorage.setItem('nms_session_snapshot:server_telemetry_overview_v1:24:12', JSON.stringify({
             savedAt: Date.now(),
             value: {
                 items: [
@@ -142,7 +142,7 @@ describe('Servers', () => {
             expect(api.get).toHaveBeenCalledWith('/servers/telemetry/overview', {
                 params: {
                     hours: 24,
-                    points: 24,
+                    points: 12,
                 },
             });
         });
@@ -200,7 +200,7 @@ describe('Servers', () => {
             expect(api.get).toHaveBeenCalledWith('/servers/telemetry/overview', {
                 params: {
                     hours: 24,
-                    points: 24,
+                    points: 12,
                 },
             });
         });
@@ -208,7 +208,7 @@ describe('Servers', () => {
         expect(screen.queryByText('98 ms')).not.toBeInTheDocument();
 
         await act(async () => {
-            writeSessionSnapshot('server_telemetry_overview_v1:24:24', {
+            writeSessionSnapshot('server_telemetry_overview_v1:24:12', {
                 items: [
                     {
                         serverId: 'server-1',
@@ -263,12 +263,12 @@ describe('Servers', () => {
             fetchServers: vi.fn(),
         });
 
-        renderWithRouter(<Servers />);
+        const { container } = renderWithRouter(<Servers />);
         await waitForServerOrderLoad();
 
         const nameTrigger = screen.getByRole('button', { name: longName });
         expect(nameTrigger).toHaveAttribute('title', longName);
-        expect(screen.getByText('已接入')).toBeInTheDocument();
+        expect(within(container.querySelector('.servers-status-cell')).getByText('未采样')).toBeInTheDocument();
         expect(screen.getByText('运维视角')).toBeInTheDocument();
         expect(screen.getByText('环境：生产')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: '复制面板地址' })).not.toBeInTheDocument();

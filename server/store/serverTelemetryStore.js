@@ -10,6 +10,14 @@ const DEFAULT_POINT_COUNT = 24;
 const MIN_SAMPLE_INTERVAL_MS = 5 * 60 * 1000;
 const FORCE_SAMPLE_INTERVAL_MS = 60 * 1000;
 const LATENCY_CHANGE_THRESHOLD_MS = 40;
+const TRANSIENT_OFFLINE_CONFIRMATION_COUNT = 2;
+const TRANSIENT_OFFLINE_REASONS = new Set([
+    'dns_error',
+    'connect_timeout',
+    'connection_refused',
+    'network_error',
+    'panel_request_failed',
+]);
 
 function ensureDataDir() {
     if (!fs.existsSync(config.dataDir)) {
@@ -82,6 +90,10 @@ function sampleStateChanged(previous = null, next = null) {
     return Math.abs(previousLatency - nextLatency) >= LATENCY_CHANGE_THRESHOLD_MS;
 }
 
+function isTransientOfflineSample(sample = {}) {
+    return sample.online !== true && TRANSIENT_OFFLINE_REASONS.has(String(sample.reasonCode || ''));
+}
+
 function bucketSamples(list = [], pointCount = DEFAULT_POINT_COUNT) {
     if (!Array.isArray(list) || list.length === 0) return [];
     if (list.length <= pointCount) return list;
@@ -131,6 +143,7 @@ class ServerTelemetryStore {
     constructor() {
         ensureDataDir();
         this.samplesByServerId = loadTelemetry();
+        this.pendingOfflineByServerId = new Map();
         this.prune();
     }
 
@@ -183,6 +196,24 @@ class ServerTelemetryStore {
         const normalized = normalizeSample(sample);
         const list = Array.isArray(this.samplesByServerId[id]) ? [...this.samplesByServerId[id]] : [];
         const last = list[list.length - 1] || null;
+
+        if (normalized.online === true) {
+            this.pendingOfflineByServerId.delete(id);
+        } else if (last?.online === true && isTransientOfflineSample(normalized)) {
+            const signature = String(normalized.reasonCode || '');
+            const pending = this.pendingOfflineByServerId.get(id);
+            const nextPending = pending?.signature === signature
+                ? { signature, count: pending.count + 1 }
+                : { signature, count: 1 };
+            this.pendingOfflineByServerId.set(id, nextPending);
+            if (nextPending.count < TRANSIENT_OFFLINE_CONFIRMATION_COUNT) {
+                return false;
+            }
+            this.pendingOfflineByServerId.delete(id);
+        } else {
+            this.pendingOfflineByServerId.delete(id);
+        }
+
         const nowMs = Date.parse(normalized.ts);
         const lastMs = last ? Date.parse(last.ts) : 0;
         const elapsed = Math.max(0, nowMs - lastMs);

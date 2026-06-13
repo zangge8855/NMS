@@ -27,7 +27,7 @@ function normalizeLatencyTrend(telemetry) {
     return Array.isArray(telemetry?.latencyTrend) ? telemetry.latencyTrend : [];
 }
 
-export default function ServerTelemetryCell({
+function ServerTelemetryCell({
     telemetry = null,
     loading = false,
     locale = 'zh-CN',
@@ -79,3 +79,5 @@ export default function ServerTelemetryCell({
         </div>
     );
 }
+
+export default React.memo(ServerTelemetryCell);

@@ -60,4 +60,19 @@ describe('capabilities payload alignment', () => {
             [['post', '/panel/api/server/xraylogs/20']]
         );
     });
+
+    it('marks custom geo resources as removed in latest 3x-ui without probing old routes', async () => {
+        const calls = [];
+        const tools = await detectToolCapabilities(async (request) => {
+            calls.push([request.method, request.url]);
+            return { data: { success: true } };
+        });
+
+        assert.equal(tools.customGeoResources.supportedBy3xui, false);
+        assert.equal(tools.customGeoResources.supportedByNms, false);
+        assert.equal(tools.customGeoResources.status, 'removed_upstream');
+        assert.equal(tools.customGeoResources.available, false);
+        assert.equal(tools.customGeoResources.source, 'upstream_removed');
+        assert.equal(calls.some(([, url]) => url === '/panel/api/custom-geo/list'), false);
+    });
 });

@@ -4884,3 +4884,361 @@ label,
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 }
+
+/* Server management final layout pass. */
+.servers-page .servers-toolbar {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  grid-template-areas:
+    "filters actions"
+    "summary actions" !important;
+  align-items: center !important;
+  gap: 12px 18px !important;
+  padding: 16px 18px !important;
+  border-radius: 12px !important;
+  background: var(--surface-panel) !important;
+  border: 1px solid var(--surface-elevated-border) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+.servers-page .servers-toolbar .page-toolbar-main {
+  grid-area: filters !important;
+  width: 100% !important;
+}
+
+.servers-page .servers-toolbar .page-toolbar-summary {
+  grid-area: summary !important;
+  justify-self: start !important;
+  width: 100% !important;
+}
+
+.servers-page .servers-toolbar .page-toolbar-actions {
+  grid-area: actions !important;
+  justify-self: end !important;
+  align-self: center !important;
+}
+
+.servers-page .servers-toolbar .list-toolbar-filters {
+  display: grid !important;
+  grid-template-columns: minmax(280px, 1.35fr) repeat(4, minmax(128px, 0.7fr)) !important;
+  gap: 10px !important;
+  align-items: center !important;
+}
+
+.servers-page .servers-toolbar :is(.form-input, .form-select) {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 42px !important;
+  border-radius: 10px !important;
+  background: var(--surface-elevated) !important;
+}
+
+.servers-page .servers-toolbar-summary {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  min-width: 0 !important;
+}
+
+.servers-page .servers-summary-pill,
+.servers-page .servers-filter-summary {
+  min-height: 32px !important;
+  padding: 6px 10px !important;
+  border-radius: 999px !important;
+  background: var(--surface-elevated) !important;
+  border: 1px solid var(--surface-elevated-border) !important;
+  color: var(--text-secondary) !important;
+  white-space: nowrap !important;
+}
+
+.servers-page .servers-summary-label {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: var(--text-tertiary) !important;
+}
+
+.servers-page .servers-summary-value {
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  color: var(--text-primary) !important;
+}
+
+.servers-page .servers-toolbar .list-toolbar-actions-inner {
+  display: grid !important;
+  grid-template-columns: repeat(3, max-content) !important;
+  gap: 10px !important;
+  align-items: center !important;
+  justify-content: end !important;
+}
+
+.servers-page .servers-toolbar .btn {
+  min-height: 42px !important;
+  padding-inline: 14px !important;
+  border-radius: 10px !important;
+}
+
+.servers-page .table-container {
+  overflow-x: auto !important;
+  border-radius: 12px !important;
+  border: 1px solid var(--surface-elevated-border) !important;
+  background: var(--surface-panel) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+.servers-page .servers-table {
+  width: 100% !important;
+  min-width: 1240px !important;
+  table-layout: fixed !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+.servers-page .servers-table thead th {
+  height: 48px !important;
+  padding: 0 10px !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  color: var(--text-tertiary) !important;
+  background: var(--surface-elevated) !important;
+  border-bottom: 1px solid var(--surface-elevated-border) !important;
+  white-space: nowrap !important;
+}
+
+.servers-page .servers-table tbody td {
+  padding: 10px !important;
+  vertical-align: middle !important;
+  border-bottom: 1px solid var(--surface-elevated-border) !important;
+}
+
+.servers-page .servers-table tbody tr:last-child td {
+  border-bottom: 0 !important;
+}
+
+.servers-page .servers-table tbody tr {
+  background: var(--surface-panel) !important;
+}
+
+.servers-page .servers-table tbody tr:hover {
+  background: var(--surface-hover) !important;
+}
+
+.servers-page .servers-table :is(th, td) {
+  overflow: hidden !important;
+}
+
+.servers-page .servers-table .servers-select-column,
+.servers-page .servers-table .mobile-checkbox-cell {
+  width: 48px !important;
+}
+
+.servers-page .servers-table .servers-move-column,
+.servers-page .servers-table .servers-move-cell,
+.servers-page .servers-table .servers-order-column,
+.servers-page .servers-table .servers-order-cell {
+  width: 50px !important;
+}
+
+.servers-page .servers-table .servers-telemetry-column {
+  width: 218px !important;
+}
+
+.servers-page .servers-table .servers-group-column {
+  width: 142px !important;
+}
+
+.servers-page .servers-table .servers-account-column {
+  width: 142px !important;
+}
+
+.servers-page .servers-table .servers-credential-column,
+.servers-page .servers-table .servers-status-column {
+  width: 108px !important;
+}
+
+.servers-page .servers-table .servers-actions-column {
+  width: 168px !important;
+}
+
+.servers-page .servers-table th.servers-actions-column,
+.servers-page .servers-table td.servers-actions-cell {
+  position: static !important;
+  right: auto !important;
+  z-index: auto !important;
+  background: inherit !important;
+  box-shadow: none !important;
+}
+
+.servers-page .servers-name-stack,
+.servers-page .servers-account-stack,
+.servers-page .servers-status-stack {
+  min-width: 0 !important;
+  gap: 4px !important;
+}
+
+.servers-page .server-card-name-trigger {
+  max-width: 100% !important;
+}
+
+.servers-page .server-card-name {
+  display: block !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.servers-page .server-card-tags {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+}
+
+.servers-page .server-card-tags .badge,
+.servers-page .servers-status-stack .badge,
+.servers-page .servers-credential-cell .badge {
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.servers-page .servers-telemetry-cell {
+  min-height: 78px !important;
+  padding: 9px 10px !important;
+  border-radius: 10px !important;
+  background: var(--surface-elevated) !important;
+  border: 1px solid var(--surface-elevated-border) !important;
+  gap: 6px !important;
+}
+
+.servers-page .servers-telemetry-meta {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+}
+
+.servers-page .servers-telemetry-metric {
+  min-width: 0 !important;
+}
+
+.servers-page .servers-telemetry-label {
+  font-size: 10px !important;
+}
+
+.servers-page .servers-telemetry-value {
+  font-size: 12px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.servers-page .servers-telemetry-sparkline,
+.servers-page .servers-telemetry-sparkline svg {
+  height: 20px !important;
+}
+
+.servers-page .servers-telemetry-foot {
+  gap: 6px !important;
+  align-items: center !important;
+}
+
+.servers-page .servers-telemetry-checked-at {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.servers-page .servers-order-actions {
+  display: inline-grid !important;
+  grid-template-columns: repeat(2, 34px) !important;
+  gap: 4px !important;
+  justify-content: center !important;
+}
+
+.servers-page .servers-order-actions .btn-icon {
+  width: 34px !important;
+  min-width: 34px !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  border-radius: 9px !important;
+}
+
+.servers-page .servers-row-actions {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 7px !important;
+  width: 100% !important;
+  align-items: center !important;
+}
+
+.servers-page .servers-row-actions .btn {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 34px !important;
+  padding-inline: 8px !important;
+  border-radius: 9px !important;
+  justify-content: center !important;
+}
+
+.servers-page .servers-row-action-icon.btn-icon {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+@media (max-width: 1500px) {
+  .servers-page .servers-toolbar {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-areas:
+      "filters"
+      "summary"
+      "actions" !important;
+  }
+
+  .servers-page .servers-toolbar .page-toolbar-actions {
+    justify-self: stretch !important;
+  }
+
+  .servers-page .servers-toolbar .list-toolbar-actions-inner {
+    justify-content: start !important;
+  }
+
+  .servers-page .servers-toolbar .list-toolbar-filters {
+    grid-template-columns: minmax(260px, 1.4fr) repeat(2, minmax(132px, 0.75fr)) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .servers-page .servers-toolbar .list-toolbar-filters {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .servers-page .servers-toolbar .list-toolbar-actions-inner {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    width: 100% !important;
+  }
+
+  .servers-page .servers-toolbar .list-toolbar-actions-inner .btn {
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .servers-page .servers-toolbar {
+    padding: 12px !important;
+  }
+
+  .servers-page .servers-toolbar-summary {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    width: 100% !important;
+  }
+
+  .servers-page .servers-filter-summary {
+    grid-column: 1 / -1 !important;
+    text-align: center !important;
+  }
+}

@@ -129,14 +129,17 @@ const TOOL_CAPABILITIES = [
     {
         key: 'customGeoResources',
         label: 'Custom Geo Resources',
-        description: 'List custom GeoIP / GeoSite resources configured on recent 3x-ui builds.',
+        description: 'Legacy custom GeoIP / GeoSite resources from pre-3.3.1 3x-ui builds.',
         path: '/panel/api/custom-geo/list',
         method: 'get',
-        probe: true,
+        probe: false,
         docs: 'https://github.com/MHSanaei/3x-ui/wiki/Configuration',
-        uiAction: 'node_console',
-        uiActionLabel: '节点控制台',
-        supportedByNms: true,
+        uiAction: 'docs_only',
+        uiActionLabel: '官方文档',
+        supportedBy3xui: false,
+        supportedByNms: false,
+        status: 'removed_upstream',
+        note: '3x-ui v3.3.1 replaced the custom geo manager with native Xray-core geodata auto-update.',
     },
     {
         key: 'xrayLogs',
@@ -154,6 +157,9 @@ const TOOL_CAPABILITIES = [
 
 async function detectToolCapabilities(client) {
     const checks = await Promise.all(TOOL_CAPABILITIES.map(async (tool) => {
+        if (tool.supportedBy3xui === false) {
+            return { ...tool, available: false, source: 'upstream_removed' };
+        }
         if (!tool.probe) {
             return { ...tool, available: null, source: 'unprobed' };
         }
@@ -180,11 +186,12 @@ async function detectToolCapabilities(client) {
             docs: item.docs,
             uiAction: item.uiAction,
             uiActionLabel: item.uiActionLabel,
-            supportedBy3xui: true,
+            supportedBy3xui: item.supportedBy3xui !== false,
             supportedByNms: item.supportedByNms === true,
-            status: item.supportedByNms === true ? 'integrated' : 'api_available_ui_missing',
+            status: item.status || (item.supportedByNms === true ? 'integrated' : 'api_available_ui_missing'),
             available: item.available,
             source: item.source,
+            note: item.note || '',
         };
         return acc;
     }, {});

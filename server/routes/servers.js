@@ -7,7 +7,7 @@ import userPolicyStore from '../store/userPolicyStore.js';
 import userGroupStore from '../store/userGroupStore.js';
 import serverTelemetryStore from '../store/serverTelemetryStore.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
-import { ensureAuthenticated, fetchPanelServerStatus } from '../lib/panelClient.js';
+import { derivePanelHealthFromStatus, ensureAuthenticated, fetchPanelServerStatus } from '../lib/panelClient.js';
 import { authMiddleware, adminOnly } from '../middleware/auth.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import config from '../config.js';
@@ -939,6 +939,11 @@ router.post('/:id/test', async (req, res) => {
             });
         }
         const statusRes = await fetchPanelServerStatus(client);
+        const healthState = derivePanelHealthFromStatus(statusRes?.data || statusRes);
+        const currentServer = serverStore.getById(req.params.id);
+        if (currentServer && String(currentServer.health || '').trim().toLowerCase() !== 'maintenance') {
+            serverStore.update(req.params.id, { health: healthState.health });
+        }
         appendSecurityAudit('server_test_success', req, { serverId: req.params.id });
         res.json({ success: true, msg: 'Connection successful', obj: statusRes.data?.obj });
     } catch (e) {

@@ -77,6 +77,19 @@ function resolveServerLiveStatus(server, telemetry) {
     return telemetry?.current?.online === true ? 'online' : 'offline';
 }
 
+function getLiveStatusBadge(status, copy = {}) {
+    switch (status) {
+        case 'online':
+            return { cls: 'badge-success', text: copy.statusOnline || '在线' };
+        case 'offline':
+            return { cls: 'badge-danger', text: copy.statusOffline || '离线' };
+        case 'maintenance':
+            return { cls: 'badge-warning', text: copy.statusMaintenance || '维护' };
+        default:
+            return { cls: 'badge-neutral', text: copy.statusUnknown || '未采样' };
+    }
+}
+
 export default function Servers() {
     const { locale, t } = useI18n();
     const isCompactLayout = useMediaQuery('(max-width: 1500px)');
@@ -141,7 +154,8 @@ export default function Servers() {
     } = useServerTelemetry({
         enabled: servers.length > 0,
         hours: 24,
-        points: 24,
+        points: 12,
+        refreshIntervalMs: 120_000,
     });
     const serverNameById = useMemo(
         () => Object.fromEntries(servers.map((item) => [String(item?.id || '').trim(), String(item?.name || '').trim()])),
@@ -813,6 +827,8 @@ export default function Servers() {
         const isSelected = selectedIds.has(server.id);
         const isActive = false;
         const telemetry = telemetryByServerId[String(server.id || '').trim()] || null;
+        const liveStatus = resolveServerLiveStatus(server, telemetry);
+        const liveStatusBadge = getLiveStatusBadge(liveStatus, uiText);
         const rowBusy = isServerBusy(server.id);
         const credentialStatus = String(server.credentialStatus || 'configured');
         const serverGroup = server.group || t('comp.servers.ungrouped');
@@ -830,7 +846,6 @@ export default function Servers() {
             : testState === 'error'
                 ? 'badge-danger'
                 : 'badge-neutral';
-        const serverStateText = t('pages.servers.registered');
         const credentialBadge = credentialStatus === 'unreadable'
             ? { cls: 'badge-danger', text: t('comp.servers.credBroken') }
             : (credentialStatus === 'missing'
@@ -906,7 +921,7 @@ export default function Servers() {
                 <div className="servers-mobile-badges">
                     <span className="badge badge-neutral">{t('comp.servers.groupPrefix')}: {serverGroup}</span>
                     {serverEnvironment ? <span className="badge badge-info">{serverEnvironment}</span> : null}
-                    <span className={`badge ${isActive ? 'badge-success' : 'badge-neutral'}`}>{serverStateText}</span>
+                    <span className={`badge ${liveStatusBadge.cls}`}>{liveStatusBadge.text}</span>
                     <span className={`badge ${testStateBadge}`}>{testStateText}</span>
                     <span className={`badge ${credentialBadge.cls}`}>{credentialBadge.text}</span>
                 </div>
@@ -1100,6 +1115,8 @@ export default function Servers() {
                             const isSelected = selectedIds.has(server.id);
                             const isActive = false;
                             const telemetry = telemetryByServerId[String(server.id || '').trim()] || null;
+                            const liveStatus = resolveServerLiveStatus(server, telemetry);
+                            const liveStatusBadge = getLiveStatusBadge(liveStatus, uiText);
                             const rowBusy = isServerBusy(server.id);
                             const credentialStatus = String(server.credentialStatus || 'configured');
                             const serverGroup = server.group || t('comp.servers.ungrouped');
@@ -1117,7 +1134,6 @@ export default function Servers() {
                                 : testState === 'error'
                                     ? 'badge-danger'
                                     : 'badge-neutral';
-                            const serverStateText = t('pages.servers.registered');
                             const credentialBadge = credentialStatus === 'unreadable'
                                 ? { cls: 'badge-danger', text: t('comp.servers.credBroken') }
                                 : (credentialStatus === 'missing'
@@ -1199,7 +1215,7 @@ export default function Servers() {
                                                         <span className={`badge ${credentialBadge.cls}`}>{credentialBadge.text}</span>
                                                     </div>
                                                     <div className="servers-mobile-summary-row">
-                                                        <span className={`badge ${isActive ? 'badge-success' : 'badge-neutral'}`}>{serverStateText}</span>
+                                                        <span className={`badge ${liveStatusBadge.cls}`}>{liveStatusBadge.text}</span>
                                                         <span className={`badge ${testStateBadge}`}>{testStateText}</span>
                                                     </div>
                                                 </div>
@@ -1232,7 +1248,7 @@ export default function Servers() {
                                     </td>
                                     <td className="servers-status-cell" data-label={t('pages.servers.cols.status')}>
                                         <div className="servers-status-stack">
-                                            <span className={`badge ${isActive ? 'badge-success' : 'badge-neutral'}`}>{serverStateText}</span>
+                                            <span className={`badge ${liveStatusBadge.cls}`}>{liveStatusBadge.text}</span>
                                             <span className="text-xs text-muted servers-status-meta" data-test={testState || 'none'}>
                                                 {testStateText}
                                             </span>

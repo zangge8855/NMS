@@ -45,12 +45,12 @@ test('serverHealthMonitor records healthy results and emits recovery alert on tr
     assert.deepEqual(updates, [{ id: 'srv-1', patch: { health: 'healthy' } }]);
 });
 
-test('serverHealthMonitor marks node unreachable and emits critical notification', async () => {
+test('serverHealthMonitor confirms retryable network failures before marking unreachable', async () => {
     const monitor = new ServerHealthMonitor();
     const notifications = [];
     const updates = [];
 
-    const result = await monitor.runOnce({
+    const deps = {
         listServers: async () => [{
             id: 'srv-2',
             name: 'Node B',
@@ -61,8 +61,19 @@ test('serverHealthMonitor marks node unreachable and emits critical notification
         },
         notify: (payload) => notifications.push(payload),
         updateServer: (id, patch) => updates.push({ id, patch }),
-    });
+    };
 
+    const first = await monitor.runOnce(deps);
+
+    assert.equal(first.summary.healthy, 1);
+    assert.equal(first.summary.unreachable, 0);
+    assert.equal(first.items[0].transientFailure.reasonCode, 'connect_timeout');
+    assert.equal(notifications.length, 0);
+    assert.deepEqual(updates, []);
+
+    const result = await monitor.runOnce(deps);
+
+    assert.equal(result.summary.healthy, 0);
     assert.equal(result.summary.unreachable, 1);
     assert.equal(notifications[0].severity, 'critical');
     assert.equal(notifications[0].type, 'server_health_connect_timeout');
@@ -184,14 +195,15 @@ test('serverHealthMonitor classifies unsupported status endpoints separately', a
     assert.equal(notifications[0].meta.reasonCode, 'status_unsupported');
 });
 
-test('serverHealthMonitor emits a dedicated notification for DNS failures', async () => {
+test('serverHealthMonitor emits a dedicated notification for confirmed DNS failures', async () => {
     const monitor = new ServerHealthMonitor();
     const notifications = [];
+    const updates = [];
 
     const error = new Error('getaddrinfo ENOTFOUND panel.example.com');
     error.code = 'ENOTFOUND';
 
-    const result = await monitor.runOnce({
+    const deps = {
         listServers: async () => [{
             id: 'srv-7',
             name: 'Node G',
@@ -201,10 +213,17 @@ test('serverHealthMonitor emits a dedicated notification for DNS failures', asyn
             throw error;
         },
         notify: (payload) => notifications.push(payload),
-        updateServer: () => {},
-    });
+        updateServer: (id, patch) => updates.push({ id, patch }),
+    };
+
+    const first = await monitor.runOnce(deps);
+    assert.equal(first.summary.healthy, 1);
+    assert.equal(notifications.length, 0);
+
+    const result = await monitor.runOnce(deps);
 
     assert.equal(result.summary.unreachable, 1);
     assert.equal(notifications[0].type, 'server_health_dns_error');
     assert.equal(notifications[0].meta.reasonCode, 'dns_error');
+    assert.deepEqual(updates, [{ id: 'srv-7', patch: { health: 'unreachable' } }]);
 });
