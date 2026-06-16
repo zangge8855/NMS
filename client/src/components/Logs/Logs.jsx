@@ -528,7 +528,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
             <div className={`${embedded ? '' : 'page-content page-content--wide page-enter '}logs-page${immersiveMode ? ' logs-page-immersive' : ''}`.trim()}>
                 {/* Toolbar */}
                 <PageToolbar
-                    className="card rounded-xl mb-4 logs-toolbar"
+                    className="card mb-4 logs-toolbar"
                     main={(
                         <>
                             <HiOutlineFunnel className="text-muted" />
@@ -630,7 +630,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
 
                 {/* Global Mode: Server Selector */}
                 {isGlobal && (
-                    <div className="card rounded-xl mb-4 logs-server-card">
+                    <div className="card mb-4 logs-server-card">
                         <SectionHeader
                             className="card-header card-header-flat-tight section-header section-header--compact"
                             title={(
@@ -671,7 +671,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                 )}
 
                 {fetchSummary?.message && (
-                    <div className="card rounded-xl mb-4 logs-summary-card" style={fetchSummaryMeta.style}>
+                    <div className="card mb-4 logs-summary-card" style={fetchSummaryMeta.style}>
                         <SectionHeader
                             className="card-header card-header-flat-tight section-header section-header--compact"
                             title={(
@@ -686,7 +686,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                 )}
 
                 {/* Log Viewer */}
-                <div className="card rounded-xl flex-1 logs-viewer-card">
+                <div className="card flex-1 logs-viewer-card">
                     <SectionHeader
                         compact divider
                         title={(

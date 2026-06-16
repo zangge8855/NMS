@@ -1761,7 +1761,7 @@ export default function UserDetail() {
                                                 {activeSubscriptionProfile?.url && subscriptionResult.subscriptionActive ? (
                                                     <>
                                                         <div className="subscription-inline-qr-title">{copy.labels.qrTitle}</div>
-                                                        <div className="subscription-inline-qr-surface rounded-xl bg-white">
+                                                        <div className="subscription-inline-qr-surface rounded-lg bg-white">
                                                             <ExpandableQRCode
                                                                 value={activeSubscriptionProfile.url}
                                                                 size={176}

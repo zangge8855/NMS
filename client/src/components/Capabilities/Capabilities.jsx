@@ -334,7 +334,7 @@ export default function Capabilities({ serverId = '', embedded = false } = {}) {
                         ) : (
                             <div className="capability-protocol-grid mb-8">
                                 {protocolList.map((item) => (
-                                    <div key={item.key} className="card rounded-xl capability-protocol-card">
+                                    <div key={item.key} className="card capability-protocol-card">
                                         <div className="capability-card-head">
                                             <strong>{item.label}</strong>
                                             <span className="badge badge-info">{item.key}</span>
@@ -432,7 +432,7 @@ export default function Capabilities({ serverId = '', embedded = false } = {}) {
                             compact divider
                             title={copy.batchSectionTitle}
                         />
-                        <div className="card rounded-xl p-4 mb-8">
+                        <div className="card p-4 mb-8">
                             <div className="capability-batch-grid">
                                 <div className="capability-stack">
                                     <div className="text-sm text-muted mb-2">{copy.clientBatch}</div>
@@ -458,7 +458,7 @@ export default function Capabilities({ serverId = '', embedded = false } = {}) {
                             compact divider
                             title={copy.subscriptionModesTitle}
                         />
-                        <div className="card rounded-xl p-4">
+                        <div className="card p-4">
                             <div className="flex gap-2 flex-wrap">
                                 {(data.subscriptionModes || []).map((mode) => (
                                     <span key={mode} className="badge badge-success">{mode}</span>

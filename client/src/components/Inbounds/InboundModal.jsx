@@ -1537,7 +1537,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                     <div className="modal-body">
                         {/* Target Servers */}
                         {!editingInbound && servers.length > 0 && (
-                            <div className="form-group mb-6 p-4 rounded-xl bg-surface-soft border border-stroke-soft">
+                            <div className="form-group mb-6 p-4 rounded-lg bg-surface-soft border border-stroke-soft">
                                 <label className="form-label mb-2 block">部署目标 ({selectedServerIds.length}/{servers.length})</label>
                                 <div className="flex flex-wrap gap-4">
                                     <label className="flex items-center gap-2 cursor-pointer badge badge-neutral">
@@ -1670,7 +1670,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                 </div>
                             </>
                         ) : (
-                            <div className="bg-surface-soft p-4 rounded-xl border border-stroke-soft">
+                            <div className="bg-surface-soft p-4 rounded-lg border border-stroke-soft">
                                 {normalizedProtocol === 'vless' && (
                                     <div className="border border-stroke-soft rounded-lg p-4 mb-4">
                                         <h4 className="text-secondary text-sm font-bold mb-3 uppercase tracking-wider">VLESS 协议参数</h4>

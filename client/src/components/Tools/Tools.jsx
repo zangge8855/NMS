@@ -269,7 +269,7 @@ export default function Tools() {
             <Header title={t('pages.tools.title')} />
             <div className="page-content page-content--wide page-enter tools-page">
                 <PageToolbar
-                    className="card rounded-xl mb-6 tools-toolbar"
+                    className="card mb-6 tools-toolbar"
                     compact
                     main={(
                         <div className="tools-toolbar-copy">
@@ -309,7 +309,7 @@ export default function Tools() {
                 ) : (
                     <div className="tools-grid">
                         {(enabledTools.length > 0 ? enabledTools : tools).map((tool) => (
-                            <div className="card rounded-xl tool-card" key={tool.key}>
+                            <div className="card tool-card" key={tool.key}>
                                 <SectionHeader
                                     compact divider
                                     title={tool.label || tool.key}

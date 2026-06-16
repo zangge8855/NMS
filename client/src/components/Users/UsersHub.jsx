@@ -2015,7 +2015,7 @@ export default function UsersHub() {
                                                     <span className={`badge ${user.status.badge}`}>{user.status.label}</span>
                                                 </td>
                                                 <td data-label={t('pages.usersHub.cols.online')} className="table-cell-center users-online-cell">
-                                                    <div className="flex items-center gap-2 flex-wrap users-online-stack">
+                                                    <div className="flex items-center justify-center gap-2 flex-wrap users-online-stack">
                                                         <span className={`badge ${user.onlineStatus.badge}`}>{user.onlineStatus.label}</span>
                                                         {user.onlineStatus.detail ? <span className="text-xs text-muted font-mono">{user.onlineStatus.detail}</span> : null}
                                                     </div>
@@ -2027,7 +2027,7 @@ export default function UsersHub() {
                                                 </td>
                                                 <td
                                                     data-label={t('pages.usersHub.cols.traffic')}
-                                                    className="users-traffic-cell"
+                                                    className="table-cell-right users-traffic-cell"
                                                     title={user.statsPending ? syncingCopy.detail : (user.clientData.totalUsed ? t('comp.users.totalTrafficTitle', { total: formatBytes(user.clientData.totalUsed) }) : '-')}
                                                 >
                                                     {user.statsPending ? (
