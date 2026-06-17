@@ -301,6 +301,7 @@
      from the bases above, so they are intentionally NOT redefined here). */
   --accent-secondary: #7c3aed;
   --accent-tertiary:  #0891b2;
+  --aurora-ramp: linear-gradient(120deg, var(--accent-primary) 0%, #6366f1 28%, var(--accent-secondary) 60%, var(--accent-tertiary) 100%);
   --gradient-mesh-hero:
     radial-gradient(120% 140% at 0% 0%,   color-mix(in srgb, var(--accent-primary) 12%, transparent), transparent 50%),
     radial-gradient(110% 130% at 100% 8%, color-mix(in srgb, var(--accent-secondary) 9%, transparent), transparent 54%),
@@ -1955,11 +1956,14 @@ label,
 .inbounds-table :is(.badge, .inbound-remark-pill),
 .servers-table :is(.badge, .server-tag),
 .audit-subscriptions-table :is(.badge, .audit-access-source-pill) {
-  max-width: 100%;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: inline-block !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  text-align: center !important;
+  vertical-align: middle !important;
 }
 
 .inbounds-table td,
@@ -3898,7 +3902,7 @@ label,
 :focus-visible {
   outline: 2px solid var(--accent-primary) !important;
   outline-offset: 2px !important;
-  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.25) !important;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-primary) 25%, transparent) !important;
 }
 
 /* 2. Opaque Floating Layers Overrides (Performance Redline) */
@@ -3912,6 +3916,7 @@ label,
 .dropdown-menu {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
+  z-index: var(--z-popover) !important;
 }
 
 [data-theme="dark"] .actions-dropdown-panel,
@@ -3919,7 +3924,7 @@ label,
 [data-theme="dark"] .server-dropdown-menu,
 [data-theme="dark"] .header-search-results,
 [data-theme="dark"] .recharts-default-tooltip {
-  background: #0f0f13 !important;
+  background: var(--floating-panel-bg) !important;
 }
 
 [data-theme="light"] .actions-dropdown-panel,

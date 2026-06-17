@@ -112,20 +112,22 @@ function hasVisibleUsersStats(snapshot = {}) {
         || Number(snapshot?.partialErrorCount || 0) > 0;
 }
 
-function buildProvisionSuccessMessage(deployment, locale = 'zh-CN') {
+function buildProvisionSuccessMessage(deployment, t) {
     const dep = deployment && typeof deployment === 'object' ? deployment : {};
-    const isEnglish = locale === 'en-US';
     if (Number(dep.failed || 0) > 0) {
-        return isEnglish
-            ? `Subscription enabled, but node sync partially failed (created ${dep.created || 0} / updated ${dep.updated || 0} / skipped ${dep.skipped || 0} / failed ${dep.failed || 0})`
-            : `订阅已开通，节点下发部分失败（创建 ${dep.created || 0} / 更新 ${dep.updated || 0} / 跳过 ${dep.skipped || 0} / 失败 ${dep.failed || 0}）`;
+        return t('comp.users.provisionPartiallyFailed', {
+            created: dep.created || 0,
+            updated: dep.updated || 0,
+            skipped: dep.skipped || 0,
+            failed: dep.failed || 0
+        });
     }
     if (Number(dep.created || 0) > 0 || Number(dep.updated || 0) > 0) {
-        return isEnglish
-            ? `Subscription enabled and synced ${Number(dep.created || 0) + Number(dep.updated || 0)} clients to nodes`
-            : `订阅已开通，已同步 ${Number(dep.created || 0) + Number(dep.updated || 0)} 个客户端到节点`;
+        return t('comp.users.provisionSyncedClients', {
+            count: Number(dep.created || 0) + Number(dep.updated || 0)
+        });
     }
-    return isEnglish ? 'Subscription enabled and links are ready' : '订阅已开通，链接已生成';
+    return t('comp.users.subscriptionReady');
 }
 
 function toLocalDateTimeString(timestamp) {
@@ -134,58 +136,43 @@ function toLocalDateTimeString(timestamp) {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function getUserStatus(user, clientCount) {
+function getUserStatus(user, clientCount, t) {
     if (!user.enabled && user.emailVerified !== true && clientCount === 0) {
-        return { key: 'pending', label: '待审核', badge: 'badge-warning' };
+        return { key: 'pending', label: t('comp.users.statusPending'), badge: 'badge-warning' };
     }
-    if (!user.enabled) return { key: 'disabled', label: '已停用', badge: 'badge-danger' };
-    if (clientCount > 0) return { key: 'active', label: '已开通', badge: 'badge-success' };
-    return { key: 'enabled', label: '已启用', badge: 'badge-info' };
+    if (!user.enabled) return { key: 'disabled', label: t('comp.users.statusDisabled'), badge: 'badge-danger' };
+    if (clientCount > 0) return { key: 'active', label: t('comp.users.statusActive'), badge: 'badge-success' };
+    return { key: 'enabled', label: t('comp.users.statusEnabled'), badge: 'badge-info' };
 }
 
-function formatExpiryLabel(expiryValues, locale = 'zh-CN') {
-    if (!expiryValues || expiryValues.length === 0) return '永久';
+function formatExpiryLabel(expiryValues, t) {
+    if (!expiryValues || expiryValues.length === 0) return t('comp.common.permanent');
     const earliest = Math.min(...expiryValues);
-    return formatDateOnly(earliest, locale);
+    return formatDateOnly(earliest);
 }
 
-function getOnlineStatus(clientCount, sessions) {
+function getOnlineStatus(clientCount, sessions, t) {
     if (Number(sessions || 0) > 0) {
         return {
             key: 'online',
-            label: '在线',
+            label: t('comp.users.online'),
             badge: 'badge-success',
-            detail: `${sessions} 会话`,
+            detail: t('comp.users.sessionsCount', { count: sessions }),
         };
     }
     if (Number(clientCount || 0) > 0) {
         return {
             key: 'offline',
-            label: '离线',
+            label: t('comp.users.offline'),
             badge: 'badge-neutral',
             detail: '',
         };
     }
     return {
         key: 'unassigned',
-        label: '未接入',
+        label: t('comp.users.notConnected'),
         badge: 'badge-neutral',
         detail: '',
-    };
-}
-
-function getSyncingBadgeCopy(locale = 'zh-CN') {
-    if (locale === 'en-US') {
-        return {
-            status: 'Syncing',
-            detail: 'Refreshing node stats',
-            summary: 'Refreshing node stats...',
-        };
-    }
-    return {
-        status: '同步中',
-        detail: '正在刷新节点统计',
-        summary: '节点统计同步中...',
     };
 }
 
@@ -251,46 +238,7 @@ function compareUsersFallback(a, b) {
     return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
 }
 
-function getUsersHubCopy(locale = 'zh-CN') {
-    if (locale === 'en-US') {
-        return {
-            provisionAction: 'Enable Subscription',
-            viewSubscription: 'View Subscription',
-            unsetEmail: 'No email set',
-            postCreateNoEmail: 'User created, but no email is set so provisioning cannot start yet',
-            provisionLoadFailed: 'Subscription enabled, but subscription details failed to load. Refresh and check later.',
-            createProvisionToggle: 'Open provisioning right after create',
-            provisionModalTitle: 'Enable Subscription',
-            passwordCopied: 'Password copied to clipboard',
-            userListLoadFailedTitle: 'Failed to load user list',
-            noMatchUsersTitle: 'No matching users',
-            noMatchUsersSubtitle: 'Try a different search term.',
-            noUsersTitle: 'No registered users',
-            noUsersSubtitle: 'Add a user from the action bar above.',
-            degradedDataTitle: 'Node data partially unavailable',
-            degradedDataIntro: 'The user list is available, but some node data failed to load. Traffic and online status may be incomplete.',
-        };
-    }
-    return {
-        provisionAction: '开通订阅',
-        viewSubscription: '查看订阅',
-        unsetEmail: '未设置邮箱',
-        postCreateNoEmail: '用户已创建，但未设置邮箱，无法立即分配节点',
-        provisionLoadFailed: '订阅已开通，但订阅详情加载失败，可稍后刷新查看',
-        createProvisionToggle: '创建后立即进入"开通订阅/分配节点"',
-        provisionModalTitle: '开通订阅',
-        passwordCopied: '密码已复制到剪贴板',
-        userListLoadFailedTitle: '用户列表加载失败',
-        noMatchUsersTitle: '未找到匹配用户',
-        noMatchUsersSubtitle: '请尝试其他搜索词',
-        noUsersTitle: '暂无注册用户',
-        noUsersSubtitle: '点击上方按钮添加用户',
-        degradedDataTitle: '节点数据已降级显示',
-        degradedDataIntro: '基础用户列表已加载，但部分节点的入站配置或在线状态读取失败，流量和在线统计可能不完整。',
-    };
-}
-
-function summarizePartialErrors(partialErrors, locale = 'zh-CN') {
+function summarizePartialErrors(partialErrors, t) {
     if (!Array.isArray(partialErrors) || partialErrors.length === 0) return '';
 
     const inboundsServers = partialErrors
@@ -300,25 +248,14 @@ function summarizePartialErrors(partialErrors, locale = 'zh-CN') {
         .filter((item) => item.kind === 'presence')
         .map((item) => item.serverName);
 
-    if (locale === 'en-US') {
-        const parts = [];
-        if (inboundsServers.length > 0) {
-            parts.push(`inbounds unavailable on ${inboundsServers.join(', ')}`);
-        }
-        if (presenceServers.length > 0) {
-            parts.push(`online presence unavailable on ${presenceServers.join(', ')}`);
-        }
-        return parts.join('; ');
-    }
-
     const parts = [];
     if (inboundsServers.length > 0) {
-        parts.push(`入站配置失败: ${inboundsServers.join('、')}`);
+        parts.push(t('comp.users.inboundsSyncFailedOn', { nodes: inboundsServers.join(', ') }));
     }
     if (presenceServers.length > 0) {
-        parts.push(`在线状态失败: ${presenceServers.join('、')}`);
+        parts.push(t('comp.users.presenceSyncFailedOn', { nodes: presenceServers.join(', ') }));
     }
-    return parts.join('；');
+    return parts.join('; ');
 }
 
 export default function UsersHub() {
@@ -326,8 +263,11 @@ export default function UsersHub() {
     const confirmAction = useConfirm();
     const { locale, t } = useI18n();
     const isCompactLayout = useMediaQuery('(max-width: 768px)');
-    const copy = useMemo(() => getUsersHubCopy(locale), [locale]);
-    const syncingCopy = useMemo(() => getSyncingBadgeCopy(locale), [locale]);
+    const syncingCopy = useMemo(() => ({
+        status: t('comp.users.statusSyncing'),
+        detail: t('comp.users.detailSyncing'),
+        summary: t('comp.users.summarySyncing'),
+    }), [t]);
     const requestIdRef = useRef(0);
     const initialUsersSnapshotMeta = useMemo(() => getManagedUsersSnapshotMeta(), []);
     const usersBootstrapRef = useRef(initialUsersSnapshotMeta.users);
@@ -693,7 +633,7 @@ export default function UsersHub() {
             const res = await api.get('/user-groups');
             setUserGroups(Array.isArray(res.data?.obj) ? res.data.obj : []);
         } catch (err) {
-            toast.error(err.response?.data?.msg || err.message || '用户分组加载失败');
+            toast.error(err.response?.data?.msg || err.message || t('comp.users.groupLoadFailed'));
         }
         setGroupsLoading(false);
     };
@@ -738,15 +678,15 @@ export default function UsersHub() {
                 const clientData = resolveUserClientData(user, clientsMap, onlineMap);
                 const onlineSessions = statsReady ? Number(clientData.onlineSessions || 0) : 0;
                 const status = statsReady
-                    ? getUserStatus(user, clientData.count)
+                    ? getUserStatus(user, clientData.count, t)
                     : { key: 'syncing', label: syncingCopy.status, badge: 'badge-neutral' };
                 const onlineStatus = statsReady
-                    ? getOnlineStatus(clientData.count, onlineSessions)
+                    ? getOnlineStatus(clientData.count, onlineSessions, t)
                     : { key: 'syncing', label: syncingCopy.status, badge: 'badge-neutral', detail: syncingCopy.detail };
                 return { ...user, clientData, status, onlineSessions, onlineStatus, statsPending: !statsReady };
             })
             .sort(compareUsersFallback);
-    }, [users, clientsMap, onlineMap, statsReady, syncingCopy.detail, syncingCopy.status]);
+    }, [users, clientsMap, onlineMap, statsReady, syncingCopy.detail, syncingCopy.status, t]);
 
     const filteredUsers = useMemo(() => {
         const search = String(deferredSearchTerm || '').trim().toLowerCase();
@@ -799,9 +739,9 @@ export default function UsersHub() {
         const action = enabled ? t('comp.common.enable') : t('comp.common.disable');
         const ok = await confirmAction({
             title: `${action}${t('comp.users.user')}`,
-            message: `确定${action}用户 ${user.username} 吗？`,
+            message: t('comp.users.confirmToggleUserStatus', { action, username: user.username }),
             details: enabled ? undefined : t('comp.users.disableDetails'),
-            confirmText: `确认${action}`,
+            confirmText: t('comp.users.confirmActionWith', { action }),
             tone: enabled ? 'success' : 'danger',
         });
         if (!ok) return;
@@ -809,7 +749,7 @@ export default function UsersHub() {
         try {
             const res = await api.put(`/auth/users/${encodeURIComponent(user.id)}/set-enabled`, { enabled });
             if (res.data?.success) {
-                const message = res.data?.msg || `用户 ${user.username} 已${action}`;
+                const message = res.data?.msg || t('comp.users.userStatusUpdatedSuccess', { username: user.username, action });
                 if (res.data?.obj?.partialFailure) {
                     toast.error(message);
                 } else {
@@ -830,7 +770,7 @@ export default function UsersHub() {
     const handleDelete = async (user) => {
         const ok = await confirmAction({
             title: t('comp.users.deleteUser'),
-            message: `确定删除用户 ${user.username} 吗？`,
+            message: t('comp.users.confirmDeleteUser', { username: user.username }),
             details: t('comp.users.deleteDetails'),
             confirmText: t('comp.common.confirmDelete'),
             tone: 'danger',
@@ -840,7 +780,7 @@ export default function UsersHub() {
         try {
             const res = await api.delete(`/auth/users/${encodeURIComponent(user.id)}`);
             if (res.data?.success) {
-                toast.success(`用户 ${user.username} 已删除`);
+                toast.success(t('comp.users.userDeletedSuccess', { username: user.username }));
                 invalidateServerPanelDataCache();
                 invalidateManagedUsersCache();
                 await fetchGroups();
@@ -922,12 +862,12 @@ export default function UsersHub() {
 
         if (user.status.key === 'pending') {
             dropdownActions.push({
-                label: '详情',
+                label: t('comp.users.details'),
                 icon: HiOutlineEye,
                 onClick: () => navigate(`/clients/${user.id}`),
             });
             dropdownActions.push({
-                label: '删除',
+                label: t('comp.common.delete'),
                 icon: HiOutlineTrash,
                 onClick: () => handleDelete(user),
                 isDanger: true,
@@ -937,12 +877,12 @@ export default function UsersHub() {
                 <div className="flex items-center gap-2">
                     <button
                         className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn is-success"
-                        title="通过审核"
-                        aria-label="通过审核"
+                        title={t('comp.users.approve')}
+                        aria-label={t('comp.users.approve')}
                         onClick={() => handleSetEnabled(user, true)}
                     >
                         <HiOutlineCheck />
-                        <span className="users-action-mobile-label">通过</span>
+                        <span className="users-action-mobile-label">{t('comp.users.approveShort')}</span>
                     </button>
                     <ActionsDropdown actions={dropdownActions} />
                 </div>
@@ -951,17 +891,17 @@ export default function UsersHub() {
 
         if (user.status.key === 'enabled') {
             dropdownActions.push({
-                label: '详情',
+                label: t('comp.users.details'),
                 icon: HiOutlineEye,
                 onClick: () => navigate(`/clients/${user.id}`),
             });
             dropdownActions.push({
-                label: '编辑 / 状态',
+                label: t('comp.users.editOrStatus'),
                 icon: HiOutlinePencilSquare,
                 onClick: () => openEditModal(user),
             });
             dropdownActions.push({
-                label: '删除',
+                label: t('comp.common.delete'),
                 icon: HiOutlineTrash,
                 onClick: () => handleDelete(user),
                 isDanger: true,
@@ -971,12 +911,12 @@ export default function UsersHub() {
                 <div className="flex items-center gap-2">
                     <button
                         className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn is-primary"
-                        title={copy.provisionAction}
-                        aria-label={copy.provisionAction}
+                        title={t('comp.users.provisionAction')}
+                        aria-label={t('comp.users.provisionAction')}
                         onClick={() => openProvisionModal(user)}
                     >
                         <HiOutlinePlusCircle />
-                        <span className="users-action-mobile-label">开通</span>
+                        <span className="users-action-mobile-label">{t('comp.users.provisionShort')}</span>
                     </button>
                     <ActionsDropdown actions={dropdownActions} />
                 </div>
@@ -985,12 +925,12 @@ export default function UsersHub() {
 
         // active or disabled
         dropdownActions.push({
-            label: '编辑 / 状态',
+            label: t('comp.users.editOrStatus'),
             icon: HiOutlinePencilSquare,
             onClick: () => openEditModal(user),
         });
         dropdownActions.push({
-            label: '删除',
+            label: t('comp.common.delete'),
             icon: HiOutlineTrash,
             onClick: () => handleDelete(user),
             isDanger: true,
@@ -1000,12 +940,12 @@ export default function UsersHub() {
             <div className="flex items-center gap-2">
                 <button
                     className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn"
-                    title="详情"
-                    aria-label="详情"
+                    title={t('comp.users.details')}
+                    aria-label={t('comp.users.details')}
                     onClick={() => navigate(`/clients/${user.id}`)}
                 >
                     <HiOutlineEye />
-                    <span className="users-action-mobile-label">详情</span>
+                    <span className="users-action-mobile-label">{t('comp.users.details')}</span>
                 </button>
                 <ActionsDropdown actions={dropdownActions} />
             </div>
@@ -1020,13 +960,13 @@ export default function UsersHub() {
         const userExpiryLabel = user.statsPending
             ? syncingCopy.detail
             : user.clientData.count > 0
-            ? formatExpiryLabel(user.clientData.expiryValues, locale)
+            ? formatExpiryLabel(user.clientData.expiryValues, t)
             : t('pages.usersHub.notProvisioned');
         const userTrafficSummary = user.statsPending
             ? syncingCopy.detail
             : user.clientData.totalUsed
             ? `↑${formatBytes(user.clientData.totalUp)} / ↓${formatBytes(user.clientData.totalDown)}`
-            : '未使用流量';
+            : t('comp.users.unusedTraffic');
         const groupLabel = user.groupName || userGroupMap.get(String(user.groupId || ''))?.name || '';
 
         return (
@@ -1058,30 +998,30 @@ export default function UsersHub() {
                 >
                     <span className="users-mobile-name">{user.username}</span>
                     <span className={`users-mobile-email${displayEmail ? '' : ' is-empty'}`}>
-                        {displayEmail || copy.unsetEmail}
+                        {displayEmail || t('comp.users.unsetEmail')}
                     </span>
                     {groupLabel ? <span className="badge badge-info text-xs mt-1">{groupLabel}</span> : null}
                 </button>
 
                 <div className="users-mobile-metrics">
                     <div className="users-mobile-metric">
-                        <span className="users-mobile-metric-label">在线状态</span>
+                        <span className="users-mobile-metric-label">{t('usersHub.cols.online')}</span>
                         <span className="users-mobile-metric-value">
                             {user.onlineStatus.detail || user.onlineStatus.label}
                         </span>
                     </div>
                     <div className="users-mobile-metric">
-                        <span className="users-mobile-metric-label">节点数</span>
+                        <span className="users-mobile-metric-label">{t('usersHub.cols.nodeCount')}</span>
                         <span className="users-mobile-metric-value">
                             {user.statsPending ? syncingCopy.status : (user.clientData.count || 0)}
                         </span>
                     </div>
                     <div className="users-mobile-metric">
-                        <span className="users-mobile-metric-label">流量</span>
+                        <span className="users-mobile-metric-label">{t('usersHub.cols.traffic')}</span>
                         <span className="users-mobile-metric-value">{userTrafficSummary}</span>
                     </div>
                     <div className="users-mobile-metric">
-                        <span className="users-mobile-metric-label">到期时间</span>
+                        <span className="users-mobile-metric-label">{t('usersHub.cols.expiry')}</span>
                         <span className="users-mobile-metric-value">{userExpiryLabel}</span>
                     </div>
                 </div>
@@ -1212,7 +1152,7 @@ export default function UsersHub() {
                 return;
             }
             const dep = res.data?.obj?.deployment || null;
-            const successMessage = buildProvisionSuccessMessage(dep, locale);
+            const successMessage = buildProvisionSuccessMessage(dep, t);
             toast.success(successMessage);
 
             const boundEmail = normalizeEmail(res.data?.obj?.subscription?.email || provisionNormalizedEmail);
@@ -1221,7 +1161,7 @@ export default function UsersHub() {
                 const subRes = await api.get(`/subscriptions/${encodeURIComponent(boundEmail)}`);
                 subscriptionPayload = subRes.data?.obj || null;
             } catch {
-                toast(copy.provisionLoadFailed, { icon: '⚠️' });
+                toast(t('comp.users.provisionLoadFailed'), { icon: '⚠️' });
             }
 
             setProvisionResult({
@@ -1377,7 +1317,7 @@ export default function UsersHub() {
 
         const subscriptionEmail = normalizeEmail(editSubscriptionEmail);
         if (subscriptionEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(subscriptionEmail)) {
-            toast.error('订阅绑定邮箱格式不正确');
+            toast.error(t('comp.users.subEmailInvalid'));
             return;
         }
 
@@ -1453,7 +1393,7 @@ export default function UsersHub() {
                     const policyRes = await api.put(`/user-policy/${encodeURIComponent(policyEmail)}`, policyPayload);
                     policySyncPartialFailure = policyRes.data?.obj?.partialFailure === true;
                 } catch (policyErr) {
-                    policySyncFailedMessage = policyErr.response?.data?.msg || policyErr.message || '订阅策略同步失败';
+                    policySyncFailedMessage = policyErr.response?.data?.msg || policyErr.message || t('comp.users.policySyncFailed');
                 }
             }
 
@@ -1465,13 +1405,13 @@ export default function UsersHub() {
                         enabled: editEnabled,
                     });
                     if (!enabledRes.data?.success) {
-                        toast.error(enabledRes.data?.msg || '更新用户状态失败');
+                        toast.error(enabledRes.data?.msg || t('comp.users.updateStatusFailed'));
                         setEditSaving(false);
                         return;
                     }
                     statusSyncPartialFailure = enabledRes.data?.obj?.partialFailure === true;
                 } catch (enabledErr) {
-                    statusSyncFailedMessage = enabledErr.response?.data?.msg || enabledErr.message || '更新用户状态失败';
+                    statusSyncFailedMessage = enabledErr.response?.data?.msg || enabledErr.message || t('comp.users.updateStatusFailed');
                 }
             }
 
@@ -1491,23 +1431,26 @@ export default function UsersHub() {
                         expirySyncTotal = Number(r.total || 0);
                         expirySyncPartialFailure = Number(r.failed || 0) > 0;
                     } else {
-                        expiryUpdateMessage = expiryRes.data?.msg || '到期时间更新失败';
+                        expiryUpdateMessage = expiryRes.data?.msg || t('comp.users.expiryUpdateFailed');
                     }
                 } catch (expiryErr) {
-                    expiryUpdateMessage = expiryErr.response?.data?.msg || expiryErr.message || '到期时间更新失败';
+                    expiryUpdateMessage = expiryErr.response?.data?.msg || expiryErr.message || t('comp.users.expiryUpdateFailed');
                 }
             }
 
             // Aggregate toast
             const errorMessages = [policySyncFailedMessage, statusSyncFailedMessage, expiryUpdateMessage].filter(Boolean);
             if (errorMessages.length > 0) {
-                toast.error(`用户信息已更新，但${errorMessages.join('；')}`);
+                toast.error(t('comp.users.userUpdatedWithErrors', { errors: errorMessages.join(locale === 'en-US' ? '; ' : '；') }));
             } else if (policySyncPartialFailure || statusSyncPartialFailure || expirySyncPartialFailure) {
-                toast.success(`用户信息${enabledChanged ? '、账号状态' : ''}已更新，但部分节点同步失败`);
+                const statusPart = enabledChanged ? t('comp.users.statusPart') : '';
+                toast.success(t('comp.users.userUpdatedWithSyncFailed', { statusPart }));
             } else if (expiryChanged && expirySyncTotal > 0) {
-                toast.success(`用户信息${enabledChanged ? '、账号状态' : ''}、订阅策略和到期时间已更新（${expirySyncCount} 个节点）`);
+                const statusPart = enabledChanged ? t('comp.users.statusPart') : '';
+                toast.success(t('comp.users.userUpdatedFullSuccess', { statusPart, count: expirySyncCount }));
             } else {
-                toast.success(`用户信息${enabledChanged ? '和账号状态' : ''}已更新`);
+                const statusPart = enabledChanged ? t('comp.users.statusPartAnd') : '';
+                toast.success(t('comp.users.userUpdatedSuccessPart', { statusPart }));
             }
 
             closeEditModal();
@@ -1586,7 +1529,7 @@ export default function UsersHub() {
         event.preventDefault();
         const allowedInboundKeys = groupAllowedInboundKeys;
         if (allowedInboundKeys.length === 0) {
-            toast.error('请选择至少一个入站');
+            toast.error(t('comp.users.selectInbound'));
             return;
         }
         const name = String(groupName || '').trim() || formatInboundAssignmentLabel(allowedInboundKeys[0]);
@@ -1612,16 +1555,16 @@ export default function UsersHub() {
                 ? await api.put(`/user-groups/${encodeURIComponent(editingGroup.id)}`, payload)
                 : await api.post('/user-groups', payload);
             if (!res.data?.success) {
-                toast.error(res.data?.msg || '保存用户分组失败');
+                toast.error(res.data?.msg || t('comp.users.saveGroupFailed'));
                 setGroupSaving(false);
                 return;
             }
             const sync = res.data?.obj?.sync;
             if (Number(sync?.failedUsers || 0) > 0) {
-                toast.error(res.data?.msg || '用户分组已保存，但部分节点同步失败');
+                toast.error(res.data?.msg || t('comp.users.groupSavedWithSyncFailed'));
             } else {
                 const syncedCount = sync?.syncedUsers || 0;
-                toast.success(`${res.data?.msg || '用户分组已保存'} (已处理 ${syncedCount} 个用户)`);
+                toast.success(res.data?.msg || t('comp.users.groupSavedSuccess', { count: syncedCount }));
             }
             closeGroupModal();
             await fetchGroups();
@@ -1629,33 +1572,33 @@ export default function UsersHub() {
             invalidateManagedUsersCache();
             await fetchData({ forceUsers: true, forceStats: true });
         } catch (err) {
-            toast.error(err.response?.data?.msg || err.message || '保存用户分组失败');
+            toast.error(err.response?.data?.msg || err.message || t('comp.users.saveGroupFailed'));
         }
         setGroupSaving(false);
     };
 
     const handleDeleteGroup = async (group) => {
         const ok = await confirmAction({
-            title: '删除用户分组',
-            message: `确定删除分组 ${group.name} 吗？`,
-            details: '成员会解除分组绑定，并按个人策略重新同步 3x-ui 节点。',
-            confirmText: '确认删除',
+            title: t('comp.users.deleteGroupTitle'),
+            message: t('comp.users.deleteGroupMessage', { name: group.name }),
+            details: t('comp.users.deleteGroupDetails'),
+            confirmText: t('comp.common.confirmDelete'),
             tone: 'danger',
         });
         if (!ok) return;
         try {
             const res = await api.delete(`/user-groups/${encodeURIComponent(group.id)}`);
             if (res.data?.success) {
-                toast.success(res.data?.msg || '用户分组已删除');
+                toast.success(res.data?.msg || t('comp.users.groupDeletedSuccess'));
                 await fetchGroups();
                 invalidateServerPanelDataCache();
                 invalidateManagedUsersCache();
                 await fetchData({ forceUsers: true, forceStats: true });
             } else {
-                toast.error(res.data?.msg || '删除用户分组失败');
+                toast.error(res.data?.msg || t('comp.users.deleteGroupFailed'));
             }
         } catch (err) {
-            toast.error(err.response?.data?.msg || err.message || '删除用户分组失败');
+            toast.error(err.response?.data?.msg || err.message || t('comp.users.deleteGroupFailed'));
         }
     };
 
@@ -1664,17 +1607,17 @@ export default function UsersHub() {
             const res = await api.post(`/user-groups/${encodeURIComponent(group.id)}/sync`);
             const syncResult = res.data?.obj?.sync || {};
             if (Number(syncResult.failedUsers || 0) > 0) {
-                toast.error(res.data?.msg || '分组同步存在失败项');
+                toast.error(res.data?.msg || t('comp.users.groupSyncFailed'));
             } else {
                 const syncedCount = syncResult.syncedUsers || 0;
-                toast.success(`${res.data?.msg || '分组同步完成'} (已处理 ${syncedCount} 个用户)`);
+                toast.success(res.data?.msg || t('comp.users.groupSyncSuccess', { count: syncedCount }));
             }
             await fetchGroups();
             invalidateServerPanelDataCache();
             invalidateManagedUsersCache();
             await fetchData({ forceUsers: true, forceStats: true });
         } catch (err) {
-            toast.error(err.response?.data?.msg || err.message || '分组同步失败');
+            toast.error(err.response?.data?.msg || err.message || t('comp.users.groupSyncFailedTotal'));
         }
     };
 
@@ -1734,7 +1677,7 @@ export default function UsersHub() {
             }
 
             const createdUser = res.data.obj;
-            toast.success(`用户 ${createdUser.username || username} 已创建`);
+            toast.success(t('comp.users.userCreatedSuccess', { username: createdUser.username || username }));
             closeCreateModal();
             invalidateServerPanelDataCache();
             invalidateManagedUsersCache();
@@ -1744,7 +1687,7 @@ export default function UsersHub() {
             if (createProvisionAfterCreate) {
                 const targetEmail = normalizeEmail(createdUser.subscriptionEmail || createdUser.email);
                 if (!targetEmail) {
-                    toast(copy.postCreateNoEmail);
+                    toast(t('comp.users.createdNoEmail'));
                 } else {
                     openProvisionModal(createdUser);
                 }
@@ -1842,9 +1785,9 @@ export default function UsersHub() {
 
                 {partialErrors.length > 0 && !primaryError && !loading && (
                     <div className="glass-panel mb-4 users-degraded-panel" role="status">
-                        <div className="text-sm font-semibold users-degraded-title">{copy.degradedDataTitle}</div>
-                        <div className="text-sm text-muted users-degraded-copy">{copy.degradedDataIntro}</div>
-                        <div className="text-xs text-muted users-degraded-detail">{summarizePartialErrors(partialErrors, locale)}</div>
+                        <div className="text-sm font-semibold users-degraded-title">{t('comp.users.degradedDataTitle')}</div>
+                        <div className="text-sm text-muted users-degraded-copy">{t('comp.users.degradedDataIntro')}</div>
+                        <div className="text-xs text-muted users-degraded-detail">{summarizePartialErrors(partialErrors, t)}</div>
                     </div>
                 )}
 
@@ -1889,7 +1832,7 @@ export default function UsersHub() {
                         ) : primaryError ? (
                             <div className="table-container p-4">
                                 <EmptyState
-                                    title={copy.userListLoadFailedTitle}
+                                    title={t('comp.users.userListLoadFailedTitle')}
                                     subtitle={primaryError}
                                     action={<button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchData({ forceUsers: true })}><HiOutlineArrowPath /> {t('pages.usersHub.retryAfterRefresh')}</button>}
                                 />
@@ -1897,8 +1840,8 @@ export default function UsersHub() {
                         ) : enrichedUsers.length === 0 ? (
                             <div className="table-container p-4">
                                 <EmptyState
-                                    title={searchTerm ? copy.noMatchUsersTitle : copy.noUsersTitle}
-                                    subtitle={searchTerm ? copy.noMatchUsersSubtitle : copy.noUsersSubtitle}
+                                    title={searchTerm ? t('comp.users.noMatchUsersTitle') : t('comp.users.noUsersTitle')}
+                                    subtitle={searchTerm ? t('comp.users.noMatchUsersSubtitle') : t('comp.users.noUsersSubtitle')}
                                     action={searchTerm || statusFilter !== 'all'
                                         ? <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setSearchTerm(''); setStatusFilter('all'); }}>{t('pages.usersHub.clearFilters')}</button>
                                         : <button type="button" className="btn btn-primary btn-sm" onClick={openCreateModal}><HiOutlineUserPlus /> {t('pages.usersHub.toolbar.addAccount')}</button>}
@@ -1915,7 +1858,7 @@ export default function UsersHub() {
                 ) : primaryError ? (
                     <div className="table-container p-4">
                         <EmptyState
-                            title={copy.userListLoadFailedTitle}
+                            title={t('comp.users.userListLoadFailedTitle')}
                             subtitle={primaryError}
                             action={<button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchData({ forceUsers: true })}><HiOutlineArrowPath /> {t('pages.usersHub.retryAfterRefresh')}</button>}
                         />
@@ -1923,8 +1866,8 @@ export default function UsersHub() {
                 ) : enrichedUsers.length === 0 ? (
                     <div className="table-container p-4">
                         <EmptyState
-                            title={searchTerm ? copy.noMatchUsersTitle : copy.noUsersTitle}
-                            subtitle={searchTerm ? copy.noMatchUsersSubtitle : copy.noUsersSubtitle}
+                            title={searchTerm ? t('comp.users.noMatchUsersTitle') : t('comp.users.noUsersTitle')}
+                            subtitle={searchTerm ? t('comp.users.noMatchUsersSubtitle') : t('comp.users.noUsersSubtitle')}
                             action={searchTerm || statusFilter !== 'all'
                                 ? <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setSearchTerm(''); setStatusFilter('all'); }}>{t('pages.usersHub.clearFilters')}</button>
                                 : <button type="button" className="btn btn-primary btn-sm" onClick={openCreateModal}><HiOutlineUserPlus /> {t('pages.usersHub.toolbar.addAccount')}</button>}
@@ -1975,7 +1918,7 @@ export default function UsersHub() {
                                     const userExpiryLabel = user.statsPending
                                         ? syncingCopy.detail
                                         : user.clientData.count > 0
-                                        ? formatExpiryLabel(user.clientData.expiryValues, locale)
+                                        ? formatExpiryLabel(user.clientData.expiryValues, t)
                                         : t('pages.usersHub.notProvisioned');
                                     return (
                                         <tr
@@ -2006,7 +1949,7 @@ export default function UsersHub() {
                                                     >
                                                         <span className="users-identity-primary">{user.username}</span>
                                                         <span className={`users-identity-secondary${displayEmail ? '' : ' is-empty'}`}>
-                                                            {displayEmail || copy.unsetEmail}
+                                                            {displayEmail || t('comp.users.unsetEmail')}
                                                         </span>
                                                         {groupLabel ? <span className="badge badge-info text-xs mt-1">{groupLabel}</span> : null}
                                                     </button>
@@ -2313,7 +2256,7 @@ export default function UsersHub() {
                                         className="form-input"
                                         value={createUsername}
                                         onChange={(e) => setCreateUsername(e.target.value)}
-                                        placeholder={locale === 'en-US' ? 'e.g. user001' : '例如: user001'}
+                                        placeholder={t('comp.users.usernamePlaceholder')}
                                         autoComplete="off"
                                     />
                                 </div>
@@ -2348,23 +2291,23 @@ export default function UsersHub() {
                                             className="form-input font-mono"
                                             value={createPassword}
                                             onChange={(e) => setCreatePassword(e.target.value)}
-                                            placeholder={locale === 'en-US' ? 'At least 8 chars, 3 character groups' : '至少8位，含3类字符'}
+                                            placeholder={t('comp.users.passwordPlaceholder')}
                                         />
                                         <button
                                             type="button"
                                             className="btn btn-secondary btn-sm btn-icon"
                                             onClick={() => setShowCreatePassword((v) => !v)}
-                                            title={showCreatePassword ? (locale === 'en-US' ? 'Hide password' : '隐藏密码') : (locale === 'en-US' ? 'Show password' : '显示密码')}
-                                            aria-label={showCreatePassword ? (locale === 'en-US' ? 'Hide password' : '隐藏密码') : (locale === 'en-US' ? 'Show password' : '显示密码')}
+                                            title={showCreatePassword ? t('comp.users.hidePassword') : t('comp.users.showPassword')}
+                                            aria-label={showCreatePassword ? t('comp.users.hidePassword') : t('comp.users.showPassword')}
                                         >
                                             {showCreatePassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
                                         </button>
                                         <button
                                             type="button"
                                             className="btn btn-secondary btn-sm btn-icon"
-                                            onClick={() => { copyToClipboard(createPassword); toast.success(copy.passwordCopied); }}
-                                            title={locale === 'en-US' ? 'Copy password' : '复制密码'}
-                                            aria-label={locale === 'en-US' ? 'Copy password' : '复制密码'}
+                                            onClick={() => { copyToClipboard(createPassword); toast.success(t('comp.users.passwordCopied')); }}
+                                            title={t('comp.users.copyPassword')}
+                                            aria-label={t('comp.users.copyPassword')}
                                         >
                                             <HiOutlineClipboard />
                                         </button>
@@ -2372,8 +2315,8 @@ export default function UsersHub() {
                                             type="button"
                                             className="btn btn-secondary btn-sm btn-icon"
                                             onClick={() => setCreatePassword(generateSecurePassword())}
-                                            title={locale === 'en-US' ? 'Generate strong password' : '生成强密码'}
-                                            aria-label={locale === 'en-US' ? 'Generate strong password' : '生成强密码'}
+                                            title={t('comp.users.genPassword')}
+                                            aria-label={t('comp.users.genPassword')}
                                         >
                                             <HiOutlineArrowPath />
                                         </button>
@@ -2388,14 +2331,14 @@ export default function UsersHub() {
                                             checked={createProvisionAfterCreate}
                                             onChange={(e) => setCreateProvisionAfterCreate(e.target.checked)}
                                         />
-                                        {copy.createProvisionToggle}
+                                        {t('comp.users.createProvisionToggle')}
                                     </label>
                                 </div>
                             </div>
                             <div className="modal-footer">
                                 <button type="button" className="btn btn-secondary" onClick={closeCreateModal}>{t('pages.usersHub.groups.modal.cancel')}</button>
                                 <button type="submit" className="btn btn-primary" disabled={createSaving}>
-                                    {createSaving ? <span className="spinner" /> : <><HiOutlineCheck /> {locale === 'en-US' ? 'Create Account' : '创建账号'}</>}
+                                    {createSaving ? <span className="spinner" /> : <><HiOutlineCheck /> {t('comp.users.createAccountBtn')}</>}
                                 </button>
                             </div>
                         </form>
@@ -2736,8 +2679,8 @@ export default function UsersHub() {
                 <ModalShell isOpen={provisionOpen} onClose={closeProvisionModal}>
                     <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h3 className="modal-title">{copy.provisionModalTitle} - {provisionTargetUser.username}</h3>
-                            <button type="button" className="modal-close" onClick={closeProvisionModal} aria-label="关闭" title="关闭"><HiOutlineXMark /></button>
+                            <h3 className="modal-title">{t('comp.users.provisionModalTitle')} - {provisionTargetUser.username}</h3>
+                            <button type="button" className="modal-close" onClick={closeProvisionModal} aria-label={t('comp.users.close')} title={t('comp.users.close')}><HiOutlineXMark /></button>
                         </div>
                         <form onSubmit={submitProvision}>
                             <div className="modal-body">

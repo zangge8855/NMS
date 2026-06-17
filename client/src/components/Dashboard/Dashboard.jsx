@@ -1204,7 +1204,7 @@ export default function Dashboard() {
                     }),
                 sub: globalOnlineSummary,
                 onClick: () => setShowOnlineDetail((v) => !v),
-                ...DASHBOARD_ACCENT.info,
+                ...DASHBOARD_ACCENT.primary,
                 skeletonWidth: '6rem',
                 sparkline: clusterOnlineSparkline,
                 sparklineDomain: [0, 1],
@@ -1235,7 +1235,7 @@ export default function Dashboard() {
                     value: '--',
                     sub: t('pages.dashboardCommon.trafficPending'),
                 }),
-                ...DASHBOARD_ACCENT.info,
+                ...DASHBOARD_ACCENT.primary,
                 onClick: () => navigate('/audit?tab=traffic&window=day'),
                 skeletonWidth: '8.5rem',
             },
@@ -1502,7 +1502,7 @@ export default function Dashboard() {
             renderAnimatedValue: (value) => String(value),
             sub: showOnlineDetail ? t('pages.dashboardCommon.hideDetail') : t('pages.dashboardCommon.showDetail'),
             onClick: () => setShowOnlineDetail((v) => !v),
-            ...DASHBOARD_ACCENT.info,
+            ...DASHBOARD_ACCENT.primary,
             skeletonWidth: '5.5rem',
         },
     ];
@@ -1524,7 +1524,7 @@ export default function Dashboard() {
                 ? (locale === 'en-US' ? 'Online detail is expanded' : '已展开在线明细')
                 : (locale === 'en-US' ? 'Click to expand online detail' : '点击直接展开在线明细'),
             icon: HiOutlineUsers,
-            tone: 'info',
+            tone: 'primary',
             onClick: () => setShowOnlineDetail((value) => !value),
         },
         {

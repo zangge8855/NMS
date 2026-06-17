@@ -106,9 +106,9 @@ function generateRandomSiteAccessPath() {
 }
 
 const CAMOUFLAGE_TEMPLATE_OPTIONS = [
-    { value: 'corporate', label: '城市周刊' },
-    { value: 'nginx', label: '周末指南' },
-    { value: 'blog', label: '影像笔记' },
+    { value: 'corporate', labelKey: 'pages.settings.cityWeekly' },
+    { value: 'nginx', labelKey: 'pages.settings.weekendGuide' },
+    { value: 'blog', labelKey: 'pages.settings.videoNotes' },
 ];
 
 function buildDraft(source = null) {
@@ -173,14 +173,14 @@ function buildDraft(source = null) {
     };
 }
 
-function buildNoticeDraft(source = null, fallbackUrl = '') {
+function buildNoticeDraft(source = null, fallbackUrl = '', t) {
     const publicBaseUrl = toText(source?.subscription?.publicBaseUrl, '');
     const actionUrl = publicBaseUrl || toText(fallbackUrl, '');
     return {
-        subject: '服务入口地址变更通知',
-        message: '服务入口地址已更新，请通过下方链接获取最新地址和订阅入口。\n\n如果旧域名已经失效，请尽快更新浏览器收藏、订阅管理器或客户端中的旧地址。',
+        subject: t('pages.settings.noticeOfChangeOfServiceEntranceAddr'),
+        message: t('pages.settings.theServiceEntranceAddressHasBeenUpd'),
         actionUrl,
-        actionLabel: '查看最新地址',
+        actionLabel: t('pages.settings.viewTheLatestAddress'),
         scope: 'all',
         includeDisabled: true,
     };
@@ -261,10 +261,7 @@ function resolveWorkspaceSection(value) {
     return 'access';
 }
 
-function formatDateTime(value, locale = 'zh-CN') {
-    if (!value) return locale === 'en-US' ? 'N/A' : '暂无';
-    return formatDateTimeValue(value, locale);
-}
+
 
 function SettingsPanelHeader({ title, subtitle }) {
     return (
@@ -334,17 +331,17 @@ function SettingsWorkspaceSection({
     );
 }
 
-function getMonitorReasonLabel(reasonCode) {
+function getMonitorReasonLabel(reasonCode, t) {
     if (reasonCode === 'dns_error') return 'DNS';
-    if (reasonCode === 'connect_timeout') return '超时';
-    if (reasonCode === 'connection_refused') return '拒绝连接';
-    if (reasonCode === 'network_error') return '网络异常';
-    if (reasonCode === 'auth_failed') return '认证失败';
-    if (reasonCode === 'credentials_missing') return '凭据缺失';
-    if (reasonCode === 'credentials_unreadable') return '凭据不可解密';
-    if (reasonCode === 'status_unsupported') return '接口不兼容';
-    if (reasonCode === 'xray_not_running') return 'Xray 未运行';
-    if (reasonCode === 'panel_request_failed') return '请求失败';
+    if (reasonCode === 'connect_timeout') return t('pages.settings.statusTimeout');
+    if (reasonCode === 'connection_refused') return t('pages.settings.statusRefused');
+    if (reasonCode === 'network_error') return t('pages.settings.statusNetworkError');
+    if (reasonCode === 'auth_failed') return t('pages.settings.statusAuthFailed');
+    if (reasonCode === 'credentials_missing') return t('pages.settings.statusCredMissing');
+    if (reasonCode === 'credentials_unreadable') return t('pages.settings.statusCredUnreadable');
+    if (reasonCode === 'status_unsupported') return t('pages.settings.statusApiIncompatible');
+    if (reasonCode === 'xray_not_running') return t('pages.settings.statusXrayNotRunning');
+    if (reasonCode === 'panel_request_failed') return t('pages.settings.statusRequestFailed');
     return '';
 }
 
@@ -354,12 +351,15 @@ function SettingsToggleCard({
     disabled = false,
     label,
     description,
-    activeLabel = '已开启',
-    inactiveLabel = '已关闭',
+    activeLabel,
+    inactiveLabel,
     compact = false,
 }) {
+    const { t } = useI18n();
+    const effectiveActiveLabel = activeLabel || t("pages.settings.enabled");
+    const effectiveInactiveLabel = inactiveLabel || t("pages.settings.disabled");
     const detailText = compact
-        ? [checked ? activeLabel : inactiveLabel, description].filter(Boolean).join(' · ')
+        ? [checked ? effectiveActiveLabel : effectiveInactiveLabel, description].filter(Boolean).join(' · ')
         : description;
 
     return (
@@ -392,25 +392,25 @@ function SettingsToggleCard({
 
 function formatInviteDuration(days) {
     const normalized = Math.max(0, Number(days) || 0);
-    return normalized > 0 ? `${normalized} 天` : '不限时';
+    return normalized > 0 ? `${normalized} 天` : t('pages.settings.unlimitedTime');
 }
 
-function getInviteStatusMeta(item = {}) {
+function getInviteStatusMeta(item = {}, t) {
     if (item.status === 'active') {
         return {
             className: 'badge-success',
-            label: Number(item.remainingUses || 0) > 0 ? '可使用' : '待检查',
+            label: Number(item.remainingUses || 0) > 0 ? t('pages.settings.usable') : t('pages.settings.pendingCheck'),
         };
     }
     if (item.status === 'revoked') {
         return {
             className: 'badge-danger',
-            label: '已撤销',
+            label: t('pages.settings.revoked'),
         };
     }
     return {
         className: 'badge-neutral',
-        label: '已用完',
+        label: t('pages.settings.depleted'),
     };
 }
 
@@ -420,6 +420,10 @@ function areComparableSettingsEqual(left, right) {
 
 export default function SystemSettings() {
     const { locale, t } = useI18n();
+    const formatDateTime = (value, loc = locale) => {
+        if (!value) return loc === 'en-US' ? 'N/A' : t('pages.settings.na');
+        return formatDateTimeValue(value, loc);
+    };
     const { user } = useAuth();
     const confirmAction = useConfirm();
     const isAdmin = user?.role === 'admin';
@@ -462,7 +466,7 @@ export default function SystemSettings() {
     const [noticeModalOpen, setNoticeModalOpen] = useState(false);
     const [noticeSending, setNoticeSending] = useState(false);
     const [noticeTaskId, setNoticeTaskId] = useState(null);
-    const [noticeDraft, setNoticeDraft] = useState(buildNoticeDraft(null));
+    const [noticeDraft, setNoticeDraft] = useState(() => buildNoticeDraft(null, '', t));
     const [noticePreviewLoading, setNoticePreviewLoading] = useState(false);
     const [noticePreviewError, setNoticePreviewError] = useState('');
     const [noticePreview, setNoticePreview] = useState(null);
@@ -530,17 +534,17 @@ export default function SystemSettings() {
         requestInflightRef.current.set(key, request);
         return request;
     };
-    const emailConfiguredLabel = emailStatus?.configured ? '已配置' : '未配置';
+    const emailConfiguredLabel = emailStatus?.configured ? t('pages.settings.configured') : t('pages.settings.notConfigured');
     const emailDeliveryLabel = emailStatus?.lastDelivery?.success === true
-        ? '最近发送成功'
+        ? t('pages.settings.recentSendSuccess')
         : emailStatus?.lastDelivery?.success === false
-            ? '最近发送失败'
-            : '暂无发送记录';
+            ? t('pages.settings.recentSendFailed')
+            : t('pages.settings.noSendRecords');
     const emailVerificationLabel = emailStatus?.lastVerification?.success === true
-        ? '连接测试成功'
+        ? t('pages.settings.connectTestSuccess')
         : emailStatus?.lastVerification?.success === false
-            ? '连接测试失败'
-            : '未测试';
+            ? t('pages.settings.connectTestFailed')
+            : t('pages.settings.notTested');
     const converterBaseUrl = toText(draft.subscription.converterBaseUrl, '');
     const converterClashConfigUrl = toText(draft.subscription.converterClashConfigUrl, '');
     const converterSingboxConfigUrl = toText(draft.subscription.converterSingboxConfigUrl, '');
@@ -685,7 +689,7 @@ export default function SystemSettings() {
                 setDraft(buildDraft(payload));
                 setEditingTelegramChatId(false);
             } catch (error) {
-                toast.error(error.response?.data?.msg || error.message || '加载系统设置失败');
+                toast.error(error.response?.data?.msg || error.message || t('pages.settings.failedToLoadSystemSettings'));
             }
             setLoading(false);
         });
@@ -712,7 +716,7 @@ export default function SystemSettings() {
                 }));
             } catch (error) {
                 if (!quiet) {
-                    toast.error(error.response?.data?.msg || error.message || '加载数据库状态失败');
+                    toast.error(error.response?.data?.msg || error.message || t('pages.settings.failedToLoadDatabaseStatus'));
                 }
             }
             setDbLoading(false);
@@ -729,7 +733,7 @@ export default function SystemSettings() {
                 setEmailStatus(res.data?.obj || null);
             } catch (error) {
                 if (!quiet) {
-                    toast.error(error.response?.data?.msg || error.message || '加载 SMTP 状态失败');
+                    toast.error(error.response?.data?.msg || error.message || t('pages.settings.failedToLoadSmtpStatus'));
                 }
             }
             setEmailStatusLoading(false);
@@ -742,17 +746,17 @@ export default function SystemSettings() {
         try {
             const res = await api.post('/system/email/test');
             setEmailStatus(res.data?.obj || null);
-            toast.success(res.data?.msg || 'SMTP 连接验证成功');
+            toast.success(res.data?.msg || t('pages.settings.smtpConnectionVerificationSuccessfu'));
         } catch (error) {
             const payload = error.response?.data?.obj || null;
             if (payload) setEmailStatus(payload);
-            toast.error(error.response?.data?.msg || error.message || 'SMTP 连接验证失败');
+            toast.error(error.response?.data?.msg || error.message || t('pages.settings.smtpConnectionVerificationFailed'));
         }
         setEmailTestLoading(false);
     };
 
     const openNoticeModal = () => {
-        setNoticeDraft(buildNoticeDraft(settings, siteEntryPreview));
+        setNoticeDraft(buildNoticeDraft(settings, siteEntryPreview, t));
         setNoticePreview(null);
         setNoticePreviewError('');
         setNoticeModalOpen(true);
@@ -761,11 +765,11 @@ export default function SystemSettings() {
     const sendRegisteredUserNotice = async () => {
         if (!isAdmin) return;
         if (!noticeDraft.subject.trim()) {
-            toast.error('通知主题不能为空');
+            toast.error(t('pages.settings.notificationSubjectCannotBeEmpty'));
             return;
         }
         if (!noticeDraft.message.trim()) {
-            toast.error('通知内容不能为空');
+            toast.error(t('pages.settings.notificationContentCannotBeEmpty'));
             return;
         }
 
@@ -784,9 +788,9 @@ export default function SystemSettings() {
                 setNoticeTaskId(payload.taskId);
             }
             setNoticeModalOpen(false);
-            toast.success(res.data?.msg || '通知发送任务已创建');
+            toast.success(res.data?.msg || t('pages.settings.notificationSendingTaskHasBeenCreat'));
         } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || '创建通知发送任务失败');
+            toast.error(error.response?.data?.msg || error.message || t('pages.settings.failedToCreateNotificationSendingTa'));
         }
         setNoticeSending(false);
     };
@@ -807,7 +811,7 @@ export default function SystemSettings() {
             setNoticePreviewError('');
         } catch (error) {
             setNoticePreview(null);
-            setNoticePreviewError(error.response?.data?.msg || error.message || '加载邮件预览失败');
+            setNoticePreviewError(error.response?.data?.msg || error.message || t('pages.settings.failedToLoadEmailPreview'));
         }
         setNoticePreviewLoading(false);
     };
@@ -822,7 +826,7 @@ export default function SystemSettings() {
                 setBackupStatus(res.data?.obj || null);
             } catch (error) {
                 if (!quiet) {
-                    toast.error(error.response?.data?.msg || error.message || '加载备份状态失败');
+                    toast.error(error.response?.data?.msg || error.message || t('pages.settings.failedToLoadBackupStatus'));
                 }
             }
             setBackupStatusLoading(false);
@@ -839,7 +843,7 @@ export default function SystemSettings() {
                 setMonitorStatus(res.data?.obj || null);
             } catch (error) {
                 if (!quiet) {
-                    toast.error(error.response?.data?.msg || error.message || '加载监控状态失败');
+                    toast.error(error.response?.data?.msg || error.message || t('pages.settings.failedToLoadMonitoringStatus'));
                 }
             }
             setMonitorStatusLoading(false);
@@ -868,7 +872,7 @@ export default function SystemSettings() {
                 setInviteCodes(Array.isArray(res.data?.obj) ? res.data.obj : []);
             } catch (error) {
                 if (!quiet) {
-                    toast.error(error.response?.data?.msg || error.message || '加载邀请码失败');
+                    toast.error(error.response?.data?.msg || error.message || t('pages.settings.failedToLoadInvitationCode'));
                 }
             }
             setInviteCodesLoading(false);
@@ -1023,7 +1027,7 @@ export default function SystemSettings() {
             } catch (error) {
                 if (!active) return;
                 setNoticePreview(null);
-                setNoticePreviewError(error.response?.data?.msg || error.message || '加载邮件预览失败');
+                setNoticePreviewError(error.response?.data?.msg || error.message || t('pages.settings.failedToLoadEmailPreview'));
             }
             if (active) setNoticePreviewLoading(false);
         }, 240);
@@ -1093,7 +1097,7 @@ export default function SystemSettings() {
         if (!settings) return;
         setDraft(buildDraft(settings));
         setEditingTelegramChatId(false);
-        toast.success('已恢复到已保存配置');
+        toast.success(t('pages.settings.restoredToSavedConfiguration'));
     };
 
     const refreshStatusWorkspace = async () => {
@@ -1121,7 +1125,7 @@ export default function SystemSettings() {
                     camouflageEnabled: true,
                 },
             }));
-            toast.success('已自动生成真实入口路径，保存后首页将显示伪装站点');
+            toast.success(t('pages.settings.theRealEntrancePathHasBeenAutomatic'));
             return;
         }
         patchField('site', 'camouflageEnabled', true);
@@ -1140,7 +1144,7 @@ export default function SystemSettings() {
             setDangerConfirmOpen(false);
             await fetchMonitorStatus({ quiet: true });
             await fetchRegistrationRuntime();
-            toast.success('系统设置已更新');
+            toast.success(t('pages.settings.systemSettingsUpdated'));
             const nextSiteAccessPath = normalizeSiteAccessPathInput(next.site?.accessPath, '/');
             const currentSiteAccessPath = normalizeSiteAccessPathInput(
                 typeof window !== 'undefined' ? window.__NMS_SITE_BASE_PATH__ : '/',
@@ -1153,7 +1157,7 @@ export default function SystemSettings() {
                 }, 250);
             }
         } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || '保存失败');
+            toast.error(error.response?.data?.msg || error.message || t('pages.settings.saveFailed'));
         }
         setSaving(false);
     };
@@ -1166,10 +1170,10 @@ export default function SystemSettings() {
         }
 
         const ok = await confirmAction({
-            title: '保存系统设置',
-            message: '确定应用当前系统参数吗？',
-            details: '该操作会立即影响批量风控、任务分页和日志保留策略。',
-            confirmText: '确认保存',
+            title: t('pages.settings.saveSystemSettings'),
+            message: t('pages.settings.areYouSureYouWantToApplyTheCurrentS'),
+            details: t('pages.settings.thisOperationWillImmediatelyAffectB'),
+            confirmText: t('pages.settings.confirmToSave'),
             tone: 'primary',
         });
         if (!ok) return;
@@ -1199,14 +1203,14 @@ export default function SystemSettings() {
                 usageLimit: Number(payload.usageLimit || usageLimit || 1),
                 subscriptionDays: Number(payload.subscriptionDays ?? subscriptionDays),
             });
-            toast.success(res.data?.msg || (codes.length > 1 ? `已生成 ${codes.length} 个邀请码` : '邀请码已创建'));
+            toast.success(res.data?.msg || (codes.length > 1 ? t('pages.settings.inviteCodesGenerated', { count: codes.length }) : t('pages.settings.invitationCodeHasBeenCreated')));
             await fetchInviteCodes({ quiet: true });
             if (codes.length > 0) {
                 await copyToClipboard(codes.join('\n'));
-                toast.success(codes.length > 1 ? `${codes.length} 个邀请码已复制到剪贴板` : '邀请码已复制到剪贴板');
+                toast.success(codes.length > 1 ? t('pages.settings.inviteCodesCopied', { count: codes.length }) : t('pages.settings.theInvitationCodeHasBeenCopiedToThe'));
             }
         } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || '创建邀请码失败');
+            toast.error(error.response?.data?.msg || error.message || t('pages.settings.failedToCreateInvitationCode'));
         }
         setInviteCodeActionKey('');
     };
@@ -1217,7 +1221,7 @@ export default function SystemSettings() {
         const subscriptionDays = toBoundedInt(inviteEmailDraft.subscriptionDays, 30, 0, 3650);
 
         if (!EMAIL_PATTERN.test(email)) {
-            toast.error('请输入有效邮箱');
+            toast.error(t('pages.settings.pleaseEnterAValidEmailAddress'));
             return;
         }
 
@@ -1232,11 +1236,11 @@ export default function SystemSettings() {
                 email: '',
                 subscriptionDays: String(subscriptionDays),
             }));
-            toast.success(res.data?.msg || `邀请码已发送至 ${email}`);
+            toast.success(res.data?.msg || t('pages.settings.inviteCodeSent', { email }));
             await fetchInviteCodes({ quiet: true });
             await fetchEmailStatus({ quiet: true });
         } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || '发送邀请码失败');
+            toast.error(error.response?.data?.msg || error.message || t('pages.settings.failedToSendInvitationCode'));
         }
         setInviteCodeActionKey('');
     };
@@ -1245,10 +1249,10 @@ export default function SystemSettings() {
         if (!isAdmin || !invite?.id) return;
         const inviteLabel = invite.preview || invite.id;
         const ok = await confirmAction({
-            title: '撤销邀请码',
-            message: `确定撤销 ${inviteLabel} 吗？`,
-            details: '撤销后该邀请码将立即失效，未使用完的剩余额度也会一并作废。',
-            confirmText: '确认撤销',
+            title: t('pages.settings.revokeInvitationCode'),
+            message: t('pages.settings.confirmRevokeInviteCode', { label: inviteLabel }),
+            details: t('pages.settings.afterBeingRevokedTheInvitationCodeW'),
+            confirmText: t('pages.settings.confirmRevocation'),
             tone: 'danger',
         });
         if (!ok) return;
@@ -1256,10 +1260,10 @@ export default function SystemSettings() {
         setInviteCodeActionKey(`revoke:${invite.id}`);
         try {
             const res = await api.delete(`/system/invite-codes/${encodeURIComponent(invite.id)}`);
-            toast.success(res.data?.msg || '邀请码已撤销');
+            toast.success(res.data?.msg || t('pages.settings.invitationCodeHasBeenRevoked'));
             await fetchInviteCodes({ quiet: true });
         } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || '撤销邀请码失败');
+            toast.error(error.response?.data?.msg || error.message || t('pages.settings.failedToRevokeInvitationCode'));
         }
         setInviteCodeActionKey('');
     };
@@ -1267,12 +1271,12 @@ export default function SystemSettings() {
     const switchDbMode = async () => {
         if (!isAdmin) return;
         const ok = await confirmAction({
-            title: '切换存储模式',
-            message: `确认切换为 read=${dbModeDraft.readMode}, write=${dbModeDraft.writeMode} 吗？`,
+            title: t('pages.settings.switchStorageMode'),
+            message: t('pages.settings.confirmSwitchDbMode', { read: dbModeDraft.readMode, write: dbModeDraft.writeMode }),
             details: dbModeDraft.readMode === 'db'
-                ? '当前启用了从数据库读取，系统会执行一次内存回填。'
-                : '当前保留文件读取模式。',
-            confirmText: '确认切换',
+                ? t('pages.settings.readingFromTheDatabaseIsCurrentlyEn')
+                : t('pages.settings.fileReadingModeIsCurrentlyReserved'),
+            confirmText: t('pages.settings.confirmSwitch'),
             tone: dbModeDraft.readMode === 'db' || dbModeDraft.writeMode === 'db' ? 'danger' : 'primary',
         });
         if (!ok) return;
@@ -1285,7 +1289,7 @@ export default function SystemSettings() {
                 hydrateOnReadDb: dbModeDraft.hydrateOnReadDb,
             });
             const output = res.data?.obj || null;
-            toast.success(res.data?.msg || '存储模式已切换');
+            toast.success(res.data?.msg || t('pages.settings.storageModeHasBeenSwitched'));
             if (output?.current) {
                 setDbModeDraft((prev) => ({
                     ...prev,
@@ -1295,7 +1299,7 @@ export default function SystemSettings() {
             }
             await fetchDbStatus({ quiet: true });
         } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || '切换存储模式失败');
+            toast.error(error.response?.data?.msg || error.message || t('pages.settings.failedToSwitchStorageMode'));
         }
         setDbSwitchLoading(false);
     };
@@ -1306,12 +1310,12 @@ export default function SystemSettings() {
         const dryRun = !!dbBackfillDraft.dryRun;
         const redact = !!dbBackfillDraft.redact;
         const ok = await confirmAction({
-            title: dryRun ? '执行回填预演' : '执行数据库回填',
+            title: dryRun ? t('pages.settings.performBackfillRehearsal') : t('pages.settings.performDatabaseBackfill'),
             message: dryRun
-                ? '本次仅预演，不写入数据库。'
-                : '将写入数据库快照，是否继续？',
-            details: `脱敏写入: ${redact ? '开启' : '关闭'}\n范围: ${selectedKeys.length > 0 ? selectedKeys.join(', ') : '全部 store'}`,
-            confirmText: dryRun ? '开始预演' : '确认回填',
+                ? t('pages.settings.thisIsOnlyAPreviewAndWillNotBeWritt')
+                : t('pages.settings.aDatabaseSnapshotWillBeWrittenDoYou'),
+            details: t('pages.settings.backfillDetails', { redact: redact ? t('pages.settings.enabledState') : t('pages.settings.disabledState'), scope: selectedKeys.length > 0 ? selectedKeys.join(', ') : t('pages.settings.allStore') }),
+            confirmText: dryRun ? t('pages.settings.startRehearsal') : t('pages.settings.confirmBackfill'),
             tone: dryRun ? 'secondary' : 'danger',
         });
         if (!ok) return;
@@ -1328,7 +1332,7 @@ export default function SystemSettings() {
             if (obj?.taskId) {
                 // 异步模式：显示进度弹窗
                 setBackfillTaskId(obj.taskId);
-                toast('回填任务已启动，请关注进度弹窗');
+                toast(t('pages.settings.theBackfillTaskHasBeenStartedPlease'));
             } else {
                 // 同步模式回退
                 const output = obj;
@@ -1343,7 +1347,7 @@ export default function SystemSettings() {
                 await fetchDbStatus({ quiet: true });
             }
         } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || '数据库回填失败');
+            toast.error(error.response?.data?.msg || error.message || t('pages.settings.databaseBackfillFailed'));
         }
         setDbBackfillLoading(false);
     };
@@ -1369,10 +1373,10 @@ export default function SystemSettings() {
                 responseType: 'blob',
             });
             downloadBackupBlob(res, 'nms_backup.nmsbak');
-            toast.success('加密备份已导出');
+            toast.success(t('pages.settings.encryptedBackupExported'));
             fetchBackupStatus({ quiet: true });
         } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || '导出加密备份失败');
+            toast.error(error.response?.data?.msg || error.message || t('pages.settings.failedToExportEncryptedBackup'));
         }
         setBackupLoading(false);
     };
@@ -1382,10 +1386,10 @@ export default function SystemSettings() {
         setBackupLocalSaving(true);
         try {
             const res = await api.post('/system/backup/local');
-            toast.success(res.data?.msg || '加密备份已保存到服务器本机');
+            toast.success(res.data?.msg || t('pages.settings.theEncryptedBackupHasBeenSavedLocal'));
             await fetchBackupStatus({ quiet: true });
         } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || '保存本机备份失败');
+            toast.error(error.response?.data?.msg || error.message || t('pages.settings.failedToSaveLocalBackup'));
         }
         setBackupLocalSaving(false);
     };
@@ -1395,13 +1399,13 @@ export default function SystemSettings() {
         setBackupTelegramSending(true);
         try {
             const res = await api.post('/system/backup/telegram');
-            toast.success(res.data?.msg || '加密备份已发送到 Telegram');
+            toast.success(res.data?.msg || t('pages.settings.encryptedBackupSentToTelegram'));
             await Promise.all([
                 fetchBackupStatus({ quiet: true }),
                 fetchMonitorStatus({ quiet: true }),
             ]);
         } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || '发送 Telegram 备份失败');
+            toast.error(error.response?.data?.msg || error.message || t('pages.settings.sendingTelegramBackupFailed'));
         }
         setBackupTelegramSending(false);
     };
@@ -1415,9 +1419,9 @@ export default function SystemSettings() {
                 responseType: 'blob',
             });
             downloadBackupBlob(res, filename);
-            toast.success('本机加密备份已下载');
+            toast.success(t('pages.settings.localEncryptedBackupDownloaded'));
         } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || '下载本机备份失败');
+            toast.error(error.response?.data?.msg || error.message || t('pages.settings.failedToDownloadLocalBackup'));
         }
         setBackupLocalActionKey('');
     };
@@ -1425,10 +1429,10 @@ export default function SystemSettings() {
     const restoreLocalBackup = async (filename) => {
         if (!isAdmin || !filename) return;
         const ok = await confirmAction({
-            title: '恢复本机加密备份',
-            message: `确定恢复本机备份 ${filename} 吗？`,
-            details: '备份会先解密校验，再覆盖当前同名 Store。请确认当前环境仍使用创建备份时的 CREDENTIALS_SECRET。',
-            confirmText: '确认恢复',
+            title: t('pages.settings.restoreNativeEncryptedBackup'),
+            message: t('pages.settings.confirmRestoreBackup', { filename }),
+            details: t('pages.settings.theBackupWillFirstDecryptAndVerifyA'),
+            confirmText: t('pages.settings.confirmRecovery'),
             tone: 'danger',
         });
         if (!ok) return;
@@ -1439,7 +1443,7 @@ export default function SystemSettings() {
             const res = await api.post(`/system/backup/local/${encodeURIComponent(filename)}/restore`);
             const payload = res.data?.obj || null;
             setBackupInspection(payload?.inspection || null);
-            toast.success(res.data?.msg || '本机加密备份已恢复');
+            toast.success(res.data?.msg || t('pages.settings.nativeEncryptedBackupRestored'));
             await Promise.all([
                 fetchSettings(),
                 fetchBackupStatus({ quiet: true }),
@@ -1448,7 +1452,7 @@ export default function SystemSettings() {
                 fetchMonitorStatus({ quiet: true }),
             ]);
         } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || '恢复本机备份失败');
+            toast.error(error.response?.data?.msg || error.message || t('pages.settings.failedToRestoreLocalBackup'));
         }
         setBackupLocalActionKey('');
     };
@@ -1456,10 +1460,10 @@ export default function SystemSettings() {
     const deleteLocalBackup = async (filename) => {
         if (!isAdmin || !filename) return;
         const ok = await confirmAction({
-            title: '删除本机备份',
-            message: `确定删除本机备份 ${filename} 吗？`,
-            details: '删除后将无法再通过系统设置直接下载或恢复这份备份。',
-            confirmText: '确认删除',
+            title: t('pages.settings.deleteLocalBackup'),
+            message: t('pages.settings.confirmDeleteBackup', { filename }),
+            details: t('pages.settings.afterDeletionThisBackupWillNoLonger'),
+            confirmText: t('pages.settings.confirmDeletion'),
             tone: 'danger',
         });
         if (!ok) return;
@@ -1468,10 +1472,10 @@ export default function SystemSettings() {
         setBackupLocalActionKey(actionKey);
         try {
             const res = await api.delete(`/system/backup/local/${encodeURIComponent(filename)}`);
-            toast.success(res.data?.msg || '本机备份已删除');
+            toast.success(res.data?.msg || t('pages.settings.localBackupDeleted'));
             await fetchBackupStatus({ quiet: true });
         } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || '删除本机备份失败');
+            toast.error(error.response?.data?.msg || error.message || t('pages.settings.failedToDeleteLocalBackup'));
         }
         setBackupLocalActionKey('');
     };
@@ -1484,7 +1488,7 @@ export default function SystemSettings() {
 
     const inspectBackupFile = async (options = {}) => {
         if (!isAdmin || !backupFile) {
-            toast.error('请先选择备份文件');
+            toast.error(t('pages.settings.pleaseSelectTheBackupFileFirst'));
             return null;
         }
         try {
@@ -1503,14 +1507,14 @@ export default function SystemSettings() {
             setBackupInspection(inspection);
             setBackupUploadProgress(100);
             if (options.silentSuccess !== true) {
-                toast.success('备份文件校验通过');
+                toast.success(t('pages.settings.backupFileVerificationPassed'));
             }
             return inspection;
         } catch (error) {
             setBackupInspection(null);
             setBackupUploadProgress(0);
             if (options.silentError !== true) {
-                toast.error(error.response?.data?.msg || error.message || '备份文件校验失败');
+                toast.error(error.response?.data?.msg || error.message || t('pages.settings.backupFileVerificationFailed'));
             }
             return null;
         }
@@ -1524,11 +1528,11 @@ export default function SystemSettings() {
 
     const restoreBackup = async () => {
         if (!isAdmin || !backupFile) {
-            toast.error('请先选择备份文件');
+            toast.error(t('pages.settings.pleaseSelectTheBackupFileFirst'));
             return;
         }
         if (!backupRestoreConfirmed) {
-            toast.error('请先确认已知晓恢复会覆盖当前数据');
+            toast.error(t('pages.settings.pleaseMakeSureYouKnowThatRecoveryWi'));
             return;
         }
 
@@ -1538,7 +1542,7 @@ export default function SystemSettings() {
             inspection = await inspectBackupFile({ silentSuccess: true, silentError: true });
             setBackupInspectLoading(false);
             if (!inspection) {
-                toast.error('备份文件校验失败，无法恢复');
+                toast.error(t('pages.settings.backupFileVerificationFailedAndCann'));
                 return;
             }
         }
@@ -1563,7 +1567,7 @@ export default function SystemSettings() {
             const payload = res.data?.obj || null;
             setBackupInspection(payload?.inspection || inspection);
             setBackupUploadProgress(100);
-            toast.success(res.data?.msg || '备份已恢复');
+            toast.success(res.data?.msg || t('pages.settings.backupRestored'));
             await Promise.all([
                 fetchSettings(),
                 fetchBackupStatus({ quiet: true }),
@@ -1576,7 +1580,7 @@ export default function SystemSettings() {
             setSelectedBackupFile(null);
         } catch (error) {
             setBackupUploadProgress(0);
-            toast.error(error.response?.data?.msg || error.message || '恢复备份失败');
+            toast.error(error.response?.data?.msg || error.message || t('pages.settings.restoringBackupFailed'));
         }
         setBackupRestoreLoading(false);
     };
@@ -1596,10 +1600,10 @@ export default function SystemSettings() {
                     lastRunAt: payload?.summary?.checkedAt || new Date().toISOString(),
                 },
             }));
-            toast.success('节点健康巡检已完成');
+            toast.success(t('pages.settings.nodeHealthInspectionHasBeenComplete'));
             fetchMonitorStatus({ quiet: true });
         } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || '节点健康巡检失败');
+            toast.error(error.response?.data?.msg || error.message || t('pages.settings.nodeHealthCheckFailed'));
         }
         setMonitorLoading(false);
     };
@@ -1613,7 +1617,7 @@ export default function SystemSettings() {
                 ...(prev || {}),
                 telegram: res.data?.obj || prev?.telegram || null,
             }));
-            toast.success(res.data?.msg || 'Telegram 测试通知已发送');
+            toast.success(res.data?.msg || t('pages.settings.telegramTestNotificationSent'));
         } catch (error) {
             const payload = error.response?.data?.obj || null;
             if (payload) {
@@ -1622,7 +1626,7 @@ export default function SystemSettings() {
                     telegram: payload,
                 }));
             }
-            toast.error(error.response?.data?.msg || error.message || 'Telegram 测试通知发送失败');
+            toast.error(error.response?.data?.msg || error.message || t('pages.settings.telegramTestNotificationFailedToSen'));
         }
         setTelegramTestLoading(false);
     };
@@ -1646,44 +1650,44 @@ export default function SystemSettings() {
                 ? 'badge-danger'
                 : 'badge-warning';
     const runtimeStorageBadgeText = !runtimeStorage
-        ? '等待状态'
+        ? t('pages.settings.waitingState')
         : runtimeStorageHealthy
-            ? '持久化正常'
+            ? t('pages.settings.persistenceIsNormal')
             : runtimeStorage.dataDirVolatile
-                ? '易失目录'
+                ? t('pages.settings.volatileDirectory')
                 : runtimeStorage.invalidStoreCount > 0
-                    ? '数据异常'
-                    : '需要检查';
+                    ? t('pages.settings.dataAnomaly')
+                    : t('pages.settings.needToCheck');
     const hasExportBackup = Boolean(backupStatus?.lastExport?.createdAt);
     const hasLocalBackup = Boolean(latestLocalBackup?.createdAt);
     const backupSummaryValue = hasExportBackup && hasLocalBackup
-        ? '导出 + 本机'
+        ? t('pages.settings.exportNative')
         : hasExportBackup
-            ? '已有导出备份'
+            ? t('pages.settings.alreadyExportedBackup')
             : hasLocalBackup
-                ? '已有本机备份'
-                : '暂无备份';
+                ? t('pages.settings.alreadyHaveLocalBackup')
+                : t('pages.settings.noBackupYet');
     const savedTelegramChatId = toText(settings?.telegram?.chatId, '');
     const draftTelegramChatId = toText(draft.telegram.chatId, '');
     const hasSavedTelegramChatId = Boolean(savedTelegramChatId || toText(monitorStatus?.telegram?.chatIdPreview, ''));
     const telegramChatIdChanged = draftTelegramChatId !== savedTelegramChatId;
     const telegramTargetPreview = resolveChatIdPreviewValue(monitorStatus?.telegram?.chatIdPreview, draft.telegram.chatId);
     const telegramMaskedDisplayValue = !draftTelegramChatId && hasSavedTelegramChatId && telegramChatIdChanged
-        ? '已清空，待保存'
+        ? t('pages.settings.clearedWaitingToBeSaved')
         : (draftTelegramChatId
             ? (telegramChatIdChanged ? maskChatIdValue(draftTelegramChatId) : telegramTargetPreview)
             : telegramTargetPreview);
     const shouldMaskTelegramChatId = hasSavedTelegramChatId && !editingTelegramChatId;
     const telegramChatIdHint = hasSavedTelegramChatId
         ? (editingTelegramChatId
-            ? '正在编辑 Chat ID，保存后会继续按脱敏形式显示。'
-            : telegramMaskedDisplayValue === '已清空，待保存'
-                ? '当前 Chat ID 已清空，保存后会移除现有目标。'
-                : `当前仅显示脱敏值：${telegramMaskedDisplayValue}`)
-        : '推荐填写私聊、群组或频道的 chat id。只有数值型 chat id 才支持 Telegram 命令轮询。';
+            ? t('pages.settings.chatIdIsBeingEditedAndWillContinueT')
+            : telegramMaskedDisplayValue === t('pages.settings.clearedWaitingToBeSaved')
+                ? t('pages.settings.theCurrentChatIdHasBeenClearedAndEx')
+                : t('pages.settings.maskedValueDisplayed', { value: telegramMaskedDisplayValue }))
+        : t('pages.settings.itIsRecommendedToFillInTheChatIdOfT');
     const telegramNextBackupLabel = monitorStatus?.telegram?.nextDailyBackupAt
         ? formatDateTime(monitorStatus.telegram.nextDailyBackupAt, locale)
-        : '未安排';
+        : t('pages.settings.notScheduled');
     const readyAlertChainCount = [
         Boolean(emailStatus?.configured),
         Boolean(monitorStatus?.healthMonitor?.running),
@@ -1693,12 +1697,12 @@ export default function SystemSettings() {
         const entries = Object.entries(monitorStatus?.healthMonitor?.summary?.byReason || {})
             .filter(([reasonCode, count]) => !['none', 'maintenance'].includes(reasonCode) && Number(count || 0) > 0)
             .map(([reasonCode, count]) => {
-                const label = getMonitorReasonLabel(reasonCode);
+                const label = getMonitorReasonLabel(reasonCode, t);
                 return label ? `${label} ${count}` : '';
             })
             .filter(Boolean);
-        return entries.length > 0 ? entries.slice(0, 3).join(' · ') : '最近未记录节点异常原因';
-    }, [monitorStatus]);
+        return entries.length > 0 ? entries.slice(0, 3).join(' · ') : t('pages.settings.theCauseOfNodeExceptionHasNotBeenRe');
+    }, [monitorStatus, t]);
     const monitorHealthyCount = Number(monitorStatus?.healthMonitor?.summary?.healthy || 0);
     const monitorIncidentCount = Number(monitorStatus?.healthMonitor?.summary?.degraded || 0)
         + Number(monitorStatus?.healthMonitor?.summary?.unreachable || 0);
@@ -1710,14 +1714,14 @@ export default function SystemSettings() {
                     <SectionHeader
                         className="mb-3"
                         compact
-                        title="入口与订阅"
+                        title={t("pages.settings.entryAndSubscription")}
                         actions={(
                             <div className="settings-panel-actions settings-panel-actions--entry">
                                 <CopyFeedbackButton
                                     type="button"
                                     className="btn btn-secondary btn-sm"
                                     text={siteEntryPreview}
-                                    successText="入口地址已复制到剪贴板"
+                                    successText={t("pages.settings.theEntranceAddressHasBeenCopiedToTh")}
                                 >
                                     复制入口
                                 </CopyFeedbackButton>
@@ -1731,15 +1735,15 @@ export default function SystemSettings() {
                         <div className="settings-access-stack">
                             <div className="settings-form-cluster settings-form-cluster--entry">
                                 <div className="settings-form-cluster-head">
-                                    <div className="settings-form-cluster-eyebrow">入口路径</div>
-                                    <div className="settings-form-cluster-title">访问路径</div>
+                                    <div className="settings-form-cluster-eyebrow">{t("pages.settings.entryPath")}</div>
+                                    <div className="settings-form-cluster-title">{t("pages.settings.accessPath")}</div>
                                 </div>
                                 <div className="form-group mb-0">
-                                    <label className="form-label">首页访问路径</label>
+                                    <label className="form-label">{t("pages.settings.homePageAccessPath")}</label>
                                     <div className="settings-inline-action-row">
                                         <input
                                             className="form-input font-mono"
-                                            aria-label="首页访问路径"
+                                            aria-label={t("pages.settings.homePageAccessPath")}
                                             placeholder="/"
                                             value={draft.site.accessPath}
                                             onChange={(e) => patchField('site', 'accessPath', e.target.value)}
@@ -1754,34 +1758,34 @@ export default function SystemSettings() {
                                     </div>
                                 </div>
                                 <div className="form-group mb-0">
-                                    <label className="form-label">生成后的访问地址</label>
-                                    <input className="form-input font-mono" aria-label="生成后的访问地址" value={siteEntryPreview} readOnly />
+                                    <label className="form-label">{t("pages.settings.generatedAccessUrl")}</label>
+                                    <input className="form-input font-mono" aria-label={t("pages.settings.generatedAccessUrl")} value={siteEntryPreview} readOnly />
                                 </div>
                             </div>
                             <div className="settings-form-cluster settings-form-cluster--camouflage">
                                 <div className="settings-form-cluster-head">
-                                    <div className="settings-form-cluster-eyebrow">伪装页面</div>
-                                    <div className="settings-form-cluster-title">模板与标题</div>
+                                    <div className="settings-form-cluster-eyebrow">{t("pages.settings.camouflagePageLabel")}</div>
+                                    <div className="settings-form-cluster-title">{t("pages.settings.templateAndTitleLabel")}</div>
                                 </div>
                                 <div className="settings-field-grid settings-field-grid--compact">
                                     <div className="form-group mb-0">
-                                        <label className="form-label">伪装模板</label>
+                                        <label className="form-label">{t("pages.settings.camouflageTemplateLabel")}</label>
                                         <select
                                             className="form-select"
-                                            aria-label="伪装模板"
+                                            aria-label={t("pages.settings.camouflageTemplateLabel")}
                                             value={draft.site.camouflageTemplate}
                                             onChange={(e) => patchField('site', 'camouflageTemplate', e.target.value)}
                                         >
                                             {CAMOUFLAGE_TEMPLATE_OPTIONS.map((item) => (
-                                                <option key={item.value} value={item.value}>{item.label}</option>
+                                                <option key={item.value} value={item.value}>{t(item.labelKey)}</option>
                                             ))}
                                         </select>
                                     </div>
                                     <div className="form-group mb-0">
-                                        <label className="form-label">伪装站点标题</label>
+                                        <label className="form-label">{t("pages.settings.camouflageTitleLabel")}</label>
                                         <input
                                             className="form-input"
-                                            aria-label="伪装站点标题"
+                                            aria-label={t("pages.settings.camouflageTitleLabel")}
                                             value={draft.site.camouflageTitle}
                                             onChange={(e) => patchField('site', 'camouflageTitle', e.target.value)}
                                             placeholder="City Field Notes"
@@ -1793,10 +1797,10 @@ export default function SystemSettings() {
                                         compact
                                         checked={draft.site.camouflageEnabled}
                                         onChange={(e) => handleCamouflageToggle(e.target.checked)}
-                                        label="站点伪装首页"
-                                        description="开启后首页和错误路径展示公开首页。"
-                                        activeLabel="已开启"
-                                        inactiveLabel="已关闭"
+                                        label={t("pages.settings.camouflageHomepageToggle")}
+                                        description={t("pages.settings.afterTurningItOnThePublicHomepageWi")}
+                                        activeLabel={t("pages.settings.enabled")}
+                                        inactiveLabel={t("pages.settings.disabled")}
                                     />
                                 </div>
                             </div>
@@ -1804,38 +1808,38 @@ export default function SystemSettings() {
                         <div className="settings-access-stack">
                             <div className="settings-form-cluster settings-form-cluster--address">
                                 <div className="settings-form-cluster-head">
-                                    <div className="settings-form-cluster-eyebrow">订阅公网</div>
-                                    <div className="settings-form-cluster-title">订阅外链</div>
+                                    <div className="settings-form-cluster-eyebrow">{t("pages.settings.subscriptionPublicLabel")}</div>
+                                    <div className="settings-form-cluster-title">{t("pages.settings.subscriptionExternalLabel")}</div>
                                 </div>
                                 <div className="form-group mb-0">
-                                    <label className="form-label" htmlFor="subscription-public-base-url">订阅公网地址</label>
+                                    <label className="form-label" htmlFor="subscription-public-base-url">{t("pages.settings.subscriptionPublicUrl")}</label>
                                     <input
                                         id="subscription-public-base-url"
                                         className="form-input"
-                                        aria-label="订阅公网地址"
+                                        aria-label={t("pages.settings.subscriptionPublicUrl")}
                                         placeholder="https://nms.example.com"
                                         value={draft.subscription.publicBaseUrl}
                                         onChange={(e) => patchField('subscription', 'publicBaseUrl', e.target.value)}
                                     />
-                                    <div className="text-xs text-muted mt-1">留空时默认按当前站点地址分发订阅。</div>
+                                    <div className="text-xs text-muted mt-1">{t("pages.settings.ifLeftBlankSubscriptionsWillBeDistr")}</div>
                                 </div>
                             </div>
                             <div className="settings-form-cluster settings-form-cluster--address">
                                 <div className="settings-form-cluster-head">
-                                    <div className="settings-form-cluster-eyebrow">外部转换</div>
-                                    <div className="settings-form-cluster-title">外部转换器</div>
+                                    <div className="settings-form-cluster-eyebrow">{t("pages.settings.externalConverterLabel")}</div>
+                                    <div className="settings-form-cluster-title">{t("pages.settings.externalConverterTitle")}</div>
                                 </div>
                                 <div className="form-group mb-0">
-                                    <label className="form-label" htmlFor="subscription-converter-base-url">外部订阅转换器地址</label>
+                                    <label className="form-label" htmlFor="subscription-converter-base-url">{t("pages.settings.externalConverterUrl")}</label>
                                     <input
                                         id="subscription-converter-base-url"
                                         className="form-input"
-                                        aria-label="外部订阅转换器地址"
+                                        aria-label={t("pages.settings.externalConverterUrl")}
                                         placeholder="https://converter.example.com"
                                         value={converterBaseUrl}
                                         onChange={(e) => patchField('subscription', 'converterBaseUrl', e.target.value)}
                                     />
-                                    <div className="text-xs text-muted mt-1">只填转换器基址，生成时会自动拼接 `/sub?target=...`。</div>
+                                    <div className="text-xs text-muted mt-1">{t("pages.settings.onlyFillInTheBaseAddressOfTheConver")}</div>
                                 </div>
                                 <div className="form-group mb-0">
                                     <label className="form-label" htmlFor="subscription-converter-clash-config-url">Clash / Mihomo Config URL</label>
@@ -1847,7 +1851,7 @@ export default function SystemSettings() {
                                         value={converterClashConfigUrl}
                                         onChange={(e) => patchField('subscription', 'converterClashConfigUrl', e.target.value)}
                                     />
-                                    <div className="text-xs text-muted mt-1">填写完整规则配置地址，作为转换器的 `config=` 参数。</div>
+                                    <div className="text-xs text-muted mt-1">{t("pages.settings.fillInTheCompleteRuleConfigurationA")}</div>
                                 </div>
                                 <div className="form-group mb-0">
                                     <label className="form-label" htmlFor="subscription-converter-singbox-config-url">sing-box Config URL</label>
@@ -1859,7 +1863,7 @@ export default function SystemSettings() {
                                         value={converterSingboxConfigUrl}
                                         onChange={(e) => patchField('subscription', 'converterSingboxConfigUrl', e.target.value)}
                                     />
-                                    <div className="text-xs text-muted mt-1">留空时会回退到 NMS 内置 sing-box 链接。</div>
+                                    <div className="text-xs text-muted mt-1">{t("pages.settings.leaveBlankToFallBackToNmsBuiltInSin")}</div>
                                 </div>
                                 <div className="form-group mb-0">
                                     <label className="form-label" htmlFor="subscription-converter-surge-config-url">Surge Config URL</label>
@@ -1871,7 +1875,7 @@ export default function SystemSettings() {
                                         value={converterSurgeConfigUrl}
                                         onChange={(e) => patchField('subscription', 'converterSurgeConfigUrl', e.target.value)}
                                     />
-                                    <div className="text-xs text-muted mt-1">留空时会回退到 NMS 内置 Surge 链接。</div>
+                                    <div className="text-xs text-muted mt-1">{t("pages.settings.leaveBlankToFallBackToTheNmsBuiltIn")}</div>
                                 </div>
                                 <div className="settings-access-action-row">
                                     <button
@@ -1909,11 +1913,11 @@ export default function SystemSettings() {
                     <SectionHeader
                         className="mb-3"
                         compact
-                        title="注册与邀请码"
+                        title={t("pages.settings.registerAndInviteLabel")}
                         actions={(
                             <div className="settings-panel-actions">
                                 <button className="btn btn-secondary btn-sm" onClick={() => fetchInviteCodes()} disabled={inviteCodesLoading || inviteCodeActionLoading}>
-                                    {inviteCodesLoading ? <span className="spinner" /> : '刷新邀请码'}
+                                    {inviteCodesLoading ? <span className="spinner" /> : t('pages.settings.refreshInviteBtn')}
                                 </button>
                             </div>
                         )}
@@ -1922,8 +1926,8 @@ export default function SystemSettings() {
                         <div className="settings-access-stack">
                             <div className="settings-form-cluster">
                                 <div className="settings-form-cluster-head">
-                                    <div className="settings-form-cluster-eyebrow">注册模式</div>
-                                    <div className="settings-form-cluster-title">注册模式</div>
+                                    <div className="settings-form-cluster-eyebrow">{t("pages.settings.registerModeLabel")}</div>
+                                    <div className="settings-form-cluster-title">{t("pages.settings.registerModeLabel")}</div>
                                 </div>
                                 <div className="settings-toggle-strip">
                                     <SettingsToggleCard
@@ -1931,33 +1935,33 @@ export default function SystemSettings() {
                                         checked={draft.registration.inviteOnlyEnabled}
                                         onChange={(e) => patchField('registration', 'inviteOnlyEnabled', e.target.checked)}
                                         disabled={!registrationEnabled}
-                                        label="开启邀请注册"
+                                        label={t("pages.settings.enableInviteRegister")}
                                         description={registrationEnabled
-                                            ? '开启后注册需填写邀请码。'
-                                            : '当前环境已关闭自助注册。'}
-                                        activeLabel="邀请模式"
-                                        inactiveLabel="普通模式"
+                                            ? t('pages.settings.afterOpeningYouNeedToFillInTheInvit')
+                                            : t('pages.settings.selfServiceRegistrationIsClosedInTh')}
+                                        activeLabel={t("pages.settings.inviteMode")}
+                                        inactiveLabel={t("pages.settings.normalMode")}
                                     />
                                 </div>
                             </div>
                             <div className="settings-form-cluster settings-invite-workbench">
                                 <div className="settings-form-cluster-head">
-                                    <div className="settings-form-cluster-eyebrow">邀请码发放</div>
-                                    <div className="settings-form-cluster-title">生成与投递工作台</div>
-                                    <div className="settings-form-cluster-note">把直接生成、指定邮箱发送和最近一次生成结果放在同一个卡片里，减少不必要的空白分块。</div>
+                                    <div className="settings-form-cluster-eyebrow">{t("pages.settings.issueInviteLabel")}</div>
+                                    <div className="settings-form-cluster-title">{t("pages.settings.generateAndSendWorkbench")}</div>
+                                    <div className="settings-form-cluster-note">{t("pages.settings.putDirectGenerationDesignatedEmailS")}</div>
                                 </div>
                                 <div className="settings-invite-workbench-grid">
                                     <section className="settings-invite-workbench-section">
                                         <div className="settings-invite-workbench-section-head">
-                                            <div className="settings-invite-workbench-section-title">直接生成邀请码</div>
-                                            <div className="settings-invite-workbench-section-note">适合批量发放或临时复制给用户。</div>
+                                            <div className="settings-invite-workbench-section-title">{t("pages.settings.generateInviteDirectly")}</div>
+                                            <div className="settings-invite-workbench-section-note">{t("pages.settings.suitableForBatchDistributionOrTempo")}</div>
                                         </div>
                                         <div className="settings-field-grid settings-field-grid--compact settings-field-grid--invite-generate">
                                             <div className="form-group mb-0">
-                                                <label className="form-label">本次生成数量</label>
+                                                <label className="form-label">{t("pages.settings.theQuantityGeneratedThisTime")}</label>
                                                 <input
                                                     className="form-input"
-                                                    aria-label="本次生成数量"
+                                                    aria-label={t("pages.settings.theQuantityGeneratedThisTime")}
                                                     type="number"
                                                     min={1}
                                                     max={50}
@@ -1969,10 +1973,10 @@ export default function SystemSettings() {
                                                 />
                                             </div>
                                             <div className="form-group mb-0">
-                                                <label className="form-label">每个邀请码可用次数</label>
+                                                <label className="form-label">{t("pages.settings.theNumberOfTimesEachInvitationCodeC")}</label>
                                                 <input
                                                     className="form-input"
-                                                    aria-label="每个邀请码可用次数"
+                                                    aria-label={t("pages.settings.theNumberOfTimesEachInvitationCodeC")}
                                                     type="number"
                                                     min={1}
                                                     max={1000}
@@ -1984,10 +1988,10 @@ export default function SystemSettings() {
                                                 />
                                             </div>
                                             <div className="form-group mb-0">
-                                                <label className="form-label">开通时长（天）</label>
+                                                <label className="form-label">{t("pages.settings.openingTimeDays")}</label>
                                                 <input
                                                     className="form-input"
-                                                    aria-label="开通时长（天）"
+                                                    aria-label={t("pages.settings.openingTimeDays")}
                                                     type="number"
                                                     min={0}
                                                     max={3650}
@@ -2005,7 +2009,7 @@ export default function SystemSettings() {
                                                     onClick={createInviteCode}
                                                     disabled={inviteCodeActionLoading}
                                                 >
-                                                    {inviteCodeActionKey === 'create' ? <span className="spinner" /> : '生成邀请码'}
+                                                    {inviteCodeActionKey === 'create' ? <span className="spinner" /> : t('pages.settings.generateInviteBtn')}
                                                 </button>
                                             </div>
                                         </div>
@@ -2013,12 +2017,12 @@ export default function SystemSettings() {
 
                                     <section className="settings-invite-workbench-section">
                                         <div className="settings-invite-workbench-section-head">
-                                            <div className="settings-invite-workbench-section-title">指定邮箱发送</div>
-                                            <div className="settings-invite-workbench-section-note">自动生成单次邀请码并绑定该邮箱，注册时必须使用同一邮箱。</div>
+                                            <div className="settings-invite-workbench-section-title">{t("pages.settings.sendToEmailBtn")}</div>
+                                            <div className="settings-invite-workbench-section-note">{t("pages.settings.aSingleInvitationCodeIsAutomaticall")}</div>
                                         </div>
                                         <div className="settings-field-grid settings-field-grid--compact settings-field-grid--invite-email">
                                             <div className="form-group mb-0">
-                                                <label className="form-label">目标邮箱</label>
+                                                <label className="form-label">{t("pages.settings.targetEmailLabel")}</label>
                                                 <input
                                                     className="form-input"
                                                     type="email"
@@ -2031,10 +2035,10 @@ export default function SystemSettings() {
                                                 />
                                             </div>
                                             <div className="form-group mb-0">
-                                                <label className="form-label">开通时长（天）</label>
+                                                <label className="form-label">{t("pages.settings.openingTimeDays")}</label>
                                                 <input
                                                     className="form-input"
-                                                    aria-label="开通时长（天）"
+                                                    aria-label={t("pages.settings.openingTimeDays")}
                                                     type="number"
                                                     min={0}
                                                     max={3650}
@@ -2052,7 +2056,7 @@ export default function SystemSettings() {
                                                     onClick={sendInviteEmail}
                                                     disabled={inviteCodeActionLoading || !inviteEmailDraft.email.trim()}
                                                 >
-                                                    {inviteCodeActionKey === 'send-email' ? <span className="spinner" /> : '发送邀请邮件'}
+                                                    {inviteCodeActionKey === 'send-email' ? <span className="spinner" /> : t('pages.settings.sendInviteMailBtn')}
                                                 </button>
                                             </div>
                                         </div>
@@ -2062,7 +2066,7 @@ export default function SystemSettings() {
                                 {latestInviteCodes.length > 0 ? (
                                     <div className="settings-invite-workbench-latest">
                                         <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
-                                            <div className="text-sm font-medium">本次生成的邀请码</div>
+                                            <div className="text-sm font-medium">{t("pages.settings.generatedInviteCodes")}</div>
                                             <span className="text-xs text-muted">
                                                 {latestInviteBatch.count || latestInviteCodes.length} 个邀请码，每个可用 {latestInviteBatch.usageLimit || 1} 次，开通 {formatInviteDuration(latestInviteBatch.subscriptionDays)}
                                             </span>
@@ -2078,13 +2082,13 @@ export default function SystemSettings() {
                                                 className="btn btn-secondary btn-sm"
                                                 onClick={async () => {
                                                     await copyToClipboard(latestInviteCodes.join('\n'));
-                                                    toast.success(latestInviteCodes.length > 1 ? `${latestInviteCodes.length} 个邀请码已复制到剪贴板` : '邀请码已复制到剪贴板');
+                                                    toast.success(latestInviteCodes.length > 1 ? t('pages.settings.inviteCodesCopied', { count: latestInviteCodes.length }) : t('pages.settings.theInvitationCodeHasBeenCopiedToThe'));
                                                 }}
                                             >
-                                                {latestInviteCodes.length > 1 ? '复制全部' : '复制'}
+                                                {latestInviteCodes.length > 1 ? t('pages.settings.copyAllBtn') : t('pages.settings.copyBtn')}
                                             </button>
                                         </div>
-                                        <div className="text-xs text-muted mt-2">邀请码明文只在创建时展示一次，请及时保存。</div>
+                                        <div className="text-xs text-muted mt-2">{t("pages.settings.theClearTextOfTheInvitationCodeIsOn")}</div>
                                     </div>
                                 ) : null}
                             </div>
@@ -2092,18 +2096,18 @@ export default function SystemSettings() {
 
                         <div className="settings-form-cluster">
                             <div className="settings-form-cluster-head">
-                                <div className="settings-form-cluster-eyebrow">邀请码台账</div>
-                                <div className="settings-form-cluster-title">台账与使用记录</div>
+                                <div className="settings-form-cluster-eyebrow">{t("pages.settings.inviteCodesLedger")}</div>
+                                <div className="settings-form-cluster-title">{t("pages.settings.ledgerAndRecords")}</div>
                                 <div className="settings-form-cluster-note">
                                     活动 {inviteAvailableRecords.length} 个 · 剩余 {inviteRemainingUses} 次 · 已用尽 {inviteUsedCount} 个 · 已撤销 {inviteRevokedCount} 个。
                                 </div>
                             </div>
                             {inviteCodesLoading ? (
-                                <div className="text-sm text-muted">正在加载邀请码列表...</div>
+                                <div className="text-sm text-muted">{t("pages.settings.loadingInvites")}</div>
                             ) : inviteRecords.length === 0 ? (
                                 <EmptyState
-                                    title={locale === 'en-US' ? 'No invitation codes available' : '暂无邀请码记录'}
-                                    subtitle={locale === 'en-US' ? 'You can generate a batch of invitation codes first.' : '可先生成一批邀请码。'}
+                                    title={locale === 'en-US' ? 'No invitation codes available' : t('pages.settings.noInvitesRecord')}
+                                    subtitle={locale === 'en-US' ? 'You can generate a batch of invitation codes first.' : t('pages.settings.youCanGenerateABatchOfInvitationCod')}
                                     size="compact"
                                     hideIcon
                                 />
@@ -2111,7 +2115,7 @@ export default function SystemSettings() {
                                 <>
                                     <div className="settings-inline-action-strip">
                                         <div className="settings-inline-action-copy">
-                                            <div className="settings-inline-action-title">共 {inviteRecords.length} 条邀请码记录</div>
+                                            <div className="settings-inline-action-title">{t('pages.settings.inviteRecordsCount', { count: inviteRecords.length })}</div>
                                             <div className="settings-inline-action-note">
                                                 {inviteLedgerExpanded
                                                     ? `已展开完整台账，可直接查看使用记录。累计使用 ${inviteConsumedUses} 次${inviteRecentUsedAt?.usedAt ? ` · 最近使用 ${formatDateTime(inviteRecentUsedAt.usedAt, locale)}${inviteRecentUsedAt.usedByUsername ? ` · ${inviteRecentUsedAt.usedByUsername}` : ''}` : ''}`
@@ -2124,13 +2128,13 @@ export default function SystemSettings() {
                                             onClick={() => setInviteLedgerExpanded((prev) => !prev)}
                                             aria-expanded={inviteLedgerExpanded}
                                         >
-                                            {inviteLedgerExpanded ? '收起台账' : '展开台账'}
+                                            {inviteLedgerExpanded ? t('pages.settings.collapseLedger') : t('pages.settings.expandLedger')}
                                         </button>
                                     </div>
                                     {inviteLedgerExpanded ? (
                                         <div className="settings-invite-ledger">
                                             {inviteRecords.map((item) => {
-                                                const statusMeta = getInviteStatusMeta(item);
+                                                const statusMeta = getInviteStatusMeta(item, t);
                                                 const usageLimit = Math.max(1, Number(item.usageLimit || 1));
                                                 const usedCount = Math.max(0, Number(item.usedCount || 0));
                                                 const remainingUses = Math.max(0, Number(item.remainingUses || 0));
@@ -2144,15 +2148,15 @@ export default function SystemSettings() {
                                                                 <div className="settings-invite-ledger-title">{item.preview || item.id}</div>
                                                                 <div className="settings-invite-ledger-subtitle">
                                                                     创建于 {formatDateTime(item.createdAt, locale)}
-                                                                    {item.createdBy ? ` · 创建者 ${item.createdBy}` : ''}
+                                                                    {item.createdBy ? t('pages.settings.createdByLabel', { creator: item.createdBy }) : ''}
                                                                 </div>
                                                             </div>
                                                             <span className={`badge ${statusMeta.className}`}>{statusMeta.label}</span>
                                                         </div>
                                                         <div className="settings-invite-ledger-usage">
                                                             <div className="settings-invite-ledger-usage-head">
-                                                                <span>已用 {usedCount} / {usageLimit}</span>
-                                                                <span>剩余 {remainingUses} 次</span>
+                                                                <span>{t('pages.settings.usedAndLimit', { used: usedCount, limit: usageLimit })}</span>
+                                                                <span>{t('pages.settings.remainingUsesCount', { count: remainingUses })}</span>
                                                             </div>
                                                             <div className="settings-invite-ledger-progress" aria-hidden="true">
                                                                 <span className="settings-invite-ledger-progress-bar" style={{ width: progressWidth }} />
@@ -2160,29 +2164,29 @@ export default function SystemSettings() {
                                                         </div>
                                                         <div className="settings-invite-ledger-meta">
                                                             <div className="settings-invite-ledger-meta-item">
-                                                                <span className="settings-invite-ledger-meta-label">绑定邮箱</span>
-                                                                <span className="settings-invite-ledger-meta-value">{item.targetEmail || '未绑定'}</span>
+                                                                <span className="settings-invite-ledger-meta-label">{t("pages.settings.boundEmailLabel")}</span>
+                                                                <span className="settings-invite-ledger-meta-value">{item.targetEmail || t('pages.settings.notBoundLabel')}</span>
                                                             </div>
                                                             <div className="settings-invite-ledger-meta-item">
-                                                                <span className="settings-invite-ledger-meta-label">开通时长</span>
+                                                                <span className="settings-invite-ledger-meta-label">{t("pages.settings.durationLabel")}</span>
                                                                 <span className="settings-invite-ledger-meta-value">{formatInviteDuration(item.subscriptionDays)}</span>
                                                             </div>
                                                             <div className="settings-invite-ledger-meta-item">
-                                                                <span className="settings-invite-ledger-meta-label">最近使用</span>
+                                                                <span className="settings-invite-ledger-meta-label">{t("pages.settings.recentlyUsed")}</span>
                                                                 <span className="settings-invite-ledger-meta-value">
                                                                     {item.usedAt
                                                                         ? `${formatDateTime(item.usedAt, locale)}${item.usedByUsername ? ` · ${item.usedByUsername}` : ''}`
-                                                                        : '未使用'}
+                                                                        : t('pages.settings.unusedLabel')}
                                                                 </span>
                                                             </div>
                                                             <div className="settings-invite-ledger-meta-item">
-                                                                <span className="settings-invite-ledger-meta-label">状态说明</span>
+                                                                <span className="settings-invite-ledger-meta-label">{t("pages.settings.statusExplanation")}</span>
                                                                 <span className="settings-invite-ledger-meta-value">
                                                                     {item.status === 'revoked'
                                                                         ? `已撤销${item.revokedBy ? ` · ${item.revokedBy}` : ''}`
                                                                         : item.status === 'used'
-                                                                            ? '已达到使用上限'
-                                                                            : '仍可继续发放'}
+                                                                            ? t('pages.settings.reachedLimit')
+                                                                            : t('pages.settings.stillIssuable')}
                                                                 </span>
                                                             </div>
                                                         </div>
@@ -2194,7 +2198,7 @@ export default function SystemSettings() {
                                                                     onClick={() => revokeInviteCode(item)}
                                                                     disabled={inviteCodeActionLoading}
                                                                 >
-                                                                    {actionBusy ? <span className="spinner" /> : '撤销邀请码'}
+                                                                    {actionBusy ? <span className="spinner" /> : t('pages.settings.revokeInvitationCode')}
                                                                 </button>
                                                             </div>
                                                         ) : null}
@@ -2216,58 +2220,58 @@ export default function SystemSettings() {
         <div className="settings-section-stack">
             <div className="settings-grid settings-grid--basic">
                 <div className="card p-4 settings-panel settings-panel--wide settings-basic-workbench">
-                    <SettingsPanelHeader title="风控、审计与归属地" />
+                    <SettingsPanelHeader title={t("pages.settings.riskControlAuditingAndOwnership")} />
                     <div className="settings-inline-grid settings-inline-grid--policy">
                         <div className="settings-form-cluster">
                             <div className="settings-form-cluster-head">
-                                <div className="settings-form-cluster-eyebrow">风控策略</div>
-                                <div className="settings-form-cluster-title">高风险操作与审计窗口</div>
+                                <div className="settings-form-cluster-eyebrow">{t("pages.settings.riskControlPolicy")}</div>
+                                <div className="settings-form-cluster-title">{t("pages.settings.highRiskAuditWindow")}</div>
                             </div>
                             <div className="settings-toggle-strip">
                                 <SettingsToggleCard
                                     compact
                                     checked={draft.security.requireHighRiskConfirmation}
                                     onChange={(e) => patchField('security', 'requireHighRiskConfirmation', e.target.checked)}
-                                    label="高风险操作二次确认"
-                                    description="达到高风险阈值后执行前必须再次确认。"
+                                    label={t("pages.settings.highRiskDoubleConfirm")}
+                                    description={t("pages.settings.onceTheHighRiskThresholdIsReachedIt")}
                                 />
                             </div>
                             <div className="settings-field-grid settings-field-grid--compact">
                                 <div className="form-group">
-                                    <label className="form-label">中风险阈值</label>
-                                    <input className="form-input" aria-label="中风险阈值" type="number" min={1} value={draft.security.mediumRiskMinTargets} onChange={(e) => patchField('security', 'mediumRiskMinTargets', toInt(e.target.value, 20))} />
+                                    <label className="form-label">{t("pages.settings.mediumRiskThreshold")}</label>
+                                    <input className="form-input" aria-label={t("pages.settings.mediumRiskThreshold")} type="number" min={1} value={draft.security.mediumRiskMinTargets} onChange={(e) => patchField('security', 'mediumRiskMinTargets', toInt(e.target.value, 20))} />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">高风险阈值</label>
-                                    <input className="form-input" aria-label="高风险阈值" type="number" min={1} value={draft.security.highRiskMinTargets} onChange={(e) => patchField('security', 'highRiskMinTargets', toInt(e.target.value, 100))} />
+                                    <label className="form-label">{t("pages.settings.highRiskThreshold")}</label>
+                                    <input className="form-input" aria-label={t("pages.settings.highRiskThreshold")} type="number" min={1} value={draft.security.highRiskMinTargets} onChange={(e) => patchField('security', 'highRiskMinTargets', toInt(e.target.value, 100))} />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">确认令牌有效期（秒）</label>
-                                    <input className="form-input" aria-label="确认令牌有效期（秒）" type="number" min={30} value={draft.security.riskTokenTtlSeconds} onChange={(e) => patchField('security', 'riskTokenTtlSeconds', toInt(e.target.value, 180))} />
+                                    <label className="form-label">{t("pages.settings.confirmTokenTtl")}</label>
+                                    <input className="form-input" aria-label={t("pages.settings.confirmTokenTtl")} type="number" min={30} value={draft.security.riskTokenTtlSeconds} onChange={(e) => patchField('security', 'riskTokenTtlSeconds', toInt(e.target.value, 180))} />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">审计保留天数</label>
-                                    <input className="form-input" aria-label="审计保留天数" type="number" min={1} value={draft.audit.retentionDays} onChange={(e) => patchField('audit', 'retentionDays', toInt(e.target.value, 365))} />
+                                    <label className="form-label">{t("pages.settings.auditRetentionDays")}</label>
+                                    <input className="form-input" aria-label={t("pages.settings.auditRetentionDays")} type="number" min={1} value={draft.audit.retentionDays} onChange={(e) => patchField('audit', 'retentionDays', toInt(e.target.value, 365))} />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">审计分页最大条数</label>
-                                    <input className="form-input" aria-label="审计分页最大条数" type="number" min={20} value={draft.audit.maxPageSize} onChange={(e) => patchField('audit', 'maxPageSize', toInt(e.target.value, 200))} />
+                                    <label className="form-label">{t("pages.settings.auditMaxPageSize")}</label>
+                                    <input className="form-input" aria-label={t("pages.settings.auditMaxPageSize")} type="number" min={20} value={draft.audit.maxPageSize} onChange={(e) => patchField('audit', 'maxPageSize', toInt(e.target.value, 200))} />
                                 </div>
                             </div>
                         </div>
 
                         <div className="settings-form-cluster">
                             <div className="settings-form-cluster-head">
-                                <div className="settings-form-cluster-eyebrow">归属地增强</div>
-                                <div className="settings-form-cluster-title">访问来源与事件地区补充</div>
+                                <div className="settings-form-cluster-eyebrow">{t("pages.settings.geoEnhancement")}</div>
+                                <div className="settings-form-cluster-title">{t("pages.settings.geoSupplement")}</div>
                             </div>
                             <div className="settings-toggle-strip">
                                 <SettingsToggleCard
                                     compact
                                     checked={draft.auditIpGeo.enabled}
                                     onChange={(e) => patchField('auditIpGeo', 'enabled', e.target.checked)}
-                                    label="归属地查询"
-                                    description="为订阅访问和安全事件补充地区与运营商。"
+                                    label={t("pages.settings.geoQueryToggle")}
+                                    description={t("pages.settings.supplementRegionsAndCarriersForSubs")}
                                 />
                             </div>
                             <div className="settings-field-grid settings-field-grid--compact">
@@ -2282,10 +2286,10 @@ export default function SystemSettings() {
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">超时（毫秒）</label>
+                                    <label className="form-label">{t("pages.settings.timeoutMsLabel")}</label>
                                     <input
                                         className="form-input"
-                                        aria-label="超时（毫秒）"
+                                        aria-label={t("pages.settings.timeoutMsLabel")}
                                         type="number"
                                         min={100}
                                         value={draft.auditIpGeo.timeoutMs}
@@ -2293,10 +2297,10 @@ export default function SystemSettings() {
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">缓存 TTL（秒）</label>
+                                    <label className="form-label">{t("pages.settings.cacheTtlSeconds")}</label>
                                     <input
                                         className="form-input"
-                                        aria-label="缓存 TTL（秒）"
+                                        aria-label={t("pages.settings.cacheTtlSeconds")}
                                         type="number"
                                         min={60}
                                         value={draft.auditIpGeo.cacheTtlSeconds}
@@ -2304,10 +2308,10 @@ export default function SystemSettings() {
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">查询端点</label>
+                                    <label className="form-label">{t("pages.settings.queryEndpointLabel")}</label>
                                     <input
                                         className="form-input font-mono"
-                                        aria-label="查询端点"
+                                        aria-label={t("pages.settings.queryEndpointLabel")}
                                         value={draft.auditIpGeo.endpoint}
                                         onChange={(e) => patchField('auditIpGeo', 'endpoint', e.target.value)}
                                         placeholder="http://ip-api.com/json/{ip}?fields=status,country,regionName,city"
@@ -2328,33 +2332,33 @@ export default function SystemSettings() {
                     <SectionHeader
                         className="mb-3"
                         compact
-                        title="运维动作"
+                        title={t("pages.settings.opsActions")}
                     />
                     <div className="settings-ops-grid">
                         <div className="settings-form-cluster settings-ops-card settings-ops-card--smtp">
                             <div className="settings-ops-card-main">
                                 <div className="settings-form-cluster-head settings-ops-card-head">
                                     <div className="settings-ops-card-kicker">
-                                        <div className="settings-form-cluster-eyebrow">邮件链路</div>
+                                        <div className="settings-form-cluster-eyebrow">{t("pages.settings.emailLink")}</div>
                                         <span className={`badge ${emailStatus?.configured ? 'badge-success' : 'badge-warning'}`}>{emailConfiguredLabel}</span>
                                     </div>
-                                    <div className="settings-form-cluster-title">测试 SMTP</div>
-                                    <div className="settings-form-cluster-note">先验证 SMTP 配置和邮件链路，再执行通知发送。</div>
+                                    <div className="settings-form-cluster-title">{t("pages.settings.testSmtp")}</div>
+                                    <div className="settings-form-cluster-note">{t("pages.settings.verifyTheSmtpConfigurationAndEmailL")}</div>
                                 </div>
                                 <div className="settings-ops-meta-grid">
                                     <div className="settings-ops-meta-item">
-                                        <div className="settings-ops-meta-label">连接验证</div>
+                                        <div className="settings-ops-meta-label">{t("pages.settings.connectVerifyBtn")}</div>
                                         <div className="settings-ops-meta-value">{emailVerificationLabel}</div>
                                     </div>
                                     <div className="settings-ops-meta-item">
-                                        <div className="settings-ops-meta-label">最近发送</div>
+                                        <div className="settings-ops-meta-label">{t("pages.settings.recentSendBtn")}</div>
                                         <div className="settings-ops-meta-value">{emailDeliveryLabel}</div>
                                     </div>
                                 </div>
                             </div>
                             <div className="settings-panel-actions settings-ops-actions settings-ops-actions--single">
                                 <button className="btn btn-secondary btn-sm" onClick={testEmailConnection} disabled={emailStatusLoading || emailTestLoading}>
-                                    {emailTestLoading ? <span className="spinner" /> : '测试 SMTP'}
+                                    {emailTestLoading ? <span className="spinner" /> : t('pages.settings.testSmtp')}
                                 </button>
                             </div>
                         </div>
@@ -2363,21 +2367,21 @@ export default function SystemSettings() {
                             <div className="settings-ops-card-main">
                                 <div className="settings-form-cluster-head settings-ops-card-head">
                                     <div className="settings-ops-card-kicker">
-                                        <div className="settings-form-cluster-eyebrow">变更通知</div>
+                                        <div className="settings-form-cluster-eyebrow">{t("pages.settings.changeNoticeBtn")}</div>
                                         <span className={`badge ${emailStatus?.configured ? 'badge-info' : 'badge-warning'}`}>
-                                            {emailStatus?.configured ? '可发送' : '待配置 SMTP'}
+                                            {emailStatus?.configured ? t('pages.settings.canBeSent') : t('pages.settings.smtpToBeConfigured')}
                                         </span>
                                     </div>
-                                    <div className="settings-form-cluster-title">发送最新地址通知</div>
-                                    <div className="settings-form-cluster-note">向用户发送最新地址或订阅变更提醒，发送前会校验当前邮件配置。</div>
+                                    <div className="settings-form-cluster-title">{t("pages.settings.sendLatestAddressNotice")}</div>
+                                    <div className="settings-form-cluster-note">{t("pages.settings.sendTheLatestAddressOrSubscriptionC")}</div>
                                 </div>
                                 <div className="settings-ops-meta-grid">
                                     <div className="settings-ops-meta-item">
-                                        <div className="settings-ops-meta-label">发送范围</div>
-                                        <div className="settings-ops-meta-value">注册用户</div>
+                                        <div className="settings-ops-meta-label">{t("pages.settings.sendScopeLabel")}</div>
+                                        <div className="settings-ops-meta-value">{t("pages.settings.registeredUserScope")}</div>
                                     </div>
                                     <div className="settings-ops-meta-item">
-                                        <div className="settings-ops-meta-label">当前入口</div>
+                                        <div className="settings-ops-meta-label">{t("pages.settings.currentEntranceLabel")}</div>
                                         <div className="settings-ops-meta-value">{siteAccessPath}</div>
                                     </div>
                                 </div>
@@ -2388,7 +2392,7 @@ export default function SystemSettings() {
                                     onClick={openNoticeModal}
                                     disabled={!emailStatus?.configured || noticeSending}
                                 >
-                                    {noticeSending ? <span className="spinner" /> : '发变更通知'}
+                                    {noticeSending ? <span className="spinner" /> : t('pages.settings.sendChangeNoticeBtn')}
                                 </button>
                             </div>
                         </div>
@@ -2397,32 +2401,32 @@ export default function SystemSettings() {
                             <div className="settings-ops-card-main">
                                 <div className="settings-form-cluster-head settings-ops-card-head">
                                     <div className="settings-ops-card-kicker">
-                                        <div className="settings-form-cluster-eyebrow">节点巡检</div>
+                                        <div className="settings-form-cluster-eyebrow">{t("pages.settings.nodeInspectionLabel")}</div>
                                         <span className={`badge ${monitorIncidentCount > 0 ? 'badge-warning' : 'badge-success'}`}>
-                                            {monitorIncidentCount > 0 ? '有异常' : '状态平稳'}
+                                            {monitorIncidentCount > 0 ? t('pages.settings.thereIsAnAbnormality') : t('pages.settings.stableCondition')}
                                         </span>
                                     </div>
-                                    <div className="settings-form-cluster-title">手动执行节点健康巡检</div>
-                                    <div className="settings-form-cluster-note">巡检统计和异常分布已移动到系统状态页集中展示。</div>
+                                    <div className="settings-form-cluster-title">{t("pages.settings.runInspectionManual")}</div>
+                                    <div className="settings-form-cluster-note">{t("pages.settings.inspectionStatisticsAndAnomalyDistr")}</div>
                                 </div>
                                 <div className="settings-ops-meta-grid settings-ops-meta-grid--triple">
                                     <div className="settings-ops-meta-item">
-                                        <div className="settings-ops-meta-label">健康</div>
+                                        <div className="settings-ops-meta-label">{t("pages.settings.healthyLabel")}</div>
                                         <div className="settings-ops-meta-value">{monitorHealthyCount}</div>
                                     </div>
                                     <div className="settings-ops-meta-item">
-                                        <div className="settings-ops-meta-label">异常</div>
+                                        <div className="settings-ops-meta-label">{t("pages.settings.unhealthyState")}</div>
                                         <div className="settings-ops-meta-value">{monitorIncidentCount}</div>
                                     </div>
                                     <div className="settings-ops-meta-item">
-                                        <div className="settings-ops-meta-label">未读</div>
+                                        <div className="settings-ops-meta-label">{t("pages.settings.unreadCountLabel")}</div>
                                         <div className="settings-ops-meta-value">{monitorUnreadCount}</div>
                                     </div>
                                 </div>
                             </div>
                             <div className="settings-panel-actions settings-ops-actions settings-ops-actions--single">
                                 <button className="btn btn-primary btn-sm" onClick={runMonitorCheck} disabled={monitorLoading}>
-                                    {monitorLoading ? <span className="spinner" /> : '立即巡检'}
+                                    {monitorLoading ? <span className="spinner" /> : t('pages.settings.inspectNowBtn')}
                                 </button>
                             </div>
                         </div>
@@ -2433,25 +2437,25 @@ export default function SystemSettings() {
                     <SectionHeader
                         className="mb-3"
                         compact
-                        title="Telegram 机器人"
+                        title={t("pages.settings.telegramBot")}
                         actions={(
                             <button
                                 className="btn btn-secondary btn-sm"
                                 onClick={testTelegramAlert}
                                 disabled={telegramTestLoading || !draft.telegram.enabled}
                             >
-                                {telegramTestLoading ? <span className="spinner" /> : '发送测试通知'}
+                                {telegramTestLoading ? <span className="spinner" /> : t('pages.settings.sendTestNotifyBtn')}
                             </button>
                         )}
                     />
                     <div className="grid-auto-220 items-start">
                         <div className="form-group">
-                            <label className="form-label" htmlFor="telegram-chat-id">Chat ID / 群组 ID</label>
+                            <label className="form-label" htmlFor="telegram-chat-id">{t("pages.settings.chatIdGroupId")}</label>
                             <div className="settings-sensitive-field">
                                 <input
                                     id="telegram-chat-id"
                                     className={`form-input${shouldMaskTelegramChatId ? ' settings-sensitive-display' : ''}`}
-                                    aria-label="Chat ID / 群组 ID"
+                                    aria-label={t("pages.settings.chatIdGroupId")}
                                     type="text"
                                     inputMode={shouldMaskTelegramChatId ? undefined : 'numeric'}
                                     value={shouldMaskTelegramChatId ? telegramMaskedDisplayValue : draft.telegram.chatId}
@@ -2466,7 +2470,7 @@ export default function SystemSettings() {
                                         className="btn btn-secondary btn-sm"
                                         onClick={() => setEditingTelegramChatId((prev) => !prev)}
                                     >
-                                        {editingTelegramChatId ? '完成' : '修改'}
+                                        {editingTelegramChatId ? t('pages.settings.doneLabel') : t('pages.settings.editLabel')}
                                     </button>
                                 ) : null}
                             </div>
@@ -2487,10 +2491,10 @@ export default function SystemSettings() {
                             <div className="flex items-center gap-2 flex-wrap mt-1">
                                 <div className="text-xs text-muted">
                                     {draft.telegram.clearBotToken
-                                        ? '本次保存会清空服务器端已保存 Token。'
+                                        ? t('pages.settings.thisSaveWillClearTheTokensSavedOnTh')
                                         : settings?.telegram?.botTokenConfigured
-                                        ? `当前已保存 Token：${settings.telegram.botTokenPreview || '已配置'}。留空保存会继续使用当前 Token。`
-                                        : '首次启用时请输入 Telegram Bot Token。'}
+                                        ? `当前已保存 Token：${settings.telegram.botTokenPreview || t('pages.settings.configured')}。留空保存会继续使用当前 Token。`
+                                        : t('pages.settings.pleaseEnterTheTelegramBotTokenWhenE')}
                                 </div>
                                 {settings?.telegram?.botTokenConfigured ? (
                                     <button
@@ -2504,7 +2508,7 @@ export default function SystemSettings() {
                             </div>
                         </div>
                         <div className="form-group">
-                            <label className="form-label" htmlFor="telegram-ops-digest-interval">运维汇总间隔</label>
+                            <label className="form-label" htmlFor="telegram-ops-digest-interval">{t("pages.settings.opsSummaryInterval")}</label>
                             <input
                                 id="telegram-ops-digest-interval"
                                 className="form-input"
@@ -2515,10 +2519,10 @@ export default function SystemSettings() {
                                 value={draft.telegram.opsDigestIntervalMinutes}
                                 onChange={(event) => patchField('telegram', 'opsDigestIntervalMinutes', toBoundedInt(event.target.value, 30, 0, 1440))}
                             />
-                            <div className="text-xs text-muted mt-1">单位：分钟，填 0 关闭定时运维汇总。</div>
+                            <div className="text-xs text-muted mt-1">{t("pages.settings.unitMinutesFillIn0ToTurnOffSchedule")}</div>
                         </div>
                         <div className="form-group">
-                            <label className="form-label" htmlFor="telegram-daily-digest-interval">日报间隔</label>
+                            <label className="form-label" htmlFor="telegram-daily-digest-interval">{t("pages.settings.dailyReportInterval")}</label>
                             <input
                                 id="telegram-daily-digest-interval"
                                 className="form-input"
@@ -2529,10 +2533,10 @@ export default function SystemSettings() {
                                 value={draft.telegram.dailyDigestIntervalHours}
                                 onChange={(event) => patchField('telegram', 'dailyDigestIntervalHours', toBoundedInt(event.target.value, 24, 0, 168))}
                             />
-                            <div className="text-xs text-muted mt-1">单位：小时，填 0 关闭定时报。</div>
+                            <div className="text-xs text-muted mt-1">{t("pages.settings.unitHourFillIn0ToTurnOffTheTimer")}</div>
                         </div>
                         <div className="form-group">
-                            <label className="form-label" htmlFor="telegram-daily-backup-time">每日备份时间</label>
+                            <label className="form-label" htmlFor="telegram-daily-backup-time">{t("pages.settings.dailyBackupTimeLabel")}</label>
                             <input
                                 id="telegram-daily-backup-time"
                                 className="form-input"
@@ -2541,7 +2545,7 @@ export default function SystemSettings() {
                                 value={draft.telegram.dailyBackupTime}
                                 onChange={(event) => patchField('telegram', 'dailyBackupTime', event.target.value || '09:00')}
                             />
-                            <div className="text-xs text-muted mt-1">按服务器本地时间执行，默认 09:00。</div>
+                            <div className="text-xs text-muted mt-1">{t("pages.settings.executedAccordingToServerLocalTimeD")}</div>
                         </div>
                     </div>
                     <div className="settings-toggle-collection settings-toggle-collection--telegram mt-3">
@@ -2549,55 +2553,55 @@ export default function SystemSettings() {
                             compact
                             checked={draft.telegram.enabled}
                             onChange={(event) => patchField('telegram', 'enabled', event.target.checked)}
-                            label="启用 Telegram 告警"
-                            description="启用后将推送系统状态和安全告警。"
-                            activeLabel="已启用"
-                            inactiveLabel="未启用"
+                            label={t("pages.settings.enableTelegramAlerts")}
+                            description={t("pages.settings.whenEnabledSystemStatusAndSecurityA")}
+                            activeLabel={t("pages.settings.enabled")}
+                            inactiveLabel={t("pages.settings.notEnabled")}
                         />
                         <SettingsToggleCard
                             compact
                             checked={draft.telegram.commandMenuEnabled}
                             onChange={(event) => patchField('telegram', 'commandMenuEnabled', event.target.checked)}
-                            label="Telegram 命令菜单"
-                            description="开启后同步 Telegram 官方命令菜单；/menu 内的按钮入口始终可用。"
-                            activeLabel="显示"
-                            inactiveLabel="隐藏"
+                            label={t("pages.settings.telegramCommandMenu")}
+                            description={t("pages.settings.afterOpeningSynchronizeTelegramOffi")}
+                            activeLabel={t("pages.settings.showLabel")}
+                            inactiveLabel={t("pages.settings.hideLabel")}
                         />
                         <SettingsToggleCard
                             compact
                             checked={draft.telegram.sendDailyBackup}
                             onChange={(event) => patchField('telegram', 'sendDailyBackup', event.target.checked)}
-                            label="每日备份到 Telegram"
-                            description="启用后会把当天的 NMS 加密备份包自动发到当前 Chat。"
-                            activeLabel="已启用"
-                            inactiveLabel="未启用"
+                            label={t("pages.settings.dailyBackupToTelegram")}
+                            description={t("pages.settings.afterEnablingTheNmsEncryptedBackupP")}
+                            activeLabel={t("pages.settings.enabled")}
+                            inactiveLabel={t("pages.settings.notEnabled")}
                         />
                         <SettingsToggleCard
                             compact
                             checked={draft.telegram.sendSystemStatus}
                             onChange={(event) => patchField('telegram', 'sendSystemStatus', event.target.checked)}
-                            label="系统状态"
-                            description="节点、数据库、到期提醒等状态消息。"
-                            activeLabel="推送"
-                            inactiveLabel="不推送"
+                            label={t("pages.settings.systemStatusLabel")}
+                            description={t("pages.settings.nodeDatabaseExpirationReminderAndOt")}
+                            activeLabel={t("pages.settings.push")}
+                            inactiveLabel={t("pages.settings.doNotPush")}
                         />
                         <SettingsToggleCard
                             compact
                             checked={draft.telegram.sendSecurityAudit}
                             onChange={(event) => patchField('telegram', 'sendSecurityAudit', event.target.checked)}
-                            label="审计告警"
-                            description="登录失败、限流、订阅异常访问等。"
-                            activeLabel="推送"
-                            inactiveLabel="不推送"
+                            label={t("pages.settings.auditAlertLabel")}
+                            description={t("pages.settings.loginFailureCurrentLimitingAbnormal")}
+                            activeLabel={t("pages.settings.push")}
+                            inactiveLabel={t("pages.settings.doNotPush")}
                         />
                         <SettingsToggleCard
                             compact
                             checked={draft.telegram.sendEmergencyAlerts}
                             onChange={(event) => patchField('telegram', 'sendEmergencyAlerts', event.target.checked)}
-                            label="紧急告警"
-                            description="critical 级别事件直接升级。"
-                            activeLabel="推送"
-                            inactiveLabel="不推送"
+                            label={t("pages.settings.emergencyAlertLabel")}
+                            description={t("pages.settings.criticalLevelEventsAreEscalatedDire")}
+                            activeLabel={t("pages.settings.push")}
+                            inactiveLabel={t("pages.settings.doNotPush")}
                         />
                     </div>
                 </div>
@@ -2611,48 +2615,48 @@ export default function SystemSettings() {
                 <SectionHeader
                     className="mb-3"
                     compact
-                    title="备份与恢复"
+                    title={t("pages.settings.backupAndRestore")}
                     actions={(
                         <button className="btn btn-secondary btn-sm" onClick={() => fetchBackupStatus()} disabled={backupStatusLoading}>
-                            {backupStatusLoading ? <span className="spinner" /> : '刷新状态'}
+                            {backupStatusLoading ? <span className="spinner" /> : t('pages.settings.refreshStatusBtn')}
                         </button>
                     )}
                 />
                 <div className="settings-backup-actions settings-backup-actions--triple">
                     <div className="card p-3 settings-mini-card settings-backup-action-card settings-backup-action-card--danger">
-                        <div className="text-sm font-medium">导出到浏览器</div>
-                        <div className="text-xs text-muted mt-1">下载一份加密备份包。</div>
+                        <div className="text-sm font-medium">{t("pages.settings.exportToBrowser")}</div>
+                        <div className="text-xs text-muted mt-1">{t("pages.settings.downloadAnEncryptedBackupPackage")}</div>
                         <div className="settings-backup-action-footer">
                             <button className="btn btn-primary btn-sm" onClick={exportBackup} disabled={backupLoading || backupRestoreLoading || backupLocalSaving}>
-                                {backupLoading ? <span className="spinner" /> : <><HiOutlineArrowDownTray /> 导出加密备份</>}
+                                {backupLoading ? <span className="spinner" /> : <><HiOutlineArrowDownTray />{t("pages.settings.exportBackupBtn")}</>}
                             </button>
                         </div>
                     </div>
                     <div className="card p-3 settings-mini-card settings-backup-action-card">
-                        <div className="text-sm font-medium">保存到服务器本机</div>
-                        <div className="text-xs text-muted mt-1">在服务器本机留存一份加密备份。</div>
+                        <div className="text-sm font-medium">{t("pages.settings.saveToLocalServer")}</div>
+                        <div className="text-xs text-muted mt-1">{t("pages.settings.keepAnEncryptedBackupLocallyOnTheSe")}</div>
                         <div className="settings-backup-action-footer">
                             <button className="btn btn-secondary btn-sm" onClick={saveBackupLocally} disabled={backupLocalSaving || backupLoading || backupRestoreLoading}>
-                                {backupLocalSaving ? <span className="spinner" /> : <><HiOutlineShieldCheck /> 保存本机备份</>}
+                                {backupLocalSaving ? <span className="spinner" /> : <><HiOutlineShieldCheck />{t("pages.settings.saveLocalBackupBtn")}</>}
                             </button>
                         </div>
                     </div>
                     <div className="card p-3 settings-mini-card settings-backup-action-card">
-                        <div className="text-sm font-medium">发送到 Telegram</div>
-                        <div className="text-xs text-muted mt-1">把当前 NMS 加密备份包直接发送到已配置的 Telegram Chat。</div>
+                        <div className="text-sm font-medium">{t("pages.settings.sendToTelegram")}</div>
+                        <div className="text-xs text-muted mt-1">{t("pages.settings.sendTheCurrentNmsEncryptedBackupPac")}</div>
                         <div className="settings-backup-action-footer">
                             <button
                                 className="btn btn-secondary btn-sm"
                                 onClick={sendBackupToTelegram}
                                 disabled={backupTelegramSending || backupLoading || backupRestoreLoading || backupLocalSaving || !draft.telegram.enabled}
                             >
-                                {backupTelegramSending ? <span className="spinner" /> : <><HiOutlineCloud /> 发送 Telegram 备份</>}
+                                {backupTelegramSending ? <span className="spinner" /> : <><HiOutlineCloud />{t("pages.settings.sendTelegramBackup")}</>}
                             </button>
                         </div>
                     </div>
                     <div className="card p-3 settings-mini-card settings-backup-action-card">
-                        <div className="text-sm font-medium">从文件恢复</div>
-                        <div className="text-xs text-muted mt-1">上传备份包后恢复。</div>
+                        <div className="text-sm font-medium">{t("pages.settings.restoreFromFile")}</div>
+                        <div className="text-xs text-muted mt-1">{t("pages.settings.restoreAfterUploadingTheBackupPacka")}</div>
                         <div className="settings-backup-action-footer">
                             <button
                                 className="btn btn-secondary btn-sm"
@@ -2690,7 +2694,7 @@ export default function SystemSettings() {
                             <div className="text-xs text-muted">{t('comp.system.sysDirStatus')}</div>
                             <div className="text-sm">
                                 {runtimeStorage
-                                    ? `${runtimeStorage.dataDirExists ? '已创建' : '未创建'} · ${runtimeStorage.dataDirReadable ? '可读' : '不可读'} · ${runtimeStorage.dataDirWritable ? '可写' : '不可写'}`
+                                    ? `${runtimeStorage.dataDirExists ? t('pages.settings.dirCreated') : t('pages.settings.dirNotCreated')} · ${runtimeStorage.dataDirReadable ? t('pages.settings.dirReadable') : t('pages.settings.dirNotReadable')} · ${runtimeStorage.dataDirWritable ? t('pages.settings.dirWritable') : t('pages.settings.dirNotWritable')}`
                                     : t('comp.system.sysWaitRefresh')}
                             </div>
                         </div>
@@ -2700,13 +2704,13 @@ export default function SystemSettings() {
                                 {runtimeStorage
                                     ? runtimeStorage.invalidStoreCount > 0
                                         ? `${runtimeStorage.invalidStoreCount} 个 JSON 异常`
-                                        : 'JSON 校验正常'
+                                        : t('pages.settings.jsonVerificationIsNormal')
                                     : t('comp.system.sysWaitRefresh')}
                             </div>
                         </div>
                     </div>
                     {runtimeStorage?.dataDirVolatile ? (
-                        <div className="text-xs text-danger mt-2">当前 DATA_DIR 位于临时目录，生产环境请改为持久化目录或挂载卷。</div>
+                        <div className="text-xs text-danger mt-2">{t("pages.settings.theCurrentDataDirIsLocatedInTheTemp")}</div>
                     ) : null}
                     {runtimeStorageIssues.length > 0 ? (
                         <div className="settings-runtime-storage-issues">
@@ -2723,23 +2727,23 @@ export default function SystemSettings() {
                 <div className="card p-3 mt-3 settings-mini-card settings-detail-card settings-backup-local-panel">
                     <div className="settings-backup-local-head">
                         <div>
-                            <div className="text-sm font-medium">Telegram 备份状态</div>
+                            <div className="text-sm font-medium">{t("pages.settings.telegramBackupStatus")}</div>
                             <div className="text-xs text-muted mt-1">
                                 {draft.telegram.sendDailyBackup
-                                    ? `已启用每日自动发送，时间 ${draft.telegram.dailyBackupTime || '09:00'}；手动发送会复用同一目标 Chat。`
-                                    : '当前仅支持手动发送，启用上方开关后会按日自动发送。'}
+                                    ? t('pages.settings.dailyBackupTimeHint', { time: draft.telegram.dailyBackupTime || '09:00' })
+                                    : t('pages.settings.currentlyOnlyManualSendingIsSupport')}
                             </div>
                         </div>
                         <span className={`badge ${lastTelegramBackup?.status === 'failed' ? 'badge-danger' : 'badge-info'}`}>
-                            {lastTelegramBackup?.status === 'failed' ? '最近发送失败' : lastTelegramBackup?.ts ? '最近已发送' : '暂无记录'}
+                            {lastTelegramBackup?.status === 'failed' ? t('pages.settings.recentSendFailed') : lastTelegramBackup?.ts ? t('pages.settings.recentlySent') : t('pages.settings.noRecordYet')}
                         </span>
                     </div>
                     <div className="text-sm text-muted">
                         {lastTelegramBackup?.ts
-                            ? `${formatDateTime(lastTelegramBackup.ts, locale)} · ${lastTelegramBackup.filename || '未记录文件名'}`
-                            : '还没有 Telegram 备份记录。'}
+                            ? t('pages.settings.lastBackupLabel', { time: formatDateTime(lastTelegramBackup.ts, locale), filename: lastTelegramBackup.filename || t('pages.settings.unrecordedFilename') })
+                            : t('pages.settings.thereIsNoRecordOfTelegramBackupYet')}
                     </div>
-                    <div className="text-xs text-muted mt-1">下次自动备份：{telegramNextBackupLabel}</div>
+                    <div className="text-xs text-muted mt-1">{t("pages.settings.nextAutomaticBackupTelegramnextback")}</div>
                     {lastTelegramBackup?.error ? (
                         <div className="text-xs text-danger">{lastTelegramBackup.error}</div>
                     ) : null}
@@ -2841,7 +2845,7 @@ export default function SystemSettings() {
                         <div className="text-sm text-muted mt-1">
                             {backupInspection.encrypted === false
                                 ? t('comp.system.sysLegacyWarning')
-                                : (locale === 'en-US' ? `Decrypted with ${backupInspection.keyHint || 'CREDENTIALS_SECRET'}` : `恢复时将使用 ${backupInspection.keyHint || 'CREDENTIALS_SECRET'} 解密。`)}
+                                : (locale === 'en-US' ? `Decrypted with ${backupInspection.keyHint || 'CREDENTIALS_SECRET'}` : t('pages.settings.restoreDecryptionHint', { key: backupInspection.keyHint || 'CREDENTIALS_SECRET' }))}
                         </div>
                         <div className="settings-backup-inspection-actions">
                             <button className="btn btn-secondary btn-sm" onClick={inspectBackup} disabled={!backupFile || backupInspectLoading || backupRestoreLoading}>
@@ -2864,28 +2868,28 @@ export default function SystemSettings() {
                 <SectionHeader
                     className="mb-3"
                     compact
-                    title="数据库读写模式"
-                    subtitle="切换数据库读写策略，或把现有 Store 数据回填到数据库。"
+                    title={t("pages.settings.databaseReadAndWriteMode")}
+                    subtitle={t("pages.settings.switchTheDatabaseReadAndWriteStrate")}
                     actions={(
                         <button className="btn btn-secondary btn-sm" onClick={() => fetchDbStatus()} disabled={dbLoading}>
-                            {dbLoading ? <span className="spinner" /> : '刷新状态'}
+                            {dbLoading ? <span className="spinner" /> : t('pages.settings.refreshStatusBtn')}
                         </button>
                     )}
                 />
 
                 {!dbStatus ? (
-                    <div className="text-sm text-muted">尚未加载数据库状态。</div>
+                    <div className="text-sm text-muted">{t("pages.settings.databaseStatusHasNotBeenLoaded")}</div>
                 ) : (
                     <>
                         <div className={compactLayout ? 'settings-section-stack' : 'settings-grid settings-db-grid'}>
                             <div className="card p-3 settings-mini-card settings-db-control-card">
                                 <div className="settings-db-card-head">
-                                    <h4 className="text-base font-semibold">切换读写模式</h4>
-                                    <div className="settings-panel-subtitle">先确认当前连接状态，再决定读取模式、写入模式和是否同步加载内存缓存。</div>
+                                    <h4 className="text-base font-semibold">{t("pages.settings.switchReadAndWriteMode")}</h4>
+                                    <div className="settings-panel-subtitle">{t("pages.settings.firstConfirmTheCurrentConnectionSta")}</div>
                                 </div>
                                 <div className="settings-db-card-body">
                                     <div className="form-group">
-                                        <label className="form-label">读取模式</label>
+                                        <label className="form-label">{t("pages.settings.readMode")}</label>
                                         <select
                                             className="form-select"
                                             value={dbModeDraft.readMode}
@@ -2898,7 +2902,7 @@ export default function SystemSettings() {
                                         </select>
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">写入模式</label>
+                                        <label className="form-label">{t("pages.settings.writeMode")}</label>
                                         <select
                                             className="form-select"
                                             value={dbModeDraft.writeMode}
@@ -2914,13 +2918,11 @@ export default function SystemSettings() {
                                         <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
                                             <input
                                                 type="checkbox"
-                                                aria-label="read=db 时同步加载到内存缓存"
+                                                aria-label={t("pages.settings.synchronouslyLoadIntoTheMemoryCache")}
                                                 checked={dbModeDraft.hydrateOnReadDb}
                                                 onChange={(event) => setDbModeDraft((prev) => ({ ...prev, hydrateOnReadDb: event.target.checked }))}
                                                 disabled={!isAdmin}
-                                            />
-                                            read=db 时同步加载到内存缓存
-                                        </label>
+                                            />{t("pages.settings.synchronouslyLoadIntoTheMemoryCache")}</label>
                                     </div>
                                 </div>
                                 <div className="settings-db-card-foot">
@@ -2929,52 +2931,48 @@ export default function SystemSettings() {
                                         onClick={switchDbMode}
                                         disabled={dbSwitchLoading || !dbStatus.connection?.enabled || !isAdmin}
                                     >
-                                        {dbSwitchLoading ? <span className="spinner" /> : '应用模式'}
+                                        {dbSwitchLoading ? <span className="spinner" /> : t('pages.settings.applicationMode')}
                                     </button>
                                 </div>
                             </div>
 
                             <div className="card p-3 settings-mini-card settings-db-control-card">
                                 <div className="settings-db-card-head">
-                                    <h4 className="text-base font-semibold">Store 回填到数据库</h4>
-                                    <div className="settings-panel-subtitle">按数据键选择回填范围，可先预演，再执行正式写入。</div>
+                                    <h4 className="text-base font-semibold">{t("pages.settings.storeBackfillToDatabase")}</h4>
+                                    <div className="settings-panel-subtitle">{t("pages.settings.pressTheDataKeyToSelectTheBackfillR")}</div>
                                 </div>
                                 <div className="settings-db-card-body">
                                     <div className="form-group">
-                                        <label className="form-label">数据键（逗号分隔，留空表示全部）</label>
+                                        <label className="form-label">{t("pages.settings.dataKeysCommaSeparatedLeaveBlankFor")}</label>
                                         <input
                                             className="form-input"
-                                            aria-label="数据键（逗号分隔，留空表示全部）"
+                                            aria-label={t("pages.settings.dataKeysCommaSeparatedLeaveBlankFor")}
                                             value={dbBackfillDraft.keysText}
                                             onChange={(event) => setDbBackfillDraft((prev) => ({ ...prev, keysText: event.target.value }))}
                                             placeholder={(dbStatus.storeKeys || []).join(', ')}
                                             disabled={!isAdmin}
                                         />
-                                        <div className="text-xs text-muted mt-1">可选: {(dbStatus.storeKeys || []).join(', ') || '暂无'}</div>
+                                        <div className="text-xs text-muted mt-1">{t("pages.settings.optionalDbstatusStorekeysJoinNone")}</div>
                                     </div>
                                     <div className="settings-db-inline-options">
                                         <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
                                             <input
                                                 type="checkbox"
-                                                aria-label="仅预演"
+                                                aria-label={t("pages.settings.previewOnly")}
                                                 checked={dbBackfillDraft.dryRun}
                                                 onChange={(event) => setDbBackfillDraft((prev) => ({ ...prev, dryRun: event.target.checked }))}
                                                 disabled={!isAdmin}
-                                            />
-                                            仅预演
-                                        </label>
+                                            />{t("pages.settings.previewOnly")}</label>
                                         <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
                                             <input
                                                 type="checkbox"
-                                                aria-label="脱敏写入"
+                                                aria-label={t("pages.settings.desensitizedWriting")}
                                                 checked={dbBackfillDraft.redact}
                                                 onChange={(event) => setDbBackfillDraft((prev) => ({ ...prev, redact: event.target.checked }))}
                                                 disabled={!isAdmin}
-                                            />
-                                            脱敏写入
-                                        </label>
+                                            />{t("pages.settings.desensitizedWriting")}</label>
                                     </div>
-                                    <div className="text-xs text-muted mt-1">默认关闭。仅对支持脱敏的快照生效，操作审计不会再因回填被写成历史脱敏值。</div>
+                                    <div className="text-xs text-muted mt-1">{t("pages.settings.offByDefaultItOnlyTakesEffectForSna")}</div>
                                 </div>
                                 <div className="settings-db-card-foot">
                                     <button
@@ -2982,7 +2980,7 @@ export default function SystemSettings() {
                                         onClick={runDbBackfill}
                                         disabled={dbBackfillLoading || !dbStatus.connection?.enabled || !isAdmin}
                                     >
-                                        {dbBackfillLoading ? <span className="spinner" /> : (dbBackfillDraft.dryRun ? '执行预演' : '执行回填')}
+                                        {dbBackfillLoading ? <span className="spinner" /> : (dbBackfillDraft.dryRun ? t('pages.settings.executionRehearsal') : t('pages.settings.performBackfill'))}
                                     </button>
                                     {dbBackfillResult && (
                                         <div className="text-sm text-muted settings-db-card-result">
@@ -3008,8 +3006,8 @@ export default function SystemSettings() {
                     <SectionHeader
                         className="mb-4"
                         compact
-                        title="通知与巡检状态"
-                        subtitle="集中查看 SMTP、节点巡检、异常原因分布和 Telegram 通知链路。"
+                        title={t("pages.settings.notificationAndInspectionStatus")}
+                        subtitle={t("pages.settings.centrallyViewSmtpNodeInspectionAbno")}
                         actions={(
                             <button
                                 type="button"
@@ -3017,7 +3015,7 @@ export default function SystemSettings() {
                                 onClick={refreshStatusWorkspace}
                                 disabled={dbLoading || emailStatusLoading || backupStatusLoading || monitorStatusLoading}
                             >
-                                {(dbLoading || emailStatusLoading || backupStatusLoading || monitorStatusLoading) ? <span className="spinner" /> : '刷新概览'}
+                                {(dbLoading || emailStatusLoading || backupStatusLoading || monitorStatusLoading) ? <span className="spinner" /> : t('pages.settings.refreshOverview')}
                             </button>
                         )}
                     />
@@ -3026,7 +3024,7 @@ export default function SystemSettings() {
                         <div className="settings-kpi-card">
                             <div className="settings-kpi-card-header">
                                 <span className="settings-kpi-card-icon settings-kpi-card-icon--info"><HiOutlineEnvelope /></span>
-                                <span className="settings-kpi-card-title">SMTP 服务</span>
+                                <span className="settings-kpi-card-title">{t("pages.settings.smtpService")}</span>
                                 <span className={`settings-kpi-card-indicator ${emailStatus?.configured ? 'is-active' : 'is-inactive'}`} />
                             </div>
                             <div className="settings-kpi-card-body">
@@ -3039,7 +3037,7 @@ export default function SystemSettings() {
                         <div className="settings-kpi-card">
                             <div className="settings-kpi-card-header">
                                 <span className="settings-kpi-card-icon settings-kpi-card-icon--success"><HiOutlineCheckCircle /></span>
-                                <span className="settings-kpi-card-title">连接测试</span>
+                                <span className="settings-kpi-card-title">{t("pages.settings.connectionTest")}</span>
                                 <span className={`settings-kpi-card-indicator ${emailStatus?.lastVerification?.success ? 'is-active' : 'is-inactive'}`} />
                             </div>
                             <div className="settings-kpi-card-body">
@@ -3052,12 +3050,12 @@ export default function SystemSettings() {
                         <div className="settings-kpi-card">
                             <div className="settings-kpi-card-header">
                                 <span className="settings-kpi-card-icon settings-kpi-card-icon--info"><HiOutlineServerStack /></span>
-                                <span className="settings-kpi-card-title">节点巡检</span>
+                                <span className="settings-kpi-card-title">{t("pages.settings.nodeInspectionLabel")}</span>
                                 <span className={`settings-kpi-card-indicator ${monitorStatus?.healthMonitor?.running ? 'is-active' : 'is-inactive'}`} />
                             </div>
                             <div className="settings-kpi-card-body">
-                                <div className="settings-kpi-card-value">{monitorStatus?.healthMonitor?.running ? '运行中' : '未运行'}</div>
-                                <div className="settings-kpi-card-meta" title={`正常 ${monitorHealthyCount} / 异常 ${monitorIncidentCount}`}>{`正常 ${monitorHealthyCount} / 异常 ${monitorIncidentCount}`}</div>
+                                <div className="settings-kpi-card-value">{monitorStatus?.healthMonitor?.running ? t('pages.settings.statusRunning') : t('pages.settings.statusNotRunning')}</div>
+                                <div className="settings-kpi-card-meta" title={t('pages.settings.monitorStatusSummary', { healthy: monitorHealthyCount, incident: monitorIncidentCount })}>{t('pages.settings.monitorStatusSummary', { healthy: monitorHealthyCount, incident: monitorIncidentCount })}</div>
                             </div>
                         </div>
 
@@ -3065,12 +3063,12 @@ export default function SystemSettings() {
                         <div className="settings-kpi-card">
                             <div className="settings-kpi-card-header">
                                 <span className="settings-kpi-card-icon settings-kpi-card-icon--warning"><HiOutlineExclamationTriangle /></span>
-                                <span className="settings-kpi-card-title">异常原因</span>
+                                <span className="settings-kpi-card-title">{t("pages.settings.abnormalCause")}</span>
                                 <span className={`settings-kpi-card-indicator ${monitorIncidentCount > 0 ? 'is-warning' : 'is-active'}`} />
                             </div>
                             <div className="settings-kpi-card-body">
-                                <div className="settings-kpi-card-value">{monitorReasonSummary || '无异常记录'}</div>
-                                <div className="settings-kpi-card-meta" title="最近巡检异常分布">异常分布统计</div>
+                                <div className="settings-kpi-card-value">{monitorReasonSummary || t('pages.settings.noIncidents')}</div>
+                                <div className="settings-kpi-card-meta" title={t("pages.settings.distributionOfRecentInspectionAnoma")}>{t("pages.settings.abnormalDistributionStatistics")}</div>
                             </div>
                         </div>
 
@@ -3078,12 +3076,12 @@ export default function SystemSettings() {
                         <div className="settings-kpi-card">
                             <div className="settings-kpi-card-header">
                                 <span className="settings-kpi-card-icon settings-kpi-card-icon--info"><HiOutlineBell /></span>
-                                <span className="settings-kpi-card-title">通知中心</span>
+                                <span className="settings-kpi-card-title">{t("pages.settings.notificationCenter")}</span>
                                 <span className={`settings-kpi-card-indicator ${monitorUnreadCount > 0 ? 'is-warning' : 'is-active'}`} />
                             </div>
                             <div className="settings-kpi-card-body">
-                                <div className="settings-kpi-card-value">未读 {monitorUnreadCount}</div>
-                                <div className="settings-kpi-card-meta" title={`DB 连续失败 ${monitorStatus?.dbAlerts?.consecutiveFailures || 0} 次`}>{`DB 连续失败 ${monitorStatus?.dbAlerts?.consecutiveFailures || 0} 次`}</div>
+                                <div className="settings-kpi-card-value">{t("pages.settings.unreadMonitorunreadcount")}</div>
+                                <div className="settings-kpi-card-meta" title={t('pages.settings.dbConsecutiveFailures', { count: monitorStatus?.dbAlerts?.consecutiveFailures || 0 })}>{t('pages.settings.dbConsecutiveFailures', { count: monitorStatus?.dbAlerts?.consecutiveFailures || 0 })}</div>
                             </div>
                         </div>
 
@@ -3095,10 +3093,10 @@ export default function SystemSettings() {
                                 <span className={`settings-kpi-card-indicator ${monitorStatus?.telegram?.enabled ? 'is-active' : 'is-inactive'}`} />
                             </div>
                             <div className="settings-kpi-card-body">
-                                <div className="settings-kpi-card-value">{monitorStatus?.telegram?.enabled ? '已启用' : monitorStatus?.telegram?.configured ? '已配置' : '未配置'}</div>
-                                <div className="settings-kpi-card-meta" title={telegramTargetPreview !== '-' ? telegramTargetPreview : '未绑定 Chat ID'}>
-                                    {telegramTargetPreview !== '-' ? telegramTargetPreview : '未绑定 Chat ID'}
-                                    {monitorStatus?.telegram?.sendDailyBackup ? ` · 下次备份 ${telegramNextBackupLabel}` : ''}
+                                <div className="settings-kpi-card-value">{monitorStatus?.telegram?.enabled ? t('pages.settings.enabled') : monitorStatus?.telegram?.configured ? t('pages.settings.configured') : t('pages.settings.notConfigured')}</div>
+                                <div className="settings-kpi-card-meta" title={telegramTargetPreview !== '-' ? telegramTargetPreview : t('pages.settings.telegramNotBound')}>
+                                    {telegramTargetPreview !== '-' ? telegramTargetPreview : t('pages.settings.telegramNotBound')}
+                                    {monitorStatus?.telegram?.sendDailyBackup ? t('pages.settings.nextBackupTimeLabel', { time: telegramNextBackupLabel }) : ''}
                                 </div>
                             </div>
                         </div>
@@ -3110,20 +3108,20 @@ export default function SystemSettings() {
                     <SectionHeader
                         className="mb-4"
                         compact
-                        title="数据库与备份状态"
-                        subtitle="把连接状态、当前读写模式、写入排队和最近恢复记录放在一起核对。"
+                        title={t("pages.settings.databaseAndBackupStatus")}
+                        subtitle={t("pages.settings.checkTheConnectionStatusCurrentRead")}
                     />
                     <div className="settings-status-grid">
                         {/* DB Connection */}
                         <div className="settings-kpi-card">
                             <div className="settings-kpi-card-header">
                                 <span className="settings-kpi-card-icon settings-kpi-card-icon--info"><HiOutlineCircleStack /></span>
-                                <span className="settings-kpi-card-title">DB 连接</span>
+                                <span className="settings-kpi-card-title">{t("pages.settings.dbConnection")}</span>
                                 <span className={`settings-kpi-card-indicator ${dbStatus?.connection?.ready ? 'is-active' : 'is-inactive'}`} />
                             </div>
                             <div className="settings-kpi-card-body">
-                                <div className="settings-kpi-card-value">{dbStatus?.connection?.enabled ? (dbStatus?.connection?.ready ? '已就绪' : '未就绪') : '未启用'}</div>
-                                <div className="settings-kpi-card-meta" title="SQLite / JSON 数据源">SQLite / JSON 数据源</div>
+                                <div className="settings-kpi-card-value">{dbStatus?.connection?.enabled ? (dbStatus?.connection?.ready ? t('pages.settings.dbReady') : t('pages.settings.dbNotReady')) : t('pages.settings.notEnabled')}</div>
+                                <div className="settings-kpi-card-meta" title={t("pages.settings.sqliteJsonDataSource")}>{t("pages.settings.sqliteJsonDataSource")}</div>
                             </div>
                         </div>
 
@@ -3131,12 +3129,12 @@ export default function SystemSettings() {
                         <div className="settings-kpi-card">
                             <div className="settings-kpi-card-header">
                                 <span className="settings-kpi-card-icon settings-kpi-card-icon--info"><HiOutlineCog6Tooth /></span>
-                                <span className="settings-kpi-card-title">当前模式</span>
+                                <span className="settings-kpi-card-title">{t("pages.settings.currentMode")}</span>
                                 <span className="settings-kpi-card-indicator is-active" />
                             </div>
                             <div className="settings-kpi-card-body">
-                                <div className="settings-kpi-card-value">{dbStatus ? `R:${dbStatus.currentModes?.readMode || 'file'} / W:${dbStatus.currentModes?.writeMode || 'file'}` : '等待探测'}</div>
-                                <div className="settings-kpi-card-meta" title="读写通道分配">读写通道分配</div>
+                                <div className="settings-kpi-card-value">{dbStatus ? `R:${dbStatus.currentModes?.readMode || 'file'} / W:${dbStatus.currentModes?.writeMode || 'file'}` : t('pages.settings.dbWaitingDetect')}</div>
+                                <div className="settings-kpi-card-meta" title={t("pages.settings.readAndWriteChannelAllocation")}>{t("pages.settings.readAndWriteChannelAllocation")}</div>
                             </div>
                         </div>
 
@@ -3144,12 +3142,12 @@ export default function SystemSettings() {
                         <div className="settings-kpi-card">
                             <div className="settings-kpi-card-header">
                                 <span className="settings-kpi-card-icon settings-kpi-card-icon--info"><HiOutlineArrowUpTray /></span>
-                                <span className="settings-kpi-card-title">写入排队</span>
+                                <span className="settings-kpi-card-title">{t("pages.settings.writeQueue")}</span>
                                 <span className={`settings-kpi-card-indicator ${(dbStatus?.writesQueued || dbStatus?.pendingWrites) ? 'is-warning' : 'is-active'}`} />
                             </div>
                             <div className="settings-kpi-card-body">
-                                <div className="settings-kpi-card-value">{`排队 ${dbStatus?.writesQueued || 0} · 挂起 ${dbStatus?.pendingWrites || 0}`}</div>
-                                <div className="settings-kpi-card-meta" title="缓存写入同步数">缓存写入同步数</div>
+                                <div className="settings-kpi-card-value">{t('pages.settings.dbWritesQueued', { queued: dbStatus?.writesQueued || 0, pending: dbStatus?.pendingWrites || 0 })}</div>
+                                <div className="settings-kpi-card-meta" title={t("pages.settings.cacheWriteSyncNumber")}>{t("pages.settings.cacheWriteSyncNumber")}</div>
                             </div>
                         </div>
 
@@ -3157,12 +3155,12 @@ export default function SystemSettings() {
                         <div className="settings-kpi-card">
                             <div className="settings-kpi-card-header">
                                 <span className="settings-kpi-card-icon settings-kpi-card-icon--success"><HiOutlineShieldCheck /></span>
-                                <span className="settings-kpi-card-title">备份状态</span>
-                                <span className={`settings-kpi-card-indicator ${(backupSummaryValue && !backupSummaryValue.includes('异常')) ? 'is-active' : 'is-inactive'}`} />
+                                <span className="settings-kpi-card-title">{t("pages.settings.backupStatusLabel")}</span>
+                                <span className={`settings-kpi-card-indicator ${(backupSummaryValue && !backupSummaryValue.includes(t('pages.settings.unhealthyState'))) ? 'is-active' : 'is-inactive'}`} />
                             </div>
                             <div className="settings-kpi-card-body">
                                 <div className="settings-kpi-card-value">{backupSummaryValue}</div>
-                                <div className="settings-kpi-card-meta" title="备份基线与周期状态">备份基线状态</div>
+                                <div className="settings-kpi-card-meta" title={t("pages.settings.backupBaselineAndPeriod")}>{t("pages.settings.backupBaselineStatus")}</div>
                             </div>
                         </div>
 
@@ -3170,12 +3168,12 @@ export default function SystemSettings() {
                         <div className="settings-kpi-card">
                             <div className="settings-kpi-card-header">
                                 <span className="settings-kpi-card-icon settings-kpi-card-icon--info"><HiOutlineArrowDownTray /></span>
-                                <span className="settings-kpi-card-title">本机备份</span>
+                                <span className="settings-kpi-card-title">{t("pages.settings.localBackupLabel")}</span>
                                 <span className={`settings-kpi-card-indicator ${localBackups.length > 0 ? 'is-active' : 'is-inactive'}`} />
                             </div>
                             <div className="settings-kpi-card-body">
-                                <div className="settings-kpi-card-value">{localBackups.length} 份备份</div>
-                                <div className="settings-kpi-card-meta" title={latestLocalBackup?.filename || '暂无'}>{latestLocalBackup?.filename || '暂无'}</div>
+                                <div className="settings-kpi-card-value">{t("pages.settings.localbackupsLengthBackups")}</div>
+                                <div className="settings-kpi-card-meta" title={latestLocalBackup?.filename || t('pages.settings.na')}>{latestLocalBackup?.filename || t('pages.settings.na')}</div>
                             </div>
                         </div>
 
@@ -3183,11 +3181,11 @@ export default function SystemSettings() {
                         <div className="settings-kpi-card">
                             <div className="settings-kpi-card-header">
                                 <span className="settings-kpi-card-icon settings-kpi-card-icon--success"><HiOutlineArrowPath /></span>
-                                <span className="settings-kpi-card-title">最近恢复</span>
+                                <span className="settings-kpi-card-title">{t("pages.settings.recentRestoreLabel")}</span>
                                 <span className={`settings-kpi-card-indicator ${backupStatus?.lastImport?.restoredAt ? 'is-active' : 'is-inactive'}`} />
                             </div>
                             <div className="settings-kpi-card-body">
-                                <div className="settings-kpi-card-value" title={backupStatus?.lastImport?.sourceFilename || '暂无'}>{backupStatus?.lastImport?.sourceFilename || '暂无'}</div>
+                                <div className="settings-kpi-card-value" title={backupStatus?.lastImport?.sourceFilename || t('pages.settings.na')}>{backupStatus?.lastImport?.sourceFilename || t('pages.settings.na')}</div>
                                 <div className="settings-kpi-card-meta" title={formatDateTime(backupStatus?.lastImport?.restoredAt, locale)}>{formatDateTime(backupStatus?.lastImport?.restoredAt, locale)}</div>
                             </div>
                         </div>
@@ -3222,51 +3220,51 @@ export default function SystemSettings() {
     const workspaceSections = [
         {
             id: 'status',
-            title: '系统状态',
+            title: t('pages.settings.systemStatusLabel'),
             eyebrow: 'Status',
-            subtitle: '把告警链路、数据库模式和备份基线放在同一个工作区先过一遍。',
-            summary: '顶部先看核心状态卡，再进入通知、数据库和备份详情，避免在设置项之间来回跳转。',
+            subtitle: t('pages.settings.putTheAlarmLinkDatabaseSchemaAndBac'),
+            summary: t('pages.settings.lookAtTheCoreStatusCardAtTheTopFirs'),
             highlights: [],
             navFlag: readyAlertChainCount === 3 && (hasExportBackup || hasLocalBackup)
-                ? { label: '运行稳定', tone: 'success' }
-                : { label: '需关注', tone: 'warning' },
+                ? { label: t('pages.settings.runningStable'), tone: 'success' }
+                : { label: t('pages.settings.needsAttention'), tone: 'warning' },
             content: renderStatusContent(),
             heroMode: 'hidden',
         },
         {
             id: 'access',
-            title: '对外访问',
+            title: t('pages.settings.externalAccessTab'),
             eyebrow: 'Access',
-            subtitle: '统一调整站点入口、订阅公网地址、伪装首页和注册邀请码入口。',
-            summary: '保持外部访问路径清晰，再处理订阅外链与注册发放策略，和其他工作区的节奏一致。',
+            subtitle: t('pages.settings.unifiedAdjustmentOfSiteEntrancePubl'),
+            summary: t('pages.settings.keepTheExternalAccessPathClearAndTh'),
             content: renderAccessContent(),
             heroMode: 'hidden',
         },
         {
             id: 'policy',
-            title: '安全审计',
+            title: t('pages.settings.securityAuditTab'),
             eyebrow: 'Security',
-            subtitle: '风控阈值、审计保留窗口和 IP 归属地增强统一收口。',
-            summary: '先确认高风险确认规则与留存周期，再检查归属地增强的 provider 和缓存策略。',
+            subtitle: t('pages.settings.riskControlThresholdsAuditRetention'),
+            summary: t('pages.settings.confirmHighRiskConfirmationRulesAnd'),
             highlights: [],
             content: renderPolicyContent(),
             heroMode: 'hidden',
         },
         {
             id: 'operations',
-            title: '运维通知',
+            title: t('pages.settings.opsNotifyTab'),
             eyebrow: 'Operations',
-            subtitle: '把邮件、Telegram 和节点巡检动作放在同一页执行与复核。',
-            summary: '链路状态和巡检概览集中在系统状态页查看，这里只保留测试、通知和 Telegram 配置动作。',
+            subtitle: t('pages.settings.putEmailTelegramAndNodeInspectionAc'),
+            summary: t('pages.settings.theLinkStatusAndInspectionOverviewA'),
             content: renderOperationsWorkspace(),
             heroMode: 'hidden',
         },
         {
             id: 'backup',
-            title: '数据备份',
+            title: t('pages.settings.dataBackupTab'),
             eyebrow: 'Backup',
-            subtitle: '数据库模式、备份导出和恢复校验放在一个工作区统一处理。',
-            summary: '数据库模式和备份基线集中在系统状态页查看，这里只保留切换、导出和恢复操作。',
+            subtitle: t('pages.settings.databaseSchemaBackupExportAndRecove'),
+            summary: t('pages.settings.theDatabaseModeAndBackupBaselineAre'),
             content: renderBackupWorkspace(),
             heroMode: 'hidden',
         },
@@ -3280,10 +3278,10 @@ export default function SystemSettings() {
         .filter((item) => dirtyWorkspaceIds.includes(item.id))
         .map((item) => item.label);
     const saveDockSummary = hasPendingChanges
-        ? `${dirtyWorkspaceCount} 个工作区待保存`
+        ? t('pages.settings.dirtyWorkspacesCount', { count: dirtyWorkspaceCount })
         : activeWorkspaceSectionId === 'backup'
-            ? '数据库切换和备份操作即时生效'
-            : '当前工作区没有未保存更改';
+            ? t('pages.settings.databaseSwitchingAndBackupOperation')
+            : t('pages.settings.thereAreNoUnsavedChangesInTheCurren');
 
     if (!isAdmin) {
         return (
@@ -3294,8 +3292,8 @@ export default function SystemSettings() {
                 />
                 <div className="page-content page-enter settings-page">
                     <EmptyState
-                        title="仅管理员可访问系统设置"
-                        subtitle="请使用管理员账号登录后再修改系统参数、备份或监控配置。"
+                        title={t("pages.settings.adminAccessOnlyTitle")}
+                        subtitle={t("pages.settings.adminAccessOnlyDesc")}
                         icon={<HiOutlineCog6Tooth style={{ fontSize: '48px' }} />}
                         surface
                         action={(
@@ -3420,8 +3418,8 @@ export default function SystemSettings() {
             <ModalShell isOpen={noticeModalOpen} onClose={() => setNoticeModalOpen(false)}>
                 <div className="modal modal-wide settings-notice-modal" onClick={(event) => event.stopPropagation()}>
                     <div className="modal-header">
-                        <h3 className="modal-title">发送注册用户变更通知</h3>
-                        <button type="button" className="modal-close" onClick={() => setNoticeModalOpen(false)} aria-label="关闭" title="关闭">
+                        <h3 className="modal-title">{t("pages.settings.sendUserNoticeModalTitle")}</h3>
+                        <button type="button" className="modal-close" onClick={() => setNoticeModalOpen(false)} aria-label={t("pages.settings.closeBtn")} title={t("pages.settings.closeBtn")}>
                             <HiOutlineXMark />
                         </button>
                     </div>
@@ -3433,39 +3431,39 @@ export default function SystemSettings() {
                                 </div>
                                 <div className="grid-auto-220">
                                     <div className="form-group">
-                                        <label className="form-label">通知主题</label>
+                                        <label className="form-label">{t("pages.settings.noticeSubjectLabel")}</label>
                                         <input
                                             className="form-input"
                                             value={noticeDraft.subject}
                                             onChange={(event) => setNoticeDraft((prev) => ({ ...prev, subject: event.target.value }))}
-                                            placeholder="例如：服务入口地址变更通知"
+                                            placeholder={t("pages.settings.forExampleServiceEntranceAddressCha")}
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">发送范围</label>
+                                        <label className="form-label">{t("pages.settings.sendScopeLabel")}</label>
                                         <select
                                             className="form-select"
                                             value={noticeDraft.scope}
                                             onChange={(event) => setNoticeDraft((prev) => ({ ...prev, scope: event.target.value }))}
                                         >
-                                            <option value="all">全部有邮箱的注册用户</option>
-                                            <option value="verified">仅已验证邮箱用户</option>
+                                            <option value="all">{t("pages.settings.allEmailUsersOption")}</option>
+                                            <option value="verified">{t("pages.settings.verifiedEmailUsersOption")}</option>
                                         </select>
                                     </div>
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">通知内容</label>
+                                    <label className="form-label">{t("pages.settings.noticeContentLabel")}</label>
                                     <textarea
                                         rows={8}
                                         className="form-textarea"
                                         value={noticeDraft.message}
                                         onChange={(event) => setNoticeDraft((prev) => ({ ...prev, message: event.target.value }))}
-                                        placeholder="说明新网址、新域名、生效时间，以及用户需要执行的替换动作。"
+                                        placeholder={t("pages.settings.describeTheNewUrlNewDomainNameEffec")}
                                     />
                                 </div>
                                 <div className="grid-auto-220">
                                     <div className="form-group">
-                                        <label className="form-label">按钮地址</label>
+                                        <label className="form-label">{t("pages.settings.buttonUrlLabel")}</label>
                                         <input
                                             className="form-input"
                                             value={noticeDraft.actionUrl}
@@ -3474,30 +3472,30 @@ export default function SystemSettings() {
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">按钮文案</label>
+                                        <label className="form-label">{t("pages.settings.buttonTextLabel")}</label>
                                         <input
                                             className="form-input"
                                             value={noticeDraft.actionLabel}
                                             onChange={(event) => setNoticeDraft((prev) => ({ ...prev, actionLabel: event.target.value }))}
-                                            placeholder="查看最新地址"
+                                            placeholder={t("pages.settings.viewTheLatestAddress")}
                                         />
                                     </div>
                                 </div>
                                 <label className="form-check-label w-fit mt-2">
                                     <input
                                         type="checkbox"
-                                        aria-label="包含已停用账号"
+                                        aria-label={t("pages.settings.includeDisabledOption")}
                                         checked={noticeDraft.includeDisabled}
                                         onChange={(event) => setNoticeDraft((prev) => ({ ...prev, includeDisabled: event.target.checked }))}
                                     />
-                                    <span>包含已停用账号</span>
+                                    <span>{t("pages.settings.includeDisabledOption")}</span>
                                 </label>
                             </div>
                             <div className="settings-notice-preview-panel">
                                 <div className="settings-notice-preview-head">
                                     <div>
-                                        <div className="text-sm font-medium">邮件正文预览</div>
-                                        <div className="text-xs text-muted mt-1">按示例用户渲染，实际发送时仍会逐个单发，不会泄露其他用户邮箱地址。</div>
+                                        <div className="text-sm font-medium">{t("pages.settings.emailBodyPreviewLabel")}</div>
+                                        <div className="text-xs text-muted mt-1">{t("pages.settings.renderedAccordingToTheExampleUserWh")}</div>
                                     </div>
                                     <button
                                         type="button"
@@ -3505,13 +3503,13 @@ export default function SystemSettings() {
                                         onClick={() => fetchNoticePreview(noticeDraft)}
                                         disabled={noticePreviewLoading}
                                     >
-                                        {noticePreviewLoading ? <span className="spinner" /> : '刷新预览'}
+                                        {noticePreviewLoading ? <span className="spinner" /> : t('pages.settings.refreshPreviewBtn')}
                                     </button>
                                 </div>
                                 <div className="settings-notice-preview-meta">
-                                    <span className="badge badge-neutral">预计发送 {noticePreview?.recipientCount ?? 0} 人</span>
-                                    <span className="badge badge-neutral">跳过 {noticePreview?.skippedCount ?? 0} 人</span>
-                                    <span className="badge badge-success">逐个单发</span>
+                                    <span className="badge badge-neutral">{t('pages.settings.expectedSendCount', { count: noticePreview?.recipientCount ?? 0 })}</span>
+                                    <span className="badge badge-neutral">{t('pages.settings.skippedSendCount', { count: noticePreview?.skippedCount ?? 0 })}</span>
+                                    <span className="badge badge-success">{t("pages.settings.sendOneByOneLabel")}</span>
                                 </div>
                                 {noticePreview?.sampleRecipient?.username || noticePreview?.sampleRecipient?.email ? (
                                     <div className="text-xs text-muted">
@@ -3520,20 +3518,20 @@ export default function SystemSettings() {
                                 ) : null}
                                 {noticePreviewError ? (
                                     <div className="settings-notice-preview-empty">
-                                        <div className="text-sm font-medium">预览加载失败</div>
+                                        <div className="text-sm font-medium">{t("pages.settings.previewLoadFailed")}</div>
                                         <div className="text-sm text-muted">{noticePreviewError}</div>
                                     </div>
                                 ) : null}
                                 {!noticePreviewError && noticePreviewLoading && !noticePreview ? (
                                     <div className="settings-notice-preview-empty">
-                                        <div className="text-sm font-medium">正在生成邮件预览</div>
-                                        <div className="text-sm text-muted">正在按实际邮件模板渲染正文。</div>
+                                        <div className="text-sm font-medium">{t("pages.settings.generatingPreview")}</div>
+                                        <div className="text-sm text-muted">{t("pages.settings.theBodyIsBeingRenderedAccordingToTh")}</div>
                                     </div>
                                 ) : null}
                                 {!noticePreviewError && noticePreview?.html ? (
                                     <div className="settings-notice-preview-frame-shell">
                                         <iframe
-                                            title="注册用户通知邮件预览"
+                                            title={t("pages.settings.userNoticePreviewTitle")}
                                             className="settings-notice-preview-frame"
                                             sandbox=""
                                             srcDoc={noticePreview.html}
@@ -3542,8 +3540,8 @@ export default function SystemSettings() {
                                 ) : null}
                                 {!noticePreviewError && !noticePreviewLoading && !noticePreview?.html ? (
                                     <div className="settings-notice-preview-empty">
-                                        <div className="text-sm font-medium">还没有可用预览</div>
-                                        <div className="text-sm text-muted">填写主题、正文或按钮地址后，这里会显示最终邮件样式。</div>
+                                        <div className="text-sm font-medium">{t("pages.settings.noPreviewAvailable")}</div>
+                                        <div className="text-sm text-muted">{t("pages.settings.afterFillingInTheSubjectBodyOrButto")}</div>
                                     </div>
                                 ) : null}
                             </div>
@@ -3554,21 +3552,21 @@ export default function SystemSettings() {
                             取消
                         </button>
                         <button type="button" className="btn btn-primary" onClick={sendRegisteredUserNotice} disabled={noticeSending || !emailStatus?.configured}>
-                            {noticeSending ? <span className="spinner" /> : '开始发送'}
+                            {noticeSending ? <span className="spinner" /> : t('pages.settings.startSendingBtn')}
                         </button>
                     </div>
                 </div>
             </ModalShell>
             <TaskProgressModal
                 taskId={noticeTaskId}
-                title="发送注册用户变更通知"
+                title={t("pages.settings.sendUserNoticeModalTitle")}
                 onClose={() => setNoticeTaskId(null)}
             />
             <ModalShell isOpen={backupRestoreModalOpen} onClose={() => setBackupRestoreModalOpen(false)}>
                 <div className="modal settings-restore-modal" onClick={(event) => event.stopPropagation()}>
                     <div className="modal-header">
-                        <h3 className="modal-title">恢复系统备份</h3>
-                        <button type="button" className="modal-close" onClick={() => setBackupRestoreModalOpen(false)} aria-label="关闭" title="关闭">
+                        <h3 className="modal-title">{t("pages.settings.restoreSystemBackupTitle")}</h3>
+                        <button type="button" className="modal-close" onClick={() => setBackupRestoreModalOpen(false)} aria-label={t("pages.settings.closeBtn")} title={t("pages.settings.closeBtn")}>
                             <HiOutlineXMark />
                         </button>
                     </div>
@@ -3576,8 +3574,8 @@ export default function SystemSettings() {
                         <div className="settings-restore-warning">
                             <HiOutlineExclamationTriangle className="settings-restore-warning-icon" />
                             <div className="settings-restore-warning-copy">
-                                <div className="settings-restore-warning-title">恢复会覆盖当前同名 Store</div>
-                                <div className="text-sm text-muted">建议先导出一份当前系统快照，再选择备份文件进行预览校验。新备份会先按当前 `CREDENTIALS_SECRET` 解密，再执行恢复覆盖。</div>
+                                <div className="settings-restore-warning-title">{t("pages.settings.restoreWarningTitle")}</div>
+                                <div className="text-sm text-muted">{t("pages.settings.itIsRecommendedToExportASnapshotOfT")}</div>
                             </div>
                         </div>
 
@@ -3602,15 +3600,15 @@ export default function SystemSettings() {
                                 accept=".nmsbak,.gz,.json.gz,application/octet-stream,application/gzip"
                                 onChange={(event) => setSelectedBackupFile(event.target.files?.[0] || null)}
                             />
-                            <div className="settings-restore-dropzone-title">拖拽备份文件到这里，或点击选择文件</div>
-                            <div className="settings-restore-dropzone-sub">支持 `NMS` 导出的加密 `.nmsbak`，也兼容旧版 `.gz / .json.gz` 备份包</div>
-                            <div className="settings-restore-file">{backupFile?.name || '尚未选择文件'}</div>
+                            <div className="settings-restore-dropzone-title">{t("pages.settings.dropzoneTitle")}</div>
+                            <div className="settings-restore-dropzone-sub">{t("pages.settings.supportsEncryptedNmsbakExportedByNm")}</div>
+                            <div className="settings-restore-file">{backupFile?.name || t('pages.settings.noFileSelected')}</div>
                         </label>
 
                         {(backupInspectLoading || backupRestoreLoading || backupUploadProgress > 0) && (
                             <div className="settings-restore-progress">
                                 <div className="settings-restore-progress-head">
-                                    <span>{backupRestoreLoading ? '恢复上传中' : '文件校验上传中'}</span>
+                                    <span>{backupRestoreLoading ? t('pages.settings.restoringUpload') : t('pages.settings.verifyingUpload')}</span>
                                     <span>{backupUploadProgress}%</span>
                                 </div>
                                 <div className="settings-restore-progress-bar">
@@ -3622,37 +3620,37 @@ export default function SystemSettings() {
                         {backupInspection && (
                             <div className="card mini-card settings-backup-inspection">
                                 <div className="flex items-center justify-between gap-3 flex-wrap">
-                                    <div className="text-sm font-medium">备份预览</div>
-                                    <span className="badge badge-success">已校验</span>
+                                    <div className="text-sm font-medium">{t("pages.settings.backupPreviewLabel")}</div>
+                                    <span className="badge badge-success">{t("pages.settings.verifiedLabel")}</span>
                                 </div>
                                 <div className="settings-backup-inspection-grid">
                                     <div className="settings-backup-inspection-item">
-                                        <div className="text-xs text-muted">备份时间</div>
-                                        <div className="text-sm">{backupInspection.createdAt ? new Date(backupInspection.createdAt).toLocaleString('zh-CN') : '未知'}</div>
+                                        <div className="text-xs text-muted">{t("pages.settings.backupTimeLabel")}</div>
+                                        <div className="text-sm">{backupInspection.createdAt ? new Date(backupInspection.createdAt).toLocaleString('zh-CN') : t('pages.settings.unknownLabel')}</div>
                                     </div>
                                     <div className="settings-backup-inspection-item">
-                                        <div className="text-xs text-muted">格式版本</div>
+                                        <div className="text-xs text-muted">{t("pages.settings.formatVersionLabel")}</div>
                                         <div className="text-sm">{backupInspection.format} v{backupInspection.version}</div>
                                     </div>
                                     <div className="settings-backup-inspection-item">
-                                        <div className="text-xs text-muted">加密状态</div>
-                                        <div className="text-sm">{backupInspection.encrypted === false ? '旧版未加密' : (backupInspection.cipher || 'AES-256-GCM')}</div>
+                                        <div className="text-xs text-muted">{t("pages.settings.encryptionStatusLabel")}</div>
+                                        <div className="text-sm">{backupInspection.encrypted === false ? t('pages.settings.legacyUnencrypted') : (backupInspection.cipher || 'AES-256-GCM')}</div>
                                     </div>
                                     <div className="settings-backup-inspection-item">
-                                        <div className="text-xs text-muted">可恢复 Store</div>
-                                        <div className="text-sm">{(backupInspection.restorableKeys || []).join(', ') || '无'}</div>
+                                        <div className="text-xs text-muted">{t("pages.settings.restorableStoreLabel")}</div>
+                                        <div className="text-sm">{(backupInspection.restorableKeys || []).join(', ') || t('pages.settings.noneLabel')}</div>
                                     </div>
                                 </div>
                                 {(backupInspection.unsupportedKeys || []).length > 0 && (
-                                    <div className="text-sm text-muted">不支持 Store: {backupInspection.unsupportedKeys.join(', ')}</div>
+                                    <div className="text-sm text-muted">{t('pages.settings.unsupportedStoreKeys', { keys: backupInspection.unsupportedKeys.join(', ') })}</div>
                                 )}
                                 {(backupInspection.missingKeys || []).length > 0 && (
-                                    <div className="text-sm text-muted">缺失快照: {backupInspection.missingKeys.join(', ')}</div>
+                                    <div className="text-sm text-muted">{t('pages.settings.missingSnapshotKeys', { keys: backupInspection.missingKeys.join(', ') })}</div>
                                 )}
                                 <div className="text-sm text-muted">
                                     {backupInspection.encrypted === false
-                                        ? '这是旧版未加密备份，仅用于兼容恢复。建议恢复完成后立即重新导出新的加密备份。'
-                                        : `恢复时会使用 ${backupInspection.keyHint || 'CREDENTIALS_SECRET'} 解密。`}
+                                        ? t('pages.settings.thisIsALegacyUnencryptedBackupForCo')
+                                        : t('pages.settings.restoreDecryptionHint', { key: backupInspection.keyHint || 'CREDENTIALS_SECRET' })}
                                 </div>
                             </div>
                         )}
@@ -3660,7 +3658,7 @@ export default function SystemSettings() {
                         <label className="settings-restore-checkbox">
                             <input
                                 type="checkbox"
-                                aria-label="确认恢复会覆盖当前同名数据"
+                                aria-label={t("pages.settings.confirmRestoreWarningCheckbox")}
                                 checked={backupRestoreConfirmed}
                                 onChange={(event) => setBackupRestoreConfirmed(event.target.checked)}
                             />
@@ -3677,7 +3675,7 @@ export default function SystemSettings() {
                             onClick={inspectBackup}
                             disabled={!backupFile || backupInspectLoading || backupRestoreLoading}
                         >
-                            {backupInspectLoading ? <span className="spinner" /> : '预览备份'}
+                            {backupInspectLoading ? <span className="spinner" /> : t('pages.settings.previewBackupBtn')}
                         </button>
                         <button
                             type="button"
@@ -3685,7 +3683,7 @@ export default function SystemSettings() {
                             onClick={restoreBackup}
                             disabled={!backupFile || !backupRestoreConfirmed || backupInspectLoading || backupRestoreLoading}
                         >
-                            {backupRestoreLoading ? <span className="spinner" /> : '执行恢复'}
+                            {backupRestoreLoading ? <span className="spinner" /> : t('pages.settings.performRestoreBtn')}
                         </button>
                     </div>
                 </div>
@@ -3693,7 +3691,7 @@ export default function SystemSettings() {
             {backfillTaskId && (
                 <TaskProgressModal
                     taskId={backfillTaskId}
-                    title="数据库回填进度"
+                    title={t("pages.settings.dbBackfillProgressTitle")}
                     onClose={() => {
                         setBackfillTaskId(null);
                         fetchDbStatus({ quiet: true });
