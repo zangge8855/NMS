@@ -74,6 +74,9 @@ export async function initDb() {
             connectionString,
             max: Math.max(1, Number(config.db?.poolMax || 10)),
             ssl: toSslOption(),
+            connectionTimeoutMillis: 10000,
+            statement_timeout: 10000,
+            query_timeout: 10000,
         });
 
         await pool.query('SELECT 1');

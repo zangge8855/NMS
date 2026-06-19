@@ -147,6 +147,17 @@ export async function writeSnapshotNow(storeKey, payload, options = {}) {
     }
 }
 
+function withTimeout(promise, timeoutMs, errMsg = 'Timeout') {
+    let timer;
+    const timeoutPromise = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(errMsg)), timeoutMs);
+    });
+    return Promise.race([
+        promise.finally(() => clearTimeout(timer)),
+        timeoutPromise
+    ]);
+}
+
 export function queueSnapshotWrite(storeKey, payload, options = {}) {
     if (!isDbEnabled() || !isDbReady()) return;
     const key = String(storeKey || '').trim();
@@ -159,7 +170,11 @@ export function queueSnapshotWrite(storeKey, payload, options = {}) {
 
     writeChain = writeChain
         .then(async () => {
-            await upsertSnapshot(key, body);
+            await withTimeout(
+                upsertSnapshot(key, body),
+                10000,
+                `Write timeout for ${key} after 10000ms`
+            );
             alertEngine.recordSuccess();
             state.writesSucceeded += 1;
             state.lastWriteAt = new Date().toISOString();
