@@ -516,7 +516,7 @@ body {
 }
 
 .btn:active:not(:disabled) {
-  transform: translateY(0.5px) scale(0.985) !important;
+  transform: scale(0.97) translateY(0.5px) !important;
 }
 
 .btn-primary {
@@ -1433,7 +1433,7 @@ body::after {
 }
 
 .btn:active:not(:disabled) {
-  transform: translateY(0.5px) !important;
+  transform: scale(0.97) translateY(0.5px) !important;
 }
 
 .btn-primary:hover:not(:disabled) {
