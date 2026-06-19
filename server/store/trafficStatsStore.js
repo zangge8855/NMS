@@ -1229,6 +1229,12 @@ class TrafficStatsStore {
                     const deltaDown = calculateTrafficDelta(down, prev?.down);
                     const deltaTotal = deltaUp + deltaDown;
 
+                    // Only update lastSeenAt if there is actual traffic progress (deltaTotal > 0),
+                    // or if this is the first time we see the client and they have non-zero traffic.
+                    const lastSeenAt = (deltaTotal > 0 || (!prev && total > 0))
+                        ? collectedAtIso
+                        : (prev?.lastSeenAt || new Date(0).toISOString());
+
                     this.counters[counterKey] = {
                         up,
                         down,
@@ -1236,7 +1242,7 @@ class TrafficStatsStore {
                         serverId: serverMeta.id,
                         inboundId: String(inbound.id || ''),
                         email,
-                        lastSeenAt: collectedAtIso,
+                        lastSeenAt,
                     };
 
                     if (deltaTotal <= 0) continue;
@@ -1272,6 +1278,10 @@ class TrafficStatsStore {
                 const deltaInboundDown = calculateTrafficDelta(inboundDown, prevInbound?.down);
                 const deltaInboundTotal = deltaInboundUp + deltaInboundDown;
 
+                const inboundLastSeenAt = (deltaInboundTotal > 0 || (!prevInbound && inboundTotal > 0))
+                    ? collectedAtIso
+                    : (prevInbound?.lastSeenAt || new Date(0).toISOString());
+
                 this.counters[inboundCounterKey] = {
                     up: inboundUp,
                     down: inboundDown,
@@ -1279,7 +1289,7 @@ class TrafficStatsStore {
                     serverId: serverMeta.id,
                     inboundId: String(inbound.id || ''),
                     email: '',
-                    lastSeenAt: collectedAtIso,
+                    lastSeenAt: inboundLastSeenAt,
                 };
 
                 if (deltaInboundTotal <= 0) continue;

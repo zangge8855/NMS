@@ -20,14 +20,57 @@ function normalizeError(error, fallbackCode = 'PANEL_REQUEST_FAILED') {
     };
 }
 
-function normalizeOnlineEntries(items = []) {
-    return (Array.isArray(items) ? items : []).map((item) => {
-        if (typeof item === 'string') {
-            return { email: String(item || '').trim() };
+function normalizeOnlineEntries(items) {
+    if (!items) return [];
+
+    if (Array.isArray(items)) {
+        return items.map((item) => {
+            if (typeof item === 'string') {
+                return { email: String(item || '').trim() };
+            }
+            if (!item || typeof item !== 'object') return null;
+            return { ...item };
+        }).filter(Boolean);
+    }
+
+    if (typeof items === 'object') {
+        const entries = Object.entries(items);
+        const isNodeMap = entries.every(([key]) => {
+            const num = Number(key);
+            return Number.isInteger(num) && num >= 0;
+        });
+
+        if (isNodeMap) {
+            const rows = [];
+            for (const [nodeIdStr, valList] of entries) {
+                const nodeId = Number(nodeIdStr);
+                const list = Array.isArray(valList) ? valList : [];
+                for (const item of list) {
+                    if (typeof item === 'string') {
+                        rows.push({ email: String(item || '').trim(), nodeId });
+                    } else if (item && typeof item === 'object') {
+                        const email = String(item.email || item.user || item.username || item.clientEmail || '').trim();
+                        if (email) {
+                            rows.push({ ...item, email, nodeId });
+                        }
+                    }
+                }
+            }
+            return rows;
+        } else {
+            return entries.map(([email, val]) => {
+                const entry = { email: String(email || '').trim() };
+                if (Array.isArray(val)) {
+                    entry.ips = val;
+                } else if (val && typeof val === 'object') {
+                    Object.assign(entry, val);
+                }
+                return entry;
+            }).filter((item) => item.email);
         }
-        if (!item || typeof item !== 'object') return null;
-        return { ...item };
-    }).filter(Boolean);
+    }
+
+    return [];
 }
 
 function normalizeLastOnlineMap(payload = {}) {

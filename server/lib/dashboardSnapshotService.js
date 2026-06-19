@@ -161,6 +161,59 @@ function withServerRemarkMeta(serverData, serverName = '') {
     };
 }
 
+function normalizeOnlineEntries(items) {
+    if (!items) return [];
+
+    if (Array.isArray(items)) {
+        return items.map((item) => {
+            if (typeof item === 'string') {
+                return { email: String(item || '').trim() };
+            }
+            if (!item || typeof item !== 'object') return null;
+            return { ...item };
+        }).filter(Boolean);
+    }
+
+    if (typeof items === 'object') {
+        const entries = Object.entries(items);
+        const isNodeMap = entries.every(([key]) => {
+            const num = Number(key);
+            return Number.isInteger(num) && num >= 0;
+        });
+
+        if (isNodeMap) {
+            const rows = [];
+            for (const [nodeIdStr, valList] of entries) {
+                const nodeId = Number(nodeIdStr);
+                const list = Array.isArray(valList) ? valList : [];
+                for (const item of list) {
+                    if (typeof item === 'string') {
+                        rows.push({ email: String(item || '').trim(), nodeId });
+                    } else if (item && typeof item === 'object') {
+                        const email = String(item.email || item.user || item.username || item.clientEmail || '').trim();
+                        if (email) {
+                            rows.push({ ...item, email, nodeId });
+                        }
+                    }
+                }
+            }
+            return rows;
+        } else {
+            return entries.map(([email, val]) => {
+                const entry = { email: String(email || '').trim() };
+                if (Array.isArray(val)) {
+                    entry.ips = val;
+                } else if (val && typeof val === 'object') {
+                    Object.assign(entry, val);
+                }
+                return entry;
+            }).filter((item) => item.email);
+        }
+    }
+
+    return [];
+}
+
 function buildManagedOnlineSummary(users, serverPayloads = [], activeTrafficKeys = new Set()) {
     const clientsMap = new Map();
     const onlineMap = new Map();
@@ -184,7 +237,7 @@ function buildManagedOnlineSummary(users, serverPayloads = [], activeTrafficKeys
 
     serverPayloads.forEach((payload) => {
         const inbounds = Array.isArray(payload?.inbounds) ? payload.inbounds : [];
-        const onlines = Array.isArray(payload?.onlines) ? payload.onlines : [];
+        const onlines = normalizeOnlineEntries(payload?.onlines);
         const serverName = String(payload?.serverName || '').trim();
         const serverId = String(payload?.serverId || '').trim();
         const onlineMatchMap = new Map();
@@ -262,6 +315,13 @@ function buildManagedOnlineSummary(users, serverPayloads = [], activeTrafficKeys
                             const clientPassword = normalizeOnlineValue(client.password);
                             if (onlinePassword && clientPassword && onlinePassword !== clientPassword) {
                                 return;
+                            }
+                            if (onlineEntry.nodeId !== undefined && inbound.nodeId !== undefined) {
+                                const onlineNodeId = Number(onlineEntry.nodeId);
+                                const inboundNodeId = Number(inbound.nodeId);
+                                if (onlineNodeId !== inboundNodeId) {
+                                    return;
+                                }
                             }
                         }
                         matchedOnlineEntries.add(matchIndex);
@@ -399,7 +459,7 @@ function buildDashboardPresenceFromPanelSnapshots(users, panelSnapshots = [], ac
             serverId: item?.server?.id || item?.serverId || '',
             serverName: item?.server?.name || item?.serverName || '',
             inbounds: Array.isArray(item?.inbounds) ? item.inbounds : [],
-            onlines: Array.isArray(item?.onlines) ? item.onlines : [],
+            onlines: item?.onlines || [],
         })),
         activeTrafficEmails,
     );
@@ -684,7 +744,7 @@ async function buildGlobalDashboardSnapshot(options = {}, deps = {}) {
             serverId: item?.server?.id || '',
             serverName: item?.server?.name || '',
             inbounds: Array.isArray(item?.inbounds) ? item.inbounds : [],
-            onlines: Array.isArray(item?.onlines) ? item.onlines : [],
+            onlines: item?.onlines || [],
         })),
         activeTrafficKeys
     );

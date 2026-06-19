@@ -217,3 +217,50 @@ test('online count — active traffic inferred sessions scope to specific inboun
     assert.deepEqual(Array.from(aliceRow.nodeLabels), ['Inbound A'], 'online nodes must only list Inbound A');
 });
 
+test('online count — handles flat map and onlinesByNode maps in snapshots with correct node scoping', () => {
+    const users = [
+        { id: 'u1', role: 'user', email: 'alice@example.com', subscriptionEmail: 'alice@example.com', enabled: true },
+        { id: 'u2', role: 'user', email: 'bob@example.com', subscriptionEmail: 'bob@example.com', enabled: true },
+    ];
+
+    const snapshots = [
+        {
+            server: { id: 'sv-1', name: 'Node 1' },
+            inbounds: [
+                {
+                    id: 'inbound-A',
+                    protocol: 'vless',
+                    remark: 'Inbound A',
+                    nodeId: 0,
+                    settings: { clients: [{ email: 'alice@example.com' }, { email: 'bob@example.com' }] },
+                },
+                {
+                    id: 'inbound-B',
+                    protocol: 'vless',
+                    remark: 'Inbound B',
+                    nodeId: 1,
+                    settings: { clients: [{ email: 'alice@example.com' }, { email: 'bob@example.com' }] },
+                },
+            ],
+            // Simulate 3x-ui onlinesByNode structure
+            onlines: {
+                "0": ["alice@example.com"],
+                "1": ["bob@example.com"],
+            },
+        },
+    ];
+
+    const result = buildDashboardPresenceFromPanelSnapshots(users, snapshots);
+
+    const aliceRow = result.onlineRows.find((r) => r.email === 'alice@example.com');
+    assert.ok(aliceRow, 'alice should be online');
+    // Alice is in nodeId 0, so should only match Inbound A (nodeId 0)
+    assert.deepEqual(Array.from(aliceRow.nodeLabels), ['Inbound A']);
+
+    const bobRow = result.onlineRows.find((r) => r.email === 'bob@example.com');
+    assert.ok(bobRow, 'bob should be online');
+    // Bob is in nodeId 1, so should only match Inbound B (nodeId 1)
+    assert.deepEqual(Array.from(bobRow.nodeLabels), ['Inbound B']);
+});
+
+

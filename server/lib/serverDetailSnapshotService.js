@@ -6,8 +6,35 @@ import systemSettingsStore from '../store/systemSettingsStore.js';
 
 const DEFAULT_STATUS_MAX_AGE_MS = 20_000;
 
-function normalizeOnlineEntries(items = []) {
-    return (Array.isArray(items) ? items : [])
+function normalizeOnlineEntries(items) {
+    if (!items) return [];
+    
+    let list = [];
+    if (Array.isArray(items)) {
+        list = items;
+    } else if (typeof items === 'object') {
+        const entries = Object.entries(items);
+        const isNodeMap = entries.every(([key]) => {
+            const num = Number(key);
+            return Number.isInteger(num) && num >= 0;
+        });
+        if (isNodeMap) {
+            for (const [, valList] of entries) {
+                const subList = Array.isArray(valList) ? valList : [];
+                for (const item of subList) {
+                    if (typeof item === 'string') {
+                        list.push(item);
+                    } else if (item && typeof item === 'object') {
+                        list.push(item);
+                    }
+                }
+            }
+        } else {
+            list = entries.map(([email]) => email);
+        }
+    }
+
+    return list
         .map((item) => {
             if (typeof item === 'string') {
                 return String(item || '').trim();

@@ -31,6 +31,7 @@ test('fetchPanelOnlineClients prefers latest clients endpoint and falls back to 
     const response = await fetchPanelOnlineClients(client);
 
     assert.deepEqual(calls, [
+        '/panel/api/clients/onlinesByNode',
         '/panel/api/clients/onlines',
         '/panel/api/inbounds/onlines',
     ]);

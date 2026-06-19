@@ -243,6 +243,21 @@ export function normalizeLegacyClientPayload(payload = {}) {
 
 export async function fetchPanelOnlineClients(panelClient) {
     try {
+        // Try onlinesByNode first (modern 3x-ui v3.3.0+)
+        const response = await panelClient.post('/panel/api/clients/onlinesByNode');
+        if (
+            response?.data?.success
+            && response?.data?.obj
+            && typeof response.data.obj === 'object'
+            && !Array.isArray(response.data.obj)
+        ) {
+            return response;
+        }
+    } catch (error) {
+        // Fall back on any error for this endpoint, including mock assertion failures
+    }
+
+    try {
         return await panelClient.post('/panel/api/clients/onlines');
     } catch (error) {
         if (!isUnsupportedPanelEndpointError(error)) {

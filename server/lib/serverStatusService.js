@@ -143,9 +143,48 @@ function classifyPanelError(error, options = {}) {
     };
 }
 
-function normalizeOnlineEntries(onlines = []) {
+function normalizeOnlineEntries(onlines) {
     const rows = [];
-    for (const item of onlines) {
+    if (!onlines) return rows;
+    
+    let items = [];
+    if (Array.isArray(onlines)) {
+        items = onlines;
+    } else if (typeof onlines === 'object') {
+        const entries = Object.entries(onlines);
+        const isNodeMap = entries.every(([key]) => {
+            const num = Number(key);
+            return Number.isInteger(num) && num >= 0;
+        });
+        if (isNodeMap) {
+            for (const [nodeIdStr, valList] of entries) {
+                const list = Array.isArray(valList) ? valList : [];
+                for (const item of list) {
+                    if (typeof item === 'string') {
+                        rows.push({ email: String(item || '').trim(), nodeId: Number(nodeIdStr) });
+                    } else if (item && typeof item === 'object') {
+                        const email = String(item.email || item.user || item.username || item.clientEmail || '').trim();
+                        if (email) {
+                            rows.push({ ...item, email, nodeId: Number(nodeIdStr) });
+                        }
+                    }
+                }
+            }
+            return rows;
+        } else {
+            items = entries.map(([email, val]) => {
+                const entry = { email: String(email || '').trim() };
+                if (Array.isArray(val)) {
+                    entry.ips = val;
+                } else if (val && typeof val === 'object') {
+                    Object.assign(entry, val);
+                }
+                return entry;
+            }).filter((item) => item.email);
+        }
+    }
+
+    for (const item of items) {
         if (typeof item === 'string' && item.trim()) {
             rows.push({ email: item.trim() });
             continue;
@@ -153,7 +192,7 @@ function normalizeOnlineEntries(onlines = []) {
         if (!item || typeof item !== 'object') continue;
         const email = String(item.email || item.user || item.username || item.clientEmail || '').trim();
         if (email) {
-            rows.push({ email });
+            rows.push({ ...item, email });
         }
     }
     return rows;
