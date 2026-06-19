@@ -125,13 +125,13 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
                         </div>
 
                         {(!config.rules || config.rules.length === 0) ? (
-                            <div className="p-8 text-center text-muted border border-dashed border-[var(--border)] rounded-lg">
+                            <div className="p-8 text-center text-muted border border-dashed border-[var(--border-color)] rounded-lg">
                                 {locale === 'en-US' ? 'No rules defined' : '暂无路由规则'}
                             </div>
                         ) : (
                             <div className="flex flex-col gap-3">
                                 {config.rules.map((rule, index) => (
-                                    <div key={index} className="p-4 bg-[var(--bg-popover)] border border-[var(--border)] rounded-lg relative">
+                                    <div key={index} className="p-4 bg-[var(--surface-panel-soft)] border border-[var(--border-color)] rounded-lg relative">
                                         <div className="flex gap-4 mb-3">
                                             <div className="flex-1">
                                                 <label className="block text-xs text-muted mb-1">{locale === 'en-US' ? 'Outbound Tag' : '目标出站 (outboundTag)'}</label>
@@ -185,7 +185,7 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
                         )}
                     </div>
 
-                    <div className="flex justify-end pt-4 border-t border-[var(--border)]">
+                    <div className="flex justify-end pt-4 border-t border-[var(--border-color)]">
                         <button className="btn btn-primary" onClick={handleVisualSave} disabled={saving}>
                             {saving ? (locale === 'en-US' ? 'Saving...' : '保存中...') : (locale === 'en-US' ? 'Save Changes' : '保存设置')}
                         </button>

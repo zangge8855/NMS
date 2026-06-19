@@ -8,6 +8,7 @@ import {
 } from 'recharts';
 import { formatBytes } from '../../utils/format.js';
 import ChartTooltip from '../UI/ChartTooltip.jsx';
+import EmptyState from '../UI/EmptyState.jsx';
 
 // Aurora-forward palette: lead with the indigo→violet→cyan signature ramp,
 // then fan out to the stable semantic accents for additional categories.
@@ -25,9 +26,11 @@ const BRAND_PALETTE = [
 export default function ProtocolPieChart({ data = [], locale = 'zh-CN' }) {
     if (!data || data.length === 0) {
         return (
-            <div className="flex items-center justify-center h-full text-sm text-muted">
-                {locale === 'en-US' ? 'No protocol data available' : '暂无协议流量数据'}
-            </div>
+            <EmptyState
+                title={locale === 'en-US' ? 'No protocol data available' : '暂无协议流量数据'}
+                size="compact"
+                hideIcon
+            />
         );
     }
 
@@ -38,9 +41,11 @@ export default function ProtocolPieChart({ data = [], locale = 'zh-CN' }) {
     const totalBytes = chartData.reduce((sum, item) => sum + Number(item.value || 0), 0);
     if (chartData.length === 0) {
         return (
-            <div className="flex items-center justify-center h-full text-sm text-muted">
-                {locale === 'en-US' ? 'No protocol data available' : '暂无协议流量数据'}
-            </div>
+            <EmptyState
+                title={locale === 'en-US' ? 'No protocol data available' : '暂无协议流量数据'}
+                size="compact"
+                hideIcon
+            />
         );
     }
 
