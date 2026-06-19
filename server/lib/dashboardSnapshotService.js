@@ -269,7 +269,9 @@ function buildManagedOnlineSummary(users, serverPayloads = [], activeTrafficKeys
                 });
                 
                 let onlineSessions = matchedOnlineEntries.size;
-                const hasActiveTraffic = activeTrafficKeys.has(`${serverId}:${email}`) || activeTrafficKeys.has(email);
+                const keyWithInbound = `${serverId}:${inbound.id || ''}:${email}`;
+                const hasActiveTraffic = activeTrafficKeys.has(keyWithInbound)
+                    || (activeTrafficKeys.has(email) && !Array.from(activeTrafficKeys).some(k => k.includes(':')));
                 if (onlineSessions === 0 && hasActiveTraffic) {
                     onlineSessions = 1;
                     matchedOnlineEntries.add('traffic_inferred');
@@ -669,7 +671,8 @@ async function buildGlobalDashboardSnapshot(options = {}, deps = {}) {
         const email = normalizeEmail(counter?.email);
         if (email && counter.serverId && enabledManagedEmailsGlobal.has(email)) {
             if (new Date(counter.lastSeenAt).getTime() >= activeSinceTs) {
-                activeTrafficKeys.add(`${counter.serverId}:${email}`);
+                const inboundId = typeof counter.inboundId === 'string' ? counter.inboundId : '';
+                activeTrafficKeys.add(`${counter.serverId}:${inboundId}:${email}`);
             }
         }
     });
@@ -826,7 +829,8 @@ async function buildSingleDashboardSnapshot(serverId, options = {}, deps = {}) {
         const email = normalizeEmail(counter?.email);
         if (email && String(counter.serverId) === normalizedServerId && enabledManagedEmailsServer.has(email)) {
             if (new Date(counter.lastSeenAt).getTime() >= activeSinceTs) {
-                activeTrafficKeys.add(`${counter.serverId}:${email}`);
+                const inboundId = typeof counter.inboundId === 'string' ? counter.inboundId : '';
+                activeTrafficKeys.add(`${counter.serverId}:${inboundId}:${email}`);
             }
         }
     });

@@ -57,28 +57,30 @@ function buildDashboardPresenceSummary(panelSnapshots = []) {
             ready: false,
         };
     }
-    // Build activeTrafficEmails the same way the HTTP /dashboard/snapshot path does, so WS pushes
+    // Build activeTrafficKeys the same way the HTTP /dashboard/snapshot path does, so WS pushes
     // don't disagree with HTTP pulls (which causes UI flicker between 0 and the correct count).
-    let activeTrafficEmails = new Set();
+    const activeTrafficKeys = new Set();
     try {
-        const activeSinceIso = new Date(Date.now() - 3 * 60 * 1000).toISOString();
-        const recentTraffic = trafficStatsStore.getOverview({ from: activeSinceIso, top: 10000 });
+        const activeSinceTs = Date.now() - 3 * 60 * 1000;
         const enabledManagedEmails = new Set(
             users
                 .filter((user) => user?.role !== 'admin' && user?.enabled !== false)
                 .flatMap((user) => [normalizeEmail(user?.subscriptionEmail), normalizeEmail(user?.email)])
                 .filter(Boolean)
         );
-        activeTrafficEmails = new Set(
-            (Array.isArray(recentTraffic?.topUsers) ? recentTraffic.topUsers : [])
-                .map((u) => normalizeEmail(u.email))
-                .filter(Boolean)
-                .filter((email) => enabledManagedEmails.has(email))
-        );
+        Object.values(trafficStatsStore.counters || {}).forEach(counter => {
+            const email = normalizeEmail(counter?.email);
+            if (email && counter.serverId && enabledManagedEmails.has(email)) {
+                if (new Date(counter.lastSeenAt).getTime() >= activeSinceTs) {
+                    const inboundId = typeof counter.inboundId === 'string' ? counter.inboundId : '';
+                    activeTrafficKeys.add(`${counter.serverId}:${inboundId}:${email}`);
+                }
+            }
+        });
     } catch {
         // Best-effort: if traffic stats are unavailable, fall back to panel-only presence.
     }
-    const presence = buildDashboardPresenceFromPanelSnapshots(users, snapshots, activeTrafficEmails);
+    const presence = buildDashboardPresenceFromPanelSnapshots(users, snapshots, activeTrafficKeys);
     return {
         onlineRows: presence.onlineRows,
         onlineSessionCount: Number(presence.onlineSessionCount || 0),

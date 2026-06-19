@@ -179,3 +179,41 @@ test('online matching — filters out mismatched client ID or password entries',
     // It should match Inbound 1 but NOT Inbound 2 (due to UUID mismatch)
     assert.deepEqual(Array.from(aliceRow.nodeLabels), ['Inbound 1']);
 });
+
+test('online count — active traffic inferred sessions scope to specific inbounds', () => {
+    const users = [
+        { id: 'u1', role: 'user', email: 'alice@example.com', subscriptionEmail: 'alice@example.com', enabled: true },
+    ];
+    const snapshots = [
+        {
+            server: { id: 'sv-1', name: 'Node 1' },
+            inbounds: [
+                {
+                    id: 'inbound-A',
+                    protocol: 'vless',
+                    remark: 'Inbound A',
+                    settings: { clients: [{ email: 'alice@example.com' }] },
+                    clientStats: [{ email: 'alice@example.com', up: 100, down: 200 }],
+                },
+                {
+                    id: 'inbound-B',
+                    protocol: 'vless',
+                    remark: 'Inbound B',
+                    settings: { clients: [{ email: 'alice@example.com' }] },
+                    clientStats: [{ email: 'alice@example.com', up: 0, down: 0 }],
+                },
+            ],
+            onlines: [],
+        },
+    ];
+    // Set contains granular active traffic key for inbound-A only
+    const activeTrafficKeys = new Set(['sv-1:inbound-A:alice@example.com']);
+
+    const result = buildDashboardPresenceFromPanelSnapshots(users, snapshots, activeTrafficKeys);
+
+    const aliceRow = result.onlineRows.find((r) => r.email === 'alice@example.com');
+    assert.ok(aliceRow, 'alice should appear in onlineRows');
+    assert.equal(aliceRow.sessions, 1, 'alice sessions count must be 1');
+    assert.deepEqual(Array.from(aliceRow.nodeLabels), ['Inbound A'], 'online nodes must only list Inbound A');
+});
+
