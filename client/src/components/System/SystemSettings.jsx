@@ -3143,10 +3143,10 @@ export default function SystemSettings() {
                             <div className="settings-kpi-card-header">
                                 <span className="settings-kpi-card-icon settings-kpi-card-icon--info"><HiOutlineArrowUpTray /></span>
                                 <span className="settings-kpi-card-title">{t("pages.settings.writeQueue")}</span>
-                                <span className={`settings-kpi-card-indicator ${(dbStatus?.writesQueued || dbStatus?.pendingWrites) ? 'is-warning' : 'is-active'}`} />
+                                <span className={`settings-kpi-card-indicator ${dbStatus?.pendingWrites > 0 ? 'is-warning' : (dbStatus?.writesFailed > 0 ? 'is-danger' : 'is-active')}`} />
                             </div>
                             <div className="settings-kpi-card-body">
-                                <div className="settings-kpi-card-value">{t('pages.settings.dbWritesQueued', { queued: dbStatus?.writesQueued || 0, pending: dbStatus?.pendingWrites || 0 })}</div>
+                                <div className="settings-kpi-card-value">{t('pages.settings.dbWritesQueued', { succeeded: dbStatus?.writesSucceeded || 0, failed: dbStatus?.writesFailed || 0, pending: dbStatus?.pendingWrites || 0 })}</div>
                                 <div className="settings-kpi-card-meta" title={t("pages.settings.cacheWriteSyncNumber")}>{t("pages.settings.cacheWriteSyncNumber")}</div>
                             </div>
                         </div>
