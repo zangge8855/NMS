@@ -28,11 +28,11 @@ import {
 
 const SERVER_DETAIL_SNAPSHOT_TTL_MS = 2 * 60_000;
 const SERVER_DETAIL_TABS = [
-    { key: 'overview', label: '概览' },
-    { key: 'inbounds', label: '入站列表' },
-    { key: 'onlines', label: '在线用户' },
-    { key: 'capabilities', label: '节点能力' },
-    { key: 'audit', label: '审计日志' },
+    { key: 'overview', label: 'Overview' },
+    { key: 'inbounds', label: 'Inbounds' },
+    { key: 'onlines', label: 'Online Users' },
+    { key: 'capabilities', label: 'Capabilities' },
+    { key: 'audit', label: 'Audit Log' },
 ];
 const SERVER_DETAIL_TAB_KEYS = new Set(SERVER_DETAIL_TABS.map((tab) => tab.key));
 
@@ -783,7 +783,7 @@ export default function ServerDetail() {
             <ClientIpModal
                 isOpen={clientIpModal.open}
                 title={`${t('pages.serverDetail.nodeIp')} — ${server?.name || serverId}`}
-                subtitle={clientIpModal.email ? `${clientIpModal.email} · ${locale === 'en-US' ? 'Node Record' : '节点级记录'}` : ''}
+                subtitle={clientIpModal.email ? `${clientIpModal.email} · ${t('pages.serverDetail.nodeRecord')}` : ''}
                 loading={clientIpModal.loading}
                 clearing={clientIpModal.clearing}
                 items={clientIpModal.items}

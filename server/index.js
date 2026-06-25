@@ -63,7 +63,7 @@ export function createApp(options = {}) {
         credentials: true,
     }));
     app.use(cookieParser());
-    app.use(express.json({ limit: '1mb' }));
+    app.use(express.json({ limit: '1mb', strict: false }));
     app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
     // ── Request ID ───────────────────────────────────────────

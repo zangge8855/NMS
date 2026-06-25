@@ -318,10 +318,9 @@ export class SystemSettingsStore {
         ensureDataDir();
         const loaded = loadObjectDetailed(SETTINGS_FILE);
         this.settings = this._normalizeSettings(loaded.value);
-        this.startupLoadError = loaded.error?.message || '';
         if (loaded.error) {
-            console.warn(`Failed to load system settings at startup: ${loaded.error.message}`);
-            return;
+            console.error(`CRITICAL: Failed to load system settings at startup: ${loaded.error.message}`);
+            throw loaded.error;
         }
         try {
             this._save();

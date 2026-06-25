@@ -45,7 +45,9 @@ export function registerServerCommands(registry, ctx) {
             const lines = items.map((s) => {
                 const name = helpers.escapeTelegramHtml(s.name || s.id);
                 const health = healthLabel(s.health || s.status);
-                const onlineUsers = Number(s.onlineUsers ?? s.onlineCount ?? s.summary?.onlineUsers ?? 0);
+                const rawOnline = s.onlineUsers ?? s.onlineCount ?? s.summary?.onlineUsers;
+                const parsedOnline = Number(rawOnline);
+                const onlineUsers = Number.isFinite(parsedOnline) ? parsedOnline : 0;
                 const cpuValue = s.cpu ?? s.status?.cpu;
                 const memValue = s.mem ?? s.status?.mem;
                 const cpu = cpuValue != null ? `${Number(cpuValue).toFixed(0)}%` : '-';

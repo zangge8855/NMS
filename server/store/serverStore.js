@@ -51,14 +51,17 @@ class ServerStore {
     }
 
     _load() {
+        if (!fs.existsSync(SERVERS_FILE)) return [];
         try {
-            if (fs.existsSync(SERVERS_FILE)) {
-                return JSON.parse(fs.readFileSync(SERVERS_FILE, 'utf-8'));
+            const parsed = JSON.parse(fs.readFileSync(SERVERS_FILE, 'utf-8'));
+            if (!Array.isArray(parsed)) {
+                throw new Error('Data in servers.json is not a JSON array');
             }
+            return parsed;
         } catch (e) {
-            console.error('Failed to load servers.json:', e.message);
+            console.error('CRITICAL: Failed to load servers.json:', e.message);
+            throw e;
         }
-        return [];
     }
 
     _save() {

@@ -102,7 +102,7 @@ function NodeTile({ server, serverData, trend = [], showSparkline = false }) {
     const isOnline = serverData?.online;
     const cpu = serverData?.status?.cpu ?? 0;
     const mem = serverData?.status?.mem;
-    const memPercent = mem ? ((mem.current / mem.total) * 100) : 0;
+    const memPercent = mem && mem.total > 0 ? ((mem.current / mem.total) * 100) : 0;
     const trafficReady = serverData?.managedTrafficReady === true;
     const traffic = trafficReady ? Number(serverData?.managedTrafficTotal || 0) : null;
     const remarkPreview = Array.isArray(serverData?.nodeRemarkPreview)
@@ -245,6 +245,7 @@ function SkeletonTile() {
 
 export default function NodeHealthGrid({ servers, serverStatuses, trendHistory = {} }) {
     const { t, locale } = useI18n();
+    const navigate = useNavigate();
     const copy = getNodeHealthCopy(locale);
     const [expanded, setExpanded] = useState(false);
     const [query, setQuery] = useState('');
@@ -310,7 +311,7 @@ export default function NodeHealthGrid({ servers, serverStatuses, trendHistory =
                     size="compact"
                     icon={<HiOutlineServerStack className="node-health-empty-icon" />}
                     action={(
-                        <button type="button" className="btn btn-primary btn-sm" onClick={() => { window.location.href = '/servers'; }}>
+                        <button type="button" className="btn btn-primary btn-sm" onClick={() => navigate('/servers')}>
                             {copy.addNode}
                         </button>
                     )}

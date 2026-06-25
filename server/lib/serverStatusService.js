@@ -476,7 +476,7 @@ export async function collectClusterStatusSnapshot(options = {}) {
     // cluster-wide consumer (global dashboard, WS broadcast, app bootstrap, Telegram,
     // subscriptions reachability filter) for the cache window, and would also destroy
     // the other servers' throughput baselines.
-    const scoped = Array.isArray(options.servers);
+    const scoped = Array.isArray(options.servers) && options.servers.length < serverStore.getAll().length;
 
     if (!scoped) {
         const ageMs = Date.now() - snapshotCache.checkedAtMs;

@@ -91,7 +91,7 @@ test('telegramAlertService ignores low-severity notifications and exposes delive
     });
 
     const sent = await service.notifyNotification({
-        type: 'server_health_recovered',
+        type: 'generic_info',
         severity: 'info',
         title: '节点已恢复',
         body: 'node-a',

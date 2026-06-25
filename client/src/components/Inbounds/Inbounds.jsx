@@ -1085,8 +1085,8 @@ export default function Inbounds() {
         setEntitlementExpiryDate(toLocalDateTimeString(client.expiryTime));
         setEntitlementLimitIp(String(normalizeLimitIp(client.limitIp)));
         setEntitlementTrafficLimitGb(bytesToGigabytesInput(resolveClientQuota(client)));
-        setEntitlementSpeedLimitUp(String(client.speedLimitUp || 0));
-        setEntitlementSpeedLimitDown(String(client.speedLimitDown || 0));
+        setEntitlementSpeedLimitUp(String(Math.round(Number(client.speedLimitUp || 0) / 1024)));
+        setEntitlementSpeedLimitDown(String(Math.round(Number(client.speedLimitDown || 0) / 1024)));
         setEntitlementTgId(String(client.tgId || 0));
         setEntitlementGroup(client.group || '');
         setEntitlementComment(client.comment || '');
@@ -1125,8 +1125,8 @@ export default function Inbounds() {
                 expiryTime: entitlementExpiryDate ? new Date(entitlementExpiryDate).getTime() : 0,
                 limitIp: normalizeLimitIp(entitlementLimitIp),
                 trafficLimitBytes: gigabytesInputToBytes(entitlementTrafficLimitGb),
-                speedLimitUp: Number(entitlementSpeedLimitUp) || 0,
-                speedLimitDown: Number(entitlementSpeedLimitDown) || 0,
+                speedLimitUp: Number(entitlementSpeedLimitUp || 0) * 1024,
+                speedLimitDown: Number(entitlementSpeedLimitDown || 0) * 1024,
                 tgId: Number(entitlementTgId) || 0,
                 group: entitlementGroup.trim(),
                 comment: entitlementComment.trim(),

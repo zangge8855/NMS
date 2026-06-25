@@ -54,6 +54,10 @@ function buildClientPayload(entry = {}) {
         subId: entry.subId || '',
         limitIp: toNumber(entry.limitIp, 0),
         flow: entry.flow || '',
+        comment: entry.comment || '',
+        reset: toNumber(entry.reset, 0),
+        speedLimitUp: toNumber(entry.speedLimitUp, 0),
+        speedLimitDown: toNumber(entry.speedLimitDown, 0),
     };
 
     if (UUID_PROTOCOLS.has(protocol)) {

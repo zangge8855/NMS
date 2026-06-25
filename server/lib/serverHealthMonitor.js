@@ -45,8 +45,9 @@ function formatDurationHuman(value = 0) {
 
 function buildNotificationForState(previous, next) {
     if (next.health === HEALTHY && previous.health !== HEALTHY) {
-        const outageDurationMs = previous.checkedAt && next.checkedAt
-            ? Math.max(0, new Date(next.checkedAt).getTime() - new Date(previous.checkedAt).getTime())
+        const outageStartedAt = previous.outageStartedAt || previous.checkedAt;
+        const outageDurationMs = outageStartedAt && next.checkedAt
+            ? Math.max(0, new Date(next.checkedAt).getTime() - new Date(outageStartedAt).getTime())
             : 0;
         return {
             type: 'server_health_recovered',
@@ -354,6 +355,13 @@ class ServerHealthMonitor {
                 checkedAt: null,
             };
             const effectiveResult = this.resolveEffectiveResult(server, previous, result);
+            if (effectiveResult.health !== HEALTHY) {
+                effectiveResult.outageStartedAt = (previous.health === HEALTHY || !previous.outageStartedAt)
+                    ? (effectiveResult.checkedAt || new Date().toISOString())
+                    : previous.outageStartedAt;
+            } else {
+                effectiveResult.outageStartedAt = null;
+            }
             this.serverStates.set(server.id, effectiveResult);
             effectiveResults.push(effectiveResult);
 

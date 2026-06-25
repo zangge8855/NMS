@@ -38,6 +38,7 @@
   left: 0;
   right: 0;
   top: 0;
+  overflow: hidden;
 }
 
 :root {
@@ -6212,10 +6213,10 @@
 }
 
 .dashboard-stat-card[data-tone="info"] {
-  --dashboard-tone: HSL(195, 80%, 55%);
-  --dashboard-tone-bg: HSLA(195, 80%, 55%, 0.07);
-  --dashboard-tone-border: HSLA(195, 80%, 55%, 0.16);
-  --dashboard-tone-glow: HSLA(195, 80%, 55%, 0.14);
+  --dashboard-tone: HSL(239, 84%, 67%);
+  --dashboard-tone-bg: HSLA(239, 84%, 67%, 0.07);
+  --dashboard-tone-border: HSLA(239, 84%, 67%, 0.16);
+  --dashboard-tone-glow: HSLA(239, 84%, 67%, 0.14);
 }
 
 .dashboard-stat-card[data-tone="warning"] {
@@ -6249,10 +6250,10 @@
 }
 
 [data-theme="light"] .dashboard-stat-card[data-tone="info"] {
-  --dashboard-tone: HSL(195, 80%, 40%);
-  --dashboard-tone-bg: HSLA(195, 80%, 40%, 0.06);
-  --dashboard-tone-border: HSLA(195, 80%, 40%, 0.14);
-  --dashboard-tone-glow: HSLA(195, 80%, 40%, 0.08);
+  --dashboard-tone: HSL(244, 76%, 59%);
+  --dashboard-tone-bg: HSLA(244, 76%, 59%, 0.06);
+  --dashboard-tone-border: HSLA(244, 76%, 59%, 0.14);
+  --dashboard-tone-glow: HSLA(244, 76%, 59%, 0.08);
 }
 
 [data-theme="light"] .dashboard-stat-card[data-tone="warning"] {

@@ -1,7 +1,9 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { createPortal } from 'react-dom';
 import { HiOutlineXMark, HiOutlineArrowsPointingOut, HiOutlineClipboard } from 'react-icons/hi2';
+import { copyToClipboard } from '../../utils/format.js';
+import toast from 'react-hot-toast';
 
 /**
  * Subscription QR with click-to-enlarge: tap/click the QR to open a large
@@ -20,6 +22,16 @@ export default function ExpandableQRCode({
 }) {
     const [expanded, setExpanded] = useState(false);
     const [copied, setCopied] = useState(false);
+    const timeoutRef = useRef(null);
+
+    useEffect(() => {
+        return () => {
+            if (timeoutRef.current) {
+                window.clearTimeout(timeoutRef.current);
+            }
+        };
+    }, []);
+
     const close = useCallback(() => setExpanded(false), []);
     const onKey = useCallback((event) => {
         if (event.key === 'Escape') close();
@@ -29,9 +41,16 @@ export default function ExpandableQRCode({
     const isTooLong = String(value || '').length > maxQrValueLength;
     const copyLink = async () => {
         try {
-            await navigator.clipboard.writeText(value);
-            setCopied(true);
-            window.setTimeout(() => setCopied(false), 1500);
+            const ok = await copyToClipboard(value);
+            if (ok) {
+                setCopied(true);
+                if (timeoutRef.current) {
+                    window.clearTimeout(timeoutRef.current);
+                }
+                timeoutRef.current = window.setTimeout(() => setCopied(false), 1500);
+            } else {
+                toast.error('复制失败');
+            }
         } catch {
             setCopied(false);
         }

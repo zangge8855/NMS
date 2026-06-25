@@ -127,20 +127,20 @@ function buildDraft(source = null) {
         },
         security: {
             requireHighRiskConfirmation: Boolean(settings.security?.requireHighRiskConfirmation),
-            mediumRiskMinTargets: toInt(settings.security?.mediumRiskMinTargets, 20),
-            highRiskMinTargets: toInt(settings.security?.highRiskMinTargets, 100),
-            riskTokenTtlSeconds: toInt(settings.security?.riskTokenTtlSeconds, 180),
+            mediumRiskMinTargets: toBoundedInt(settings.security?.mediumRiskMinTargets, 20, 1, Infinity),
+            highRiskMinTargets: toBoundedInt(settings.security?.highRiskMinTargets, 100, 1, Infinity),
+            riskTokenTtlSeconds: toBoundedInt(settings.security?.riskTokenTtlSeconds, 180, 30, Infinity),
         },
         jobs: {
-            retentionDays: toInt(settings.jobs?.retentionDays, 90),
-            maxPageSize: toInt(settings.jobs?.maxPageSize, 200),
-            maxRecords: toInt(settings.jobs?.maxRecords, 2000),
-            maxConcurrency: toInt(settings.jobs?.maxConcurrency, 10),
-            defaultConcurrency: toInt(settings.jobs?.defaultConcurrency, 5),
+            retentionDays: toBoundedInt(settings.jobs?.retentionDays, 90, 1, Infinity),
+            maxPageSize: toBoundedInt(settings.jobs?.maxPageSize, 200, 10, Infinity),
+            maxRecords: toBoundedInt(settings.jobs?.maxRecords, 2000, 10, Infinity),
+            maxConcurrency: toBoundedInt(settings.jobs?.maxConcurrency, 10, 1, Infinity),
+            defaultConcurrency: toBoundedInt(settings.jobs?.defaultConcurrency, 5, 1, Infinity),
         },
         audit: {
-            retentionDays: toInt(settings.audit?.retentionDays, 365),
-            maxPageSize: toInt(settings.audit?.maxPageSize, 200),
+            retentionDays: toBoundedInt(settings.audit?.retentionDays, 365, 1, Infinity),
+            maxPageSize: toBoundedInt(settings.audit?.maxPageSize, 200, 20, Infinity),
         },
         subscription: {
             publicBaseUrl: toText(settings.subscription?.publicBaseUrl, ''),
@@ -153,8 +153,8 @@ function buildDraft(source = null) {
             enabled: settings.auditIpGeo?.enabled === true,
             provider: toText(settings.auditIpGeo?.provider, defaultAuditIpGeoProvider),
             endpoint: toText(settings.auditIpGeo?.endpoint, defaultAuditIpGeoEndpoint),
-            timeoutMs: toInt(settings.auditIpGeo?.timeoutMs, 1500),
-            cacheTtlSeconds: toInt(settings.auditIpGeo?.cacheTtlSeconds, 21600),
+            timeoutMs: toBoundedInt(settings.auditIpGeo?.timeoutMs, 1500, 100, Infinity),
+            cacheTtlSeconds: toBoundedInt(settings.auditIpGeo?.cacheTtlSeconds, 21600, 60, Infinity),
         },
         telegram: {
             enabled: settings.telegram?.enabled === true,
@@ -162,8 +162,8 @@ function buildDraft(source = null) {
             clearBotToken: settings.telegram?.clearBotToken === true,
             chatId: toText(settings.telegram?.chatId, ''),
             commandMenuEnabled: settings.telegram?.commandMenuEnabled === true,
-            opsDigestIntervalMinutes: toInt(settings.telegram?.opsDigestIntervalMinutes, 30),
-            dailyDigestIntervalHours: toInt(settings.telegram?.dailyDigestIntervalHours, 24),
+            opsDigestIntervalMinutes: toBoundedInt(settings.telegram?.opsDigestIntervalMinutes, 30, 0, 1440),
+            dailyDigestIntervalHours: toBoundedInt(settings.telegram?.dailyDigestIntervalHours, 24, 0, 168),
             dailyBackupTime: toText(settings.telegram?.dailyBackupTime, '09:00'),
             sendDailyBackup: settings.telegram?.sendDailyBackup === true,
             sendSystemStatus: settings.telegram?.sendSystemStatus !== false,
@@ -390,9 +390,11 @@ function SettingsToggleCard({
     );
 }
 
-function formatInviteDuration(days, t) {
+function formatInviteDuration(days, t, locale = 'zh-CN') {
     const normalized = Math.max(0, Number(days) || 0);
-    return normalized > 0 ? `${normalized} 天` : (t ? t('pages.settings.unlimitedTime') : '无限制');
+    return normalized > 0
+        ? (locale === 'en-US' ? `${normalized} day(s)` : `${normalized} 天`)
+        : (t ? t('pages.settings.unlimitedTime') : (locale === 'en-US' ? 'Unlimited' : '无限制'));
 }
 
 function getInviteStatusMeta(item = {}, t) {
@@ -1340,9 +1342,9 @@ export default function SystemSettings() {
                 const failed = Number(output?.failed || 0);
                 const total = Number(output?.total || 0);
                 if (failed > 0) {
-                    toast.error(`回填完成: ${total - failed}/${total} 成功`);
+                    toast.error(locale === 'en-US' ? `Backfill completed: ${total - failed}/${total} succeeded` : `回填完成: ${total - failed}/${total} 成功`);
                 } else {
-                    toast.success(`回填完成: ${total}/${total} 成功`);
+                    toast.success(locale === 'en-US' ? `Backfill completed: ${total}/${total} succeeded` : `回填完成: ${total}/${total} 成功`);
                 }
                 await fetchDbStatus({ quiet: true });
             }
@@ -1723,10 +1725,10 @@ export default function SystemSettings() {
                                     text={siteEntryPreview}
                                     successText={t("pages.settings.theEntranceAddressHasBeenCopiedToTh")}
                                 >
-                                    复制入口
+                                    {locale === 'en-US' ? 'Copy Entry' : '复制入口'}
                                 </CopyFeedbackButton>
                                 <a href={siteEntryPreview} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">
-                                    打开预览
+                                    {locale === 'en-US' ? 'Open Preview' : '打开预览'}
                                 </a>
                             </div>
                         )}
@@ -1753,7 +1755,7 @@ export default function SystemSettings() {
                                             className="btn btn-secondary btn-sm"
                                             onClick={applyRandomSiteAccessPath}
                                         >
-                                            随机路径
+                                            {locale === 'en-US' ? 'Random Path' : '随机路径'}
                                         </button>
                                     </div>
                                 </div>
@@ -1889,7 +1891,7 @@ export default function SystemSettings() {
                                         }}
                                         disabled={!converterBaseUrl && !converterClashConfigUrl && !converterSingboxConfigUrl && !converterSurgeConfigUrl}
                                     >
-                                        清空全部
+                                        {locale === 'en-US' ? 'Clear All' : '清空全部'}
                                     </button>
                                     <a
                                         href={converterBaseUrl || undefined}
@@ -1901,7 +1903,7 @@ export default function SystemSettings() {
                                             if (!converterBaseUrl) event.preventDefault();
                                         }}
                                     >
-                                        打开链接
+                                        {locale === 'en-US' ? 'Open Link' : '打开链接'}
                                     </a>
                                 </div>
                             </div>
@@ -2068,7 +2070,9 @@ export default function SystemSettings() {
                                         <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
                                             <div className="text-sm font-medium">{t("pages.settings.generatedInviteCodes")}</div>
                                             <span className="text-xs text-muted">
-                                                {latestInviteBatch.count || latestInviteCodes.length} 个邀请码，每个可用 {latestInviteBatch.usageLimit || 1} 次，开通 {formatInviteDuration(latestInviteBatch.subscriptionDays, t)}
+                                                {locale === 'en-US'
+                                                    ? `${latestInviteBatch.count || latestInviteCodes.length} code(s), ${latestInviteBatch.usageLimit || 1} use(s) each, opens ${formatInviteDuration(latestInviteBatch.subscriptionDays, t, locale)}`
+                                                    : `${latestInviteBatch.count || latestInviteCodes.length} 个邀请码，每个可用 ${latestInviteBatch.usageLimit || 1} 次，开通 ${formatInviteDuration(latestInviteBatch.subscriptionDays, t, locale)}`}
                                             </span>
                                         </div>
                                         <div className="settings-code-list">
@@ -2099,7 +2103,9 @@ export default function SystemSettings() {
                                 <div className="settings-form-cluster-eyebrow">{t("pages.settings.inviteCodesLedger")}</div>
                                 <div className="settings-form-cluster-title">{t("pages.settings.ledgerAndRecords")}</div>
                                 <div className="settings-form-cluster-note">
-                                    活动 {inviteAvailableRecords.length} 个 · 剩余 {inviteRemainingUses} 次 · 已用尽 {inviteUsedCount} 个 · 已撤销 {inviteRevokedCount} 个。
+                                    {locale === 'en-US'
+                                        ? `Active: ${inviteAvailableRecords.length} · Remaining: ${inviteRemainingUses} use(s) · Depleted: ${inviteUsedCount} · Revoked: ${inviteRevokedCount}`
+                                        : `活动 ${inviteAvailableRecords.length} 个 · 剩余 ${inviteRemainingUses} 次 · 已用尽 ${inviteUsedCount} 个 · 已撤销 {inviteRevokedCount} 个。`}
                                 </div>
                             </div>
                             {inviteCodesLoading ? (
@@ -2118,8 +2124,12 @@ export default function SystemSettings() {
                                             <div className="settings-inline-action-title">{t('pages.settings.inviteRecordsCount', { count: inviteRecords.length })}</div>
                                             <div className="settings-inline-action-note">
                                                 {inviteLedgerExpanded
-                                                    ? `已展开完整台账，可直接查看使用记录。累计使用 ${inviteConsumedUses} 次${inviteRecentUsedAt?.usedAt ? ` · 最近使用 ${formatDateTime(inviteRecentUsedAt.usedAt, locale)}${inviteRecentUsedAt.usedByUsername ? ` · ${inviteRecentUsedAt.usedByUsername}` : ''}` : ''}`
-                                                    : `需要排查或复核时再展开完整台账。累计使用 ${inviteConsumedUses} 次${inviteRecentUsedAt?.usedAt ? ` · 最近使用 ${formatDateTime(inviteRecentUsedAt.usedAt, locale)}` : ''}`}
+                                                    ? (locale === 'en-US'
+                                                        ? `Ledger expanded. Total used: ${inviteConsumedUses} time(s)${inviteRecentUsedAt?.usedAt ? ` · Recent used: ${formatDateTime(inviteRecentUsedAt.usedAt, locale)}${inviteRecentUsedAt.usedByUsername ? ` · ${inviteRecentUsedAt.usedByUsername}` : ''}` : ''}`
+                                                        : `已展开完整台账，可直接查看使用记录。累计使用 ${inviteConsumedUses} 次${inviteRecentUsedAt?.usedAt ? ` · 最近使用 ${formatDateTime(inviteRecentUsedAt.usedAt, locale)}${inviteRecentUsedAt.usedByUsername ? ` · ${inviteRecentUsedAt.usedByUsername}` : ''}` : ''}`)
+                                                    : (locale === 'en-US'
+                                                        ? `Expand ledger to inspect records. Total used: ${inviteConsumedUses} time(s)${inviteRecentUsedAt?.usedAt ? ` · Recent used: ${formatDateTime(inviteRecentUsedAt.usedAt, locale)}` : ''}`
+                                                        : `需要排查或复核时再展开完整台账。累计使用 ${inviteConsumedUses} 次${inviteRecentUsedAt?.usedAt ? ` · 最近使用 ${formatDateTime(inviteRecentUsedAt.usedAt, locale)}` : ''}`)}
                                             </div>
                                         </div>
                                         <button
@@ -2147,7 +2157,7 @@ export default function SystemSettings() {
                                                             <div className="settings-invite-ledger-title-block">
                                                                 <div className="settings-invite-ledger-title">{item.preview || item.id}</div>
                                                                 <div className="settings-invite-ledger-subtitle">
-                                                                    创建于 {formatDateTime(item.createdAt, locale)}
+                                                                    {locale === 'en-US' ? 'Created at ' : '创建于 '}{formatDateTime(item.createdAt, locale)}
                                                                     {item.createdBy ? t('pages.settings.createdByLabel', { creator: item.createdBy }) : ''}
                                                                 </div>
                                                             </div>
@@ -2183,7 +2193,7 @@ export default function SystemSettings() {
                                                                 <span className="settings-invite-ledger-meta-label">{t("pages.settings.statusExplanation")}</span>
                                                                 <span className="settings-invite-ledger-meta-value">
                                                                     {item.status === 'revoked'
-                                                                        ? `已撤销${item.revokedBy ? ` · ${item.revokedBy}` : ''}`
+                                                                        ? (locale === 'en-US' ? `Revoked${item.revokedBy ? ` · ${item.revokedBy}` : ''}` : `已撤销${item.revokedBy ? ` · ${item.revokedBy}` : ''}`)
                                                                         : item.status === 'used'
                                                                             ? t('pages.settings.reachedLimit')
                                                                             : t('pages.settings.stillIssuable')}
@@ -2239,23 +2249,23 @@ export default function SystemSettings() {
                             <div className="settings-field-grid settings-field-grid--compact">
                                 <div className="form-group">
                                     <label className="form-label">{t("pages.settings.mediumRiskThreshold")}</label>
-                                    <input className="form-input" aria-label={t("pages.settings.mediumRiskThreshold")} type="number" min={1} value={draft.security.mediumRiskMinTargets} onChange={(e) => patchField('security', 'mediumRiskMinTargets', toInt(e.target.value, 20))} />
+                                    <input className="form-input" aria-label={t("pages.settings.mediumRiskThreshold")} type="number" min={1} value={draft.security.mediumRiskMinTargets} onChange={(e) => patchField('security', 'mediumRiskMinTargets', e.target.value)} />
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">{t("pages.settings.highRiskThreshold")}</label>
-                                    <input className="form-input" aria-label={t("pages.settings.highRiskThreshold")} type="number" min={1} value={draft.security.highRiskMinTargets} onChange={(e) => patchField('security', 'highRiskMinTargets', toInt(e.target.value, 100))} />
+                                    <input className="form-input" aria-label={t("pages.settings.highRiskThreshold")} type="number" min={1} value={draft.security.highRiskMinTargets} onChange={(e) => patchField('security', 'highRiskMinTargets', e.target.value)} />
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">{t("pages.settings.confirmTokenTtl")}</label>
-                                    <input className="form-input" aria-label={t("pages.settings.confirmTokenTtl")} type="number" min={30} value={draft.security.riskTokenTtlSeconds} onChange={(e) => patchField('security', 'riskTokenTtlSeconds', toInt(e.target.value, 180))} />
+                                    <input className="form-input" aria-label={t("pages.settings.confirmTokenTtl")} type="number" min={30} value={draft.security.riskTokenTtlSeconds} onChange={(e) => patchField('security', 'riskTokenTtlSeconds', e.target.value)} />
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">{t("pages.settings.auditRetentionDays")}</label>
-                                    <input className="form-input" aria-label={t("pages.settings.auditRetentionDays")} type="number" min={1} value={draft.audit.retentionDays} onChange={(e) => patchField('audit', 'retentionDays', toInt(e.target.value, 365))} />
+                                    <input className="form-input" aria-label={t("pages.settings.auditRetentionDays")} type="number" min={1} value={draft.audit.retentionDays} onChange={(e) => patchField('audit', 'retentionDays', e.target.value)} />
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">{t("pages.settings.auditMaxPageSize")}</label>
-                                    <input className="form-input" aria-label={t("pages.settings.auditMaxPageSize")} type="number" min={20} value={draft.audit.maxPageSize} onChange={(e) => patchField('audit', 'maxPageSize', toInt(e.target.value, 200))} />
+                                    <input className="form-input" aria-label={t("pages.settings.auditMaxPageSize")} type="number" min={20} value={draft.audit.maxPageSize} onChange={(e) => patchField('audit', 'maxPageSize', e.target.value)} />
                                 </div>
                             </div>
                         </div>
@@ -2293,7 +2303,7 @@ export default function SystemSettings() {
                                         type="number"
                                         min={100}
                                         value={draft.auditIpGeo.timeoutMs}
-                                        onChange={(e) => patchField('auditIpGeo', 'timeoutMs', toInt(e.target.value, 1500))}
+                                        onChange={(e) => patchField('auditIpGeo', 'timeoutMs', e.target.value)}
                                     />
                                 </div>
                                 <div className="form-group">
@@ -2304,7 +2314,7 @@ export default function SystemSettings() {
                                         type="number"
                                         min={60}
                                         value={draft.auditIpGeo.cacheTtlSeconds}
-                                        onChange={(e) => patchField('auditIpGeo', 'cacheTtlSeconds', toInt(e.target.value, 21600))}
+                                        onChange={(e) => patchField('auditIpGeo', 'cacheTtlSeconds', e.target.value)}
                                     />
                                 </div>
                                 <div className="form-group">
@@ -2485,7 +2495,7 @@ export default function SystemSettings() {
                                 type="password"
                                 value={draft.telegram.botToken}
                                 onChange={(event) => patchTelegramToken(event.target.value)}
-                                placeholder={settings?.telegram?.botTokenConfigured ? `当前已保存 ${settings.telegram.botTokenPreview}` : '123456:ABCDEF...'}
+                                placeholder={settings?.telegram?.botTokenConfigured ? (locale === 'en-US' ? `Saved: ${settings.telegram.botTokenPreview}` : `当前已保存 ${settings.telegram.botTokenPreview}`) : '123456:ABCDEF...'}
                                 autoComplete="new-password"
                             />
                             <div className="flex items-center gap-2 flex-wrap mt-1">
@@ -2493,7 +2503,7 @@ export default function SystemSettings() {
                                     {draft.telegram.clearBotToken
                                         ? t('pages.settings.thisSaveWillClearTheTokensSavedOnTh')
                                         : settings?.telegram?.botTokenConfigured
-                                        ? `当前已保存 Token：${settings.telegram.botTokenPreview || t('pages.settings.configured')}。留空保存会继续使用当前 Token。`
+                                        ? (locale === 'en-US' ? `Saved Token: ${settings.telegram.botTokenPreview || t('pages.settings.configured')}. Leave empty to keep using current Token.` : `当前已保存 Token：${settings.telegram.botTokenPreview || t('pages.settings.configured')}。留空保存会继续使用当前 Token。`)
                                         : t('pages.settings.pleaseEnterTheTelegramBotTokenWhenE')}
                                 </div>
                                 {settings?.telegram?.botTokenConfigured ? (
@@ -2502,7 +2512,7 @@ export default function SystemSettings() {
                                         className="btn btn-ghost btn-xs"
                                         onClick={clearSavedTelegramToken}
                                     >
-                                        清空已保存 Token
+                                        {locale === 'en-US' ? 'Clear Saved Token' : '清空已保存 Token'}
                                     </button>
                                 ) : null}
                             </div>
@@ -2517,7 +2527,7 @@ export default function SystemSettings() {
                                 max="1440"
                                 inputMode="numeric"
                                 value={draft.telegram.opsDigestIntervalMinutes}
-                                onChange={(event) => patchField('telegram', 'opsDigestIntervalMinutes', toBoundedInt(event.target.value, 30, 0, 1440))}
+                                onChange={(event) => patchField('telegram', 'opsDigestIntervalMinutes', event.target.value)}
                             />
                             <div className="text-xs text-muted mt-1">{t("pages.settings.unitMinutesFillIn0ToTurnOffSchedule")}</div>
                         </div>
@@ -2531,7 +2541,7 @@ export default function SystemSettings() {
                                 max="168"
                                 inputMode="numeric"
                                 value={draft.telegram.dailyDigestIntervalHours}
-                                onChange={(event) => patchField('telegram', 'dailyDigestIntervalHours', toBoundedInt(event.target.value, 24, 0, 168))}
+                                onChange={(event) => patchField('telegram', 'dailyDigestIntervalHours', event.target.value)}
                             />
                             <div className="text-xs text-muted mt-1">{t("pages.settings.unitHourFillIn0ToTurnOffTheTimer")}</div>
                         </div>
@@ -2667,7 +2677,7 @@ export default function SystemSettings() {
                                 }}
                                 disabled={backupLoading || backupRestoreLoading || backupLocalSaving}
                             >
-                                <HiOutlineArrowUpTray /> 导入 / 恢复备份
+                                <HiOutlineArrowUpTray /> {locale === 'en-US' ? 'Import / Restore Backup' : '导入 / 恢复备份'}
                             </button>
                         </div>
                     </div>
@@ -2703,7 +2713,7 @@ export default function SystemSettings() {
                             <div className="text-sm">
                                 {runtimeStorage
                                     ? runtimeStorage.invalidStoreCount > 0
-                                        ? `${runtimeStorage.invalidStoreCount} 个 JSON 异常`
+                                        ? (locale === 'en-US' ? `${runtimeStorage.invalidStoreCount} JSON anomaly/anomalies` : `${runtimeStorage.invalidStoreCount} 个 JSON 异常`)
                                         : t('pages.settings.jsonVerificationIsNormal')
                                     : t('comp.system.sysWaitRefresh')}
                             </div>
@@ -2984,7 +2994,7 @@ export default function SystemSettings() {
                                     </button>
                                     {dbBackfillResult && (
                                         <div className="text-sm text-muted settings-db-card-result">
-                                            总计 {dbBackfillResult.total || 0} · 成功 {dbBackfillResult.success || 0} · 失败 {dbBackfillResult.failed || 0}
+                                            {locale === 'en-US' ? 'Total' : '总计'} {dbBackfillResult.total || 0} · {locale === 'en-US' ? 'Success' : '成功'} {dbBackfillResult.success || 0} · {locale === 'en-US' ? 'Failed' : '失败'} {dbBackfillResult.failed || 0}
                                         </div>
                                     )}
                                 </div>
@@ -3172,7 +3182,7 @@ export default function SystemSettings() {
                                 <span className={`settings-kpi-card-indicator ${localBackups.length > 0 ? 'is-active' : 'is-inactive'}`} />
                             </div>
                             <div className="settings-kpi-card-body">
-                                <div className="settings-kpi-card-value">{t("pages.settings.localbackupsLengthBackups")}</div>
+                                <div className="settings-kpi-card-value">{t('pages.settings.localbackupsLengthBackups')}</div>
                                 <div className="settings-kpi-card-meta" title={latestLocalBackup?.filename || t('pages.settings.na')}>{latestLocalBackup?.filename || t('pages.settings.na')}</div>
                             </div>
                         </div>
@@ -3298,7 +3308,7 @@ export default function SystemSettings() {
                         surface
                         action={(
                             <button type="button" className="btn btn-secondary" onClick={() => { window.location.href = '/account'; }}>
-                                前往账户中心
+                                {locale === 'en-US' ? 'Go to Account Center' : '前往账户中心'}
                             </button>
                         )}
                     />
@@ -3427,7 +3437,7 @@ export default function SystemSettings() {
                         <div className="settings-notice-shell">
                             <div className="settings-notice-editor">
                                 <div className="text-sm text-muted mb-4">
-                                    该功能会按单个收件人逐封发送邮件，不会把其他用户邮箱放在同一封邮件里。默认覆盖所有有邮箱地址的用户，并可附带最新地址按钮。
+                                    {locale === 'en-US' ? 'This feature sends emails individually to each recipient; other users\' email addresses are not listed. By default, it targets all users who have an email address and allows attaching a button to access the latest subscription URL.' : '该功能会按单个收件人逐封发送邮件，不会把其他用户邮箱放在同一封邮件里。默认覆盖所有有邮箱地址的用户，并可附带最新地址按钮。'}
                                 </div>
                                 <div className="grid-auto-220">
                                     <div className="form-group">
@@ -3513,7 +3523,7 @@ export default function SystemSettings() {
                                 </div>
                                 {noticePreview?.sampleRecipient?.username || noticePreview?.sampleRecipient?.email ? (
                                     <div className="text-xs text-muted">
-                                        示例收件人: {noticePreview.sampleRecipient.username || noticePreview.sampleRecipient.email}
+                                        {locale === 'en-US' ? 'Sample Recipient: ' : '示例收件人: '}{noticePreview.sampleRecipient.username || noticePreview.sampleRecipient.email}
                                     </div>
                                 ) : null}
                                 {noticePreviewError ? (
@@ -3549,7 +3559,7 @@ export default function SystemSettings() {
                     </div>
                     <div className="modal-footer">
                         <button type="button" className="btn btn-secondary" onClick={() => setNoticeModalOpen(false)} disabled={noticeSending}>
-                            取消
+                            {locale === 'en-US' ? 'Cancel' : '取消'}
                         </button>
                         <button type="button" className="btn btn-primary" onClick={sendRegisteredUserNotice} disabled={noticeSending || !emailStatus?.configured}>
                             {noticeSending ? <span className="spinner" /> : t('pages.settings.startSendingBtn')}
@@ -3662,12 +3672,12 @@ export default function SystemSettings() {
                                 checked={backupRestoreConfirmed}
                                 onChange={(event) => setBackupRestoreConfirmed(event.target.checked)}
                             />
-                            我已确认本次恢复会覆盖当前同名数据，且备份文件来源可信。
+                            {locale === 'en-US' ? 'I confirm that this restore will overwrite current data, and the backup file is from a trusted source.' : '我已确认本次恢复会覆盖当前同名数据，且备份文件来源可信。'}
                         </label>
                     </div>
                     <div className="modal-footer">
                         <button type="button" className="btn btn-secondary" onClick={() => setBackupRestoreModalOpen(false)}>
-                            取消
+                            {locale === 'en-US' ? 'Cancel' : '取消'}
                         </button>
                         <button
                             type="button"

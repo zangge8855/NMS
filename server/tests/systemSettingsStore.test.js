@@ -155,8 +155,7 @@ describe('SystemSettingsStore ordering', { concurrency: false }, () => {
         const settingsFile = path.join(TEST_DATA_DIR, 'system_settings.json');
         fs.writeFileSync(settingsFile, '{broken json');
         try {
-            const reloaded = new module.SystemSettingsStore();
-            assert.equal(reloaded.getTelegram().botTokenConfigured, false);
+            assert.throws(() => new module.SystemSettingsStore());
             assert.equal(fs.readFileSync(settingsFile, 'utf8'), '{broken json');
         } finally {
             systemSettingsStore.settings = systemSettingsStore._normalizeSettings({});

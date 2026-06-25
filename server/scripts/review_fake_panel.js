@@ -170,7 +170,7 @@ function createPanelApp(definition) {
     const app = express();
 
     app.use(cookieParser());
-    app.use(express.json({ limit: '2mb' }));
+    app.use(express.json({ limit: '2mb', strict: false }));
     app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
     app.get('/csrf-token', (req, res) => {

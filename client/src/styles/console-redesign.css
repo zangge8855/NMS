@@ -3738,6 +3738,11 @@ label,
   padding: 6px 10px !important;
   border-radius: 10px !important;
   background: var(--surface-soft) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .audit-page .audit-chart-selection {
+  background: rgba(148, 163, 184, 0.08) !important;
 }
 
 .audit-page .audit-inbound-breakdown-empty {
@@ -3793,12 +3798,12 @@ label,
   min-height: 0 !important;
 }
 
-.user-detail-page .timeline-list {
+:is(.user-detail-page, .server-detail-page) .timeline-list {
   display: grid !important;
   gap: 10px !important;
 }
 
-.user-detail-page .timeline-item {
+:is(.user-detail-page, .server-detail-page) .timeline-item {
   display: grid !important;
   grid-template-columns: 14px minmax(0, 1fr) !important;
   gap: 10px !important;
@@ -3807,68 +3812,75 @@ label,
   border-radius: 12px !important;
   background: var(--surface-elevated-muted) !important;
   box-shadow: none !important;
+  color: var(--text-primary) !important;
 }
 
-.user-detail-page .timeline-dot {
+[data-theme="dark"] :is(.user-detail-page, .server-detail-page) .timeline-item {
+  background: #0f1623 !important;
+  border-color: rgba(148, 163, 184, 0.14) !important;
+}
+
+:is(.user-detail-page, .server-detail-page) .timeline-dot {
   width: 7px !important;
   height: 7px !important;
   margin-top: 8px !important;
 }
 
-.user-detail-page .timeline-content {
+:is(.user-detail-page, .server-detail-page) .timeline-content {
   min-width: 0 !important;
 }
 
-.user-detail-page .timeline-head {
+:is(.user-detail-page, .server-detail-page) .timeline-head {
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) auto !important;
   align-items: start !important;
   gap: 8px !important;
 }
 
-.user-detail-page .timeline-head .font-medium {
+:is(.user-detail-page, .server-detail-page) .timeline-head .font-medium {
   min-width: 0 !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
+  color: var(--text-primary) !important;
 }
 
-.user-detail-page .timeline-time {
+:is(.user-detail-page, .server-detail-page) .timeline-time {
   white-space: nowrap !important;
   color: var(--text-muted) !important;
 }
 
-.user-detail-page .timeline-content > .flex.gap-2 {
+:is(.user-detail-page, .server-detail-page) .timeline-content > .flex.gap-2 {
   gap: 5px !important;
   margin-top: 6px !important;
 }
 
-.user-detail-page .timeline-content > .text-sm {
+:is(.user-detail-page, .server-detail-page) .timeline-content > .text-sm {
   margin-top: 6px !important;
   font-size: 12px !important;
   line-height: 1.45 !important;
 }
 
-.user-detail-page .timeline-fact-grid {
+:is(.user-detail-page, .server-detail-page) .timeline-fact-grid {
   display: grid !important;
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   gap: 8px !important;
   margin-top: 8px !important;
 }
 
-.user-detail-page .timeline-fact-card {
+:is(.user-detail-page, .server-detail-page) .timeline-fact-card {
   min-height: 50px !important;
   padding: 8px 10px !important;
   border-radius: 10px !important;
 }
 
-.user-detail-page .timeline-fact-label {
+:is(.user-detail-page, .server-detail-page) .timeline-fact-label {
   margin-bottom: 3px !important;
   font-size: 10px !important;
   line-height: 1.2 !important;
 }
 
-.user-detail-page .timeline-fact-value {
+:is(.user-detail-page, .server-detail-page) .timeline-fact-value {
   min-width: 0 !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
@@ -3883,7 +3895,7 @@ label,
     max-height: 200px !important;
   }
 
-  .user-detail-page .timeline-fact-grid {
+  :is(.user-detail-page, .server-detail-page) .timeline-fact-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 }
@@ -3896,16 +3908,16 @@ label,
     max-height: 176px !important;
   }
 
-  .user-detail-page .timeline-item {
+  :is(.user-detail-page, .server-detail-page) .timeline-item {
     padding: 10px !important;
     gap: 8px !important;
   }
 
-  .user-detail-page .timeline-head {
+  :is(.user-detail-page, .server-detail-page) .timeline-head {
     grid-template-columns: minmax(0, 1fr) !important;
   }
 
-  .user-detail-page .timeline-fact-grid {
+  :is(.user-detail-page, .server-detail-page) .timeline-fact-grid {
     grid-template-columns: minmax(0, 1fr) !important;
   }
 }
@@ -4982,11 +4994,13 @@ label,
 }
 
 .inbounds-table .inbounds-protocol-cell .badge {
-  display: block !important;
-  width: 100% !important;
+  display: inline-block !important;
+  width: auto !important;
   min-width: 0 !important;
   max-width: 100% !important;
-  text-align: left !important;
+  text-align: center !important;
+  padding: 3px 8px !important;
+  font-size: 11px !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;

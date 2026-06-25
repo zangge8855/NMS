@@ -170,12 +170,25 @@ class TaskQueue extends EventEmitter {
      * 清理超过1小时的已完成任务
      */
     prune() {
-        const cutoff = Date.now() - 60 * 60 * 1000;
+        const now = Date.now();
+        const cutoff = now - 60 * 60 * 1000; // 1 hour for terminal tasks
+        const stuckCutoff = now - 12 * 60 * 60 * 1000; // 12 hours for stuck non-terminal tasks
         for (const [id, task] of this.tasks.entries()) {
             const terminal = [TASK_STATUS.COMPLETED, TASK_STATUS.FAILED, TASK_STATUS.CANCELLED];
+            const createdAt = new Date(task.createdAt).getTime();
             if (terminal.includes(task.status)) {
-                const createdAt = new Date(task.createdAt).getTime();
                 if (createdAt < cutoff) {
+                    this.tasks.delete(id);
+                }
+            } else {
+                if (createdAt < stuckCutoff) {
+                    if (task._controller) {
+                        try {
+                            task._controller.abort();
+                        } catch {
+                            // ignore
+                        }
+                    }
                     this.tasks.delete(id);
                 }
             }

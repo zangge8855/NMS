@@ -1541,7 +1541,8 @@ export function createTelegramAlertService(options = {}) {
         if (!settings.enabled || !settings.configured) return false;
 
         const severity = String(notification.severity || 'info').trim().toLowerCase();
-        if (!settings.alertSeverities.has(severity)) return false;
+        const isRecovery = notification.type === 'server_health_recovered';
+        if (!isRecovery && !settings.alertSeverities.has(severity)) return false;
 
         // Honour the operator-issued /alert_mute window. Critical alerts
         // still leak through so we don't bury actual emergencies.

@@ -12,6 +12,8 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
         }
     });
 
+    const [jsonText, setJsonText] = useState('');
+
     useEffect(() => {
         try {
             if (value && typeof value === 'object') {
@@ -21,6 +23,25 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
             // ignore
         }
     }, [value]);
+
+    const handleSwitchToVisual = () => {
+        if (mode === 'json' && jsonText) {
+            try {
+                const parsed = JSON.parse(jsonText);
+                if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                    setConfig(parsed);
+                }
+            } catch (err) {
+                // ignore
+            }
+        }
+        setMode('visual');
+    };
+
+    const handleSwitchToJSON = () => {
+        setJsonText(JSON.stringify(config, null, 2));
+        setMode('json');
+    };
 
     const handleVisualSave = () => {
         onSave(config);
@@ -74,13 +95,13 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
                 <div className="btn-group">
                     <button
                         className={`btn btn-sm ${mode === 'visual' ? 'btn-primary' : 'btn-secondary'}`}
-                        onClick={() => setMode('visual')}
+                        onClick={handleSwitchToVisual}
                     >
                         <HiOutlineSquares2X2 className="mr-1" /> {locale === 'en-US' ? 'Visual' : '可视化'}
                     </button>
                     <button
                         className={`btn btn-sm ${mode === 'json' ? 'btn-primary' : 'btn-secondary'}`}
-                        onClick={() => setMode('json')}
+                        onClick={handleSwitchToJSON}
                     >
                         <HiOutlineCodeBracket className="mr-1" /> {locale === 'en-US' ? 'JSON' : '代码'}
                     </button>
@@ -96,7 +117,8 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
                             ? 'Update the routing block (rules, domainStrategy, balancers). The api rule is automatically kept first by the server.'
                             : '更新 routing 段（rules、domainStrategy、balancers）。服务端会确保 api 规则保持在第一条。'
                     }
-                    initialValue={value}
+                    initialValue={config}
+                    onChangeText={setJsonText}
                     onSave={onSave}
                     saving={saving}
                     hint="Schema: { domainStrategy?, rules: [...], balancers: [...] }"

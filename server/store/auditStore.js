@@ -32,12 +32,13 @@ function ensureDataDir() {
 }
 
 function loadArray(file) {
+    if (!fs.existsSync(file)) return [];
     try {
-        if (!fs.existsSync(file)) return [];
         const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
         return Array.isArray(parsed) ? parsed : [];
-    } catch {
-        return [];
+    } catch (e) {
+        console.error(`CRITICAL: Failed to load ${file}:`, e.message);
+        throw e;
     }
 }
 
@@ -552,6 +553,11 @@ class AuditStore {
         this.events = Array.isArray(snapshot?.events) ? snapshot.events : [];
         this.subscriptionAccess = Array.isArray(snapshot?.subscriptionAccess) ? snapshot.subscriptionAccess : [];
         this._pruneExpired();
+    }
+
+    _save() {
+        saveArray(AUDIT_EVENTS_FILE, this.events);
+        saveArray(SUB_ACCESS_FILE, this.subscriptionAccess);
     }
 }
 

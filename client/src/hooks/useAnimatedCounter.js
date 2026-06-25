@@ -21,11 +21,10 @@ export default function useAnimatedCounter(target, duration = 600) {
             const eased = 1 - Math.pow(1 - progress, 3);
             const current = Math.round(from + (targetNum - from) * eased);
             setValue(current);
+            fromRef.current = current;
 
             if (progress < 1) {
                 rafRef.current = requestAnimationFrame(animate);
-            } else {
-                fromRef.current = targetNum;
             }
         };
 

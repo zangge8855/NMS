@@ -14,6 +14,7 @@ import fs from 'fs';
 import path from 'path';
 import config from '../config.js';
 import telegramAlertService from './telegramAlertService.js';
+import { saveObjectAtomic } from '../store/fileUtils.js';
 
 export const SEVERITY = {
     INFO: 'info',
@@ -50,15 +51,17 @@ class NotificationService extends EventEmitter {
     }
 
     _load() {
+        if (!fs.existsSync(NOTIFICATIONS_FILE)) return [];
         try {
-            if (fs.existsSync(NOTIFICATIONS_FILE)) {
-                const parsed = JSON.parse(fs.readFileSync(NOTIFICATIONS_FILE, 'utf8'));
-                if (Array.isArray(parsed)) return parsed;
+            const parsed = JSON.parse(fs.readFileSync(NOTIFICATIONS_FILE, 'utf8'));
+            if (!Array.isArray(parsed)) {
+                throw new Error('Data in notifications.json is not a JSON array');
             }
+            return parsed;
         } catch (e) {
-            console.error('Failed to load notifications.json:', e.message);
+            console.error('CRITICAL: Failed to load notifications.json:', e.message);
+            throw e;
         }
-        return [];
     }
 
     _scheduleSave() {
@@ -67,7 +70,7 @@ class NotificationService extends EventEmitter {
         startBackgroundTimeout(() => {
             this._savePending = false;
             try {
-                fs.writeFileSync(NOTIFICATIONS_FILE, JSON.stringify(this.notifications, null, 2), 'utf8');
+                saveObjectAtomic(NOTIFICATIONS_FILE, this.notifications);
             } catch (e) {
                 console.error('Failed to save notifications.json:', e.message);
             }

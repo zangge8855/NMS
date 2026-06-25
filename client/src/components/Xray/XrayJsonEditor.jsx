@@ -20,6 +20,7 @@ export default function XrayJsonEditor({
     onSave,
     saving = false,
     hint = '',
+    onChangeText,
 }) {
     const initialText = useMemo(() => tryFormat(initialValue), [initialValue]);
     const [text, setText] = useState(initialText);
@@ -28,7 +29,8 @@ export default function XrayJsonEditor({
     useEffect(() => {
         setText(initialText);
         setError('');
-    }, [initialText]);
+        onChangeText?.(initialText);
+    }, [initialText, onChangeText]);
 
     const dirty = text !== initialText;
 
@@ -104,6 +106,7 @@ export default function XrayJsonEditor({
                 onChange={(e) => {
                     setText(e.target.value);
                     if (error) setError('');
+                    onChangeText?.(e.target.value);
                 }}
             />
 

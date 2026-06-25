@@ -93,39 +93,40 @@ class UserStore {
     }
 
     _load() {
+        if (!fs.existsSync(USERS_FILE)) return [];
         try {
-            if (fs.existsSync(USERS_FILE)) {
-                const parsed = JSON.parse(fs.readFileSync(USERS_FILE, 'utf-8'));
-                if (!Array.isArray(parsed)) return [];
-                return parsed.map((item) => {
-                    const email = normalizeEmailValue(item?.email);
-                    const subscriptionEmail = hasSubscriptionBindingField(item)
-                        ? normalizeEmailValue(item?.subscriptionEmail)
-                        : email;
-                    const aliasCheck = validateSubscriptionAliasPath(item?.subscriptionAliasPath);
-                    const enabled = normalizeRole(item?.role) === ROLES.admin
-                        ? true
-                        : (item?.enabled !== undefined ? !!item.enabled : true);
-                    return {
-                        ...item,
-                        role: normalizeRole(item?.role),
-                        email,
-                        subscriptionEmail,
-                        subscriptionAliasPath: aliasCheck.ok ? aliasCheck.value : '',
-                        enabled,
-                        profileVerifyCode: normalizeOptionalText(item?.profileVerifyCode),
-                        profileVerifyCodeExpiresAt: normalizeOptionalText(item?.profileVerifyCodeExpiresAt),
-                        profileVerifyTargetEmail: normalizeEmailValue(item?.profileVerifyTargetEmail),
-                        profileVerifyUsername: normalizeUsernameValue(item?.profileVerifyUsername),
-                        profileVerifyEmail: normalizeEmailValue(item?.profileVerifyEmail),
-                        groupId: normalizeGroupId(item?.groupId),
-                    };
-                });
+            const parsed = JSON.parse(fs.readFileSync(USERS_FILE, 'utf-8'));
+            if (!Array.isArray(parsed)) {
+                throw new Error('Data in users.json is not a JSON array');
             }
+            return parsed.map((item) => {
+                const email = normalizeEmailValue(item?.email);
+                const subscriptionEmail = hasSubscriptionBindingField(item)
+                    ? normalizeEmailValue(item?.subscriptionEmail)
+                    : email;
+                const aliasCheck = validateSubscriptionAliasPath(item?.subscriptionAliasPath);
+                const enabled = normalizeRole(item?.role) === ROLES.admin
+                    ? true
+                    : (item?.enabled !== undefined ? !!item.enabled : true);
+                return {
+                    ...item,
+                    role: normalizeRole(item?.role),
+                    email,
+                    subscriptionEmail,
+                    subscriptionAliasPath: aliasCheck.ok ? aliasCheck.value : '',
+                    enabled,
+                    profileVerifyCode: normalizeOptionalText(item?.profileVerifyCode),
+                    profileVerifyCodeExpiresAt: normalizeOptionalText(item?.profileVerifyCodeExpiresAt),
+                    profileVerifyTargetEmail: normalizeEmailValue(item?.profileVerifyTargetEmail),
+                    profileVerifyUsername: normalizeUsernameValue(item?.profileVerifyUsername),
+                    profileVerifyEmail: normalizeEmailValue(item?.profileVerifyEmail),
+                    groupId: normalizeGroupId(item?.groupId),
+                };
+            });
         } catch (e) {
-            console.error('Failed to load users.json:', e.message);
+            console.error('CRITICAL: Failed to load users.json:', e.message);
+            throw e;
         }
-        return [];
     }
 
     _save() {

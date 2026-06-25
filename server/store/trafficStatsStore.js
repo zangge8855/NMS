@@ -25,23 +25,25 @@ function ensureDataDir() {
 }
 
 function loadArray(file) {
+    if (!fs.existsSync(file)) return [];
     try {
-        if (!fs.existsSync(file)) return [];
         const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
         return Array.isArray(parsed) ? parsed : [];
-    } catch {
-        return [];
+    } catch (e) {
+        console.error(`CRITICAL: Failed to load ${file}:`, e.message);
+        throw e;
     }
 }
 
 function loadObject(file, fallback = {}) {
+    if (!fs.existsSync(file)) return fallback;
     try {
-        if (!fs.existsSync(file)) return fallback;
         const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
         if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return fallback;
         return parsed;
-    } catch {
-        return fallback;
+    } catch (e) {
+        console.error(`CRITICAL: Failed to load ${file}:`, e.message);
+        throw e;
     }
 }
 
@@ -1398,7 +1400,7 @@ class TrafficStatsStore {
             this.samples.push(...newSamples);
         }
         this.meta.lastCollectionAt = collectedAtIso;
-        const hasLiveTotalsSnapshot = servers.length === 0 || serverPayloads.length > 0;
+        const hasLiveTotalsSnapshot = servers.length === 0 || serverPayloads.length === servers.length;
         if (hasLiveTotalsSnapshot) {
             this.meta.registeredTotals = summarizeRegisteredTrafficTotals(users, serverPayloads);
             this.meta.serverTotals = serverTotals;
@@ -1573,6 +1575,13 @@ class TrafficStatsStore {
             };
         this._touchState();
         this._prune();
+    }
+
+    _save() {
+        saveJson(TRAFFIC_SAMPLES_FILE, this.samples);
+        saveJson(TRAFFIC_COUNTERS_FILE, this.counters);
+        saveJson(TRAFFIC_META_FILE, this.meta);
+        mirrorStoreSnapshot('traffic', this.exportState(), { redact: false });
     }
 }
 

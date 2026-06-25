@@ -137,6 +137,8 @@ function normalizeClientData(input = {}, fallbackIdentifier = '', options = {}) 
         flow: allowFlow ? toStringValue(input.flow) : '',
         comment: toStringValue(input.comment),
         reset: toNumberValue(input.reset, 0),
+        speedLimitUp: toNumberValue(input.speedLimitUp, 0),
+        speedLimitDown: toNumberValue(input.speedLimitDown, 0),
     };
 }
 
@@ -171,10 +173,21 @@ function buildFormBody(data = {}) {
     return params.toString();
 }
 
+function assertSuccess(response, fallbackMessage = '操作失败') {
+    if (response && response.data && typeof response.data === 'object' && response.data.success === false) {
+        const msg = response.data.msg || response.data.message || fallbackMessage;
+        const err = new Error(msg);
+        err.response = response;
+        throw err;
+    }
+    return response;
+}
+
 async function postForm(client, path, data) {
-    return client.post(path, buildFormBody(data), {
+    const response = await client.post(path, buildFormBody(data), {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
+    return assertSuccess(response, '操作失败');
 }
 
 async function setInboundEnableCompat(client, inboundId, enable, fallbackPayload) {
@@ -560,19 +573,27 @@ async function executeClientAction({ action, target, globalClient, payload }) {
             };
         }
 
-        if (!clientIdentifier) throw new Error('Missing client identifier');
-
-        const normalizedClient = normalizeClientData(
-            target.client || globalClient || {},
-            clientIdentifier,
-            { allowFlow, protocol: targetProtocol }
-        );
-        if (!hasRequiredCredential(normalizedClient, targetProtocol)) {
-            throw new Error(requiredCredentialLabel(targetProtocol));
+        let normalizedClient;
+        if (action === 'enable' || action === 'disable') {
+            const inbound = await fetchPanelInboundByIdCompat(client, target.inboundId);
+            if (!inbound) throw new Error('Inbound not found');
+            const sourceClient = findTargetClientInInbound(inbound, target, targetProtocol);
+            if (!sourceClient) throw new Error('Client not found');
+            normalizedClient = {
+                ...sourceClient,
+                enable: action === 'enable',
+            };
+        } else {
+            if (!clientIdentifier) throw new Error('Missing client identifier');
+            normalizedClient = normalizeClientData(
+                target.client || globalClient || {},
+                clientIdentifier,
+                { allowFlow, protocol: targetProtocol }
+            );
+            if (!hasRequiredCredential(normalizedClient, targetProtocol)) {
+                throw new Error(requiredCredentialLabel(targetProtocol));
+            }
         }
-
-        if (action === 'enable') normalizedClient.enable = true;
-        if (action === 'disable') normalizedClient.enable = false;
 
         await postUpdateClientCompat(client, target.inboundId, clientIdentifier, normalizedClient, {
             email: target.email,
@@ -640,7 +661,7 @@ async function executeInboundAction({ action, target, payload }) {
         if (!inboundId) throw new Error('Missing inbound id');
 
         if (action === 'delete') {
-            await client.post(`/panel/api/inbounds/del/${inboundId}`);
+            await assertSuccess(await client.post(`/panel/api/inbounds/del/${inboundId}`), 'Delete inbound failed');
             return {
                 ...baseResult,
                 success: true,
@@ -660,7 +681,12 @@ async function executeInboundAction({ action, target, payload }) {
         const enableOverride = action === 'enable'
             ? true
             : (action === 'disable' ? false : null);
+
+        const existingInbound = await fetchPanelInboundByIdCompat(client, inboundId);
+        if (!existingInbound) throw new Error('Inbound not found');
+
         const merged = {
+            ...existingInbound,
             ...target,
             ...(payload || {}),
         };

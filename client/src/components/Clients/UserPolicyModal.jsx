@@ -68,8 +68,8 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                 setNoProtocolLimit(protocolScopeMode === 'all');
                 setLimitIp(String(normalizeLimitIp(payload.limitIp)));
                 setTrafficLimitGb(bytesToGigabytesInput(payload.trafficLimitBytes));
-                setSpeedLimitUp(String(Number(payload.speedLimitUp || 0)));
-                setSpeedLimitDown(String(Number(payload.speedLimitDown || 0)));
+                setSpeedLimitUp(String(Math.round(Number(payload.speedLimitUp || 0) / 1024)));
+                setSpeedLimitDown(String(Math.round(Number(payload.speedLimitDown || 0) / 1024)));
             } catch (error) {
                 if (!cancelled) {
                     const msg = error.response?.data?.msg || error.message || '权限策略加载失败';
@@ -119,8 +119,8 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
             trafficLimitBytes: gigabytesInputToBytes(trafficLimitGb),
             // Speed limits are stored and forwarded verbatim as KB/s — match the unit used
             // by the UsersHub provision/edit modals and the Inbounds entitlement modal.
-            speedLimitUp: Number(speedLimitUp || 0),
-            speedLimitDown: Number(speedLimitDown || 0),
+            speedLimitUp: Number(speedLimitUp || 0) * 1024,
+            speedLimitDown: Number(speedLimitDown || 0) * 1024,
         };
 
         setSaving(true);

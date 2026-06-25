@@ -1401,6 +1401,10 @@ export default function AuditCenter() {
     const [trafficGranularity, setTrafficGranularity] = useState('auto');
     const [selectedUser, setSelectedUser] = useState('');
     const [selectedServerId, setSelectedServerId] = useState('');
+    const selectedUserRef = useRef(selectedUser);
+    const selectedServerIdRef = useRef(selectedServerId);
+    selectedUserRef.current = selectedUser;
+    selectedServerIdRef.current = selectedServerId;
     const [userTrend, setUserTrend] = useState({ points: [], granularity: 'hour' });
     const [serverTrend, setServerTrend] = useState({ points: [], granularity: 'hour' });
 
@@ -1662,7 +1666,7 @@ export default function AuditCenter() {
             params.append('granularity', trafficGranularity);
             params.append('includeBreakdown', 'true');
             const res = await api.get(`/traffic/users/${encodeURIComponent(email)}/trend?${params.toString()}`);
-            if (normalizeTrafficWindowKey(windowKey) === selectedTrafficWindowRef.current) {
+            if (email === selectedUserRef.current && normalizeTrafficWindowKey(windowKey) === selectedTrafficWindowRef.current) {
                 setUserTrend(res.data?.obj || { points: [], granularity: 'hour' });
             }
         } catch (err) {
@@ -1687,7 +1691,7 @@ export default function AuditCenter() {
             }
             params.append('granularity', trafficGranularity);
             const res = await api.get(`/traffic/servers/${encodeURIComponent(serverId)}/trend?${params.toString()}`);
-            if (normalizeTrafficWindowKey(windowKey) === selectedTrafficWindowRef.current) {
+            if (serverId === selectedServerIdRef.current && normalizeTrafficWindowKey(windowKey) === selectedTrafficWindowRef.current) {
                 setServerTrend(res.data?.obj || { points: [], granularity: 'hour' });
             }
         } catch (err) {

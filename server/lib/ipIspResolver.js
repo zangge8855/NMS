@@ -224,11 +224,15 @@ export function createIpIspResolver(options = {}) {
                 });
                 await Promise.allSettled(tasks);
 
-                dataset.records = records;
-                dataset.loadedAt = now;
-                dataset.sourceCount = loadedSources;
-                dataset.expiresAt = now + ((loadedSources > 0 ? runtime.cacheTtlSeconds : FAILURE_CACHE_TTL_SECONDS) * 1000);
-                ipCache.clear();
+                if (loadedSources > 0) {
+                    dataset.records = records;
+                    dataset.loadedAt = now;
+                    dataset.sourceCount = loadedSources;
+                    dataset.expiresAt = now + (runtime.cacheTtlSeconds * 1000);
+                    ipCache.clear();
+                } else {
+                    dataset.expiresAt = now + (FAILURE_CACHE_TTL_SECONDS * 1000);
+                }
                 return dataset.records;
             } catch (error) {
                 if (dataset.records.length === 0) {

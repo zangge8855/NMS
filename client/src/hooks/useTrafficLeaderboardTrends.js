@@ -24,6 +24,11 @@ export default function useTrafficLeaderboardTrends({
         [topServers]
     );
 
+    const topUsersRef = useRef(topUsers);
+    const topServersRef = useRef(topServers);
+    topUsersRef.current = topUsers;
+    topServersRef.current = topServers;
+
     useEffect(() => {
         if (!enabled) {
             setUserTrends({});
@@ -35,8 +40,8 @@ export default function useTrafficLeaderboardTrends({
         requestIdRef.current = requestId;
 
         const load = async () => {
-            const userTargets = topUsers.slice(0, 10);
-            const serverTargets = topServers.slice(0, 10);
+            const userTargets = topUsersRef.current.slice(0, 10);
+            const serverTargets = topServersRef.current.slice(0, 10);
             const [userResults, serverResults] = await Promise.all([
                 Promise.allSettled(
                     userTargets.map(async (item) => {
@@ -95,7 +100,7 @@ export default function useTrafficLeaderboardTrends({
         });
 
         return undefined;
-    }, [enabled, serverKey, topServers, topUsers, userKey]);
+    }, [enabled, serverKey, userKey]);
 
     return {
         userTrends,

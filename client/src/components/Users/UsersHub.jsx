@@ -850,11 +850,16 @@ export default function UsersHub() {
     };
 
     const toggleSelectAll = () => {
-        if (selectedIds.size === enrichedUsers.length) {
-            setSelectedIds(new Set());
-        } else {
-            setSelectedIds(new Set(enrichedUsers.map((u) => u.id)));
-        }
+        const allVisibleSelected = enrichedUsers.length > 0 && enrichedUsers.every((u) => selectedIds.has(u.id));
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (allVisibleSelected) {
+                enrichedUsers.forEach((u) => next.delete(u.id));
+            } else {
+                enrichedUsers.forEach((u) => next.add(u.id));
+            }
+            return next;
+        });
     };
 
     const renderUserActionButtons = (user) => {
@@ -1085,8 +1090,8 @@ export default function UsersHub() {
             const policy = policyRes.data?.obj || {};
             setProvisionLimitIp(String(normalizeLimitIp(policy.limitIp)));
             setProvisionTrafficLimitGb(bytesToGigabytesInput(policy.trafficLimitBytes));
-            setProvisionSpeedLimitUp(String(policy.speedLimitUp || 0));
-            setProvisionSpeedLimitDown(String(policy.speedLimitDown || 0));
+            setProvisionSpeedLimitUp(String(Math.round(Number(policy.speedLimitUp || 0) / 1024)));
+            setProvisionSpeedLimitDown(String(Math.round(Number(policy.speedLimitDown || 0) / 1024)));
             setProvisionTgId(String(policy.tgId || 0));
             setProvisionGroup(policy.group || '');
             setProvisionComment(policy.comment || '');
@@ -1139,8 +1144,8 @@ export default function UsersHub() {
                 expiryTime,
                 limitIp: normalizeLimitIp(provisionLimitIp),
                 trafficLimitBytes: gigabytesInputToBytes(provisionTrafficLimitGb),
-                speedLimitUp: Number(provisionSpeedLimitUp) || 0,
-                speedLimitDown: Number(provisionSpeedLimitDown) || 0,
+                speedLimitUp: Number(provisionSpeedLimitUp || 0) * 1024,
+                speedLimitDown: Number(provisionSpeedLimitDown || 0) * 1024,
                 tgId: Number(provisionTgId) || 0,
                 group: provisionGroup.trim(),
                 comment: provisionComment.trim(),
@@ -1266,8 +1271,8 @@ export default function UsersHub() {
                         setEditNoProtocolLimit(pMode !== 'selected' && pMode !== 'none');
                         setEditLimitIp(String(normalizeLimitIp(p.limitIp)));
                         setEditTrafficLimitGb(bytesToGigabytesInput(p.trafficLimitBytes));
-                        setEditSpeedLimitUp(String(p.speedLimitUp || 0));
-                        setEditSpeedLimitDown(String(p.speedLimitDown || 0));
+                        setEditSpeedLimitUp(String(Math.round(Number(p.speedLimitUp || 0) / 1024)));
+                        setEditSpeedLimitDown(String(Math.round(Number(p.speedLimitDown || 0) / 1024)));
                         setEditTgId(String(p.tgId || 0));
                         setEditGroup(p.group || '');
                         setEditComment(p.comment || '');
@@ -1362,8 +1367,8 @@ export default function UsersHub() {
                 const group = userGroups.find(g => String(g.id) === String(editGroupId));
                 if (Number(editLimitIp) !== Number(group?.limitIp ?? 0)) overrideFieldsNext.add('limitIp');
                 if (gigabytesInputToBytes(editTrafficLimitGb) !== Number(group?.trafficLimitBytes ?? 0)) overrideFieldsNext.add('trafficLimitBytes');
-                if (Number(editSpeedLimitUp) !== Number(group?.speedLimitUp ?? 0)) overrideFieldsNext.add('speedLimitUp');
-                if (Number(editSpeedLimitDown) !== Number(group?.speedLimitDown ?? 0)) overrideFieldsNext.add('speedLimitDown');
+                if (Number(editSpeedLimitUp || 0) * 1024 !== Number(group?.speedLimitUp ?? 0)) overrideFieldsNext.add('speedLimitUp');
+                if (Number(editSpeedLimitDown || 0) * 1024 !== Number(group?.speedLimitDown ?? 0)) overrideFieldsNext.add('speedLimitDown');
                 if (Number(editTgId) !== Number(group?.tgId ?? 0)) overrideFieldsNext.add('tgId');
                 if (editGroup.trim() !== String(group?.group || '').trim()) overrideFieldsNext.add('group');
                 if (editComment.trim() !== String(group?.comment || '').trim()) overrideFieldsNext.add('comment');
@@ -1383,8 +1388,8 @@ export default function UsersHub() {
                         limitIp: normalizeLimitIp(editLimitIp),
                         trafficLimitBytes: gigabytesInputToBytes(editTrafficLimitGb),
                         expiryTime: newExpiryTime,
-                        speedLimitUp: Number(editSpeedLimitUp) || 0,
-                        speedLimitDown: Number(editSpeedLimitDown) || 0,
+                        speedLimitUp: Number(editSpeedLimitUp || 0) * 1024,
+                        speedLimitDown: Number(editSpeedLimitDown || 0) * 1024,
                         tgId: Number(editTgId) || 0,
                         group: editGroup.trim(),
                         comment: editComment.trim(),

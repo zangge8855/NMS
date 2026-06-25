@@ -65,7 +65,6 @@ const UNSUPPORTED_HINTS = [
 ];
 
 export function normalizePanelClientIps(raw) {
-    const rows = [];
     const deduped = new Map();
 
     const pushRow = (row) => {
@@ -86,7 +85,6 @@ export function normalizePanelClientIps(raw) {
         }
 
         deduped.set(ip, normalized);
-        rows.push(normalized);
     };
 
     const visit = (value) => {
@@ -108,6 +106,7 @@ export function normalizePanelClientIps(raw) {
             visit(value.items);
             return;
         }
+
         if (Array.isArray(value.ips)) {
             visit(value.ips);
             return;
@@ -137,7 +136,7 @@ export function normalizePanelClientIps(raw) {
 
     visit(raw);
 
-    return rows;
+    return Array.from(deduped.values());
 }
 
 export function isUnsupportedPanelClientIpsError(error) {

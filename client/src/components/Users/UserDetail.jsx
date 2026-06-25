@@ -442,8 +442,9 @@ function UserAvatar({ username }) {
 }
 
 function StatCard({ label, value }) {
-    const animated = useAnimatedCounter(typeof value === 'number' ? value : 0);
-    const displayValue = typeof value === 'number' ? String(animated) : '...';
+    const isNum = typeof value === 'number';
+    const animated = useAnimatedCounter(isNum ? value : 0);
+    const displayValue = isNum ? String(animated) : (value || '...');
     return (
         <div className="stat-mini-card">
             <div className="stat-mini-value" title={displayValue}>
@@ -1577,7 +1578,7 @@ export default function UserDetail() {
                         {activeTab === 'overview' && (
                             <div>
                                 <div className="stat-mini-grid detail-stats-grid">
-                                    <StatCard label={copy.labels.totalTraffic} value={clientSummaryLoading ? null : (totalTraffic > 0 ? Math.round(totalTraffic / (1024 * 1024)) : 0)} />
+                                    <StatCard label={copy.labels.totalTraffic} value={clientSummaryLoading ? null : formatBytes(totalTraffic)} />
                                     <StatCard label={copy.labels.nodeCount} value={clientSummaryLoading ? null : clientData.length} />
                                     <StatCard label={copy.labels.accessCount} value={detail?.subscriptionAccess?.total || 0} />
                                     <StatCard label={copy.labels.auditCount} value={detail?.recentAudit?.total || 0} />
