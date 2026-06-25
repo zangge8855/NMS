@@ -390,9 +390,9 @@ function SettingsToggleCard({
     );
 }
 
-function formatInviteDuration(days) {
+function formatInviteDuration(days, t) {
     const normalized = Math.max(0, Number(days) || 0);
-    return normalized > 0 ? `${normalized} 天` : t('pages.settings.unlimitedTime');
+    return normalized > 0 ? `${normalized} 天` : (t ? t('pages.settings.unlimitedTime') : '无限制');
 }
 
 function getInviteStatusMeta(item = {}, t) {
@@ -2068,7 +2068,7 @@ export default function SystemSettings() {
                                         <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
                                             <div className="text-sm font-medium">{t("pages.settings.generatedInviteCodes")}</div>
                                             <span className="text-xs text-muted">
-                                                {latestInviteBatch.count || latestInviteCodes.length} 个邀请码，每个可用 {latestInviteBatch.usageLimit || 1} 次，开通 {formatInviteDuration(latestInviteBatch.subscriptionDays)}
+                                                {latestInviteBatch.count || latestInviteCodes.length} 个邀请码，每个可用 {latestInviteBatch.usageLimit || 1} 次，开通 {formatInviteDuration(latestInviteBatch.subscriptionDays, t)}
                                             </span>
                                         </div>
                                         <div className="settings-code-list">
@@ -2169,7 +2169,7 @@ export default function SystemSettings() {
                                                             </div>
                                                             <div className="settings-invite-ledger-meta-item">
                                                                 <span className="settings-invite-ledger-meta-label">{t("pages.settings.durationLabel")}</span>
-                                                                <span className="settings-invite-ledger-meta-value">{formatInviteDuration(item.subscriptionDays)}</span>
+                                                                <span className="settings-invite-ledger-meta-value">{formatInviteDuration(item.subscriptionDays, t)}</span>
                                                             </div>
                                                             <div className="settings-invite-ledger-meta-item">
                                                                 <span className="settings-invite-ledger-meta-label">{t("pages.settings.recentlyUsed")}</span>

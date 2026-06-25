@@ -3381,9 +3381,32 @@
 
 .settings-code-list {
   display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 8px;
   max-height: 160px;
   overflow-y: auto;
+  padding-right: 2px;
+}
+
+.settings-code-list code {
+  display: inline-block;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--stroke-soft);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  user-select: all;
+  transition: all 0.2s ease;
+}
+
+.settings-code-list code:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--text-muted);
+  transform: translateY(-1px);
 }
 
 .settings-invite-layout {
@@ -3478,7 +3501,7 @@
 
 .settings-invite-ledger-meta {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
