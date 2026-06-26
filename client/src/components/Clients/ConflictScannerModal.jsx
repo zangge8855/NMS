@@ -20,6 +20,7 @@ import {
 import ModalShell from '../UI/ModalShell.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import SkeletonTable from '../UI/SkeletonTable.jsx';
+import Table from '../UI/Table.jsx';
 
 const UUID_PROTOCOLS = new Set(['vmess', 'vless']);
 const PASSWORD_PROTOCOLS = new Set(['trojan', 'shadowsocks']);
@@ -319,46 +320,42 @@ export default function ConflictScannerModal({
                                                         </button>
                                                     </div>
 
-                                                    <div className="table-container">
-                                                        <table className="table conflict-scanner-table">
-                                                            <thead>
-                                                                <tr>
-                                                                    <th>节点</th>
-                                                                    <th>入站</th>
-                                                                    <th>标识</th>
-                                                                    <th className="table-cell-center conflict-scanner-enabled-column">启用</th>
-                                                                    <th className="table-cell-center conflict-scanner-expiry-column">有效期</th>
-                                                                    <th className="table-cell-right conflict-scanner-total-column">总量</th>
-                                                                    <th className="table-cell-center conflict-scanner-source-column">来源</th>
+                                                    <Table
+                                                        tableClassName="conflict-scanner-table"
+                                                        headers={[
+                                                            <th key="node">节点</th>,
+                                                            <th key="inbound">入站</th>,
+                                                            <th key="ident">标识</th>,
+                                                            <th key="enabled" className="table-cell-center conflict-scanner-enabled-column">启用</th>,
+                                                            <th key="expiry" className="table-cell-center conflict-scanner-expiry-column">有效期</th>,
+                                                            <th key="total" className="table-cell-right conflict-scanner-total-column">总量</th>,
+                                                            <th key="source" className="table-cell-center conflict-scanner-source-column">来源</th>
+                                                        ]}
+                                                    >
+                                                        {(protocolGroup.entries || []).map((entry) => {
+                                                            const locator = buildClientEntryLocator(entry);
+                                                            const isSource = locator === selectedSourceKey;
+                                                            return (
+                                                                <tr key={`${locator}-${entry.uiKey || ''}`}>
+                                                                    <td data-label="节点">{entry.serverName || entry.serverId}</td>
+                                                                    <td data-label="入站">{entry.inboundRemark || entry.inboundId}</td>
+                                                                    <td data-label="标识" className="font-mono text-xs">
+                                                                        {getClientIdentifier(entry) || '-'}
+                                                                    </td>
+                                                                    <td data-label="启用" className="table-cell-center conflict-scanner-enabled-cell">
+                                                                        <span className={`badge ${entry.enable === false ? 'badge-danger' : 'badge-success'}`}>
+                                                                            {entry.enable === false ? '停用' : '启用'}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td data-label="有效期" className="table-cell-center cell-mono conflict-scanner-expiry-cell">{formatExpiry(entry.expiryTime)}</td>
+                                                                    <td data-label="总量" className="table-cell-right cell-mono-right conflict-scanner-total-cell">{formatBytes(toNumber(entry.totalGB, 0))}</td>
+                                                                    <td data-label="来源" className="table-cell-center conflict-scanner-source-cell">
+                                                                        {isSource ? <span className="badge badge-info">来源</span> : '-'}
+                                                                    </td>
                                                                 </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                {(protocolGroup.entries || []).map((entry) => {
-                                                                    const locator = buildClientEntryLocator(entry);
-                                                                    const isSource = locator === selectedSourceKey;
-                                                                    return (
-                                                                        <tr key={`${locator}-${entry.uiKey || ''}`}>
-                                                                            <td data-label="节点">{entry.serverName || entry.serverId}</td>
-                                                                            <td data-label="入站">{entry.inboundRemark || entry.inboundId}</td>
-                                                                            <td data-label="标识" className="font-mono text-xs">
-                                                                                {getClientIdentifier(entry) || '-'}
-                                                                            </td>
-                                                                            <td data-label="启用" className="table-cell-center conflict-scanner-enabled-cell">
-                                                                                <span className={`badge ${entry.enable === false ? 'badge-danger' : 'badge-success'}`}>
-                                                                                    {entry.enable === false ? '停用' : '启用'}
-                                                                                </span>
-                                                                            </td>
-                                                                            <td data-label="有效期" className="table-cell-center cell-mono conflict-scanner-expiry-cell">{formatExpiry(entry.expiryTime)}</td>
-                                                                            <td data-label="总量" className="table-cell-right cell-mono-right conflict-scanner-total-cell">{formatBytes(toNumber(entry.totalGB, 0))}</td>
-                                                                            <td data-label="来源" className="table-cell-center conflict-scanner-source-cell">
-                                                                                {isSource ? <span className="badge badge-info">来源</span> : '-'}
-                                                                            </td>
-                                                                        </tr>
-                                                                    );
-                                                                })}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
+                                                            );
+                                                        })}
+                                                    </Table>
                                                 </div>
                                             );
                                         })}

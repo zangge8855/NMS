@@ -1,8 +1,7 @@
 import React from 'react';
 import { HiOutlineArrowPath, HiOutlineTrash, HiOutlineXMark } from 'react-icons/hi2';
 import ModalShell from './ModalShell.jsx';
-import EmptyState from './EmptyState.jsx';
-import SkeletonTable from './SkeletonTable.jsx';
+import Table from './Table.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import { formatDateTime } from '../../utils/format.js';
 
@@ -89,50 +88,41 @@ export default function ClientIpModal({
                         </div>
                     )}
 
-                    {loading ? (
-                        <div className="p-4">
-                            <SkeletonTable rows={4} cols={4} />
-                        </div>
-                    ) : items.length === 0 ? (
-                        <div className="p-4">
-                            <EmptyState
-                                title={copy.empty}
-                                subtitle={copy.emptySubtitle}
-                                size="compact"
-                                hideIcon
-                                action={onRefresh ? (
-                                    <button type="button" className="btn btn-secondary btn-sm" onClick={onRefresh}>
-                                        <HiOutlineArrowPath /> {copy.refresh}
-                                    </button>
-                                ) : null}
-                            />
-                        </div>
-                    ) : (
-                        <div className="table-container">
-                            <table className="table client-ip-table">
-                                <thead>
-                                    <tr>
-                                        <th>{copy.ip}</th>
-                                        <th className="table-cell-center client-ip-count-column">{copy.count}</th>
-                                        <th className="table-cell-center client-ip-last-seen-column">{copy.lastSeen}</th>
-                                        <th>{copy.note}</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {items.map((item) => (
-                                        <tr key={item.ip}>
-                                            <td data-label={copy.ip} className="font-mono client-ip-address-cell">{item.ip}</td>
-                                            <td data-label={copy.count} className="table-cell-center client-ip-count-cell">{item.count > 0 ? item.count : '-'}</td>
-                                            <td data-label={copy.lastSeen} className="table-cell-center client-ip-last-seen-cell">{formatDateTime(item.lastSeen, locale)}</td>
-                                            <td data-label={copy.note} className="text-xs text-muted client-ip-note-cell">
-                                                {[item.source, item.note].filter(Boolean).join(' / ') || '-'}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
+                    <Table
+                        loading={loading}
+                        rows={4}
+                        cols={4}
+                        empty={items.length === 0}
+                        emptyStateProps={{
+                            title: copy.empty,
+                            subtitle: copy.emptySubtitle,
+                            size: 'compact',
+                            hideIcon: true,
+                            action: onRefresh ? (
+                                <button type="button" className="btn btn-secondary btn-sm" onClick={onRefresh}>
+                                    <HiOutlineArrowPath /> {copy.refresh}
+                                </button>
+                            ) : null,
+                        }}
+                        tableClassName="client-ip-table"
+                        headers={[
+                            <th key="ip">{copy.ip}</th>,
+                            <th key="count" className="table-cell-center client-ip-count-column">{copy.count}</th>,
+                            <th key="last" className="table-cell-center client-ip-last-seen-column">{copy.lastSeen}</th>,
+                            <th key="note">{copy.note}</th>
+                        ]}
+                    >
+                        {items.map((item) => (
+                            <tr key={item.ip}>
+                                <td data-label={copy.ip} className="font-mono client-ip-address-cell">{item.ip}</td>
+                                <td data-label={copy.count} className="table-cell-center client-ip-count-cell">{item.count > 0 ? item.count : '-'}</td>
+                                <td data-label={copy.lastSeen} className="table-cell-center client-ip-last-seen-cell">{formatDateTime(item.lastSeen, locale)}</td>
+                                <td data-label={copy.note} className="text-xs text-muted client-ip-note-cell">
+                                    {[item.source, item.note].filter(Boolean).join(' / ') || '-'}
+                                </td>
+                            </tr>
+                        ))}
+                    </Table>
                 </div>
                 <div className="modal-footer">
                     <button type="button" className="btn btn-secondary" onClick={onClose}>{copy.close}</button>
