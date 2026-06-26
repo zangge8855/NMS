@@ -119,3 +119,53 @@ test('getServerPanelSnapshot includes latest 3x-ui last online timestamps when a
     });
     assert.ok(calls.some(([, path]) => path === '/panel/api/clients/lastOnline'));
 });
+
+test('getServerPanelSnapshot normalizes 3x-ui guid-scoped online trees', async () => {
+    invalidateServerPanelSnapshotCache();
+
+    const snapshot = await getServerPanelSnapshot(
+        { id: 'server-guid-online', name: 'Node Guid Online' },
+        {
+            force: true,
+            includeOnlines: true,
+            getAuthenticatedPanelClient: async () => ({
+                get: async (path) => {
+                    if (path === '/panel/api/inbounds/list') return { data: { obj: [] } };
+                    if (path === '/panel/api/nodes/list') {
+                        return {
+                            data: {
+                                obj: [
+                                    { id: 7, guid: 'guid-a', name: 'Node A' },
+                                    { id: 8, guid: 'guid-b', name: 'Node B' },
+                                ],
+                            },
+                        };
+                    }
+                    throw new Error(`unexpected get ${path}`);
+                },
+                post: async (path) => {
+                    if (path === '/panel/api/clients/onlinesByGuid') {
+                        return {
+                            data: {
+                                success: true,
+                                obj: {
+                                    'guid-a': ['alice@example.com'],
+                                    'guid-b': [{ email: 'bob@example.com', id: 'uuid-b' }],
+                                },
+                            },
+                        };
+                    }
+                    if (path === '/panel/api/clients/lastOnline') {
+                        return { data: { obj: {} } };
+                    }
+                    throw new Error(`unexpected post ${path}`);
+                },
+            }),
+        }
+    );
+
+    assert.deepEqual(snapshot.onlines, [
+        { nodeGuid: 'guid-a', nodeId: 7, email: 'alice@example.com' },
+        { email: 'bob@example.com', id: 'uuid-b', nodeGuid: 'guid-b', nodeId: 8 },
+    ]);
+});

@@ -1,7 +1,8 @@
 import fs from 'fs';
+import os from 'os';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
-import { dirname, isAbsolute, resolve } from 'path';
+import { dirname, isAbsolute, relative, resolve } from 'path';
 import { resolveClientBuildPaths } from './clientBuild.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -176,10 +177,16 @@ export function collectStartupIssues(env = process.env, options = {}) {
 
 export function isVolatileDataDir(dataDir) {
     const normalized = resolve(dataDir);
-    return normalized === '/tmp'
-        || normalized.startsWith('/tmp/')
-        || normalized === '/var/tmp'
-        || normalized.startsWith('/var/tmp/');
+    const volatileRoots = [os.tmpdir()];
+    if (process.platform !== 'win32') {
+        volatileRoots.push('/tmp', '/var/tmp');
+    }
+
+    return volatileRoots.some((root) => {
+        const resolvedRoot = resolve(root);
+        const relativePath = relative(resolvedRoot, normalized);
+        return relativePath === '' || (relativePath && !relativePath.startsWith('..') && !isAbsolute(relativePath));
+    });
 }
 
 export function collectRuntimeDataIssues(dataDir) {

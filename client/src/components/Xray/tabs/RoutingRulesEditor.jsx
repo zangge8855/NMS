@@ -31,7 +31,7 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
                 if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
                     setConfig(parsed);
                 }
-            } catch (err) {
+            } catch {
                 // ignore
             }
         }

@@ -241,19 +241,35 @@ export function normalizeLegacyClientPayload(payload = {}) {
     return parseLegacyClientSettingsPayload(payload) || payload || {};
 }
 
+function isOnlineGroupMapPayload(payload) {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return false;
+    return Object.values(payload).every((value) => Array.isArray(value));
+}
+
 export async function fetchPanelOnlineClients(panelClient) {
     try {
-        // Try onlinesByNode first (modern 3x-ui v3.3.0+)
-        const response = await panelClient.post('/panel/api/clients/onlinesByNode');
+        // 3x-ui v3.4.0 reports multi-node online attribution by stable panel GUID.
+        const response = await panelClient.post('/panel/api/clients/onlinesByGuid');
         if (
-            response?.data?.success
-            && response?.data?.obj
-            && typeof response.data.obj === 'object'
-            && !Array.isArray(response.data.obj)
+            response?.data?.success !== false
+            && isOnlineGroupMapPayload(response?.data?.obj)
         ) {
             return response;
         }
-    } catch (error) {
+    } catch {
+        // Fall back for older panels and mocks that only expose legacy shapes.
+    }
+
+    try {
+        // Compatibility with older/pre-release NMS-managed 3x-ui builds.
+        const response = await panelClient.post('/panel/api/clients/onlinesByNode');
+        if (
+            response?.data?.success !== false
+            && isOnlineGroupMapPayload(response?.data?.obj)
+        ) {
+            return response;
+        }
+    } catch {
         // Fall back on any error for this endpoint, including mock assertion failures
     }
 

@@ -34,11 +34,6 @@ import { readSessionSnapshot, SESSION_SNAPSHOT_EVENT, writeSessionSnapshot } fro
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function toInt(value, fallback) {
-    const parsed = Number.parseInt(String(value), 10);
-    return Number.isInteger(parsed) ? parsed : fallback;
-}
-
 function toBoundedInt(value, fallback, min, max) {
     const parsed = Number.parseInt(String(value), 10);
     if (!Number.isInteger(parsed)) return fallback;

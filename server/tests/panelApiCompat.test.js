@@ -18,12 +18,27 @@ function notFound(message = '404 page not found') {
     return error;
 }
 
-test('fetchPanelOnlineClients prefers latest clients endpoint and falls back to legacy inbounds endpoint', async () => {
+test('fetchPanelOnlineClients prefers current 3x-ui onlinesByGuid endpoint', async () => {
     const calls = [];
     const client = {
         async post(path) {
             calls.push(path);
-            if (path === '/panel/api/clients/onlines') throw notFound();
+            return { data: { success: true, obj: { 'guid-a': ['alice@example.com'] } } };
+        },
+    };
+
+    const response = await fetchPanelOnlineClients(client);
+
+    assert.deepEqual(calls, ['/panel/api/clients/onlinesByGuid']);
+    assert.deepEqual(response.data.obj, { 'guid-a': ['alice@example.com'] });
+});
+
+test('fetchPanelOnlineClients falls back through older node and legacy endpoints', async () => {
+    const calls = [];
+    const client = {
+        async post(path) {
+            calls.push(path);
+            if (path !== '/panel/api/inbounds/onlines') throw notFound();
             return { data: { obj: ['alice@example.com'] } };
         },
     };
@@ -31,6 +46,7 @@ test('fetchPanelOnlineClients prefers latest clients endpoint and falls back to 
     const response = await fetchPanelOnlineClients(client);
 
     assert.deepEqual(calls, [
+        '/panel/api/clients/onlinesByGuid',
         '/panel/api/clients/onlinesByNode',
         '/panel/api/clients/onlines',
         '/panel/api/inbounds/onlines',

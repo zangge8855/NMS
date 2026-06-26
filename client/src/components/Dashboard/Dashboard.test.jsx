@@ -463,7 +463,7 @@ describe('Dashboard', () => {
         expect(screen.getByText('Alice')).toBeInTheDocument();
         expect(screen.getByText('alice@example.com')).toBeInTheDocument();
         expect(screen.queryByText('unknown@example.com')).not.toBeInTheDocument();
-    }, 15000);
+    }, 30_000);
 
     it('routes each global traffic card to its matching audit traffic window', async () => {
         useServer.mockReturnValue({

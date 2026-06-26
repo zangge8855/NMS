@@ -263,4 +263,46 @@ test('online count — handles flat map and onlinesByNode maps in snapshots with
     assert.deepEqual(Array.from(bobRow.nodeLabels), ['Inbound B']);
 });
 
+test('online count — 3x-ui onlinesByGuid maps stay scoped to matching node GUIDs', () => {
+    const users = [
+        { id: 'u1', role: 'user', email: 'alice@example.com', subscriptionEmail: 'alice@example.com', enabled: true },
+        { id: 'u2', role: 'user', email: 'bob@example.com', subscriptionEmail: 'bob@example.com', enabled: true },
+    ];
+
+    const snapshots = [
+        {
+            server: { id: 'sv-1', name: 'Guid Node' },
+            inbounds: [
+                {
+                    id: 'inbound-A',
+                    protocol: 'vless',
+                    remark: 'Node A Inbound',
+                    originNodeGuid: 'guid-a',
+                    settings: { clients: [{ email: 'alice@example.com' }, { email: 'bob@example.com' }] },
+                },
+                {
+                    id: 'inbound-B',
+                    protocol: 'vless',
+                    remark: 'Node B Inbound',
+                    originNodeGuid: 'guid-b',
+                    settings: { clients: [{ email: 'alice@example.com' }, { email: 'bob@example.com' }] },
+                },
+            ],
+            onlines: {
+                'guid-a': ['alice@example.com'],
+                'guid-b': ['bob@example.com'],
+            },
+        },
+    ];
+
+    const result = buildDashboardPresenceFromPanelSnapshots(users, snapshots);
+
+    const aliceRow = result.onlineRows.find((r) => r.email === 'alice@example.com');
+    assert.ok(aliceRow, 'alice should be online');
+    assert.deepEqual(Array.from(aliceRow.nodeLabels), ['Node A Inbound']);
+
+    const bobRow = result.onlineRows.find((r) => r.email === 'bob@example.com');
+    assert.ok(bobRow, 'bob should be online');
+    assert.deepEqual(Array.from(bobRow.nodeLabels), ['Node B Inbound']);
+});
 

@@ -352,3 +352,46 @@ test('collectClusterStatusSnapshot exposes fresh panel snapshots for managed rea
     assert.equal(snapshot.panelSnapshots[0]?.onlines?.length, 1);
     assert.equal(Object.prototype.hasOwnProperty.call(snapshot.items[0], 'panelSnapshot'), false);
 });
+
+test('collectServerStatusSnapshot counts raw 3x-ui guid-scoped online trees', async () => {
+    const result = await collectServerStatusSnapshot({
+        id: 'srv-guid-online',
+        name: 'Guid Online Node',
+        health: 'healthy',
+    }, {
+        includeDetails: true,
+        force: true,
+        ensureAuthenticated: async () => ({
+            post: async (path) => {
+                if (path === '/panel/api/server/status') {
+                    return {
+                        data: {
+                            obj: {
+                                xray: { state: 'running', errorMsg: '' },
+                                netTraffic: { sent: 2048, recv: 4096 },
+                            },
+                        },
+                    };
+                }
+                throw new Error(`unexpected post ${path}`);
+            },
+        }),
+        getServerPanelSnapshot: async () => ({
+            server: { id: 'srv-guid-online', name: 'Guid Online Node' },
+            inbounds: [],
+            onlines: {
+                'guid-a': ['alice@example.com', 'bob@example.com'],
+            },
+            inboundsError: null,
+            onlinesError: null,
+        }),
+    });
+
+    assert.equal(result.online, true);
+    assert.equal(result.onlineCount, 2);
+    assert.equal(result.onlineSessionCount, 2);
+    assert.deepEqual(result.onlineUsers.map((item) => item.email), [
+        'alice@example.com',
+        'bob@example.com',
+    ]);
+});

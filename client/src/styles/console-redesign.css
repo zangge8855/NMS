@@ -5612,3 +5612,411 @@ label,
   border-radius: 12px !important;
 }
 
+/* Final visual QA pass for dense console surfaces. */
+.header .header-actions,
+.header .header-controls {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  min-width: 0 !important;
+}
+
+.header .header-primary-actions,
+.header .notification-bell {
+  display: flex !important;
+  align-items: center !important;
+  height: 44px !important;
+}
+
+.header .header-search,
+.header .theme-toggle-btn,
+.header .language-toggle-btn,
+.header .notification-trigger {
+  height: 44px !important;
+  min-height: 44px !important;
+  border-radius: 10px !important;
+}
+
+.header .notification-trigger {
+  width: 44px !important;
+  min-width: 44px !important;
+  padding: 0 !important;
+}
+
+.header .language-toggle-label {
+  line-height: 1 !important;
+}
+
+.badge {
+  letter-spacing: 0 !important;
+}
+
+.servers-page .servers-toolbar {
+  grid-template-columns: minmax(0, 1fr) max-content !important;
+  grid-template-areas:
+    "filters actions"
+    "summary summary" !important;
+  gap: 12px 16px !important;
+  padding: 14px 16px !important;
+  align-items: center !important;
+}
+
+.servers-page .servers-toolbar .page-toolbar-actions {
+  align-self: center !important;
+}
+
+.servers-page .servers-toolbar .list-toolbar-filters {
+  grid-template-columns: minmax(280px, 1.4fr) repeat(4, minmax(124px, 0.7fr)) !important;
+  align-items: center !important;
+}
+
+.servers-page .servers-toolbar .list-toolbar-actions-inner {
+  grid-template-columns: repeat(3, max-content) !important;
+  align-items: center !important;
+}
+
+.servers-page .servers-toolbar :is(.form-input, .form-select),
+.servers-page .servers-toolbar .btn {
+  height: 40px !important;
+  min-height: 40px !important;
+}
+
+.servers-page .servers-toolbar-summary {
+  width: 100% !important;
+}
+
+.servers-page .servers-summary-pill,
+.servers-page .servers-filter-summary {
+  min-height: 30px !important;
+  padding-block: 5px !important;
+}
+
+.servers-page .servers-filter-summary {
+  flex: 0 0 auto !important;
+  width: auto !important;
+  max-width: none !important;
+}
+
+.servers-page .servers-summary-pill--wide {
+  flex: 0 0 auto !important;
+  width: auto !important;
+  max-width: none !important;
+}
+
+.servers-page .servers-table {
+  min-width: 1290px !important;
+}
+
+.servers-page .servers-table .servers-actions-column {
+  width: 198px !important;
+}
+
+.servers-page .servers-table th.servers-actions-column,
+.servers-page .servers-table td.servers-actions-cell {
+  overflow: visible !important;
+}
+
+.servers-page .servers-row-actions {
+  grid-template-columns: repeat(2, minmax(78px, 1fr)) !important;
+  gap: 8px !important;
+}
+
+.servers-page .servers-row-actions .btn {
+  min-height: 36px !important;
+  padding-inline: 10px !important;
+  white-space: nowrap !important;
+}
+
+.servers-page .servers-row-action-icon.btn-icon {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.audit-page .audit-nav {
+  display: grid !important;
+  grid-template-columns: minmax(180px, 0.42fr) minmax(0, 1.58fr) !important;
+  grid-template-areas:
+    "state tabs"
+    "summary tabs" !important;
+  align-items: center !important;
+  gap: 10px 18px !important;
+  padding: 14px 16px !important;
+  min-height: 0 !important;
+}
+
+.audit-page .audit-nav-topbar {
+  grid-area: state !important;
+  min-height: 0 !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+}
+
+.audit-page .audit-nav-label {
+  display: none !important;
+}
+
+.audit-page .audit-nav-summary {
+  grid-area: summary !important;
+  max-width: 54ch !important;
+  margin: 0 !important;
+  line-height: 1.4 !important;
+}
+
+.audit-page .audit-tabs {
+  grid-area: tabs !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin: 0 !important;
+}
+
+.audit-page .audit-tabs .tab {
+  min-height: 40px !important;
+  padding: 8px 14px !important;
+  border-radius: 10px !important;
+}
+
+.settings-page .settings-tab-hero,
+.settings-page .settings-workspace-hero {
+  padding: 14px 16px !important;
+  gap: 10px !important;
+  border-radius: 12px !important;
+}
+
+.settings-page .settings-tab-hero-title {
+  font-size: 16px !important;
+  line-height: 1.25 !important;
+}
+
+.settings-page :is(.settings-workspace-hero-subtitle, .settings-tab-hero-summary, .settings-panel-subtitle) {
+  max-width: 72ch !important;
+  line-height: 1.4 !important;
+}
+
+.settings-page .settings-tab-highlight-card,
+.settings-page .settings-workspace-highlight-card {
+  padding: 9px 10px !important;
+  border-radius: 10px !important;
+}
+
+.settings-page input.font-mono,
+.subscriptions-page .subscription-url-input,
+.user-detail-page .subscription-url-input {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.logs-page .logs-toolbar {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) max-content !important;
+  grid-template-areas:
+    "filters actions"
+    "meta meta" !important;
+  align-items: center !important;
+  gap: 10px 14px !important;
+  padding: 14px 16px !important;
+}
+
+.logs-page .logs-toolbar .page-toolbar-main {
+  grid-area: filters !important;
+  display: grid !important;
+  grid-template-columns: 24px minmax(108px, 0.45fr) minmax(108px, 0.42fr) minmax(128px, 0.5fr) minmax(220px, 1.2fr) !important;
+  gap: 8px !important;
+  align-items: center !important;
+  min-width: 0 !important;
+}
+
+.logs-page .logs-toolbar .page-toolbar-actions {
+  grid-area: actions !important;
+  justify-self: end !important;
+  align-self: center !important;
+}
+
+.logs-page .logs-toolbar .page-toolbar-meta {
+  grid-area: meta !important;
+  min-width: 0 !important;
+}
+
+.logs-page :is(.logs-toolbar-toggle-group, .logs-toolbar-primary-group) {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.logs-page .logs-toolbar :is(.form-input, .form-select, .btn) {
+  height: 38px !important;
+  min-height: 38px !important;
+}
+
+@media (max-width: 1500px) {
+  .servers-page .servers-toolbar {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-areas:
+      "filters"
+      "summary"
+      "actions" !important;
+  }
+
+  .servers-page .servers-toolbar .page-toolbar-actions,
+  .servers-page .servers-toolbar .list-toolbar-actions-inner {
+    justify-self: stretch !important;
+    justify-content: start !important;
+  }
+
+  .servers-page .servers-toolbar .list-toolbar-filters {
+    grid-template-columns: minmax(260px, 1fr) repeat(2, minmax(132px, 0.55fr)) !important;
+  }
+
+  .logs-page .logs-toolbar {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-areas:
+      "filters"
+      "actions"
+      "meta" !important;
+  }
+
+  .logs-page .logs-toolbar .page-toolbar-actions {
+    justify-self: start !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .header .header-search {
+    height: 40px !important;
+    min-height: 40px !important;
+  }
+
+  .header .theme-toggle-btn,
+  .header .language-toggle-btn,
+  .header .notification-trigger {
+    height: 40px !important;
+    min-height: 40px !important;
+  }
+
+  .header .notification-trigger {
+    width: 40px !important;
+    min-width: 40px !important;
+  }
+
+  .servers-page .servers-toolbar .list-toolbar-filters,
+  .logs-page .logs-toolbar .page-toolbar-main {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .servers-page .servers-toolbar .list-toolbar-actions-inner,
+  .users-page .users-toolbar .list-toolbar-actions-inner {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    width: 100% !important;
+  }
+
+  .servers-page .servers-toolbar .list-toolbar-actions-inner .btn,
+  .users-page .users-toolbar .list-toolbar-actions-inner .btn {
+    grid-column: auto !important;
+    width: 100% !important;
+    padding-inline: 8px !important;
+  }
+
+  .audit-page .audit-nav {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-areas:
+      "state"
+      "tabs" !important;
+    padding: 12px !important;
+  }
+
+  .audit-page .audit-nav-summary {
+    display: none !important;
+  }
+
+  .audit-page .audit-tabs {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    justify-content: flex-start !important;
+    overflow-x: auto !important;
+    scrollbar-width: thin !important;
+    padding-bottom: 2px !important;
+  }
+
+  .audit-page .audit-tabs .tab {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: 124px !important;
+  }
+
+  .logs-page :is(.logs-toolbar-toggle-group, .logs-toolbar-primary-group) {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    width: 100% !important;
+  }
+
+  .logs-page :is(.logs-toolbar-toggle-group, .logs-toolbar-primary-group) .btn {
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .audit-page .audit-tabs {
+    grid-template-columns: none !important;
+  }
+}
+
+.audit-page .audit-control-actions {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+}
+
+.audit-page .audit-control-action-group {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.audit-events-table td.audit-event-node-cell {
+  max-width: 170px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.inbounds-table .inbounds-protocol-col,
+.inbounds-table .inbounds-protocol-cell {
+  width: 176px !important;
+  min-width: 176px !important;
+}
+
+.inbounds-table .inbounds-protocol-cell .badge {
+  width: auto !important;
+  min-width: max-content !important;
+  max-width: 100% !important;
+}
+
+.inbounds-table .inbounds-users-col,
+.inbounds-table .inbounds-users-cell {
+  width: 76px !important;
+}
+
+.inbounds-table .inbounds-port-col,
+.inbounds-table .inbounds-port-cell {
+  width: 164px !important;
+  min-width: 164px !important;
+}
+
+@media (max-width: 900px) {
+  .audit-page .audit-control-actions {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    width: 100% !important;
+  }
+
+  .audit-page .audit-control-action-group {
+    display: contents !important;
+  }
+
+  .audit-page .audit-control-actions .btn {
+    width: 100% !important;
+  }
+}
+

@@ -331,7 +331,7 @@ export async function createPanelClient(serverId, options = {}) {
 
 async function ensurePanelApiTokenAuthenticated(client) {
     try {
-        const res = await client.get('/panel/api/server/status');
+        const res = await fetchPanelServerStatus(client);
         if (res.data && res.data.success !== false) {
             return client;
         }

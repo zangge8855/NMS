@@ -1,5 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { join } from 'path';
 import {
     createCamouflageAssetMiddleware,
     createSiteCamouflageHtml,
@@ -138,7 +139,7 @@ describe('camouflage middleware', () => {
         });
 
         assert.equal(headers.get('Cache-Control'), 'public, max-age=86400');
-        assert.match(sentFile, /server\/views\/camouflage\/assets\/city\/photo-walk\.svg$/);
+        assert.equal(sentFile.endsWith(join('server', 'views', 'camouflage', 'assets', 'city', 'photo-walk.svg')), true);
     });
 
     it('renders a camouflage 404 page with static-site headers for document probes', () => {

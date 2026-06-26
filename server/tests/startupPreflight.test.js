@@ -164,7 +164,7 @@ describe('ensureRuntimeDirectories', () => {
 
         assert.equal(fs.existsSync(paths.logsDir), true);
         assert.equal(fs.existsSync(paths.dataDir), true);
-        assert.equal(paths.dataDir.endsWith('/runtime-data'), true);
+        assert.equal(paths.dataDir, join(rootDir, 'runtime-data'));
     });
 });
 

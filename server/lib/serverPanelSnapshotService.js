@@ -2,6 +2,7 @@ import serverStore from '../store/serverStore.js';
 import config from '../config.js';
 import { getAuthenticatedPanelClient } from '../services/panelGateway.js';
 import { fetchPanelLastOnlineClients, fetchPanelOnlineClients } from './panelApiCompat.js';
+import { normalizeOnlineEntries } from './panelOnlinePayload.js';
 
 const DEFAULT_WARM_INTERVAL_MS = Math.max(5_000, Number(config.performance?.panelSnapshotIntervalMs || 10_000));
 const DEFAULT_TTL_MS = DEFAULT_WARM_INTERVAL_MS;
@@ -18,59 +19,6 @@ function normalizeError(error, fallbackCode = 'PANEL_REQUEST_FAILED') {
         message: String(error?.response?.data?.msg || error?.message || 'panel-request-failed'),
         status: Number(error?.response?.status || 0) || 0,
     };
-}
-
-function normalizeOnlineEntries(items) {
-    if (!items) return [];
-
-    if (Array.isArray(items)) {
-        return items.map((item) => {
-            if (typeof item === 'string') {
-                return { email: String(item || '').trim() };
-            }
-            if (!item || typeof item !== 'object') return null;
-            return { ...item };
-        }).filter(Boolean);
-    }
-
-    if (typeof items === 'object') {
-        const entries = Object.entries(items);
-        const isNodeMap = entries.every(([key]) => {
-            const num = Number(key);
-            return Number.isInteger(num) && num >= 0;
-        });
-
-        if (isNodeMap) {
-            const rows = [];
-            for (const [nodeIdStr, valList] of entries) {
-                const nodeId = Number(nodeIdStr);
-                const list = Array.isArray(valList) ? valList : [];
-                for (const item of list) {
-                    if (typeof item === 'string') {
-                        rows.push({ email: String(item || '').trim(), nodeId });
-                    } else if (item && typeof item === 'object') {
-                        const email = String(item.email || item.user || item.username || item.clientEmail || '').trim();
-                        if (email) {
-                            rows.push({ ...item, email, nodeId });
-                        }
-                    }
-                }
-            }
-            return rows;
-        } else {
-            return entries.map(([email, val]) => {
-                const entry = { email: String(email || '').trim() };
-                if (Array.isArray(val)) {
-                    entry.ips = val;
-                } else if (val && typeof val === 'object') {
-                    Object.assign(entry, val);
-                }
-                return entry;
-            }).filter((item) => item.email);
-        }
-    }
-
-    return [];
 }
 
 function normalizeLastOnlineMap(payload = {}) {
@@ -155,15 +103,15 @@ async function fetchServerPanelSnapshot(server, options = {}) {
     const inbounds = inboundsResult.status === 'fulfilled' && Array.isArray(inboundsResult.value?.data?.obj)
         ? inboundsResult.value.data.obj
         : [];
+    const nodes = nodesResult.status === 'fulfilled' && Array.isArray(nodesResult.value?.data?.obj)
+        ? nodesResult.value.data.obj
+        : [];
     const onlines = onlinesResult.status === 'fulfilled'
-        ? normalizeOnlineEntries(onlinesResult.value?.data?.obj)
+        ? normalizeOnlineEntries(onlinesResult.value?.data?.obj, { nodes })
         : [];
     const lastOnline = lastOnlineResult.status === 'fulfilled'
         ? normalizeLastOnlineMap(lastOnlineResult.value?.data?.obj)
         : {};
-    const nodes = nodesResult.status === 'fulfilled' && Array.isArray(nodesResult.value?.data?.obj)
-        ? nodesResult.value.data.obj
-        : [];
 
     return {
         server: {

@@ -2,6 +2,7 @@ import serverStore from '../store/serverStore.js';
 import serverTelemetryStore from '../store/serverTelemetryStore.js';
 import config from '../config.js';
 import { getServerPanelSnapshot } from './serverPanelSnapshotService.js';
+import { normalizeOnlineEntries } from './panelOnlinePayload.js';
 import {
     classifyPanelError as classifyPanelFailure,
     derivePanelHealthFromStatus,
@@ -143,61 +144,6 @@ function classifyPanelError(error, options = {}) {
     };
 }
 
-function normalizeOnlineEntries(onlines) {
-    const rows = [];
-    if (!onlines) return rows;
-    
-    let items = [];
-    if (Array.isArray(onlines)) {
-        items = onlines;
-    } else if (typeof onlines === 'object') {
-        const entries = Object.entries(onlines);
-        const isNodeMap = entries.every(([key]) => {
-            const num = Number(key);
-            return Number.isInteger(num) && num >= 0;
-        });
-        if (isNodeMap) {
-            for (const [nodeIdStr, valList] of entries) {
-                const list = Array.isArray(valList) ? valList : [];
-                for (const item of list) {
-                    if (typeof item === 'string') {
-                        rows.push({ email: String(item || '').trim(), nodeId: Number(nodeIdStr) });
-                    } else if (item && typeof item === 'object') {
-                        const email = String(item.email || item.user || item.username || item.clientEmail || '').trim();
-                        if (email) {
-                            rows.push({ ...item, email, nodeId: Number(nodeIdStr) });
-                        }
-                    }
-                }
-            }
-            return rows;
-        } else {
-            items = entries.map(([email, val]) => {
-                const entry = { email: String(email || '').trim() };
-                if (Array.isArray(val)) {
-                    entry.ips = val;
-                } else if (val && typeof val === 'object') {
-                    Object.assign(entry, val);
-                }
-                return entry;
-            }).filter((item) => item.email);
-        }
-    }
-
-    for (const item of items) {
-        if (typeof item === 'string' && item.trim()) {
-            rows.push({ email: item.trim() });
-            continue;
-        }
-        if (!item || typeof item !== 'object') continue;
-        const email = String(item.email || item.user || item.username || item.clientEmail || '').trim();
-        if (email) {
-            rows.push({ ...item, email });
-        }
-    }
-    return rows;
-}
-
 function buildMaintenanceSnapshot(server) {
     const checkedAt = new Date().toISOString();
     return {
@@ -270,7 +216,7 @@ export async function collectServerStatusSnapshot(server, options = {}) {
                     getAuthenticatedPanelClient: async () => client,
                 });
                 inbounds = Array.isArray(panelSnapshot?.inbounds) ? panelSnapshot.inbounds : [];
-                onlineUsers = normalizeOnlineEntries(Array.isArray(panelSnapshot?.onlines) ? panelSnapshot.onlines : []);
+                onlineUsers = normalizeOnlineEntries(panelSnapshot?.onlines);
                 if (panelSnapshot?.inboundsError) {
                     collectionIssues.push({
                         source: 'inbounds',

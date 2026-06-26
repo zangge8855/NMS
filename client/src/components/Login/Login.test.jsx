@@ -47,7 +47,9 @@ describe('Login', () => {
             expect(api.get).toHaveBeenCalledWith('/auth/registration-status');
         });
 
-        expect(screen.queryByRole('button', { name: '忘记密码' })).not.toBeInTheDocument();
+        await waitFor(() => {
+            expect(screen.queryByRole('button', { name: '忘记密码' })).not.toBeInTheDocument();
+        });
     });
 
     it('opens the reset-password form only when the server capability is enabled', async () => {

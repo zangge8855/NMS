@@ -146,6 +146,9 @@ async function startFakePanel(options = {}) {
         }
 
         if (url.pathname === '/panel/api/server/status') {
+            if (options.statusGetUnsupported === true && req.method === 'GET') {
+                return sendJson(res, 404, { success: false, msg: 'not found' });
+            }
             if (hasValidApiToken(req)) {
                 return sendJson(res, 200, {
                     success: true,
@@ -282,6 +285,33 @@ test('ensureAuthenticated uses 3x-ui API token without login or CSRF bootstrap',
         'POST /panel/api/inbounds/addClient',
     ]);
     assert.equal(panel.calls.includes('GET /csrf-token'), false);
+    assert.equal(panel.calls.includes('POST /login'), false);
+});
+
+test('ensureAuthenticated API token path uses the shared status compatibility fallback', async (t) => {
+    const panel = await startFakePanel({
+        apiToken: 'panel-token-456',
+        statusGetUnsupported: true,
+    });
+    t.after(panel.close);
+
+    mockPanelServerStore(t, {
+        id: 'srv-api-token-post-status',
+        url: panel.url,
+        username: '',
+        password: '',
+        apiToken: 'panel-token-456',
+    });
+
+    const client = await ensureAuthenticated('srv-api-token-post-status');
+    const res = await client.post('/panel/api/inbounds/addClient', 'id=1');
+
+    assert.equal(res.data.success, true);
+    assert.deepEqual(panel.calls.slice(0, 3), [
+        'GET /panel/api/server/status',
+        'POST /panel/api/server/status',
+        'POST /panel/api/inbounds/addClient',
+    ]);
     assert.equal(panel.calls.includes('POST /login'), false);
 });
 

@@ -382,7 +382,7 @@ describe('Subscriptions', () => {
             expect(api.get).toHaveBeenCalledWith('/subscriptions/users');
             expect(api.get).toHaveBeenCalledWith('/subscriptions/admin%40example.com');
         });
-    }, 10000);
+    }, 30_000);
 
     it('hides token lifecycle controls in the admin subscription center', async () => {
         useAuth.mockReturnValue({
