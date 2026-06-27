@@ -293,6 +293,7 @@ export default function Inbounds() {
                 try {
                     const onlineEntries = Array.isArray(result?.onlines) ? result.onlines : [];
                     const onlineCounter = new Map();
+                    let serverInbounds = [];
                     onlineEntries.forEach((entry) => {
                         normalizeOnlineEntry(entry).forEach((key) => {
                             onlineCounter.set(key, (onlineCounter.get(key) || 0) + 1);
@@ -300,7 +301,7 @@ export default function Inbounds() {
                     });
 
                     if (Array.isArray(result?.inbounds)) {
-                        const serverInbounds = result.inbounds.map((ib) => {
+                        serverInbounds = result.inbounds.map((ib) => {
                             const inboundClients = mergeInboundClientStats(ib).map((client) => {
                                 const matchedSessions = buildClientOnlineKeys(client, ib.protocol).reduce((total, key) => {
                                     return total + (onlineCounter.get(key) || 0);
@@ -337,8 +338,8 @@ export default function Inbounds() {
                         });
                         allResults.push(...serverInbounds);
                     }
-                    if (result?.inboundsError || result?.onlinesError) {
-                        toast.error(`节点 ${server.name} 连接失败`, { id: `err-${server.id}` });
+                    if (result?.inboundsError && serverInbounds.length === 0) {
+                        toast.error(`节点 ${server.name} 入站读取失败`, { id: `err-${server.id}` });
                     }
                 } catch (err) {
                     console.error(`Failed to normalize inbounds from ${server.name}`, err);

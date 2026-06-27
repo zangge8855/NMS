@@ -119,14 +119,24 @@ export default function useServerTelemetry(options = {}) {
             setTelemetry(EMPTY_TELEMETRY);
             return undefined;
         }
+        const canRefresh = () => typeof document === 'undefined' || document.visibilityState !== 'hidden';
+        const refreshIfVisible = () => {
+            if (canRefresh()) {
+                refresh({ quiet: true, preserveCurrent: true });
+            }
+        };
         refresh({
             quiet: true,
             preserveCurrent: telemetryBootstrapRef.current != null || telemetryStateRef.current.items.length > 0,
         });
         const timer = window.setInterval(() => {
-            refresh({ quiet: true, preserveCurrent: true });
+            refreshIfVisible();
         }, refreshIntervalMs);
-        return () => window.clearInterval(timer);
+        window.addEventListener('visibilitychange', refreshIfVisible);
+        return () => {
+            window.clearInterval(timer);
+            window.removeEventListener('visibilitychange', refreshIfVisible);
+        };
     }, [enabled, refresh, refreshIntervalMs]);
 
     return {
