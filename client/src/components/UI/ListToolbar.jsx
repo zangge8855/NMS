@@ -1,5 +1,6 @@
 import React from 'react';
 import PageToolbar from './PageToolbar.jsx';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
 
 export default function ListToolbar({
     filters,
@@ -24,6 +25,7 @@ export default function ListToolbar({
     );
 }
 
+
 export function ListPagination({
     meta,
     page,
@@ -33,19 +35,22 @@ export function ListPagination({
     pageSizeOptions = [10, 20, 50, 100],
     onPageSizeChange,
     loading = false,
-    previousLabel = '上一页',
-    nextLabel = '下一页',
+    previousLabel,
+    nextLabel,
     onPrevious,
     onNext,
     onJump,
     className = '',
 }) {
+    const { locale } = useI18n();
+    const resolvedPrevLabel = previousLabel ?? (locale === 'en-US' ? 'Prev' : '上一页');
+    const resolvedNextLabel = nextLabel ?? (locale === 'en-US' ? 'Next' : '下一页');
     const normalizedPage = Math.max(1, Number(page || 1));
     const normalizedTotalPages = Math.max(1, Number(totalPages || 1));
     const showSizeControl = typeof pageSize === 'number' && typeof onPageSizeChange === 'function';
     const showJumpControl = typeof onJump === 'function' && normalizedTotalPages > 3;
     const totalCountLabel = Number.isFinite(Number(totalItems))
-        ? `共 ${Number(totalItems)} 条`
+        ? (locale === 'en-US' ? `Total ${Number(totalItems)}` : `共 ${Number(totalItems)} 条`)
         : null;
 
     const handleSizeChange = (event) => {
@@ -74,7 +79,7 @@ export function ListPagination({
             ) : null}
             {showSizeControl && (
                 <div className="page-pagination-size flex items-center gap-2">
-                    <span className="text-sm text-muted">每页</span>
+                    <span className="text-sm text-muted">{locale === 'en-US' ? 'Page Size' : '每页'}</span>
                     <select
                         className="form-select form-select-sm"
                         value={pageSize}
@@ -95,7 +100,7 @@ export function ListPagination({
                         disabled={normalizedPage <= 1 || loading}
                         onClick={onPrevious}
                     >
-                        {previousLabel}
+                        {resolvedPrevLabel}
                     </button>
                     <span className="text-sm text-muted self-center">
                         {normalizedPage} / {normalizedTotalPages}
@@ -106,7 +111,7 @@ export function ListPagination({
                         disabled={normalizedPage >= normalizedTotalPages || loading}
                         onClick={onNext}
                     >
-                        {nextLabel}
+                        {resolvedNextLabel}
                     </button>
                     {showJumpControl && (
                         <input
@@ -114,10 +119,10 @@ export function ListPagination({
                             min={1}
                             max={normalizedTotalPages}
                             className="form-input form-input-sm page-pagination-jump"
-                            placeholder="跳转"
+                            placeholder={locale === 'en-US' ? 'Go' : '跳转'}
                             disabled={loading}
                             onKeyDown={handleJumpKey}
-                            aria-label="跳转到指定页码"
+                            aria-label={locale === 'en-US' ? 'Jump to page' : '跳转到指定页码'}
                         />
                     )}
                 </div>

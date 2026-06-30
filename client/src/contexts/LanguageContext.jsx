@@ -70,6 +70,14 @@ export function LanguageProvider({ children }) {
 
 export function useI18n() {
   const context = useContext(LanguageContext);
-  if (!context) throw new Error('useI18n must be used within LanguageProvider');
+  if (!context) {
+    return {
+      locale: DEFAULT_LOCALE,
+      setLocale: () => {},
+      toggleLocale: () => {},
+      t: (path, params = {}) => getLocaleMessage(DEFAULT_LOCALE, path, params),
+      tm: (path) => getLocaleMessageObject(DEFAULT_LOCALE, path),
+    };
+  }
   return context;
 }

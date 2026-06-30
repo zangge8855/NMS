@@ -185,7 +185,7 @@
   --accent-tertiary-glow:    color-mix(in srgb, var(--accent-tertiary) 20%, transparent);
 
   /* Aurora ramp — signature spine for hero/login/chart palettes */
-  --aurora-ramp: linear-gradient(120deg, #4f46e5 0%, #6366f1 28%, #8b5cf6 60%, #22d3ee 100%);
+  --aurora-ramp: linear-gradient(120deg, var(--accent-primary) 0%, var(--accent-primary-hover) 28%, var(--accent-secondary) 60%, var(--accent-tertiary) 100%);
 
   /* Signature surfaces (mesh / full-bleed aurora / sheen / masked hairline) */
   --gradient-mesh-hero:
@@ -301,7 +301,6 @@
      from the bases above, so they are intentionally NOT redefined here). */
   --accent-secondary: #7c3aed;
   --accent-tertiary:  #0891b2;
-  --aurora-ramp: linear-gradient(120deg, var(--accent-primary) 0%, #6366f1 28%, var(--accent-secondary) 60%, var(--accent-tertiary) 100%);
   --gradient-mesh-hero:
     radial-gradient(120% 140% at 0% 0%,   color-mix(in srgb, var(--accent-primary) 12%, transparent), transparent 50%),
     radial-gradient(110% 130% at 100% 8%, color-mix(in srgb, var(--accent-secondary) 9%, transparent), transparent 54%),
@@ -3737,12 +3736,8 @@ label,
   min-height: 30px !important;
   padding: 6px 10px !important;
   border-radius: 10px !important;
-  background: var(--surface-soft) !important;
+  background: var(--surface-panel-soft) !important;
   color: var(--text-primary) !important;
-}
-
-[data-theme="dark"] .audit-page .audit-chart-selection {
-  background: rgba(148, 163, 184, 0.08) !important;
 }
 
 .audit-page .audit-inbound-breakdown-empty {
@@ -3813,11 +3808,6 @@ label,
   background: var(--surface-elevated-muted) !important;
   box-shadow: none !important;
   color: var(--text-primary) !important;
-}
-
-[data-theme="dark"] :is(.user-detail-page, .server-detail-page) .timeline-item {
-  background: #0f1623 !important;
-  border-color: rgba(148, 163, 184, 0.14) !important;
 }
 
 :is(.user-detail-page, .server-detail-page) .timeline-dot {
@@ -5068,7 +5058,7 @@ label,
 
   .inbounds-table .inbounds-protocol-col,
   .inbounds-table .inbounds-protocol-cell {
-    width: 104px !important;
+    width: 118px !important;
   }
 
   .inbounds-table .inbounds-port-col,
@@ -5989,7 +5979,7 @@ label,
 
 .inbounds-table .inbounds-protocol-cell .badge {
   width: auto !important;
-  min-width: max-content !important;
+  min-width: 0 !important;
   max-width: 100% !important;
 }
 

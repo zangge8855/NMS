@@ -9,6 +9,7 @@ import {
 import { generateSecurePassword, generateUuidLocal, generateHexToken } from '../../utils/crypto.js';
 import ModalShell from '../UI/ModalShell.jsx';
 import toast from 'react-hot-toast';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
 
 const BATCH_CLIENT_PROTOCOLS = new Set(['vmess', 'vless', 'trojan', 'shadowsocks']);
 
@@ -86,6 +87,7 @@ export default function ClientModal({
     onSuccess,
     onBatchResult,
 }) {
+    const { locale, t } = useI18n();
     const [loading, setLoading] = useState(false);
 
     const [email, setEmail] = useState('');
@@ -150,8 +152,8 @@ export default function ClientModal({
                 }
                 setEnable(editingClient.enable !== false);
                 setLimitIp(editingClient.limitIp || 0);
-                setSpeedLimitUp((editingClient.speedLimitUp || 0) / (1024 * 1024));
-                setSpeedLimitDown((editingClient.speedLimitDown || 0) / (1024 * 1024));
+                setSpeedLimitUp(String(Math.round(Number(editingClient.speedLimitUp || 0) / 1024)));
+                setSpeedLimitDown(String(Math.round(Number(editingClient.speedLimitDown || 0) / 1024)));
                 setTgId(String(editingClient.tgId || ''));
                 setComment(String(editingClient.comment || ''));
                 setReset(Number(editingClient.reset || 0));
@@ -419,25 +421,58 @@ export default function ClientModal({
                 comment: String(comment || '').trim(),
                 reset: Math.max(0, Number(reset || 0)),
                 limitIp: Number(limitIp),
-                speedLimitUp: Number(speedLimitUp || 0) * 1024 * 1024,
-                speedLimitDown: Number(speedLimitDown || 0) * 1024 * 1024,
+                speedLimitUp: Number(speedLimitUp || 0) * 1024,
+                speedLimitDown: Number(speedLimitDown || 0) * 1024,
                 flow: isFlowSupported ? flow : '',
             };
 
             if (editingClient) {
                 if (isBatchEdit) {
-                    const updateTargets = editTargets.map((item) => ({
-                        serverId: item.serverId,
-                        serverName: item.serverName,
-                        inboundId: item.inboundId,
-                        protocol: item.protocol,
-                        email: item.email || clientData.email,
-                        clientIdentifier: item.clientIdentifier || resolveClientIdentifier(item, item.protocol),
-                        client: {
-                            ...clientData,
-                            flow: flowProtocolSet.has(String(item.protocol || '').toLowerCase()) ? clientData.flow : '',
-                        },
-                    }));
+                    const updateTargets = editTargets.map((item) => {
+                        const isTotalGBChanged = Number(totalGB) * 1024 * 1024 * 1024 !== Number(editingClient.totalGB || 0);
+                        const isExpiryTimeChanged = Math.max(0, Number(resolvedExpiryTime || 0)) !== Number(editingClient.expiryTime || 0);
+                        const isEnableChanged = enable !== (editingClient.enable !== false);
+                        const isTgIdChanged = String(tgId || '').trim() !== String(editingClient.tgId || '').trim();
+                        const isSubIdChanged = derivedSubId !== String(editingClient.subId || '').trim();
+                        const isCommentChanged = String(comment || '').trim() !== String(editingClient.comment || '').trim();
+                        const isResetChanged = Number(reset || 0) !== Number(editingClient.reset || 0);
+                        const isLimitIpChanged = Number(limitIp || 0) !== Number(editingClient.limitIp || 0);
+                        const isSpeedLimitUpChanged = Number(speedLimitUp || 0) * 1024 !== Number(editingClient.speedLimitUp || 0);
+                        const isSpeedLimitDownChanged = Number(speedLimitDown || 0) * 1024 !== Number(editingClient.speedLimitDown || 0);
+                        const isFlowChanged = flow !== (editingClient.flow || '');
+
+                        const mergedClient = {
+                            ...item,
+                            id: item.id || normalizedUuid,
+                            password: item.password || normalizedPassword,
+                            email: item.email || email,
+                            totalGB: isTotalGBChanged ? (Number(totalGB) * 1024 * 1024 * 1024) : (item.totalGB || 0),
+                            expiryTime: isExpiryTimeChanged ? Math.max(0, Number(resolvedExpiryTime || 0)) : (item.expiryTime || 0),
+                            enable: isEnableChanged ? enable : (item.enable !== false),
+                            tgId: isTgIdChanged ? String(tgId || '').trim() : String(item.tgId || '').trim(),
+                            subId: isSubIdChanged ? derivedSubId : String(item.subId || '').trim(),
+                            comment: isCommentChanged ? String(comment || '').trim() : String(item.comment || '').trim(),
+                            reset: isResetChanged ? Number(reset || 0) : Number(item.reset || 0),
+                            limitIp: isLimitIpChanged ? Number(limitIp || 0) : Number(item.limitIp || 0),
+                            speedLimitUp: isSpeedLimitUpChanged ? (Number(speedLimitUp || 0) * 1024) : (item.speedLimitUp || 0),
+                            speedLimitDown: isSpeedLimitDownChanged ? (Number(speedLimitDown || 0) * 1024) : (item.speedLimitDown || 0),
+                            flow: isFlowChanged ? flow : (item.flow || ''),
+                        };
+
+                        if (!flowProtocolSet.has(String(item.protocol || '').toLowerCase())) {
+                            mergedClient.flow = '';
+                        }
+
+                        return {
+                            serverId: item.serverId,
+                            serverName: item.serverName,
+                            inboundId: item.inboundId,
+                            protocol: item.protocol,
+                            email: item.email || clientData.email,
+                            clientIdentifier: item.clientIdentifier || resolveClientIdentifier(item, item.protocol),
+                            client: mergedClient,
+                        };
+                    });
 
                     const batchPayload = await attachBatchRiskToken({
                         action: 'update',
@@ -449,7 +484,7 @@ export default function ClientModal({
                         targetCount: updateTargets.length,
                     });
                     const res = await api.post('/batch/clients', batchPayload);
-                    assertOperationSucceeded(res, '批量更新失败');
+                    assertOperationSucceeded(res, locale === 'en-US' ? 'Batch update failed' : '批量更新失败');
 
                     const output = res.data?.obj;
                     const summary = output?.summary || {
@@ -457,12 +492,12 @@ export default function ClientModal({
                         total: updateTargets.length,
                         failed: updateTargets.length,
                     };
-                    onBatchResult?.('批量更新用户结果', output || null);
+                    onBatchResult?.(locale === 'en-US' ? 'Batch Update Client Result' : '批量更新用户结果', output || null);
 
                     if (summary.failed === 0) {
-                        toast.success(`批量更新完成: ${summary.success}/${summary.total} 成功`);
+                        toast.success(locale === 'en-US' ? `Batch update completed: ${summary.success}/${summary.total} succeeded` : `批量更新完成: ${summary.success}/${summary.total} 成功`);
                     } else {
-                        toast.error(`批量更新完成: ${summary.success}/${summary.total} 成功`);
+                        toast.error(locale === 'en-US' ? `Batch update completed: ${summary.success}/${summary.total} succeeded` : `批量更新完成: ${summary.success}/${summary.total} 成功`);
                     }
                     onSuccess();
                     onClose();
@@ -835,14 +870,14 @@ export default function ClientModal({
 
                         <div className="grid grid-cols-2 gap-4 mb-4">
                             <div className="form-group">
-                                <label className="form-label">上行限速 (MB/s)</label>
+                                <label className="form-label">{locale === 'en-US' ? 'Upload Speed Limit (KB/s)' : '上行限速 (KB/s)'}</label>
                                 <input className="form-input" type="number" min={0} value={speedLimitUp} onChange={e => setSpeedLimitUp(e.target.value)} />
-                                <div className="text-xs text-muted mt-1">0 为不限速</div>
+                                <div className="text-xs text-muted mt-1">{locale === 'en-US' ? '0 = Unlimited' : '0 为不限速'}</div>
                             </div>
                             <div className="form-group">
-                                <label className="form-label">下行限速 (MB/s)</label>
+                                <label className="form-label">{locale === 'en-US' ? 'Download Speed Limit (KB/s)' : '下行限速 (KB/s)'}</label>
                                 <input className="form-input" type="number" min={0} value={speedLimitDown} onChange={e => setSpeedLimitDown(e.target.value)} />
-                                <div className="text-xs text-muted mt-1">0 为不限速</div>
+                                <div className="text-xs text-muted mt-1">{locale === 'en-US' ? '0 = Unlimited' : '0 为不限速'}</div>
                             </div>
                         </div>
 

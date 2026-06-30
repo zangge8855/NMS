@@ -65,6 +65,31 @@ describe('panel client ip helpers', () => {
         ]);
     });
 
+    it('merges duplicate IPs by summing counts and selecting the latest lastSeen time', () => {
+        expect(normalizePanelClientIps([
+            {
+                clientIp: '203.0.113.9',
+                count: 3,
+                lastSeen: '2026-03-10T10:00:00Z',
+                source: 'server1',
+            },
+            {
+                clientIp: '203.0.113.9',
+                count: 5,
+                lastSeen: '2026-03-10T12:00:00Z',
+                source: 'server2',
+            },
+        ])).toEqual([
+            {
+                ip: '203.0.113.9',
+                count: 8,
+                lastSeen: '2026-03-10T12:00:00.000Z',
+                source: 'server1',
+                note: '',
+            },
+        ]);
+    });
+
     it('detects missing clientIps endpoints on old panels', () => {
         expect(isUnsupportedPanelClientIpsError({
             response: {

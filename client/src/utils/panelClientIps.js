@@ -43,10 +43,14 @@ function extractDirectIpRow(value) {
 }
 
 function mergeRow(existing, next) {
+    const existingTime = existing.lastSeen ? new Date(existing.lastSeen).getTime() : 0;
+    const nextTime = next.lastSeen ? new Date(next.lastSeen).getTime() : 0;
+    const latestLastSeen = nextTime > existingTime ? next.lastSeen : existing.lastSeen;
+
     return {
         ip: existing.ip,
-        count: Math.max(existing.count || 0, next.count || 0),
-        lastSeen: existing.lastSeen || next.lastSeen || '',
+        count: (existing.count || 0) + (next.count || 0),
+        lastSeen: latestLastSeen || '',
         source: existing.source || next.source || '',
         note: existing.note || next.note || '',
     };

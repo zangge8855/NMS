@@ -322,6 +322,10 @@ export default function UsersHub() {
     const [groupMemberIds, setGroupMemberIds] = useState([]);
     const [groupMemberQuery, setGroupMemberQuery] = useState('');
 
+    useEffect(() => {
+        setSelectedIds(new Set());
+    }, [deferredSearchTerm, statusFilter]);
+
     // Provision modal
     const [provisionOpen, setProvisionOpen] = useState(false);
     const [provisionTargetUser, setProvisionTargetUser] = useState(null);

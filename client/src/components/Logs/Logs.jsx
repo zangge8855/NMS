@@ -496,7 +496,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
         ].filter((item) => item.count > 0);
     }, [filteredLogs, locale]);
 
-    const shouldVirtualizeLogs = filteredLogs.length > 180;
+    const shouldVirtualizeLogs = filteredLogs.length > 180 && !wrapLines;
 
     const clearViewer = () => {
         setLogs([]);

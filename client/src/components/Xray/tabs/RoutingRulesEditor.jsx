@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import XrayJsonEditor from '../XrayJsonEditor.jsx';
 import { HiOutlineCodeBracket, HiOutlineSquares2X2, HiOutlinePlus, HiOutlineTrash, HiOutlineArrowUp, HiOutlineArrowDown } from 'react-icons/hi2';
+import toast from 'react-hot-toast';
 
 export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, saving = false }) {
     const [mode, setMode] = useState('visual'); // 'visual' or 'json'
@@ -30,9 +31,13 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
                 const parsed = JSON.parse(jsonText);
                 if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
                     setConfig(parsed);
+                } else {
+                    toast.error(locale === 'en-US' ? 'JSON must be a non-array object.' : 'JSON 必须为非数组对象。');
+                    return;
                 }
-            } catch {
-                // ignore
+            } catch (err) {
+                toast.error(locale === 'en-US' ? `Invalid JSON: ${err.message}` : `JSON 无效: ${err.message}`);
+                return;
             }
         }
         setMode('visual');

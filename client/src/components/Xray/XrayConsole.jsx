@@ -141,7 +141,10 @@ export default function XrayConsole() {
         if (!hasTargetServer || saving) return;
         setSaving(true);
         try {
-            const res = await api.put(`/xray/${targetServerId}/${section}`, payload);
+            const res = await api.put(`/xray/${targetServerId}/${section}`, payload, {
+                headers: { 'Content-Type': 'application/json' },
+                transformRequest: [(data) => JSON.stringify(data)]
+            });
             const next = res?.data?.obj;
             if (next?.snapshot) {
                 setSnapshot(next.snapshot);

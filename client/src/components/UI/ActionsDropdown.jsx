@@ -2,12 +2,14 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import useFloatingPanel from '../../hooks/useFloatingPanel.js';
 import { HiOutlineEllipsisVertical } from 'react-icons/hi2';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
 
 export default function ActionsDropdown({
     trigger,
     actions = [], // list of { label, title, icon: Icon, onClick, isDanger, isSuccess, disabled, hidden }
     align = 'right',
 }) {
+    const { locale } = useI18n();
     const [isOpen, setIsOpen] = useState(false);
     const triggerRef = useRef(null);
     const panelRef = useRef(null);
@@ -110,7 +112,7 @@ export default function ActionsDropdown({
             onClick={toggleOpen}
             aria-expanded={isOpen}
             aria-haspopup="true"
-            aria-label="操作菜单"
+            aria-label={locale === 'en-US' ? 'Actions Menu' : '操作菜单'}
         >
             <HiOutlineEllipsisVertical />
         </button>
