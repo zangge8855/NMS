@@ -168,6 +168,7 @@
 
   /* — Type families: distinctive display + instrument mono (Latin-led; CJK falls back to Noto Sans SC) — */
   --font-display: 'Schibsted Grotesk Variable', 'Noto Sans SC Variable', 'Noto Sans SC', system-ui, sans-serif;
+  --font-family: 'Noto Sans SC Variable', 'Noto Sans SC', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', monospace;
   --font-numeric: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
 
@@ -295,6 +296,7 @@
 
   /* Display family also leads with the grotesque on light surfaces (CJK falls back to Noto Sans SC) */
   --font-display: 'Schibsted Grotesk Variable', 'Noto Sans SC Variable', 'Noto Sans SC', system-ui, sans-serif;
+  --font-family: 'Noto Sans SC Variable', 'Noto Sans SC', system-ui, sans-serif;
 
   /* Premium Signature Tokens v3 — light variants (lower-intensity stops keep
      white surfaces clean; hairline / glow / motion / weight tokens recompute
