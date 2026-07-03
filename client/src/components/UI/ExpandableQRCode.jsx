@@ -21,7 +21,7 @@ export default function ExpandableQRCode({
     ariaLabel = '',
     maxQrValueLength = 1800,
 }) {
-    const { locale } = useI18n();
+    const { t } = useI18n();
     const [expanded, setExpanded] = useState(false);
     const [copied, setCopied] = useState(false);
     const timeoutRef = useRef(null);
@@ -51,7 +51,7 @@ export default function ExpandableQRCode({
                 }
                 timeoutRef.current = window.setTimeout(() => setCopied(false), 1500);
             } else {
-                toast.error(locale === 'en-US' ? 'Copy failed' : '复制失败');
+                toast.error(t('comp.common.copyFailed'));
             }
         } catch {
             setCopied(false);
@@ -61,15 +61,15 @@ export default function ExpandableQRCode({
     if (isTooLong) {
         return (
             <div className={['expandable-qr-fallback', className].filter(Boolean).join(' ')}>
-                <div className="expandable-qr-fallback-title">{locale === 'en-US' ? 'QR code content is too long' : '二维码内容过长'}</div>
-                <div className="expandable-qr-fallback-text">{locale === 'en-US' ? 'Please copy the link to import into client.' : '请复制链接导入客户端。'}</div>
+                <div className="expandable-qr-fallback-title">{t('comp.common.qrTooLongTitle')}</div>
+                <div className="expandable-qr-fallback-text">{t('comp.common.qrTooLongText')}</div>
                 <button
                     type="button"
                     className="btn btn-secondary btn-sm"
                     onClick={copyLink}
                 >
                     <HiOutlineClipboard />
-                    {copied ? (locale === 'en-US' ? 'Copied' : '已复制') : (locale === 'en-US' ? 'Copy Link' : '复制链接')}
+                    {copied ? t('comp.common.copied') : t('comp.common.copyLink')}
                 </button>
             </div>
         );
@@ -81,7 +81,7 @@ export default function ExpandableQRCode({
                 type="button"
                 className={['expandable-qr-trigger', className].filter(Boolean).join(' ')}
                 onClick={() => setExpanded(true)}
-                aria-label={ariaLabel || (locale === 'en-US' ? `Expand QR code${label ? ' · ' + label : ''}` : `放大显示二维码${label ? ' · ' + label : ''}`)}
+                aria-label={ariaLabel || `${t('comp.common.expandQr')}${label ? ' · ' + label : ''}`}
             >
                 <QRCodeSVG
                     value={value}
@@ -90,7 +90,7 @@ export default function ExpandableQRCode({
                     includeMargin={includeMargin}
                 />
                 <span className="expandable-qr-hint">
-                    <HiOutlineArrowsPointingOut aria-hidden /> <span>{locale === 'en-US' ? 'Click to enlarge' : '点击放大'}</span>
+                    <HiOutlineArrowsPointingOut aria-hidden /> <span>{t('comp.common.clickToEnlarge')}</span>
                 </span>
             </button>
 
@@ -99,7 +99,7 @@ export default function ExpandableQRCode({
                     className="expandable-qr-overlay"
                     role="dialog"
                     aria-modal="true"
-                    aria-label={locale === 'en-US' ? 'Enlarged QR code' : '放大显示的二维码'}
+                    aria-label={t('comp.common.enlargedQr')}
                     onClick={(event) => {
                         if (event.target === event.currentTarget) close();
                     }}
@@ -111,7 +111,7 @@ export default function ExpandableQRCode({
                             type="button"
                             className="expandable-qr-close"
                             onClick={close}
-                            aria-label={locale === 'en-US' ? 'Close' : '关闭'}
+                            aria-label={t('comp.common.close')}
                             autoFocus
                         >
                             <HiOutlineXMark />

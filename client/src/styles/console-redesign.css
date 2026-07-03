@@ -1915,14 +1915,13 @@ label,
     overflow: hidden !important;
   }
 
+  /* Sizing/padding for the scroll region live in the in-flow bottom-nav
+     block later in this file; only the scroll behaviour is pinned here. */
   .main-scroll-region {
     flex: 1 1 auto !important;
     min-height: 0 !important;
-    height: calc(100dvh - var(--header-height, 58px) - var(--mobile-bottom-nav-height, 78px) - env(safe-area-inset-bottom, 0px)) !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
-    scroll-padding-bottom: calc(var(--mobile-bottom-nav-height, 78px) + 16px) !important;
-    padding-bottom: calc(var(--mobile-bottom-nav-height, 78px) + env(safe-area-inset-bottom, 0px) + 16px) !important;
   }
 }
 

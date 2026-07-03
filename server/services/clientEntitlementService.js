@@ -61,7 +61,10 @@ async function updateClientEntitlement(payload = {}, actor = 'admin', deps = {})
     const clients = parseInboundClients(inbound);
     const match = clients.find((item) => {
         const identifier = resolveClientIdentifier(item, protocol);
-        return identifier === requestedIdentifier || normalizeEmail(item.email) === requestedEmail;
+        if (identifier === requestedIdentifier) return true;
+        // Only fall back to email matching when a non-empty email was requested,
+        // otherwise clients without an email would match any lookup.
+        return Boolean(requestedEmail) && normalizeEmail(item.email) === requestedEmail;
     });
     if (!match) {
         throw createHttpError(404, '入站用户不存在');

@@ -22,6 +22,11 @@ function normalizeStringList(input = []) {
     ));
 }
 
+function normalizeNonNegativeInt(value) {
+    const num = Math.floor(Number(value));
+    return Number.isFinite(num) && num > 0 ? num : 0;
+}
+
 function normalizeGroupPayload(body = {}) {
     const payload = {
         name: String(body?.name || '').trim(),
@@ -34,11 +39,11 @@ function normalizeGroupPayload(body = {}) {
         blockedInboundKeys: normalizeStringList(body?.blockedInboundKeys),
         serverScopeMode: String(body?.serverScopeMode || '').trim().toLowerCase(),
         protocolScopeMode: String(body?.protocolScopeMode || '').trim().toLowerCase(),
-        expiryTime: Math.max(0, Math.floor(Number(body?.expiryTime || 0))),
-        limitIp: Math.max(0, Math.floor(Number(body?.limitIp || 0))),
-        trafficLimitBytes: Math.max(0, Math.floor(Number(body?.trafficLimitBytes || 0))),
-        speedLimitUp: Math.max(0, Math.floor(Number(body?.speedLimitUp || 0))),
-        speedLimitDown: Math.max(0, Math.floor(Number(body?.speedLimitDown || 0))),
+        expiryTime: normalizeNonNegativeInt(body?.expiryTime),
+        limitIp: normalizeNonNegativeInt(body?.limitIp),
+        trafficLimitBytes: normalizeNonNegativeInt(body?.trafficLimitBytes),
+        speedLimitUp: normalizeNonNegativeInt(body?.speedLimitUp),
+        speedLimitDown: normalizeNonNegativeInt(body?.speedLimitDown),
         trafficResetCycle: String(body?.trafficResetCycle || 'none').trim().toLowerCase(),
         ipLimitPolicy: String(body?.ipLimitPolicy || 'first-wins').trim().toLowerCase(),
     };

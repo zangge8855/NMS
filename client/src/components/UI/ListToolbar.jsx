@@ -42,15 +42,15 @@ export function ListPagination({
     onJump,
     className = '',
 }) {
-    const { locale } = useI18n();
-    const resolvedPrevLabel = previousLabel ?? (locale === 'en-US' ? 'Prev' : '上一页');
-    const resolvedNextLabel = nextLabel ?? (locale === 'en-US' ? 'Next' : '下一页');
+    const { t } = useI18n();
+    const resolvedPrevLabel = previousLabel ?? t('comp.common.prevPage');
+    const resolvedNextLabel = nextLabel ?? t('comp.common.nextPage');
     const normalizedPage = Math.max(1, Number(page || 1));
     const normalizedTotalPages = Math.max(1, Number(totalPages || 1));
     const showSizeControl = typeof pageSize === 'number' && typeof onPageSizeChange === 'function';
     const showJumpControl = typeof onJump === 'function' && normalizedTotalPages > 3;
     const totalCountLabel = Number.isFinite(Number(totalItems))
-        ? (locale === 'en-US' ? `Total ${Number(totalItems)}` : `共 ${Number(totalItems)} 条`)
+        ? t('comp.common.totalCount', { count: Number(totalItems) })
         : null;
 
     const handleSizeChange = (event) => {
@@ -79,7 +79,7 @@ export function ListPagination({
             ) : null}
             {showSizeControl && (
                 <div className="page-pagination-size flex items-center gap-2">
-                    <span className="text-sm text-muted">{locale === 'en-US' ? 'Page Size' : '每页'}</span>
+                    <span className="text-sm text-muted">{t('comp.common.pageSize')}</span>
                     <select
                         className="form-select form-select-sm"
                         value={pageSize}
@@ -119,10 +119,10 @@ export function ListPagination({
                             min={1}
                             max={normalizedTotalPages}
                             className="form-input form-input-sm page-pagination-jump"
-                            placeholder={locale === 'en-US' ? 'Go' : '跳转'}
+                            placeholder={t('comp.common.jumpTo')}
                             disabled={loading}
                             onKeyDown={handleJumpKey}
-                            aria-label={locale === 'en-US' ? 'Jump to page' : '跳转到指定页码'}
+                            aria-label={t('comp.common.jumpToPage')}
                         />
                     )}
                 </div>

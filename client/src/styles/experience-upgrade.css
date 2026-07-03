@@ -7654,7 +7654,8 @@
 }
 
 .actions-dropdown-panel {
-  z-index: 9999;
+  /* Portaled to <body>; --z-popover keeps it above modals (--z-modal) and below toasts (--z-toast). */
+  z-index: var(--z-popover, 500);
   min-width: 150px;
   max-width: 240px;
   padding: 6px !important;

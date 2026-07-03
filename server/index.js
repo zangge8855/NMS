@@ -24,6 +24,7 @@ import usersRoutes from './routes/users.js';
 import clientsRoutes from './routes/clients.js';
 import xrayConfigRoutes from './routes/xrayConfig.js';
 import { bootstrapDatabase } from './db/bootstrap.js';
+import { flushSnapshotQueue } from './db/snapshots.js';
 import { getStoreModes } from './db/runtimeModes.js';
 import { backfillStoresToDatabase, hydrateStoresFromDatabase } from './store/storeRegistry.js';
 import systemSettingsStore from './store/systemSettingsStore.js';
@@ -221,18 +222,26 @@ function setupGracefulShutdown(httpServer) {
         telegramAlertService.stop();
         subscriptionExpiryNotifier.stop();
 
+        // Drain queued DB snapshot writes so db mode does not lose the
+        // most recent store updates on shutdown (no-op in file mode).
+        const flushAndExit = (code) => {
+            flushSnapshotQueue()
+                .catch(() => {})
+                .finally(() => process.exit(code));
+        };
+
         if (activeHttpServer) {
             activeHttpServer.close(() => {
                 console.log('  ✅ HTTP server closed');
-                process.exit(0);
+                flushAndExit(0);
             });
             // Force exit after 10 seconds if connections don't close
             setTimeout(() => {
                 console.warn('  ⚠️  Forcing shutdown after timeout');
-                process.exit(1);
+                flushAndExit(1);
             }, 10_000).unref();
         } else {
-            process.exit(0);
+            flushAndExit(0);
         }
     }
 

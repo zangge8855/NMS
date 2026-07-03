@@ -648,7 +648,16 @@ async function autoRemoveClients(subscriptionEmail, options = {}, deps = {}) {
         let panelContext;
         try {
             panelContext = await listInbounds(server.id);
-        } catch {
+        } catch (error) {
+            // Record unreachable panels instead of skipping silently: the
+            // client credentials stay live on that node until a later sync.
+            result.failed += 1;
+            result.details.push({
+                serverId: server.id,
+                serverName: server.name,
+                status: 'failed',
+                reason: `panel-unreachable: ${String(error?.message || error)}`,
+            });
             continue;
         }
 

@@ -14,7 +14,7 @@ function toneToButtonClass(tone = 'danger') {
 }
 
 export function ConfirmProvider({ children }) {
-    const { locale } = useI18n();
+    const { t } = useI18n();
     const [dialog, setDialog] = useState(null);
     const [typedText, setTypedText] = useState('');
     const resolverRef = useRef(null);
@@ -38,16 +38,16 @@ export function ConfirmProvider({ children }) {
             resolverRef.current = resolve;
             setTypedText('');
             setDialog({
-                title: String(options.title || (locale === 'en-US' ? 'Confirm Action' : '请确认操作')),
+                title: String(options.title || t('comp.common.confirmActionTitle')),
                 message: String(options.message || ''),
                 details: String(options.details || ''),
-                confirmText: String(options.confirmText || (locale === 'en-US' ? 'Confirm' : '确认')),
-                cancelText: String(options.cancelText || (locale === 'en-US' ? 'Cancel' : '取消')),
+                confirmText: String(options.confirmText || t('comp.common.confirm')),
+                cancelText: String(options.cancelText || t('comp.common.cancel')),
                 tone: String(options.tone || 'danger'),
                 requireTypeText: options.requireTypeText ? String(options.requireTypeText) : '',
             });
         });
-    }, [locale]);
+    }, [t]);
 
     const requireText = dialog?.requireTypeText || '';
     const confirmDisabled = requireText !== '' && typedText.trim() !== requireText.trim();
@@ -71,11 +71,7 @@ export function ConfirmProvider({ children }) {
                             {requireText && (
                                 <div className="confirm-modal-type-gate">
                                     <label className="form-label">
-                                        {locale === 'en-US' ? (
-                                            <>Please type <code className="confirm-modal-type-target">{requireText}</code> to confirm this high-risk action</>
-                                        ) : (
-                                            <>请输入 <code className="confirm-modal-type-target">{requireText}</code> 以确认此高危操作</>
-                                        )}
+                                        {t('comp.common.typeToConfirmBefore')} <code className="confirm-modal-type-target">{requireText}</code> {t('comp.common.typeToConfirmAfter')}
                                     </label>
                                     <input
                                         autoFocus
@@ -83,7 +79,7 @@ export function ConfirmProvider({ children }) {
                                         value={typedText}
                                         onChange={(e) => setTypedText(e.target.value)}
                                         placeholder={requireText}
-                                        aria-label={locale === 'en-US' ? 'Type the confirmation string' : '键入确认字符串'}
+                                        aria-label={t('comp.common.typeConfirmAria')}
                                     />
                                 </div>
                             )}

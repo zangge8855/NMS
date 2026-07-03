@@ -9,7 +9,7 @@ export default function ActionsDropdown({
     actions = [], // list of { label, title, icon: Icon, onClick, isDanger, isSuccess, disabled, hidden }
     align = 'right',
 }) {
-    const { locale } = useI18n();
+    const { t } = useI18n();
     const [isOpen, setIsOpen] = useState(false);
     const triggerRef = useRef(null);
     const panelRef = useRef(null);
@@ -112,7 +112,7 @@ export default function ActionsDropdown({
             onClick={toggleOpen}
             aria-expanded={isOpen}
             aria-haspopup="true"
-            aria-label={locale === 'en-US' ? 'Actions Menu' : '操作菜单'}
+            aria-label={t('comp.common.actionsMenu')}
         >
             <HiOutlineEllipsisVertical />
         </button>
