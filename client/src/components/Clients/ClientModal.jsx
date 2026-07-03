@@ -87,7 +87,7 @@ export default function ClientModal({
     onSuccess,
     onBatchResult,
 }) {
-    const { locale, t } = useI18n();
+    const { locale } = useI18n();
     const [loading, setLoading] = useState(false);
 
     const [email, setEmail] = useState('');

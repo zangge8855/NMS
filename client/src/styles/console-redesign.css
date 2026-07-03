@@ -4990,7 +4990,7 @@ label,
   width: auto !important;
   min-width: 0 !important;
   max-width: 100% !important;
-  text-align: center !important;
+  text-align: left !important;
   padding: 3px 8px !important;
   font-size: 11px !important;
   white-space: nowrap !important;
