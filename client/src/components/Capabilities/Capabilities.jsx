@@ -1,6 +1,22 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { HiOutlineArrowPath, HiOutlineCircleStack } from 'react-icons/hi2';
+import { 
+    HiOutlineArrowPath, 
+    HiOutlineCircleStack,
+    HiOutlineCpuChip,
+    HiOutlineDocumentText,
+    HiOutlineArrowsUpDown,
+    HiOutlineKey,
+    HiOutlineGlobeAlt,
+    HiOutlineChatBubbleLeftRight,
+    HiOutlineExclamationTriangle,
+    HiOutlineCube,
+    HiOutlineCheckCircle,
+    HiOutlineXCircle,
+    HiOutlineInformationCircle,
+    HiOutlineBookOpen,
+    HiOutlineArrowUpRight,
+} from 'react-icons/hi2';
 import Header from '../Layout/Header.jsx';
 import { useServer } from '../../contexts/ServerContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
@@ -93,6 +109,14 @@ function getCapabilitiesCopy(locale = 'zh-CN') {
                 unprobed: 'Unprobed',
             },
             fetchFailed: 'Failed to load capability data',
+            dashboardTitle: 'Capability Overview',
+            complianceLabel: 'API Compliance Score',
+            modulesLabel: 'System Modules',
+            modulesDesc: (active, total) => `${active} of ${total} modules integrated`,
+            toolsLabel: 'API Health Rate',
+            toolsDesc: (active, total) => `${active} of ${total} endpoints active`,
+            protocolsLabel: 'Active Protocols',
+            protocolsDesc: (count) => `${count} protocol types online`,
         };
     }
 
@@ -156,31 +180,197 @@ function getCapabilitiesCopy(locale = 'zh-CN') {
             unprobed: '未探测',
         },
         fetchFailed: '获取能力信息失败',
+        dashboardTitle: '能力大盘概览',
+        complianceLabel: 'API 兼容性评分',
+        modulesLabel: '系统模块对齐率',
+        modulesDesc: (active, total) => `已集成 ${active} / ${total} 个系统模块`,
+        toolsLabel: 'API 接口探测率',
+        toolsDesc: (active, total) => `已激活 ${active} / ${total} 个探测端点`,
+        protocolsLabel: '运行中协议',
+        protocolsDesc: (count) => `当前在线 ${count} 种协议类型`,
     };
 }
 
 function renderAvailability(value, copy) {
-    if (value === true) return <span className="badge badge-success">{copy.availability.available}</span>;
-    if (value === false) return <span className="badge badge-danger">{copy.availability.unavailable}</span>;
-    return <span className="badge badge-neutral">{copy.availability.unprobed}</span>;
+    if (value === true) {
+        return (
+            <span className="cap-status-pill cap-status-pill--success">
+                <HiOutlineCheckCircle className="text-sm" />
+                {copy.availability.available}
+            </span>
+        );
+    }
+    if (value === false) {
+        return (
+            <span className="cap-status-pill cap-status-pill--danger">
+                <HiOutlineXCircle className="text-sm" />
+                {copy.availability.unavailable}
+            </span>
+        );
+    }
+    return (
+        <span className="cap-status-pill cap-status-pill--neutral">
+            <HiOutlineInformationCircle className="text-sm" />
+            {copy.availability.unprobed}
+        </span>
+    );
 }
 
 function renderBooleanSupport(value, copy) {
-    return value ? <span className="badge badge-success">{copy.support.supported}</span> : <span className="badge badge-warning">{copy.support.missing}</span>;
+    if (value) {
+        return (
+            <span className="cap-status-pill cap-status-pill--success">
+                <HiOutlineCheckCircle className="text-sm" />
+                {copy.support.supported}
+            </span>
+        );
+    }
+    return (
+        <span className="cap-status-pill cap-status-pill--warning">
+            <HiOutlineXCircle className="text-sm" />
+            {copy.support.missing}
+        </span>
+    );
 }
 
 function renderAlignmentStatus(value, copy) {
-    if (value === 'integrated') return <span className="badge badge-success">{copy.alignment.integrated}</span>;
-    if (value === 'api_available_ui_missing') return <span className="badge badge-warning">{copy.alignment.apiAvailableUiMissing}</span>;
-    if (value === 'guided_only') return <span className="badge badge-neutral">{copy.alignment.guidedOnly}</span>;
-    if (value === 'intentionally_unsupported') return <span className="badge badge-danger">{copy.alignment.unsupported}</span>;
-    return <span className="badge badge-neutral">{copy.alignment.unknown}</span>;
+    if (value === 'integrated') {
+        return (
+            <span className="cap-status-pill cap-status-pill--success">
+                <HiOutlineCheckCircle className="text-sm" />
+                {copy.alignment.integrated}
+            </span>
+        );
+    }
+    if (value === 'api_available_ui_missing') {
+        return (
+            <span className="cap-status-pill cap-status-pill--warning">
+                <HiOutlineInformationCircle className="text-sm" />
+                {copy.alignment.apiAvailableUiMissing}
+            </span>
+        );
+    }
+    if (value === 'guided_only') {
+        return (
+            <span className="cap-status-pill cap-status-pill--neutral">
+                <HiOutlineBookOpen className="text-sm" />
+                {copy.alignment.guidedOnly}
+            </span>
+        );
+    }
+    if (value === 'intentionally_unsupported') {
+        return (
+            <span className="cap-status-pill cap-status-pill--danger">
+                <HiOutlineXCircle className="text-sm" />
+                {copy.alignment.unsupported}
+            </span>
+        );
+    }
+    return (
+        <span className="cap-status-pill cap-status-pill--neutral">
+            <HiOutlineInformationCircle className="text-sm" />
+            {copy.alignment.unknown}
+        </span>
+    );
 }
 
 function renderProbeSource(source, copy) {
     if (source === 'probed') return copy.source.probed;
     if (source === 'unprobed') return copy.source.unprobed;
     return source || '-';
+}
+
+function getModuleIcon(key) {
+    const props = { style: { fontSize: '18px', marginRight: '8px', flexShrink: 0 } };
+    switch (key) {
+        case 'xrayVersion':
+            return <HiOutlineCpuChip {...props} className="text-primary" />;
+        case 'xrayConfig':
+            return <HiOutlineDocumentText {...props} className="text-info" />;
+        case 'xrayRouting':
+            return <HiOutlineArrowsUpDown {...props} className="text-success" />;
+        case 'twoFactor':
+            return <HiOutlineKey {...props} className="text-warning" />;
+        case 'databaseManagement':
+        case 'dbExport':
+        case 'dbImport':
+            return <HiOutlineCircleStack {...props} className="text-secondary" />;
+        case 'geofile':
+        case 'geofileUpdate':
+            return <HiOutlineGlobeAlt {...props} className="text-info" />;
+        case 'telegramBackup':
+        case 'telegramBot':
+        case 'telegramBackupTrigger':
+            return <HiOutlineChatBubbleLeftRight {...props} className="text-primary" />;
+        case 'panelSelfUpdate':
+            return <HiOutlineArrowPath {...props} className="text-warning" />;
+        case 'xrayRuntimeMetrics':
+            return <HiOutlineCube {...props} className="text-success" />;
+        case 'panelWebBasePath':
+        case 'panelCertificatePath':
+            return <HiOutlineKey {...props} className="text-muted" />;
+        case 'cloudflareWarp':
+            return <HiOutlineGlobeAlt {...props} className="text-muted" />;
+        case 'fail2ban':
+            return <HiOutlineExclamationTriangle {...props} className="text-danger" />;
+        // Tools cases
+        case 'uuid':
+            return <HiOutlineKey {...props} className="text-primary" />;
+        case 'x25519':
+        case 'mldsa65':
+        case 'mlkem768':
+        case 'vlessEnc':
+        case 'echCert':
+        case 'apiLogin':
+            return <HiOutlineKey {...props} className="text-warning" />;
+        case 'panelLogs':
+        case 'xrayLogs':
+            return <HiOutlineDocumentText {...props} className="text-info" />;
+        case 'panelUpdateInfo':
+            return <HiOutlineCpuChip {...props} className="text-secondary" />;
+        case 'xrayMetricsState':
+        case 'xrayObservatory':
+            return <HiOutlineCube {...props} className="text-success" />;
+        case 'customGeoResources':
+            return <HiOutlineGlobeAlt {...props} className="text-muted" />;
+        // Inbounds and Client API groups
+        case 'inboundList':
+        case 'inboundGet':
+        case 'inboundAdd':
+        case 'inboundUpdate':
+        case 'inboundDel':
+        case 'inboundOnlines':
+            return <HiOutlineArrowsUpDown {...props} className="text-success" />;
+        case 'inboundAddClient':
+        case 'inboundUpdateClient':
+        case 'inboundDelClient':
+        case 'inboundClientIps':
+        case 'inboundClearClientIps':
+            return <HiOutlineCube {...props} className="text-info" />;
+        case 'v3ClientAdd':
+        case 'v3ClientUpdate':
+        case 'v3ClientDel':
+        case 'v3ClientGet':
+        case 'v3ClientOnlines':
+        case 'v3ClientOnlinesByGuid':
+        case 'v3ClientOnlinesByNode':
+        case 'v3ClientLastOnline':
+        case 'v3ClientIps':
+        case 'v3ClientClearIps':
+        case 'v3ClientAttach':
+        case 'v3ClientDetach':
+        case 'v3ClientBulkAdjust':
+        case 'v3ClientResetTraffic':
+            return <HiOutlineCpuChip {...props} className="text-primary" />;
+        case 'serverStatus':
+            return <HiOutlineCpuChip {...props} className="text-primary" />;
+        case 'xrayVersionGet':
+        case 'xrayInstall':
+        case 'xrayRestart':
+            return <HiOutlineCpuChip {...props} className="text-warning" />;
+        default:
+            return <HiOutlineCube {...props} className="text-muted" />;
+    }
 }
 
 export default function Capabilities({ serverId = '', embedded = false } = {}) {
@@ -263,6 +453,16 @@ export default function Capabilities({ serverId = '', embedded = false } = {}) {
         [data]
     );
 
+    const activeProbedTools = useMemo(() => toolEntries.filter(t => t.available === true).length, [toolEntries]);
+    const totalProbedTools = useMemo(() => toolEntries.filter(t => t.supportedBy3xui !== false).length, [toolEntries]);
+    const toolsPercentage = useMemo(() => totalProbedTools > 0 ? Math.round((activeProbedTools / totalProbedTools) * 100) : 0, [activeProbedTools, totalProbedTools]);
+
+    const integratedModules = useMemo(() => systemModules.filter(m => m.supportedByNms === true).length, [systemModules]);
+    const totalModules = useMemo(() => systemModules.length, [systemModules]);
+    const modulesPercentage = useMemo(() => totalModules > 0 ? Math.round((integratedModules / totalModules) * 100) : 0, [integratedModules, totalModules]);
+
+    const complianceScore = useMemo(() => Math.round((modulesPercentage + toolsPercentage) / 2), [modulesPercentage, toolsPercentage]);
+
     const renderFrame = (children) => {
         if (embedded) {
             return (
@@ -323,6 +523,116 @@ export default function Capabilities({ serverId = '', embedded = false } = {}) {
                     />
                 ) : (
                     <>
+                        {/* Summary Dashboard Grid */}
+                        <div className="capabilities-dashboard-grid mb-6">
+                            {/* Card 1: API Compliance */}
+                            <div className="capabilities-dashboard-card">
+                                <div className="capabilities-dashboard-radial">
+                                    <svg width="80" height="80" viewBox="0 0 80 80">
+                                        <defs>
+                                            <linearGradient id="aurora-radial-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                <stop offset="0%" stopColor="var(--accent-primary, #6366F1)" />
+                                                <stop offset="50%" stopColor="var(--accent-secondary, #8B5CF6)" />
+                                                <stop offset="100%" stopColor="var(--accent-tertiary, #22D3EE)" />
+                                            </linearGradient>
+                                        </defs>
+                                        <circle
+                                            cx="40"
+                                            cy="40"
+                                            r="34"
+                                            fill="transparent"
+                                            stroke="var(--border-neutral, rgba(0,0,0,0.06))"
+                                            strokeWidth="6"
+                                        />
+                                        <circle
+                                            cx="40"
+                                            cy="40"
+                                            r="34"
+                                            fill="transparent"
+                                            stroke="url(#aurora-radial-gradient)"
+                                            strokeWidth="6"
+                                            strokeDasharray={2 * Math.PI * 34}
+                                            strokeDashoffset={2 * Math.PI * 34 * (1 - complianceScore / 100)}
+                                            strokeLinecap="round"
+                                            transform="rotate(-90 40 40)"
+                                            style={{ transition: 'stroke-dashoffset 0.8s ease-in-out' }}
+                                        />
+                                        <text
+                                            x="40"
+                                            y="40"
+                                            textAnchor="middle"
+                                            dominantBaseline="central"
+                                            fontSize="15"
+                                            fontWeight="700"
+                                            fill="var(--text-primary)"
+                                            fontFamily="var(--font-numeric)"
+                                        >
+                                            {complianceScore}%
+                                        </text>
+                                    </svg>
+                                </div>
+                                <div className="capabilities-dashboard-info">
+                                    <div className="capabilities-dashboard-label">{copy.complianceLabel}</div>
+                                    <div className="capabilities-dashboard-value">{complianceScore}%</div>
+                                    <div className="capabilities-dashboard-desc">{copy.dashboardTitle}</div>
+                                </div>
+                            </div>
+
+                            {/* Card 2: System Module Coverage */}
+                            <div className="capabilities-dashboard-card">
+                                <div className="capabilities-dashboard-icon-wrap cap-icon-wrap--modules">
+                                    <HiOutlineCircleStack />
+                                </div>
+                                <div className="capabilities-dashboard-info">
+                                    <div className="capabilities-dashboard-label">{copy.modulesLabel}</div>
+                                    <div className="capabilities-dashboard-value">{integratedModules} / {totalModules}</div>
+                                    <div className="capabilities-dashboard-desc">{copy.modulesDesc(integratedModules, totalModules)}</div>
+                                    <div className="capabilities-card-progress-wrapper">
+                                        <div 
+                                            className="capabilities-card-progress-bar" 
+                                            style={{ width: `${modulesPercentage}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Card 3: API Probe Status */}
+                            <div className="capabilities-dashboard-card">
+                                <div className="capabilities-dashboard-icon-wrap cap-icon-wrap--tools">
+                                    <HiOutlineCpuChip />
+                                </div>
+                                <div className="capabilities-dashboard-info">
+                                    <div className="capabilities-dashboard-label">{copy.toolsLabel}</div>
+                                    <div className="capabilities-dashboard-value">{activeProbedTools} / {totalProbedTools}</div>
+                                    <div className="capabilities-dashboard-desc">{copy.toolsDesc(activeProbedTools, totalProbedTools)}</div>
+                                    <div className="capabilities-card-progress-wrapper">
+                                        <div 
+                                            className="capabilities-card-progress-bar" 
+                                            style={{ width: `${toolsPercentage}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Card 4: Protocol Diversity */}
+                            <div className="capabilities-dashboard-card">
+                                <div className="capabilities-dashboard-icon-wrap cap-icon-wrap--protocols">
+                                    <HiOutlineGlobeAlt />
+                                </div>
+                                <div className="capabilities-dashboard-info">
+                                    <div className="capabilities-dashboard-label">{copy.protocolsLabel}</div>
+                                    <div className="capabilities-dashboard-value">{protocolList.length}</div>
+                                    <div className="capabilities-dashboard-desc">{copy.protocolsDesc(protocolList.length)}</div>
+                                    <div className="capabilities-card-progress-wrapper">
+                                        <div 
+                                            className="capabilities-card-progress-bar" 
+                                            style={{ width: protocolList.length > 0 ? '100%' : '0%' }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <SectionHeader
                             className="mb-3"
                             compact divider
@@ -371,11 +681,15 @@ export default function Capabilities({ serverId = '', embedded = false } = {}) {
                                 {systemModules.map((module) => (
                                     <tr key={module.key}>
                                         <td data-label={copy.matrixColumns.capability}>
-                                            <div className="flex flex-col gap-1">
-                                                <span>{module.label}</span>
-                                                <a href={module.docs} target="_blank" rel="noreferrer" className="text-xs">
-                                                    {copy.docsLink}
-                                                </a>
+                                            <div className="flex items-start gap-2">
+                                                {getModuleIcon(module.key)}
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="font-semibold text-sm">{module.label}</span>
+                                                    <a href={module.docs} target="_blank" rel="noreferrer" className="text-xs text-info hover:underline inline-flex items-center gap-0.5">
+                                                        {copy.docsLink}
+                                                        <HiOutlineArrowUpRight className="flex-shrink-0" style={{ fontSize: '11px' }} />
+                                                    </a>
+                                                </div>
                                             </div>
                                         </td>
                                         <td data-label={copy.matrixColumns.support} className="table-cell-center capability-support-cell">{renderBooleanSupport(module.supportedBy3xui === true, copy)}</td>
@@ -411,9 +725,12 @@ export default function Capabilities({ serverId = '', embedded = false } = {}) {
                                 {toolEntries.map((tool) => (
                                     <tr key={tool.key}>
                                         <td data-label={copy.toolsColumns.tool}>
-                                            <div className="flex flex-col gap-1">
-                                                <span>{tool.label || tool.key}</span>
-                                                <span className="text-xs text-muted">{tool.description || '-'}</span>
+                                            <div className="flex items-start gap-2">
+                                                {getModuleIcon(tool.key)}
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="font-semibold text-sm">{tool.label || tool.key}</span>
+                                                    <span className="text-xs text-muted">{tool.description || '-'}</span>
+                                                </div>
                                             </div>
                                         </td>
                                         <td data-label={copy.toolsColumns.availability} className="table-cell-center capability-availability-cell">{renderAvailability(tool.available, copy)}</td>

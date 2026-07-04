@@ -6113,3 +6113,211 @@ label,
   }
 }
 
+/* Capabilities Dashboard Redesign */
+.capabilities-dashboard-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
+  gap: 16px !important;
+  margin-bottom: 24px !important;
+}
+
+.capabilities-dashboard-card {
+  display: flex !important;
+  align-items: center !important;
+  gap: 20px !important;
+  padding: 20px !important;
+  border-radius: 20px !important;
+  background: color-mix(in srgb, var(--surface-card, #ffffff) 75%, transparent) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid color-mix(in srgb, var(--border-neutral, rgba(0,0,0,0.08)) 80%, transparent) !important;
+  box-shadow: var(--shadow-sm) !important;
+  position: relative !important;
+  overflow: hidden !important;
+  transition: transform var(--dur-2, 0.25s) var(--ease-out-quint, cubic-bezier(0.16, 1, 0.3, 1)), 
+              box-shadow var(--dur-2, 0.25s) var(--ease-out-quint, cubic-bezier(0.16, 1, 0.3, 1)), 
+              border-color var(--dur-2, 0.25s) var(--ease-out-quint, cubic-bezier(0.16, 1, 0.3, 1)) !important;
+}
+
+.capabilities-dashboard-card:hover {
+  transform: translateY(-4px) !important;
+  border-color: var(--accent-primary-border) !important;
+  box-shadow: 0 12px 30px -10px color-mix(in srgb, var(--accent-primary) 22%, transparent),
+              var(--glow-accent-soft) !important;
+}
+
+.capabilities-dashboard-card::before {
+  content: "" !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 4px !important;
+  background: var(--aurora-ramp) !important;
+  opacity: 0.95 !important;
+}
+
+.capabilities-dashboard-radial {
+  flex-shrink: 0 !important;
+}
+
+.capabilities-dashboard-info {
+  flex-grow: 1 !important;
+  min-width: 0 !important;
+}
+
+.capabilities-dashboard-label {
+  font-size: 11px !important;
+  color: var(--text-muted) !important;
+  font-weight: 600 !important;
+  margin-bottom: 4px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+}
+
+.capabilities-dashboard-value {
+  font-family: var(--font-numeric) !important;
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  color: var(--text-primary) !important;
+  line-height: 1.1 !important;
+}
+
+.capabilities-dashboard-desc {
+  font-size: 12px !important;
+  color: var(--text-muted) !important;
+  margin-top: 4px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* Linear progress bar style for cards with high-contrast track */
+.capabilities-card-progress-wrapper {
+  margin-top: 10px !important;
+  width: 100% !important;
+  height: 6px !important;
+  background: rgba(0, 0, 0, 0.06) !important;
+  border-radius: 3px !important;
+  overflow: hidden !important;
+  position: relative !important;
+}
+
+.capabilities-card-progress-bar {
+  height: 100% !important;
+  border-radius: 3px !important;
+  background: var(--aurora-ramp) !important;
+  transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* Dark mode overrides */
+.dark .capabilities-dashboard-card {
+  background: color-mix(in srgb, var(--surface-card, #1e293b) 70%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--border-neutral, rgba(255,255,255,0.06)) 80%, transparent) !important;
+}
+
+.dark .capabilities-card-progress-wrapper {
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Protocol configuration cards visual polish */
+.capabilities-page .capability-protocol-card {
+  border-left: 3px solid var(--accent-primary, #6366F1) !important;
+  transition: transform var(--dur-2, 0.2s) var(--ease-out-quint, cubic-bezier(0.23, 1, 0.32, 1)), 
+              box-shadow var(--dur-2, 0.2s) var(--ease-out-quint, cubic-bezier(0.23, 1, 0.32, 1)) !important;
+}
+
+.capabilities-page .capability-protocol-card:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: var(--shadow-sm), var(--glow-accent-soft) !important;
+}
+
+/* Dashboard Icon Circle Wrappers */
+.capabilities-dashboard-icon-wrap {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 48px !important;
+  height: 48px !important;
+  border-radius: 50% !important;
+  flex-shrink: 0 !important;
+  font-size: 20px !important;
+}
+
+/* Modules: Violet theme */
+.cap-icon-wrap--modules {
+  background: var(--accent-secondary-bg) !important;
+  border: 1px solid var(--accent-secondary-border) !important;
+  color: var(--accent-secondary) !important;
+  box-shadow: 0 0 12px -3px var(--accent-secondary-glow) !important;
+}
+
+/* Tools: Cyan theme */
+.cap-icon-wrap--tools {
+  background: var(--accent-info-bg) !important;
+  border: 1px solid var(--accent-info-border) !important;
+  color: var(--accent-info) !important;
+  box-shadow: 0 0 12px -3px var(--accent-info-glow) !important;
+}
+
+/* Protocols: Teal / Indigo theme */
+.cap-icon-wrap--protocols {
+  background: var(--accent-primary-bg) !important;
+  border: 1px solid var(--accent-primary-border) !important;
+  color: var(--accent-primary) !important;
+  box-shadow: 0 0 12px -3px var(--accent-primary-glow) !important;
+}
+
+/* Modern Glowing Status Pills (Stripe/Linear style) */
+.cap-status-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 4px 10px !important;
+  border-radius: 12px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.03em !important;
+  line-height: 1 !important;
+}
+
+.cap-status-pill--success {
+  background: var(--accent-success-bg) !important;
+  border: 1px solid var(--accent-success-border) !important;
+  color: var(--accent-success) !important;
+  box-shadow: 0 0 8px -2px var(--accent-success-glow) !important;
+}
+
+.cap-status-pill--warning {
+  background: var(--accent-warning-bg) !important;
+  border: 1px solid var(--accent-warning-border) !important;
+  color: var(--accent-warning) !important;
+  box-shadow: 0 0 8px -2px var(--accent-warning-glow) !important;
+}
+
+.cap-status-pill--danger {
+  background: var(--accent-danger-bg) !important;
+  border: 1px solid var(--accent-danger-border) !important;
+  color: var(--accent-danger) !important;
+  box-shadow: 0 0 8px -2px var(--accent-danger-glow) !important;
+}
+
+.cap-status-pill--info {
+  background: var(--accent-info-bg) !important;
+  border: 1px solid var(--accent-info-border) !important;
+  color: var(--accent-info) !important;
+  box-shadow: 0 0 8px -2px var(--accent-info-glow) !important;
+}
+
+.cap-status-pill--neutral {
+  background: rgba(0, 0, 0, 0.04) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  color: var(--text-muted) !important;
+}
+
+.dark .cap-status-pill--neutral {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
