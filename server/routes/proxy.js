@@ -9,10 +9,12 @@ import {
     fetchPanelOnlineClients,
     getClientIpsCompat,
     isUnsupportedPanelEndpointError,
+    normalizeInboundIds,
     parseLegacyAddClientBody,
     parseLegacyUpdateClientBody,
     postAddClientCompat,
     postAttachClientToInboundsCompat,
+    postBulkAdjustClientsCompat,
     postDeleteClientFromInboundCompat,
     postDetachClientFromInboundsCompat,
     postUpdateClientCompat,
@@ -50,6 +52,82 @@ function safeDecodePathSegment(value = '') {
 async function tryCompatPanelRequest(client, method, panelPath, body = {}) {
     if (method !== 'POST') return null;
 
+    if (panelPath === '/panel/api/clients/add') {
+        const clientData = body?.client;
+        const inboundIds = normalizeInboundIds(body?.inboundIds);
+        if (!clientData || inboundIds.length === 0) return null;
+        for (const inboundId of inboundIds) {
+            await postAddClientCompat(client, inboundId, clientData);
+        }
+        return {
+            status: 200,
+            data: { success: true, obj: { added: inboundIds.length } },
+        };
+    }
+
+    if (panelPath === '/panel/api/clients/bulkAdjust') {
+        return postBulkAdjustClientsCompat(client, body || {});
+    }
+
+    let match = panelPath.match(/^\/panel\/api\/clients\/update\/([^/]+)$/);
+    if (match) {
+        const email = safeDecodePathSegment(match[1]);
+        const clientData = body || {};
+        const record = await fetchClientRecordCompat(client, email);
+        if (!record || !record.client || !record.inboundIds || record.inboundIds.length === 0) {
+            return {
+                status: 404,
+                data: { success: false, msg: 'client not found' },
+            };
+        }
+        for (const inboundId of record.inboundIds) {
+            await postUpdateClientCompat(client, inboundId, email, clientData, {
+                currentEmail: email,
+                clientData,
+            });
+        }
+        return {
+            status: 200,
+            data: { success: true, obj: clientData },
+        };
+    }
+
+    match = panelPath.match(/^\/panel\/api\/clients\/del\/([^/]+)$/);
+    if (match) {
+        const email = safeDecodePathSegment(match[1]);
+        const record = await fetchClientRecordCompat(client, email);
+        if (!record || !record.inboundIds || record.inboundIds.length === 0) {
+            return {
+                status: 404,
+                data: { success: false, msg: 'client not found' },
+            };
+        }
+        for (const inboundId of record.inboundIds) {
+            await postDeleteClientFromInboundCompat(client, inboundId, email, { email });
+        }
+        return {
+            status: 200,
+            data: { success: true, obj: { deleted: record.inboundIds.length } },
+        };
+    }
+
+    match = panelPath.match(/^\/panel\/api\/clients\/resetTraffic\/([^/]+)$/);
+    if (match) {
+        const email = safeDecodePathSegment(match[1]);
+        const encodedEmail = encodeURIComponent(email);
+        try {
+            return await client.post(`/panel/api/clients/resetTraffic/${encodedEmail}`);
+        } catch (error) {
+            if (!isUnsupportedPanelEndpointError(error)) {
+                throw error;
+            }
+            return {
+                status: 501,
+                data: { success: false, msg: 'Resetting traffic for a single client is not supported by this panel version' },
+            };
+        }
+    }
+
     if (
         panelPath === '/panel/api/clients/onlinesByGuid'
         || panelPath === '/panel/api/clients/onlinesByNode'
@@ -59,7 +137,7 @@ async function tryCompatPanelRequest(client, method, panelPath, body = {}) {
         return fetchPanelOnlineClients(client);
     }
 
-    let match = panelPath.match(/^\/panel\/api\/inbounds\/clientIps\/([^/]+)$/);
+    match = panelPath.match(/^\/panel\/api\/inbounds\/clientIps\/([^/]+)$/);
     if (match) {
         return getClientIpsCompat(client, safeDecodePathSegment(match[1]));
     }

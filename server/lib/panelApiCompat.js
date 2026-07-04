@@ -25,7 +25,7 @@ function normalizeInboundId(value) {
     return value;
 }
 
-function normalizeInboundIds(values = []) {
+export function normalizeInboundIds(values = []) {
     return (Array.isArray(values) ? values : [values])
         .map((item) => normalizeInboundId(item))
         .filter((item) => item !== '' && item !== null && item !== undefined);
