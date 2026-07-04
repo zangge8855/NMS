@@ -588,8 +588,10 @@ class ServerStore {
     }
 
     importState(snapshot = {}) {
-        const nextServers = Array.isArray(snapshot?.servers) ? snapshot.servers : [];
-        this.servers = nextServers;
+        if (!snapshot || !Array.isArray(snapshot?.servers)) {
+            throw new Error('Invalid snapshot format for ServerStore: servers array is missing');
+        }
+        this.servers = snapshot.servers;
         this._migrateLegacyPasswords();
         this._migrateGovernanceFields();
     }

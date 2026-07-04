@@ -1226,8 +1226,11 @@ async function deleteManagedUser(id, deps = {}) {
             clientCleanup.total += removal.total;
             clientCleanup.removed += removal.removed;
             clientCleanup.failed += removal.failed;
-        } catch {
-            // best-effort
+            if (removal.failed > 0) {
+                cleanupError = `部分面板不可达或客户端删除失败，部分客户端可能残留，请手动检查`;
+            }
+        } catch (error) {
+            cleanupError = error.message || 'cleanup-failed';
         }
     }
 

@@ -930,7 +930,10 @@ export class SystemSettingsStore {
     }
 
     importState(snapshot = {}) {
-        this.settings = this._normalizeSettings(snapshot?.settings || {}, this.settings);
+        if (!snapshot || !snapshot.settings || typeof snapshot.settings !== 'object' || Array.isArray(snapshot.settings)) {
+            throw new Error('Invalid snapshot format for SystemSettingsStore: settings object is missing');
+        }
+        this.settings = this._normalizeSettings(snapshot.settings, this.settings);
     }
 }
 

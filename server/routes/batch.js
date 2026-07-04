@@ -466,7 +466,7 @@ function toHistoryItem(entry, includeResults = false) {
     };
 }
 
-async function executeClientAction({ action, target, globalClient, payload }) {
+async function executeClientAction({ action, target, globalClient, payload, targetIndex }) {
     const targetProtocol = normalizeProtocol(target.protocol);
     const clientIdentifier = normalizeClientIdentifier(target, globalClient, targetProtocol);
     const baseResult = {
@@ -477,6 +477,7 @@ async function executeClientAction({ action, target, globalClient, payload }) {
         email: target.email || target.client?.email || globalClient?.email || '',
         protocol: targetProtocol || '',
         clientIdentifier,
+        targetIndex: typeof targetIndex === 'number' ? targetIndex : null,
     };
 
     try {
@@ -618,7 +619,7 @@ async function executeClientAction({ action, target, globalClient, payload }) {
     }
 }
 
-async function executeInboundAction({ action, target, payload }) {
+async function executeInboundAction({ action, target, payload, targetIndex }) {
     const baseResult = {
         action,
         serverId: target.serverId || null,
@@ -627,6 +628,7 @@ async function executeInboundAction({ action, target, payload }) {
         remark: target.remark || '',
         protocol: target.protocol || '',
         port: target.port || null,
+        targetIndex: typeof targetIndex === 'number' ? targetIndex : null,
     };
 
     try {
@@ -735,11 +737,12 @@ async function performClientBatch({ action, targets, concurrency, globalClient, 
 
     const results = await runWithConcurrency(
         targets,
-        (target) => executeClientAction({
+        (target, idx) => executeClientAction({
             action,
             target,
             globalClient,
             payload,
+            targetIndex: idx,
         }),
         concurrency
     );
@@ -782,10 +785,11 @@ async function performInboundBatch({
 
         const results = await runWithConcurrency(
             addTargets,
-            (target) => executeInboundAction({
+            (target, idx) => executeInboundAction({
                 action,
                 target,
                 payload: target.payload || payload,
+                targetIndex: idx,
             }),
             concurrency
         );
@@ -890,7 +894,7 @@ async function performInboundBatch({
 
     const results = await runWithConcurrency(
         targets,
-        (target) => executeInboundAction({ action, target, payload }),
+        (target, idx) => executeInboundAction({ action, target, payload, targetIndex: idx }),
         concurrency
     );
     return { output: summarizeBatchResults(action, results) };
@@ -1012,9 +1016,14 @@ function buildRetryRequestSnapshot(entry, options = {}) {
     }
 
     if (entry.type === 'clients') {
-        const failedKeys = new Set(selectedFailed.map((item) => buildClientTargetKey(item)));
+        const failedIndices = new Set(selectedFailed.map((item) => item.targetIndex).filter((idx) => typeof idx === 'number'));
         const currentTargets = Array.isArray(snapshot.targets) ? snapshot.targets : [];
-        snapshot.targets = currentTargets.filter((target) => failedKeys.has(buildClientTargetKey(target)));
+        if (failedIndices.size > 0) {
+            snapshot.targets = currentTargets.filter((target, idx) => failedIndices.has(idx));
+        } else {
+            const failedKeys = new Set(selectedFailed.map((item) => buildClientTargetKey(item)));
+            snapshot.targets = currentTargets.filter((target) => failedKeys.has(buildClientTargetKey(target)));
+        }
     } else if (entry.type === 'inbounds') {
         if (entry.action === 'add') {
             const failedServerIds = new Set(selectedFailed.map((item) => toStringValue(item.serverId)));
@@ -1024,9 +1033,14 @@ function buildRetryRequestSnapshot(entry, options = {}) {
                 snapshot.serverIds = snapshot.serverIds.filter((id) => failedServerIds.has(toStringValue(id)));
             }
         } else {
-            const failedKeys = new Set(selectedFailed.map((item) => buildInboundTargetKey(item)));
+            const failedIndices = new Set(selectedFailed.map((item) => item.targetIndex).filter((idx) => typeof idx === 'number'));
             const currentTargets = Array.isArray(snapshot.targets) ? snapshot.targets : [];
-            snapshot.targets = currentTargets.filter((target) => failedKeys.has(buildInboundTargetKey(target)));
+            if (failedIndices.size > 0) {
+                snapshot.targets = currentTargets.filter((target, idx) => failedIndices.has(idx));
+            } else {
+                const failedKeys = new Set(selectedFailed.map((item) => buildInboundTargetKey(item)));
+                snapshot.targets = currentTargets.filter((target) => failedKeys.has(buildInboundTargetKey(target)));
+            }
         }
     } else if (entry.type === 'user_sync') {
         snapshot.targets = selectedFailed.map((item) => ({
@@ -1378,258 +1392,273 @@ router.delete('/history', (req, res) => {
 });
 
 router.post('/clients', async (req, res) => {
-    const action = String(req.body?.action || '').trim();
-    const targets = Array.isArray(req.body?.targets) ? req.body.targets : [];
-    const concurrency = normalizeConcurrency(req.body?.concurrency, defaultConcurrencyFallback());
-    if (!CLIENT_ACTIONS.has(action)) {
-        return res.status(400).json({
-            success: false,
-            msg: `Unsupported client action: ${action}`,
-        });
-    }
-    if (targets.length === 0) {
-        return res.status(400).json({
-            success: false,
-            msg: 'targets is required',
-        });
-    }
+    try {
+        const action = String(req.body?.action || '').trim();
+        const targets = Array.isArray(req.body?.targets) ? req.body.targets : [];
+        const concurrency = normalizeConcurrency(req.body?.concurrency, defaultConcurrencyFallback());
+        if (!CLIENT_ACTIONS.has(action)) {
+            return res.status(400).json({
+                success: false,
+                msg: `Unsupported client action: ${action}`,
+            });
+        }
+        if (targets.length === 0) {
+            return res.status(400).json({
+                success: false,
+                msg: 'targets is required',
+            });
+        }
 
-    const riskCheck = consumeRiskTokenIfRequired(req, {
-        type: 'clients',
-        action,
-        targetCount: targets.length,
-        isRetry: false,
-    });
-    if (riskCheck.error) {
-        return res.status(riskCheck.error.status).json({
-            success: false,
-            msg: riskCheck.error.msg,
+        const riskCheck = consumeRiskTokenIfRequired(req, {
+            type: 'clients',
+            action,
+            targetCount: targets.length,
+            isRetry: false,
         });
-    }
+        if (riskCheck.error) {
+            return res.status(riskCheck.error.status).json({
+                success: false,
+                msg: riskCheck.error.msg,
+            });
+        }
 
-    const run = await performClientBatch({
-        action,
-        targets,
-        concurrency,
-        globalClient: req.body?.client,
-        payload: req.body?.payload,
-    });
-    if (run.error) {
-        return res.status(run.error.status).json({
-            success: false,
-            msg: run.error.msg,
-        });
-    }
-
-    const output = {
-        ...run.output,
-        risk: riskCheck.risk,
-    };
-    const historyEntry = pushBatchHistory(
-        'clients',
-        action,
-        output,
-        req,
-        {
+        const run = await performClientBatch({
             action,
             targets,
-            client: req.body?.client,
-            payload: req.body?.payload,
             concurrency,
-        },
-        { risk: riskCheck.risk }
-    );
-    if (SENSITIVE_BATCH_ACTIONS.has(action)) {
-        appendSecurityAudit('batch_clients_sensitive_action', req, {
-            action,
-            total: output.summary.total,
-            failed: output.summary.failed,
-            historyId: historyEntry.id,
-            riskLevel: riskCheck.risk.level,
+            globalClient: req.body?.client,
+            payload: req.body?.payload,
         });
-    } else if (riskCheck.risk.level === 'high') {
-        appendSecurityAudit('batch_clients_high_risk_action', req, {
+        if (run.error) {
+            return res.status(run.error.status).json({
+                success: false,
+                msg: run.error.msg,
+            });
+        }
+
+        const output = {
+            ...run.output,
+            risk: riskCheck.risk,
+        };
+        const historyEntry = pushBatchHistory(
+            'clients',
             action,
-            total: output.summary.total,
-            failed: output.summary.failed,
-            historyId: historyEntry.id,
-            riskLevel: riskCheck.risk.level,
+            output,
+            req,
+            {
+                action,
+                targets,
+                client: req.body?.client,
+                payload: req.body?.payload,
+                concurrency,
+            },
+            { risk: riskCheck.risk }
+        );
+        if (SENSITIVE_BATCH_ACTIONS.has(action)) {
+            appendSecurityAudit('batch_clients_sensitive_action', req, {
+                action,
+                total: output.summary.total,
+                failed: output.summary.failed,
+                historyId: historyEntry.id,
+                riskLevel: riskCheck.risk.level,
+            });
+        } else if (riskCheck.risk.level === 'high') {
+            appendSecurityAudit('batch_clients_high_risk_action', req, {
+                action,
+                total: output.summary.total,
+                failed: output.summary.failed,
+                historyId: historyEntry.id,
+                riskLevel: riskCheck.risk.level,
+            });
+        }
+        return res.status(output.summary.failed > 0 ? 207 : 200).json({
+            success: output.summary.failed === 0,
+            obj: {
+                ...output,
+                historyId: historyEntry.id,
+            },
         });
+    } catch (err) {
+        const error = toHttpError(err, 500, '批量操作客户端失败');
+        return res.status(error.status).json({ success: false, msg: error.message });
     }
-    return res.status(output.summary.failed > 0 ? 207 : 200).json({
-        success: output.summary.failed === 0,
-        obj: {
-            ...output,
-            historyId: historyEntry.id,
-        },
-    });
 });
 
 router.post('/inbounds', async (req, res) => {
-    const action = String(req.body?.action || '').trim();
-    const targets = Array.isArray(req.body?.targets) ? req.body.targets : [];
-    const payload = req.body?.payload || null;
-    const serverIds = Array.isArray(req.body?.serverIds) ? req.body.serverIds : [];
-    const syncExistingSubscriptions = normalizeBoolean(req.body?.syncExistingSubscriptions, false);
-    const concurrency = normalizeConcurrency(req.body?.concurrency, defaultConcurrencyFallback());
-    if (!INBOUND_ACTIONS.has(action)) {
-        return res.status(400).json({
-            success: false,
-            msg: `Unsupported inbound action: ${action}`,
-        });
-    }
-    if (action === 'add') {
-        if (targets.length === 0 && serverIds.length === 0) {
+    try {
+        const action = String(req.body?.action || '').trim();
+        const targets = Array.isArray(req.body?.targets) ? req.body.targets : [];
+        const payload = req.body?.payload || null;
+        const serverIds = Array.isArray(req.body?.serverIds) ? req.body.serverIds : [];
+        const syncExistingSubscriptions = normalizeBoolean(req.body?.syncExistingSubscriptions, false);
+        const concurrency = normalizeConcurrency(req.body?.concurrency, defaultConcurrencyFallback());
+        if (!INBOUND_ACTIONS.has(action)) {
             return res.status(400).json({
                 success: false,
-                msg: 'targets or serverIds is required for add action',
+                msg: `Unsupported inbound action: ${action}`,
             });
         }
-    } else if (targets.length === 0) {
-        return res.status(400).json({
-            success: false,
-            msg: 'targets is required',
-        });
-    }
+        if (action === 'add') {
+            if (targets.length === 0 && serverIds.length === 0) {
+                return res.status(400).json({
+                    success: false,
+                    msg: 'targets or serverIds is required for add action',
+                });
+            }
+        } else if (targets.length === 0) {
+            return res.status(400).json({
+                success: false,
+                msg: 'targets is required',
+            });
+        }
 
-    const riskCheck = consumeRiskTokenIfRequired(req, {
-        type: 'inbounds',
-        action,
-        targetCount: inferInboundTargetCount(action, targets, serverIds),
-        isRetry: false,
-    });
-    if (riskCheck.error) {
-        return res.status(riskCheck.error.status).json({
-            success: false,
-            msg: riskCheck.error.msg,
+        const riskCheck = consumeRiskTokenIfRequired(req, {
+            type: 'inbounds',
+            action,
+            targetCount: inferInboundTargetCount(action, targets, serverIds),
+            isRetry: false,
         });
-    }
+        if (riskCheck.error) {
+            return res.status(riskCheck.error.status).json({
+                success: false,
+                msg: riskCheck.error.msg,
+            });
+        }
 
-    const run = await performInboundBatch({
-        action,
-        targets,
-        payload,
-        serverIds,
-        concurrency,
-        syncExistingSubscriptions,
-        actor: req.user?.username || req.user?.role || 'admin',
-    });
-    if (run.error) {
-        return res.status(run.error.status).json({
-            success: false,
-            msg: run.error.msg,
-        });
-    }
-
-    const output = {
-        ...run.output,
-        risk: riskCheck.risk,
-    };
-    const historyEntry = pushBatchHistory(
-        'inbounds',
-        action,
-        output,
-        req,
-        {
+        const run = await performInboundBatch({
             action,
             targets,
             payload,
             serverIds,
-            syncExistingSubscriptions,
             concurrency,
-        },
-        { risk: riskCheck.risk }
-    );
-    if (SENSITIVE_BATCH_ACTIONS.has(action)) {
-        appendSecurityAudit('batch_inbounds_sensitive_action', req, {
-            action,
-            total: output.summary.total,
-            failed: output.summary.failed,
-            historyId: historyEntry.id,
-            riskLevel: riskCheck.risk.level,
+            syncExistingSubscriptions,
+            actor: req.user?.username || req.user?.role || 'admin',
         });
-    } else if (riskCheck.risk.level === 'high') {
-        appendSecurityAudit('batch_inbounds_high_risk_action', req, {
+        if (run.error) {
+            return res.status(run.error.status).json({
+                success: false,
+                msg: run.error.msg,
+            });
+        }
+
+        const output = {
+            ...run.output,
+            risk: riskCheck.risk,
+        };
+        const historyEntry = pushBatchHistory(
+            'inbounds',
             action,
-            total: output.summary.total,
-            failed: output.summary.failed,
-            historyId: historyEntry.id,
-            riskLevel: riskCheck.risk.level,
+            output,
+            req,
+            {
+                action,
+                targets,
+                payload,
+                serverIds,
+                syncExistingSubscriptions,
+                concurrency,
+            },
+            { risk: riskCheck.risk }
+        );
+        if (SENSITIVE_BATCH_ACTIONS.has(action)) {
+            appendSecurityAudit('batch_inbounds_sensitive_action', req, {
+                action,
+                total: output.summary.total,
+                failed: output.summary.failed,
+                historyId: historyEntry.id,
+                riskLevel: riskCheck.risk.level,
+            });
+        } else if (riskCheck.risk.level === 'high') {
+            appendSecurityAudit('batch_inbounds_high_risk_action', req, {
+                action,
+                total: output.summary.total,
+                failed: output.summary.failed,
+                historyId: historyEntry.id,
+                riskLevel: riskCheck.risk.level,
+            });
+        }
+        return res.status(output.summary.failed > 0 ? 207 : 200).json({
+            success: output.summary.failed === 0,
+            obj: {
+                ...output,
+                historyId: historyEntry.id,
+            },
         });
+    } catch (err) {
+        const error = toHttpError(err, 500, '批量操作入站失败');
+        return res.status(error.status).json({ success: false, msg: error.message });
     }
-    return res.status(output.summary.failed > 0 ? 207 : 200).json({
-        success: output.summary.failed === 0,
-        obj: {
-            ...output,
-            historyId: historyEntry.id,
-        },
-    });
 });
 
 router.post('/history/:id/retry', async (req, res) => {
-    const historyItem = getHistoryEntry(req.params.id);
-    if (!historyItem) {
-        return res.status(404).json({
-            success: false,
-            msg: 'Batch history item not found',
-        });
-    }
-
-    const retried = await retryHistoryItem(historyItem, req);
-    if (retried.error) {
-        return res.status(retried.error.status).json({
-            success: false,
-            msg: retried.error.msg,
-        });
-    }
-
-    const output = retried.run;
-    const historyEntry = pushBatchHistory(
-        historyItem.type,
-        historyItem.action,
-        output,
-        req,
-        retried.retryRequest,
-        {
-            retryOf: historyItem.id,
-            risk: retried.risk || null,
-            retryStrategy: retried.retryStrategy || null,
+    try {
+        const historyItem = getHistoryEntry(req.params.id);
+        if (!historyItem) {
+            return res.status(404).json({
+                success: false,
+                msg: 'Batch history item not found',
+            });
         }
-    );
-    if (SENSITIVE_BATCH_ACTIONS.has(historyItem.action)) {
-        appendSecurityAudit('batch_sensitive_retry', req, {
-            type: historyItem.type,
-            action: historyItem.action,
-            sourceHistoryId: historyItem.id,
-            retryHistoryId: historyEntry.id,
-            total: output.summary.total,
-            failed: output.summary.failed,
-            riskLevel: retried.risk?.level || 'unknown',
-        });
-    } else if (retried.risk?.level === 'high') {
-        appendSecurityAudit('batch_high_risk_retry', req, {
-            type: historyItem.type,
-            action: historyItem.action,
-            sourceHistoryId: historyItem.id,
-            retryHistoryId: historyEntry.id,
-            total: output.summary.total,
-            failed: output.summary.failed,
-            riskLevel: retried.risk.level,
-        });
-    }
 
-    return res.status(output.summary.failed > 0 ? 207 : 200).json({
-        success: output.summary.failed === 0,
-        obj: {
-            ...output,
-            risk: retried.risk || null,
-            retryGroups: retried.retryGroups || [],
-            retryStrategy: retried.retryStrategy || null,
-            historyId: historyEntry.id,
-            retriedFrom: historyItem.id,
-            failedOnly: retried.failedOnly,
-        },
-    });
+        const retried = await retryHistoryItem(historyItem, req);
+        if (retried.error) {
+            return res.status(retried.error.status).json({
+                success: false,
+                msg: retried.error.msg,
+            });
+        }
+
+        const output = retried.run;
+        const historyEntry = pushBatchHistory(
+            historyItem.type,
+            historyItem.action,
+            output,
+            req,
+            retried.retryRequest,
+            {
+                retryOf: historyItem.id,
+                risk: retried.risk || null,
+                retryStrategy: retried.retryStrategy || null,
+            }
+        );
+        if (SENSITIVE_BATCH_ACTIONS.has(historyItem.action)) {
+            appendSecurityAudit('batch_sensitive_retry', req, {
+                type: historyItem.type,
+                action: historyItem.action,
+                sourceHistoryId: historyItem.id,
+                retryHistoryId: historyEntry.id,
+                total: output.summary.total,
+                failed: output.summary.failed,
+                riskLevel: retried.risk?.level || 'unknown',
+            });
+        } else if (retried.risk?.level === 'high') {
+            appendSecurityAudit('batch_high_risk_retry', req, {
+                type: historyItem.type,
+                action: historyItem.action,
+                sourceHistoryId: historyItem.id,
+                retryHistoryId: historyEntry.id,
+                total: output.summary.total,
+                failed: output.summary.failed,
+                riskLevel: retried.risk.level,
+            });
+        }
+
+        return res.status(output.summary.failed > 0 ? 207 : 200).json({
+            success: output.summary.failed === 0,
+            obj: {
+                ...output,
+                risk: retried.risk || null,
+                retryGroups: retried.retryGroups || [],
+                retryStrategy: retried.retryStrategy || null,
+                historyId: historyEntry.id,
+                retriedFrom: historyItem.id,
+                failedOnly: retried.failedOnly,
+            },
+        });
+    } catch (err) {
+        const error = toHttpError(err, 500, '重试失败');
+        return res.status(error.status).json({ success: false, msg: error.message });
+    }
 });
 
 router.post('/history/:id/cancel', (req, res) => {
@@ -1669,57 +1698,62 @@ router.get(`/:id(${JOB_ID_PATTERN})`, (req, res) => {
 });
 
 router.post(`/:id(${JOB_ID_PATTERN})/retry`, async (req, res) => {
-    const historyItem = getHistoryEntry(req.params.id);
-    if (!historyItem) {
-        return res.status(404).json({
-            success: false,
-            msg: 'Job not found',
-        });
-    }
-
-    const retried = await retryHistoryItem(historyItem, req);
-    if (retried.error) {
-        return res.status(retried.error.status).json({
-            success: false,
-            msg: retried.error.msg,
-        });
-    }
-
-    const historyEntry = pushBatchHistory(
-        historyItem.type,
-        historyItem.action,
-        retried.run,
-        req,
-        retried.retryRequest,
-        {
-            retryOf: historyItem.id,
-            risk: retried.risk || null,
-            retryStrategy: retried.retryStrategy || null,
+    try {
+        const historyItem = getHistoryEntry(req.params.id);
+        if (!historyItem) {
+            return res.status(404).json({
+                success: false,
+                msg: 'Job not found',
+            });
         }
-    );
-    if (retried.risk?.level === 'high') {
-        appendSecurityAudit('batch_high_risk_retry', req, {
-            type: historyItem.type,
-            action: historyItem.action,
-            sourceHistoryId: historyItem.id,
-            retryHistoryId: historyEntry.id,
-            total: retried.run.summary.total,
-            failed: retried.run.summary.failed,
-            riskLevel: retried.risk.level,
+
+        const retried = await retryHistoryItem(historyItem, req);
+        if (retried.error) {
+            return res.status(retried.error.status).json({
+                success: false,
+                msg: retried.error.msg,
+            });
+        }
+
+        const historyEntry = pushBatchHistory(
+            historyItem.type,
+            historyItem.action,
+            retried.run,
+            req,
+            retried.retryRequest,
+            {
+                retryOf: historyItem.id,
+                risk: retried.risk || null,
+                retryStrategy: retried.retryStrategy || null,
+            }
+        );
+        if (retried.risk?.level === 'high') {
+            appendSecurityAudit('batch_high_risk_retry', req, {
+                type: historyItem.type,
+                action: historyItem.action,
+                sourceHistoryId: historyItem.id,
+                retryHistoryId: historyEntry.id,
+                total: retried.run.summary.total,
+                failed: retried.run.summary.failed,
+                riskLevel: retried.risk.level,
+            });
+        }
+        return res.status(retried.run.summary.failed > 0 ? 207 : 200).json({
+            success: retried.run.summary.failed === 0,
+            obj: {
+                ...retried.run,
+                risk: retried.risk || null,
+                retryGroups: retried.retryGroups || [],
+                retryStrategy: retried.retryStrategy || null,
+                historyId: historyEntry.id,
+                retriedFrom: historyItem.id,
+                failedOnly: retried.failedOnly,
+            },
         });
+    } catch (err) {
+        const error = toHttpError(err, 500, '重试失败');
+        return res.status(error.status).json({ success: false, msg: error.message });
     }
-    return res.status(retried.run.summary.failed > 0 ? 207 : 200).json({
-        success: retried.run.summary.failed === 0,
-        obj: {
-            ...retried.run,
-            risk: retried.risk || null,
-            retryGroups: retried.retryGroups || [],
-            retryStrategy: retried.retryStrategy || null,
-            historyId: historyEntry.id,
-            retriedFrom: historyItem.id,
-            failedOnly: retried.failedOnly,
-        },
-    });
 });
 
 router.post(`/:id(${JOB_ID_PATTERN})/cancel`, (req, res) => {

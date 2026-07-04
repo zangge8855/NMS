@@ -317,7 +317,10 @@ class JobStore {
     }
 
     importState(snapshot = {}) {
-        this.jobs = Array.isArray(snapshot?.jobs) ? snapshot.jobs : [];
+        if (!snapshot || !Array.isArray(snapshot?.jobs)) {
+            throw new Error('Invalid snapshot format for JobStore: jobs array is missing');
+        }
+        this.jobs = snapshot.jobs;
         this._migrateSensitiveFields();
         this._prune();
     }

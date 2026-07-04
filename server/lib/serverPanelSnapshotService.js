@@ -100,16 +100,44 @@ async function fetchServerPanelSnapshot(server, options = {}) {
         client.get('/panel/api/nodes/list'),
     ]);
 
-    const inbounds = inboundsResult.status === 'fulfilled' && Array.isArray(inboundsResult.value?.data?.obj)
-        ? inboundsResult.value.data.obj
-        : [];
-    const nodes = nodesResult.status === 'fulfilled' && Array.isArray(nodesResult.value?.data?.obj)
+    let inbounds = null;
+    let inboundsError = null;
+    if (inboundsResult.status === 'rejected') {
+        inboundsError = normalizeError(inboundsResult.reason, 'PANEL_INBOUND_LIST_FAILED');
+    } else if (inboundsResult.value?.data?.success === false) {
+        inboundsError = {
+            code: 'PANEL_API_ERROR',
+            message: String(inboundsResult.value?.data?.msg || 'api success false'),
+        };
+    } else if (Array.isArray(inboundsResult.value?.data?.obj)) {
+        inbounds = inboundsResult.value.data.obj;
+    } else {
+        inboundsError = {
+            code: 'PANEL_INVALID_RESPONSE',
+            message: 'Inbounds payload obj is not an array',
+        };
+    }
+
+    const nodes = nodesResult.status === 'fulfilled' && nodesResult.value?.data?.success !== false && Array.isArray(nodesResult.value?.data?.obj)
         ? nodesResult.value.data.obj
         : [];
-    const onlines = onlinesResult.status === 'fulfilled'
-        ? normalizeOnlineEntries(onlinesResult.value?.data?.obj, { nodes })
-        : [];
-    const lastOnline = lastOnlineResult.status === 'fulfilled'
+
+    let onlines = [];
+    let onlinesError = null;
+    if (includeOnlines) {
+        if (onlinesResult.status === 'rejected') {
+            onlinesError = normalizeError(onlinesResult.reason, 'PANEL_ONLINES_FAILED');
+        } else if (onlinesResult.value?.data?.success === false) {
+            onlinesError = {
+                code: 'PANEL_API_ERROR',
+                message: String(onlinesResult.value?.data?.msg || 'api success false'),
+            };
+        } else {
+            onlines = normalizeOnlineEntries(onlinesResult.value?.data?.obj, { nodes });
+        }
+    }
+
+    const lastOnline = lastOnlineResult.status === 'fulfilled' && lastOnlineResult.value?.data?.success !== false
         ? normalizeLastOnlineMap(lastOnlineResult.value?.data?.obj)
         : {};
 
@@ -122,12 +150,8 @@ async function fetchServerPanelSnapshot(server, options = {}) {
         onlines,
         lastOnline,
         nodes,
-        inboundsError: inboundsResult.status === 'rejected'
-            ? normalizeError(inboundsResult.reason, 'PANEL_INBOUND_LIST_FAILED')
-            : null,
-        onlinesError: includeOnlines && onlinesResult.status === 'rejected'
-            ? normalizeError(onlinesResult.reason, 'PANEL_ONLINES_FAILED')
-            : null,
+        inboundsError,
+        onlinesError,
         checkedAt,
     };
 }

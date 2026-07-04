@@ -1548,27 +1548,21 @@ class TrafficStatsStore {
     }
 
     importState(snapshot = {}) {
-        this.samples = Array.isArray(snapshot?.samples) ? snapshot.samples : [];
-        this.counters = snapshot?.counters && typeof snapshot.counters === 'object' && !Array.isArray(snapshot.counters)
-            ? snapshot.counters
-            : {};
-        this.meta = snapshot?.meta && typeof snapshot.meta === 'object' && !Array.isArray(snapshot.meta)
-            ? {
-                ...snapshot.meta,
-                currentTotalsAt: normalizeDateInput(snapshot?.meta?.currentTotalsAt, null),
-                registeredTotals: hasOwn(snapshot.meta, 'registeredTotals')
-                    ? normalizeRegisteredTotals(snapshot?.meta?.registeredTotals)
-                    : null,
-                serverTotals: hasOwn(snapshot.meta, 'serverTotals')
-                    ? normalizeServerTotals(snapshot?.meta?.serverTotals)
-                    : null,
-            }
-            : {
-                lastCollectionAt: null,
-                currentTotalsAt: null,
-                registeredTotals: createRegisteredTotals(),
-                serverTotals: [],
-            };
+        if (!snapshot || !Array.isArray(snapshot?.samples) || !snapshot?.counters || typeof snapshot.counters !== 'object' || Array.isArray(snapshot.counters) || !snapshot?.meta || typeof snapshot.meta !== 'object' || Array.isArray(snapshot.meta)) {
+            throw new Error('Invalid snapshot format for TrafficStatsStore: samples array, counters object, or meta object is missing');
+        }
+        this.samples = snapshot.samples;
+        this.counters = snapshot.counters;
+        this.meta = {
+            ...snapshot.meta,
+            currentTotalsAt: normalizeDateInput(snapshot.meta.currentTotalsAt, null),
+            registeredTotals: hasOwn(snapshot.meta, 'registeredTotals')
+                ? normalizeRegisteredTotals(snapshot.meta.registeredTotals)
+                : null,
+            serverTotals: hasOwn(snapshot.meta, 'serverTotals')
+                ? normalizeServerTotals(snapshot.meta.serverTotals)
+                : null,
+        };
         this._touchState();
         this._prune();
     }

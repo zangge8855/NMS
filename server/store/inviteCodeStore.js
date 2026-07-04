@@ -332,11 +332,12 @@ class InviteCodeStore {
     }
 
     importState(snapshot = {}) {
-        this.invites = Array.isArray(snapshot?.invites)
-            ? snapshot.invites
-                .map((item) => normalizeRecord(item))
-                .filter((item) => item.codeHash && item.preview)
-            : [];
+        if (!snapshot || !Array.isArray(snapshot?.invites)) {
+            throw new Error('Invalid snapshot format for InviteCodeStore: invites array is missing');
+        }
+        this.invites = snapshot.invites
+            .map((item) => normalizeRecord(item))
+            .filter((item) => item.codeHash && item.preview);
     }
 }
 

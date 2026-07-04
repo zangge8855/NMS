@@ -1720,10 +1720,10 @@ export default function SystemSettings() {
                                     text={siteEntryPreview}
                                     successText={t("pages.settings.theEntranceAddressHasBeenCopiedToTh")}
                                 >
-                                    {locale === 'en-US' ? 'Copy Entry' : '复制入口'}
+                                    {t('pages.settings.copyEntry')}
                                 </CopyFeedbackButton>
                                 <a href={siteEntryPreview} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">
-                                    {locale === 'en-US' ? 'Open Preview' : '打开预览'}
+                                    {t('pages.settings.openPreview')}
                                 </a>
                             </div>
                         )}
@@ -1750,7 +1750,7 @@ export default function SystemSettings() {
                                             className="btn btn-secondary btn-sm"
                                             onClick={applyRandomSiteAccessPath}
                                         >
-                                            {locale === 'en-US' ? 'Random Path' : '随机路径'}
+                                            {t('pages.settings.randomPath')}
                                         </button>
                                     </div>
                                 </div>
@@ -1886,7 +1886,7 @@ export default function SystemSettings() {
                                         }}
                                         disabled={!converterBaseUrl && !converterClashConfigUrl && !converterSingboxConfigUrl && !converterSurgeConfigUrl}
                                     >
-                                        {locale === 'en-US' ? 'Clear All' : '清空全部'}
+                                        {t('pages.settings.clearAll')}
                                     </button>
                                     <a
                                         href={converterBaseUrl || undefined}
@@ -1898,7 +1898,7 @@ export default function SystemSettings() {
                                             if (!converterBaseUrl) event.preventDefault();
                                         }}
                                     >
-                                        {locale === 'en-US' ? 'Open Link' : '打开链接'}
+                                        {t('pages.settings.openLink')}
                                     </a>
                                 </div>
                             </div>
@@ -2507,7 +2507,7 @@ export default function SystemSettings() {
                                         className="btn btn-ghost btn-xs"
                                         onClick={clearSavedTelegramToken}
                                     >
-                                        {locale === 'en-US' ? 'Clear Saved Token' : '清空已保存 Token'}
+                                        {t('pages.settings.clearSavedToken')}
                                     </button>
                                 ) : null}
                             </div>
@@ -2672,7 +2672,7 @@ export default function SystemSettings() {
                                 }}
                                 disabled={backupLoading || backupRestoreLoading || backupLocalSaving}
                             >
-                                <HiOutlineArrowUpTray /> {locale === 'en-US' ? 'Import / Restore Backup' : '导入 / 恢复备份'}
+                                <HiOutlineArrowUpTray /> {t('pages.settings.importRestoreBackup')}
                             </button>
                         </div>
                     </div>
@@ -2989,7 +2989,7 @@ export default function SystemSettings() {
                                     </button>
                                     {dbBackfillResult && (
                                         <div className="text-sm text-muted settings-db-card-result">
-                                            {locale === 'en-US' ? 'Total' : '总计'} {dbBackfillResult.total || 0} · {locale === 'en-US' ? 'Success' : '成功'} {dbBackfillResult.success || 0} · {locale === 'en-US' ? 'Failed' : '失败'} {dbBackfillResult.failed || 0}
+                                            {t('pages.settings.total')} {dbBackfillResult.total || 0} · {t('pages.settings.success')} {dbBackfillResult.success || 0} · {t('pages.settings.failed')} {dbBackfillResult.failed || 0}
                                         </div>
                                     )}
                                 </div>
@@ -3303,7 +3303,7 @@ export default function SystemSettings() {
                         surface
                         action={(
                             <button type="button" className="btn btn-secondary" onClick={() => { window.location.href = '/account'; }}>
-                                {locale === 'en-US' ? 'Go to Account Center' : '前往账户中心'}
+                                {t('pages.settings.goToAccountCenter')}
                             </button>
                         )}
                     />
@@ -3554,7 +3554,7 @@ export default function SystemSettings() {
                     </div>
                     <div className="modal-footer">
                         <button type="button" className="btn btn-secondary" onClick={() => setNoticeModalOpen(false)} disabled={noticeSending}>
-                            {locale === 'en-US' ? 'Cancel' : '取消'}
+                            {t('pages.settings.cancel')}
                         </button>
                         <button type="button" className="btn btn-primary" onClick={sendRegisteredUserNotice} disabled={noticeSending || !emailStatus?.configured}>
                             {noticeSending ? <span className="spinner" /> : t('pages.settings.startSendingBtn')}
@@ -3672,7 +3672,7 @@ export default function SystemSettings() {
                     </div>
                     <div className="modal-footer">
                         <button type="button" className="btn btn-secondary" onClick={() => setBackupRestoreModalOpen(false)}>
-                            {locale === 'en-US' ? 'Cancel' : '取消'}
+                            {t('pages.settings.cancel')}
                         </button>
                         <button
                             type="button"

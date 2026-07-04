@@ -550,14 +550,18 @@ class AuditStore {
     }
 
     importState(snapshot = {}) {
-        this.events = Array.isArray(snapshot?.events) ? snapshot.events : [];
-        this.subscriptionAccess = Array.isArray(snapshot?.subscriptionAccess) ? snapshot.subscriptionAccess : [];
+        if (!snapshot || !Array.isArray(snapshot?.events) || !Array.isArray(snapshot?.subscriptionAccess)) {
+            throw new Error('Invalid snapshot format for AuditStore: events or subscriptionAccess array is missing');
+        }
+        this.events = snapshot.events;
+        this.subscriptionAccess = snapshot.subscriptionAccess;
         this._pruneExpired();
     }
 
     _save() {
         saveArray(AUDIT_EVENTS_FILE, this.events);
         saveArray(SUB_ACCESS_FILE, this.subscriptionAccess);
+        this._mirrorSnapshot();
     }
 }
 

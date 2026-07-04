@@ -596,8 +596,10 @@ class UserStore {
     }
 
     importState(snapshot = {}) {
-        const nextUsers = Array.isArray(snapshot?.users) ? snapshot.users : [];
-        this.users = nextUsers.map((item) => {
+        if (!snapshot || !Array.isArray(snapshot?.users)) {
+            throw new Error('Invalid snapshot format for UserStore: users array is missing');
+        }
+        this.users = snapshot.users.map((item) => {
             const aliasCheck = validateSubscriptionAliasPath(item?.subscriptionAliasPath);
             return {
                 ...item,

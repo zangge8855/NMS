@@ -181,15 +181,17 @@ async function legacyUpdateAppearsApplied(panelClient, inboundId, clientIdentifi
 }
 
 async function postJson(client, path, data = {}) {
-    return client.post(path, data, {
+    const response = await client.post(path, data, {
         headers: { 'Content-Type': 'application/json' },
     });
+    return assertPanelResponseSuccess(response, `Post json to ${path} failed`);
 }
 
 async function postForm(client, path, data = {}) {
-    return client.post(path, buildFormBody(data), {
+    const response = await client.post(path, buildFormBody(data), {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
+    return assertPanelResponseSuccess(response, `Post form to ${path} failed`);
 }
 
 async function fetchInboundById(panelClient, inboundId) {
@@ -455,7 +457,10 @@ async function removeClientFromInboundV3(panelClient, inboundId, email) {
         && normalizeText(inboundIds[0]) === normalizeText(inboundId);
 
     if (onlyAttachedToCurrentInbound) {
-        return panelClient.post(`/panel/api/clients/del/${encodePathSegment(email)}`);
+        return assertPanelResponseSuccess(
+            await panelClient.post(`/panel/api/clients/del/${encodePathSegment(email)}`),
+            'Delete client V3 failed'
+        );
     }
 
     return postDetachClientFromInboundV3(panelClient, inboundId, email);
@@ -606,7 +611,10 @@ async function resetInboundClientTrafficsByEmail(panelClient, inboundId) {
         clients.map((item) => normalizeEmail(item?.email)).filter(Boolean)
     ));
     for (const email of emails) {
-        await panelClient.post(`/panel/api/clients/resetTraffic/${encodePathSegment(email)}`);
+        await assertPanelResponseSuccess(
+            await panelClient.post(`/panel/api/clients/resetTraffic/${encodePathSegment(email)}`),
+            'Reset client traffic failed'
+        );
     }
 }
 
@@ -614,7 +622,10 @@ export async function resetInboundTrafficCompat(panelClient, inboundId) {
     let lastError = null;
 
     try {
-        const response = await panelClient.post(`/panel/api/inbounds/${encodePathSegment(inboundId)}/resetTraffic`);
+        const response = assertPanelResponseSuccess(
+            await panelClient.post(`/panel/api/inbounds/${encodePathSegment(inboundId)}/resetTraffic`),
+            'Reset inbound traffic failed'
+        );
         await resetInboundClientTrafficsByEmail(panelClient, inboundId);
         return response;
     } catch (error) {
@@ -630,7 +641,10 @@ export async function resetInboundTrafficCompat(panelClient, inboundId) {
     ];
     for (const path of legacyPaths) {
         try {
-            return await panelClient.post(path);
+            return assertPanelResponseSuccess(
+                await panelClient.post(path),
+                'Reset traffic legacy failed'
+            );
         } catch (error) {
             lastError = error;
             if (!isUnsupportedPanelEndpointError(error)) {
@@ -657,7 +671,10 @@ function resolveClientTraffic(client = {}, statsByEmail = new Map()) {
 
 export async function cleanupDepletedClientsCompat(panelClient, inboundId) {
     try {
-        return await panelClient.post(`/panel/api/inbounds/delDepletedClients/${encodePathSegment(inboundId)}`);
+        return assertPanelResponseSuccess(
+            await panelClient.post(`/panel/api/inbounds/delDepletedClients/${encodePathSegment(inboundId)}`),
+            'Delete depleted clients failed'
+        );
     } catch (error) {
         if (!isUnsupportedPanelEndpointError(error)) {
             throw error;

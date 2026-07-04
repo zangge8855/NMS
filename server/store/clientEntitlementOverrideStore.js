@@ -115,9 +115,10 @@ class ClientEntitlementOverrideStore {
     }
 
     importState(snapshot = {}) {
-        this.records = snapshot?.records && typeof snapshot.records === 'object' && !Array.isArray(snapshot.records)
-            ? snapshot.records
-            : {};
+        if (!snapshot || !snapshot.records || typeof snapshot.records !== 'object' || Array.isArray(snapshot.records)) {
+            throw new Error('Invalid snapshot format for ClientEntitlementOverrideStore: records object is missing');
+        }
+        this.records = snapshot.records;
     }
 }
 

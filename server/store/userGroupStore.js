@@ -164,7 +164,10 @@ class UserGroupStore {
     }
 
     importState(snapshot = {}) {
-        this.groups = (Array.isArray(snapshot?.groups) ? snapshot.groups : [])
+        if (!snapshot || !Array.isArray(snapshot?.groups)) {
+            throw new Error('Invalid snapshot format for UserGroupStore: groups array is missing');
+        }
+        this.groups = snapshot.groups
             .map((item) => normalizeGroupRecord(item))
             .filter((item) => item.id && item.name);
     }

@@ -515,7 +515,10 @@ class SubscriptionTokenStore {
     }
 
     importState(snapshot = {}) {
-        this.tokens = Array.isArray(snapshot?.tokens) ? snapshot.tokens : [];
+        if (!snapshot || !Array.isArray(snapshot?.tokens)) {
+            throw new Error('Invalid snapshot format for SubscriptionTokenStore: tokens array is missing');
+        }
+        this.tokens = snapshot.tokens;
     }
 }
 

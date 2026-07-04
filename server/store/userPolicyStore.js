@@ -320,9 +320,10 @@ class UserPolicyStore {
     }
 
     importState(snapshot = {}) {
-        this.policies = snapshot?.policies && typeof snapshot.policies === 'object' && !Array.isArray(snapshot.policies)
-            ? snapshot.policies
-            : {};
+        if (!snapshot || !snapshot.policies || typeof snapshot.policies !== 'object' || Array.isArray(snapshot.policies)) {
+            throw new Error('Invalid snapshot format for UserPolicyStore: policies object is missing');
+        }
+        this.policies = snapshot.policies;
     }
 }
 
