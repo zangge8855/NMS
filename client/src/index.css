@@ -4547,7 +4547,7 @@ input[type="radio"]:focus-visible {
 
 /* --- Table row selection highlight --- */
 .table-row-selected td {
-  background: rgba(99,102,241,0.08) !important;
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent) !important;
 }
 
 .table-row-selected td:first-child {

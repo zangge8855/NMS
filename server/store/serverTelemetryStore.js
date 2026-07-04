@@ -26,15 +26,16 @@ function ensureDataDir() {
 }
 
 function loadTelemetry() {
+    if (!fs.existsSync(TELEMETRY_FILE)) return {};
     try {
-        if (!fs.existsSync(TELEMETRY_FILE)) return {};
         const parsed = JSON.parse(fs.readFileSync(TELEMETRY_FILE, 'utf8'));
         if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-            return {};
+            throw new Error('Data in telemetry.json is not a valid JSON object');
         }
         return parsed;
-    } catch {
-        return {};
+    } catch (error) {
+        console.error('Failed to load telemetry.json:', error.message);
+        throw error;
     }
 }
 

@@ -52,15 +52,18 @@ class UserGroupStore {
     }
 
     _load() {
+        if (!fs.existsSync(USER_GROUP_FILE)) return [];
         try {
-            if (!fs.existsSync(USER_GROUP_FILE)) return [];
             const parsed = JSON.parse(fs.readFileSync(USER_GROUP_FILE, 'utf8'));
-            if (!Array.isArray(parsed)) return [];
+            if (!Array.isArray(parsed)) {
+                throw new Error('Data in user_groups.json is not a JSON array');
+            }
             return parsed
                 .map((item) => normalizeGroupRecord(item))
                 .filter((item) => item.id && item.name);
-        } catch {
-            return [];
+        } catch (error) {
+            console.error('Failed to load user_groups.json:', error.message);
+            throw error;
         }
     }
 

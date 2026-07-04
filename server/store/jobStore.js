@@ -38,12 +38,16 @@ function ensureDataDir() {
 }
 
 function loadArray(file) {
+    if (!fs.existsSync(file)) return [];
     try {
-        if (!fs.existsSync(file)) return [];
         const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
-        return Array.isArray(parsed) ? parsed : [];
-    } catch {
-        return [];
+        if (!Array.isArray(parsed)) {
+            throw new Error(`Data in ${file} is not a JSON array`);
+        }
+        return parsed;
+    } catch (error) {
+        console.error(`Failed to load ${file}:`, error.message);
+        throw error;
     }
 }
 

@@ -254,7 +254,8 @@ export async function restoreStoreSnapshots(snapshots = {}, options = {}) {
 
             if (typeof store?._save === 'function') {
                 store._save();
-            } else if (typeof store?.exportState === 'function') {
+            }
+            if (typeof store?.exportState === 'function') {
                 await writeStoreSnapshotNow(key, store.exportState(), { redact: false });
             }
 

@@ -69,14 +69,16 @@ class ClientEntitlementOverrideStore {
     }
 
     _load() {
+        if (!fs.existsSync(OVERRIDE_FILE)) return {};
         try {
-            if (!fs.existsSync(OVERRIDE_FILE)) return {};
             const parsed = JSON.parse(fs.readFileSync(OVERRIDE_FILE, 'utf8'));
-            return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-                ? parsed
-                : {};
-        } catch {
-            return {};
+            if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+                throw new Error('Data in client_entitlement_overrides.json is not a valid JSON object');
+            }
+            return parsed;
+        } catch (error) {
+            console.error('Failed to load client_entitlement_overrides.json:', error.message);
+            throw error;
         }
     }
 

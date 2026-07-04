@@ -158,18 +158,20 @@ class InviteCodeStore {
     }
 
     _load() {
+        if (!fs.existsSync(this.filePath)) {
+            return [];
+        }
         try {
-            if (!fs.existsSync(this.filePath)) {
-                return [];
-            }
             const parsed = JSON.parse(fs.readFileSync(this.filePath, 'utf8'));
-            if (!Array.isArray(parsed)) return [];
+            if (!Array.isArray(parsed)) {
+                throw new Error('Data in invite_codes.json is not a JSON array');
+            }
             return parsed
                 .map((item) => normalizeRecord(item))
                 .filter((item) => item.codeHash && item.preview);
         } catch (error) {
             console.error('Failed to load invite_codes.json:', error.message);
-            return [];
+            throw error;
         }
     }
 

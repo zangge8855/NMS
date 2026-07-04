@@ -46,15 +46,17 @@ class SubscriptionTokenStore {
     }
 
     _load() {
+        if (!fs.existsSync(TOKENS_FILE)) return [];
         try {
-            if (fs.existsSync(TOKENS_FILE)) {
-                const parsed = JSON.parse(fs.readFileSync(TOKENS_FILE, 'utf8'));
-                if (Array.isArray(parsed)) return parsed;
+            const parsed = JSON.parse(fs.readFileSync(TOKENS_FILE, 'utf8'));
+            if (!Array.isArray(parsed)) {
+                throw new Error('Data in subscription_tokens.json is not a JSON array');
             }
+            return parsed;
         } catch (error) {
             console.error('Failed to load subscription_tokens.json:', error.message);
+            throw error;
         }
-        return [];
     }
 
     _resolvePublicId(record) {

@@ -133,14 +133,16 @@ class UserPolicyStore {
     }
 
     _load() {
+        if (!fs.existsSync(USER_POLICY_FILE)) return {};
         try {
-            if (!fs.existsSync(USER_POLICY_FILE)) return {};
             const parsed = JSON.parse(fs.readFileSync(USER_POLICY_FILE, 'utf8'));
-            return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-                ? parsed
-                : {};
-        } catch {
-            return {};
+            if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+                throw new Error('Data in user_policies.json is not a valid JSON object');
+            }
+            return parsed;
+        } catch (error) {
+            console.error('Failed to load user_policies.json:', error.message);
+            throw error;
         }
     }
 

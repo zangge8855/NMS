@@ -1199,56 +1199,97 @@ class TrafficStatsStore {
                 includeOnlines: false,
                 force: options.force === true,
             });
-            const inbounds = Array.isArray(panelSnapshot?.inbounds) ? panelSnapshot.inbounds : [];
-            if (panelSnapshot?.inboundsError) {
-                // Panel unreachable: keep inbounds null so this server is excluded from the
-                // totals snapshot and its counters are left untouched (no spurious delta).
+            if (!panelSnapshot || panelSnapshot.inboundsError || !Array.isArray(panelSnapshot.inbounds)) {
                 result.inbounds = null;
                 result.warning = {
                     serverId: serverMeta.id,
                     server: serverMeta.name,
-                    reason: panelSnapshot.inboundsError.message || 'panel inbounds unavailable',
+                    reason: panelSnapshot?.inboundsError?.message || 'panel inbounds unavailable',
                 };
             } else {
-                result.inbounds = inbounds;
-            }
+                result.inbounds = panelSnapshot.inbounds;
+                for (const inbound of panelSnapshot.inbounds) {
+                    const { clients, hasClientTraffic } = extractInboundClients(inbound);
+                    let clientTrafficCaptured = false;
+                    for (let i = 0; i < clients.length; i += 1) {
+                        const cl = clients[i] || {};
+                        const email = String(cl.email || '').trim().toLowerCase();
+                        const identifier = String(
+                            cl.id || cl.password || cl.email || `${inbound.id || 'inbound'}-${i}`
+                        );
+                        const up = toNonNegativeInt(cl.up, 0);
+                        const down = toNonNegativeInt(cl.down, 0);
+                        const total = up + down;
+                        const counterKey = `${serverMeta.id}|${String(inbound.id || '')}|${identifier}`;
+                        const prev = this.counters[counterKey];
+                        const deltaUp = calculateTrafficDelta(up, prev?.up);
+                        const deltaDown = calculateTrafficDelta(down, prev?.down);
+                        const deltaTotal = deltaUp + deltaDown;
 
-            for (const inbound of inbounds) {
-                const { clients, hasClientTraffic } = extractInboundClients(inbound);
-                let clientTrafficCaptured = false;
-                for (let i = 0; i < clients.length; i += 1) {
-                    const cl = clients[i] || {};
-                    const email = String(cl.email || '').trim().toLowerCase();
-                    const identifier = String(
-                        cl.id || cl.password || cl.email || `${inbound.id || 'inbound'}-${i}`
-                    );
-                    const up = toNonNegativeInt(cl.up, 0);
-                    const down = toNonNegativeInt(cl.down, 0);
-                    const total = up + down;
-                    const counterKey = `${serverMeta.id}|${String(inbound.id || '')}|${identifier}`;
-                    const prev = this.counters[counterKey];
-                    const deltaUp = calculateTrafficDelta(up, prev?.up);
-                    const deltaDown = calculateTrafficDelta(down, prev?.down);
-                    const deltaTotal = deltaUp + deltaDown;
+                        // Only update lastSeenAt if there is actual traffic progress (deltaTotal > 0),
+                        // or if this is the first time we see the client and they have non-zero traffic.
+                        const lastSeenAt = (deltaTotal > 0 || (!prev && total > 0))
+                            ? collectedAtIso
+                            : (prev?.lastSeenAt || new Date(0).toISOString());
 
-                    // Only update lastSeenAt if there is actual traffic progress (deltaTotal > 0),
-                    // or if this is the first time we see the client and they have non-zero traffic.
-                    const lastSeenAt = (deltaTotal > 0 || (!prev && total > 0))
+                        this.counters[counterKey] = {
+                            up,
+                            down,
+                            total,
+                            serverId: serverMeta.id,
+                            inboundId: String(inbound.id || ''),
+                            email,
+                            lastSeenAt,
+                        };
+
+                        if (deltaTotal <= 0) continue;
+                        clientTrafficCaptured = true;
+                        result.samples.push({
+                            id: crypto.randomUUID(),
+                            kind: SAMPLE_KIND_CLIENT_DELTA,
+                            ts: collectedAtIso,
+                            granularity: 'raw',
+                            serverId: serverMeta.id,
+                            serverName: serverMeta.name,
+                            inboundId: String(inbound.id || ''),
+                            inboundRemark: inbound.remark || '',
+                            protocol: inbound.protocol || '',
+                            email,
+                            clientIdentifier: identifier,
+                            upBytes: deltaUp,
+                            downBytes: deltaDown,
+                            totalBytes: deltaTotal,
+                        });
+                    }
+
+                    if (!shouldUseInboundTotalFallback(hasClientTraffic, clientTrafficCaptured)) {
+                        continue;
+                    }
+
+                    const inboundUp = toNonNegativeInt(inbound?.up, 0);
+                    const inboundDown = toNonNegativeInt(inbound?.down, 0);
+                    const inboundTotal = inboundUp + inboundDown;
+                    const inboundCounterKey = `${serverMeta.id}|${String(inbound.id || '')}|__inbound_total__`;
+                    const prevInbound = this.counters[inboundCounterKey];
+                    const deltaInboundUp = calculateTrafficDelta(inboundUp, prevInbound?.up);
+                    const deltaInboundDown = calculateTrafficDelta(inboundDown, prevInbound?.down);
+                    const deltaInboundTotal = deltaInboundUp + deltaInboundDown;
+
+                    const inboundLastSeenAt = (deltaInboundTotal > 0 || (!prevInbound && inboundTotal > 0))
                         ? collectedAtIso
-                        : (prev?.lastSeenAt || new Date(0).toISOString());
+                        : (prevInbound?.lastSeenAt || new Date(0).toISOString());
 
-                    this.counters[counterKey] = {
-                        up,
-                        down,
-                        total,
+                    this.counters[inboundCounterKey] = {
+                        up: inboundUp,
+                        down: inboundDown,
+                        total: inboundTotal,
                         serverId: serverMeta.id,
                         inboundId: String(inbound.id || ''),
-                        email,
-                        lastSeenAt,
+                        email: '',
+                        lastSeenAt: inboundLastSeenAt,
                     };
 
-                    if (deltaTotal <= 0) continue;
-                    clientTrafficCaptured = true;
+                    if (deltaInboundTotal <= 0) continue;
                     result.samples.push({
                         id: crypto.randomUUID(),
                         kind: SAMPLE_KIND_CLIENT_DELTA,
@@ -1259,58 +1300,13 @@ class TrafficStatsStore {
                         inboundId: String(inbound.id || ''),
                         inboundRemark: inbound.remark || '',
                         protocol: inbound.protocol || '',
-                        email,
-                        clientIdentifier: identifier,
-                        upBytes: deltaUp,
-                        downBytes: deltaDown,
-                        totalBytes: deltaTotal,
+                        email: '',
+                        clientIdentifier: '__inbound_total__',
+                        upBytes: deltaInboundUp,
+                        downBytes: deltaInboundDown,
+                        totalBytes: deltaInboundTotal,
                     });
                 }
-
-                if (!shouldUseInboundTotalFallback(hasClientTraffic, clientTrafficCaptured)) {
-                    continue;
-                }
-
-                const inboundUp = toNonNegativeInt(inbound?.up, 0);
-                const inboundDown = toNonNegativeInt(inbound?.down, 0);
-                const inboundTotal = inboundUp + inboundDown;
-                const inboundCounterKey = `${serverMeta.id}|${String(inbound.id || '')}|__inbound_total__`;
-                const prevInbound = this.counters[inboundCounterKey];
-                const deltaInboundUp = calculateTrafficDelta(inboundUp, prevInbound?.up);
-                const deltaInboundDown = calculateTrafficDelta(inboundDown, prevInbound?.down);
-                const deltaInboundTotal = deltaInboundUp + deltaInboundDown;
-
-                const inboundLastSeenAt = (deltaInboundTotal > 0 || (!prevInbound && inboundTotal > 0))
-                    ? collectedAtIso
-                    : (prevInbound?.lastSeenAt || new Date(0).toISOString());
-
-                this.counters[inboundCounterKey] = {
-                    up: inboundUp,
-                    down: inboundDown,
-                    total: inboundTotal,
-                    serverId: serverMeta.id,
-                    inboundId: String(inbound.id || ''),
-                    email: '',
-                    lastSeenAt: inboundLastSeenAt,
-                };
-
-                if (deltaInboundTotal <= 0) continue;
-                result.samples.push({
-                    id: crypto.randomUUID(),
-                    kind: SAMPLE_KIND_CLIENT_DELTA,
-                    ts: collectedAtIso,
-                    granularity: 'raw',
-                    serverId: serverMeta.id,
-                    serverName: serverMeta.name,
-                    inboundId: String(inbound.id || ''),
-                    inboundRemark: inbound.remark || '',
-                    protocol: inbound.protocol || '',
-                    email: '',
-                    clientIdentifier: '__inbound_total__',
-                    upBytes: deltaInboundUp,
-                    downBytes: deltaInboundDown,
-                    totalBytes: deltaInboundTotal,
-                });
             }
         } catch (error) {
             result.warning = {

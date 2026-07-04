@@ -27,25 +27,25 @@ export function saveObjectAtomic(file, data) {
     const content = JSON.stringify(data, null, 2);
     const tempFile = makeTempFile(file);
 
-    let tempWritten = false;
     try {
         fs.writeFileSync(tempFile, content, 'utf8');
-        tempWritten = true;
         fs.renameSync(tempFile, file);
     } catch (e) {
         // Only fall back to a direct write when the temp file was fully written but the
         // rename failed (e.g. Windows file locks / cross-device links). If the temp write
         // itself failed (ENOSPC, EACCES, …), a direct write would truncate the real file
         // first and could fail mid-write, destroying the last good copy — so rethrow.
-        if (!tempWritten) {
-            console.error(`[Store Error] Failed to write temp file for ${file}:`, e);
+        const isRenameError = e.syscall === 'rename' || e.code === 'EXDEV';
+        if (isRenameError) {
+            try {
+                fs.writeFileSync(file, content, 'utf8');
+            } catch (writeErr) {
+                console.error(`[Store Error] Failed to fallback write to ${file}:`, writeErr);
+                throw writeErr;
+            }
+        } else {
+            console.error(`[Store Error] Failed to write file atomically for ${file}:`, e);
             throw e;
-        }
-        try {
-            fs.writeFileSync(file, content, 'utf8');
-        } catch (writeErr) {
-            console.error(`[Store Error] Failed to fallback write to ${file}:`, writeErr);
-            throw writeErr;
         }
     } finally {
         if (fs.existsSync(tempFile)) {
@@ -71,21 +71,21 @@ export async function saveObjectAtomicAsync(file, data) {
     const content = JSON.stringify(data, null, 2);
     const tempFile = makeTempFile(file);
 
-    let tempWritten = false;
     try {
         await fs.promises.writeFile(tempFile, content, 'utf8');
-        tempWritten = true;
         await fs.promises.rename(tempFile, file);
     } catch (e) {
-        if (!tempWritten) {
-            console.error(`[Store Error] Failed to write temp file for ${file}:`, e);
+        const isRenameError = e.syscall === 'rename' || e.code === 'EXDEV';
+        if (isRenameError) {
+            try {
+                await fs.promises.writeFile(file, content, 'utf8');
+            } catch (writeErr) {
+                console.error(`[Store Error] Failed to fallback async write to ${file}:`, writeErr);
+                throw writeErr;
+            }
+        } else {
+            console.error(`[Store Error] Failed to write file atomically async for ${file}:`, e);
             throw e;
-        }
-        try {
-            await fs.promises.writeFile(file, content, 'utf8');
-        } catch (writeErr) {
-            console.error(`[Store Error] Failed to fallback async write to ${file}:`, writeErr);
-            throw writeErr;
         }
     } finally {
         try {
