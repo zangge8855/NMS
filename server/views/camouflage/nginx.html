@@ -233,8 +233,14 @@
         }
 
         .{{class:section-grid}} {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             margin-top: 20px;
+        }
+
+        @media (max-width: 1080px) and (min-width: 861px) {
+            .{{class:section-grid}} {
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            }
         }
 
         .{{class:section-card}} {
@@ -454,6 +460,17 @@
                 <p class="{{class:card-copy}}">
                     <span data-lang="zh-CN">{{archiveNoticeZh}}</span>
                     <span data-lang="en-US" hidden>{{archiveNoticeEn}}</span>
+                </p>
+            </article>
+            <article class="{{class:section-card}}">
+                <div class="{{class:image-frame}}" style="background-image: url('{{asset:architectureImage}}');" aria-hidden="true"></div>
+                <h3 class="{{class:card-title}}">
+                    <span data-lang="zh-CN">空间与立面</span>
+                    <span data-lang="en-US" hidden>Space & Facades</span>
+                </h3>
+                <p class="{{class:card-copy}}">
+                    <span data-lang="zh-CN">沿途抬头看看那些装饰考究的老建筑水泥雕花与红砖墙。</span>
+                    <span data-lang="en-US" hidden>Look up along the way at the carved cement patterns and red brick walls of historic buildings.</span>
                 </p>
             </article>
         </section>
