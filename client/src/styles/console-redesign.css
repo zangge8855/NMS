@@ -3588,9 +3588,7 @@ label,
 }
 
 .users-page .users-table {
-  width: 100% !important;
-  min-width: 0 !important;
-  overflow-x: hidden !important;
+  min-width: 994px !important;
 }
 
 .users-table .users-select-column,
@@ -4078,7 +4076,7 @@ label,
 }
 
 .inbounds-page .inbounds-table {
-  min-width: 0 !important;
+  min-width: 1120px !important;
   table-layout: fixed !important;
 }
 
