@@ -1353,7 +1353,7 @@ export default function UserDetail() {
         }
 
         try {
-            const res = await api.post(`/panel/${encodeURIComponent(target.serverId)}/panel/api/inbounds/clientIps/${encodeURIComponent(target.email)}`);
+            const res = await api.post(`/panel/${encodeURIComponent(target.serverId)}/panel/api/clients/ips/${encodeURIComponent(target.email)}`);
             const items = normalizePanelClientIps(res.data?.obj);
             setClientIpSupportByServer((prev) => ({
                 ...prev,
@@ -1414,7 +1414,7 @@ export default function UserDetail() {
         }));
 
         try {
-            await api.post(`/panel/${encodeURIComponent(clientIpModal.serverId)}/panel/api/inbounds/clearClientIps/${encodeURIComponent(clientIpModal.email)}`);
+            await api.post(`/panel/${encodeURIComponent(clientIpModal.serverId)}/panel/api/clients/clearIps/${encodeURIComponent(clientIpModal.email)}`);
             toast.success(copy.labels.clearClientIpDone);
             await loadClientIps({
                 serverId: clientIpModal.serverId,

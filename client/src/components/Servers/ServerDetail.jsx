@@ -391,7 +391,7 @@ export default function ServerDetail() {
         }
 
         try {
-            const res = await api.post(`/panel/${encodeURIComponent(serverId)}/panel/api/inbounds/clientIps/${encodeURIComponent(normalizedEmail)}`);
+            const res = await api.post(`/panel/${encodeURIComponent(serverId)}/panel/api/clients/ips/${encodeURIComponent(normalizedEmail)}`);
             if (requestId !== clientIpRequestIdRef.current) return;
             const items = normalizePanelClientIps(res.data?.obj);
             setClientIpSupport({ supported: true, reason: '' });
@@ -440,7 +440,7 @@ export default function ServerDetail() {
         }));
 
         try {
-            await api.post(`/panel/${encodeURIComponent(serverId)}/panel/api/inbounds/clearClientIps/${encodeURIComponent(clientIpModal.email)}`);
+            await api.post(`/panel/${encodeURIComponent(serverId)}/panel/api/clients/clearIps/${encodeURIComponent(clientIpModal.email)}`);
             toast.success(t('pages.serverDetail.clearClientIps.success'));
             await loadClientIps(clientIpModal.email, { preserveOpen: true });
         } catch (err) {

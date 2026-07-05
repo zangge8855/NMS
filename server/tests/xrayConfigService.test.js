@@ -104,6 +104,8 @@ describe('xrayConfigService panel route compatibility', () => {
         const payload = await fetchPanelSettings(client);
         assert.deepEqual(calls, [
             '/panel/api/xray/',
+            '/panel/api/server/xray/config',
+            '/panel/api/server/getConfigJson',
             '/panel/api/setting/all',
             '/panel/xray/getXrayConfig',
             '/panel/setting/all',

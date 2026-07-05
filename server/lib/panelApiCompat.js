@@ -726,3 +726,132 @@ export function parseLegacyAddClientBody(body = {}) {
 export function parseLegacyUpdateClientBody(body = {}) {
     return normalizeLegacyClientPayload(body);
 }
+
+export async function postRestartXrayCompat(panelClient) {
+    try {
+        const res = await panelClient.post('/panel/api/server/restartXrayService');
+        return { status: res.status, data: res.data };
+    } catch (error) {
+        if (!isUnsupportedPanelEndpointError(error)) {
+            throw error;
+        }
+        const res = await panelClient.post('/panel/api/server/restartXray');
+        return { status: res.status, data: res.data };
+    }
+}
+
+export async function postStopXrayCompat(panelClient) {
+    try {
+        const res = await panelClient.post('/panel/api/server/stopXrayService');
+        return { status: res.status, data: res.data };
+    } catch (error) {
+        if (!isUnsupportedPanelEndpointError(error)) {
+            throw error;
+        }
+        const res = await panelClient.post('/panel/api/server/stopXray');
+        return { status: res.status, data: res.data };
+    }
+}
+
+export async function postImportDBCompat(panelClient, files = []) {
+    if (!files || files.length === 0) {
+        throw new Error('No files provided for database import');
+    }
+    const FormData = (await import('form-data')).default;
+    try {
+        const form = new FormData();
+        for (const file of files) {
+            form.append('db', file.buffer, {
+                filename: file.originalname,
+                contentType: file.mimetype,
+            });
+        }
+        const res = await panelClient.post('/panel/api/server/importDB', form, {
+            headers: form.getHeaders(),
+        });
+        return { status: res.status, data: res.data };
+    } catch (error) {
+        if (!isUnsupportedPanelEndpointError(error)) {
+            throw error;
+        }
+    }
+    const form = new FormData();
+    for (const file of files) {
+        form.append(file.fieldname, file.buffer, {
+            filename: file.originalname,
+            contentType: file.mimetype,
+        });
+    }
+    const res = await panelClient.post('/panel/api/server/database/import', form, {
+        headers: form.getHeaders(),
+    });
+    return { status: res.status, data: res.data };
+}
+
+export async function postUpdateGeofileCompat(panelClient) {
+    try {
+        const res = await panelClient.post('/panel/api/server/updateGeofile');
+        return { status: res.status, data: res.data };
+    } catch (error) {
+        if (!isUnsupportedPanelEndpointError(error)) {
+            throw error;
+        }
+        const res = await panelClient.post('/panel/api/server/geofile/update');
+        return { status: res.status, data: res.data };
+    }
+}
+
+export async function postTelegramBackupCompat(panelClient) {
+    try {
+        const res = await panelClient.post('/panel/api/backuptotgbot');
+        return { status: res.status, data: res.data };
+    } catch (error) {
+        if (!isUnsupportedPanelEndpointError(error)) {
+            throw error;
+        }
+        const res = await panelClient.post('/panel/api/server/telegram/backup');
+        return { status: res.status, data: res.data };
+    }
+}
+
+export async function getExportDBCompat(panelClient) {
+    try {
+        const res = await panelClient.get('/panel/api/server/getDb', { responseType: 'arraybuffer' });
+        return {
+            status: res.status,
+            data: Buffer.from(res.data),
+            isBinary: true,
+            headers: {
+                'Content-Type': 'application/octet-stream',
+                'Content-Disposition': res.headers['content-disposition'] || 'attachment; filename=x-ui.db',
+            },
+        };
+    } catch (error) {
+        if (!isUnsupportedPanelEndpointError(error)) {
+            throw error;
+        }
+        const res = await panelClient.get('/panel/api/server/database/export', { responseType: 'arraybuffer' });
+        return {
+            status: res.status,
+            data: Buffer.from(res.data),
+            isBinary: true,
+            headers: {
+                'Content-Type': 'application/octet-stream',
+                'Content-Disposition': res.headers['content-disposition'] || 'attachment; filename=x-ui.db',
+            },
+        };
+    }
+}
+
+export async function getTlsCertPathsCompat(panelClient) {
+    try {
+        const res = await panelClient.get('/panel/api/server/getWebCertFiles');
+        return { status: res.status, data: res.data };
+    } catch (error) {
+        if (!isUnsupportedPanelEndpointError(error)) {
+            throw error;
+        }
+        const res = await panelClient.get('/panel/api/server/tlsCertPaths');
+        return { status: res.status, data: res.data };
+    }
+}

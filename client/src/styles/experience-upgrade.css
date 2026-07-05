@@ -6796,31 +6796,17 @@
 /* Inbound management: preserve the full work area with the desktop sidebar open. */
 @media (min-width: 769px) {
   .main-content {
-    flex: 0 0 calc(100vw - var(--sidebar-width));
+    flex: 0 0 calc(100% - var(--sidebar-width));
     margin-left: var(--sidebar-width);
-    width: calc(100vw - var(--sidebar-width));
-    max-width: calc(100vw - var(--sidebar-width));
+    width: calc(100% - var(--sidebar-width));
+    max-width: calc(100% - var(--sidebar-width));
   }
 
   .main-content.collapsed {
-    flex-basis: calc(100vw - var(--sidebar-collapsed));
+    flex-basis: calc(100% - var(--sidebar-collapsed));
     margin-left: var(--sidebar-collapsed);
-    width: calc(100vw - var(--sidebar-collapsed));
-    max-width: calc(100vw - var(--sidebar-collapsed));
-  }
-
-  @supports (width: 100dvw) {
-    .main-content {
-      flex-basis: calc(100dvw - var(--sidebar-width));
-      width: calc(100dvw - var(--sidebar-width));
-      max-width: calc(100dvw - var(--sidebar-width));
-    }
-
-    .main-content.collapsed {
-      flex-basis: calc(100dvw - var(--sidebar-collapsed));
-      width: calc(100dvw - var(--sidebar-collapsed));
-      max-width: calc(100dvw - var(--sidebar-collapsed));
-    }
+    width: calc(100% - var(--sidebar-collapsed));
+    max-width: calc(100% - var(--sidebar-collapsed));
   }
 
   .main-scroll-region {

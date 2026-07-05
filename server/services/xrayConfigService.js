@@ -81,6 +81,14 @@ async function fetchPanelSettings(client) {
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         },
         {
+            method: 'get',
+            url: '/panel/api/server/xray/config',
+        },
+        {
+            method: 'get',
+            url: '/panel/api/server/getConfigJson',
+        },
+        {
             method: 'post',
             url: '/panel/api/setting/all',
             data: '',

@@ -19,6 +19,13 @@ import {
     postDetachClientFromInboundsCompat,
     postUpdateClientCompat,
     resetInboundTrafficCompat,
+    postRestartXrayCompat,
+    postStopXrayCompat,
+    postImportDBCompat,
+    postUpdateGeofileCompat,
+    postTelegramBackupCompat,
+    getExportDBCompat,
+    getTlsCertPathsCompat,
 } from '../lib/panelApiCompat.js';
 import { invalidateServerPanelSnapshotCache } from '../lib/serverPanelSnapshotService.js';
 
@@ -49,8 +56,28 @@ function safeDecodePathSegment(value = '') {
     }
 }
 
-async function tryCompatPanelRequest(client, method, panelPath, body = {}) {
+async function tryCompatPanelRequest(client, method, panelPath, body = {}, files = []) {
     if (method !== 'POST') return null;
+
+    if (panelPath === '/panel/api/server/restartXray' || panelPath === '/panel/api/server/restartXrayService') {
+        return postRestartXrayCompat(client);
+    }
+
+    if (panelPath === '/panel/api/server/stopXray' || panelPath === '/panel/api/server/stopXrayService') {
+        return postStopXrayCompat(client);
+    }
+
+    if (panelPath === '/panel/api/server/database/import' || panelPath === '/panel/api/server/importDB') {
+        return postImportDBCompat(client, files);
+    }
+
+    if (panelPath === '/panel/api/server/geofile/update' || panelPath === '/panel/api/server/updateGeofile') {
+        return postUpdateGeofileCompat(client);
+    }
+
+    if (panelPath === '/panel/api/server/telegram/backup' || panelPath === '/panel/api/backuptotgbot') {
+        return postTelegramBackupCompat(client);
+    }
 
     if (panelPath === '/panel/api/clients/add') {
         const clientData = body?.client;
@@ -137,12 +164,12 @@ async function tryCompatPanelRequest(client, method, panelPath, body = {}) {
         return fetchPanelOnlineClients(client);
     }
 
-    match = panelPath.match(/^\/panel\/api\/inbounds\/clientIps\/([^/]+)$/);
+    match = panelPath.match(/^\/panel\/api\/inbounds\/clientIps\/([^/]+)$/) || panelPath.match(/^\/panel\/api\/clients\/ips\/([^/]+)$/);
     if (match) {
         return getClientIpsCompat(client, safeDecodePathSegment(match[1]));
     }
 
-    match = panelPath.match(/^\/panel\/api\/inbounds\/clearClientIps\/([^/]+)$/);
+    match = panelPath.match(/^\/panel\/api\/inbounds\/clearClientIps\/([^/]+)$/) || panelPath.match(/^\/panel\/api\/clients\/clearIps\/([^/]+)$/);
     if (match) {
         return clearClientIpsCompat(client, safeDecodePathSegment(match[1]));
     }
@@ -214,6 +241,14 @@ async function tryCompatPanelRequest(client, method, panelPath, body = {}) {
 }
 
 async function tryCompatPanelGetRequest(client, panelPath) {
+    if (panelPath === '/panel/api/server/database/export' || panelPath === '/panel/api/server/getDb') {
+        return getExportDBCompat(client);
+    }
+
+    if (panelPath === '/panel/api/server/tlsCertPaths' || panelPath === '/panel/api/server/getWebCertFiles') {
+        return getTlsCertPathsCompat(client);
+    }
+
     let match = panelPath.match(/^\/panel\/api\/clients\/get\/([^/]+)$/);
     if (match) {
         const record = await fetchClientRecordCompat(client, safeDecodePathSegment(match[1]));
@@ -362,8 +397,12 @@ router.all('/:serverId/*', upload.any(), async (req, res) => {
                 const client = await ensureAuthenticated(serverId);
                 const compatRes = method === 'GET'
                     ? await tryCompatPanelGetRequest(client, panelPath)
-                    : await tryCompatPanelRequest(client, method, panelPath, req.body || {});
+                    : await tryCompatPanelRequest(client, method, panelPath, req.body || {}, req.files);
                 if (compatRes) {
+                    if (compatRes.isBinary) {
+                        res.set(compatRes.headers || {});
+                        return res.send(compatRes.data);
+                    }
                     return res.status(compatRes.status || 200).json(compatRes.data);
                 }
             } catch (compatError) {

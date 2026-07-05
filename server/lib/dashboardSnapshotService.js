@@ -322,7 +322,7 @@ function buildManagedOnlineSummary(users, serverPayloads = [], activeTrafficKeys
                     entry.serverIds.add(serverId);
                 }
                 if (onlineSessions > 0) {
-                    const nodeLabel = String(inbound?.remark || '').trim() || serverName;
+                    const nodeLabel = serverName || String(inbound?.remark || '').trim();
                     if (nodeLabel) {
                         entry.nodeLabels.add(nodeLabel);
                     }

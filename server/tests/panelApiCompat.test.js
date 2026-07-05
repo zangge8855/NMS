@@ -10,6 +10,13 @@ import {
     postDetachClientFromInboundsCompat,
     postUpdateClientCompat,
     resetInboundTrafficCompat,
+    postRestartXrayCompat,
+    postStopXrayCompat,
+    postImportDBCompat,
+    postUpdateGeofileCompat,
+    postTelegramBackupCompat,
+    getExportDBCompat,
+    getTlsCertPathsCompat,
 } from '../lib/panelApiCompat.js';
 
 function notFound(message = '404 page not found') {
@@ -353,4 +360,224 @@ test('resetInboundTrafficCompat uses latest inbound reset and resets each inboun
         ['post', '/panel/api/clients/resetTraffic/alice%40example.com'],
         ['post', '/panel/api/clients/resetTraffic/bob%40example.com'],
     ]);
+});
+
+test('postRestartXrayCompat prefers xrayService restart then falls back to legacy restart', async () => {
+    let calls = [];
+    const client = {
+        async post(path) {
+            calls.push(path);
+            if (path === '/panel/api/server/restartXrayService') {
+                return { status: 200, data: { success: true } };
+            }
+            throw notFound();
+        },
+    };
+
+    let res = await postRestartXrayCompat(client);
+    assert.deepEqual(calls, ['/panel/api/server/restartXrayService']);
+    assert.equal(res.status, 200);
+
+    calls = [];
+    const legacyClient = {
+        async post(path) {
+            calls.push(path);
+            if (path === '/panel/api/server/restartXrayService') {
+                throw notFound();
+            }
+            return { status: 200, data: { success: true } };
+        },
+    };
+    res = await postRestartXrayCompat(legacyClient);
+    assert.deepEqual(calls, ['/panel/api/server/restartXrayService', '/panel/api/server/restartXray']);
+    assert.equal(res.status, 200);
+});
+
+test('postStopXrayCompat prefers xrayService stop then falls back to legacy stop', async () => {
+    let calls = [];
+    const client = {
+        async post(path) {
+            calls.push(path);
+            if (path === '/panel/api/server/stopXrayService') {
+                return { status: 200, data: { success: true } };
+            }
+            throw notFound();
+        },
+    };
+
+    let res = await postStopXrayCompat(client);
+    assert.deepEqual(calls, ['/panel/api/server/stopXrayService']);
+    assert.equal(res.status, 200);
+
+    calls = [];
+    const legacyClient = {
+        async post(path) {
+            calls.push(path);
+            if (path === '/panel/api/server/stopXrayService') {
+                throw notFound();
+            }
+            return { status: 200, data: { success: true } };
+        },
+    };
+    res = await postStopXrayCompat(legacyClient);
+    assert.deepEqual(calls, ['/panel/api/server/stopXrayService', '/panel/api/server/stopXray']);
+    assert.equal(res.status, 200);
+});
+
+test('postImportDBCompat appends db field first then falls back to legacy fieldname', async () => {
+    let calls = [];
+    const mockFiles = [{ fieldname: 'legacyDbFile', originalname: 'x-ui.db', mimetype: 'application/octet-stream', buffer: Buffer.from('db') }];
+    const client = {
+        async post(path, form) {
+            calls.push({ path, headers: form.getHeaders() });
+            if (path === '/panel/api/server/importDB') {
+                return { status: 200, data: { success: true } };
+            }
+            throw notFound();
+        },
+    };
+
+    let res = await postImportDBCompat(client, mockFiles);
+    assert.deepEqual(calls.map(c => c.path), ['/panel/api/server/importDB']);
+    assert.equal(res.status, 200);
+
+    calls = [];
+    const legacyClient = {
+        async post(path, form) {
+            calls.push({ path, headers: form.getHeaders() });
+            if (path === '/panel/api/server/importDB') {
+                throw notFound();
+            }
+            return { status: 200, data: { success: true } };
+        },
+    };
+    res = await postImportDBCompat(legacyClient, mockFiles);
+    assert.deepEqual(calls.map(c => c.path), ['/panel/api/server/importDB', '/panel/api/server/database/import']);
+    assert.equal(res.status, 200);
+});
+
+test('postUpdateGeofileCompat prefers updateGeofile then falls back to legacy update geofile', async () => {
+    let calls = [];
+    const client = {
+        async post(path) {
+            calls.push(path);
+            if (path === '/panel/api/server/updateGeofile') {
+                return { status: 200, data: { success: true } };
+            }
+            throw notFound();
+        },
+    };
+
+    let res = await postUpdateGeofileCompat(client);
+    assert.deepEqual(calls, ['/panel/api/server/updateGeofile']);
+    assert.equal(res.status, 200);
+
+    calls = [];
+    const legacyClient = {
+        async post(path) {
+            calls.push(path);
+            if (path === '/panel/api/server/updateGeofile') {
+                throw notFound();
+            }
+            return { status: 200, data: { success: true } };
+        },
+    };
+    res = await postUpdateGeofileCompat(legacyClient);
+    assert.deepEqual(calls, ['/panel/api/server/updateGeofile', '/panel/api/server/geofile/update']);
+    assert.equal(res.status, 200);
+});
+
+test('postTelegramBackupCompat prefers backuptotgbot then falls back to legacy backup', async () => {
+    let calls = [];
+    const client = {
+        async post(path) {
+            calls.push(path);
+            if (path === '/panel/api/backuptotgbot') {
+                return { status: 200, data: { success: true } };
+            }
+            throw notFound();
+        },
+    };
+
+    let res = await postTelegramBackupCompat(client);
+    assert.deepEqual(calls, ['/panel/api/backuptotgbot']);
+    assert.equal(res.status, 200);
+
+    calls = [];
+    const legacyClient = {
+        async post(path) {
+            calls.push(path);
+            if (path === '/panel/api/backuptotgbot') {
+                throw notFound();
+            }
+            return { status: 200, data: { success: true } };
+        },
+    };
+    res = await postTelegramBackupCompat(legacyClient);
+    assert.deepEqual(calls, ['/panel/api/backuptotgbot', '/panel/api/server/telegram/backup']);
+    assert.equal(res.status, 200);
+});
+
+test('getExportDBCompat prefers getDb then falls back to legacy export', async () => {
+    let calls = [];
+    const client = {
+        async get(path) {
+            calls.push(path);
+            if (path === '/panel/api/server/getDb') {
+                return { status: 200, data: Buffer.from('sqlite-db'), headers: {} };
+            }
+            throw notFound();
+        },
+    };
+
+    let res = await getExportDBCompat(client);
+    assert.deepEqual(calls, ['/panel/api/server/getDb']);
+    assert.equal(res.status, 200);
+    assert.equal(res.isBinary, true);
+
+    calls = [];
+    const legacyClient = {
+        async get(path) {
+            calls.push(path);
+            if (path === '/panel/api/server/getDb') {
+                throw notFound();
+            }
+            return { status: 200, data: Buffer.from('sqlite-db'), headers: {} };
+        },
+    };
+    res = await getExportDBCompat(legacyClient);
+    assert.deepEqual(calls, ['/panel/api/server/getDb', '/panel/api/server/database/export']);
+    assert.equal(res.status, 200);
+    assert.equal(res.isBinary, true);
+});
+
+test('getTlsCertPathsCompat prefers getWebCertFiles then falls back to legacy tlsCertPaths', async () => {
+    let calls = [];
+    const client = {
+        async get(path) {
+            calls.push(path);
+            if (path === '/panel/api/server/getWebCertFiles') {
+                return { status: 200, data: { cert: 'cert-path' } };
+            }
+            throw notFound();
+        },
+    };
+
+    let res = await getTlsCertPathsCompat(client);
+    assert.deepEqual(calls, ['/panel/api/server/getWebCertFiles']);
+    assert.equal(res.status, 200);
+
+    calls = [];
+    const legacyClient = {
+        async get(path) {
+            calls.push(path);
+            if (path === '/panel/api/server/getWebCertFiles') {
+                throw notFound();
+            }
+            return { status: 200, data: { cert: 'cert-path' } };
+        },
+    };
+    res = await getTlsCertPathsCompat(legacyClient);
+    assert.deepEqual(calls, ['/panel/api/server/getWebCertFiles', '/panel/api/server/tlsCertPaths']);
+    assert.equal(res.status, 200);
 });

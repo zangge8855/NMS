@@ -177,7 +177,7 @@ test('online matching — filters out mismatched client ID or password entries',
     const aliceRow = result.onlineRows.find(r => r.email === 'alice@example.com');
     assert.ok(aliceRow, 'alice should be online');
     // It should match Inbound 1 but NOT Inbound 2 (due to UUID mismatch)
-    assert.deepEqual(Array.from(aliceRow.nodeLabels), ['Inbound 1']);
+    assert.deepEqual(Array.from(aliceRow.nodeLabels), ['Node 1']);
 });
 
 test('online count — active traffic inferred sessions scope to specific inbounds', () => {
@@ -214,7 +214,7 @@ test('online count — active traffic inferred sessions scope to specific inboun
     const aliceRow = result.onlineRows.find((r) => r.email === 'alice@example.com');
     assert.ok(aliceRow, 'alice should appear in onlineRows');
     assert.equal(aliceRow.sessions, 1, 'alice sessions count must be 1');
-    assert.deepEqual(Array.from(aliceRow.nodeLabels), ['Inbound A'], 'online nodes must only list Inbound A');
+    assert.deepEqual(Array.from(aliceRow.nodeLabels), ['Node 1'], 'online nodes must only list Node 1');
 });
 
 test('online count — handles flat map and onlinesByNode maps in snapshots with correct node scoping', () => {
@@ -255,12 +255,12 @@ test('online count — handles flat map and onlinesByNode maps in snapshots with
     const aliceRow = result.onlineRows.find((r) => r.email === 'alice@example.com');
     assert.ok(aliceRow, 'alice should be online');
     // Alice is in nodeId 0, so should only match Inbound A (nodeId 0)
-    assert.deepEqual(Array.from(aliceRow.nodeLabels), ['Inbound A']);
+    assert.deepEqual(Array.from(aliceRow.nodeLabels), ['Node 1']);
 
     const bobRow = result.onlineRows.find((r) => r.email === 'bob@example.com');
     assert.ok(bobRow, 'bob should be online');
     // Bob is in nodeId 1, so should only match Inbound B (nodeId 1)
-    assert.deepEqual(Array.from(bobRow.nodeLabels), ['Inbound B']);
+    assert.deepEqual(Array.from(bobRow.nodeLabels), ['Node 1']);
 });
 
 test('online count — 3x-ui onlinesByGuid maps stay scoped to matching node GUIDs', () => {
@@ -299,10 +299,10 @@ test('online count — 3x-ui onlinesByGuid maps stay scoped to matching node GUI
 
     const aliceRow = result.onlineRows.find((r) => r.email === 'alice@example.com');
     assert.ok(aliceRow, 'alice should be online');
-    assert.deepEqual(Array.from(aliceRow.nodeLabels), ['Node A Inbound']);
+    assert.deepEqual(Array.from(aliceRow.nodeLabels), ['Guid Node']);
 
     const bobRow = result.onlineRows.find((r) => r.email === 'bob@example.com');
     assert.ok(bobRow, 'bob should be online');
-    assert.deepEqual(Array.from(bobRow.nodeLabels), ['Node B Inbound']);
+    assert.deepEqual(Array.from(bobRow.nodeLabels), ['Guid Node']);
 });
 

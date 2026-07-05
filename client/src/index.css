@@ -537,8 +537,8 @@ a:hover {
   flex: 1;
   min-width: 0;
   margin-left: var(--sidebar-width);
-  width: calc(100vw - var(--sidebar-width));
-  max-width: calc(100vw - var(--sidebar-width));
+  width: calc(100% - var(--sidebar-width));
+  max-width: calc(100% - var(--sidebar-width));
   transition: margin-left var(--transition-base), width var(--transition-base), max-width var(--transition-base);
   display: flex;
   flex-direction: column;
@@ -547,8 +547,8 @@ a:hover {
 
 .main-content.collapsed {
   margin-left: var(--sidebar-collapsed);
-  width: calc(100vw - var(--sidebar-collapsed));
-  max-width: calc(100vw - var(--sidebar-collapsed));
+  width: calc(100% - var(--sidebar-collapsed));
+  max-width: calc(100% - var(--sidebar-collapsed));
 }
 
 .sidebar-backdrop {
@@ -2162,6 +2162,7 @@ input[type="radio"]:focus {
 .table-scroll {
   border: none;
   overflow-y: auto;
+  padding-bottom: 16px;
 }
 
 .table-scroll-md {
