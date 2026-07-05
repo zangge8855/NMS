@@ -354,9 +354,7 @@ function buildManagedOnlineSummary(users, serverPayloads = [], activeTrafficKeys
             const matchedServerIds = clientData.serverIds?.size
                 ? Array.from(clientData.serverIds)
                 : Array.from(onlineServerIdMap.get(subscriptionEmail) || onlineServerIdMap.get(loginEmail) || []);
-            const matchedNodes = clientData.nodeLabels?.size
-                ? Array.from(clientData.nodeLabels)
-                : matchedServers;
+            const matchedNodes = matchedServers;
             const displayName = username || resolvedEmail || user?.id || '-';
             return {
                 userId: user?.id,

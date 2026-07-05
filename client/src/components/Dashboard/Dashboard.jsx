@@ -1404,9 +1404,9 @@ export default function Dashboard() {
                                         <table className="table dashboard-online-table">
                                             <thead>
                                                 <tr>
-                                                    <th>{t('pages.dashboardCommon.userIdentifier')}</th>
-                                                    <th>{t('pages.dashboardGlobal.onlineNodes')}</th>
-                                                    <th className="table-cell-right">{t('pages.dashboardCommon.sessions')}</th>
+                                                    <th className="dashboard-online-label-cell">{t('pages.dashboardCommon.userIdentifier')}</th>
+                                                    <th className="dashboard-online-nodes-cell">{t('pages.dashboardGlobal.onlineNodes')}</th>
+                                                    <th className="table-cell-right dashboard-online-sessions-cell">{t('pages.dashboardCommon.sessions')}</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -1602,7 +1602,12 @@ export default function Dashboard() {
                             ) : (
                                 <div className="table-container table-scroll table-scroll-md overflow-x-auto">
                                     <table className="table dashboard-online-table">
-                                        <thead><tr><th>{t('pages.dashboardCommon.userIdentifier')}</th><th className="table-cell-right">{t('pages.dashboardCommon.sessions')}</th></tr></thead>
+                                        <thead>
+                                            <tr>
+                                                <th className="dashboard-online-label-cell">{t('pages.dashboardCommon.userIdentifier')}</th>
+                                                <th className="table-cell-right dashboard-online-sessions-cell">{t('pages.dashboardCommon.sessions')}</th>
+                                            </tr>
+                                        </thead>
                                         <tbody>
                                                 {onlineUsers.slice(0, MAX_SINGLE_ONLINE_ROWS).map((row) => (
                                                     <tr key={`single-online-${row.userId || row.label}`}>
