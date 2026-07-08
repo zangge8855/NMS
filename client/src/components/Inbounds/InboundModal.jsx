@@ -3182,7 +3182,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </div>
                                         </div>
                                         <div className="border border-stroke-soft rounded-lg p-3 mt-2">
-                                            <label className="form-label mb-2 block">证书 (第1条)</label>
+                                            <label className="form-label mb-2 block">证书 (第 1 条)</label>
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="form-group">
                                                     <label className="form-label">证书文件路径</label>
@@ -3708,7 +3708,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         current.settings.id = Number(e.target.value || 0);
                                                         draft.finalmask.udp[index] = current;
                                                     })}
-                                                    placeholder="id(仅xicmp)"
+                                                    placeholder="id (仅 xicmp)"
                                                 />
                                                 <button
                                                     type="button"

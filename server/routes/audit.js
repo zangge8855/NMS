@@ -50,7 +50,7 @@ router.get('/events/export', (req, res) => {
         outcome: req.query.outcome,
         q: req.query.q,
     });
-    const header = '时间,事件类型,操作者,IP,方法,路径,结果,目标邮箱,服务器ID';
+    const header = '时间,事件类型,操作者,IP,方法,路径,结果,目标邮箱,服务器 ID';
     const rows = result.items.map(e => [
         e.ts || '',
         `"${String(e.eventType || '').replace(/"/g, '""')}"`,

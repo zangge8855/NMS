@@ -1430,9 +1430,9 @@ export default function Servers() {
                                                 rows={9}
                                                 placeholder={[
                                                     '# 每行一条，支持 1~3 列（逗号或 TAB 分隔）',
-                                                    '# 1列: panelUrl',
-                                                    '# 2列: name,panelUrl',
-                                                    '# 3列(兼容旧格式): name,panelUrl,basePath',
+                                                    '# 1 列: panelUrl',
+                                                    '# 2 列: name,panelUrl',
+                                                    '# 3 列 (兼容旧格式): name,panelUrl,basePath',
                                                     'https://1.2.3.4:2053/Raw1',
                                                     '新加坡-02,https://sg2.example.com:2053/Raw2',
                                                     'https://hk1.example.com:2053',

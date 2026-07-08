@@ -642,7 +642,7 @@ async function bulkSetUsersEnabled(payload = {}, actor = 'admin', deps = {}) {
     const setUserEnabled = deps.setManagedUserEnabled || setManagedUserEnabled;
 
     if (userIds.length === 0) {
-        throw createHttpError(400, '请提供用户ID列表');
+        throw createHttpError(400, '请提供用户 ID 列表');
     }
 
     const results = [];

@@ -196,7 +196,7 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
                                                 />
                                             </div>
                                             <div className="flex-1">
-                                                <label className="block text-xs text-muted mb-1">{locale === 'en-US' ? 'IPs (Comma separated)' : 'IP匹配 (ip) - 逗号分隔'}</label>
+                                                <label className="block text-xs text-muted mb-1">{locale === 'en-US' ? 'IPs (Comma separated)' : 'IP 匹配 (ip) - 逗号分隔'}</label>
                                                 <input
                                                     type="text"
                                                     className="form-input form-input-sm"

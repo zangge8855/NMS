@@ -84,7 +84,7 @@ function buildExpiryProgress(expiryTime, locale = 'zh-CN') {
     return {
         progress: clampProgress((remainingDays / 30) * 100),
         tone: remainingDays <= 3 ? 'danger' : remainingDays <= 7 ? 'warning' : 'success',
-        meta: locale === 'en-US' ? `${remainingDays}d` : `${remainingDays}天`,
+        meta: locale === 'en-US' ? `${remainingDays}d` : `${remainingDays} 天`,
     };
 }
 

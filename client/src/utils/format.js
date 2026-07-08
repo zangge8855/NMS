@@ -56,7 +56,7 @@ export function formatBytes(bytes, decimals = 2) {
 export function formatUptime(seconds, locale = 'zh-CN') {
     const normalizedLocale = resolveLocaleTag(locale);
     const totalSeconds = Number(seconds || 0);
-    if (!totalSeconds) return normalizedLocale === 'en-US' ? '0s' : '0秒';
+    if (!totalSeconds) return normalizedLocale === 'en-US' ? '0s' : '0 秒';
 
     const days = Math.floor(totalSeconds / 86400);
     const hours = Math.floor((totalSeconds % 86400) / 3600);
@@ -71,10 +71,10 @@ export function formatUptime(seconds, locale = 'zh-CN') {
         return parts.join(' ');
     }
 
-    if (days > 0) parts.push(`${days}天`);
-    if (hours > 0) parts.push(`${hours}时`);
-    if (minutes > 0) parts.push(`${minutes}分`);
-    if (parts.length === 0) parts.push(`${totalSeconds}秒`);
+    if (days > 0) parts.push(`${days} 天`);
+    if (hours > 0) parts.push(`${hours} 时`);
+    if (minutes > 0) parts.push(`${minutes} 分`);
+    if (parts.length === 0) parts.push(`${totalSeconds} 秒`);
     return parts.join(' ');
 }
 

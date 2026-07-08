@@ -793,7 +793,7 @@ export default function ClientModal({
                                     className="btn btn-secondary btn-xs whitespace-nowrap"
                                     onClick={() => {
                                         setSubId(generateHexToken(8));
-                                        toast.success('已生成新订阅ID');
+                                        toast.success('已生成新订阅 ID');
                                     }}
                                 >
                                     <HiOutlineArrowPath /> 重置
