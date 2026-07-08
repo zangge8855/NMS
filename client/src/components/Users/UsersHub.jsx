@@ -1284,8 +1284,16 @@ export default function UsersHub() {
                         setEditInheritGroup(p.inheritGroup === true || (String(user.groupId || '') && !p.updatedAt));
                         setEditOverrideFields(Array.isArray(p.overrideFields) ? p.overrideFields.slice() : []);
                         // Fallback expiry pre-fill from policy when client list is empty
-                        if (!prefilled && Number(p.expiryTime) > 0) {
-                            const fromPolicy = toLocalDateTimeString(Number(p.expiryTime));
+                        let fallbackExpiry = 0;
+                        const isInheriting = p.inheritGroup === true || (String(user.groupId || '') && !p.updatedAt);
+                        const group = userGroups.find(g => String(g.id) === String(user.groupId));
+                        if (isInheriting && group && !p.overrideFields?.includes('expiryTime')) {
+                            fallbackExpiry = Number(group.expiryTime || 0);
+                        } else {
+                            fallbackExpiry = Number(p.expiryTime || 0);
+                        }
+                        if (!prefilled && fallbackExpiry > 0) {
+                            const fromPolicy = toLocalDateTimeString(fallbackExpiry);
                             setEditExpiryDate(fromPolicy);
                             setEditExpiryInitial(fromPolicy);
                         }
@@ -1365,7 +1373,7 @@ export default function UsersHub() {
             // Preserve overrideFields; add fields if the user has set a custom value while inheriting from a group
             const overrideFieldsNext = new Set(editOverrideFields || []);
             if (editGroupId && editInheritGroup) {
-                if (expiryChanged && newExpiryTime > 0) {
+                if (expiryChanged) {
                     overrideFieldsNext.add('expiryTime');
                 }
                 const group = userGroups.find(g => String(g.id) === String(editGroupId));

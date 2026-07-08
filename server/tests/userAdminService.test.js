@@ -202,6 +202,77 @@ test('updateUserGroup moves members in bulk and resyncs removed users', async ()
     assert.ok(events.includes('toggle:bob@example.com:false'));
 });
 
+test('updateUserGroup does not clear overrides for existing members', async () => {
+    const users = [
+        { id: 'u-1', username: 'alice', role: 'user', groupId: 'g-1', email: 'alice@example.com', subscriptionEmail: 'alice@example.com', enabled: true },
+    ];
+    const policies = new Map([
+        ['alice@example.com', {
+            email: 'alice@example.com',
+            expiryTime: 12345,
+            overrideFields: ['expiryTime'],
+            inheritGroup: true,
+            updatedAt: 'existing',
+        }],
+    ]);
+    const events = [];
+
+    await updateUserGroup(
+        'g-1',
+        {
+            name: 'Inbound B',
+            allowedInboundKeys: ['srv-1:202'],
+            memberUserIds: ['u-1'],
+        },
+        'ops',
+        {
+            userGroupRepository: {
+                update(id, payload) {
+                    return { id, ...payload };
+                },
+                getById() {
+                    return { id: 'g-1', name: 'Inbound B', allowedInboundKeys: ['srv-1:202'] };
+                },
+            },
+            userRepository: {
+                list() {
+                    return users;
+                },
+                update(id, data) {
+                    const user = users.find((item) => item.id === id);
+                    Object.assign(user, data);
+                    return { ...user };
+                },
+            },
+            userPolicyRepository: {
+                get(email) {
+                    return policies.get(email);
+                },
+                upsert(email, payload, actor) {
+                    events.push(`policy:${email}:${payload.inheritGroup}:${payload.overrideFields?.join(',')}:${actor}`);
+                    const next = { email, ...payload, updatedAt: 'now' };
+                    policies.set(email, next);
+                    return next;
+                },
+            },
+            serverRepository: {
+                list() {
+                    return [{ id: 'srv-1' }];
+                },
+            },
+            autoSetManagedClientsEnabled: async () => {
+                return { total: 1, updated: 1, skipped: 0, failed: 0, details: [] };
+            },
+            autoDeployClients: async () => {
+                return { total: 1, created: 0, updated: 1, skipped: 0, failed: 0, details: [] };
+            },
+        }
+    );
+
+    const alicePolicyUpserted = events.some((ev) => ev.startsWith('policy:alice@example.com'));
+    assert.ok(!alicePolicyUpserted, 'Alice policy should not have been upserted/reset');
+});
+
 test('bulkSetUsersEnabled aggregates per-user results and delegates sync behavior', async () => {
     const calls = [];
     const result = await bulkSetUsersEnabled(

@@ -1352,12 +1352,15 @@ function applyUserGroupMembership(groupId = '', memberUserIds = null, actor = 'a
         const currentGroupId = String(user?.groupId || '').trim();
         const shouldBeMember = desiredSet.has(userId);
         if (shouldBeMember) {
-            const updated = currentGroupId === normalizedGroupId
-                ? user
-                : (userRepo.update(userId, { groupId: normalizedGroupId }) || { ...user, groupId: normalizedGroupId });
-            setUserGroupPolicyInheritance(updated, true, actor, deps);
+            const isNewMember = currentGroupId !== normalizedGroupId;
+            const updated = isNewMember
+                ? (userRepo.update(userId, { groupId: normalizedGroupId }) || { ...user, groupId: normalizedGroupId })
+                : user;
+            if (isNewMember) {
+                setUserGroupPolicyInheritance(updated, true, actor, deps);
+                changedUsers.push(updated);
+            }
             assignedUsers.push(updated);
-            if (currentGroupId !== normalizedGroupId) changedUsers.push(updated);
             return;
         }
 
