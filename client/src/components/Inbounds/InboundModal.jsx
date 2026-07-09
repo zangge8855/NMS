@@ -504,10 +504,13 @@ function normalizeStreamForSubmission(rawStream, protocolKey) {
     return normalized;
 }
 
-function validateInboundPayload(protocol, port, stream, protocolSchema = null) {
+export function validateInboundPayload(protocol, port, stream, protocolSchema = null, translate = null) {
+    const t = typeof translate === 'function'
+        ? translate
+        : (key, params = {}) => key;
     const normalizedPort = Number(port);
     if (!Number.isInteger(normalizedPort) || normalizedPort <= 0 || normalizedPort > 65535) {
-        return { ok: false, msg: '端口必须在 1-65535 之间' };
+        return { ok: false, msg: t('comp.inbounds.validationPortRange') };
     }
 
     const network = String(stream?.network || 'tcp').toLowerCase();
@@ -515,14 +518,20 @@ function validateInboundPayload(protocol, port, stream, protocolSchema = null) {
         ? protocolSchema.supports.transports.map((item) => String(item).toLowerCase())
         : [];
     if (allowedNetworks.length > 0 && !allowedNetworks.includes(network)) {
-        return { ok: false, msg: `${String(protocol || '').toUpperCase()} 不支持传输协议 ${network}` };
+        return {
+            ok: false,
+            msg: t('comp.inbounds.validationTransportUnsupported', {
+                protocol: String(protocol || '').toUpperCase(),
+                network,
+            }),
+        };
     }
 
     if (network === 'ws' && !String(stream?.wsSettings?.path || '').trim()) {
-        return { ok: false, msg: 'WS 传输必须填写 Path' };
+        return { ok: false, msg: t('comp.inbounds.validationWsPathRequired') };
     }
     if (network === 'grpc' && !String(stream?.grpcSettings?.serviceName || '').trim()) {
-        return { ok: false, msg: 'gRPC 传输必须填写 serviceName' };
+        return { ok: false, msg: t('comp.inbounds.validationGrpcServiceRequired') };
     }
 
     const security = String(stream?.security || 'none').toLowerCase();
@@ -530,13 +539,19 @@ function validateInboundPayload(protocol, port, stream, protocolSchema = null) {
         ? protocolSchema.supports.securities.map((item) => String(item).toLowerCase())
         : [];
     if (allowedSecurities.length > 0 && !allowedSecurities.includes(security)) {
-        return { ok: false, msg: `${String(protocol || '').toUpperCase()} 不支持安全类型 ${security}` };
+        return {
+            ok: false,
+            msg: t('comp.inbounds.validationSecurityUnsupported', {
+                protocol: String(protocol || '').toUpperCase(),
+                security,
+            }),
+        };
     }
 
     if (security === 'tls') {
         const serverName = String(stream?.tlsSettings?.serverName || '').trim();
         if (!serverName) {
-            return { ok: false, msg: 'TLS 模式必须填写 SNI (tlsSettings.serverName)' };
+            return { ok: false, msg: t('comp.inbounds.validationTlsSniRequired') };
         }
     }
 
@@ -547,7 +562,7 @@ function validateInboundPayload(protocol, port, stream, protocolSchema = null) {
         const serverNames = typeof rs.serverNames === 'string' ? rs.serverNames : (rs.serverNames?.[0] || '');
         const sni = String(rsSettings.serverName || serverNames || '').trim();
         if (!dest || !sni) {
-            return { ok: false, msg: 'REALITY 必须填写 dest 与 SNI(serverNames[0])' };
+            return { ok: false, msg: t('comp.inbounds.validationRealityDestSni') };
         }
     }
 
@@ -558,7 +573,7 @@ function validateInboundPayload(protocol, port, stream, protocolSchema = null) {
         const fp = String(rsSettings.fingerprint || '').trim();
         const spx = String(rsSettings.spiderX || '').trim();
         if (!fp || !spx) {
-            return { ok: false, msg: 'REALITY 链接关键参数缺失: fingerprint / spiderX' };
+            return { ok: false, msg: t('comp.inbounds.validationRealityFpSpx') };
         }
     }
 
@@ -1374,7 +1389,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
             const preStream = isStreamProtocol
                 ? normalizeStreamForSubmission(parsedStreamSettings, normalizedProtocol) || {}
                 : {};
-            const preValidation = validateInboundPayload(protocol, port, preStream, currentProtocolSchema);
+            const preValidation = validateInboundPayload(protocol, port, preStream, currentProtocolSchema, t);
             if (!preValidation.ok) {
                 toast.error(preValidation.msg);
                 setLoading(false);
@@ -1409,7 +1424,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                 }
                 const streamPayload = normalizeStreamForSubmission(streamForTarget, normalizedProtocol);
                 if (isStreamProtocol) {
-                    const validation = validateInboundPayload(protocol, port, streamPayload || {}, currentProtocolSchema);
+                    const validation = validateInboundPayload(protocol, port, streamPayload || {}, currentProtocolSchema, t);
                     if (!validation.ok) {
                         toast.error(validation.msg);
                         setLoading(false);
@@ -1447,7 +1462,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                     }
                     const streamPayload = normalizeStreamForSubmission(streamForTarget, normalizedProtocol);
                     if (isStreamProtocol) {
-                        const validation = validateInboundPayload(protocol, port, streamPayload || {}, currentProtocolSchema);
+                        const validation = validateInboundPayload(protocol, port, streamPayload || {}, currentProtocolSchema, t);
                         if (!validation.ok) {
                             throw new Error(`[${sid}] ${validation.msg}`);
                         }
@@ -1528,7 +1543,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
         <ModalShell isOpen={isOpen} onClose={onClose}>
             <div className="modal modal-lg inbound-modal" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
-                    <h3 className="modal-title">{editingInbound ? '编辑入站' : '批量添加入站'}</h3>
+                    <h3 className="modal-title">{editingInbound ? t('comp.inbounds.modalEditTitle') : t('comp.inbounds.modalBatchAddTitle')}</h3>
                     <div className="flex items-center gap-4">
                         <label className="flex items-center gap-2 cursor-pointer text-sm text-secondary">
                             <input
@@ -1536,7 +1551,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                 checked={isAdvanced}
                                 onChange={e => setIsAdvanced(e.target.checked)}
                             />
-                            专家模式 (JSON)
+                            {t('comp.inbounds.expertMode')}
                         </label>
                         <button type="button" className="modal-close" onClick={onClose} aria-label={t('comp.common.close')} title={t('comp.common.close')}>
                             <HiOutlineXMark />
@@ -1549,7 +1564,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                         {/* Target Servers */}
                         {!editingInbound && servers.length > 0 && (
                             <div className="form-group mb-6 p-4 rounded-lg bg-surface-soft border border-stroke-soft">
-                                <label className="form-label mb-2 block">部署目标 ({selectedServerIds.length}/{servers.length})</label>
+                                <label className="form-label mb-2 block">{t('comp.inbounds.deployTargets', { selected: selectedServerIds.length, total: servers.length })}</label>
                                 <div className="flex flex-wrap gap-4">
                                     <label className="flex items-center gap-2 cursor-pointer badge badge-neutral">
                                         <input
@@ -1560,7 +1575,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 else setSelectedServerIds([]);
                                             }}
                                         />
-                                        <span>全选</span>
+                                        <span>{t('comp.inbounds.selectAll')}</span>
                                     </label>
                                     {servers.map(s => (
                                         <label key={s.id} className="flex items-center gap-2 cursor-pointer badge badge-neutral">
@@ -1582,7 +1597,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         checked={syncExistingSubscriptions}
                                         onChange={(e) => setSyncExistingSubscriptions(e.target.checked)}
                                     />
-                                    <span>新增后补齐到已有用户订阅，仅同步策略允许的用户</span>
+                                    <span>{t('comp.inbounds.syncExistingHint')}</span>
                                 </label>
                             </div>
                         )}
@@ -1590,34 +1605,34 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                         {/* Basic Info */}
                         <div className="grid grid-cols-2 gap-4 mb-4">
                             <div className="form-group">
-                                <label className="form-label">备注</label>
+                                <label className="form-label">{t('comp.inbounds.labelRemark')}</label>
                                 <input className="form-input" value={remark} onChange={e => setRemark(e.target.value)} placeholder="Name" />
                             </div>
                             <div className="form-group">
-                                <label className="form-label">协议</label>
+                                <label className="form-label">{t('comp.inbounds.labelProtocol')}</label>
                                 <select className="form-select" value={protocol} onChange={e => setProtocol(e.target.value)} disabled={!!editingInbound}>
                                     {protocolOptions.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
                                 </select>
                             </div>
                             <div className="form-group">
-                                <label className="form-label">端口</label>
+                                <label className="form-label">{t('comp.inbounds.labelPort')}</label>
                                 <input className="form-input" type="number" value={port} onChange={e => setPort(e.target.value)} required />
                             </div>
                             <div className="form-group">
-                                <label className="form-label">监听地址 (Listen)</label>
+                                <label className="form-label">{t('comp.inbounds.labelListen')}</label>
                                 <input
                                     className="form-input"
                                     value={listen}
                                     onChange={e => setListen(e.target.value)}
-                                    placeholder="留空为默认监听"
+                                    placeholder={t('comp.inbounds.listenPlaceholder')}
                                 />
                             </div>
                             <div className="form-group">
-                                <label className="form-label">流量限制 (GB)</label>
-                                <input className="form-input" type="number" value={totalGB} onChange={e => setTotalGB(e.target.value)} placeholder="0 = 无限制" />
+                                <label className="form-label">{t('comp.inbounds.labelTrafficGb')}</label>
+                                <input className="form-input" type="number" value={totalGB} onChange={e => setTotalGB(e.target.value)} placeholder={t('comp.inbounds.unlimitedPlaceholder')} />
                             </div>
                             <div className="form-group">
-                                <label className="form-label">周期流量重置</label>
+                                <label className="form-label">{t('comp.inbounds.labelTrafficReset')}</label>
                                 <select className="form-select" value={trafficReset} onChange={(e) => setTrafficReset(e.target.value)}>
                                     {TRAFFIC_RESET_OPTIONS.map((item) => (
                                         <option key={item} value={item}>{item}</option>
@@ -1625,15 +1640,15 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                 </select>
                             </div>
                             <div className="form-group">
-                                <label className="form-label">到期策略</label>
+                                <label className="form-label">{t('comp.inbounds.labelExpiryMode')}</label>
                                 <select className="form-select" value={expiryMode} onChange={(e) => setExpiryMode(e.target.value)}>
-                                    <option value="never">永不过期</option>
-                                    <option value="datetime">指定日期时间</option>
-                                    <option value="days">N 天后过期</option>
+                                    <option value="never">{t('comp.inbounds.expiryNever')}</option>
+                                    <option value="datetime">{t('comp.inbounds.expiryDatetime')}</option>
+                                    <option value="days">{t('comp.inbounds.expiryDays')}</option>
                                 </select>
                             </div>
                             <div className="form-group">
-                                <label className="form-label">到期参数</label>
+                                <label className="form-label">{t('comp.inbounds.labelExpiryParam')}</label>
                                 {expiryMode === 'datetime' && (
                                     <input
                                         className="form-input"
@@ -1668,11 +1683,11 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                         {isAdvanced ? (
                             <>
                                 <div className="form-group">
-                                    <label className="form-label">协议设置 (Settings)</label>
+                                    <label className="form-label">{t('comp.inbounds.labelSettings')}</label>
                                     <textarea className="form-textarea font-mono text-sm" rows={6} value={settings} onChange={e => setSettings(e.target.value)} />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">传输设置 (Stream Settings)</label>
+                                    <label className="form-label">{t('comp.inbounds.labelStream')}</label>
                                     <textarea className="form-textarea font-mono text-sm" rows={8} value={streamSettings} onChange={e => setStreamSettings(e.target.value)} />
                                 </div>
                                 <div className="form-group">
@@ -2280,7 +2295,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                 <h4 className="text-secondary text-sm font-bold mb-4 uppercase tracking-wider">传输配置</h4>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="form-group">
-                                        <label className="form-label">传输协议 (Network)</label>
+                                        <label className="form-label">{t('comp.inbounds.labelNetwork')}</label>
                                         <select className="form-select" value={simpleStream.network} onChange={e => setSimpleStream({ ...simpleStream, network: e.target.value })}>
                                             {networkOptions.map((item) => (
                                                 <option key={item} value={item}>
@@ -2290,7 +2305,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         </select>
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">安全 (Security)</label>
+                                        <label className="form-label">{t('comp.inbounds.labelSecurity')}</label>
                                         <select className="form-select" value={simpleStream.security} onChange={e => setSimpleStream({ ...simpleStream, security: e.target.value })}>
                                             {securityOptions.map((item) => (
                                                 <option key={item} value={item}>
@@ -2321,7 +2336,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="form-group">
-                                            <label className="form-label">目标覆盖 (Dest Override)</label>
+                                            <label className="form-label">{t('comp.inbounds.labelDestOverride')}</label>
                                             <div className="flex flex-wrap gap-2">
                                                 {['http', 'tls', 'quic', 'fakedns'].map(p => (
                                                     <label key={p} className="badge badge-neutral flex items-center gap-1 cursor-pointer">

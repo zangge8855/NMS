@@ -387,9 +387,12 @@ function SettingsToggleCard({
 
 function formatInviteDuration(days, t, locale = 'zh-CN') {
     const normalized = Math.max(0, Number(days) || 0);
-    return normalized > 0
-        ? (locale === 'en-US' ? `${normalized} day(s)` : `${normalized} 天`)
-        : (t ? t('pages.settings.unlimitedTime') : (locale === 'en-US' ? 'Unlimited' : '无限制'));
+    if (normalized > 0) {
+        return t
+            ? t('pages.settings.durationDays', { days: normalized })
+            : `${normalized} day(s)`;
+    }
+    return t ? t('pages.settings.unlimitedTime') : 'Unlimited';
 }
 
 function getInviteStatusMeta(item = {}, t) {
@@ -1337,9 +1340,9 @@ export default function SystemSettings() {
                 const failed = Number(output?.failed || 0);
                 const total = Number(output?.total || 0);
                 if (failed > 0) {
-                    toast.error(locale === 'en-US' ? `Backfill completed: ${total - failed}/${total} succeeded` : `回填完成: ${total - failed}/${total} 成功`);
+                    toast.error(t('pages.settings.backfillPartial', { ok: total - failed, total }));
                 } else {
-                    toast.success(locale === 'en-US' ? `Backfill completed: ${total}/${total} succeeded` : `回填完成: ${total}/${total} 成功`);
+                    toast.success(t('pages.settings.backfillAllOk', { total }));
                 }
                 await fetchDbStatus({ quiet: true });
             }
@@ -2065,9 +2068,7 @@ export default function SystemSettings() {
                                         <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
                                             <div className="text-sm font-medium">{t("pages.settings.generatedInviteCodes")}</div>
                                             <span className="text-xs text-muted">
-                                                {locale === 'en-US'
-                                                    ? `${latestInviteBatch.count || latestInviteCodes.length} code(s), ${latestInviteBatch.usageLimit || 1} use(s) each, opens ${formatInviteDuration(latestInviteBatch.subscriptionDays, t, locale)}`
-                                                    : `${latestInviteBatch.count || latestInviteCodes.length} 个邀请码，每个可用 ${latestInviteBatch.usageLimit || 1} 次，开通 ${formatInviteDuration(latestInviteBatch.subscriptionDays, t, locale)}`}
+                                                {t('pages.settings.inviteBatchSummary', { count: latestInviteBatch.count || latestInviteCodes.length, uses: latestInviteBatch.usageLimit || 1, duration: formatInviteDuration(latestInviteBatch.subscriptionDays, t, locale) })}
                                             </span>
                                         </div>
                                         <div className="settings-code-list">
@@ -2098,17 +2099,20 @@ export default function SystemSettings() {
                                 <div className="settings-form-cluster-eyebrow">{t("pages.settings.inviteCodesLedger")}</div>
                                 <div className="settings-form-cluster-title">{t("pages.settings.ledgerAndRecords")}</div>
                                 <div className="settings-form-cluster-note">
-                                    {locale === 'en-US'
-                                        ? `Active: ${inviteAvailableRecords.length} · Remaining: ${inviteRemainingUses} use(s) · Depleted: ${inviteUsedCount} · Revoked: ${inviteRevokedCount}`
-                                        : `活动 ${inviteAvailableRecords.length} 个 · 剩余 ${inviteRemainingUses} 次 · 已用尽 ${inviteUsedCount} 个 · 已撤销 {inviteRevokedCount} 个。`}
+                                    {t('pages.settings.inviteLedgerNote', {
+                                        active: inviteAvailableRecords.length,
+                                        remaining: inviteRemainingUses,
+                                        depleted: inviteUsedCount,
+                                        revoked: inviteRevokedCount,
+                                    })}
                                 </div>
                             </div>
                             {inviteCodesLoading ? (
                                 <div className="text-sm text-muted">{t("pages.settings.loadingInvites")}</div>
                             ) : inviteRecords.length === 0 ? (
                                 <EmptyState
-                                    title={locale === 'en-US' ? 'No invitation codes available' : t('pages.settings.noInvitesRecord')}
-                                    subtitle={locale === 'en-US' ? 'You can generate a batch of invitation codes first.' : t('pages.settings.youCanGenerateABatchOfInvitationCod')}
+                                    title={t('pages.settings.noInvitesAvailableTitle')}
+                                    subtitle={t('pages.settings.generateInvitesHint')}
                                     size="compact"
                                     hideIcon
                                 />
@@ -2118,13 +2122,14 @@ export default function SystemSettings() {
                                         <div className="settings-inline-action-copy">
                                             <div className="settings-inline-action-title">{t('pages.settings.inviteRecordsCount', { count: inviteRecords.length })}</div>
                                             <div className="settings-inline-action-note">
-                                                {inviteLedgerExpanded
-                                                    ? (locale === 'en-US'
-                                                        ? `Ledger expanded. Total used: ${inviteConsumedUses} time(s)${inviteRecentUsedAt?.usedAt ? ` · Recent used: ${formatDateTime(inviteRecentUsedAt.usedAt, locale)}${inviteRecentUsedAt.usedByUsername ? ` · ${inviteRecentUsedAt.usedByUsername}` : ''}` : ''}`
-                                                        : `已展开完整台账，可直接查看使用记录。累计使用 ${inviteConsumedUses} 次${inviteRecentUsedAt?.usedAt ? ` · 最近使用 ${formatDateTime(inviteRecentUsedAt.usedAt, locale)}${inviteRecentUsedAt.usedByUsername ? ` · ${inviteRecentUsedAt.usedByUsername}` : ''}` : ''}`)
-                                                    : (locale === 'en-US'
-                                                        ? `Expand ledger to inspect records. Total used: ${inviteConsumedUses} time(s)${inviteRecentUsedAt?.usedAt ? ` · Recent used: ${formatDateTime(inviteRecentUsedAt.usedAt, locale)}` : ''}`
-                                                        : `需要排查或复核时再展开完整台账。累计使用 ${inviteConsumedUses} 次${inviteRecentUsedAt?.usedAt ? ` · 最近使用 ${formatDateTime(inviteRecentUsedAt.usedAt, locale)}` : ''}`)}
+                                                {(inviteLedgerExpanded
+                                                    ? t('pages.settings.ledgerExpandedNote', { used: inviteConsumedUses })
+                                                    : t('pages.settings.ledgerCollapsedNote', { used: inviteConsumedUses }))
+                                                    + (inviteRecentUsedAt?.usedAt
+                                                        ? `${t('pages.settings.recentUsedPrefix', {
+                                                            when: formatDateTime(inviteRecentUsedAt.usedAt, locale),
+                                                        })}${inviteLedgerExpanded && inviteRecentUsedAt.usedByUsername ? ` · ${inviteRecentUsedAt.usedByUsername}` : ''}`
+                                                        : '')}
                                             </div>
                                         </div>
                                         <button
@@ -2152,7 +2157,7 @@ export default function SystemSettings() {
                                                             <div className="settings-invite-ledger-title-block">
                                                                 <div className="settings-invite-ledger-title">{item.preview || item.id}</div>
                                                                 <div className="settings-invite-ledger-subtitle">
-                                                                    {locale === 'en-US' ? 'Created at ' : '创建于 '}{formatDateTime(item.createdAt, locale)}
+                                                                    {t('pages.settings.createdAtPrefix')}{formatDateTime(item.createdAt, locale)}
                                                                     {item.createdBy ? t('pages.settings.createdByLabel', { creator: item.createdBy }) : ''}
                                                                 </div>
                                                             </div>
@@ -2188,7 +2193,7 @@ export default function SystemSettings() {
                                                                 <span className="settings-invite-ledger-meta-label">{t("pages.settings.statusExplanation")}</span>
                                                                 <span className="settings-invite-ledger-meta-value">
                                                                     {item.status === 'revoked'
-                                                                        ? (locale === 'en-US' ? `Revoked${item.revokedBy ? ` · ${item.revokedBy}` : ''}` : `已撤销${item.revokedBy ? ` · ${item.revokedBy}` : ''}`)
+                                                                        ? `${t('pages.settings.revokedLabel')}${item.revokedBy ? ` · ${item.revokedBy}` : ''}`
                                                                         : item.status === 'used'
                                                                             ? t('pages.settings.reachedLimit')
                                                                             : t('pages.settings.stillIssuable')}
@@ -2490,7 +2495,9 @@ export default function SystemSettings() {
                                 type="password"
                                 value={draft.telegram.botToken}
                                 onChange={(event) => patchTelegramToken(event.target.value)}
-                                placeholder={settings?.telegram?.botTokenConfigured ? (locale === 'en-US' ? `Saved: ${settings.telegram.botTokenPreview}` : `当前已保存 ${settings.telegram.botTokenPreview}`) : '123456:ABCDEF...'}
+                                placeholder={settings?.telegram?.botTokenConfigured
+                                    ? t('pages.settings.telegramTokenSaved', { preview: settings.telegram.botTokenPreview })
+                                    : '123456:ABCDEF...'}
                                 autoComplete="new-password"
                             />
                             <div className="flex items-center gap-2 flex-wrap mt-1">
@@ -2498,7 +2505,9 @@ export default function SystemSettings() {
                                     {draft.telegram.clearBotToken
                                         ? t('pages.settings.thisSaveWillClearTheTokensSavedOnTh')
                                         : settings?.telegram?.botTokenConfigured
-                                        ? (locale === 'en-US' ? `Saved Token: ${settings.telegram.botTokenPreview || t('pages.settings.configured')}. Leave empty to keep using current Token.` : `当前已保存 Token：${settings.telegram.botTokenPreview || t('pages.settings.configured')}。留空保存会继续使用当前 Token。`)
+                                        ? t('pages.settings.telegramTokenHint', {
+                                            preview: settings.telegram.botTokenPreview || t('pages.settings.configured'),
+                                        })
                                         : t('pages.settings.pleaseEnterTheTelegramBotTokenWhenE')}
                                 </div>
                                 {settings?.telegram?.botTokenConfigured ? (
@@ -2708,7 +2717,7 @@ export default function SystemSettings() {
                             <div className="text-sm">
                                 {runtimeStorage
                                     ? runtimeStorage.invalidStoreCount > 0
-                                        ? (locale === 'en-US' ? `${runtimeStorage.invalidStoreCount} JSON anomaly/anomalies` : `${runtimeStorage.invalidStoreCount} 个 JSON 异常`)
+                                        ? t('pages.settings.jsonAnomalyCount', { count: runtimeStorage.invalidStoreCount })
                                         : t('pages.settings.jsonVerificationIsNormal')
                                     : t('comp.system.sysWaitRefresh')}
                             </div>
@@ -2850,7 +2859,7 @@ export default function SystemSettings() {
                         <div className="text-sm text-muted mt-1">
                             {backupInspection.encrypted === false
                                 ? t('comp.system.sysLegacyWarning')
-                                : (locale === 'en-US' ? `Decrypted with ${backupInspection.keyHint || 'CREDENTIALS_SECRET'}` : t('pages.settings.restoreDecryptionHint', { key: backupInspection.keyHint || 'CREDENTIALS_SECRET' }))}
+                                : t('pages.settings.decryptedWithKey', { key: backupInspection.keyHint || 'CREDENTIALS_SECRET' })}
                         </div>
                         <div className="settings-backup-inspection-actions">
                             <button className="btn btn-secondary btn-sm" onClick={inspectBackup} disabled={!backupFile || backupInspectLoading || backupRestoreLoading}>
@@ -3432,7 +3441,7 @@ export default function SystemSettings() {
                         <div className="settings-notice-shell">
                             <div className="settings-notice-editor">
                                 <div className="text-sm text-muted mb-4">
-                                    {locale === 'en-US' ? 'This feature sends emails individually to each recipient; other users\' email addresses are not listed. By default, it targets all users who have an email address and allows attaching a button to access the latest subscription URL.' : '该功能会按单个收件人逐封发送邮件，不会把其他用户邮箱放在同一封邮件里。默认覆盖所有有邮箱地址的用户，并可附带最新地址按钮。'}
+                                    {t('pages.settings.noticeMailHint')}
                                 </div>
                                 <div className="grid-auto-220">
                                     <div className="form-group">
@@ -3518,7 +3527,7 @@ export default function SystemSettings() {
                                 </div>
                                 {noticePreview?.sampleRecipient?.username || noticePreview?.sampleRecipient?.email ? (
                                     <div className="text-xs text-muted">
-                                        {locale === 'en-US' ? 'Sample Recipient: ' : '示例收件人: '}{noticePreview.sampleRecipient.username || noticePreview.sampleRecipient.email}
+                                        {t('pages.settings.sampleRecipientPrefix')}{noticePreview.sampleRecipient.username || noticePreview.sampleRecipient.email}
                                     </div>
                                 ) : null}
                                 {noticePreviewError ? (
@@ -3667,7 +3676,7 @@ export default function SystemSettings() {
                                 checked={backupRestoreConfirmed}
                                 onChange={(event) => setBackupRestoreConfirmed(event.target.checked)}
                             />
-                            {locale === 'en-US' ? 'I confirm that this restore will overwrite current data, and the backup file is from a trusted source.' : '我已确认本次恢复会覆盖当前同名数据，且备份文件来源可信。'}
+                            {t('pages.settings.restoreConfirmLabel')}
                         </label>
                     </div>
                     <div className="modal-footer">
