@@ -22,6 +22,9 @@ const INBOUND_VALIDATION_KEYS = [
   'comp.inbounds.labelPort',
   'comp.inbounds.modalEditTitle',
   'comp.inbounds.modalBatchAddTitle',
+  'comp.inbounds.expiryNever',
+  'comp.inbounds.enableInbound',
+  'comp.inbounds.daysPlaceholder',
 ];
 
 const SETTINGS_KEYS = [
@@ -41,8 +44,16 @@ describe('phase2 InboundModal + Settings i18n', () => {
       expect(inboundSource).toMatch(key.replace('comp.inbounds.', ''));
     }
     expect(inboundSource).toMatch(/validateInboundPayload\([^)]*,\s*t\)/);
+    expect(inboundSource).toMatch(/expiryNever/);
+    expect(inboundSource).toMatch(/enableInbound/);
+    expect(inboundSource).toMatch(/daysPlaceholder/);
     expect(inboundSource).not.toMatch(/端口必须在 1-65535/);
     expect(inboundSource).not.toMatch(/编辑入站/);
+    // Primary chrome must not hard-code Chinese after localization
+    expect(inboundSource).not.toMatch(/value="永不过期"/);
+    expect(inboundSource).not.toMatch(/placeholder="例如:\s*30"/);
+    expect(inboundSource).not.toMatch(/>\s*启用入站\s*</);
+    expect(inboundSource).not.toMatch(/^\s*启用入站\s*$/m);
   });
 
   it('resolves inbound validation keys to English without CJK', () => {

@@ -1664,17 +1664,17 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         min={1}
                                         value={expiryAfterDays}
                                         onChange={(e) => setExpiryAfterDays(e.target.value)}
-                                        placeholder="例如: 30"
+                                        placeholder={t('comp.inbounds.daysPlaceholder')}
                                     />
                                 )}
                                 {expiryMode === 'never' && (
-                                    <input className="form-input" value="永不过期" readOnly />
+                                    <input className="form-input" value={t('comp.inbounds.expiryNever')} readOnly />
                                 )}
                             </div>
                             <div className="form-group inbound-inline-checkbox-group">
                                 <label className="inbound-inline-checkbox-label">
                                     <input type="checkbox" checked={inboundEnabled} onChange={(e) => setInboundEnabled(e.target.checked)} />
-                                    启用入站
+                                    {t('comp.inbounds.enableInbound')}
                                 </label>
                             </div>
                         </div>
