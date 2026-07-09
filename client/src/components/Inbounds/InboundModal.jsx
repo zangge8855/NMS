@@ -583,7 +583,7 @@ function fromLocalDateTimeInput(input) {
 }
 
 export default function InboundModal({ isOpen, onClose, editingInbound = null, onSuccess, servers = [], onBatchResult }) {
-    const { t } = useI18n();
+    const { t, locale } = useI18n();
     const { panelApi } = useServer();
     const defaultProtocol = 'vless';
     const [loading, setLoading] = useState(false);
@@ -1091,7 +1091,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
         try {
             const preferredServerId = resolveToolServerId();
             if (!preferredServerId) {
-                toast.error('请先选择目标服务器后再生成密钥');
+                toast.error(t('comp.inbounds.selectServerFirst'));
                 return;
             }
             const keys = await fetchRealityKeyPair(preferredServerId);
@@ -1145,18 +1145,18 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
         try {
             const selectedAuth = String(settingsObj?.selectedAuth || '').trim();
             if (!selectedAuth) {
-                toast.error('请先选择 Authentication');
+                toast.error(t('comp.inbounds.selectAuthFirst'));
                 return;
             }
             const preferredServerId = resolveToolServerId();
             if (!preferredServerId) {
-                toast.error('请先选择目标服务器后再生成密钥');
+                toast.error(t('comp.inbounds.selectServerFirst'));
                 return;
             }
             const auths = await fetchVlessEncOptions(preferredServerId);
             const block = auths.find((item) => item?.label === selectedAuth);
             if (!block) {
-                toast.error('当前节点暂不支持所选 Authentication 生成');
+                toast.error(t('comp.inbounds.authGenUnsupported'));
                 return;
             }
             updateSettingsJson((draft) => {
@@ -1164,7 +1164,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                 draft.decryption = String(block.decryption || 'none');
                 draft.encryption = String(block.encryption || 'none');
             });
-            toast.success('VLESS 密钥已更新');
+            toast.success(t('comp.inbounds.vlessKeysUpdated'));
         } catch (error) {
             toast.error(error?.response?.data?.msg || error?.message || t('comp.inbounds.genVlessFailed'));
         }
@@ -1190,7 +1190,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
         try {
             const preferredServerId = resolveToolServerId();
             if (!preferredServerId) {
-                toast.error('请先选择目标服务器后再生成 mldsa65');
+                toast.error(t('comp.inbounds.selectServerForMldsa'));
                 return;
             }
             const mldsa = await fetchMldsa65Seed(preferredServerId);
@@ -1205,7 +1205,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                 draft.realitySettings.mldsa65Seed = mldsa.seed;
                 draft.realitySettings.settings.mldsa65Verify = mldsa.verify;
             });
-            toast.success('mldsa65 已生成');
+            toast.success(t('comp.inbounds.mldsaGenerated'));
         } catch (error) {
             toast.error(error?.response?.data?.msg || error?.message || t('comp.inbounds.genMldsaFailed'));
         }
@@ -1240,12 +1240,12 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
         try {
             const preferredServerId = resolveToolServerId();
             if (!preferredServerId) {
-                toast.error('请先选择目标服务器后再生成 ECH');
+                toast.error(t('comp.inbounds.selectServerForEch'));
                 return;
             }
             const sni = String(simpleStream.tlsSni || streamObj?.tlsSettings?.serverName || '').trim();
             if (!sni) {
-                toast.error('请先填写 TLS SNI');
+                toast.error(t('comp.inbounds.tlsSniRequired'));
                 return;
             }
             const ech = await fetchEchCert(preferredServerId, sni);
@@ -1255,7 +1255,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                 draft.tlsSettings.echServerKeys = ech.echServerKeys;
                 draft.tlsSettings.settings.echConfigList = ech.echConfigList;
             });
-            toast.success('ECH 证书已生成');
+            toast.success(t('comp.inbounds.echGenerated'));
         } catch (error) {
             toast.error(error?.response?.data?.msg || error?.message || t('comp.inbounds.genEchFailed'));
         }
@@ -1364,7 +1364,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                 parsedStreamSettings = JSON.parse(streamSettings);
                 parsedSniffing = JSON.parse(sniffing);
             } catch {
-                toast.error('JSON 格式错误，请检查高级设置');
+                toast.error(t('comp.inbounds.invalidJsonAdvanced'));
                 setLoading(false);
                 return;
             }
@@ -1385,14 +1385,14 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
             if (expiryMode === 'datetime') {
                 resolvedExpiryTime = fromLocalDateTimeInput(expiryDateTime);
                 if (!resolvedExpiryTime) {
-                    toast.error('请选择有效的到期日期时间');
+                    toast.error(t('comp.inbounds.invalidExpiryDateTime'));
                     setLoading(false);
                     return;
                 }
             } else if (expiryMode === 'days') {
                 const days = Number(expiryAfterDays || 0);
                 if (!Number.isFinite(days) || days <= 0) {
-                    toast.error('请填写大于 0 的天数');
+                    toast.error(t('comp.inbounds.invalidExpiryDays'));
                     setLoading(false);
                     return;
                 }
@@ -1432,10 +1432,10 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
                     });
                 }
-                toast.success('入站已更新');
+                toast.success(t('comp.inbounds.inboundUpdated'));
             } else {
                 if (selectedServerIds.length === 0) {
-                    toast.error('请至少选择一个目标服务器');
+                    toast.error(t('comp.inbounds.selectTargetServer'));
                     setLoading(false);
                     return;
                 }
@@ -1487,28 +1487,37 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                     failed: targets.length,
                 };
                 const syncSummary = output?.subscriptionSync || null;
-                onBatchResult?.('批量添加入站结果', output || null);
+                onBatchResult?.(t('comp.inbounds.batchAddResult'), output || null);
                 if (summary.failed === 0) {
                     if (syncSummary && syncExistingSubscriptions) {
-                        toast.success(`成功部署到 ${summary.success} 个服务器，并补齐 ${syncSummary.syncedUsers || 0} 个用户订阅`);
+                        toast.success(t('comp.inbounds.deploySuccessWithSync', {
+                            success: summary.success,
+                            synced: syncSummary.syncedUsers || 0,
+                        }));
                     } else {
-                        toast.success(`成功部署到 ${summary.success} 个服务器`);
+                        toast.success(t('comp.inbounds.deploySuccess', { success: summary.success }));
                     }
+                } else if (syncSummary && syncExistingSubscriptions) {
+                    toast.error(t('comp.inbounds.deployPartialWithSync', {
+                        success: summary.success,
+                        failed: summary.failed,
+                        synced: syncSummary.syncedUsers || 0,
+                    }));
                 } else {
-                    const baseMessage = `部署完成: ${summary.success} 成功, ${summary.failed} 失败`;
-                    if (syncSummary && syncExistingSubscriptions) {
-                        toast.error(`${baseMessage}；已补齐 ${syncSummary.syncedUsers || 0} 个用户订阅`);
-                    } else {
-                        toast.error(baseMessage);
-                    }
+                    toast.error(t('comp.inbounds.deployPartial', {
+                        success: summary.success,
+                        failed: summary.failed,
+                    }));
                 }
             }
             onSuccess();
             onClose();
         } catch (err) {
             console.error(err);
-            const msg = getErrorMessage(err, '未知错误');
-            toast.error(editingInbound ? `更新失败: ${msg}` : `添加失败: ${msg}`);
+            const msg = getErrorMessage(err, t('comp.common.unknownError'), locale);
+            toast.error(editingInbound
+                ? t('comp.inbounds.updateFailedWithMsg', { msg })
+                : t('comp.inbounds.addFailedWithMsg', { msg }));
         }
         setLoading(false);
     };

@@ -339,7 +339,7 @@ export default function Inbounds() {
                         allResults.push(...serverInbounds);
                     }
                     if (result?.inboundsError && serverInbounds.length === 0) {
-                        toast.error(`节点 ${server.name} 入站读取失败`, { id: `err-${server.id}` });
+                        toast.error(t('comp.inbounds.nodeInboundsReadFailed', { name: server.name }), { id: `err-${server.id}` });
                     }
                 } catch (err) {
                     console.error(`Failed to normalize inbounds from ${server.name}`, err);
@@ -467,7 +467,10 @@ export default function Inbounds() {
             const summary = output?.summary || { success: 0, total: targets.length, failed: targets.length };
             setBatchResultTitle(t('comp.inbounds.batchDeleteResult'));
             setBatchResultData(output || null);
-            toast.success(`批量删除完成: ${summary.success}/${summary.total} 成功`);
+            toast.success(t('comp.inbounds.batchDeleteDone', {
+                success: summary.success,
+                total: summary.total,
+            }));
             setSelectedKeys(new Set());
             fetchAllInbounds();
         } catch (err) {
@@ -480,7 +483,7 @@ export default function Inbounds() {
     const handleBulkReset = async () => {
         const ok = await confirmAction({
             title: t('comp.inbounds.batchResetTitle'),
-            message: `确定重置选中的 ${selectedVisibleCount} 个入站流量吗？`,
+            message: t('comp.inbounds.confirmResetTraffic', { count: selectedVisibleCount }),
             confirmText: t('comp.common.confirmReset'),
             tone: 'secondary',
         });
@@ -509,7 +512,10 @@ export default function Inbounds() {
             const summary = output?.summary || { success: 0, total: targets.length, failed: targets.length };
             setBatchResultTitle(t('comp.inbounds.batchResetResult'));
             setBatchResultData(output || null);
-            toast.success(`流量重置完成: ${summary.success}/${summary.total} 成功`);
+            toast.success(t('comp.inbounds.trafficResetDone', {
+                success: summary.success,
+                total: summary.total,
+            }));
             setSelectedKeys(new Set());
             fetchAllInbounds();
         } catch (err) {
@@ -740,9 +746,9 @@ export default function Inbounds() {
             const savedIds = Array.isArray(res.data?.obj?.serverIds) ? res.data.obj.serverIds : serverIds;
             setServerOrder(savedIds);
             setInbounds((prev) => sortVisibleInbounds(prev, inboundOrder, savedIds));
-            toast.success('节点顺序已保存');
+            toast.success(t('comp.inbounds.serverOrderSaved'));
         } catch (err) {
-            toast.error(getErrorMessage(err, '节点顺序保存失败', locale));
+            toast.error(getErrorMessage(err, t('comp.inbounds.serverOrderSaveFailed'), locale));
             fetchAllInbounds();
         }
         setSavingOrderServerId('');
@@ -943,7 +949,10 @@ export default function Inbounds() {
             const summary = output?.summary || { success: 0, total: targets.length, failed: targets.length };
             setBatchResultTitle(t('comp.inbounds.batchDeleteClientResult'));
             setBatchResultData(output || null);
-            toast.success(`批量删除完成: ${summary.success}/${summary.total} 成功`);
+            toast.success(t('comp.inbounds.batchDeleteDone', {
+                success: summary.success,
+                total: summary.total,
+            }));
             clearInboundClientSelection(inbound, selectedClients);
             fetchAllInbounds();
         } catch (err) {
@@ -988,7 +997,7 @@ export default function Inbounds() {
         const addGb = Number(clientAdjustTrafficGb || 0) || 0;
         const addBytes = Math.trunc(addGb * 1024 * 1024 * 1024);
         if (addDays === 0 && addBytes === 0) {
-            toast.error('请填写要调整的天数或流量');
+            toast.error(t('comp.inbounds.adjustNeedValues'));
             return;
         }
         if (!inbound || selectedClients.length === 0) {

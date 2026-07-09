@@ -963,7 +963,7 @@ export default function UserDetail() {
         const addGb = Number(clientAdjustTrafficGb || 0) || 0;
         const addBytes = Math.trunc(addGb * 1024 * 1024 * 1024);
         if (addDays === 0 && addBytes === 0) {
-            toast.error('请填写要调整的天数或流量');
+            toast.error(t('comp.users.adjustNeedValues'));
             return;
         }
         const targets = clientData
@@ -980,7 +980,7 @@ export default function UserDetail() {
             }))
             .filter((target) => target.serverId && target.inboundId && (target.clientIdentifier || target.email));
         if (targets.length === 0) {
-            toast.error('没有可调整的客户端');
+            toast.error(t('comp.users.noAdjustableClients'));
             return;
         }
 
@@ -1001,9 +1001,12 @@ export default function UserDetail() {
             const res = await api.post('/batch/clients', payload);
             const output = res.data?.obj;
             const summary = output?.summary || { success: 0, total: targets.length, failed: targets.length };
-            setBatchResultTitle('批量调整结果');
+            setBatchResultTitle(t('comp.inbounds.batchAdjustResult'));
             setBatchResultData(output || null);
-            toast.success(`批量调整完成: ${summary.success}/${summary.total} 成功`);
+            toast.success(t('comp.users.batchAdjustDone', {
+                success: summary.success,
+                total: summary.total,
+            }));
             setClientAdjustOpen(false);
             setClientAdjustDays('');
             setClientAdjustTrafficGb('');
@@ -1012,7 +1015,7 @@ export default function UserDetail() {
             fetchClients({ force: true, preserveCurrent: true });
             loadSubscription({ quiet: true });
         } catch (err) {
-            toast.error(getErrorMessage(err, '批量调整失败', locale));
+            toast.error(getErrorMessage(err, t('comp.users.batchAdjustFailed'), locale));
         }
         setClientAdjustSaving(false);
     };

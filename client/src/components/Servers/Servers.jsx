@@ -816,9 +816,9 @@ export default function Servers() {
                 ? res.data.obj.serverIds.map((item) => String(item || '').trim()).filter(Boolean)
                 : nextOrder;
             setServerOrder(persistedOrder);
-            toast.success('服务器顺序已更新');
+            toast.success(t('comp.servers.serverOrderUpdated'));
         } catch (err) {
-            toast.error(getErrorMessage(err, locale === 'en-US' ? 'Failed to update server order' : '更新服务器顺序失败', locale));
+            toast.error(getErrorMessage(err, t('comp.servers.serverOrderUpdateFailed'), locale));
         }
         setLoading((prev) => ({ ...prev, serverOrder: false }));
     };
