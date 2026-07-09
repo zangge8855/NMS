@@ -27,6 +27,8 @@ const SECURITY_BOOTSTRAP_COPY = {
         confirmMismatch: '两次输入的管理员密码不一致',
         applySuccess: '安全启动向导已完成，面板已解锁',
         rotateHint: '若系统中已保存节点凭据或 Telegram Token，向导会同步完成重加密。',
+        loadFailed: '安全状态检测失败',
+        applyFailed: '安全启动向导执行失败',
     },
     'en-US': {
         title: 'First-Run Security Wizard',
@@ -50,6 +52,8 @@ const SECURITY_BOOTSTRAP_COPY = {
         confirmMismatch: 'The admin passwords do not match',
         applySuccess: 'Security bootstrap completed. The console is now unlocked.',
         rotateHint: 'Stored node credentials and Telegram tokens will be re-encrypted during the wizard when needed.',
+        loadFailed: 'Failed to check security status',
+        applyFailed: 'Security bootstrap failed',
     },
 };
 
@@ -122,7 +126,7 @@ export default function SecurityBootstrapWizard() {
                 initializeDraft(payload);
             }
         } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || '安全状态检测失败');
+            toast.error(error.response?.data?.msg || error.message || copy.loadFailed);
         }
         setLoading(false);
     };
@@ -171,7 +175,7 @@ export default function SecurityBootstrapWizard() {
             }));
             toast.success(copy.applySuccess);
         } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || '安全启动向导执行失败');
+            toast.error(error.response?.data?.msg || error.message || copy.applyFailed);
         }
         setSaving(false);
     };

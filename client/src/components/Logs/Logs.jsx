@@ -370,7 +370,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                 const serverName = String(item?.serverName || '').trim();
                 const error = item?.error && typeof item.error === 'object' ? item.error : null;
                 if (error) {
-                    failedServers.push(error.message || '未知错误');
+                    failedServers.push(error.message || t('comp.common.unknownError'));
                     continue;
                 }
                 allLogs.push(...lines.map((line, index) => ({

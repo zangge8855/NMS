@@ -4,6 +4,7 @@ import { useServer } from '../../contexts/ServerContext.jsx';
 import api from '../../api/client.js';
 import { attachBatchRiskToken } from '../../utils/riskConfirm.js';
 import { getErrorMessage } from '../../utils/format.js';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import toast from 'react-hot-toast';
 
@@ -582,6 +583,7 @@ function fromLocalDateTimeInput(input) {
 }
 
 export default function InboundModal({ isOpen, onClose, editingInbound = null, onSuccess, servers = [], onBatchResult }) {
+    const { t } = useI18n();
     const { panelApi } = useServer();
     const defaultProtocol = 'vless';
     const [loading, setLoading] = useState(false);
@@ -1114,7 +1116,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
             stream.realitySettings.settings.publicKey = keys.publicKey;
             setStreamSettings(JSON.stringify(stream, null, 2));
         } catch (error) {
-            toast.error(error?.response?.data?.msg || error?.message || '生成 Reality 密钥失败');
+            toast.error(error?.response?.data?.msg || error?.message || t('comp.inbounds.genRealityFailed'));
         }
     };
 
@@ -1164,7 +1166,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
             });
             toast.success('VLESS 密钥已更新');
         } catch (error) {
-            toast.error(error?.response?.data?.msg || error?.message || '生成 VLESS 密钥失败');
+            toast.error(error?.response?.data?.msg || error?.message || t('comp.inbounds.genVlessFailed'));
         }
     };
 
@@ -1205,7 +1207,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
             });
             toast.success('mldsa65 已生成');
         } catch (error) {
-            toast.error(error?.response?.data?.msg || error?.message || '生成 mldsa65 失败');
+            toast.error(error?.response?.data?.msg || error?.message || t('comp.inbounds.genMldsaFailed'));
         }
     };
 
@@ -1255,7 +1257,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
             });
             toast.success('ECH 证书已生成');
         } catch (error) {
-            toast.error(error?.response?.data?.msg || error?.message || '生成 ECH 证书失败');
+            toast.error(error?.response?.data?.msg || error?.message || t('comp.inbounds.genEchFailed'));
         }
     };
 
@@ -1701,7 +1703,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 >
                                                     {VLESS_FLOW_OPTIONS.map((item) => (
                                                         <option key={item || '__empty'} value={item}>
-                                                            {item || '不设置'}
+                                                            {item || t('comp.inbounds.notSet')}
                                                         </option>
                                                     ))}
                                                 </select>

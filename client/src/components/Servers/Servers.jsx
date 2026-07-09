@@ -80,13 +80,13 @@ function resolveServerLiveStatus(server, telemetry) {
 function getLiveStatusBadge(status, copy = {}) {
     switch (status) {
         case 'online':
-            return { cls: 'badge-success', text: copy.statusOnline || '在线' };
+            return { cls: 'badge-success', text: copy.statusOnline || 'Online' };
         case 'offline':
-            return { cls: 'badge-danger', text: copy.statusOffline || '离线' };
+            return { cls: 'badge-danger', text: copy.statusOffline || 'Offline' };
         case 'maintenance':
-            return { cls: 'badge-warning', text: copy.statusMaintenance || '维护' };
+            return { cls: 'badge-warning', text: copy.statusMaintenance || 'Maintenance' };
         default:
-            return { cls: 'badge-neutral', text: copy.statusUnknown || '未采样' };
+            return { cls: 'badge-neutral', text: copy.statusUnknown || 'Unsampled' };
     }
 }
 

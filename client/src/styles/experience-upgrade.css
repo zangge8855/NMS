@@ -970,7 +970,7 @@
   width: 42px;
   height: 42px;
   border-radius: 14px;
-  background: color-mix(in srgb, var(--surface-soft) 72%, rgba(99, 102, 241, 0.18) 28%);
+  background: color-mix(in srgb, var(--surface-soft) 72%, color-mix(in srgb, var(--accent-primary) 18%, transparent) 28%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
@@ -1109,7 +1109,7 @@
 .account-identity-card {
   border-radius: 24px;
   background:
-    radial-gradient(circle at top right, rgba(99, 102, 241, 0.12), transparent 32%),
+    radial-gradient(circle at top right, color-mix(in srgb, var(--accent-primary) 12%, transparent), transparent 32%),
     linear-gradient(180deg, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.58));
 }
 
@@ -4263,8 +4263,8 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--accent-primary), rgba(99, 102, 241, 0.8));
-  box-shadow: 0 0 8px rgba(99, 102, 241, 0.3);
+  background: linear-gradient(90deg, var(--accent-primary), color-mix(in srgb, var(--accent-primary) 80%, transparent));
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent-primary) 30%, transparent);
   transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -6204,19 +6204,19 @@
 /* ── Premium Unified Space Glassmorphic Dashboard Status Card Color System ── */
 
 .dashboard-stat-card[data-tone="primary"] {
-  /* Hero metric tracks the indigo brand accent (#6366F1) — the only functional accent
-     per Premium Signature v3. Cyan is reserved for gradients/charts. */
-  --dashboard-tone: HSL(239, 84%, 67%);
-  --dashboard-tone-bg: HSLA(239, 84%, 67%, 0.07);
-  --dashboard-tone-border: HSLA(239, 84%, 67%, 0.16);
-  --dashboard-tone-glow: HSLA(239, 84%, 67%, 0.14);
+  /* Hero metric tracks Aurora Indigo — the only functional accent (Premium Signature v3).
+     Cyan stays reserved for gradients/charts. */
+  --dashboard-tone: var(--accent-primary);
+  --dashboard-tone-bg: color-mix(in srgb, var(--accent-primary) 7%, transparent);
+  --dashboard-tone-border: color-mix(in srgb, var(--accent-primary) 16%, transparent);
+  --dashboard-tone-glow: color-mix(in srgb, var(--accent-primary) 14%, transparent);
 }
 
 .dashboard-stat-card[data-tone="info"] {
-  --dashboard-tone: HSL(239, 84%, 67%);
-  --dashboard-tone-bg: HSLA(239, 84%, 67%, 0.07);
-  --dashboard-tone-border: HSLA(239, 84%, 67%, 0.16);
-  --dashboard-tone-glow: HSLA(239, 84%, 67%, 0.14);
+  --dashboard-tone: var(--accent-primary);
+  --dashboard-tone-bg: color-mix(in srgb, var(--accent-primary) 7%, transparent);
+  --dashboard-tone-border: color-mix(in srgb, var(--accent-primary) 16%, transparent);
+  --dashboard-tone-glow: color-mix(in srgb, var(--accent-primary) 14%, transparent);
 }
 
 .dashboard-stat-card[data-tone="warning"] {
@@ -6988,7 +6988,7 @@
 .settings-page .settings-panel:hover,
 .settings-page .settings-form-cluster:hover,
 .settings-page .settings-ops-card:hover {
-  border-color: rgba(99, 102, 241, 0.24) !important;
+  border-color: color-mix(in srgb, var(--accent-primary) 24%, transparent) !important;
 }
 
 /* 2. Responsive Settings Dual Column Shell (Screens >= 1024px) */
@@ -7041,9 +7041,9 @@
 
   /* Active Sidebar Item Styling */
   .settings-page .settings-nav-item.is-active {
-    border-color: rgba(99, 102, 241, 0.36) !important;
-    background: rgba(99, 102, 241, 0.12) !important;
-    box-shadow: 0 0 16px rgba(99, 102, 241, 0.15) !important;
+    border-color: color-mix(in srgb, var(--accent-primary) 36%, transparent) !important;
+    background: color-mix(in srgb, var(--accent-primary) 12%, transparent) !important;
+    box-shadow: 0 0 16px color-mix(in srgb, var(--accent-primary) 15%, transparent) !important;
   }
 }
 
@@ -7076,13 +7076,13 @@
 .settings-kpi-card:hover {
   transform: translateY(-2px);
   background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(99, 102, 241, 0.2);
+  border-color: color-mix(in srgb, var(--accent-primary) 20%, transparent);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 
 [data-theme="light"] .settings-kpi-card:hover {
   background: rgba(15, 23, 42, 0.04);
-  border-color: rgba(99, 102, 241, 0.2);
+  border-color: color-mix(in srgb, var(--accent-primary) 20%, transparent);
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
 }
 
@@ -7209,15 +7209,15 @@
 .settings-page input:focus,
 .settings-page select:focus,
 .settings-page textarea:focus {
-  border-color: rgba(99, 102, 241, 0.5) !important;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+  border-color: color-mix(in srgb, var(--accent-primary) 50%, transparent) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 15%, transparent) !important;
   background: rgba(15, 23, 42, 0.35) !important;
 }
 
 [data-theme="light"] .settings-page input:focus,
 [data-theme="light"] .settings-page select:focus,
 [data-theme="light"] .settings-page textarea:focus {
-  border-color: rgba(99, 102, 241, 0.5) !important;
+  border-color: color-mix(in srgb, var(--accent-primary) 50%, transparent) !important;
   background: rgba(255, 255, 255, 0.95) !important;
 }
 
@@ -7393,15 +7393,15 @@
 .modal-body input:focus,
 .modal-body select:focus,
 .modal-body textarea:focus {
-  border-color: rgba(99, 102, 241, 0.5) !important;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+  border-color: color-mix(in srgb, var(--accent-primary) 50%, transparent) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 15%, transparent) !important;
   background: rgba(15, 23, 42, 0.35) !important;
 }
 
 [data-theme="light"] .modal-body input:focus,
 [data-theme="light"] .modal-body select:focus,
 [data-theme="light"] .modal-body textarea:focus {
-  border-color: rgba(99, 102, 241, 0.5) !important;
+  border-color: color-mix(in srgb, var(--accent-primary) 50%, transparent) !important;
   background: rgba(255, 255, 255, 0.95) !important;
 }
 
@@ -7538,14 +7538,14 @@
 .servers-page .servers-telemetry-cell:hover {
   transform: translateY(-2px) !important;
   background: rgba(15, 23, 42, 0.35) !important;
-  border-color: rgba(99, 102, 241, 0.3) !important;
-  box-shadow: 0 6px 25px rgba(99, 102, 241, 0.18) !important;
+  border-color: color-mix(in srgb, var(--accent-primary) 30%, transparent) !important;
+  box-shadow: 0 6px 25px color-mix(in srgb, var(--accent-primary) 18%, transparent) !important;
 }
 
 [data-theme="light"] .servers-page .servers-telemetry-cell:hover {
   background: rgba(255, 255, 255, 0.9) !important;
-  border-color: rgba(99, 102, 241, 0.25) !important;
-  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.1) !important;
+  border-color: color-mix(in srgb, var(--accent-primary) 25%, transparent) !important;
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent-primary) 10%, transparent) !important;
 }
 
 .servers-page .servers-telemetry-meta {

@@ -567,7 +567,7 @@ body,
 
 .btn-primary {
   background: var(--gradient-primary);
-  border: 1px solid rgba(99, 102, 241, 0.4);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15);
   color: var(--text-on-accent);
   font-weight: 650;
@@ -577,7 +577,7 @@ body,
   background: linear-gradient(135deg, #0aa6cb 0%, #0a90db 100%);
   box-shadow: 0 8px 18px -6px rgba(79, 70, 229, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.16);
   transform: translateY(-1px);
-  border-color: rgba(99, 102, 241, 0.6);
+  border-color: color-mix(in srgb, var(--accent-primary) 60%, transparent);
 }
 
 .btn-primary:active:not(:disabled) {

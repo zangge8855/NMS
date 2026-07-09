@@ -3,6 +3,7 @@ import { HiOutlineCheck, HiOutlineXMark } from 'react-icons/hi2';
 import toast from 'react-hot-toast';
 import api from '../../api/client.js';
 import { bytesToGigabytesInput, gigabytesInputToBytes, normalizeLimitIp } from '../../utils/entitlements.js';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 
@@ -25,6 +26,7 @@ function normalizeScopeMode(mode, selectedItems = []) {
 }
 
 export default function UserPolicyModal({ isOpen, email, servers = [], onClose }) {
+    const { t } = useI18n();
     const normalizedEmail = useMemo(() => String(email || '').trim().toLowerCase(), [email]);
     const validServerIdSet = useMemo(() => new Set((Array.isArray(servers) ? servers : []).map((item) => item.id)), [servers]);
     const [loading, setLoading] = useState(false);
@@ -72,7 +74,7 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                 setSpeedLimitDown(String(Math.round(Number(payload.speedLimitDown || 0) / 1024)));
             } catch (error) {
                 if (!cancelled) {
-                    const msg = error.response?.data?.msg || error.message || '权限策略加载失败';
+                    const msg = error.response?.data?.msg || error.message || t('comp.userPolicy.loadFailed');
                     toast.error(msg);
                 }
             }
@@ -81,7 +83,7 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
 
         loadPolicy();
         return () => { cancelled = true; };
-    }, [isOpen, normalizedEmail, validServerIdSet]);
+    }, [isOpen, normalizedEmail, t, validServerIdSet]);
 
     const toggleServerId = (serverId, checked) => {
         setSelectedServerIds((prev) => {
@@ -100,7 +102,7 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!normalizedEmail) {
-            toast.error('邮箱为空');
+            toast.error(t('comp.userPolicy.emptyEmail'));
             return;
         }
 
@@ -117,8 +119,7 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
             protocolScopeMode,
             limitIp: normalizeLimitIp(limitIp),
             trafficLimitBytes: gigabytesInputToBytes(trafficLimitGb),
-            // Speed limits are stored and forwarded verbatim as KB/s — match the unit used
-            // by the UsersHub provision/edit modals and the Inbounds entitlement modal.
+            // Speed limits are stored and forwarded as B/s (UI shows KB/s) — match UsersHub / ClientModal.
             speedLimitUp: Number(speedLimitUp || 0) * 1024,
             speedLimitDown: Number(speedLimitDown || 0) * 1024,
         };
@@ -126,10 +127,10 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
         setSaving(true);
         try {
             await api.put(`/user-policy/${encodeURIComponent(normalizedEmail)}`, payload);
-            toast.success('订阅权限已保存');
+            toast.success(t('comp.userPolicy.saved'));
             onClose();
         } catch (error) {
-            const msg = error.response?.data?.msg || error.message || '保存失败';
+            const msg = error.response?.data?.msg || error.message || t('comp.common.saveFailed');
             toast.error(msg);
         }
         setSaving(false);
@@ -138,16 +139,24 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
     if (!isOpen) return null;
 
     return (
-        <ModalShell isOpen={isOpen} onClose={onClose}>
+        <ModalShell isOpen={isOpen} onClose={onClose} ariaLabel={t('comp.userPolicy.title')}>
             <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                 <div className="modal-header">
-                    <h3 className="modal-title">订阅权限策略</h3>
-                    <button type="button" className="modal-close" onClick={onClose} aria-label="关闭" title="关闭"><HiOutlineXMark /></button>
+                    <h3 className="modal-title">{t('comp.userPolicy.title')}</h3>
+                    <button
+                        type="button"
+                        className="modal-close"
+                        onClick={onClose}
+                        aria-label={t('comp.common.close')}
+                        title={t('comp.common.close')}
+                    >
+                        <HiOutlineXMark />
+                    </button>
                 </div>
                 <form onSubmit={handleSubmit}>
                     <div className="modal-body">
                         <div className="mb-4 p-3 rounded bg-surface-soft border border-stroke-soft text-sm">
-                            用户: <strong>{normalizedEmail || '-'}</strong>
+                            {t('comp.userPolicy.userLabel')}<strong>{normalizedEmail || '-'}</strong>
                         </div>
 
                         {loading ? (
@@ -156,14 +165,14 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                             <>
                                 <div className="card mb-4">
                                     <div className="flex items-center justify-between mb-3">
-                                        <span className="card-title">可访问服务器</span>
+                                        <span className="card-title">{t('comp.userPolicy.serversTitle')}</span>
                                         <label className="flex items-center gap-2 text-sm cursor-pointer">
                                             <input
                                                 type="checkbox"
                                                 checked={noServerLimit}
                                                 onChange={(e) => setNoServerLimit(e.target.checked)}
                                             />
-                                            不限制
+                                            {t('comp.common.noLimit')}
                                         </label>
                                     </div>
                                     <div className="flex flex-wrap gap-2">
@@ -178,20 +187,22 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                                                 <span>{server.name}</span>
                                             </label>
                                         ))}
-                                        {servers.length === 0 && <EmptyState title="暂无服务器" size="compact" />}
+                                        {servers.length === 0 && (
+                                            <EmptyState title={t('comp.userPolicy.noServers')} size="compact" />
+                                        )}
                                     </div>
                                 </div>
 
                                 <div className="card">
                                     <div className="flex items-center justify-between mb-3">
-                                        <span className="card-title">可用协议</span>
+                                        <span className="card-title">{t('comp.userPolicy.protocolsTitle')}</span>
                                         <label className="flex items-center gap-2 text-sm cursor-pointer">
                                             <input
                                                 type="checkbox"
                                                 checked={noProtocolLimit}
                                                 onChange={(e) => setNoProtocolLimit(e.target.checked)}
                                             />
-                                            不限制
+                                            {t('comp.common.noLimit')}
                                         </label>
                                     </div>
                                     <div className="flex flex-wrap gap-2">
@@ -210,9 +221,9 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                                 </div>
 
                                 <div className="card mt-4">
-                                    <div className="card-title mb-3">统一限额</div>
+                                    <div className="card-title mb-3">{t('comp.userPolicy.quotasTitle')}</div>
                                     <div className="form-group">
-                                        <label className="form-label">IP 限制</label>
+                                        <label className="form-label">{t('comp.userPolicy.limitIp')}</label>
                                         <input
                                             className="form-input"
                                             type="number"
@@ -220,10 +231,10 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                                             value={limitIp}
                                             onChange={(e) => setLimitIp(e.target.value)}
                                         />
-                                        <div className="text-xs text-muted mt-1">0 表示不限制并发连接 IP 数量</div>
+                                        <div className="text-xs text-muted mt-1">{t('comp.userPolicy.limitIpHelp')}</div>
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">总流量上限</label>
+                                        <label className="form-label">{t('comp.userPolicy.trafficLimit')}</label>
                                         <div className="flex items-center gap-2">
                                             <input
                                                 className="form-input"
@@ -235,11 +246,11 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                                             />
                                             <span className="text-sm text-muted">GB</span>
                                         </div>
-                                        <div className="text-xs text-muted mt-1">0 表示不限制总流量</div>
+                                        <div className="text-xs text-muted mt-1">{t('comp.userPolicy.trafficLimitHelp')}</div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="form-group">
-                                            <label className="form-label">上行限速 (Speed Limit Up)</label>
+                                            <label className="form-label">{t('comp.userPolicy.speedUp')}</label>
                                             <div className="flex items-center gap-2">
                                                 <input
                                                     className="form-input"
@@ -250,10 +261,10 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                                                 />
                                                 <span className="text-sm text-muted">KB/s</span>
                                             </div>
-                                            <div className="text-xs text-muted mt-1">0 表示不限速</div>
+                                            <div className="text-xs text-muted mt-1">{t('comp.userPolicy.speedHelp')}</div>
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">下行限速 (Speed Limit Down)</label>
+                                            <label className="form-label">{t('comp.userPolicy.speedDown')}</label>
                                             <div className="flex items-center gap-2">
                                                 <input
                                                     className="form-input"
@@ -264,7 +275,7 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                                                 />
                                                 <span className="text-sm text-muted">KB/s</span>
                                             </div>
-                                            <div className="text-xs text-muted mt-1">0 表示不限速</div>
+                                            <div className="text-xs text-muted mt-1">{t('comp.userPolicy.speedHelp')}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -272,9 +283,11 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                         )}
                     </div>
                     <div className="modal-footer">
-                        <button type="button" className="btn btn-secondary" onClick={onClose}>取消</button>
+                        <button type="button" className="btn btn-secondary" onClick={onClose}>
+                            {t('comp.common.cancel')}
+                        </button>
                         <button type="submit" className="btn btn-primary" disabled={saving || loading}>
-                            {saving ? <span className="spinner" /> : <><HiOutlineCheck /> 保存策略</>}
+                            {saving ? <span className="spinner" /> : <><HiOutlineCheck /> {t('comp.userPolicy.savePolicy')}</>}
                         </button>
                     </div>
                 </form>

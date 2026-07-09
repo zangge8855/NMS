@@ -17,6 +17,7 @@ import {
     getClientIdentifier,
     getConflictTypeLabels,
 } from '../../utils/clientConflict.js';
+import { useI18n } from '../../contexts/LanguageContext.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import SkeletonTable from '../UI/SkeletonTable.jsx';
@@ -34,9 +35,9 @@ function toNumber(value, fallback = 0) {
     return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function formatExpiry(value) {
+function formatExpiry(value, permanentLabel = 'Permanent') {
     const ts = toNumber(value, 0);
-    if (!ts) return '永久';
+    if (!ts) return permanentLabel;
     const date = new Date(ts);
     if (Number.isNaN(date.getTime())) return '-';
     return date.toLocaleString('zh-CN');
@@ -89,6 +90,7 @@ export default function ConflictScannerModal({
     onRefreshClients,
     onShowBatchResult,
 }) {
+    const { t } = useI18n();
     const [report, setReport] = useState(() => buildClientConflictReport([]));
     const [selectionMap, setSelectionMap] = useState({});
     const [scanning, setScanning] = useState(false);
@@ -154,7 +156,7 @@ export default function ConflictScannerModal({
         const sourceKey = selectionMap[key] || protocolGroup.recommendedSourceKey;
         const sourceEntry = findConflictSourceEntry(protocolGroup, sourceKey);
         if (!sourceEntry) {
-            toast.error('未找到可用来源记录');
+            toast.error(t('comp.clients.conflictNoSource'));
             return;
         }
 
@@ -171,13 +173,13 @@ export default function ConflictScannerModal({
             }));
 
         if (targets.length === 0) {
-            toast.error('没有需要修复的目标');
+            toast.error(t('comp.clients.conflictNoTargets'));
             return;
         }
 
         const clientPayload = buildClientPayload(sourceEntry);
         if (!targets.every((target) => String(target.clientIdentifier || '').trim())) {
-            toast.error('存在空标识目标，无法自动修复');
+            toast.error(t('comp.clients.conflictEmptyIdentifier'));
             return;
         }
 
@@ -198,18 +200,22 @@ export default function ConflictScannerModal({
             const summaryInfo = output?.summary || { success: 0, total: targets.length, failed: targets.length };
 
             if (onShowBatchResult && output) {
-                onShowBatchResult('冲突修复结果', output);
+                onShowBatchResult(t('comp.clients.conflictRepairResult'), output);
             }
 
+            const doneMsg = t('comp.clients.conflictRepairDone', {
+                success: summaryInfo.success,
+                total: summaryInfo.total,
+            });
             if (summaryInfo.failed > 0) {
-                toast.error(`修复完成：${summaryInfo.success}/${summaryInfo.total} 成功`);
+                toast.error(doneMsg);
             } else {
-                toast.success(`修复完成：${summaryInfo.success}/${summaryInfo.total} 成功`);
+                toast.success(doneMsg);
             }
 
             await refreshFromServer();
         } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || '修复失败');
+            toast.error(error.response?.data?.msg || error.message || t('comp.clients.conflictRepairFailed'));
         } finally {
             setResolvingKey('');
         }
@@ -218,10 +224,10 @@ export default function ConflictScannerModal({
     if (!isOpen) return null;
 
     return (
-        <ModalShell isOpen={isOpen} onClose={onClose}>
+        <ModalShell isOpen={isOpen} onClose={onClose} ariaLabel={t('comp.clients.conflictTitle')}>
             <div className="modal modal-wide glass-panel conflict-scanner-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="modal-header">
-                    <h3 className="modal-title">冲突扫描与修复</h3>
+                    <h3 className="modal-title">{t('comp.clients.conflictTitle')}</h3>
                     <button type="button" className="modal-close" onClick={onClose} aria-label="关闭" title="关闭"><HiOutlineXMark /></button>
                 </div>
 
@@ -306,7 +312,7 @@ export default function ConflictScannerModal({
                                                         >
                                                             {(protocolGroup.sourceCandidates || []).map((candidate) => (
                                                                 <option key={candidate.sourceKey} value={candidate.sourceKey}>
-                                                                    {candidate.serverName} / {candidate.inboundRemark || '-'} / {candidate.identifier || '(空标识)'}
+                                                                    {candidate.serverName} / {candidate.inboundRemark || '-'} / {candidate.identifier || `(${t('comp.clients.emptyIdentifier')})`}
                                                                 </option>
                                                             ))}
                                                         </select>
@@ -347,7 +353,7 @@ export default function ConflictScannerModal({
                                                                             {entry.enable === false ? '停用' : '启用'}
                                                                         </span>
                                                                     </td>
-                                                                    <td data-label="有效期" className="table-cell-center cell-mono conflict-scanner-expiry-cell">{formatExpiry(entry.expiryTime)}</td>
+                                                                    <td data-label="有效期" className="table-cell-center cell-mono conflict-scanner-expiry-cell">{formatExpiry(entry.expiryTime, t('comp.clients.permanent'))}</td>
                                                                     <td data-label="总量" className="table-cell-right cell-mono-right conflict-scanner-total-cell">{formatBytes(toNumber(entry.totalGB, 0))}</td>
                                                                     <td data-label="来源" className="table-cell-center conflict-scanner-source-cell">
                                                                         {isSource ? <span className="badge badge-info">来源</span> : '-'}

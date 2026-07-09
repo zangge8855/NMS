@@ -4112,17 +4112,23 @@ label,
 
 .inbounds-table .inbounds-protocol-col,
 .inbounds-table .inbounds-protocol-cell {
-  /* Widest protocol badge (DOKODEMO-DOOR) needs ~128px untruncated. */
-  width: 140px !important;
+  /* Authoritative floor: SHADOWSOCKS / DOKODEMO-DOOR must remain readable. */
+  width: 148px !important;
+  min-width: 132px !important;
 }
 
-/* Keep long protocol names (e.g. SHADOWSOCKS, DOKODEMO-DOOR) readable: size the badge to
-   the cell and ellipsize at the end instead of clipping mid-word on both sides. */
+/* Ellipsize only at the end (never center-clip mid glyph). title= on the badge shows full name. */
 .inbounds-table .inbounds-protocol-cell .badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   max-width: 100% !important;
+  min-width: 0 !important;
+  width: auto !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
+  box-sizing: border-box !important;
 }
 
 .inbounds-table .inbounds-port-col,
@@ -4715,7 +4721,8 @@ label,
 
 .inbounds-table .inbounds-protocol-col,
 .inbounds-table .inbounds-protocol-cell {
-  width: 126px !important;
+  width: 148px !important;
+  min-width: 132px !important;
 }
 
 .inbounds-table .inbounds-port-col,
@@ -5058,7 +5065,8 @@ label,
 
   .inbounds-table .inbounds-protocol-col,
   .inbounds-table .inbounds-protocol-cell {
-    width: 118px !important;
+    width: 132px !important;
+    min-width: 120px !important;
   }
 
   .inbounds-table .inbounds-port-col,
@@ -6042,8 +6050,8 @@ label,
 
   .inbounds-table .inbounds-protocol-col,
   .inbounds-table .inbounds-protocol-cell {
-    width: 126px !important;
-    min-width: 126px !important;
+    width: 136px !important;
+    min-width: 128px !important;
   }
 
   .inbounds-table .inbounds-port-col,
@@ -6318,5 +6326,73 @@ label,
 .dark .cap-status-pill--neutral {
   background: rgba(255, 255, 255, 0.06) !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* ==========================================================================
+   Premium cohesion pass (2026-07) — high-end chrome without neon functional color
+   ========================================================================== */
+
+/* Primary actions: signature indigo gradient + restrained glow (signature surface only) */
+.btn-primary {
+  background: var(--gradient-primary) !important;
+  color: var(--btn-primary-fg, #ffffff) !important;
+  border-color: transparent !important;
+  box-shadow: var(--glow-accent-soft), var(--shadow-sm) !important;
+}
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(1.04);
+  box-shadow: var(--glow-accent-soft), var(--shadow-md) !important;
+}
+.btn-primary:focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 28%, transparent), var(--glow-accent-soft) !important;
+}
+
+/* Opaque workbench cards — calm elevated surface, no glass on content cards */
+.card,
+.page-card,
+.table-container {
+  background: var(--surface-card-bg, var(--bg-card)) !important;
+  border-color: var(--surface-card-border, var(--border-color)) !important;
+  box-shadow: var(--surface-card-shadow, var(--shadow-sm)) !important;
+}
+
+/* Shared focus ring for form controls — always indigo token, never neon cyan */
+.form-input:focus-visible,
+.form-select:focus-visible,
+.form-textarea:focus-visible,
+textarea.form-input:focus-visible {
+  outline: none !important;
+  border-color: var(--border-focus) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 22%, transparent) !important;
+}
+
+/* Protocol badges: readable mono-ish weight, opaque soft surface */
+.inbounds-table .inbounds-protocol-cell .badge {
+  background: var(--surface-panel-soft) !important;
+  color: var(--text-secondary) !important;
+  border: 1px solid var(--border-color) !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em !important;
+}
+
+/* Neutral status pills use surface tokens so light/dark stay balanced */
+.cap-status-pill--neutral,
+[data-theme="light"] .cap-status-pill--neutral {
+  background: color-mix(in srgb, var(--text-primary) 4%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--text-primary) 8%, transparent) !important;
+  color: var(--text-muted) !important;
+}
+[data-theme="dark"] .cap-status-pill--neutral,
+.dark .cap-status-pill--neutral {
+  background: color-mix(in srgb, #ffffff 6%, transparent) !important;
+  border: 1px solid color-mix(in srgb, #ffffff 10%, transparent) !important;
+}
+
+/* Header / search axis: keep interactive chrome on accent tokens */
+.header-search-input:focus-visible,
+.header-command-input:focus-visible {
+  border-color: var(--border-focus) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 20%, transparent) !important;
 }
 

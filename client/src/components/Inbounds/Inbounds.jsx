@@ -1025,16 +1025,19 @@ export default function Inbounds() {
             const res = await api.post('/batch/clients', payload);
             const output = res.data?.obj;
             const summary = output?.summary || { success: 0, total: targets.length, failed: targets.length };
-            setBatchResultTitle('批量调整结果');
+            setBatchResultTitle(t('comp.inbounds.batchAdjustResult'));
             setBatchResultData(output || null);
-            toast.success(`批量调整完成: ${summary.success}/${summary.total} 成功`);
+            toast.success(t('comp.inbounds.batchAdjustDone', {
+                success: summary.success,
+                total: summary.total,
+            }));
             clearInboundClientSelection(inbound, selectedClients);
             setClientAdjustOpen(false);
             setClientAdjustTarget(null);
             fetchAllInbounds({ force: true });
         } catch (err) {
             console.error(err);
-            toast.error(getErrorMessage(err, '批量调整失败', locale));
+            toast.error(getErrorMessage(err, t('comp.inbounds.batchAdjustFailed'), locale));
         }
         setClientAdjustSaving(false);
     };
@@ -1931,14 +1934,14 @@ export default function Inbounds() {
                     onSuccess={() => fetchAllInbounds({ force: true })}
                     onBatchResult={(title, data) => {
                         if (!data) return;
-                        setBatchResultTitle(title || '批量用户结果');
+                        setBatchResultTitle(title || t('comp.inbounds.batchUserResult'));
                         setBatchResultData(data);
                     }}
                 />
 
                 {selectedVisibleCount > 0 && (
                     <div className="mobile-batch-bar">
-                        <div className="batch-count">已选 {selectedVisibleCount} 项</div>
+                        <div className="batch-count">{t('comp.inbounds.selectedCount', { count: selectedVisibleCount })}</div>
                         <button className={bulkToggleClassName} onClick={() => handleBulkSetEnable(bulkToggleEnable)}>
                             {bulkToggleIcon}
                             {bulkToggleLabel}

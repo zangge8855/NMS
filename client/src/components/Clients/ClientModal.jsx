@@ -87,7 +87,7 @@ export default function ClientModal({
     onSuccess,
     onBatchResult,
 }) {
-    const { locale } = useI18n();
+    const { locale, t } = useI18n();
     const [loading, setLoading] = useState(false);
 
     const [email, setEmail] = useState('');
@@ -349,7 +349,7 @@ export default function ClientModal({
         const isBatchEdit = !!editingClient && editTargets.length > 0;
         if (!isBatch && (!inboundId || !serverId)) {
             if (!isBatchEdit) {
-                toast.error('Missing server or inbound ID');
+                toast.error(t('comp.clients.missingServerOrInbound'));
                 return;
             }
         }
@@ -360,7 +360,7 @@ export default function ClientModal({
             if (isBatch) {
                 const unsupported = filteredTargets.filter((item) => !BATCH_CLIENT_PROTOCOLS.has(String(item.protocol || '').toLowerCase()));
                 if (unsupported.length > 0) {
-                    toast.error('目标中包含不支持批量用户管理的协议');
+                    toast.error(t('comp.clients.unsupportedBatchProtocol'));
                     setLoading(false);
                     return;
                 }
@@ -369,7 +369,7 @@ export default function ClientModal({
             if (isBatchEdit) {
                 const unsupported = editTargets.filter((item) => !BATCH_CLIENT_PROTOCOLS.has(String(item.protocol || '').toLowerCase()));
                 if (unsupported.length > 0) {
-                    toast.error('编辑目标包含不支持批量用户管理的协议');
+                    toast.error(t('comp.clients.unsupportedBatchEditProtocol'));
                     setLoading(false);
                     return;
                 }
@@ -378,12 +378,12 @@ export default function ClientModal({
             const normalizedUuid = String(uuid || '').trim();
             const normalizedPassword = String(password || '').trim();
             if (requiresUuidCredential && !normalizedUuid) {
-                toast.error('UUID 不能为空');
+                toast.error(t('comp.clients.uuidRequired'));
                 setLoading(false);
                 return;
             }
             if (requiresPasswordCredential && !normalizedPassword) {
-                toast.error('密码不能为空');
+                toast.error(t('comp.clients.passwordRequired'));
                 setLoading(false);
                 return;
             }
@@ -392,14 +392,14 @@ export default function ClientModal({
             if (expiryMode === 'datetime') {
                 resolvedExpiryTime = fromLocalDateTimeInput(expiryDateTime);
                 if (!resolvedExpiryTime) {
-                    toast.error('请选择有效的到期日期时间');
+                    toast.error(t('comp.clients.invalidExpiryDateTime'));
                     setLoading(false);
                     return;
                 }
             } else if (expiryMode === 'days') {
                 const days = Number(expiryAfterDays || 0);
                 if (!Number.isFinite(days) || days <= 0) {
-                    toast.error('请填写大于 0 的天数');
+                    toast.error(t('comp.clients.invalidExpiryDays'));
                     setLoading(false);
                     return;
                 }
@@ -484,7 +484,7 @@ export default function ClientModal({
                         targetCount: updateTargets.length,
                     });
                     const res = await api.post('/batch/clients', batchPayload);
-                    assertOperationSucceeded(res, locale === 'en-US' ? 'Batch update failed' : '批量更新失败');
+                    assertOperationSucceeded(res, t('comp.clients.batchUpdateFailed'));
 
                     const output = res.data?.obj;
                     const summary = output?.summary || {
@@ -492,12 +492,16 @@ export default function ClientModal({
                         total: updateTargets.length,
                         failed: updateTargets.length,
                     };
-                    onBatchResult?.(locale === 'en-US' ? 'Batch Update Client Result' : '批量更新用户结果', output || null);
+                    onBatchResult?.(t('comp.clients.batchUpdateResult'), output || null);
 
+                    const doneMsg = t('comp.clients.batchUpdateDone', {
+                        success: summary.success,
+                        total: summary.total,
+                    });
                     if (summary.failed === 0) {
-                        toast.success(locale === 'en-US' ? `Batch update completed: ${summary.success}/${summary.total} succeeded` : `批量更新完成: ${summary.success}/${summary.total} 成功`);
+                        toast.success(doneMsg);
                     } else {
-                        toast.error(locale === 'en-US' ? `Batch update completed: ${summary.success}/${summary.total} succeeded` : `批量更新完成: ${summary.success}/${summary.total} 成功`);
+                        toast.error(doneMsg);
                     }
                     onSuccess();
                     onClose();
@@ -507,21 +511,21 @@ export default function ClientModal({
 
                 const clientIdentifier = resolveClientIdentifier(editingClient, editingClient.protocol || inboundProtocol);
                 if (!clientIdentifier) {
-                    throw new Error('Missing client identifier');
+                    throw new Error(t('comp.clients.missingClientId'));
                 }
 
                 const params = new URLSearchParams();
                 params.append('id', inboundId);
                 params.append('settings', JSON.stringify({ clients: [clientData] }));
 
-                let updateMsg = '用户已更新';
+                let updateMsg = t('comp.clients.userUpdated');
                 try {
                     const updateRes = await api.post(
                         `/panel/${serverId}/panel/api/inbounds/updateClient/${encodeURIComponent(clientIdentifier)}`,
                         params,
                         { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
                     );
-                    assertOperationSucceeded(updateRes, '更新失败');
+                    assertOperationSucceeded(updateRes, t('comp.clients.updateFailed'));
                     updateMsg = resolveResponseMsg(updateRes.data, updateMsg);
                 } catch {
                     // Backward compatibility for older/forked 3x-ui update payloads.
@@ -529,7 +533,7 @@ export default function ClientModal({
                         `/panel/${serverId}/panel/api/inbounds/updateClient/${encodeURIComponent(clientIdentifier)}`,
                         clientData
                     );
-                    assertOperationSucceeded(fallbackRes, '更新失败');
+                    assertOperationSucceeded(fallbackRes, t('comp.clients.updateFailed'));
                     updateMsg = resolveResponseMsg(fallbackRes.data, updateMsg);
                 }
                 toast.success(updateMsg);
@@ -537,20 +541,20 @@ export default function ClientModal({
                 // Add mode
                 if (isBatch) {
                     if (filteredTargets.length === 0) {
-                        toast.error('请至少选择一个入站');
+                        toast.error(t('comp.clients.selectInboundFirst'));
                         setLoading(false);
                         return;
                     }
 
-                    const batchTargets = filteredTargets.map((t) => ({
-                        serverId: t.serverId,
-                        serverName: t.serverName,
-                        inboundId: t.id,
-                        protocol: t.protocol,
+                    const batchTargets = filteredTargets.map((target) => ({
+                        serverId: target.serverId,
+                        serverName: target.serverName,
+                        inboundId: target.id,
+                        protocol: target.protocol,
                         email: clientData.email,
                         client: {
                             ...clientData,
-                            flow: flowProtocolSet.has(String(t.protocol || '').toLowerCase()) ? clientData.flow : '',
+                            flow: flowProtocolSet.has(String(target.protocol || '').toLowerCase()) ? clientData.flow : '',
                         },
                     }));
 
@@ -564,7 +568,7 @@ export default function ClientModal({
                         targetCount: batchTargets.length,
                     });
                     const res = await api.post('/batch/clients', batchPayload);
-                    assertOperationSucceeded(res, '批量添加失败');
+                    assertOperationSucceeded(res, t('comp.clients.batchAddFailed'));
 
                     const output = res.data?.obj;
                     const summary = output?.summary || {
@@ -572,12 +576,15 @@ export default function ClientModal({
                         total: filteredTargets.length,
                         failed: filteredTargets.length,
                     };
-                    onBatchResult?.('批量添加用户结果', output || null);
+                    onBatchResult?.(t('comp.clients.batchAddResult'), output || null);
 
                     if (summary.failed === 0) {
-                        toast.success(`成功添加到 ${summary.success} 个入站`);
+                        toast.success(t('comp.clients.batchAddDone', { success: summary.success }));
                     } else {
-                        toast.error(`完成: ${summary.success} 成功, ${summary.failed} 失败`);
+                        toast.error(t('comp.clients.batchPartial', {
+                            success: summary.success,
+                            failed: summary.failed,
+                        }));
                     }
 
                 } else {
@@ -590,16 +597,18 @@ export default function ClientModal({
                     const addRes = await api.post(`/panel/${serverId}/panel/api/inbounds/addClient`, params, {
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
                     });
-                    assertOperationSucceeded(addRes, '添加失败');
-                    toast.success(resolveResponseMsg(addRes.data, '用户已添加'));
+                    assertOperationSucceeded(addRes, t('comp.clients.addFailed'));
+                    toast.success(resolveResponseMsg(addRes.data, t('comp.clients.userAdded')));
                 }
             }
             onSuccess();
             onClose();
         } catch (err) {
             console.error(err);
-            const msg = err.response?.data?.msg || err.message || '未知错误';
-            toast.error(editingClient ? `更新失败: ${msg}` : `添加失败: ${msg}`);
+            const msg = err.response?.data?.msg || err.message || t('comp.common.unknownError');
+            toast.error(editingClient
+                ? t('comp.clients.updateFailedWithMsg', { msg })
+                : t('comp.clients.addFailedWithMsg', { msg }));
         }
         setLoading(false);
     };
@@ -612,10 +621,17 @@ export default function ClientModal({
                 <div className="modal-header">
                     <h3 className="modal-title">
                         {editingClient
-                            ? (editTargets.length > 0 ? `批量编辑用户 (${editTargets.length} 个实例)` : '编辑用户')
-                            : (targets.length > 0 ? `批量添加用户 (${filteredTargets.length}/${targets.length} 个目标)` : '添加用户')}
+                            ? (editTargets.length > 0
+                                ? t('comp.clients.modalBatchEditTitle', { count: editTargets.length })
+                                : t('comp.clients.modalEditTitle'))
+                            : (targets.length > 0
+                                ? t('comp.clients.modalBatchAddTitle', {
+                                    selected: filteredTargets.length,
+                                    total: targets.length,
+                                })
+                                : t('comp.clients.modalAddTitle'))}
                     </h3>
-                    <button type="button" className="modal-close" onClick={onClose} aria-label="关闭" title="关闭"><HiOutlineXMark /></button>
+                    <button type="button" className="modal-close" onClick={onClose} aria-label={t('comp.common.close')} title={t('comp.common.close')}><HiOutlineXMark /></button>
                 </div>
 
                 <form onSubmit={handleSubmit}>
@@ -691,17 +707,17 @@ export default function ClientModal({
                                 </div>
                                 <div className="max-h-48 overflow-y-auto border border-white/10 rounded p-2">
                                     {visibleTargets.length === 0 ? (
-                                        <div className="text-muted">请先选择节点</div>
+                                        <div className="text-muted">{t('comp.clients.selectNodeFirst')}</div>
                                     ) : (
                                         <div className="flex flex-col gap-1">
-                                            {visibleTargets.map((t) => {
-                                                const key = getTargetKey(t);
+                                            {visibleTargets.map((target) => {
+                                                const key = getTargetKey(target);
                                                 const checked = selectedInboundKeys.includes(key);
                                                 return (
                                                     <label
                                                         key={key}
                                                         className="flex items-center gap-2 cursor-pointer"
-                                                        title={`[${t.serverName}] ${t.remark} (${t.protocol}:${t.port})`}
+                                                        title={`[${target.serverName}] ${target.remark} (${target.protocol}:${target.port})`}
                                                     >
                                                         <input
                                                             type="checkbox"
@@ -715,7 +731,7 @@ export default function ClientModal({
                                                             }}
                                                         />
                                                         <span>
-                                                            [{t.serverName}] {t.remark} ({t.protocol}:{t.port})
+                                                            [{target.serverName}] {target.remark} ({target.protocol}:{target.port})
                                                         </span>
                                                     </label>
                                                 );
@@ -728,7 +744,7 @@ export default function ClientModal({
 
                         {editingClient && editTargets.length > 0 && (
                             <div className="mb-4 p-3 rounded bg-surface-soft text-xs text-secondary border border-stroke-soft">
-                                <strong>将同步到以下实例:</strong>
+                                <strong>{t('comp.clients.syncToInstances')}</strong>
                                 <ul className="mt-1 list-disc list-inside">
                                     {editTargets.map((t, idx) => (
                                         <li key={`${t.serverId}-${t.inboundId}-${idx}`}>
@@ -749,7 +765,7 @@ export default function ClientModal({
                                 <label className="form-label">UUID</label>
                                 <div className="flex gap-2">
                                     <input className="form-input font-mono" value={uuid} onChange={e => setUuid(e.target.value)} required={requiresUuidCredential} />
-                                    <button type="button" className="btn btn-secondary btn-icon" onClick={generateUUID} title="生成 UUID">
+                                    <button type="button" className="btn btn-secondary btn-icon" onClick={generateUUID} title={t('comp.clients.genUuidTitle')} aria-label={t('comp.clients.genUuidTitle')}>
                                         <HiOutlineArrowPath />
                                     </button>
                                 </div>
@@ -758,14 +774,15 @@ export default function ClientModal({
 
                         {requiresPasswordCredential && (
                             <div className="form-group">
-                                <label className="form-label">密码</label>
+                                <label className="form-label">{t('comp.clients.passwordLabel')}</label>
                                 <div className="flex gap-2">
                                     <input className="form-input font-mono" value={password} onChange={e => setPassword(e.target.value)} required={requiresPasswordCredential} />
                                     <button
                                         type="button"
                                         className="btn btn-secondary btn-icon"
                                         onClick={() => setPassword(generateSecurePassword())}
-                                        title="生成随机密码"
+                                        title={t('comp.clients.genPasswordTitle')}
+                                        aria-label={t('comp.clients.genPasswordTitle')}
                                     >
                                         <HiOutlineArrowPath />
                                     </button>
@@ -775,38 +792,38 @@ export default function ClientModal({
 
                         {hasMixedCredentialTypes && (
                             <div className="text-xs text-muted mb-4">
-                                当前选择包含多种协议：VMess/VLESS 使用 UUID，Trojan/Shadowsocks 使用密码。
+                                {t('comp.clients.mixedCredentialHint')}
                             </div>
                         )}
 
                         <div className="form-group">
-                            <label className="form-label">订阅 ID (SubId)</label>
+                            <label className="form-label">{t('comp.clients.subIdLabel')}</label>
                             <div className="flex gap-2">
                                 <input
                                     className="form-input font-mono text-xs text-muted"
-                                    value={subId || '(自动生成)'}
+                                    value={subId || `(${t('comp.clients.autoGenerated')})`}
                                     readOnly
-                                    title="订阅链接的唯一标识"
+                                    title={t('comp.clients.subIdTitle')}
                                 />
                                 <button
                                     type="button"
                                     className="btn btn-secondary btn-xs whitespace-nowrap"
                                     onClick={() => {
                                         setSubId(generateHexToken(8));
-                                        toast.success('已生成新订阅 ID');
+                                        toast.success(t('comp.clients.subIdRegenerated'));
                                     }}
                                 >
-                                    <HiOutlineArrowPath /> 重置
+                                    <HiOutlineArrowPath /> {t('comp.clients.subIdReset')}
                                 </button>
                             </div>
                             <div className="text-xs text-muted mt-1">
-                                重置此 ID 会导致旧的订阅链接失效，需重新获取订阅
+                                {t('comp.clients.subIdResetHint')}
                             </div>
                         </div>
 
                         {isFlowSupported ? (
                             <div className="form-group">
-                                <label className="form-label">流控 (Flow)</label>
+                                <label className="form-label">{t('comp.clients.flowLabel')}</label>
                                 <select className="form-select" value={flow} onChange={e => setFlow(e.target.value)}>
                                     {flowOptions.map((item) => (
                                         <option key={item || '__empty'} value={item}>
@@ -907,26 +924,26 @@ export default function ClientModal({
                                     <option value={30}>每月（30 天）</option>
                                     <option value={90}>每季度</option>
                                 </select>
-                                <div className="text-xs text-muted mt-1">0 表示永不重置</div>
+                                <div className="text-xs text-muted mt-1">{t('comp.clients.resetNeverHelp')}</div>
                             </div>
                         </div>
 
                         <div className="form-group mb-4">
-                            <label className="form-label">备注 (Comment)</label>
+                            <label className="form-label">{t('comp.clients.commentLabel')}</label>
                             <textarea
                                 className="form-input"
                                 rows={2}
                                 value={comment}
-                                placeholder="可选 — 仅运营人员可见"
+                                placeholder={t('comp.clients.commentPlaceholder')}
                                 onChange={e => setComment(e.target.value)}
                             />
                         </div>
                     </div>
 
                     <div className="modal-footer">
-                        <button type="button" className="btn btn-secondary" onClick={onClose}>取消</button>
+                        <button type="button" className="btn btn-secondary" onClick={onClose}>{t('comp.common.cancel')}</button>
                         <button type="submit" className="btn btn-primary" disabled={loading}>
-                            {loading ? <span className="spinner" /> : <><HiOutlineCheck /> 保存</>}
+                            {loading ? <span className="spinner" /> : <><HiOutlineCheck /> {t('comp.common.save')}</>}
                         </button>
                     </div>
                 </form>

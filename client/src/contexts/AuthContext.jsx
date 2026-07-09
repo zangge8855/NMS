@@ -1,6 +1,15 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api, { getStoredToken, setStoredToken, clearStoredToken } from '../api/client.js';
+import { DEFAULT_LOCALE, getLocaleMessage, VALID_LOCALES } from '../i18n/messages.js';
+
+function resolveUiLocale() {
+    if (typeof document !== 'undefined') {
+        const lang = String(document.documentElement.lang || '').trim();
+        if (VALID_LOCALES.includes(lang)) return lang;
+    }
+    return DEFAULT_LOCALE;
+}
 
 const AuthContext = createContext(null);
 
@@ -93,7 +102,10 @@ export function AuthProvider({ children }) {
             if (data?.needVerify) {
                 return { success: false, msg: data.msg, needVerify: true, email: data.email };
             }
-            return { success: false, msg: data?.msg || '连接失败' };
+            return {
+                success: false,
+                msg: data?.msg || getLocaleMessage(resolveUiLocale(), 'comp.common.connectFailed'),
+            };
         }
     };
 
@@ -103,7 +115,10 @@ export function AuthProvider({ children }) {
             const res = await api.post('/auth/register', { username, email, password, inviteCode });
             return res.data;
         } catch (err) {
-            return err.response?.data || { success: false, msg: '注册失败' };
+            return err.response?.data || {
+                success: false,
+                msg: getLocaleMessage(resolveUiLocale(), 'comp.common.createFailed'),
+            };
         }
     };
 

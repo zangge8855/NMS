@@ -372,10 +372,10 @@ export default function Tasks({ embedded = false }) {
 
     const handleClear = async () => {
         const ok = await confirmAction({
-            title: t('comp.tasks.clearTitle') || '清空任务历史',
-            message: t('comp.tasks.clearMessage') || '确定清空批量任务历史吗？',
-            details: t('comp.tasks.clearDetails') || '该操作不会影响已执行的节点配置，只会清空控制台历史记录。',
-            confirmText: t('comp.tasks.clearConfirm') || '确认清空',
+            title: t('comp.tasks.clearTitle'),
+            message: t('comp.tasks.clearMessage'),
+            details: t('comp.tasks.clearDetails'),
+            confirmText: t('comp.tasks.clearConfirm'),
             tone: 'danger',
         });
         if (!ok) return;

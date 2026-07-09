@@ -463,7 +463,7 @@
   background: rgba(10, 13, 26, 0.72) !important;
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
-  border-right: 1px solid rgba(99, 102, 241, 0.15) !important;
+  border-right: 1px solid color-mix(in srgb, var(--accent-primary) 15%, transparent) !important;
   box-shadow: 4px 0 24px -10px rgba(0, 0, 0, 0.5), 1px 0 0 rgba(255, 255, 255, 0.02) !important;
 }
 
@@ -521,21 +521,21 @@
 .nav-item.active,
 .server-selector-btn.active {
   background: var(--accent-primary-bg) !important;
-  border-color: rgba(99, 102, 241, 0.4) !important;
+  border-color: color-mix(in srgb, var(--accent-primary) 40%, transparent) !important;
   box-shadow: 0 0 12px var(--accent-primary-glow), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
   color: var(--accent-primary) !important;
 }
 
 [data-theme="light"] .nav-item.active,
 [data-theme="light"] .server-selector-btn.active {
-  background: rgba(99, 102, 241, 0.1) !important;
-  border-color: rgba(99, 102, 241, 0.3) !important;
-  box-shadow: 0 4px 12px -2px rgba(99, 102, 241, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent) !important;
+  border-color: color-mix(in srgb, var(--accent-primary) 30%, transparent) !important;
+  box-shadow: 0 4px 12px -2px color-mix(in srgb, var(--accent-primary) 10%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
 }
 
 .nav-item.active:hover,
 .server-selector-btn.active:hover {
-  background: rgba(99, 102, 241, 0.25) !important;
+  background: color-mix(in srgb, var(--accent-primary) 25%, transparent) !important;
   transform: translateX(4px);
 }
 
@@ -2234,7 +2234,7 @@
 }
 
 .settings-workspace-section[data-workspace="access"] {
-  --settings-workspace-accent: rgba(99, 102, 241, 0.28);
+  --settings-workspace-accent: color-mix(in srgb, var(--accent-primary) 28%, transparent);
   --settings-workspace-accent-strong: rgba(79, 70, 229, 0.38);
 }
 
@@ -2513,9 +2513,9 @@
 }
 
 .settings-nav-item.is-active {
-  border-color: rgba(99, 102, 241, 0.26);
-  background: rgba(99, 102, 241, 0.1);
-  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.06);
+  border-color: color-mix(in srgb, var(--accent-primary) 26%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-primary) 6%, transparent);
 }
 
 .settings-nav-item-icon {
@@ -3771,8 +3771,8 @@
 }
 
 .settings-toggle-card.is-active {
-  border-color: rgba(99, 102, 241, 0.24);
-  background: rgba(99, 102, 241, 0.08);
+  border-color: color-mix(in srgb, var(--accent-primary) 24%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
 }
 
 .settings-toggle-card.is-disabled {
@@ -3884,8 +3884,8 @@
 }
 
 .settings-toggle-card.is-active .settings-toggle-switch {
-  border-color: rgba(99, 102, 241, 0.34);
-  background: rgba(99, 102, 241, 0.84);
+  border-color: color-mix(in srgb, var(--accent-primary) 34%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 84%, transparent);
 }
 
 .settings-toggle-card.is-active .settings-toggle-thumb {
@@ -4442,14 +4442,14 @@
 
 [data-theme="light"] .settings-nav-item:hover,
 [data-theme="light"] .settings-nav-item:focus-visible {
-  background: rgba(99, 102, 241, 0.08);
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
   box-shadow: none;
 }
 
 [data-theme="light"] .settings-nav-item.is-active {
-  border-color: rgba(99, 102, 241, 0.2);
-  background: rgba(99, 102, 241, 0.1);
-  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.06);
+  border-color: color-mix(in srgb, var(--accent-primary) 20%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-primary) 6%, transparent);
 }
 
 [data-theme="light"] .settings-nav-item-icon {
@@ -6945,8 +6945,8 @@ p, .empty-state-body, td {
 }
 
 .inbound-remark-pill.is-cyan {
-  --inbound-remark-bg: rgba(99, 102, 241, 0.08);
-  --inbound-remark-border: rgba(99, 102, 241, 0.18);
+  --inbound-remark-bg: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+  --inbound-remark-border: color-mix(in srgb, var(--accent-primary) 18%, transparent);
 }
 
 .inbound-remark-pill.is-blue {
@@ -12204,13 +12204,13 @@ p, .empty-state-body, td {
 
 .settings-page .settings-form-cluster--camouflage {
   background:
-    linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(79, 70, 229, 0.04)),
+    linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 8%, transparent), rgba(79, 70, 229, 0.04)),
     var(--surface-panel-soft);
 }
 
 [data-theme="light"] .settings-page .settings-form-cluster--camouflage {
   background:
-    linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(79, 70, 229, 0.05)),
+    linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 8%, transparent), rgba(79, 70, 229, 0.05)),
     rgba(255, 255, 255, 0.94);
 }
 
@@ -13093,27 +13093,27 @@ input[type="radio"] {
 
 .header-search:hover {
   background: rgba(10, 13, 26, 0.6) !important;
-  border-color: rgba(99, 102, 241, 0.3) !important;
-  box-shadow: 0 0 12px rgba(99, 102, 241, 0.12) !important;
+  border-color: color-mix(in srgb, var(--accent-primary) 30%, transparent) !important;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent-primary) 12%, transparent) !important;
 }
 
 [data-theme="light"] .header-search:hover {
   background: #ffffff !important;
-  border-color: rgba(99, 102, 241, 0.4) !important;
-  box-shadow: 0 0 12px rgba(99, 102, 241, 0.10) !important;
+  border-color: color-mix(in srgb, var(--accent-primary) 40%, transparent) !important;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent-primary) 10%, transparent) !important;
 }
 
 .header-search.is-open,
 .header-search:focus-within {
   background: var(--bg-input, rgba(10, 13, 26, 0.85)) !important;
   border-color: var(--accent-primary, #6366f1) !important;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25), 0 8px 24px -6px rgba(0, 0, 0, 0.3) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 25%, transparent), 0 8px 24px -6px rgba(0, 0, 0, 0.3) !important;
 }
 
 [data-theme="light"] .header-search.is-open,
 [data-theme="light"] .header-search:focus-within {
   background: #ffffff !important;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2), 0 8px 24px -6px rgba(148, 163, 184, 0.2) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 20%, transparent), 0 8px 24px -6px rgba(148, 163, 184, 0.2) !important;
 }
 
 .header-search-icon {
@@ -13172,7 +13172,7 @@ input[type="radio"] {
   background: rgba(10, 12, 23, 0.92) !important;
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
-  border: 1px solid rgba(99, 102, 241, 0.2) !important;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent) !important;
   border-radius: 16px !important;
   box-shadow: var(--shadow-2xl), 0 20px 50px -12px rgba(0, 0, 0, 0.5) !important;
   padding: 8px !important;
@@ -13203,15 +13203,15 @@ input[type="radio"] {
 
 .header-search-item:hover,
 .header-search-item.active {
-  background: rgba(99, 102, 241, 0.1) !important;
-  border-color: rgba(99, 102, 241, 0.2) !important;
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent) !important;
+  border-color: color-mix(in srgb, var(--accent-primary) 20%, transparent) !important;
   transform: translateX(4px) !important;
 }
 
 [data-theme="light"] .header-search-item:hover,
 [data-theme="light"] .header-search-item.active {
-  background: rgba(99, 102, 241, 0.08) !important;
-  border-color: rgba(99, 102, 241, 0.15) !important;
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent) !important;
+  border-color: color-mix(in srgb, var(--accent-primary) 15%, transparent) !important;
 }
 
 .header-search-item-icon {
@@ -13248,7 +13248,7 @@ input[type="radio"] {
   letter-spacing: 0.05em !important;
   padding: 3px 8px !important;
   border-radius: 99px !important;
-  background: rgba(99, 102, 241, 0.1) !important;
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent) !important;
   color: var(--accent-primary) !important;
   flex-shrink: 0 !important;
 }

@@ -664,7 +664,7 @@ function buildTrafficWindowCopy(windowKey, copy) {
         ? copy.traffic.windowDay
         : (normalizedKey === 'week'
             ? copy.traffic.windowWeek
-            : (normalizedKey === 'custom' ? (copy.traffic.windowCustom || '自定义') : copy.traffic.windowMonth));
+            : (normalizedKey === 'custom' ? (copy.traffic.windowCustom || 'Custom') : copy.traffic.windowMonth));
     return {
         key: normalizedKey,
         label,
