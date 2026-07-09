@@ -1538,7 +1538,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                             />
                             专家模式 (JSON)
                         </label>
-                        <button type="button" className="modal-close" onClick={onClose} aria-label="关闭" title="关闭">
+                        <button type="button" className="modal-close" onClick={onClose} aria-label={t('comp.common.close')} title={t('comp.common.close')}>
                             <HiOutlineXMark />
                         </button>
                     </div>

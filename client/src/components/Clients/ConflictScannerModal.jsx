@@ -35,12 +35,12 @@ function toNumber(value, fallback = 0) {
     return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function formatExpiry(value, permanentLabel = 'Permanent') {
+function formatExpiry(value, permanentLabel = 'Permanent', locale = 'en-US') {
     const ts = toNumber(value, 0);
     if (!ts) return permanentLabel;
     const date = new Date(ts);
     if (Number.isNaN(date.getTime())) return '-';
-    return date.toLocaleString('zh-CN');
+    return date.toLocaleString(locale === 'en-US' ? 'en-US' : 'zh-CN');
 }
 
 function buildClientPayload(entry = {}) {
@@ -90,7 +90,7 @@ export default function ConflictScannerModal({
     onRefreshClients,
     onShowBatchResult,
 }) {
-    const { t } = useI18n();
+    const { t, locale } = useI18n();
     const [report, setReport] = useState(() => buildClientConflictReport([]));
     const [selectionMap, setSelectionMap] = useState({});
     const [scanning, setScanning] = useState(false);
@@ -228,18 +228,18 @@ export default function ConflictScannerModal({
             <div className="modal modal-wide glass-panel conflict-scanner-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="modal-header">
                     <h3 className="modal-title">{t('comp.clients.conflictTitle')}</h3>
-                    <button type="button" className="modal-close" onClick={onClose} aria-label="关闭" title="关闭"><HiOutlineXMark /></button>
+                    <button type="button" className="modal-close" onClick={onClose} aria-label={t('comp.common.close')} title={t('comp.common.close')}><HiOutlineXMark /></button>
                 </div>
 
                 <div className="modal-body">
                     <div className="flex items-center justify-between gap-3 mb-4">
                         <div className="flex flex-wrap items-center gap-2 text-sm">
-                            <span className="badge badge-neutral">冲突组 {summary.conflictGroups}</span>
-                            <span className="badge badge-danger">高风险 {summary.high}</span>
-                            <span className="badge badge-warning">中风险 {summary.medium}</span>
+                            <span className="badge badge-neutral">{t('comp.clients.conflictGroupsBadge', { count: summary.conflictGroups })}</span>
+                            <span className="badge badge-danger">{t('comp.clients.conflictHighBadge', { count: summary.high })}</span>
+                            <span className="badge badge-warning">{t('comp.clients.conflictMediumBadge', { count: summary.medium })}</span>
                         </div>
                         <button className="btn btn-secondary btn-sm" onClick={refreshFromServer} disabled={scanning}>
-                            {scanning ? <span className="spinner" /> : <><HiOutlineArrowPath /> 重新扫描</>}
+                            {scanning ? <span className="spinner" /> : <><HiOutlineArrowPath /> {t('comp.clients.rescan')}</>}
                         </button>
                     </div>
 
@@ -249,14 +249,14 @@ export default function ConflictScannerModal({
                         </div>
                     ) : conflictGroups.length === 0 ? (
                         <EmptyState
-                            title="未检测到可识别冲突"
-                            subtitle="同一身份在同协议下未发现参数分歧。"
+                            title={t('comp.clients.noConflictTitle')}
+                            subtitle={t('comp.clients.noConflictSubtitle')}
                             icon={<HiOutlineCheckCircle />}
                             size="compact"
                             surface
                             action={(
                                 <button type="button" className="btn btn-secondary btn-sm" onClick={refreshFromServer} disabled={scanning}>
-                                    <HiOutlineArrowPath /> 重新扫描
+                                    <HiOutlineArrowPath /> {t('comp.clients.rescan')}
                                 </button>
                             )}
                         />
@@ -268,11 +268,11 @@ export default function ConflictScannerModal({
                                         <div>
                                             <div className="font-semibold text-white">{group.displayIdentity}</div>
                                             <div className="text-sm text-muted">
-                                                {group.entryCount} 条记录 / {group.serverCount} 节点
+                                                {t('comp.clients.recordsOnNodes', { entries: group.entryCount, servers: group.serverCount })}
                                             </div>
                                         </div>
                                         <span className={`badge ${group.severity === 'high' ? 'badge-danger' : 'badge-warning'}`}>
-                                            <HiOutlineExclamationTriangle /> {group.severity === 'high' ? '高风险' : '中风险'}
+                                            <HiOutlineExclamationTriangle /> {group.severity === 'high' ? t('comp.clients.severityHigh') : t('comp.clients.severityMedium')}
                                         </span>
                                     </div>
 
@@ -294,10 +294,10 @@ export default function ConflictScannerModal({
                                                 <div key={key} className="glass-panel p-3">
                                                     <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                                                         <div className="font-medium">
-                                                            协议 {String(protocolGroup.protocol || '').toUpperCase()} · {protocolGroup.entryCount} 条
+                                                            {t('comp.clients.protocolEntries', { protocol: String(protocolGroup.protocol || '').toUpperCase(), count: protocolGroup.entryCount })}
                                                         </div>
                                                         <div className="text-xs text-muted">
-                                                            差异字段: {protocolGroup.diffFields.join(', ') || '-'}
+                                                            {t('comp.clients.diffFields', { fields: protocolGroup.diffFields.join(', ') || '-' })}
                                                         </div>
                                                     </div>
 
@@ -322,20 +322,20 @@ export default function ConflictScannerModal({
                                                             onClick={() => resolveProtocolConflict(group, protocolGroup)}
                                                             disabled={resolving || scanning}
                                                         >
-                                                            {resolving ? <span className="spinner" /> : <><HiOutlineWrenchScrewdriver /> 按来源覆盖其他节点</>}
+                                                            {resolving ? <span className="spinner" /> : <><HiOutlineWrenchScrewdriver /> {t('comp.clients.applySource')}</>}
                                                         </button>
                                                     </div>
 
                                                     <Table
                                                         tableClassName="conflict-scanner-table"
                                                         headers={[
-                                                            <th key="node">节点</th>,
-                                                            <th key="inbound">入站</th>,
-                                                            <th key="ident">标识</th>,
-                                                            <th key="enabled" className="table-cell-center conflict-scanner-enabled-column">启用</th>,
-                                                            <th key="expiry" className="table-cell-center conflict-scanner-expiry-column">有效期</th>,
-                                                            <th key="total" className="table-cell-right conflict-scanner-total-column">总量</th>,
-                                                            <th key="source" className="table-cell-center conflict-scanner-source-column">来源</th>
+                                                            <th key="node">{t('comp.clients.colNode')}</th>,
+                                                            <th key="inbound">{t('comp.clients.colInbound')}</th>,
+                                                            <th key="ident">{t('comp.clients.colIdentifier')}</th>,
+                                                            <th key="enabled" className="table-cell-center conflict-scanner-enabled-column">{t('comp.clients.colEnabled')}</th>,
+                                                            <th key="expiry" className="table-cell-center conflict-scanner-expiry-column">{t('comp.clients.colExpiry')}</th>,
+                                                            <th key="total" className="table-cell-right conflict-scanner-total-column">{t('comp.clients.colTotal')}</th>,
+                                                            <th key="source" className="table-cell-center conflict-scanner-source-column">{t('comp.clients.colSource')}</th>
                                                         ]}
                                                     >
                                                         {(protocolGroup.entries || []).map((entry) => {
@@ -343,20 +343,20 @@ export default function ConflictScannerModal({
                                                             const isSource = locator === selectedSourceKey;
                                                             return (
                                                                 <tr key={`${locator}-${entry.uiKey || ''}`}>
-                                                                    <td data-label="节点">{entry.serverName || entry.serverId}</td>
-                                                                    <td data-label="入站">{entry.inboundRemark || entry.inboundId}</td>
-                                                                    <td data-label="标识" className="font-mono text-xs">
+                                                                    <td data-label={t('comp.clients.colNode')}>{entry.serverName || entry.serverId}</td>
+                                                                    <td data-label={t('comp.clients.colInbound')}>{entry.inboundRemark || entry.inboundId}</td>
+                                                                    <td data-label={t('comp.clients.colIdentifier')} className="font-mono text-xs">
                                                                         {getClientIdentifier(entry) || '-'}
                                                                     </td>
-                                                                    <td data-label="启用" className="table-cell-center conflict-scanner-enabled-cell">
+                                                                    <td data-label={t('comp.clients.colEnabled')} className="table-cell-center conflict-scanner-enabled-cell">
                                                                         <span className={`badge ${entry.enable === false ? 'badge-danger' : 'badge-success'}`}>
-                                                                            {entry.enable === false ? '停用' : '启用'}
+                                                                            {entry.enable === false ? t('comp.common.disabled') : t('comp.common.enabled')}
                                                                         </span>
                                                                     </td>
-                                                                    <td data-label="有效期" className="table-cell-center cell-mono conflict-scanner-expiry-cell">{formatExpiry(entry.expiryTime, t('comp.clients.permanent'))}</td>
-                                                                    <td data-label="总量" className="table-cell-right cell-mono-right conflict-scanner-total-cell">{formatBytes(toNumber(entry.totalGB, 0))}</td>
-                                                                    <td data-label="来源" className="table-cell-center conflict-scanner-source-cell">
-                                                                        {isSource ? <span className="badge badge-info">来源</span> : '-'}
+                                                                    <td data-label={t('comp.clients.colExpiry')} className="table-cell-center cell-mono conflict-scanner-expiry-cell">{formatExpiry(entry.expiryTime, t('comp.clients.permanent'), locale)}</td>
+                                                                    <td data-label={t('comp.clients.colTotal')} className="table-cell-right cell-mono-right conflict-scanner-total-cell">{formatBytes(toNumber(entry.totalGB, 0))}</td>
+                                                                    <td data-label={t('comp.clients.colSource')} className="table-cell-center conflict-scanner-source-cell">
+                                                                        {isSource ? <span className="badge badge-info">{t('comp.clients.sourceBadge')}</span> : '-'}
                                                                     </td>
                                                                 </tr>
                                                             );
@@ -373,7 +373,7 @@ export default function ConflictScannerModal({
                 </div>
 
                 <div className="modal-footer">
-                    <button className="btn btn-secondary" onClick={onClose}>关闭</button>
+                    <button className="btn btn-secondary" onClick={onClose}>{t('comp.common.close')}</button>
                 </div>
             </div>
         </ModalShell>

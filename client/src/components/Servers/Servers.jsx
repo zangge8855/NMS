@@ -1291,7 +1291,7 @@ export default function Servers() {
                         <div className="modal modal-lg glass-panel" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
                                 <h3 className="modal-title text-glow">{editingId ? t('comp.servers.editServer') : t('comp.servers.addServer')}</h3>
-                                <button type="button" className="modal-close" onClick={resetForm} aria-label="关闭" title="关闭"><HiOutlineXMark /></button>
+                                <button type="button" className="modal-close" onClick={resetForm} aria-label={t('comp.common.close')} title={t('comp.common.close')}><HiOutlineXMark /></button>
                             </div>
                             <form onSubmit={handleSubmit}>
                                 <div className="modal-body">
@@ -1366,7 +1366,7 @@ export default function Servers() {
                         <div className="modal modal-lg glass-panel servers-batch-modal" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
                                 <h3 className="modal-title text-glow">批量添加服务器</h3>
-                                <button type="button" className="modal-close" onClick={resetBatchForm} aria-label="关闭" title="关闭"><HiOutlineXMark /></button>
+                                <button type="button" className="modal-close" onClick={resetBatchForm} aria-label={t('comp.common.close')} title={t('comp.common.close')}><HiOutlineXMark /></button>
                             </div>
                             <form onSubmit={handleBatchSubmit}>
                                 <div className="modal-body">
@@ -1505,7 +1505,7 @@ export default function Servers() {
                         <div className="modal glass-panel" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
                                 <h3 className="modal-title text-glow">修复节点登录凭据</h3>
-                                <button type="button" className="modal-close" onClick={closeCredentialRepair} aria-label="关闭" title="关闭"><HiOutlineXMark /></button>
+                                <button type="button" className="modal-close" onClick={closeCredentialRepair} aria-label={t('comp.common.close')} title={t('comp.common.close')}><HiOutlineXMark /></button>
                             </div>
                             <form onSubmit={handleCredentialRepairSubmit}>
                                 <div className="modal-body">

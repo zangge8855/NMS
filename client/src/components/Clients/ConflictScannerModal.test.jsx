@@ -59,6 +59,27 @@ describe('ConflictScannerModal', () => {
         expect(screen.getByText('同一身份在同协议下未发现参数分歧。')).toBeInTheDocument();
     });
 
+    it('renders English empty state and chrome under en-US', async () => {
+        window.localStorage.setItem('nms_locale', 'en-US');
+
+        renderWithRouter(
+            <ConflictScannerModal
+                isOpen
+                onClose={() => {}}
+                clients={[]}
+            />
+        );
+
+        expect(await screen.findByRole('heading', { name: /Conflict scan/i })).toBeInTheDocument();
+        expect(screen.getByText('No recognizable conflicts')).toBeInTheDocument();
+        expect(screen.getByText(/No parameter divergence/i)).toBeInTheDocument();
+        expect(screen.getAllByRole('button', { name: /Rescan/i }).length).toBeGreaterThan(0);
+        // Header close (aria) + footer Close label both resolve to accessible name "Close"
+        expect(screen.getAllByRole('button', { name: /^Close$/i }).length).toBeGreaterThanOrEqual(1);
+        expect(screen.queryByText('未检测到可识别冲突')).not.toBeInTheDocument();
+        expect(screen.queryByText('冲突组')).not.toBeInTheDocument();
+    });
+
     it('switches to the shared loading shell while refreshing conflicts', async () => {
         const user = userEvent.setup();
         const refreshDeferred = deferred();

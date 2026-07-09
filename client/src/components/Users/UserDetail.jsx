@@ -1967,7 +1967,7 @@ export default function UserDetail() {
                                 type="button"
                                 className="modal-close"
                                 onClick={() => setClientAdjustOpen(false)}
-                                aria-label="关闭"
+                                aria-label={t('comp.common.close')}
                                 title="关闭"
                             >
                                 <HiOutlineXMark />

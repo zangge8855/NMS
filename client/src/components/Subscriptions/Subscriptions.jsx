@@ -1291,7 +1291,7 @@ export default function Subscriptions() {
                     <div className="modal subscription-qr-modal" onClick={(event) => event.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title">{ui.scanImport}</h3>
-                            <button type="button" className="modal-close" onClick={() => setQrModalOpen(false)} aria-label="关闭" title="关闭">
+                            <button type="button" className="modal-close" onClick={() => setQrModalOpen(false)} aria-label={t('comp.common.close')} title={t('comp.common.close')}>
                                 <HiOutlineXMark />
                             </button>
                         </div>

@@ -1504,12 +1504,12 @@ export default function Inbounds() {
                                         <div className={`inbounds-node-order-actions${layout === 'column' ? ' is-inline' : ''}`}>
                                             <div
                                                 className={`inbounds-sequence-actions${layout === 'column' ? ' is-vertical' : ''}`}
-                                                aria-label={`调整节点 ${ib.serverName} 的序号`}
+                                                aria-label={t('comp.inbounds.adjustNodeOrder', { name: ib.serverName })}
                                             >
                                                 <button
                                                     type="button"
                                                     className="inbounds-sequence-btn btn-icon"
-                                                    aria-label={`上移节点 ${ib.serverName}`}
+                                                    aria-label={t('comp.inbounds.moveNodeUp', { name: ib.serverName })}
                                                     disabled={!canMoveServerUp}
                                                     onClick={(event) => {
                                                         event.stopPropagation();
@@ -1521,7 +1521,7 @@ export default function Inbounds() {
                                                 <button
                                                     type="button"
                                                     className="inbounds-sequence-btn btn-icon"
-                                                    aria-label={`下移节点 ${ib.serverName}`}
+                                                    aria-label={t('comp.inbounds.moveNodeDown', { name: ib.serverName })}
                                                     disabled={!canMoveServerDown}
                                                     onClick={(event) => {
                                                         event.stopPropagation();
@@ -1571,7 +1571,7 @@ export default function Inbounds() {
                                                                 type="number"
                                                                 min="1"
                                                                 inputMode="numeric"
-                                                                aria-label={`设置 ${inboundLabel} 的排序序号`}
+                                                                aria-label={t('comp.inbounds.setInboundOrder', { name: inboundLabel })}
                                                                 className="form-input form-input-sm cell-mono inbound-order-input"
                                                                 value={sequenceValue}
                                                                 disabled={isSavingOrder}
@@ -1596,11 +1596,11 @@ export default function Inbounds() {
                                                             <span className="cell-mono inbounds-sequence-number">{index + 1}</span>
                                                         )}
                                                         {canAdjustOrder && (
-                                                            <div className="inbounds-sequence-actions" aria-label={`调整 ${inboundLabel} 的序号`}>
+                                                            <div className="inbounds-sequence-actions" aria-label={t('comp.inbounds.adjustInboundOrder', { name: inboundLabel })}>
                                                                 <button
                                                                     type="button"
                                                                     className="inbounds-sequence-btn btn-icon"
-                                                                    aria-label={`上移 ${inboundLabel} 的序号`}
+                                                                    aria-label={t('comp.inbounds.moveInboundUp', { name: inboundLabel })}
                                                                     disabled={!canMoveUp}
                                                                     onClick={(event) => {
                                                                         event.stopPropagation();
@@ -1612,7 +1612,7 @@ export default function Inbounds() {
                                                                 <button
                                                                     type="button"
                                                                     className="inbounds-sequence-btn btn-icon"
-                                                                    aria-label={`下移 ${inboundLabel} 的序号`}
+                                                                    aria-label={t('comp.inbounds.moveInboundDown', { name: inboundLabel })}
                                                                     disabled={!canMoveDown}
                                                                     onClick={(event) => {
                                                                         event.stopPropagation();
@@ -1984,7 +1984,7 @@ export default function Inbounds() {
                         <div className="modal modal-md" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
                                 <h3 className="modal-title">批量调整到期/流量</h3>
-                                <button className="modal-close" onClick={closeClientAdjustModal} aria-label="关闭" title="关闭">
+                                <button className="modal-close" onClick={closeClientAdjustModal} aria-label={t('comp.common.close')} title={t('comp.common.close')}>
                                     <HiOutlineXMark />
                                 </button>
                             </div>
@@ -2039,7 +2039,7 @@ export default function Inbounds() {
                         <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
                                 <h3 className="modal-title">单独限制</h3>
-                                <button className="modal-close" onClick={closeEntitlementModal} aria-label="关闭" title="关闭">
+                                <button className="modal-close" onClick={closeEntitlementModal} aria-label={t('comp.common.close')} title={t('comp.common.close')}>
                                     <HiOutlineXMark />
                                 </button>
                             </div>

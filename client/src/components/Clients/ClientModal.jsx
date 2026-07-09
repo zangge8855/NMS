@@ -22,7 +22,7 @@ function resolveResponseMsg(data, fallback = '') {
     return fallback;
 }
 
-function assertOperationSucceeded(response, fallbackMsg = '操作失败') {
+function assertOperationSucceeded(response, fallbackMsg = 'Operation failed') {
     const data = response?.data;
     if (!data || typeof data !== 'object') return;
     if (Object.prototype.hasOwnProperty.call(data, 'success') && data.success === false) {
@@ -639,7 +639,10 @@ export default function ClientModal({
                         {targets.length > 0 && !editingClient && (
                             <div className="mb-4 p-3 rounded bg-surface-soft text-xs text-secondary border border-stroke-soft">
                                 <div className="mb-2">
-                                    <strong>目标节点 ({selectedServerIds.length}/{availableServers.length})：</strong>
+                                    <strong>{t('comp.clients.targetNodes', {
+                                        selected: selectedServerIds.length,
+                                        total: availableServers.length,
+                                    })}</strong>
                                 </div>
                                 <div className="flex flex-wrap gap-2 mb-3">
                                     <label className="badge badge-neutral flex items-center gap-2 cursor-pointer">
@@ -656,7 +659,7 @@ export default function ClientModal({
                                                 }
                                             }}
                                         />
-                                        <span>全选</span>
+                                        <span>{t('comp.clients.selectAll')}</span>
                                     </label>
                                     {availableServers.map((item) => (
                                         <label key={item.id} className="badge badge-neutral flex items-center gap-2 cursor-pointer">
@@ -686,7 +689,10 @@ export default function ClientModal({
                                 ))}
                             </div>
                                 <div className="mb-2">
-                                    <strong>目标入站 ({filteredTargets.length}/{visibleTargets.length})：</strong>
+                                    <strong>{t('comp.clients.targetInbounds', {
+                                        selected: filteredTargets.length,
+                                        total: visibleTargets.length,
+                                    })}</strong>
                                 </div>
                                 <div className="flex flex-wrap gap-2 mb-2">
                                     <label className="badge badge-neutral flex items-center gap-2 cursor-pointer">
@@ -702,7 +708,7 @@ export default function ClientModal({
                                                 }
                                             }}
                                         />
-                                        <span>全选当前节点入站</span>
+                                        <span>{t('comp.clients.selectAllInboundsOnNode')}</span>
                                     </label>
                                 </div>
                                 <div className="max-h-48 overflow-y-auto border border-white/10 rounded p-2">

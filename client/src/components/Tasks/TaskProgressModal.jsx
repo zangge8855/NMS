@@ -86,7 +86,7 @@ function ProgressBar({ percent, color }) {
 
 export default function TaskProgressModal({ taskId, title, onClose }) {
     const { task, cancel } = useTaskProgress(taskId, null);
-    const { locale } = useI18n();
+    const { locale, t } = useI18n();
     const copy = getTaskProgressCopy(locale);
 
     if (!taskId) return null;
@@ -126,7 +126,7 @@ export default function TaskProgressModal({ taskId, title, onClose }) {
                 <div className="modal-header">
                     <h3 className="modal-title">{title || copy.title}</h3>
                     {isTerminal && (
-                        <button type="button" className="modal-close" onClick={onClose} aria-label="关闭" title="关闭">
+                        <button type="button" className="modal-close" onClick={onClose} aria-label={t('comp.common.close')} title={t('comp.common.close')}>
                             <HiOutlineXMark />
                         </button>
                     )}
