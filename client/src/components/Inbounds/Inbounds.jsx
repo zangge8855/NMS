@@ -437,7 +437,7 @@ export default function Inbounds() {
     const handleBulkDelete = async () => {
         const ok = await confirmAction({
             title: t('comp.inbounds.batchDeleteTitle'),
-            message: `确定删除选中的 ${selectedVisibleCount} 个入站吗？`,
+            message: t('comp.inbounds.confirmBulkDelete', { count: selectedVisibleCount }),
             details: t('comp.inbounds.batchDeleteDetails'),
             confirmText: t('comp.common.confirmDelete'),
             tone: 'danger',
@@ -528,7 +528,7 @@ export default function Inbounds() {
     const handleBulkSyncExistingUsers = async () => {
         const ok = await confirmAction({
             title: t('comp.inbounds.batchSyncUsersTitle'),
-            message: `确定把选中的 ${selectedVisibleCount} 个入站补齐到现有用户吗？`,
+            message: t('comp.inbounds.confirmBulkSyncUsers', { count: selectedVisibleCount }),
             details: t('comp.inbounds.batchSyncUsersDetails'),
             confirmText: t('comp.inbounds.batchSyncUsersAction'),
             tone: 'secondary',
@@ -559,14 +559,16 @@ export default function Inbounds() {
             setBatchResultTitle(t('comp.inbounds.batchSyncUsersResult'));
             setBatchResultData(output || null);
 
+            const summaryParams = {
+                done: t('comp.inbounds.batchSyncUsersDone'),
+                synced: syncSummary?.syncedUsers || 0,
+                skipped: syncSummary?.skippedUsers || 0,
+                failed: syncSummary?.failedUsers || 0,
+            };
             if (Number(syncSummary?.failedUsers || 0) > 0) {
-                toast.error(
-                    `${t('comp.inbounds.batchSyncUsersDone')}: ${syncSummary?.syncedUsers || 0} 已同步, ${syncSummary?.skippedUsers || 0} 跳过, ${syncSummary?.failedUsers || 0} 失败；订阅地址未变`
-                );
+                toast.error(t('comp.inbounds.batchSyncUsersSummaryFail', summaryParams));
             } else {
-                toast.success(
-                    `${t('comp.inbounds.batchSyncUsersDone')}: ${syncSummary?.syncedUsers || 0} 已同步, ${syncSummary?.skippedUsers || 0} 跳过；订阅地址未变`
-                );
+                toast.success(t('comp.inbounds.batchSyncUsersSummaryOk', summaryParams));
             }
             setSelectedKeys(new Set());
             fetchAllInbounds();
@@ -580,7 +582,9 @@ export default function Inbounds() {
     const handleBulkSetEnable = async (enable) => {
         const ok = await confirmAction({
             title: enable ? t('comp.inbounds.batchEnableTitle') : t('comp.inbounds.batchDisableTitle'),
-            message: `确定${enable ? '启用' : '停用'}选中的 ${selectedVisibleCount} 个入站吗？`,
+            message: enable
+                ? t('comp.inbounds.confirmBulkEnable', { count: selectedVisibleCount })
+                : t('comp.inbounds.confirmBulkDisable', { count: selectedVisibleCount }),
             confirmText: enable ? t('comp.common.confirmEnable') : t('comp.common.confirmDisable'),
             tone: enable ? 'success' : 'danger',
         });
@@ -617,7 +621,11 @@ export default function Inbounds() {
             const summary = output?.summary || { success: 0, total: targets.length, failed: targets.length };
             setBatchResultTitle(enable ? t('comp.inbounds.batchEnableResult') : t('comp.inbounds.batchDisableResult'));
             setBatchResultData(output || null);
-            toast.success(`${enable ? t('comp.inbounds.batchEnableDone') : t('comp.inbounds.batchDisableDone')}: ${summary.success}/${summary.total}`);
+            toast.success(t('comp.inbounds.batchToggleDone', {
+                action: enable ? t('comp.inbounds.batchEnableDone') : t('comp.inbounds.batchDisableDone'),
+                success: summary.success,
+                total: summary.total,
+            }));
             setSelectedKeys(new Set());
             fetchAllInbounds();
         } catch (err) {
@@ -630,7 +638,7 @@ export default function Inbounds() {
     const handleDelete = async (inbound) => {
         const ok = await confirmAction({
             title: t('comp.inbounds.deleteTitle'),
-            message: `确定删除 ${inbound.serverName} 上的该入站吗？`,
+            message: t('comp.inbounds.confirmDeleteInbound', { server: inbound.serverName }),
             confirmText: t('comp.common.confirmDelete'),
             tone: 'danger',
         });
@@ -648,7 +656,9 @@ export default function Inbounds() {
         const nextEnable = inbound.enable === false;
         const ok = await confirmAction({
             title: t('comp.inbounds.toggleInboundTitle'),
-            message: `确定${nextEnable ? '启用' : '停用'} ${inbound.serverName} 上的该入站吗？`,
+            message: nextEnable
+                ? t('comp.inbounds.confirmEnableInbound', { server: inbound.serverName })
+                : t('comp.inbounds.confirmDisableInbound', { server: inbound.serverName }),
             confirmText: nextEnable ? t('comp.common.confirmEnable') : t('comp.common.confirmDisable'),
             tone: nextEnable ? 'success' : 'danger',
         });
@@ -687,9 +697,10 @@ export default function Inbounds() {
     };
 
     const handleCleanupDepletedClients = async (inbound) => {
+        const targetLabel = `${inbound.serverName} / ${inbound.remark || inbound.protocol}:${inbound.port}`;
         const ok = await confirmAction({
             title: t('comp.inbounds.cleanupDepletedTitle'),
-            message: `确定清理 ${inbound.serverName} / ${inbound.remark || inbound.protocol}:${inbound.port} 的耗尽用户吗？`,
+            message: t('comp.inbounds.confirmCleanupDepleted', { target: targetLabel }),
             details: t('comp.inbounds.cleanupDepletedDetails'),
             confirmText: t('comp.common.confirmDelete'),
             tone: 'danger',
@@ -830,7 +841,7 @@ export default function Inbounds() {
         const displayName = client.email || identifier || t('comp.inbounds.thisUser');
         const ok = await confirmAction({
             title: t('comp.inbounds.deleteClientTitle'),
-            message: `确定删除 ${displayName} 吗？`,
+            message: t('comp.inbounds.confirmDeleteClient', { name: displayName }),
             details: `${inbound.serverName} / ${inbound.remark || inbound.protocol}:${inbound.port}`,
             confirmText: t('comp.common.confirmDelete'),
             tone: 'danger',
@@ -918,7 +929,7 @@ export default function Inbounds() {
 
         const ok = await confirmAction({
             title: t('comp.inbounds.batchDeleteClientTitle'),
-            message: `确定删除选中的 ${selectedClients.length} 位用户吗？`,
+            message: t('comp.inbounds.confirmBulkDeleteClients', { count: selectedClients.length }),
             details: `${inbound?.serverName || '-'} / ${inbound?.remark || inbound?.protocol || '-'}:${inbound?.port || '-'}`,
             confirmText: t('comp.common.confirmDelete'),
             tone: 'danger',
