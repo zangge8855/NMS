@@ -507,7 +507,7 @@ function normalizeStreamForSubmission(rawStream, protocolKey) {
 export function validateInboundPayload(protocol, port, stream, protocolSchema = null, translate = null) {
     const t = typeof translate === 'function'
         ? translate
-        : (key, params = {}) => key;
+        : (key) => key;
     const normalizedPort = Number(port);
     if (!Number.isInteger(normalizedPort) || normalizedPort <= 0 || normalizedPort > 65535) {
         return { ok: false, msg: t('comp.inbounds.validationPortRange') };

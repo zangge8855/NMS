@@ -6,10 +6,13 @@ import { shouldWriteFile } from './dbMirror.js';
 // same PID) never derive the same temp filename. A same-name collision would let two
 // concurrent writers truncate and interleave into one temp file, corrupting it before
 // either rename publishes.
-let tempCounter = 0;
-
 function makeTempFile(file) {
-    tempCounter = (tempCounter + 1) % Number.MAX_SAFE_INTEGER;
+    // This helper can be reached during an ESM dependency cycle while dbMirror is
+    // still evaluating. Keeping the counter on globalThis avoids a temporal-dead-zone
+    // failure before this module's body has finished initialization.
+    const counterKey = Symbol.for('nms.fileUtils.tempCounter');
+    const tempCounter = ((Number(globalThis[counterKey]) || 0) + 1) % Number.MAX_SAFE_INTEGER;
+    globalThis[counterKey] = tempCounter;
     const rand = crypto.randomBytes(6).toString('hex');
     return `${file}.${process.pid}.${Date.now()}.${tempCounter}.${rand}.tmp`;
 }

@@ -385,7 +385,7 @@ function SettingsToggleCard({
     );
 }
 
-function formatInviteDuration(days, t, locale = 'zh-CN') {
+function formatInviteDuration(days, t) {
     const normalized = Math.max(0, Number(days) || 0);
     if (normalized > 0) {
         return t
@@ -2068,7 +2068,7 @@ export default function SystemSettings() {
                                         <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
                                             <div className="text-sm font-medium">{t("pages.settings.generatedInviteCodes")}</div>
                                             <span className="text-xs text-muted">
-                                                {t('pages.settings.inviteBatchSummary', { count: latestInviteBatch.count || latestInviteCodes.length, uses: latestInviteBatch.usageLimit || 1, duration: formatInviteDuration(latestInviteBatch.subscriptionDays, t, locale) })}
+                                                {t('pages.settings.inviteBatchSummary', { count: latestInviteBatch.count || latestInviteCodes.length, uses: latestInviteBatch.usageLimit || 1, duration: formatInviteDuration(latestInviteBatch.subscriptionDays, t) })}
                                             </span>
                                         </div>
                                         <div className="settings-code-list">

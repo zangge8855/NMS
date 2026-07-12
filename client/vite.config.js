@@ -37,6 +37,11 @@ export default defineConfig({
         },
     },
     test: {
+        // Vitest's default threaded pool can deadlock while collecting this jsdom-heavy
+        // suite on newer Node releases. A single fork is slower but deterministic and
+        // prevents CI runs from hanging without ever reporting a failing test.
+        pool: 'forks',
+        maxWorkers: 1,
         environment: 'jsdom',
         environmentOptions: {
             jsdom: {
