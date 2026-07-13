@@ -66,7 +66,7 @@ npm ci
 NODE_ENV=production node scripts/start_production.js
 ```
 
-Verified source-install path on May 6, 2026:
+Verified source-install path on July 13, 2026:
 
 ```bash
 cd client
@@ -81,10 +81,10 @@ npm test
 
 Current verification result:
 
-- `client`: `npm ci`, `npm run build`, and `npm test` passed (`232/232`)
-- `server`: `npm ci` and `npm test` passed (`313/313`)
-- `client`: `npm audit` reports `0` vulnerabilities after upgrading Vite-related dependencies and transitive overrides
-- `server`: `npm audit` reports `0` vulnerabilities after upgrading `multer` to `2.x` and overriding `qs`
+- `client`: `npm run lint`, `npm run build`, and `npm test` passed (`254/254`)
+- `server`: `npm test` passed (`462/462`)
+- `client` and `server`: `npm audit --audit-level=high` reports `0` vulnerabilities
+- Browser review: desktop and mobile admin/user surfaces were checked across Chinese/English and light/dark schemes with no document-level overflow, console errors, or page errors
 
 Process supervision with PM2:
 
@@ -247,7 +247,7 @@ npm ci
 NODE_ENV=production node scripts/start_production.js
 ```
 
-已在 2026 年 5 月 6 日验证源码安装链路:
+已在 2026 年 7 月 13 日验证源码安装链路:
 
 ```bash
 cd client
@@ -262,10 +262,10 @@ npm test
 
 当前验证结果:
 
-- `client`: `npm ci`、`npm run build`、`npm test` 全部通过（`232/232`）
-- `server`: `npm ci`、`npm test` 全部通过（`313/313`）
-- `client`: 升级 Vite 相关依赖及其传递依赖覆盖后，`npm audit` 为 `0` 告警
-- `server`: 升级 `multer` 到 `2.x` 并覆盖 `qs` 后，`npm audit` 为 `0` 告警
+- `client`: `npm run lint`、`npm run build`、`npm test` 全部通过（`254/254`）
+- `server`: `npm test` 全部通过（`462/462`）
+- `client` 与 `server`: `npm audit --audit-level=high` 均为 `0` 漏洞
+- 浏览器验收：桌面端与移动端的管理员 / 普通用户界面已覆盖中英双语和明暗主题，无文档级横向溢出、控制台错误或页面错误
 
 如需常驻运行，可配合 PM2:
 

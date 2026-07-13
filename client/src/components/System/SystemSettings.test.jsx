@@ -481,8 +481,8 @@ describe('SystemSettings', () => {
 
         renderWithRouter(<SystemSettings />, { route: '/settings?tab=status' });
 
-        expect(await screen.findByText('配置已加载')).toBeInTheDocument();
-        expect(screen.getByText('已配置')).toBeInTheDocument();
+        expect(await screen.findByText('已配置')).toBeInTheDocument();
+        expect(document.querySelector('.settings-save-dock')).toBeNull();
         expect(screen.getByText('最近发送成功')).toBeInTheDocument();
         expect(screen.getByText('运行中')).toBeInTheDocument();
         expect(screen.getByText('正常 2 / 异常 1')).toBeInTheDocument();

@@ -11,19 +11,17 @@ import '@fontsource/ibm-plex-mono/400.css';
 import '@fontsource/ibm-plex-mono/500.css';
 import '@fontsource/ibm-plex-mono/600.css';
 import './index.css';
-import './styles/ui-tokens.css';
-import './styles/layout-polish.css';
-import './styles/interaction-polish.css';
-import './styles/module-density.css';
-import './styles/experience-upgrade.css';
-import './styles/console-redesign.css';
+import './styles/restrained-ui.css';
 import { resolveSiteBasePath } from './utils/sitePath.js';
 
 const siteBasePath = resolveSiteBasePath();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
-        <BrowserRouter basename={siteBasePath}>
+        <BrowserRouter
+            basename={siteBasePath}
+            future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+        >
             <LanguageProvider>
                 <AuthProvider>
                     <ConfirmProvider>

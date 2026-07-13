@@ -239,6 +239,7 @@ describe('Servers', () => {
     });
 
     it('renders long server names as a wrapping detail trigger without hiding nearby controls', async () => {
+        const user = userEvent.setup();
         const longName = '生产环境华东入口节点 - 超长服务器名称用于验证卡片标题换行显示且不遮挡旁边操作按钮';
         useServer.mockReturnValue({
             servers: [{
@@ -272,15 +273,17 @@ describe('Servers', () => {
         expect(screen.getByText('运维视角')).toBeInTheDocument();
         expect(screen.getByText('环境：生产')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: '复制面板地址' })).not.toBeInTheDocument();
-        expect(screen.getByRole('button', { name: '编辑' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: '删除' })).toBeInTheDocument();
+        const actionsMenu = screen.getByRole('button', { name: '操作菜单' });
+        await user.click(actionsMenu);
+        expect(await screen.findByRole('menuitem', { name: '编辑', hidden: true })).toBeInTheDocument();
+        expect(screen.getByRole('menuitem', { name: '删除', hidden: true })).toBeInTheDocument();
         expect(screen.queryByText('已注册的服务器')).not.toBeInTheDocument();
         expect(screen.queryByText('管理您的 3x-ui 面板连接')).not.toBeInTheDocument();
     });
 
     it('switches to stacked mobile cards on narrow screens', async () => {
         window.matchMedia.mockImplementation((query) => ({
-            matches: query.includes('max-width: 1500px'),
+            matches: query.includes('max-width: 768px'),
             media: query,
             onchange: null,
             addListener: vi.fn(),

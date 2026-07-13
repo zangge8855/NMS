@@ -598,13 +598,12 @@ export default function ClientModal({
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
                     });
                     assertOperationSucceeded(addRes, t('comp.clients.addFailed'));
-                    toast.success(resolveResponseMsg(addRes.data, t('comp.clients.userAdded')));
+                    toast.success(resolveResponseMsg(addRes?.data, t('comp.clients.userAdded')));
                 }
             }
             onSuccess();
             onClose();
         } catch (err) {
-            console.error(err);
             const msg = err.response?.data?.msg || err.message || t('comp.common.unknownError');
             toast.error(editingClient
                 ? t('comp.clients.updateFailedWithMsg', { msg })

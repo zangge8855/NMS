@@ -11,13 +11,11 @@ import {
     HiOutlineArrowsUpDown,
     HiOutlineChartBarSquare,
     HiOutlineClock,
-    HiOutlineCog6Tooth,
     HiOutlineUsers,
     HiOutlineSignal,
     HiOutlineArrowPath,
     HiOutlineServerStack,
     HiOutlineCloud,
-    HiOutlineBolt,
     HiOutlineArrowRight,
 } from 'react-icons/hi2';
 import NodeHealthGrid from './NodeHealthGrid.jsx';
@@ -370,34 +368,6 @@ function StatCard({ card, loading }) {
     );
 }
 
-function QuickActionGrid({ actions = [] }) {
-    return (
-        <div className="dashboard-quick-grid">
-            {actions.map((action) => (
-                <button
-                    key={action.title}
-                    type="button"
-                    className="dashboard-quick-card"
-                    data-tone={action.tone || 'primary'}
-                    onClick={action.onClick}
-                >
-                    <span className="dashboard-quick-card-icon" aria-hidden="true">
-                        <action.icon />
-                    </span>
-                    <span className="dashboard-quick-card-copy">
-                        <span className="dashboard-quick-card-title">{action.title}</span>
-                        <span className="dashboard-quick-card-detail">{action.detail}</span>
-                        {action.meta && <span className="dashboard-quick-card-meta">{action.meta}</span>}
-                    </span>
-                    <span className="dashboard-quick-card-arrow" aria-hidden="true">
-                        <HiOutlineArrowRight />
-                    </span>
-                </button>
-            ))}
-        </div>
-    );
-}
-
 function OnlineUsersMobileList({ rows = [], showNodes = false, limit, t, keyPrefix = 'online' }) {
     return (
         <div className="dashboard-online-mobile-list">
@@ -523,49 +493,6 @@ function pushServerTrendSamples(previous, serverMap) {
     return next;
 }
 
-function buildClusterTrend(historyMap, selector) {
-    const histories = Object.values(historyMap || {})
-        .filter((value) => Array.isArray(value) && value.length > 0);
-    if (histories.length === 0) return [];
-
-    const maxLength = Math.max(...histories.map((items) => items.length));
-    const points = [];
-
-    for (let index = 0; index < maxLength; index += 1) {
-        const values = histories
-            .map((items) => items[items.length - maxLength + index] || null)
-            .filter(Boolean)
-            .map((item) => selector(item))
-            .filter((value) => Number.isFinite(value));
-        if (values.length === 0) continue;
-        points.push(values.reduce((sum, value) => sum + value, 0) / values.length);
-    }
-
-    return points;
-}
-
-function buildClusterAggregateTrend(historyMap, selector, mode = 'avg') {
-    const histories = Object.values(historyMap || {})
-        .filter((value) => Array.isArray(value) && value.length > 0);
-    if (histories.length === 0) return [];
-
-    const maxLength = Math.max(...histories.map((items) => items.length));
-    const points = [];
-
-    for (let index = 0; index < maxLength; index += 1) {
-        const values = histories
-            .map((items) => items[items.length - maxLength + index] || null)
-            .filter(Boolean)
-            .map((item) => selector(item))
-            .filter((value) => Number.isFinite(value));
-        if (values.length === 0) continue;
-        const total = values.reduce((sum, value) => sum + value, 0);
-        points.push(mode === 'sum' ? total : (total / values.length));
-    }
-
-    return points;
-}
-
 function resolveNetTrafficTotals(serverData) {
     const netTraffic = serverData?.status?.netTraffic || {};
     const sentTotal = Number(netTraffic.sent ?? netTraffic.up ?? netTraffic.upload ?? 0);
@@ -602,22 +529,30 @@ function getWsUrl(ticket) {
 }
 
 function DashboardHero({ title, kpis = [] }) {
+    if (kpis.length === 0) return null;
+
     return (
-        <section className="dashboard-hero" aria-label={typeof title === 'string' ? title : undefined}>
-            <span className="dashboard-hero-glow" aria-hidden="true" />
-            <div className="dashboard-hero-main">
-                <h1 className="dashboard-hero-title">{title}</h1>
+        <section className="dashboard-hero dashboard-summary-band" aria-label={typeof title === 'string' ? title : undefined}>
+            <div className="dashboard-hero-kpis">
+                {kpis.map((kpi) => {
+                    const KpiElement = kpi.onClick ? 'button' : 'div';
+                    return (
+                    <KpiElement
+                        className={`dashboard-hero-kpi${kpi.onClick ? ' dashboard-hero-kpi--interactive' : ''}`}
+                        key={kpi.label}
+                        {...(kpi.onClick ? {
+                            type: 'button',
+                            onClick: kpi.onClick,
+                            'aria-expanded': kpi.expanded,
+                        } : {})}
+                    >
+                        <span className="dashboard-hero-kpi-label">{kpi.label}</span>
+                        <span className="dashboard-hero-kpi-value">{kpi.value}</span>
+                        {kpi.meta ? <span className="dashboard-hero-kpi-meta">{kpi.meta}</span> : null}
+                    </KpiElement>
+                    );
+                })}
             </div>
-            {kpis.length > 0 ? (
-                <div className="dashboard-hero-kpis">
-                    {kpis.map((kpi) => (
-                        <div className="dashboard-hero-kpi" key={kpi.label}>
-                            <span className="dashboard-hero-kpi-value">{kpi.value}</span>
-                            <span className="dashboard-hero-kpi-label">{kpi.label}</span>
-                        </div>
-                    ))}
-                </div>
-            ) : null}
         </section>
     );
 }
@@ -689,14 +624,6 @@ export default function Dashboard() {
     const singleServerCpuSparkline = useMemo(
         () => cpuHistory.map((item) => Number(item?.cpu)).filter((value) => Number.isFinite(value)),
         [cpuHistory]
-    );
-    const clusterOnlineSparkline = useMemo(
-        () => buildClusterTrend(serverTrendHistory, (item) => (item?.online === false ? 0 : 1)),
-        [serverTrendHistory]
-    );
-    const clusterThroughputSparkline = useMemo(
-        () => buildClusterAggregateTrend(serverTrendHistory, (item) => Number(item?.throughputPerSecond), 'sum'),
-        [serverTrendHistory]
     );
     const clusterThroughput = useMemo(
         () => summarizeClusterThroughput(serverTrendHistory),
@@ -1176,54 +1103,7 @@ export default function Dashboard() {
                     users: globalAccountSummary.totalUsers,
                 })
                 : t('pages.dashboardCommon.onlineUsersPending');
-        const globalCards = [
-            {
-                icon: HiOutlineServerStack,
-                value: clusterSummaryReady ? `${globalStats.onlineServers} / ${clusterServerCount}` : `-- / ${clusterServerCount}`,
-                label: t('pages.dashboardCommon.onlineTotal'),
-                sub: clusterSummaryReady
-                    ? t('pages.dashboardGlobal.inboundSummary', {
-                        active: globalStats.activeInbounds,
-                        total: globalStats.totalInbounds,
-                    })
-                    : t('pages.dashboardCommon.clusterPending'),
-                ...DASHBOARD_ACCENT.primary,
-                onClick: () => navigate('/servers'),
-                skeletonWidth: '9rem',
-                sparkline: clusterOnlineSparkline,
-                sparklineDomain: [0, 1],
-            },
-            {
-                icon: HiOutlineUsers, label: t('pages.dashboardGlobal.cards.totalOnlineUsers'),
-                ...(!isOnlineCountReady
-                    ? {
-                        value: '--',
-                    }
-                    : {
-                        value: String(effectiveManagedOnlineCount ?? globalStats.totalOnline ?? 0),
-                    }),
-                sub: globalOnlineSummary,
-                onClick: () => setShowOnlineDetail((v) => !v),
-                ...DASHBOARD_ACCENT.primary,
-                skeletonWidth: '6rem',
-                sparkline: clusterOnlineSparkline,
-                sparklineDomain: [0, 1],
-            },
-            {
-                icon: HiOutlineArrowsUpDown,
-                label: t('pages.dashboardGlobal.cards.liveThroughput'),
-                value: effectiveThroughput.ready ? formatBytes(effectiveThroughput.total) : '--',
-                sub: effectiveThroughput.ready
-                    ? t('pages.dashboardCommon.throughputSplit', {
-                        up: formatBytes(effectiveThroughput.up),
-                        down: formatBytes(effectiveThroughput.down),
-                    })
-                    : t('pages.dashboardCommon.throughputPending'),
-                ...DASHBOARD_ACCENT.warning,
-                onClick: () => navigate('/audit?tab=traffic'),
-                skeletonWidth: '9rem',
-                sparkline: clusterThroughputSparkline,
-            },
+        const trafficCards = [
             {
                 icon: HiOutlineCloud,
                 label: t('pages.dashboardGlobal.cards.todayTraffic'),
@@ -1270,63 +1150,39 @@ export default function Dashboard() {
                 skeletonWidth: '8.5rem',
             },
         ];
-        const globalQuickActions = [
-            {
-                title: locale === 'en-US' ? 'Users' : '用户管理',
-                detail: globalAccountSummary.pendingUsers > 0
-                    ? (locale === 'en-US' ? `${globalAccountSummary.pendingUsers} pending` : `待审核 ${globalAccountSummary.pendingUsers} 个`)
-                    : (locale === 'en-US' ? 'View accounts, traffic, and subscriptions' : '查看账号、流量和订阅'),
-                meta: globalAccountSummary.totalUsers > 0
-                    ? (locale === 'en-US' ? `${globalAccountSummary.totalUsers} registered users` : `已注册 ${globalAccountSummary.totalUsers} 个用户`)
-                    : (locale === 'en-US' ? 'Manage registered users and subscription entry points' : '管理注册用户与订阅入口'),
-                icon: HiOutlineUsers,
-                tone: 'info',
-                onClick: () => navigate('/clients'),
-            },
-            {
-                title: locale === 'en-US' ? 'Inbounds' : '入站管理',
-                detail: t('pages.dashboardCommon.enabledCount', { active: globalStats.activeInbounds, total: globalStats.totalInbounds }),
-                meta: locale === 'en-US' ? 'Adjust node order, users, and policy limits' : '调整节点顺序、用户和限制策略',
-                icon: HiOutlineSignal,
-                tone: 'warning',
-                onClick: () => navigate('/inbounds'),
-            },
-            {
-                title: locale === 'en-US' ? 'Audit' : '审计中心',
-                detail: globalOnlineSessionCount > 0
-                    ? (locale === 'en-US' ? `Online sessions ${globalOnlineSessionCount}` : `当前在线会话 ${globalOnlineSessionCount}`)
-                    : (locale === 'en-US' ? 'Review subscription access and audit logs' : '查看订阅访问和操作日志'),
-                meta: locale === 'en-US' ? 'Investigate abnormal access, geo lookup, and carrier info' : '排查异常访问、地区归属地和运营商',
-                icon: HiOutlineBolt,
-                tone: 'primary',
-                onClick: () => navigate('/audit'),
-            },
-            {
-                title: locale === 'en-US' ? 'Settings' : '系统设置',
-                detail: locale === 'en-US'
-                    ? 'Open system settings, console, and diagnostics'
-                    : '进入系统设置、节点控制台和诊断区',
-                meta: locale === 'en-US'
-                    ? `${globalStats.onlineServers} / ${globalStats.serverCount} nodes online`
-                    : `${globalStats.onlineServers} / ${globalStats.serverCount} 个节点在线`,
-                icon: HiOutlineCog6Tooth,
-                tone: 'success',
-                onClick: () => navigate('/settings'),
-            },
-        ];
-
         const globalHeroKpis = [
             {
                 label: t('pages.dashboardHero.kpiOnlineUsers'),
-                value: Number(globalManagedOnlineCount ?? globalStats.totalOnline ?? 0).toLocaleString(),
+                value: isOnlineCountReady
+                    ? Number(effectiveManagedOnlineCount ?? globalStats.totalOnline ?? 0).toLocaleString()
+                    : '--',
+                meta: globalOnlineSummary,
+                onClick: () => setShowOnlineDetail((value) => !value),
+                expanded: showOnlineDetail,
             },
             {
                 label: t('pages.dashboardHero.kpiNodesOnline'),
-                value: `${globalStats.onlineServers}/${globalStats.serverCount}`,
+                value: clusterSummaryReady
+                    ? `${globalStats.onlineServers}/${clusterServerCount}`
+                    : `--/${clusterServerCount}`,
+                meta: clusterSummaryReady
+                    ? t('pages.dashboardGlobal.inboundSummary', {
+                        active: globalStats.activeInbounds,
+                        total: globalStats.totalInbounds,
+                    })
+                    : t('pages.dashboardCommon.clusterPending'),
+                onClick: () => navigate('/servers'),
             },
             {
                 label: t('pages.dashboardHero.kpiTotalTraffic'),
                 value: formatBytes((globalStats.totalUp || 0) + (globalStats.totalDown || 0)),
+                meta: effectiveThroughput.ready
+                    ? t('pages.dashboardCommon.throughputSplit', {
+                        up: formatBytes(effectiveThroughput.up),
+                        down: formatBytes(effectiveThroughput.down),
+                    })
+                    : t('pages.dashboardCommon.throughputPending'),
+                onClick: () => navigate('/audit?tab=traffic'),
             },
         ];
 
@@ -1352,8 +1208,8 @@ export default function Dashboard() {
                         title={t('pages.dashboardGlobal.title')}
                         kpis={globalHeroKpis}
                     />
-                    <div className="stats-grid dashboard-stats-grid mb-8">
-                        {globalCards.map((card, index) => (
+                    <div className="stats-grid dashboard-stats-grid dashboard-traffic-window-grid mb-8">
+                        {trafficCards.map((card, index) => (
                             <StatCard
                                 key={`${card.label || card.kicker || 'global-card'}-${index}`}
                                 card={card}
@@ -1446,14 +1302,6 @@ export default function Dashboard() {
                         </div>
                     )}
 
-                    <section className="dashboard-quick-section mb-6">
-                        <SectionHeader
-                            className="dashboard-section-head"
-                            title={t('pages.dashboardCommon.quickActionsTitle')}
-                        />
-                        <QuickActionGrid actions={globalQuickActions} />
-                    </section>
-
                     {/* 节点健康网格 */}
                     <div className="mb-6">
                         <SectionHeader
@@ -1506,47 +1354,6 @@ export default function Dashboard() {
             skeletonWidth: '5.5rem',
         },
     ];
-    const singleQuickActions = [
-        {
-            title: locale === 'en-US' ? 'Inbounds' : '入站管理',
-            detail: t('pages.dashboardCommon.enabledCount', { active: activeInbounds, total: inbounds.length }),
-            meta: locale === 'en-US' ? 'Inspect inbounds, users, and limit policies on this node' : '查看当前节点下的入站、用户与限制配置',
-            icon: HiOutlineSignal,
-            tone: 'warning',
-            onClick: () => navigate('/inbounds'),
-        },
-        {
-            title: locale === 'en-US' ? 'Online Users' : '在线用户',
-            detail: onlineCount > 0
-                ? (locale === 'en-US' ? `${onlineCount} users online` : `${onlineCount} 个用户在线`)
-                : (locale === 'en-US' ? 'No users are online right now' : '当前没有在线用户'),
-            meta: showOnlineDetail
-                ? (locale === 'en-US' ? 'Online detail is expanded' : '已展开在线明细')
-                : (locale === 'en-US' ? 'Click to expand online detail' : '点击直接展开在线明细'),
-            icon: HiOutlineUsers,
-            tone: 'primary',
-            onClick: () => setShowOnlineDetail((value) => !value),
-        },
-        {
-            title: locale === 'en-US' ? 'Audit' : '审计中心',
-            detail: locale === 'en-US' ? 'Inspect access and audit logs for this node' : '查看这个节点相关的访问与操作日志',
-            meta: locale === 'en-US' ? 'Useful for tracing timeouts, geo lookup, and subscription access issues' : '适合排查超时、归属地和订阅访问异常',
-            icon: HiOutlineBolt,
-            tone: 'primary',
-            onClick: () => navigate('/audit'),
-        },
-        {
-            title: locale === 'en-US' ? 'Settings' : '系统设置',
-            detail: locale === 'en-US'
-                ? 'Open settings, diagnostics, and the embedded console'
-                : '进入系统设置、诊断区和嵌入式控制台',
-            meta: activeServer?.name || (locale === 'en-US' ? 'For the current node' : '当前节点'),
-            icon: HiOutlineCog6Tooth,
-            tone: 'success',
-            onClick: () => navigate('/settings'),
-        },
-    ];
-
     return (
         <>
             <Header
@@ -1564,9 +1371,6 @@ export default function Dashboard() {
                 </button>
             </Header>
             <div className="page-content page-content--wide page-enter dashboard-page">
-                <DashboardHero
-                    title={activeServer?.name || t('pages.dashboardNode.title')}
-                />
                 <div className="stats-grid dashboard-stats-grid">
                     {statCards.map((card, index) => (
                         <StatCard
@@ -1632,14 +1436,6 @@ export default function Dashboard() {
                         )}
                     </div>
                 )}
-
-                <section className="dashboard-quick-section mb-6">
-                    <SectionHeader
-                        className="dashboard-section-head"
-                        title={t('pages.dashboardCommon.quickActionsTitle')}
-                    />
-                    <QuickActionGrid actions={singleQuickActions} />
-                </section>
 
                 {/* Inbound Summary */}
                 <div className="card mb-6">

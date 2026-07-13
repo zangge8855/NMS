@@ -3014,7 +3014,7 @@ export default function SystemSettings() {
 
     const renderStatusContent = () => (
         <div className="settings-section-stack">
-            <div className="settings-grid settings-grid--basic">
+            <div className="settings-grid settings-grid--basic settings-grid--status">
                 {/* Notification and Inspection Card */}
                 <div className="card p-4 settings-panel settings-panel--span-6 settings-status-panel">
                     <SectionHeader
@@ -3386,7 +3386,7 @@ export default function SystemSettings() {
                         >
                             {activeWorkspaceSection.content}
                         </SettingsWorkspaceSection>
-                        <div className="card settings-save-dock">
+                        {hasPendingChanges ? <div className="card settings-save-dock">
                             <div className="settings-save-dock-inner" aria-live="polite">
                                 <div className="settings-save-dock-main">
                                     <div className={`settings-nav-status-chip${saving ? ' is-saving' : loading ? ' is-loading' : hasPendingChanges ? ' is-dirty' : settings ? ' is-ready' : ' is-loading'}`}>
@@ -3415,7 +3415,7 @@ export default function SystemSettings() {
                                     </button>
                                 </div>
                             </div>
-                        </div>
+                        </div> : null}
                     </div>
                 </div>
             </div>

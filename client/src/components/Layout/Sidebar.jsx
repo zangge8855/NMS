@@ -142,10 +142,6 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
                         <div className="nav-section" key={section.title}>
                             <div className="nav-section-title">{section.title}</div>
                             {section.items.map((item) => {
-                                const hasChildren = Array.isArray(item.children) && item.children.length > 0;
-                                const isSettingsActive = location.pathname === '/settings';
-                                const showChildren = !collapsed && isSettingsActive;
-
                                 return (
                                     <React.Fragment key={item.path}>
                                         <NavLink
@@ -172,25 +168,6 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
                                                 </>
                                             )}
                                         </NavLink>
-                                        {hasChildren && showChildren && (
-                                            <div className="nav-item-children">
-                                                {item.children.map((child) => {
-                                                    const currentTab = new URLSearchParams(location.search).get('tab') || 'status';
-                                                    const isChildActive = location.pathname === '/settings' && currentTab === child.tabId;
-                                                    return (
-                                                        <NavLink
-                                                            key={child.path}
-                                                            to={child.path}
-                                                            onClick={() => onClose?.()}
-                                                            className={`nav-item-child ${isChildActive ? 'active' : ''}`}
-                                                        >
-                                                            <span className="nav-item-child-dot" />
-                                                            <span className="nav-child-label">{child.label}</span>
-                                                        </NavLink>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
                                     </React.Fragment>
                                 );
                             })}
