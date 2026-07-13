@@ -6013,7 +6013,7 @@ label,
 
   .inbounds-page .inbounds-table {
     width: 100% !important;
-    min-width: 1120px !important;
+    min-width: 1020px !important;
     max-width: none !important;
     table-layout: fixed !important;
     overflow: visible !important;
@@ -6038,26 +6038,26 @@ label,
 
   .inbounds-table .inbounds-node-col,
   .inbounds-table .inbounds-node-cell {
-    width: 158px !important;
-    min-width: 158px !important;
+    width: 140px !important;
+    min-width: 140px !important;
   }
 
   .inbounds-table .inbounds-remark-col,
   .inbounds-table .inbounds-remark-cell {
-    width: 220px !important;
-    min-width: 220px !important;
+    width: 190px !important;
+    min-width: 190px !important;
   }
 
   .inbounds-table .inbounds-protocol-col,
   .inbounds-table .inbounds-protocol-cell {
-    width: 136px !important;
-    min-width: 128px !important;
+    width: 112px !important;
+    min-width: 112px !important;
   }
 
   .inbounds-table .inbounds-port-col,
   .inbounds-table .inbounds-port-cell {
-    width: 132px !important;
-    min-width: 132px !important;
+    width: 120px !important;
+    min-width: 120px !important;
   }
 
   .inbounds-table .inbounds-users-col,
@@ -6068,20 +6068,20 @@ label,
 
   .inbounds-table .inbounds-traffic-col,
   .inbounds-table .inbounds-traffic-cell {
-    width: 102px !important;
-    min-width: 102px !important;
+    width: 92px !important;
+    min-width: 92px !important;
   }
 
   .inbounds-table .inbounds-status-col,
   .inbounds-table .inbounds-status-cell-wrap {
-    width: 84px !important;
-    min-width: 84px !important;
+    width: 78px !important;
+    min-width: 78px !important;
   }
 
   .inbounds-table .inbounds-actions-col,
   .inbounds-table .inbounds-actions-cell {
-    width: 104px !important;
-    min-width: 104px !important;
+    width: 96px !important;
+    min-width: 96px !important;
   }
 
   .inbounds-table .inbounds-node-badge,
@@ -6396,3 +6396,166 @@ textarea.form-input:focus-visible {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 20%, transparent) !important;
 }
 
+/* ==========================================================================
+   Adaptive theme + operational layout hardening (2026-07)
+   ========================================================================== */
+
+html,
+body,
+#root {
+  min-height: 100%;
+  background-color: var(--bg-primary);
+}
+
+html.theme-transition *,
+body.theme-transition * {
+  transition-property: background-color, border-color, color, box-shadow, fill, stroke;
+  transition-duration: var(--theme-transition-duration, 300ms);
+  transition-timing-function: var(--ease-in-out-smooth, ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.theme-transition *,
+  body.theme-transition * {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Native controls and browser autofill must remain legible in both schemes. */
+input,
+select,
+textarea,
+button {
+  color-scheme: inherit;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text-primary) !important;
+  caret-color: var(--text-primary);
+  box-shadow: 0 0 0 1000px var(--bg-input) inset !important;
+  border-color: var(--border-color) !important;
+}
+
+/* True overlays are opaque; underlying content must never bleed through. */
+.modal,
+.notification-dropdown,
+.actions-dropdown-panel,
+.server-dropdown-menu,
+.header-search-results,
+.tooltip,
+.mobile-bottom-nav {
+  background-color: var(--floating-panel-bg) !important;
+  border-color: var(--floating-panel-border) !important;
+}
+
+/* Tables own their horizontal overflow. Keep the operational action edge visible. */
+.table-container {
+  position: relative;
+  max-width: 100%;
+  overflow-x: auto !important;
+  overflow-y: visible;
+  scrollbar-gutter: stable;
+}
+
+.inbounds-page .inbounds-table th.inbounds-actions-col,
+.inbounds-page .inbounds-table td.inbounds-actions-cell {
+  position: sticky !important;
+  right: 0;
+  z-index: 4;
+  background: var(--surface-card-bg) !important;
+  box-shadow: -8px 0 14px -14px color-mix(in srgb, var(--text-primary) 24%, transparent);
+}
+
+.inbounds-page .inbounds-table th.inbounds-actions-col {
+  z-index: 6;
+  background: var(--surface-table-header) !important;
+}
+
+.inbounds-page .inbounds-table tr:hover td.inbounds-actions-cell {
+  background: color-mix(in srgb, var(--accent-primary) 8%, var(--surface-card-bg)) !important;
+}
+
+/* Calm premium workbench hierarchy: one lift, one hairline, no nested glow. */
+.page-content > .card,
+.page-content--wide > .card,
+.servers-filter-card,
+.audit-filter-card,
+.settings-panel {
+  border: 1px solid var(--surface-card-border) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+.settings-kpi-card-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .page-content,
+  .page-content--wide {
+    padding: 12px 12px calc(var(--mobile-bottom-nav-height, 78px) + env(safe-area-inset-bottom, 0px) + 20px) !important;
+  }
+
+  .header {
+    min-height: var(--header-height);
+    padding-inline: 12px !important;
+  }
+
+  .header-search {
+    min-width: 0 !important;
+  }
+
+  .settings-status-grid {
+    grid-template-columns: 1fr !important;
+    min-width: 0 !important;
+  }
+
+  .settings-kpi-card {
+    min-height: 0 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .settings-kpi-card-header,
+  .settings-kpi-card-body,
+  .settings-kpi-card-title,
+  .settings-kpi-card-value,
+  .settings-kpi-card-meta {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .settings-kpi-card-indicator {
+    flex: 0 0 auto;
+  }
+
+  .audit-page .audit-tabs {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    width: 100% !important;
+    overflow: visible !important;
+    padding-bottom: 0 !important;
+  }
+
+  .audit-page .audit-tabs .tab {
+    width: 100% !important;
+    min-width: 0 !important;
+    padding-inline: 8px !important;
+  }
+
+  .audit-page .audit-tab-label {
+    min-width: 0 !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .modal-footer {
+    padding-bottom: calc(var(--modal-footer-padding, 16px 24px) + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}

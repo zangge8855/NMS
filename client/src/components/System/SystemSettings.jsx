@@ -3094,7 +3094,7 @@ export default function SystemSettings() {
                                 <span className={`settings-kpi-card-indicator ${monitorUnreadCount > 0 ? 'is-warning' : 'is-active'}`} />
                             </div>
                             <div className="settings-kpi-card-body">
-                                <div className="settings-kpi-card-value">{t("pages.settings.unreadMonitorunreadcount")}</div>
+                                <div className="settings-kpi-card-value">{t("pages.settings.unreadMonitorunreadcount", { monitorUnreadCount })}</div>
                                 <div className="settings-kpi-card-meta" title={t('pages.settings.dbConsecutiveFailures', { count: monitorStatus?.dbAlerts?.consecutiveFailures || 0 })}>{t('pages.settings.dbConsecutiveFailures', { count: monitorStatus?.dbAlerts?.consecutiveFailures || 0 })}</div>
                             </div>
                         </div>
@@ -3186,7 +3186,7 @@ export default function SystemSettings() {
                                 <span className={`settings-kpi-card-indicator ${localBackups.length > 0 ? 'is-active' : 'is-inactive'}`} />
                             </div>
                             <div className="settings-kpi-card-body">
-                                <div className="settings-kpi-card-value">{t('pages.settings.localbackupsLengthBackups')}</div>
+                                <div className="settings-kpi-card-value">{t('pages.settings.localbackupsLengthBackups', { 'localBackups.length': localBackups.length })}</div>
                                 <div className="settings-kpi-card-meta" title={latestLocalBackup?.filename || t('pages.settings.na')}>{latestLocalBackup?.filename || t('pages.settings.na')}</div>
                             </div>
                         </div>

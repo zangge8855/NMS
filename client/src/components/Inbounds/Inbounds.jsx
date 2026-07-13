@@ -161,6 +161,25 @@ function buildClientOnlineKeys(client, protocol) {
 export default function Inbounds() {
     const { servers, activeServerId } = useServer();
     const { locale, t } = useI18n();
+    const deepCopy = useMemo(() => locale === 'en-US' ? {
+        limited: 'Limited', copyCredential: 'Copy full ID / password', total: 'Total', ipLimit: 'IP limit', expiry: 'Expiry', traffic: 'Up / Down',
+        noServersTitle: 'Add a node in Server Management first', noServersSubtitle: 'Connect at least one 3x-ui node before managing inbounds and clients.', goServers: 'Open Server Management',
+        maskedCredential: 'ID / Password (masked)', usedTraffic: 'Used traffic', status: 'Status', actions: 'Actions', delete: 'Delete', reset: 'Reset',
+        batchAdjust: 'Batch Adjust Expiry / Traffic', node: 'Node', inbound: 'Inbound', selectedUsers: 'Selected users', expiryDelta: 'Expiry change in days',
+        expiryPlaceholder: 'e.g. 30 or -7', expiryHint: 'Positive values extend and negative values subtract. Clients that never expire are skipped.', trafficDelta: 'Traffic change',
+        trafficPlaceholder: 'e.g. 100 or -20', trafficHint: 'Positive values add and negative values subtract. Unlimited clients are skipped.', execute: 'Apply adjustment',
+        individualLimit: 'Individual limits', user: 'User', saveLimit: 'Save limits', restorePolicy: 'Restore unified policy', limit: 'Limits',
+        limitSetTitle: 'Individual limits are set; click to edit', limitUnsetTitle: 'Set individual limits',
+    } : {
+        limited: '已限制', copyCredential: '复制完整 ID / 密码', total: '总量', ipLimit: 'IP 限制', expiry: '到期时间', traffic: '上 / 下行',
+        noServersTitle: '请先在「服务器管理」添加节点', noServersSubtitle: '接入至少一台 3x-ui 节点后，再统一维护入站和客户端。', goServers: '前往服务器管理',
+        maskedCredential: 'ID / 密码（脱敏）', usedTraffic: '已用流量', status: '状态', actions: '操作', delete: '删除', reset: '重置',
+        batchAdjust: '批量调整到期 / 流量', node: '节点', inbound: '入站', selectedUsers: '已选用户', expiryDelta: '到期天数变化',
+        expiryPlaceholder: '例如：30 或 -7', expiryHint: '正数延长，负数扣减；永不过期用户会跳过到期调整。', trafficDelta: '流量变化',
+        trafficPlaceholder: '例如：100 或 -20', trafficHint: '正数增加，负数扣减；不限流量用户会跳过流量调整。', execute: '执行调整',
+        individualLimit: '单独限制', user: '用户', saveLimit: '保存限制', restorePolicy: '恢复统一策略', limit: '限制',
+        limitSetTitle: '已设置单独限制，点击修改', limitUnsetTitle: '设置单独限制',
+    }, [locale]);
     const isCompactLayout = useMediaQuery('(max-width: 1100px), (max-width: 768px)');
     const navigate = useNavigate();
     const confirmAction = useConfirm();
@@ -237,6 +256,7 @@ export default function Inbounds() {
             setLoading(true);
         }
         const allResults = [];
+        const failedInboundServerNames = [];
         if (!preserveCurrent) {
             setSelectedKeys(new Set());
             setSelectedClientKeys(new Set());
@@ -339,7 +359,7 @@ export default function Inbounds() {
                         allResults.push(...serverInbounds);
                     }
                     if (result?.inboundsError && serverInbounds.length === 0) {
-                        toast.error(t('comp.inbounds.nodeInboundsReadFailed', { name: server.name }), { id: `err-${server.id}` });
+                        failedInboundServerNames.push(server.name || server.id);
                     }
                 } catch (err) {
                     console.error(`Failed to normalize inbounds from ${server.name}`, err);
@@ -360,6 +380,13 @@ export default function Inbounds() {
             } else {
                 toast.error(t('comp.common.loadFailed'));
             }
+        }
+
+        if (failedInboundServerNames.length > 0) {
+            toast.error(t('comp.inbounds.nodesInboundsReadFailed', {
+                count: failedInboundServerNames.length,
+                names: failedInboundServerNames.join(', '),
+            }), { id: 'inbounds-node-read-failures' });
         }
 
         if (requestId !== inboundsRequestIdRef.current) return;
@@ -1222,7 +1249,7 @@ export default function Inbounds() {
                             <div className="inbounds-client-mobile-copy">
                                 <div className="inbounds-client-mobile-email">
                                     <span>{cl.email || '-'}</span>
-                                    {hasOverride ? <span className="badge badge-warning">已限制</span> : null}
+                                    {hasOverride ? <span className="badge badge-warning">{deepCopy.limited}</span> : null}
                                 </div>
                                 <div className="inbounds-client-mobile-credential cell-mono">
                                     <span>{maskedCredential}</span>
@@ -1230,7 +1257,7 @@ export default function Inbounds() {
                                         <button
                                             type="button"
                                             className="btn btn-ghost btn-xs btn-icon"
-                                            title="复制完整 ID / 密码"
+                                            title={deepCopy.copyCredential}
                                             disabled={isActioning}
                                             onClick={async () => {
                                                 await copyToClipboard(rawCredential);
@@ -1264,19 +1291,19 @@ export default function Inbounds() {
 
                         <div className="inbounds-client-mobile-metrics">
                             <div className="inbounds-client-mobile-metric">
-                                <span className="inbounds-client-mobile-label">总量</span>
+                                <span className="inbounds-client-mobile-label">{deepCopy.total}</span>
                                 <span>{totalBytes > 0 ? formatBytes(totalBytes) : '∞'}</span>
                             </div>
                             <div className="inbounds-client-mobile-metric">
-                                <span className="inbounds-client-mobile-label">IP 限制</span>
+                                <span className="inbounds-client-mobile-label">{deepCopy.ipLimit}</span>
                                 <span>{Number(cl.limitIp || 0) > 0 ? cl.limitIp : '∞'}</span>
                             </div>
                             <div className="inbounds-client-mobile-metric">
-                                <span className="inbounds-client-mobile-label">到期时间</span>
+                                <span className="inbounds-client-mobile-label">{deepCopy.expiry}</span>
                                 <span>{cl.expiryTime ? new Date(cl.expiryTime).toLocaleDateString() : t('comp.common.permanent')}</span>
                             </div>
                             <div className="inbounds-client-mobile-metric">
-                                <span className="inbounds-client-mobile-label">上 / 下行</span>
+                                <span className="inbounds-client-mobile-label">{deepCopy.traffic}</span>
                                 <span className="inbounds-client-traffic-stack">
                                     <span className="text-success">↑{formatBytes(safeNumber(cl.up))}</span>
                                     <span className="text-info">↓{formatBytes(safeNumber(cl.down))}</span>
@@ -1304,11 +1331,11 @@ export default function Inbounds() {
                             <button
                                 type="button"
                                 className={`btn btn-secondary btn-sm inbounds-client-action-btn inbounds-client-limit-btn ${hasOverride ? 'is-active' : ''}`}
-                                title={hasOverride ? '已设置单独限制，点击修改' : '设置单独限制'}
+                                title={hasOverride ? deepCopy.limitSetTitle : deepCopy.limitUnsetTitle}
                                 disabled={isActioning}
                                 onClick={() => openEntitlementModal(ib, cl)}
                             >
-                                限制
+                                {deepCopy.limit}
                             </button>
                             <ActionsDropdown
                                 actions={[
@@ -1320,7 +1347,7 @@ export default function Inbounds() {
                                         disabled: isActioning,
                                     },
                                     {
-                                        label: '删除',
+                                        label: deepCopy.delete,
                                         icon: HiOutlineTrash,
                                         onClick: () => handleDeleteClient(ib, cl),
                                         isDanger: true,
@@ -1358,10 +1385,10 @@ export default function Inbounds() {
                 />
                 <div className="page-content page-content--wide page-enter inbounds-page">
                     <EmptyState
-                        title="请先在「服务器管理」添加节点"
-                        subtitle="接入至少一台 3x-ui 节点后，再统一维护入站和客户端。"
+                        title={deepCopy.noServersTitle}
+                        subtitle={deepCopy.noServersSubtitle}
                         icon={<HiOutlineSignal style={{ fontSize: '48px' }} />}
-                        action={<button type="button" className="btn btn-primary" onClick={() => navigate('/servers')}><HiOutlineServer /> 前往服务器管理</button>}
+                        action={<button type="button" className="btn btn-primary" onClick={() => navigate('/servers')}><HiOutlineServer /> {deepCopy.goServers}</button>}
                     />
                 </div>
             </>
@@ -1766,14 +1793,14 @@ export default function Inbounds() {
                                                                             />
                                                                         </th>
                                                                         <th className="inbounds-clients-col-email">Email</th>
-                                                                        <th className="inbounds-clients-col-id">ID/密码（脱敏）</th>
-                                                                        <th className="inbounds-clients-col-usage">已用流量</th>
-                                                                        <th className="table-cell-right inbounds-clients-col-total">总量</th>
-                                                                        <th className="table-cell-right inbounds-clients-col-ip">IP 限制</th>
-                                                                        <th className="table-cell-right inbounds-clients-col-traffic">上 / 下行</th>
-                                                                        <th className="table-cell-center inbounds-clients-col-expiry">到期时间</th>
-                                                                        <th className="table-cell-center inbounds-clients-col-status">状态</th>
-                                                                        <th className="table-cell-actions inbounds-clients-col-actions">操作</th>
+                                                                        <th className="inbounds-clients-col-id">{deepCopy.maskedCredential}</th>
+                                                                        <th className="inbounds-clients-col-usage">{deepCopy.usedTraffic}</th>
+                                                                        <th className="table-cell-right inbounds-clients-col-total">{deepCopy.total}</th>
+                                                                        <th className="table-cell-right inbounds-clients-col-ip">{deepCopy.ipLimit}</th>
+                                                                        <th className="table-cell-right inbounds-clients-col-traffic">{deepCopy.traffic}</th>
+                                                                        <th className="table-cell-center inbounds-clients-col-expiry">{deepCopy.expiry}</th>
+                                                                        <th className="table-cell-center inbounds-clients-col-status">{deepCopy.status}</th>
+                                                                        <th className="table-cell-actions inbounds-clients-col-actions">{deepCopy.actions}</th>
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>
@@ -1810,7 +1837,7 @@ export default function Inbounds() {
                                                                                 <div className="inbounds-client-email-row">
                                                                                     <span>{cl.email || '-'}</span>
                                                                                     {hasOverride && (
-                                                                                        <span className="badge badge-warning">已限制</span>
+                                                                                        <span className="badge badge-warning">{deepCopy.limited}</span>
                                                                                     )}
                                                                                 </div>
                                                                             </td>
@@ -1823,7 +1850,7 @@ export default function Inbounds() {
                                                                                         <button
                                                                                             type="button"
                                                                                             className="btn btn-ghost btn-xs btn-icon"
-                                                                                            title="复制完整 ID / 密码"
+                                                                                            title={deepCopy.copyCredential}
                                                                                             disabled={isActioning}
                                                                                             onClick={async (e) => {
                                                                                                 e.stopPropagation();
@@ -1966,8 +1993,8 @@ export default function Inbounds() {
                             {bulkToggleIcon}
                             {bulkToggleLabel}
                         </button>
-                        <button className="btn btn-danger btn-sm" onClick={handleBulkDelete}><HiOutlineTrash /> 删除</button>
-                        <button className="btn btn-secondary btn-sm" onClick={handleBulkReset}><HiOutlineArrowPath /> 重置</button>
+                        <button className="btn btn-danger btn-sm" onClick={handleBulkDelete}><HiOutlineTrash /> {deepCopy.delete}</button>
+                        <button className="btn btn-secondary btn-sm" onClick={handleBulkReset}><HiOutlineArrowPath /> {deepCopy.reset}</button>
                         <button className="btn btn-secondary btn-sm" onClick={handleBulkSyncExistingUsers}><HiOutlineArrowPath /> {t('comp.inbounds.syncExistingUsersButton')}</button>
                     </div>
                 )}
@@ -1983,7 +2010,7 @@ export default function Inbounds() {
                     <ModalShell isOpen={clientAdjustOpen} onClose={closeClientAdjustModal}>
                         <div className="modal modal-md" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
-                                <h3 className="modal-title">批量调整到期/流量</h3>
+                                <h3 className="modal-title">{deepCopy.batchAdjust}</h3>
                                 <button className="modal-close" onClick={closeClientAdjustModal} aria-label={t('comp.common.close')} title={t('comp.common.close')}>
                                     <HiOutlineXMark />
                                 </button>
@@ -1991,24 +2018,24 @@ export default function Inbounds() {
                             <form onSubmit={submitClientAdjust}>
                                 <div className="modal-body">
                                     <div className="mb-4 p-3 rounded bg-surface-soft border border-stroke-soft text-sm">
-                                        <div>节点: <strong>{clientAdjustTarget.inbound.serverName}</strong></div>
-                                        <div>入站: <strong>{clientAdjustTarget.inbound.remark || clientAdjustTarget.inbound.protocol}</strong></div>
-                                        <div>已选用户: <strong>{clientAdjustTarget.clients.length}</strong></div>
+                                        <div>{deepCopy.node}: <strong>{clientAdjustTarget.inbound.serverName}</strong></div>
+                                        <div>{deepCopy.inbound}: <strong>{clientAdjustTarget.inbound.remark || clientAdjustTarget.inbound.protocol}</strong></div>
+                                        <div>{deepCopy.selectedUsers}: <strong>{clientAdjustTarget.clients.length}</strong></div>
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">到期天数变化</label>
+                                        <label className="form-label">{deepCopy.expiryDelta}</label>
                                         <input
                                             type="number"
                                             className="form-input"
                                             step="1"
                                             value={clientAdjustDays}
                                             onChange={(e) => setClientAdjustDays(e.target.value)}
-                                            placeholder="例如 30 或 -7"
+                                            placeholder={deepCopy.expiryPlaceholder}
                                         />
-                                        <p className="text-xs text-muted mt-1">正数延长，负数扣减；永不过期用户会跳过到期调整。</p>
+                                        <p className="text-xs text-muted mt-1">{deepCopy.expiryHint}</p>
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">流量变化</label>
+                                        <label className="form-label">{deepCopy.trafficDelta}</label>
                                         <div className="flex items-center gap-2">
                                             <input
                                                 type="number"
@@ -2016,17 +2043,17 @@ export default function Inbounds() {
                                                 step="0.5"
                                                 value={clientAdjustTrafficGb}
                                                 onChange={(e) => setClientAdjustTrafficGb(e.target.value)}
-                                                placeholder="例如 100 或 -20"
+                                                placeholder={deepCopy.trafficPlaceholder}
                                             />
                                             <span className="text-sm text-muted">GB</span>
                                         </div>
-                                        <p className="text-xs text-muted mt-1">正数增加，负数扣减；不限流量用户会跳过流量调整。</p>
+                                        <p className="text-xs text-muted mt-1">{deepCopy.trafficHint}</p>
                                     </div>
                                 </div>
                                 <div className="modal-footer">
-                                    <button type="button" className="btn btn-secondary" onClick={closeClientAdjustModal}>取消</button>
+                                    <button type="button" className="btn btn-secondary" onClick={closeClientAdjustModal}>{t('comp.common.cancel')}</button>
                                     <button type="submit" className="btn btn-primary" disabled={clientAdjustSaving}>
-                                        {clientAdjustSaving ? <span className="spinner" /> : <><HiOutlineCheck /> 执行调整</>}
+                                        {clientAdjustSaving ? <span className="spinner" /> : <><HiOutlineCheck /> {deepCopy.execute}</>}
                                     </button>
                                 </div>
                             </form>
@@ -2038,7 +2065,7 @@ export default function Inbounds() {
                     <ModalShell isOpen={entitlementOpen} onClose={closeEntitlementModal}>
                         <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
-                                <h3 className="modal-title">单独限制</h3>
+                                <h3 className="modal-title">{deepCopy.individualLimit}</h3>
                                 <button className="modal-close" onClick={closeEntitlementModal} aria-label={t('comp.common.close')} title={t('comp.common.close')}>
                                     <HiOutlineXMark />
                                 </button>
@@ -2046,9 +2073,9 @@ export default function Inbounds() {
                             <form onSubmit={submitEntitlementOverride}>
                                 <div className="modal-body">
                                     <div className="mb-4 p-3 rounded bg-surface-soft border border-stroke-soft text-sm">
-                                        <div>节点: <strong>{entitlementTarget.inbound.serverName}</strong></div>
-                                        <div>入站: <strong>{entitlementTarget.inbound.remark || entitlementTarget.inbound.protocol}</strong></div>
-                                        <div>用户: <strong>{entitlementTarget.client.email || entitlementTarget.clientIdentifier || '-'}</strong></div>
+                                        <div>{deepCopy.node}: <strong>{entitlementTarget.inbound.serverName}</strong></div>
+                                        <div>{deepCopy.inbound}: <strong>{entitlementTarget.inbound.remark || entitlementTarget.inbound.protocol}</strong></div>
+                                        <div>{deepCopy.user}: <strong>{entitlementTarget.client.email || entitlementTarget.clientIdentifier || '-'}</strong></div>
                                     </div>
                                     <div className="grid-auto-280-tight">
                                         <div className="form-group mb-0">
@@ -2156,12 +2183,12 @@ export default function Inbounds() {
                                     </div>
                                 </div>
                                 <div className="modal-footer">
-                                    <button type="button" className="btn btn-secondary" onClick={closeEntitlementModal}>取消</button>
+                                    <button type="button" className="btn btn-secondary" onClick={closeEntitlementModal}>{t('comp.common.cancel')}</button>
                                     <button type="button" className="btn btn-secondary" onClick={restoreEntitlementPolicy} disabled={entitlementSaving}>
-                                        {entitlementSaving ? <span className="spinner" /> : '恢复统一策略'}
+                                        {entitlementSaving ? <span className="spinner" /> : deepCopy.restorePolicy}
                                     </button>
                                     <button type="submit" className="btn btn-primary" disabled={entitlementSaving}>
-                                        {entitlementSaving ? <span className="spinner" /> : <><HiOutlineCheck /> 保存限制</>}
+                                        {entitlementSaving ? <span className="spinner" /> : <><HiOutlineCheck /> {deepCopy.saveLimit}</>}
                                     </button>
                                 </div>
                             </form>

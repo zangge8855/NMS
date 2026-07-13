@@ -1962,13 +1962,13 @@ export default function UserDetail() {
                 <ModalShell isOpen={clientAdjustOpen} onClose={() => setClientAdjustOpen(false)}>
                     <div className="modal modal-md" onClick={(event) => event.stopPropagation()}>
                         <div className="modal-header">
-                            <h3 className="modal-title">批量调整到期/流量</h3>
+                            <h3 className="modal-title">{t('comp.users.batchAdjustTitle')}</h3>
                             <button
                                 type="button"
                                 className="modal-close"
                                 onClick={() => setClientAdjustOpen(false)}
                                 aria-label={t('comp.common.close')}
-                                title="关闭"
+                                title={t('comp.common.close')}
                             >
                                 <HiOutlineXMark />
                             </button>
@@ -1976,21 +1976,21 @@ export default function UserDetail() {
                         <form onSubmit={submitClientAdjust}>
                             <div className="modal-body">
                                 <div className="mb-4 p-3 rounded bg-surface-soft border border-stroke-soft text-sm">
-                                    将调整当前用户的 {clientData.length} 个节点客户端。负数表示扣减；永不过期或不限流量的客户端会跳过对应字段。
+                                    {t('comp.users.batchAdjustDescription', { count: clientData.length })}
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">到期天数变化</label>
+                                    <label className="form-label">{t('comp.users.expiryDaysDelta')}</label>
                                     <input
                                         type="number"
                                         className="form-input"
                                         step="1"
                                         value={clientAdjustDays}
                                         onChange={(event) => setClientAdjustDays(event.target.value)}
-                                        placeholder="例如 30 或 -7"
+                                        placeholder={t('comp.users.expiryDaysPlaceholder')}
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">流量变化</label>
+                                    <label className="form-label">{t('comp.users.trafficDelta')}</label>
                                     <div className="flex items-center gap-2">
                                         <input
                                             type="number"
@@ -1998,16 +1998,16 @@ export default function UserDetail() {
                                             step="0.5"
                                             value={clientAdjustTrafficGb}
                                             onChange={(event) => setClientAdjustTrafficGb(event.target.value)}
-                                            placeholder="例如 100 或 -20"
+                                            placeholder={t('comp.users.trafficDeltaPlaceholder')}
                                         />
                                         <span className="text-sm text-muted">GB</span>
                                     </div>
                                 </div>
                             </div>
                             <div className="modal-footer">
-                                <button type="button" className="btn btn-secondary" onClick={() => setClientAdjustOpen(false)}>取消</button>
+                                <button type="button" className="btn btn-secondary" onClick={() => setClientAdjustOpen(false)}>{t('comp.common.cancel')}</button>
                                 <button type="submit" className="btn btn-primary" disabled={clientAdjustSaving}>
-                                    {clientAdjustSaving ? <span className="spinner" /> : '执行调整'}
+                                    {clientAdjustSaving ? <span className="spinner" /> : t('comp.users.executeAdjust')}
                                 </button>
                             </div>
                         </form>

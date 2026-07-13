@@ -928,7 +928,7 @@ export default function Servers() {
 
                 <div className="servers-mobile-meta">
                     <div className="servers-mobile-meta-item">
-                        <span className="servers-mobile-meta-label">账号</span>
+                        <span className="servers-mobile-meta-label">{t('comp.servers.account')}</span>
                         <span className="servers-mobile-meta-value">{authLabel}</span>
                     </div>
                 </div>
@@ -948,8 +948,8 @@ export default function Servers() {
                 ) : null}
 
                 <div className="servers-mobile-actions" onClick={(e) => e.stopPropagation()}>
-                    <button className="btn btn-secondary btn-sm" onClick={() => navigate(`/servers/${server.id}`)} title="详情">
-                        <HiOutlineEye /> 详情
+                    <button className="btn btn-secondary btn-sm" onClick={() => navigate(`/servers/${server.id}`)} title={t('comp.servers.details')}>
+                        <HiOutlineEye /> {t('comp.servers.details')}
                     </button>
                     <button
                         className="btn btn-secondary btn-sm"
@@ -1256,8 +1256,8 @@ export default function Servers() {
                                     </td>
                                     <td className="table-cell-actions servers-actions-cell" data-label={t('pages.servers.cols.actions')} onClick={(e) => e.stopPropagation()}>
                                         <div className="table-row-actions servers-row-actions">
-                                            <button className="btn btn-secondary btn-sm servers-row-action-main" onClick={() => navigate(`/servers/${server.id}`)} title="详情" disabled={rowBusy}>
-                                            <HiOutlineEye /> 详情
+                                            <button className="btn btn-secondary btn-sm servers-row-action-main" onClick={() => navigate(`/servers/${server.id}`)} title={t('comp.servers.details')} disabled={rowBusy}>
+                                            <HiOutlineEye /> {t('comp.servers.details')}
                                         </button>
                                         <button
                                             className="btn btn-secondary btn-sm servers-row-action-main"
@@ -1296,27 +1296,27 @@ export default function Servers() {
                             <form onSubmit={handleSubmit}>
                                 <div className="modal-body">
                                     <div className="form-group">
-                                        <label className="form-label">服务器名称</label>
-                                        <input className="form-input" placeholder="例如: 香港节点"
+                                        <label className="form-label">{t('comp.servers.serverName')}</label>
+                                        <input className="form-input" placeholder={t('comp.servers.serverNamePlaceholder')}
                                             value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">面板完整地址 *</label>
-                                        <input className="form-input" placeholder="例如: https://192.168.1.1:2053/Raw1UQnS7B23ivwIKI"
+                                        <label className="form-label">{t('comp.servers.panelUrl')} *</label>
+                                        <input className="form-input" placeholder={t('comp.servers.panelUrlPlaceholder')}
                                             value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} required />
                                     </div>
                                     <div className="grid-auto-220">
                                         <div className="form-group">
-                                            <label className="form-label">节点分组</label>
+                                            <label className="form-label">{t('comp.servers.nodeGroup')}</label>
                                             <input
                                                 className="form-input"
-                                                placeholder="例如: 亚太 / 欧美"
+                                                placeholder={t('comp.servers.nodeGroupPlaceholder')}
                                                 value={form.group}
                                                 onChange={(e) => setForm({ ...form, group: e.target.value })}
                                             />
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">标签 (逗号分隔)</label>
+                                            <label className="form-label">{t('comp.servers.tagsCommaSeparated')}</label>
                                             <input
                                                 className="form-input"
                                                 placeholder="hk, core, vip"
@@ -1327,13 +1327,13 @@ export default function Servers() {
                                     </div>
                                     <div className="grid-auto-220">
                                         <div className="form-group">
-                                            <label className="form-label">用户名</label>
+                                            <label className="form-label">{t('comp.servers.username')}</label>
                                             <input className="form-input" placeholder="admin"
                                                 value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">密码</label>
-                                            <input className="form-input" type="password" placeholder="密码"
+                                            <label className="form-label">{t('comp.servers.password')}</label>
+                                            <input className="form-input" type="password" placeholder={t('comp.servers.password')}
                                                 value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
                                         </div>
                                     </div>
@@ -1342,11 +1342,11 @@ export default function Servers() {
                                         <input
                                             className="form-input"
                                             type="password"
-                                            placeholder={editingId ? '留空保留已有 Token' : '可填写 3x-ui 设置页中的 API Token'}
+                                            placeholder={editingId ? t('comp.servers.tokenKeepPlaceholder') : t('comp.servers.tokenPlaceholder')}
                                             value={form.apiToken}
                                             onChange={(e) => setForm({ ...form, apiToken: e.target.value })}
                                         />
-                                        <div className="text-xs text-muted mt-1">用户名/密码与 API Token 二选一；配置 Token 后优先使用 Bearer 调用 3x-ui API。</div>
+                                        <div className="text-xs text-muted mt-1">{t('comp.servers.credentialModeHint')}</div>
                                     </div>
                                 </div>
                                 <div className="modal-footer">
@@ -1365,7 +1365,7 @@ export default function Servers() {
                     <ModalShell isOpen={showBatchForm} onClose={resetBatchForm}>
                         <div className="modal modal-lg glass-panel servers-batch-modal" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
-                                <h3 className="modal-title text-glow">批量添加服务器</h3>
+                                <h3 className="modal-title text-glow">{t('comp.servers.batchAddTitle')}</h3>
                                 <button type="button" className="modal-close" onClick={resetBatchForm} aria-label={t('comp.common.close')} title={t('comp.common.close')}><HiOutlineXMark /></button>
                             </div>
                             <form onSubmit={handleBatchSubmit}>
@@ -1373,41 +1373,41 @@ export default function Servers() {
                                     <div className="server-batch-form-shell">
                                         <div className="grid-auto-220">
                                             <div className="form-group">
-                                                <label className="form-label">公共用户名</label>
+                                                <label className="form-label">{t('comp.servers.sharedUsername')}</label>
                                                 <input
                                                     className="form-input"
-                                                    placeholder="例如: root"
+                                                    placeholder="root"
                                                     value={batchForm.username}
                                                     onChange={(e) => setBatchForm((prev) => ({ ...prev, username: e.target.value }))}
                                                 />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">公共密码</label>
+                                                <label className="form-label">{t('comp.servers.sharedPassword')}</label>
                                                 <input
                                                     className="form-input"
                                                     type="password"
-                                                    placeholder="密码"
+                                                    placeholder={t('comp.servers.password')}
                                                     value={batchForm.password}
                                                     onChange={(e) => setBatchForm((prev) => ({ ...prev, password: e.target.value }))}
                                                 />
                                             </div>
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">公共 API Token</label>
+                                            <label className="form-label">{t('comp.servers.sharedApiToken')}</label>
                                             <input
                                                 className="form-input"
                                                 type="password"
-                                                placeholder="所有节点使用同一个 3x-ui API Token 时填写"
+                                                placeholder={t('comp.servers.sharedTokenPlaceholder')}
                                                 value={batchForm.apiToken}
                                                 onChange={(e) => setBatchForm((prev) => ({ ...prev, apiToken: e.target.value }))}
                                             />
-                                            <div className="text-xs text-muted mt-1">用户名/密码与 API Token 二选一；逐行仍只填写节点地址。</div>
+                                            <div className="text-xs text-muted mt-1">{t('comp.servers.batchCredentialHint')}</div>
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">默认分组</label>
+                                            <label className="form-label">{t('comp.servers.defaultGroup')}</label>
                                             <input
                                                 className="form-input"
-                                                placeholder="例如: 亚太"
+                                                placeholder={t('comp.servers.nodeGroupPlaceholder')}
                                                 value={batchForm.group}
                                                 onChange={(e) => setBatchForm((prev) => ({ ...prev, group: e.target.value }))}
                                             />
@@ -1420,23 +1420,15 @@ export default function Servers() {
                                                     checked={batchForm.testConnection}
                                                     onChange={(e) => setBatchForm((prev) => ({ ...prev, testConnection: e.target.checked }))}
                                                 />
-                                                <span>添加后自动测试连接</span>
+                                                <span>{t('comp.servers.autoTestAfterAdd')}</span>
                                             </label>
                                         </div>
 
                                         <div className="form-group mt-4">
-                                            <label className="form-label">服务器清单 *</label>
+                                            <label className="form-label">{t('comp.servers.serverList')} *</label>
                                             <textarea
                                                 rows={9}
-                                                placeholder={[
-                                                    '# 每行一条，支持 1~3 列（逗号或 TAB 分隔）',
-                                                    '# 1 列: panelUrl',
-                                                    '# 2 列: name,panelUrl',
-                                                    '# 3 列 (兼容旧格式): name,panelUrl,basePath',
-                                                    'https://1.2.3.4:2053/Raw1',
-                                                    '新加坡-02,https://sg2.example.com:2053/Raw2',
-                                                    'https://hk1.example.com:2053',
-                                                ].join('\n')}
+                                                placeholder={t('comp.servers.batchListPlaceholder')}
                                                 value={batchForm.entries}
                                                 onChange={(e) => setBatchForm((prev) => ({ ...prev, entries: e.target.value }))}
                                                 required
@@ -1448,20 +1440,20 @@ export default function Servers() {
                                     {batchResult && (
                                         <div className="card mt-4 p-3">
                                             <div className="flex gap-8 items-center mb-12 flex-wrap">
-                                                <span className="badge badge-neutral">总计 {batchResult.summary?.total || 0}</span>
-                                                <span className="badge badge-success">成功 {batchResult.summary?.success || 0}</span>
-                                                <span className="badge badge-danger">失败 {batchResult.summary?.failed || 0}</span>
+                                                <span className="badge badge-neutral">{t('comp.servers.total')} {batchResult.summary?.total || 0}</span>
+                                                <span className="badge badge-success">{t('comp.servers.success')} {batchResult.summary?.success || 0}</span>
+                                                <span className="badge badge-danger">{t('comp.servers.failed')} {batchResult.summary?.failed || 0}</span>
                                             </div>
                                             <div className="table-container table-scroll table-scroll-sm">
                                                 <table className="table servers-batch-result-table">
                                                     <thead>
                                                         <tr>
-                                                            <th className="table-cell-right servers-batch-line-column">行号</th>
-                                                            <th>名称</th>
-                                                            <th>地址</th>
+                                                            <th className="table-cell-right servers-batch-line-column">{t('comp.servers.lineNumber')}</th>
+                                                            <th>{t('comp.servers.name')}</th>
+                                                            <th>{t('comp.servers.address')}</th>
                                                             <th>Path</th>
-                                                            <th className="table-cell-center servers-batch-status-column">状态</th>
-                                                            <th>结果</th>
+                                                            <th className="table-cell-center servers-batch-status-column">{t('comp.servers.status')}</th>
+                                                            <th>{t('comp.servers.result')}</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
@@ -1504,34 +1496,34 @@ export default function Servers() {
                     <ModalShell isOpen={credentialRepair.open} onClose={closeCredentialRepair}>
                         <div className="modal glass-panel" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
-                                <h3 className="modal-title text-glow">修复节点登录凭据</h3>
+                                <h3 className="modal-title text-glow">{t('comp.servers.repairCredentialsTitle')}</h3>
                                 <button type="button" className="modal-close" onClick={closeCredentialRepair} aria-label={t('comp.common.close')} title={t('comp.common.close')}><HiOutlineXMark /></button>
                             </div>
                             <form onSubmit={handleCredentialRepairSubmit}>
                                 <div className="modal-body">
                                     <div className="text-sm text-muted mb-3">
-                                        节点: {repairTargetServer?.name || credentialRepair.serverId || '-'}
+                                        {t('comp.servers.nodePrefix')}{repairTargetServer?.name || credentialRepair.serverId || '-'}
                                     </div>
                                     {credentialRepair.reason && (
                                         <div className="badge badge-danger mb-3 w-fit">{credentialRepair.reason}</div>
                                     )}
                                     <div className="form-group">
-                                        <label className="form-label">3x-ui 用户名</label>
+                                        <label className="form-label">{t('comp.servers.xuiUsername')}</label>
                                         <input
                                             className="form-input"
                                             value={credentialRepair.username}
                                             onChange={(e) => setCredentialRepair((prev) => ({ ...prev, username: e.target.value }))}
-                                            placeholder="例如: root"
+                                            placeholder="root"
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">3x-ui 密码</label>
+                                        <label className="form-label">{t('comp.servers.xuiPassword')}</label>
                                         <input
                                             className="form-input"
                                             type="password"
                                             value={credentialRepair.password}
                                             onChange={(e) => setCredentialRepair((prev) => ({ ...prev, password: e.target.value }))}
-                                            placeholder="输入并自动保存到节点"
+                                            placeholder={t('comp.servers.passwordRepairPlaceholder')}
                                         />
                                     </div>
                                     <div className="form-group">
@@ -1541,9 +1533,9 @@ export default function Servers() {
                                             type="password"
                                             value={credentialRepair.apiToken}
                                             onChange={(e) => setCredentialRepair((prev) => ({ ...prev, apiToken: e.target.value }))}
-                                            placeholder="也可以改用 3x-ui API Token 修复"
+                                            placeholder={t('comp.servers.tokenRepairPlaceholder')}
                                         />
-                                        <div className="text-xs text-muted mt-1">填 API Token 时将优先保存并使用 Bearer 调用；否则保存用户名/密码。</div>
+                                        <div className="text-xs text-muted mt-1">{t('comp.servers.tokenRepairHint')}</div>
                                     </div>
                                     {selectedIds.size > 1 && (
                                         <label className="form-check-label w-fit mt-2">
@@ -1552,7 +1544,7 @@ export default function Servers() {
                                                 checked={credentialRepair.applyToSelected}
                                                 onChange={(e) => setCredentialRepair((prev) => ({ ...prev, applyToSelected: e.target.checked }))}
                                             />
-                                            <span>同时应用到已选中的 {selectedIds.size} 个节点</span>
+                                            <span>{t('comp.servers.applyToSelected', { count: selectedIds.size })}</span>
                                         </label>
                                     )}
                                 </div>

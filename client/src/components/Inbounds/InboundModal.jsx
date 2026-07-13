@@ -599,6 +599,35 @@ function fromLocalDateTimeInput(input) {
 
 export default function InboundModal({ isOpen, onClose, editingInbound = null, onSuccess, servers = [], onBatchResult }) {
     const { t, locale } = useI18n();
+    const deepCopy = useMemo(() => locale === 'en-US' ? {
+        vlessParams: 'VLESS protocol settings', defaultX25519: 'Default (X25519)', authKey: 'Authentication key', noFallback: 'No fallback configured',
+        hysteria2Params: 'Hysteria2 protocol settings', uploadBandwidth: 'Upload bandwidth (up_mbps)', downloadBandwidth: 'Download bandwidth (down_mbps)', unlimitedRecommended: '0 = Unlimited (recommended)',
+        obfsType: 'Obfuscation type (obfs.type)', disabled: 'Disabled', obfsPassword: 'Obfuscation password (obfs.password)', optionalClientMatch: 'Optional; must match the client',
+        clientPassword: 'Client password (clients[0].password)', randomPassword: 'Generate random password', wireguardParams: 'WireGuard protocol settings', serverKey: 'Server key (secretKey)',
+        x25519PrivateKey: 'X25519 private key (base64)', peers: 'Peers', allowedIps: 'AllowedIPs (comma-separated)', keepAlive: 'KeepAlive (seconds, 0 = disabled)',
+        preSharedKey: 'PreSharedKey (optional)', noPeers: 'No peers configured. Select “Add peer” to begin.', tunnelParams: 'Tunnel / Dokodemo protocol settings', targetAddress: 'Target address (address)',
+        targetAddressPlaceholder: 'e.g. 1.1.1.1 or example.com', targetPort: 'Target port (port)', network: 'Network', timeout: 'Timeout (seconds)', userLevel: 'User level',
+        transport: 'Transport settings', sniffing: 'Traffic sniffing', tcpAdvanced: 'TCP advanced options', requestPath: 'Request Path (comma-separated)', wsAdvanced: 'WS advanced options',
+        httpUpgradeAdvanced: 'HTTPUpgrade advanced options', serverNamePlaceholder: 'e.g. apple.com', echActions: 'ECH certificate actions', generate: 'Generate', clear: 'Clear',
+        certificateFirst: 'Certificate (first entry)', certificatePath: 'Certificate file path', privateKeyPath: 'Private key file path', certificateUsage: 'Certificate usage',
+        encipherment: 'encipherment (encryption)', verify: 'verify (client verification)', issue: 'issue (sub-certificate issuance)', generateKeys: 'Generate keys', targetWebsite: 'Target website',
+        optionalBlank: 'Optional; usually left blank', mldsaActions: 'mldsa65 actions', noExternalProxy: 'No external proxy configured', trustedXff: 'Trusted XFF (comma-separated)',
+        noUdpMask: 'No UDP mask configured', cancel: 'Cancel', saveConfig: 'Save configuration',
+    } : {
+        vlessParams: 'VLESS 协议参数', defaultX25519: '默认（X25519）', authKey: 'Authentication 密钥', noFallback: '未配置 fallback',
+        hysteria2Params: 'Hysteria2 协议参数', uploadBandwidth: '上行带宽 (up_mbps)', downloadBandwidth: '下行带宽 (down_mbps)', unlimitedRecommended: '0 = 不限速（建议）',
+        obfsType: '混淆类型 (obfs.type)', disabled: '不启用', obfsPassword: '混淆密码 (obfs.password)', optionalClientMatch: '选填：需与客户端一致',
+        clientPassword: '客户端密码 (clients[0].password)', randomPassword: '随机生成密码', wireguardParams: 'WireGuard 协议参数', serverKey: '服务端密钥 (secretKey)',
+        x25519PrivateKey: 'X25519 私钥 (base64)', peers: '对端 (peers)', allowedIps: 'AllowedIPs（逗号分隔）', keepAlive: 'KeepAlive（秒，0 = 关闭）',
+        preSharedKey: 'PreSharedKey（选填）', noPeers: '尚无对端，点击“添加对端”开始配置。', tunnelParams: 'Tunnel / Dokodemo 协议参数', targetAddress: '目标地址 (address)',
+        targetAddressPlaceholder: '如 1.1.1.1 或 example.com', targetPort: '目标端口 (port)', network: '网络 (network)', timeout: '超时（秒）', userLevel: '用户级别 (userLevel)',
+        transport: '传输配置', sniffing: '流量嗅探 (Sniffing)', tcpAdvanced: 'TCP 高级开关', requestPath: 'Request Path（逗号分隔）', wsAdvanced: 'WS 高级开关',
+        httpUpgradeAdvanced: 'HTTPUpgrade 高级开关', serverNamePlaceholder: '例如：apple.com', echActions: 'ECH 证书操作', generate: '生成', clear: '清空',
+        certificateFirst: '证书（第 1 条）', certificatePath: '证书文件路径', privateKeyPath: '私钥文件路径', certificateUsage: '证书用途',
+        encipherment: 'encipherment（加密）', verify: 'verify（验证客户端）', issue: 'issue（签发子证书）', generateKeys: '生成密钥', targetWebsite: '目标网站 (Target)',
+        optionalBlank: '可选，通常留空', mldsaActions: 'mldsa65 操作', noExternalProxy: '未配置 external proxy', trustedXff: 'Trusted XFF（逗号分隔）',
+        noUdpMask: '未配置 UDP mask', cancel: '取消', saveConfig: '保存配置',
+    }, [locale]);
     const { panelApi } = useServer();
     const defaultProtocol = 'vless';
     const [loading, setLoading] = useState(false);
@@ -1699,7 +1728,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                             <div className="bg-surface-soft p-4 rounded-lg border border-stroke-soft">
                                 {normalizedProtocol === 'vless' && (
                                     <div className="border border-stroke-soft rounded-lg p-4 mb-4">
-                                        <h4 className="text-secondary text-sm font-bold mb-3 uppercase tracking-wider">VLESS 协议参数</h4>
+                                        <h4 className="text-secondary text-sm font-bold mb-3 uppercase tracking-wider">{deepCopy.vlessParams}</h4>
                                         <div className="grid grid-cols-2 gap-4 mb-3">
                                             <div className="form-group">
                                                 <label className="form-label">Authentication</label>
@@ -1710,7 +1739,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         draft.selectedAuth = e.target.value || undefined;
                                                     })}
                                                 >
-                                                    <option value="">默认(X25519)</option>
+                                                    <option value="">{deepCopy.defaultX25519}</option>
                                                     <option value="X25519, not Post-Quantum">X25519, not Post-Quantum</option>
                                                     <option value="ML-KEM-768, Post-Quantum">ML-KEM-768, Post-Quantum</option>
                                                 </select>
@@ -1794,7 +1823,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </div>
                                         </div>
                                         <div className="form-group mb-3">
-                                            <label className="form-label">Authentication 密钥</label>
+                                            <label className="form-label">{deepCopy.authKey}</label>
                                             <div className="flex gap-2">
                                                 <button
                                                     type="button"
@@ -1829,7 +1858,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     </button>
                                                 </div>
                                                 {vlessFallbacks.length === 0 && (
-                                                    <div className="text-xs text-muted">未配置 fallback</div>
+                                                    <div className="text-xs text-muted">{deepCopy.noFallback}</div>
                                                 )}
                                                 {vlessFallbacks.map((fallback, index) => (
                                                     <div key={`vless-fallback-${index}`} className="border border-stroke-soft rounded-lg p-3 mb-2">
@@ -1971,10 +2000,10 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
 
                                 {(normalizedProtocol === 'hysteria2' || normalizedProtocol === 'hy2') && (
                                     <div className="border border-stroke-soft rounded-lg p-4 mb-4">
-                                        <h4 className="text-secondary text-sm font-bold mb-3 uppercase tracking-wider">Hysteria2 协议参数</h4>
+                                        <h4 className="text-secondary text-sm font-bold mb-3 uppercase tracking-wider">{deepCopy.hysteria2Params}</h4>
                                         <div className="grid grid-cols-2 gap-4 mb-3">
                                             <div className="form-group">
-                                                <label className="form-label">上行带宽 (up_mbps)</label>
+                                                <label className="form-label">{deepCopy.uploadBandwidth}</label>
                                                 <input
                                                     className="form-input"
                                                     type="number"
@@ -1984,10 +2013,10 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         draft.up_mbps = Number(e.target.value || 0);
                                                     })}
                                                 />
-                                                <div className="text-xs text-muted mt-1">0 = 不限速（建议）</div>
+                                                <div className="text-xs text-muted mt-1">{deepCopy.unlimitedRecommended}</div>
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">下行带宽 (down_mbps)</label>
+                                                <label className="form-label">{deepCopy.downloadBandwidth}</label>
                                                 <input
                                                     className="form-input"
                                                     type="number"
@@ -1997,12 +2026,12 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         draft.down_mbps = Number(e.target.value || 0);
                                                     })}
                                                 />
-                                                <div className="text-xs text-muted mt-1">0 = 不限速（建议）</div>
+                                                <div className="text-xs text-muted mt-1">{deepCopy.unlimitedRecommended}</div>
                                             </div>
                                         </div>
                                         <div className="grid grid-cols-2 gap-4 mb-3">
                                             <div className="form-group">
-                                                <label className="form-label">混淆类型 (obfs.type)</label>
+                                                <label className="form-label">{deepCopy.obfsType}</label>
                                                 <select
                                                     className="form-select"
                                                     value={String(settingsObj?.obfs?.type || '')}
@@ -2011,16 +2040,16 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         draft.obfs.type = e.target.value;
                                                     })}
                                                 >
-                                                    <option value="">不启用</option>
+                                                    <option value="">{deepCopy.disabled}</option>
                                                     <option value="salamander">salamander</option>
                                                 </select>
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">混淆密码 (obfs.password)</label>
+                                                <label className="form-label">{deepCopy.obfsPassword}</label>
                                                 <input
                                                     className="form-input font-mono"
                                                     value={String(settingsObj?.obfs?.password || '')}
-                                                    placeholder="选用：与客户端一致"
+                                                    placeholder={deepCopy.optionalClientMatch}
                                                     onChange={(e) => updateSettingsJson((draft) => {
                                                         if (!draft.obfs || typeof draft.obfs !== 'object') draft.obfs = { type: '', password: '' };
                                                         draft.obfs.password = e.target.value;
@@ -2041,7 +2070,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </label>
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">客户端密码 (clients[0].password)</label>
+                                            <label className="form-label">{deepCopy.clientPassword}</label>
                                             <div className="flex gap-2">
                                                 <input
                                                     className="form-input font-mono"
@@ -2054,7 +2083,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 <button
                                                     type="button"
                                                     className="btn btn-secondary btn-icon"
-                                                    title="随机生成密码"
+                                                    title={deepCopy.randomPassword}
                                                     onClick={() => updateSettingsJson((draft) => {
                                                         const client = ensurePrimaryClient(draft);
                                                         client.password = Array.from({ length: 16 }, () =>
@@ -2073,7 +2102,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
 
                                 {normalizedProtocol === 'wireguard' && (
                                     <div className="border border-stroke-soft rounded-lg p-4 mb-4">
-                                        <h4 className="text-secondary text-sm font-bold mb-3 uppercase tracking-wider">WireGuard 协议参数</h4>
+                                        <h4 className="text-secondary text-sm font-bold mb-3 uppercase tracking-wider">{deepCopy.wireguardParams}</h4>
                                         <div className="grid grid-cols-2 gap-4 mb-3">
                                             <div className="form-group">
                                                 <label className="form-label">MTU</label>
@@ -2102,7 +2131,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </div>
                                         </div>
                                         <div className="form-group mb-3">
-                                            <label className="form-label">服务端密钥 (secretKey)</label>
+                                            <label className="form-label">{deepCopy.serverKey}</label>
                                             <div className="flex gap-2">
                                                 <input
                                                     className="form-input font-mono"
@@ -2112,11 +2141,11 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     })}
                                                 />
                                             </div>
-                                            <div className="text-xs text-muted mt-1">X25519 私钥 (base64)</div>
+                                            <div className="text-xs text-muted mt-1">{deepCopy.x25519PrivateKey}</div>
                                         </div>
                                         <div className="form-group">
                                             <div className="flex items-center justify-between mb-2">
-                                                <label className="form-label">对端 (peers)</label>
+                                                <label className="form-label">{deepCopy.peers}</label>
                                                 <button
                                                     type="button"
                                                     className="btn btn-secondary btn-xs"
@@ -2161,7 +2190,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         </div>
                                                         <div className="grid grid-cols-2 gap-2">
                                                             <div className="form-group">
-                                                                <label className="form-label text-xs">AllowedIPs (逗号分隔)</label>
+                                                                <label className="form-label text-xs">{deepCopy.allowedIps}</label>
                                                                 <input
                                                                     className="form-input font-mono"
                                                                     value={(Array.isArray(peer?.allowedIPs) ? peer.allowedIPs : ['0.0.0.0/0']).join(', ')}
@@ -2174,7 +2203,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                                 />
                                                             </div>
                                                             <div className="form-group">
-                                                                <label className="form-label text-xs">KeepAlive (秒, 0=关闭)</label>
+                                                                <label className="form-label text-xs">{deepCopy.keepAlive}</label>
                                                                 <input
                                                                     className="form-input"
                                                                     type="number"
@@ -2187,7 +2216,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                             </div>
                                                         </div>
                                                         <div className="form-group">
-                                                            <label className="form-label text-xs">PreSharedKey (选填)</label>
+                                                            <label className="form-label text-xs">{deepCopy.preSharedKey}</label>
                                                             <input
                                                                 className="form-input font-mono"
                                                                 value={String(peer?.preSharedKey || '')}
@@ -2200,7 +2229,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </div>
                                             ))}
                                             {(!Array.isArray(settingsObj?.peers) || settingsObj.peers.length === 0) && (
-                                                <div className="text-xs text-muted">尚无对端，点击"添加对端"开始配置。</div>
+                                                <div className="text-xs text-muted">{deepCopy.noPeers}</div>
                                             )}
                                         </div>
                                     </div>
@@ -2208,21 +2237,21 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
 
                                 {(normalizedProtocol === 'tunnel' || normalizedProtocol === 'dokodemo-door') && (
                                     <div className="border border-stroke-soft rounded-lg p-4 mb-4">
-                                        <h4 className="text-secondary text-sm font-bold mb-3 uppercase tracking-wider">Tunnel / Dokodemo 协议参数</h4>
+                                        <h4 className="text-secondary text-sm font-bold mb-3 uppercase tracking-wider">{deepCopy.tunnelParams}</h4>
                                         <div className="grid grid-cols-2 gap-4 mb-3">
                                             <div className="form-group">
-                                                <label className="form-label">目标地址 (address)</label>
+                                                <label className="form-label">{deepCopy.targetAddress}</label>
                                                 <input
                                                     className="form-input"
                                                     value={String(settingsObj?.address || '')}
-                                                    placeholder="如 1.1.1.1 或 example.com"
+                                                    placeholder={deepCopy.targetAddressPlaceholder}
                                                     onChange={(e) => updateSettingsJson((draft) => {
                                                         draft.address = e.target.value;
                                                     })}
                                                 />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">目标端口 (port)</label>
+                                                <label className="form-label">{deepCopy.targetPort}</label>
                                                 <input
                                                     className="form-input"
                                                     type="number"
@@ -2237,7 +2266,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         </div>
                                         <div className="grid grid-cols-2 gap-4 mb-3">
                                             <div className="form-group">
-                                                <label className="form-label">网络 (network)</label>
+                                                <label className="form-label">{deepCopy.network}</label>
                                                 <select
                                                     className="form-select"
                                                     value={String(settingsObj?.network || 'tcp,udp')}
@@ -2251,7 +2280,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </select>
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">超时 (timeout, 秒)</label>
+                                                <label className="form-label">{deepCopy.timeout}</label>
                                                 <input
                                                     className="form-input"
                                                     type="number"
@@ -2277,7 +2306,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </label>
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">用户级别 (userLevel)</label>
+                                                <label className="form-label">{deepCopy.userLevel}</label>
                                                 <input
                                                     className="form-input"
                                                     type="number"
@@ -2292,7 +2321,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     </div>
                                 )}
 
-                                <h4 className="text-secondary text-sm font-bold mb-4 uppercase tracking-wider">传输配置</h4>
+                                <h4 className="text-secondary text-sm font-bold mb-4 uppercase tracking-wider">{deepCopy.transport}</h4>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="form-group">
                                         <label className="form-label">{t('comp.inbounds.labelNetwork')}</label>
@@ -2318,7 +2347,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
 
                                 <div className="border-t border-stroke-soft pt-4 mt-4">
                                     <div className="flex items-center justify-between mb-2">
-                                        <h4 className="text-secondary text-sm font-bold uppercase tracking-wider">流量嗅探 (Sniffing)</h4>
+                                        <h4 className="text-secondary text-sm font-bold uppercase tracking-wider">{deepCopy.sniffing}</h4>
                                         <label className="flex items-center gap-2 cursor-pointer text-sm">
                                             <input
                                                 type="checkbox"
@@ -2416,7 +2445,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </select>
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">TCP 高级开关</label>
+                                                <label className="form-label">{deepCopy.tcpAdvanced}</label>
                                                 <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
                                                     <input
                                                         type="checkbox"
@@ -2458,7 +2487,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         />
                                                     </div>
                                                     <div className="form-group">
-                                                        <label className="form-label">Request Path (逗号分隔)</label>
+                                                        <label className="form-label">{deepCopy.requestPath}</label>
                                                         <input
                                                             className="form-input"
                                                             value={Array.isArray(streamObj?.tcpSettings?.header?.request?.path)
@@ -2627,7 +2656,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 <input className="form-input" value={simpleStream.wsHost} onChange={e => setSimpleStream({ ...simpleStream, wsHost: e.target.value })} placeholder="Optional" />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">WS 高级开关</label>
+                                                <label className="form-label">{deepCopy.wsAdvanced}</label>
                                                 <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
                                                     <input
                                                         type="checkbox"
@@ -2720,7 +2749,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 <input className="form-input" value={simpleStream.httpupgradeHost} onChange={e => setSimpleStream({ ...simpleStream, httpupgradeHost: e.target.value })} placeholder="Optional" />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">HTTPUpgrade 高级开关</label>
+                                                <label className="form-label">{deepCopy.httpUpgradeAdvanced}</label>
                                                 <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
                                                     <input
                                                         type="checkbox"
@@ -3043,7 +3072,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     className="form-input"
                                                     value={simpleStream.tlsSni}
                                                     onChange={e => setSimpleStream({ ...simpleStream, tlsSni: e.target.value })}
-                                                    placeholder="例如: apple.com"
+                                                    placeholder={deepCopy.serverNamePlaceholder}
                                                 />
                                             </div>
                                             <div className="form-group">
@@ -3201,17 +3230,17 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </div>
                                         </div>
                                         <div className="form-group mt-2">
-                                            <label className="form-label">ECH 证书操作</label>
+                                            <label className="form-label">{deepCopy.echActions}</label>
                                             <div className="flex gap-2">
-                                                <button type="button" className="btn btn-secondary btn-sm" onClick={generateEchCert}>生成</button>
-                                                <button type="button" className="btn btn-secondary btn-sm" onClick={clearEchCert}>清空</button>
+                                                <button type="button" className="btn btn-secondary btn-sm" onClick={generateEchCert}>{deepCopy.generate}</button>
+                                                <button type="button" className="btn btn-secondary btn-sm" onClick={clearEchCert}>{deepCopy.clear}</button>
                                             </div>
                                         </div>
                                         <div className="border border-stroke-soft rounded-lg p-3 mt-2">
-                                            <label className="form-label mb-2 block">证书 (第 1 条)</label>
+                                            <label className="form-label mb-2 block">{deepCopy.certificateFirst}</label>
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="form-group">
-                                                    <label className="form-label">证书文件路径</label>
+                                                    <label className="form-label">{deepCopy.certificatePath}</label>
                                                     <input
                                                         className="form-input"
                                                         value={String(streamObj?.tlsSettings?.certificates?.[0]?.certificateFile || '')}
@@ -3225,7 +3254,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     />
                                                 </div>
                                                 <div className="form-group">
-                                                    <label className="form-label">私钥文件路径</label>
+                                                    <label className="form-label">{deepCopy.privateKeyPath}</label>
                                                     <input
                                                         className="form-input"
                                                         value={String(streamObj?.tlsSettings?.certificates?.[0]?.keyFile || '')}
@@ -3241,7 +3270,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </div>
                                             <div className="flex gap-4 mt-2">
                                                 <div className="form-group flex-1">
-                                                    <label className="form-label">证书用途</label>
+                                                    <label className="form-label">{deepCopy.certificateUsage}</label>
                                                     <select className="form-select"
                                                         value={String(streamObj?.tlsSettings?.certificates?.[0]?.usage || 'encipherment')}
                                                         onChange={(e) => updateStreamJson((draft) => {
@@ -3252,9 +3281,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                             draft.tlsSettings.certificates[0].usage = e.target.value;
                                                         })}
                                                     >
-                                                        <option value="encipherment">encipherment (加密)</option>
-                                                        <option value="verify">verify (验证客户端)</option>
-                                                        <option value="issue">issue (签发子证书)</option>
+                                                        <option value="encipherment">{deepCopy.encipherment}</option>
+                                                        <option value="verify">{deepCopy.verify}</option>
+                                                        <option value="issue">{deepCopy.issue}</option>
                                                     </select>
                                                 </div>
                                                 <div className="flex items-center gap-4">
@@ -3298,7 +3327,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     <div className="border-t border-stroke-soft pt-4 mt-2">
                                         <div className="flex justify-between items-center mb-2">
                                             <label className="form-label">Reality Settings</label>
-                                            <button type="button" className="btn btn-primary btn-sm" onClick={generateRealityKeys}>生成密钥</button>
+                                            <button type="button" className="btn btn-primary btn-sm" onClick={generateRealityKeys}>{deepCopy.generateKeys}</button>
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-4">
@@ -3327,7 +3356,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         </div>
 
                                         <div className="form-group">
-                                            <label className="form-label">目标网站 (Target)</label>
+                                            <label className="form-label">{deepCopy.targetWebsite}</label>
                                             <input className="form-input" value={simpleStream.realityDest} onChange={e => setSimpleStream({ ...simpleStream, realityDest: e.target.value })} />
                                         </div>
                                         <div className="form-group">
@@ -3344,14 +3373,14 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     draft.realitySettings.settings = draft.realitySettings.settings || {};
                                                     draft.realitySettings.settings.serverName = e.target.value;
                                                 })}
-                                                placeholder="可选，通常留空"
+                                                placeholder={deepCopy.optionalBlank}
                                             />
                                         </div>
                                         <div className="form-group">
                                             <label className="form-label">ShortId</label>
                                             <div className="flex gap-2">
                                                 <input className="form-input" value={simpleStream.realityShortId} onChange={e => setSimpleStream({ ...simpleStream, realityShortId: e.target.value })} />
-                                                <button type="button" className="btn btn-secondary btn-sm" onClick={generateShortId}>生成</button>
+                                                <button type="button" className="btn btn-secondary btn-sm" onClick={generateShortId}>{deepCopy.generate}</button>
                                             </div>
                                         </div>
                                         <div className="form-group">
@@ -3436,10 +3465,10 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </div>
                                         </div>
                                         <div className="form-group mt-2">
-                                            <label className="form-label">mldsa65 操作</label>
+                                            <label className="form-label">{deepCopy.mldsaActions}</label>
                                             <div className="flex gap-2">
-                                                <button type="button" className="btn btn-secondary btn-sm" onClick={generateMldsa65Seed}>生成</button>
-                                                <button type="button" className="btn btn-secondary btn-sm" onClick={clearMldsa65Seed}>清空</button>
+                                                <button type="button" className="btn btn-secondary btn-sm" onClick={generateMldsa65Seed}>{deepCopy.generate}</button>
+                                                <button type="button" className="btn btn-secondary btn-sm" onClick={clearMldsa65Seed}>{deepCopy.clear}</button>
                                             </div>
                                         </div>
                                     </div>
@@ -3472,7 +3501,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </div>
                                         </div>
                                         {(Array.isArray(streamObj?.externalProxy) ? streamObj.externalProxy : []).length === 0 && (
-                                            <div className="text-xs text-muted mb-3">未配置 external proxy</div>
+                                            <div className="text-xs text-muted mb-3">{deepCopy.noExternalProxy}</div>
                                         )}
                                         {(Array.isArray(streamObj?.externalProxy) ? streamObj.externalProxy : []).map((row, index) => (
                                             <div key={`external-proxy-${index}`} className="grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-3 mb-2">
@@ -3631,7 +3660,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     <input className="form-input" value={String(streamObj?.sockopt?.interface || '')} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.interface = e.target.value; })} />
                                                 </div>
                                                 <div className="form-group">
-                                                    <label className="form-label">Trusted XFF (逗号分隔)</label>
+                                                    <label className="form-label">{deepCopy.trustedXff}</label>
                                                     <input
                                                         className="form-input"
                                                         value={Array.isArray(streamObj?.sockopt?.trustedXForwardedFor) ? streamObj.sockopt.trustedXForwardedFor.join(',') : ''}
@@ -3693,7 +3722,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </button>
                                         </div>
                                         {(Array.isArray(streamObj?.finalmask?.udp) ? streamObj.finalmask.udp : []).length === 0 && (
-                                            <div className="text-xs text-muted mb-2">未配置 UDP mask</div>
+                                            <div className="text-xs text-muted mb-2">{deepCopy.noUdpMask}</div>
                                         )}
                                         {(Array.isArray(streamObj?.finalmask?.udp) ? streamObj.finalmask.udp : []).map((mask, index) => (
                                             <div key={`udp-mask-${index}`} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-3 mb-2">
@@ -3756,9 +3785,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                     </div>
 
                     <div className="modal-footer">
-                        <button type="button" className="btn btn-secondary" onClick={onClose}>取消</button>
+                        <button type="button" className="btn btn-secondary" onClick={onClose}>{deepCopy.cancel}</button>
                         <button type="submit" className="btn btn-primary" disabled={loading}>
-                            {loading ? <span className="spinner" /> : <><HiOutlineCheck /> 保存配置</>}
+                            {loading ? <span className="spinner" /> : <><HiOutlineCheck /> {deepCopy.saveConfig}</>}
                         </button>
                     </div>
                 </form>

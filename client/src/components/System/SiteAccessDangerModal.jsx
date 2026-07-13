@@ -1,9 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import ModalShell from '../UI/ModalShell.jsx';
-
-function statusLabel(enabled) {
-    return enabled ? '开启' : '关闭';
-}
+import { useI18n } from '../../contexts/LanguageContext.jsx';
 
 export default function SiteAccessDangerModal({
     open = false,
@@ -15,6 +12,7 @@ export default function SiteAccessDangerModal({
     onConfirm,
     saving = false,
 }) {
+    const { t } = useI18n();
     const [acknowledged, setAcknowledged] = useState(false);
     const [typedPath, setTypedPath] = useState('');
 
@@ -33,28 +31,28 @@ export default function SiteAccessDangerModal({
             {open ? (
                 <div className="modal site-danger-modal" onClick={(event) => event.stopPropagation()}>
                     <div className="modal-header">
-                        <h3 className="modal-title">高危访问路径变更确认</h3>
+                        <h3 className="modal-title">{t('comp.siteAccessDanger.title')}</h3>
                     </div>
                     <div className="modal-body">
                         <div className="site-danger-copy">
-                            修改真实入口路径或伪装站开关后，旧地址可能立即失效。请确认你已经备份新路径，并且具备恢复访问的备用方式。
+                            {t('comp.siteAccessDanger.description')}
                         </div>
                         <div className="site-danger-compare-grid">
                             <div className="site-danger-compare-card">
-                                <div className="site-danger-compare-label">当前真实入口</div>
+                                <div className="site-danger-compare-label">{t('comp.siteAccessDanger.currentPath')}</div>
                                 <div className="site-danger-compare-value font-mono">{previousPath}</div>
                             </div>
                             <div className="site-danger-compare-card site-danger-compare-card--next">
-                                <div className="site-danger-compare-label">保存后真实入口</div>
+                                <div className="site-danger-compare-label">{t('comp.siteAccessDanger.nextPath')}</div>
                                 <div className="site-danger-compare-value font-mono">{nextPath}</div>
                             </div>
                             <div className="site-danger-compare-card">
-                                <div className="site-danger-compare-label">当前伪装首页</div>
-                                <div className="site-danger-compare-value">{statusLabel(previousCamouflageEnabled)}</div>
+                                <div className="site-danger-compare-label">{t('comp.siteAccessDanger.currentCamouflage')}</div>
+                                <div className="site-danger-compare-value">{t(previousCamouflageEnabled ? 'comp.siteAccessDanger.enabled' : 'comp.siteAccessDanger.disabled')}</div>
                             </div>
                             <div className="site-danger-compare-card site-danger-compare-card--next">
-                                <div className="site-danger-compare-label">保存后伪装首页</div>
-                                <div className="site-danger-compare-value">{statusLabel(nextCamouflageEnabled)}</div>
+                                <div className="site-danger-compare-label">{t('comp.siteAccessDanger.nextCamouflage')}</div>
+                                <div className="site-danger-compare-value">{t(nextCamouflageEnabled ? 'comp.siteAccessDanger.enabled' : 'comp.siteAccessDanger.disabled')}</div>
                             </div>
                         </div>
                         <label className="site-danger-check">
@@ -63,10 +61,10 @@ export default function SiteAccessDangerModal({
                                 checked={acknowledged}
                                 onChange={(event) => setAcknowledged(event.target.checked)}
                             />
-                            <span>我已备份新路径，并确认能够从 {nextPath} 重新进入管理面板</span>
+                            <span>{t('comp.siteAccessDanger.acknowledge', { path: nextPath })}</span>
                         </label>
                         <label className="form-group mb-0">
-                            <span className="form-label">请输入新的真实入口路径以继续保存</span>
+                            <span className="form-label">{t('comp.siteAccessDanger.typePath')}</span>
                             <input
                                 className="form-input font-mono"
                                 value={typedPath}
@@ -77,10 +75,10 @@ export default function SiteAccessDangerModal({
                     </div>
                     <div className="modal-footer">
                         <button type="button" className="btn btn-secondary" onClick={onClose} disabled={saving}>
-                            取消
+                            {t('comp.common.cancel')}
                         </button>
                         <button type="button" className="btn btn-danger" onClick={onConfirm} disabled={!canConfirm || saving}>
-                            {saving ? '正在保存' : '确认保存高危变更'}
+                            {saving ? t('comp.siteAccessDanger.saving') : t('comp.siteAccessDanger.confirm')}
                         </button>
                     </div>
                 </div>

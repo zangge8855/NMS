@@ -2994,7 +2994,7 @@ export default function AuditCenter() {
                     <div className="modal modal-lg audit-event-modal" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title">{copy.detail.title}</h3>
-                            <button type="button" className="modal-close" onClick={() => setSelectedEvent(null)} aria-label="关闭" title="关闭"><HiOutlineXMark /></button>
+                            <button type="button" className="modal-close" onClick={() => setSelectedEvent(null)} aria-label={copy.actions.close} title={copy.actions.close}><HiOutlineXMark /></button>
                         </div>
                         <div className="modal-body">
                             {/* 事件摘要 */}

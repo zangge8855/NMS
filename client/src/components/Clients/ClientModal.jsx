@@ -833,29 +833,29 @@ export default function ClientModal({
                                 <select className="form-select" value={flow} onChange={e => setFlow(e.target.value)}>
                                     {flowOptions.map((item) => (
                                         <option key={item || '__empty'} value={item}>
-                                            {item ? item : '不设置'}
+                                            {item ? item : t('comp.clients.notSet')}
                                         </option>
                                     ))}
                                 </select>
                             </div>
                         ) : (
                             <div className="form-group">
-                                <label className="form-label">流控 (Flow)</label>
-                                <input className="form-input" value="当前目标协议不支持 Flow" disabled />
+                                <label className="form-label">{t('comp.clients.flowLabel')}</label>
+                                <input className="form-input" value={t('comp.clients.flowUnsupported')} disabled />
                             </div>
                         )}
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="form-group">
-                                <label className="form-label">流量限制 (GB)</label>
-                                <input className="form-input" type="number" value={totalGB} onChange={e => setTotalGB(e.target.value)} placeholder="0 为不限制" />
+                                <label className="form-label">{t('comp.clients.trafficLimitGb')}</label>
+                                <input className="form-input" type="number" value={totalGB} onChange={e => setTotalGB(e.target.value)} placeholder={t('comp.clients.unlimitedZero')} />
                             </div>
                             <div className="form-group">
-                                <label className="form-label">到期策略</label>
+                                <label className="form-label">{t('comp.clients.expiryPolicy')}</label>
                                 <select className="form-select mb-2" value={expiryMode} onChange={(e) => setExpiryMode(e.target.value)}>
-                                    <option value="never">永不过期</option>
-                                    <option value="datetime">指定日期时间</option>
-                                    <option value="days">N 天后过期</option>
+                                    <option value="never">{t('comp.clients.expiryNever')}</option>
+                                    <option value="datetime">{t('comp.clients.expiryDatetime')}</option>
+                                    <option value="days">{t('comp.clients.expiryDays')}</option>
                                 </select>
                                 {expiryMode === 'datetime' && (
                                     <input
@@ -872,7 +872,7 @@ export default function ClientModal({
                                         min={1}
                                         value={expiryAfterDays}
                                         onChange={(e) => setExpiryAfterDays(e.target.value)}
-                                        placeholder="例如: 30"
+                                        placeholder={t('comp.clients.expiryDaysPlaceholder')}
                                     />
                                 )}
                             </div>
@@ -880,13 +880,13 @@ export default function ClientModal({
 
                         <div className="grid grid-cols-2 gap-4 mb-4">
                             <div className="form-group">
-                                <label className="form-label">IP 限制 (0 为不限制)</label>
+                                <label className="form-label">{t('comp.clients.ipLimit')}</label>
                                 <input className="form-input" type="number" value={limitIp} onChange={e => setLimitIp(e.target.value)} />
                             </div>
                             <div className="form-group flex items-center pt-4">
                                 <label className="flex items-center gap-2 cursor-pointer">
                                     <input type="checkbox" checked={enable} onChange={e => setEnable(e.target.checked)} />
-                                    启用此用户
+                                    {t('comp.clients.enableUser')}
                                 </label>
                             </div>
                         </div>
@@ -912,23 +912,23 @@ export default function ClientModal({
                                     inputMode="numeric"
                                     pattern="[0-9-]*"
                                     value={tgId}
-                                    placeholder="如 123456789"
+                                    placeholder={t('comp.clients.telegramPlaceholder')}
                                     onChange={e => setTgId(e.target.value.replace(/[^0-9-]/g, ''))}
                                 />
-                                <div className="text-xs text-muted mt-1">用于到期/流量提醒推送</div>
+                                <div className="text-xs text-muted mt-1">{t('comp.clients.telegramHint')}</div>
                             </div>
                             <div className="form-group">
-                                <label className="form-label">流量重置周期</label>
+                                <label className="form-label">{t('comp.clients.trafficResetPeriod')}</label>
                                 <select
                                     className="form-select"
                                     value={reset}
                                     onChange={e => setReset(Number(e.target.value))}
                                 >
-                                    <option value={0}>不重置</option>
-                                    <option value={1}>每日</option>
-                                    <option value={7}>每周</option>
-                                    <option value={30}>每月（30 天）</option>
-                                    <option value={90}>每季度</option>
+                                    <option value={0}>{t('comp.clients.resetNever')}</option>
+                                    <option value={1}>{t('comp.clients.resetDaily')}</option>
+                                    <option value={7}>{t('comp.clients.resetWeekly')}</option>
+                                    <option value={30}>{t('comp.clients.resetMonthly')}</option>
+                                    <option value={90}>{t('comp.clients.resetQuarterly')}</option>
                                 </select>
                                 <div className="text-xs text-muted mt-1">{t('comp.clients.resetNeverHelp')}</div>
                             </div>
