@@ -1316,7 +1316,7 @@ function AuditAccessMobileList({ items = [], copy, locale }) {
 
 export default function AuditCenter() {
     const { locale, t } = useI18n();
-    const isCompactLayout = useMediaQuery('(max-width: 768px)');
+    const isCompactLayout = useMediaQuery('(max-width: 1100px)');
     const copy = getAuditCopy(locale);
     const [searchParams, setSearchParams] = useSearchParams();
     const confirm = useConfirm();

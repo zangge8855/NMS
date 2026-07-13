@@ -136,15 +136,16 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
                 {isMobile ? <HiOutlineChevronLeft /> : (collapsed ? <HiOutlineChevronRight /> : <HiOutlineChevronLeft />)}
             </button>
 
-            <nav className="sidebar-nav">
+            <nav className="sidebar-nav" aria-label={t('shell.primaryNavigation')}>
                 {visibleSections.map((section) => {
                     return (
                         <div className="nav-section" key={section.title}>
                             <div className="nav-section-title">{section.title}</div>
-                            {section.items.map((item) => {
-                                return (
-                                    <React.Fragment key={item.path}>
+                            <div className="nav-section-items">
+                                {section.items.map((item) => {
+                                    return (
                                         <NavLink
+                                            key={item.path}
                                             to={item.path}
                                             end={item.path === '/' || item.path === '/settings'}
                                             onClick={() => {
@@ -168,48 +169,48 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
                                                 </>
                                             )}
                                         </NavLink>
-                                    </React.Fragment>
-                                );
-                            })}
+                                    );
+                                })}
+                            </div>
                         </div>
                     );
                 })}
-                <div className="nav-section nav-section-utility">
-                    {visibleFooterItems.map((item) => (
-                        <NavLink
-                            key={item.path}
-                            to={item.path}
-                            onClick={() => {
-                                closeNavFlyout(item.path);
-                                onClose?.();
-                            }}
-                            {...getNavFlyoutProps(item.path, item.label)}
-                            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-                        >
-                            {({ isActive }) => (
-                                <>
-                                    {isActive && <div className="active-glow" />}
-                                    <span className="nav-item-icon"><item.icon /></span>
-                                    <span className="nav-label">{item.label}</span>
-                                </>
-                            )}
-                        </NavLink>
-                    ))}
-                    <button
-                        type="button"
-                        className="nav-item nav-item-button sidebar-logout"
+            </nav>
+            <div className="sidebar-utility">
+                {visibleFooterItems.map((item) => (
+                    <NavLink
+                        key={item.path}
+                        to={item.path}
                         onClick={() => {
-                            closeNavFlyout('logout');
-                            logout();
+                            closeNavFlyout(item.path);
                             onClose?.();
                         }}
-                        {...getNavFlyoutProps('logout', t('shell.logout'))}
+                        {...getNavFlyoutProps(item.path, item.label)}
+                        className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
                     >
-                        <span className="nav-item-icon text-muted"><HiOutlineArrowRightOnRectangle /></span>
-                        <span className="nav-label">{t('shell.logout')}</span>
-                    </button>
-                </div>
-            </nav>
+                        {({ isActive }) => (
+                            <>
+                                {isActive && <div className="active-glow" />}
+                                <span className="nav-item-icon"><item.icon /></span>
+                                <span className="nav-label">{item.label}</span>
+                            </>
+                        )}
+                    </NavLink>
+                ))}
+                <button
+                    type="button"
+                    className="nav-item nav-item-button sidebar-logout"
+                    onClick={() => {
+                        closeNavFlyout('logout');
+                        logout();
+                        onClose?.();
+                    }}
+                    {...getNavFlyoutProps('logout', t('shell.logout'))}
+                >
+                    <span className="nav-item-icon"><HiOutlineArrowRightOnRectangle /></span>
+                    <span className="nav-label">{t('shell.logout')}</span>
+                </button>
+            </div>
         </aside>
         {navFlyoutMenu}
         </>
