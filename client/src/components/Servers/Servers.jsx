@@ -6,6 +6,7 @@ import Header from '../Layout/Header.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
 import ListToolbar from '../UI/ListToolbar.jsx';
+import ActionsDropdown from '../UI/ActionsDropdown.jsx';
 import ServerTelemetryCell from './ServerTelemetryCell.jsx';
 import { showAggregateToast } from '../UI/AggregateToast.jsx';
 import toast from 'react-hot-toast';
@@ -92,7 +93,7 @@ function getLiveStatusBadge(status, copy = {}) {
 
 export default function Servers() {
     const { locale, t } = useI18n();
-    const isCompactLayout = useMediaQuery('(max-width: 1500px)');
+    const isCompactLayout = useMediaQuery('(max-width: 768px)');
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const {
@@ -1267,14 +1268,23 @@ export default function Servers() {
                                             {rowBusy ? <span className="spinner" /> : <HiOutlineSignal />}
                                             {testState === 'success' ? t('comp.servers.testOk') : testState === 'error' ? t('comp.servers.testFail') : t('comp.servers.testConnect')}
                                         </button>
-                                            <button className="btn btn-ghost btn-sm btn-icon table-action-btn servers-row-action-icon" onClick={() => handleEdit(server)} title={t('comp.common.edit')} aria-label={t('comp.common.edit')} disabled={rowBusy}>
-                                                <HiOutlinePencilSquare />
-                                                <span className="servers-row-action-mobile-label">{t('comp.common.edit')}</span>
-                                            </button>
-                                            <button className="btn btn-danger btn-sm btn-icon table-action-btn servers-row-action-icon is-danger" onClick={() => handleDelete(server.id)} title={t('comp.common.delete')} aria-label={t('comp.common.delete')} disabled={rowBusy}>
-                                                <HiOutlineTrash />
-                                                <span className="servers-row-action-mobile-label">{t('comp.common.delete')}</span>
-                                            </button>
+                                            <ActionsDropdown
+                                                actions={[
+                                                    {
+                                                        label: t('comp.common.edit'),
+                                                        icon: HiOutlinePencilSquare,
+                                                        onClick: () => handleEdit(server),
+                                                        disabled: rowBusy,
+                                                    },
+                                                    {
+                                                        label: t('comp.common.delete'),
+                                                        icon: HiOutlineTrash,
+                                                        onClick: () => handleDelete(server.id),
+                                                        disabled: rowBusy,
+                                                        isDanger: true,
+                                                    },
+                                                ]}
+                                            />
                                         </div>
                                     </td>
                                 </tr>

@@ -139,6 +139,13 @@ function renderDashboardWithLocation(route = '/') {
     );
 }
 
+function getDashboardKpi(label) {
+    const labelNode = screen.getByText(label, { selector: '.dashboard-hero-kpi-label' });
+    const kpi = labelNode.closest('.dashboard-hero-kpi');
+    if (!kpi) throw new Error(`Missing dashboard KPI: ${label}`);
+    return kpi;
+}
+
 describe('Dashboard', () => {
     beforeEach(() => {
         localStorage.clear();
@@ -405,28 +412,24 @@ describe('Dashboard', () => {
         expect(await screen.findByText('港口专线')).toBeInTheDocument();
         expect(screen.queryByText('集群概览')).not.toBeInTheDocument();
 
-        const overviewCard = screen.getByText('入站 2 / 2 已启用').closest('[role="button"]');
-        if (!overviewCard) throw new Error('Missing cluster overview card');
+        const nodesKpi = getDashboardKpi('在线节点');
         await waitFor(() => {
-            expect(overviewCard).toHaveTextContent('节点总计');
-            expect(overviewCard).toHaveTextContent('2 / 2');
-            expect(overviewCard).toHaveTextContent('入站 2 / 2 已启用');
+            expect(nodesKpi).toHaveTextContent('2/2');
+            expect(nodesKpi).toHaveTextContent('入站 2 / 2 已启用');
         });
 
-        const onlineCard = screen.getByText('总在线用户').closest('[role="button"]');
-        if (!onlineCard) throw new Error('Missing online users card');
+        const onlineKpi = getDashboardKpi('在线用户');
         await waitFor(() => {
-            expect(onlineCard).toHaveTextContent('1');
+            expect(onlineKpi).toHaveTextContent('1');
         });
 
         fireEvent.click(screen.getByRole('button', { name: /自动 ON/ }));
         fireEvent.click(screen.getByRole('button', { name: /自动 OFF/ }));
 
-        const throughputCard = screen.getByText('当前总吞吐').closest('[role="button"]');
-        if (!throughputCard) throw new Error('Missing throughput card');
+        const totalTrafficKpi = getDashboardKpi('总流量');
         await waitFor(() => {
-            expect(throughputCard).not.toHaveTextContent('等待下一次采样');
-            expect(throughputCard).toHaveTextContent(/\/s/);
+            expect(totalTrafficKpi).not.toHaveTextContent('等待下一次采样');
+            expect(totalTrafficKpi).toHaveTextContent(/\/s/);
         });
 
         const weekTrafficCard = screen.getByText('本周用户流量').closest('[role="button"]');
@@ -457,7 +460,7 @@ describe('Dashboard', () => {
         if (!nodeATile) throw new Error('Missing Node A health tile');
         expect(nodeATile).toHaveTextContent('300 B');
 
-        fireEvent.click(onlineCard);
+        fireEvent.click(onlineKpi);
 
         expect(await screen.findByText('在线用户明细')).toBeInTheDocument();
         expect(screen.getByText('Alice')).toBeInTheDocument();
@@ -589,8 +592,7 @@ describe('Dashboard', () => {
 
         renderWithRouter(<Dashboard />, { route: '/' });
 
-        const onlineCard = screen.getByText('总在线用户').closest('[role="button"]');
-        if (!onlineCard) throw new Error('Missing online users card');
+        const onlineKpi = getDashboardKpi('在线用户');
         const weekTrafficCard = screen.getByText('本周用户流量').closest('[role="button"]');
         if (!weekTrafficCard) throw new Error('Missing weekly traffic card');
         const trafficCard = screen.getByText('本月用户流量').closest('[role="button"]');
@@ -601,8 +603,8 @@ describe('Dashboard', () => {
             expect(weekTrafficCard).toHaveTextContent('统计当前用户流量中');
             expect(trafficCard).toHaveTextContent('--');
             expect(trafficCard).toHaveTextContent('统计当前用户流量中');
-            expect(onlineCard).toHaveTextContent('--');
-            expect(onlineCard).toHaveTextContent('已注册 1 · 正在统计在线');
+            expect(onlineKpi).toHaveTextContent('--');
+            expect(onlineKpi).toHaveTextContent('已注册 1 · 正在统计在线');
         });
 
         resolveInbounds({
@@ -667,8 +669,8 @@ describe('Dashboard', () => {
         });
 
         await waitFor(() => {
-            expect(onlineCard).toHaveTextContent('1');
-            expect(onlineCard).toHaveTextContent('已注册 1 · 在线会话 1');
+            expect(onlineKpi).toHaveTextContent('1');
+            expect(onlineKpi).toHaveTextContent('已注册 1 · 在线会话 1');
             expect(weekTrafficCard).toHaveTextContent('210 B');
             expect(weekTrafficCard).toHaveTextContent(/↑\s*70 B/);
             expect(weekTrafficCard).toHaveTextContent(/↓\s*140 B/);
@@ -755,15 +757,15 @@ describe('Dashboard', () => {
 
         renderWithRouter(<Dashboard />, { route: '/' });
 
-        const onlineCard = screen.getByText('总在线用户').closest('[role="button"]');
+        const onlineKpi = getDashboardKpi('在线用户');
         const weekTrafficCard = screen.getByText('本周用户流量').closest('[role="button"]');
         const monthTrafficCard = screen.getByText('本月用户流量').closest('[role="button"]');
-        if (!onlineCard || !weekTrafficCard || !monthTrafficCard) {
+        if (!weekTrafficCard || !monthTrafficCard) {
             throw new Error('Missing global cards');
         }
 
         await waitFor(() => {
-            expect(onlineCard).toHaveTextContent('已注册 6 · 正在统计在线');
+            expect(onlineKpi).toHaveTextContent('已注册 6 · 正在统计在线');
             expect(weekTrafficCard).toHaveTextContent('360 B');
             expect(weekTrafficCard).toHaveTextContent(/↑\s*120 B/);
             expect(weekTrafficCard).toHaveTextContent(/↓\s*240 B/);
@@ -944,12 +946,11 @@ describe('Dashboard', () => {
 
         renderWithRouter(<Dashboard />, { route: '/' });
 
-        const onlineCard = screen.getByText('总在线用户').closest('[role="button"]');
-        if (!onlineCard) throw new Error('Missing online users card');
+        const onlineKpi = getDashboardKpi('在线用户');
 
         await waitFor(() => {
-            expect(onlineCard).toHaveTextContent('1');
-            expect(onlineCard).toHaveTextContent('已注册 3 · 在线会话 2');
+            expect(onlineKpi).toHaveTextContent('1');
+            expect(onlineKpi).toHaveTextContent('已注册 3 · 在线会话 2');
         });
     });
 
@@ -1009,12 +1010,11 @@ describe('Dashboard', () => {
 
         renderWithRouter(<Dashboard />, { route: '/' });
 
-        const onlineCard = screen.getByText('总在线用户').closest('[role="button"]');
-        if (!onlineCard) throw new Error('Missing online users card');
+        const onlineKpi = getDashboardKpi('在线用户');
 
         await waitFor(() => {
-            expect(onlineCard).toHaveTextContent('2');
-            expect(onlineCard).toHaveTextContent('已注册 3 · 正在统计在线');
+            expect(onlineKpi).toHaveTextContent('2');
+            expect(onlineKpi).toHaveTextContent('已注册 3 · 正在统计在线');
         });
     });
 
@@ -1105,16 +1105,15 @@ describe('Dashboard', () => {
 
         renderWithRouter(<Dashboard />, { route: '/' });
 
-        const onlineCard = screen.getByText('总在线用户').closest('[role="button"]');
-        if (!onlineCard) throw new Error('Missing online users card');
+        const onlineKpi = getDashboardKpi('在线用户');
 
         await waitFor(() => {
-            expect(onlineCard).toHaveTextContent('1');
-            expect(onlineCard).not.toHaveTextContent('0');
+            expect(onlineKpi).toHaveTextContent('1');
+            expect(onlineKpi).not.toHaveTextContent('0');
         });
     });
 
-    it('renders websocket throughput summaries immediately without waiting for a second client sample', async () => {
+    it('renders websocket throughput context in the total-traffic KPI without waiting for a second client sample', async () => {
         const never = new Promise(() => {});
         webSocketState = {
             status: 'connected',
@@ -1187,13 +1186,11 @@ describe('Dashboard', () => {
 
         renderWithRouter(<Dashboard />, { route: '/' });
 
-        const throughputCard = screen.getByText('当前总吞吐').closest('[role="button"]');
-        if (!throughputCard) throw new Error('Missing throughput card');
+        const totalTrafficKpi = getDashboardKpi('总流量');
 
         await waitFor(() => {
-            expect(throughputCard).toHaveTextContent('360 B');
-            expect(throughputCard).toHaveTextContent(/↑\s*120 B\/s/);
-            expect(throughputCard).toHaveTextContent(/↓\s*240 B\/s/);
+            expect(totalTrafficKpi).toHaveTextContent(/↑\s*120 B\/s/);
+            expect(totalTrafficKpi).toHaveTextContent(/↓\s*240 B\/s/);
         });
     });
 
@@ -1341,18 +1338,17 @@ describe('Dashboard', () => {
 
         renderWithRouter(<Dashboard />, { route: '/' });
 
-        const onlineCard = screen.getByText('总在线用户').closest('[role="button"]');
+        const onlineKpi = getDashboardKpi('在线用户');
         const weekTrafficCard = screen.getByText('本周用户流量').closest('[role="button"]');
         const monthTrafficCard = screen.getByText('本月用户流量').closest('[role="button"]');
-        if (!onlineCard || !weekTrafficCard || !monthTrafficCard) {
+        if (!weekTrafficCard || !monthTrafficCard) {
             throw new Error('Missing dashboard cards');
         }
 
         await waitFor(() => {
-            expect(onlineCard).toHaveTextContent('已注册 8 · 正在统计在线');
+            expect(onlineKpi).toHaveTextContent('已注册 8 · 正在统计在线');
             expect(weekTrafficCard).toHaveTextContent('360 B');
             expect(monthTrafficCard).toHaveTextContent('900 B');
-            expect(screen.getByText('待审核 2 个')).toBeInTheDocument();
             expect(screen.getByText('Node A')).toBeInTheDocument();
         });
     });
@@ -1376,10 +1372,10 @@ describe('Dashboard', () => {
 
         renderWithRouter(<Dashboard />, { route: '/' });
 
-        const onlineCard = screen.getByText('总在线用户').closest('[role="button"]');
+        const onlineKpi = getDashboardKpi('在线用户');
         const weekTrafficCard = screen.getByText('本周用户流量').closest('[role="button"]');
         const monthTrafficCard = screen.getByText('本月用户流量').closest('[role="button"]');
-        if (!onlineCard || !weekTrafficCard || !monthTrafficCard) {
+        if (!weekTrafficCard || !monthTrafficCard) {
             throw new Error('Missing dashboard cards');
         }
 
@@ -1440,8 +1436,8 @@ describe('Dashboard', () => {
         });
 
         await waitFor(() => {
-            expect(onlineCard).toHaveTextContent('3');
-            expect(onlineCard).toHaveTextContent('已注册 8 · 在线会话 2');
+            expect(onlineKpi).toHaveTextContent('3');
+            expect(onlineKpi).toHaveTextContent('已注册 8 · 在线会话 2');
             expect(weekTrafficCard).toHaveTextContent('360 B');
             expect(monthTrafficCard).toHaveTextContent('900 B');
             expect(screen.getByText('Node A')).toBeInTheDocument();
@@ -1658,8 +1654,8 @@ describe('Dashboard', () => {
 
         renderWithRouter(<Dashboard />, { route: '/' });
 
-        const onlineCard = await screen.findByText('总在线用户');
-        fireEvent.click(onlineCard.closest('[role="button"]'));
+        await screen.findByText('在线用户', { selector: '.dashboard-hero-kpi-label' });
+        fireEvent.click(getDashboardKpi('在线用户'));
 
         await screen.findByText('在线用户明细');
         await waitFor(() => {
@@ -1670,7 +1666,7 @@ describe('Dashboard', () => {
         expect(screen.getByText('alice@example.com')).toBeInTheDocument();
     });
 
-    it('updates the global online card with raw total online users and sessions from websocket', async () => {
+    it('updates the global online KPI with raw total online users and sessions from websocket', async () => {
         webSocketState = {
             status: 'connected',
             lastMessage: {
@@ -1785,13 +1781,12 @@ describe('Dashboard', () => {
 
         renderWithRouter(<Dashboard />, { route: '/' });
 
-        const onlineCard = await screen.findByText('总在线用户');
-        const cardSurface = onlineCard.closest('[role="button"]');
-        if (!cardSurface) throw new Error('Missing online users card');
+        await screen.findByText('在线用户', { selector: '.dashboard-hero-kpi-label' });
+        const onlineKpi = getDashboardKpi('在线用户');
 
         await waitFor(() => {
-            expect(cardSurface).toHaveTextContent('9');
-            expect(cardSurface).toHaveTextContent('已注册 1 · 在线会话 9');
+            expect(onlineKpi).toHaveTextContent('9');
+            expect(onlineKpi).toHaveTextContent('已注册 1 · 在线会话 9');
         });
     });
 
