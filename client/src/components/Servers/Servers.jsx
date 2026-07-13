@@ -93,7 +93,8 @@ function getLiveStatusBadge(status, copy = {}) {
 
 export default function Servers() {
     const { locale, t } = useI18n();
-    const isCompactLayout = useMediaQuery('(max-width: 768px)');
+    const isCompactLayout = useMediaQuery('(max-width: 1100px)');
+    const isCondensedLayout = useMediaQuery('(max-width: 1580px)');
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const {
@@ -1202,8 +1203,8 @@ export default function Servers() {
                                                     <span className="server-card-name">{server.name}</span>
                                                 </button>
                                             </div>
-                                            {isCompactLayout ? (
-                                                <div className="servers-mobile-summary">
+                                            {isCondensedLayout ? (
+                                                <div className="servers-mobile-summary servers-condensed-summary">
                                                     <div className="servers-mobile-summary-row">
                                                         <span className="badge badge-neutral">{t('comp.servers.groupPrefix')}: {serverGroup}</span>
                                                         {serverEnvironment ? <span className="badge badge-info">{serverEnvironment}</span> : null}

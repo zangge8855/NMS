@@ -74,11 +74,13 @@ describe('Sidebar', () => {
         expect(container.querySelector('.sidebar-user')).toBeNull();
     });
 
-    it('renders logout in the utility section inside the main nav', () => {
+    it('renders logout in a dedicated utility footer outside the scrollable nav', () => {
         const { container } = renderWithRouter(<SidebarHarness />, { route: '/' });
 
-        expect(container.querySelector('.sidebar-nav .nav-section-utility .sidebar-account-chip')).toBeNull();
-        expect(container.querySelector('.sidebar-nav .nav-section-utility .sidebar-logout')).not.toBeNull();
+        expect(screen.getByRole('navigation', { name: '主导航' })).toBeInTheDocument();
+        expect(container.querySelector('.sidebar-utility .sidebar-account-chip')).toBeNull();
+        expect(container.querySelector('.sidebar-utility .sidebar-logout')).not.toBeNull();
+        expect(container.querySelector('.sidebar-nav .sidebar-logout')).toBeNull();
         expect(container.querySelector('.sidebar-footer-nav .sidebar-logout')).toBeNull();
     });
 
@@ -88,6 +90,18 @@ describe('Sidebar', () => {
         expect(screen.getByText('管理')).toBeInTheDocument();
         expect(screen.queryByText('监控')).not.toBeInTheDocument();
         expect(screen.getByRole('link', { name: /仪表盘/i })).toBeInTheDocument();
+    });
+
+    it('keeps expanded navigation labels in a flexible content region', () => {
+        const { container } = renderWithRouter(<Sidebar collapsed={false} open={false} onClose={vi.fn()} onToggle={vi.fn()} />, { route: '/' });
+
+        const items = Array.from(container.querySelectorAll('.sidebar .nav-item'));
+        expect(items.length).toBeGreaterThan(0);
+        items.forEach((item) => {
+            const label = item.querySelector('.nav-label');
+            expect(label).not.toBeNull();
+            expect(label.textContent.trim().length).toBeGreaterThan(0);
+        });
     });
 
     it('does not render the old bottom server selector anymore', () => {

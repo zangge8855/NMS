@@ -25,6 +25,7 @@ const messages = {
       langLabel: 'EN',
       switchLanguage: '切换到英文',
       menu: '菜单',
+      primaryNavigation: '主导航',
       mobileNavigation: '移动导航',
     },
     nav: {
@@ -1924,6 +1925,7 @@ const messages = {
       langLabel: '中',
       switchLanguage: 'Switch to Chinese',
       menu: 'Menu',
+      primaryNavigation: 'Primary navigation',
       mobileNavigation: 'Mobile navigation',
     },
     nav: {

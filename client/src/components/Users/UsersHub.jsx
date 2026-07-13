@@ -262,7 +262,7 @@ export default function UsersHub() {
     const { servers } = useServer();
     const confirmAction = useConfirm();
     const { locale, t } = useI18n();
-    const isCompactLayout = useMediaQuery('(max-width: 768px)');
+    const isCompactLayout = useMediaQuery('(max-width: 1100px)');
     const syncingCopy = useMemo(() => ({
         status: t('comp.users.statusSyncing'),
         detail: t('comp.users.detailSyncing'),

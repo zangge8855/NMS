@@ -382,6 +382,134 @@
             .{{class:footer}} { flex-direction: column; }
             .{{class:nav-links}} { display: none; }
         }
+
+        /* Editorial refinement: a calm magazine cover followed by a cardless reading rhythm. */
+        @keyframes editorial-reveal {
+            from { opacity: 0; transform: translateY(14px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .{{class:page}} {
+            width: min(1240px, calc(100vw - 48px));
+            padding-top: 20px;
+        }
+
+        .{{class:site-nav}} {
+            grid-template-columns: minmax(0, 1fr) auto auto;
+            gap: 26px;
+            margin-bottom: 18px;
+            padding: 0 0 17px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .{{class:lang-switch}} {
+            background: transparent;
+        }
+
+        .{{class:hero}} {
+            min-height: min(700px, calc(100svh - 108px));
+            border-radius: 18px;
+            animation: editorial-reveal 0.72s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
+        .{{class:hero-copy}} {
+            width: min(760px, 100%);
+            padding: clamp(30px, 5vw, 64px);
+        }
+
+        .{{class:headline}} {
+            max-width: 720px;
+            font-size: clamp(48px, 7.1vw, 96px);
+            line-height: 0.94;
+        }
+
+        .{{class:section-grid}} {
+            grid-template-columns: minmax(0, 1.36fr) minmax(310px, 0.64fr);
+            gap: 30px;
+            margin-top: 34px;
+            animation: editorial-reveal 0.72s 0.1s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
+        .{{class:section-card}},
+        .{{class:footer}} {
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+            box-shadow: none;
+        }
+
+        .{{class:section-card}} {
+            padding: 22px 0 0;
+            border-top: 1px solid var(--line);
+        }
+
+        .{{class:section-card}}:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .{{class:section-grid}} > aside.{{class:section-card}} {
+            padding: 22px 0 0 30px;
+            border-top: 0;
+            border-left: 1px solid var(--line);
+        }
+
+        .{{class:section-grid}} > aside .{{class:meta-grid}} {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .{{class:section-grid}} > aside .{{class:meta-card}}:last-child {
+            grid-column: 1 / -1;
+        }
+
+        .{{class:image-frame}} {
+            min-height: 340px;
+            border-radius: 14px;
+        }
+
+        .{{class:hero-image}} {
+            min-height: 340px;
+        }
+
+        .{{class:footer}} {
+            margin-top: 34px;
+            padding: 20px 0 0;
+            border-top: 1px solid var(--line);
+        }
+
+        .{{class:nav-link}}:focus-visible,
+        .{{class:lang-button}}:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 3px;
+        }
+
+        @media (max-width: 820px) {
+            .{{class:page}} { width: min(100% - 20px, 1240px); padding-top: 14px; }
+            .{{class:site-nav}} { grid-template-columns: minmax(0, 1fr) auto; gap: 14px; }
+            .{{class:lang-switch}} { justify-self: end; }
+            .{{class:hero}} { min-height: 540px; border-radius: 14px; }
+            .{{class:headline}} { font-size: clamp(44px, 15vw, 70px); }
+            .{{class:section-grid}} { grid-template-columns: minmax(0, 1fr); gap: 26px; margin-top: 26px; }
+            .{{class:section-grid}} > aside.{{class:section-card}} {
+                padding: 22px 0 0;
+                border-top: 1px solid var(--line);
+                border-left: 0;
+            }
+            .{{class:footer}} { gap: 8px; }
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body {
+                background:
+                    radial-gradient(circle at 16% 0%, rgba(229, 154, 127, 0.14), transparent 30%),
+                    var(--paper);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .{{class:hero}},
+            .{{class:section-grid}} { animation: none; }
+        }
     </style>
 </head>
 <body>

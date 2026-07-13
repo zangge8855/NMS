@@ -181,6 +181,7 @@ export default function Inbounds() {
         limitSetTitle: '已设置单独限制，点击修改', limitUnsetTitle: '设置单独限制',
     }, [locale]);
     const isCompactLayout = useMediaQuery('(max-width: 1100px), (max-width: 768px)');
+    const isCondensedLayout = useMediaQuery('(min-width: 769px) and (max-width: 1580px)');
     const navigate = useNavigate();
     const confirmAction = useConfirm();
     const bootstrapRef = useRef(readInboundsSnapshot());
@@ -1668,6 +1669,19 @@ export default function Inbounds() {
                                                     className="inbounds-remark-cell"
                                                 >
                                                     <InboundRemarkPill remark={ib.remark} protocol={ib.protocol} />
+                                                    {isCondensedLayout ? <div className="inbounds-condensed-summary">
+                                                        <span className="badge badge-info" title={t('pages.inbounds.cols.protocol')}>{ib.protocol}</span>
+                                                        <span className="inbounds-condensed-meta cell-mono" title={t('pages.inbounds.cols.listenPort')}>
+                                                            {ib.listen || '*'}:{ib.port}
+                                                        </span>
+                                                        <span className="inbounds-condensed-meta" title={t('pages.inbounds.cols.users')}>
+                                                            {t('pages.inbounds.cols.users')}: <span className="cell-mono">{clients.length}</span>
+                                                        </span>
+                                                        <span className="inbounds-condensed-traffic" title={t('pages.inbounds.cols.traffic')}>
+                                                            <span className="text-success">↑{formatBytes(ib.trafficUp)}</span>
+                                                            <span className="text-info">↓{formatBytes(ib.trafficDown)}</span>
+                                                        </span>
+                                                    </div> : null}
                                                 </td>
                                                 <td data-label={t('pages.inbounds.cols.protocol')} className="table-cell-center whitespace-nowrap inbounds-protocol-cell"><span className="badge badge-info" title={ib.protocol}>{ib.protocol}</span></td>
                                                 <td data-label={t('pages.inbounds.cols.listenPort')} className="table-cell-right cell-mono text-sm whitespace-nowrap inbounds-port-cell">{ib.listen || '*'}:{ib.port}</td>
