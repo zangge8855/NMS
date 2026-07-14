@@ -13,6 +13,7 @@ import '@fontsource/ibm-plex-mono/600.css';
 import './index.css';
 import './styles/restrained-ui.css';
 import './styles/overlay-restore.css';
+import './styles/flagship-console.css';
 import { resolveSiteBasePath } from './utils/sitePath.js';
 
 const siteBasePath = resolveSiteBasePath();

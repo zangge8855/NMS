@@ -9,8 +9,8 @@
  * render transparent-on-transparent.
  *
  * This sheet restores those orphaned blocks, adapted to the restrained-ui
- * token vocabulary (graphite surfaces, single indigo accent, --radius-*/
- * --shadow-* scale, --z-* stack). It is intentionally small and scoped to the
+ * token vocabulary (graphite surfaces, one accent, and the shared radius,
+ * shadow, and z-index scales). It is intentionally small and scoped to the
  * broken components; it is NOT a re-introduction of the old design layers.
  *
  * Restored components:

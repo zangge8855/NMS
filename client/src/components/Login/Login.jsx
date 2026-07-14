@@ -3,7 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../api/client.js';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
-import { HiOutlineLockClosed, HiOutlineUser, HiOutlineEnvelope, HiOutlineArrowPath, HiOutlineShieldCheck } from 'react-icons/hi2';
+import {
+    HiOutlineLockClosed,
+    HiOutlineUser,
+    HiOutlineEnvelope,
+    HiOutlineArrowPath,
+    HiOutlineShieldCheck,
+    HiOutlineServerStack,
+    HiOutlineSignal,
+    HiOutlineChartBarSquare,
+} from 'react-icons/hi2';
 import { getPasswordPolicyError, getPasswordPolicyHint } from '../../utils/passwordPolicy.js';
 import { buildSiteAssetPath } from '../../utils/sitePath.js';
 
@@ -44,6 +53,31 @@ export default function Login() {
             verifyFailed: '验证失败',
             resendDone: '验证码已重新发送',
             sendFailed: '发送失败',
+        };
+    const sceneCopy = locale === 'en-US'
+        ? {
+            eyebrow: 'NMS CONTROL PLANE',
+            title: 'One workspace for every node, user, and policy.',
+            subtitle: 'Monitor service health, orchestrate access, and keep every operational change traceable.',
+            live: 'Live telemetry',
+            liveMeta: 'Cross-node health and traffic',
+            policy: 'Unified policy',
+            policyMeta: 'Users, inbounds, and subscriptions',
+            audit: 'Audit ready',
+            auditMeta: 'Searchable operational history',
+            status: 'Control plane ready',
+        }
+        : {
+            eyebrow: 'NMS CONTROL PLANE',
+            title: '每个节点、用户与策略，尽在一个工作台。',
+            subtitle: '统一掌握服务健康、访问编排与操作留痕，让复杂运维始终清晰可控。',
+            live: '实时遥测',
+            liveMeta: '跨节点健康与流量洞察',
+            policy: '统一策略',
+            policyMeta: '用户、入站与订阅编排',
+            audit: '全程留痕',
+            auditMeta: '可检索的操作与访问历史',
+            status: '控制平面已就绪',
         };
     // Login fields
     const [loginIdentifier, setLoginIdentifier] = useState('');
@@ -382,6 +416,46 @@ export default function Login() {
             </div>
 
             <div className={`login-shell login-shell--${mode}`}>
+                <section className="login-product-panel" aria-label={sceneCopy.title}>
+                    <div className="login-product-grid" aria-hidden="true" />
+                    <div className="login-product-orbit login-product-orbit--one" aria-hidden="true" />
+                    <div className="login-product-orbit login-product-orbit--two" aria-hidden="true" />
+                    <div className="login-product-copy">
+                        <div className="login-product-eyebrow">
+                            <span className="login-product-status-dot" aria-hidden="true" />
+                            {sceneCopy.eyebrow}
+                        </div>
+                        <h2>{sceneCopy.title}</h2>
+                        <p>{sceneCopy.subtitle}</p>
+                    </div>
+                    <div className="login-product-capabilities">
+                        <div className="login-product-capability">
+                            <span className="login-product-capability-icon"><HiOutlineSignal /></span>
+                            <span>
+                                <strong>{sceneCopy.live}</strong>
+                                <small>{sceneCopy.liveMeta}</small>
+                            </span>
+                        </div>
+                        <div className="login-product-capability">
+                            <span className="login-product-capability-icon"><HiOutlineServerStack /></span>
+                            <span>
+                                <strong>{sceneCopy.policy}</strong>
+                                <small>{sceneCopy.policyMeta}</small>
+                            </span>
+                        </div>
+                        <div className="login-product-capability">
+                            <span className="login-product-capability-icon"><HiOutlineChartBarSquare /></span>
+                            <span>
+                                <strong>{sceneCopy.audit}</strong>
+                                <small>{sceneCopy.auditMeta}</small>
+                            </span>
+                        </div>
+                    </div>
+                    <div className="login-product-footer">
+                        <span className="login-product-footer-mark" aria-hidden="true" />
+                        {sceneCopy.status}
+                    </div>
+                </section>
                 <div className="login-card-column">
                         <div className={`login-card login-card--${mode}`}>
                             <div className="login-card-border" />
