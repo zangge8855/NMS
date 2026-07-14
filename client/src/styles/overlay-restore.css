@@ -1,0 +1,560 @@
+/*
+ * NMS overlay restore layer
+ *
+ * The "restrained interface overhaul" (commit 8ccc29d) collapsed six style
+ * sheets into `restrained-ui.css` but did not port a handful of component
+ * styles that live ONLY in portals / fixed overlays. Unlike cards or tables —
+ * which fall back to generic `.card` / `.badge` rules — these overlays have no
+ * fallback, so without their rules they collapse into unstyled strips or
+ * render transparent-on-transparent.
+ *
+ * This sheet restores those orphaned blocks, adapted to the restrained-ui
+ * token vocabulary (graphite surfaces, single indigo accent, --radius-*/
+ * --shadow-* scale, --z-* stack). It is intentionally small and scoped to the
+ * broken components; it is NOT a re-introduction of the old design layers.
+ *
+ * Restored components:
+ *   1. Expandable QR overlay  — click-to-enlarge subscription QR (.expandable-qr-*)
+ *   2. Subscription QR modal  — mobile scan sheet (.subscription-qr-modal-*)
+ *   3. Chart tooltip          — themed recharts tooltip (.chart-tooltip-*)
+ *   4. Security bootstrap      — forced-setup fixed overlay (.security-bootstrap-*)
+ */
+
+/* ==========================================================================
+ * 1. Expandable QR — tap the subscription QR to open a large scan overlay.
+ *    Portaled to <body>, so it sits OUTSIDE .subscriptions-page and must own
+ *    its full layout. Sits above modals (--z-toast) so the mobile
+ *    "modal -> enlarge" path renders the big QR on top of the scan sheet.
+ * ======================================================================== */
+.expandable-qr-trigger {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  cursor: zoom-in;
+  position: relative;
+  border-radius: var(--radius-md);
+  transition: transform 120ms var(--ease-out, ease);
+}
+
+.expandable-qr-trigger:hover {
+  transform: translateY(-1px);
+}
+
+.expandable-qr-trigger:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.expandable-qr-trigger svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+}
+
+.expandable-qr-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  opacity: 0;
+  transition: opacity 120ms var(--ease-out, ease);
+}
+
+.expandable-qr-trigger:hover .expandable-qr-hint,
+.expandable-qr-trigger:focus-visible .expandable-qr-hint {
+  opacity: 1;
+}
+
+.expandable-qr-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-backdrop, rgba(3, 6, 12, 0.72));
+  z-index: calc(var(--z-toast, 1000) + 20);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: fadeIn 140ms ease-out both;
+}
+
+.expandable-qr-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: 32px;
+  max-width: min(90vw, 420px);
+  box-shadow: var(--shadow-2xl, var(--shadow-lg));
+  animation: restrained-modal-enter 190ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.expandable-qr-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--surface-soft, rgba(148, 163, 184, 0.1));
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.expandable-qr-close:hover {
+  background: var(--surface-hover, rgba(148, 163, 184, 0.18));
+  color: var(--text-primary);
+}
+
+.expandable-qr-close:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.expandable-qr-label {
+  text-align: center;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.expandable-qr-canvas {
+  background: #ffffff;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+}
+
+/* Keep the enlarged QR square and inside the card on narrow screens. */
+.expandable-qr-canvas svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: min(72vw, 360px);
+  max-height: min(72vw, 360px);
+}
+
+.expandable-qr-foot {
+  margin-top: 16px;
+  max-width: 320px;
+  text-align: center;
+  word-break: break-all;
+}
+
+.expandable-qr-fallback {
+  display: inline-flex;
+  min-width: 176px;
+  min-height: 176px;
+  padding: 16px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-soft, rgba(148, 163, 184, 0.06));
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.expandable-qr-fallback-title {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.expandable-qr-fallback-text {
+  max-width: 180px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* ==========================================================================
+ * 2. Subscription QR modal — the mobile "scan to import" sheet. The QR inside
+ *    is an .expandable-qr-trigger button; without rule (1) it would render as
+ *    a default gray button bleeding past the white QR surface.
+ * ======================================================================== */
+.modal.subscription-qr-modal {
+  width: min(92vw, 420px);
+}
+
+.subscription-qr-modal-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.subscription-qr-modal-surface {
+  padding: 20px;
+}
+
+.subscription-qr-modal-copy {
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .modal.subscription-qr-modal {
+    width: min(92vw, 360px);
+    max-width: min(92vw, 360px);
+    max-height: min(82dvh, calc(100vh - 24px));
+    margin: 0 auto;
+    border-radius: 20px;
+  }
+
+  .modal.subscription-qr-modal .modal-body {
+    display: flex;
+    justify-content: center;
+  }
+
+  .subscription-qr-modal-body {
+    width: 100%;
+    gap: 10px;
+  }
+
+  .subscription-qr-modal-surface {
+    align-self: center;
+    padding: 16px;
+  }
+
+  .subscription-qr-modal-copy {
+    max-width: 22ch;
+    line-height: 1.42;
+  }
+}
+
+@media (max-width: 640px) {
+  .modal.subscription-qr-modal {
+    width: min(94vw, 332px);
+    max-width: min(94vw, 332px);
+    border-radius: 18px;
+  }
+
+  .subscription-qr-modal-body {
+    gap: 8px;
+  }
+
+  .subscription-qr-modal-surface {
+    padding: 14px;
+  }
+}
+
+/* ==========================================================================
+ * 3. Chart tooltip — themed replacement for Recharts' default white tooltip
+ *    (see components/UI/ChartTooltip.jsx). Used on dashboard + audit charts.
+ *    Without these rules the tooltip renders transparent and unreadable.
+ * ======================================================================== */
+.chart-tooltip {
+  background: var(--floating-panel-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 10px 14px;
+  font-size: 12px;
+  line-height: 1.55;
+  min-width: 160px;
+  pointer-events: none;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.chart-tooltip-header {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.chart-tooltip-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.chart-tooltip-row {
+  display: grid;
+  grid-template-columns: 12px 1fr auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.chart-tooltip-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  display: inline-block;
+  box-shadow: 0 0 0 2px var(--floating-panel-bg);
+}
+
+.chart-tooltip-name {
+  color: var(--text-secondary);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chart-tooltip-value {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* ==========================================================================
+ * 4. Security bootstrap wizard — a full-screen forced-setup overlay shown
+ *    when admin credentials are unsafe (components/System/SecurityBootstrapWizard.jsx).
+ *    position:fixed with no fallback, so it must own its full layout.
+ * ======================================================================== */
+.security-bootstrap-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-toast, 1000) + 10);
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at top, rgba(185, 28, 28, 0.2), transparent 42%),
+    linear-gradient(180deg, rgba(2, 6, 23, 0.94), rgba(2, 6, 23, 0.98));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  overflow-y: auto;
+}
+
+.security-bootstrap-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 420px);
+  gap: 24px;
+  width: min(1180px, 100%);
+  margin: auto;
+  padding: 24px;
+  border: 1px solid rgba(248, 113, 113, 0.22);
+  border-radius: 28px;
+  background: linear-gradient(155deg, rgba(15, 23, 42, 0.94), rgba(24, 24, 27, 0.94));
+  box-shadow: 0 38px 120px rgba(2, 6, 23, 0.46);
+}
+
+.security-bootstrap-kicker {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #fca5a5;
+}
+
+.security-bootstrap-title {
+  margin-top: 10px;
+  font-size: clamp(28px, 2vw, 38px);
+  line-height: 1.05;
+  color: var(--text-primary);
+}
+
+.security-bootstrap-subtitle,
+.security-bootstrap-note {
+  margin-top: 14px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+.security-bootstrap-callout {
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid rgba(248, 113, 113, 0.2);
+  border-radius: 20px;
+  background: rgba(127, 29, 29, 0.18);
+}
+
+.security-bootstrap-callout-title {
+  font-weight: 700;
+  color: #fecaca;
+}
+
+.security-bootstrap-issue-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.security-bootstrap-issue {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.security-bootstrap-issue-code {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+  font-size: 12px;
+  color: #fda4af;
+}
+
+.security-bootstrap-issue-text {
+  color: var(--text-primary);
+}
+
+.security-bootstrap-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.security-bootstrap-meta-card {
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.42);
+}
+
+.security-bootstrap-meta-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.security-bootstrap-meta-value {
+  margin-top: 6px;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.security-bootstrap-meta-detail {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.security-bootstrap-form {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+  padding: 22px;
+  border: 1px solid var(--border-color);
+  border-radius: 22px;
+  background: rgba(2, 6, 23, 0.36);
+}
+
+.security-bootstrap-field {
+  display: grid;
+  gap: 8px;
+}
+
+.security-bootstrap-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.security-bootstrap-inline {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.security-bootstrap-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+@media (max-width: 960px) {
+  .security-bootstrap-shell {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 18px;
+  }
+
+  .security-bootstrap-issue {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .security-bootstrap-meta-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .security-bootstrap-form {
+    padding: 18px;
+  }
+
+  .security-bootstrap-inline {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .security-bootstrap-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+}
+
+/* Light theme — mirror the restrained porcelain surfaces. */
+[data-theme="light"] .security-bootstrap-overlay {
+  background:
+    radial-gradient(circle at top, rgba(220, 38, 38, 0.12), transparent 44%),
+    linear-gradient(180deg, rgba(241, 245, 249, 0.92), rgba(241, 245, 249, 0.97));
+}
+
+[data-theme="light"] .security-bootstrap-shell {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.97), rgba(248, 250, 252, 0.97));
+  border-color: rgba(220, 38, 38, 0.2);
+  box-shadow: 0 30px 90px rgba(15, 23, 42, 0.14);
+}
+
+[data-theme="light"] .security-bootstrap-kicker {
+  color: #dc2626;
+}
+
+[data-theme="light"] .security-bootstrap-callout {
+  background: rgba(254, 226, 226, 0.7);
+  border-color: rgba(220, 38, 38, 0.22);
+}
+
+[data-theme="light"] .security-bootstrap-callout-title {
+  color: #b91c1c;
+}
+
+[data-theme="light"] .security-bootstrap-issue-code {
+  color: #e11d48;
+}
+
+[data-theme="light"] .security-bootstrap-meta-card {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(148, 163, 184, 0.28);
+}
+
+[data-theme="light"] .security-bootstrap-form {
+  background: rgba(255, 255, 255, 0.75);
+}
+
+[data-theme="light"] .subscription-qr-modal-surface {
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.1);
+}
