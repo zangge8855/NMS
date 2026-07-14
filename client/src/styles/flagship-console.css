@@ -1123,6 +1123,156 @@ select {
   }
 }
 
+/* Final workspace color contract. Older module CSS still contains a few
+ * opaque black/white surfaces; these selectors bring every operational table
+ * back onto the same panel, row, and interaction tokens in both themes. */
+main .table-container,
+main .servers-page .table-container,
+main .inbounds-page .table-container,
+main .users-page .table-container,
+main .audit-page .table-container,
+main .logs-page .table-container,
+main .tasks-page .table-container,
+main .capabilities-page .table-container {
+  background: var(--surface-panel) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+main .table-container .table,
+main .servers-table,
+main .inbounds-table,
+main .users-table,
+main .audit-table {
+  background: transparent !important;
+}
+
+main .table-container .table thead th,
+main .inbounds-table th {
+  color: var(--text-secondary) !important;
+  background: var(--surface-table-header) !important;
+  border-bottom-color: var(--border-color) !important;
+}
+
+main .table-container .table tbody tr,
+main .table-container .table tbody td,
+main .servers-table tbody tr,
+main .servers-table tbody td,
+main .inbounds-table tbody tr,
+main .inbounds-table tbody td,
+main .users-table tbody tr,
+main .users-table tbody td,
+main .audit-table tbody tr,
+main .audit-table tbody td {
+  background: var(--surface-panel) !important;
+  border-bottom-color: var(--stroke-soft) !important;
+}
+
+main .table-container .table tbody tr:hover td,
+main .servers-table tbody tr:hover td,
+main .inbounds-row:hover td,
+main .users-row:hover td,
+main .audit-table tbody tr:hover td {
+  background: var(--surface-table-row-hover) !important;
+}
+
+main .servers-table-row.active td,
+main .servers-table-row.server-card-selected td,
+main .inbounds-row-selected td,
+main .users-row-selected td {
+  background: color-mix(in srgb, var(--accent-primary) 10%, var(--surface-panel)) !important;
+}
+
+main .servers-table .servers-actions-cell,
+main .servers-table thead .servers-actions-column {
+  background: var(--surface-panel) !important;
+  border-left-color: var(--border-color) !important;
+  box-shadow: -14px 0 22px -22px color-mix(in srgb, var(--text-primary) 45%, transparent) !important;
+}
+
+main .inbounds-row-actions,
+main .inbounds-clients-cell,
+main .inbounds-clients-panel,
+main .inbounds-saving-note,
+main .server-card-meta,
+main .server-card-actions,
+main .servers-mobile-card,
+main .inbounds-client-mobile-card {
+  background: var(--surface-soft) !important;
+  border-color: var(--stroke-soft) !important;
+}
+
+main .table-action-btn,
+main .inbounds-row-actions .btn,
+main .server-card-control-btn {
+  background: var(--surface-soft) !important;
+  border-color: var(--stroke-soft) !important;
+  color: var(--text-secondary) !important;
+}
+
+main .table-action-btn:hover,
+main .table-action-btn:focus-visible,
+main .inbounds-row-actions .btn:hover,
+main .inbounds-row-actions .btn:focus-visible,
+main .server-card-control-btn:hover,
+main .server-card-control-btn:focus-visible {
+  background: var(--surface-hover) !important;
+  border-color: var(--accent-primary-border) !important;
+  color: var(--text-primary) !important;
+}
+
+main .servers-toolbar,
+main .inbounds-toolbar,
+main .users-toolbar,
+main .audit-filter-card,
+main .audit-traffic-toolbar,
+main .settings-toolbar,
+main .logs-toolbar,
+main .tasks-filter-card {
+  background: var(--surface-panel) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+main .servers-selection-bar,
+main .inbounds-selection-bar,
+main .users-bulk-toolbar {
+  background: color-mix(in srgb, var(--accent-primary) 10%, var(--surface-panel)) !important;
+  border-color: var(--accent-primary-border) !important;
+}
+
+main .server-card,
+main .logs-server-card,
+main .logs-summary-card,
+main .logs-viewer-card,
+main .settings-panel,
+main .audit-chart-card,
+main .audit-leaderboard-card,
+main .capability-card,
+main .tools-card,
+main .account-card,
+main .subscription-user-workbench,
+main .downloads-center {
+  background: var(--surface-panel) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+[data-theme="light"] main .table-container .table tbody tr,
+[data-theme="light"] main .table-container .table tbody td,
+[data-theme="light"] main .servers-table tbody tr,
+[data-theme="light"] main .servers-table tbody td,
+[data-theme="light"] main .inbounds-table tbody tr,
+[data-theme="light"] main .inbounds-table tbody td {
+  background: var(--surface-panel) !important;
+}
+
+[data-theme="light"] main .table-container .table tbody tr:hover td,
+[data-theme="light"] main .servers-table tbody tr:hover td,
+[data-theme="light"] main .inbounds-row:hover td {
+  background: var(--surface-table-row-hover) !important;
+}
+
 @media (max-width: 350px) {
   .dashboard-hero-kpis,
   .dashboard-stats-grid,
