@@ -207,6 +207,9 @@ describe('Subscriptions', () => {
         expect(await screen.findByDisplayValue('https://sub.example.com/base')).toBeInTheDocument();
         expect(screen.getByRole('note', { name: '当前格式暂无二维码' })).toBeInTheDocument();
         expect(container.querySelector('.subscription-inline-qr-empty')).not.toBeNull();
+        expect(screen.queryByRole('link', { name: '导入到 Shadowrocket' })).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '复制地址' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: '重置订阅链接' })).toBeDisabled();
     });
 
     it('shows the shared empty state when a user has no assigned subscription identity yet', async () => {

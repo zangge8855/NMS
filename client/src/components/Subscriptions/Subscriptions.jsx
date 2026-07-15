@@ -777,7 +777,7 @@ export default function Subscriptions() {
                     </div>
 
                     <div className={`subscription-user-address-layout${userInlineQrCard ? ' subscription-user-address-layout--with-qr' : ''}`}>
-                        <div className="subscription-link-card subscription-link-card--user-focus subscription-link-card--user-with-qr subscription-user-address-card">
+                        <div className={`subscription-link-card subscription-link-card--user-focus subscription-link-card--user-with-qr subscription-user-address-card${result.subscriptionActive ? '' : ' is-unavailable'}`}>
                             <div className="subscription-user-address-head">
                                 <div className="subscription-user-address-copy">
                                     <div className="subscription-user-address-label">{ui.copyOrScanTitle}</div>
@@ -808,6 +808,7 @@ export default function Subscriptions() {
                                     className="form-input font-mono text-xs subscription-url-input"
                                     value={activeProfileUrlDisplay}
                                     readOnly
+                                    aria-disabled={!result.subscriptionActive}
                                     title={activeProfile?.url || ''}
                                     dir="ltr"
                                     spellCheck={false}
@@ -822,22 +823,32 @@ export default function Subscriptions() {
                                     >
                                         {ui.copyAddress}
                                     </CopyFeedbackButton>
-                                    {isCompactViewport && canShowQr ? (
-                                        <button
-                                            type="button"
-                                            className="btn btn-secondary btn-sm subscription-user-import-btn"
-                                            onClick={() => setQrModalOpen(true)}
-                                        >
-                                            <HiOutlineQrCode /> {ui.scanImport}
-                                        </button>
-                                    ) : null}
-                                    {primaryImportActions.map((item) => (
-                                        <a key={item.label} href={item.href} className="btn btn-secondary btn-sm subscription-user-import-btn">
-                                            {item.label}
-                                        </a>
-                                    ))}
+                                    {result.subscriptionActive ? (
+                                        <>
+                                            {isCompactViewport && canShowQr ? (
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-secondary btn-sm subscription-user-import-btn"
+                                                    onClick={() => setQrModalOpen(true)}
+                                                >
+                                                    <HiOutlineQrCode /> {ui.scanImport}
+                                                </button>
+                                            ) : null}
+                                            {primaryImportActions.map((item) => (
+                                                <a key={item.label} href={item.href} className="btn btn-secondary btn-sm subscription-user-import-btn">
+                                                    {item.label}
+                                                </a>
+                                            ))}
+                                        </>
+                                    ) : (
+                                        <div className="subscription-user-import-disabled" role="note">
+                                            {result.inactiveReason
+                                                ? normalizeInactiveReason(result.inactiveReason, locale)
+                                                : ui.unavailable}
+                                        </div>
+                                    )}
                                 </div>
-                                {secondaryImportActions.length > 0 && (
+                                {result.subscriptionActive && secondaryImportActions.length > 0 && (
                                     <details className="subscription-import-disclosure">
                                         <summary className="subscription-import-disclosure-toggle">{ui.moreImports}</summary>
                                         <div className="subscription-import-disclosure-actions">
@@ -863,7 +874,7 @@ export default function Subscriptions() {
                 <button
                     className="btn btn-danger btn-sm subscription-user-reset-inline-btn"
                     onClick={handleResetLink}
-                    disabled={resetLoading || !normalizedEmail}
+                    disabled={resetLoading || !normalizedEmail || !result.subscriptionActive}
                 >
                     {resetLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {ui.resetLink}</>}
                 </button>

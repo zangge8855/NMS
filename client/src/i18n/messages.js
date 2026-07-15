@@ -6,6 +6,7 @@ const messages = {
     shell: {
       brandSubtitle: '',
       searchPlaceholder: '搜索页面、用户、节点...',
+      userSearchPlaceholder: '搜索页面...',
       searchAriaLabel: '全局命令搜索',
       searchEmpty: '没有匹配结果',
       scopeServerTitle: '单节点',
@@ -158,6 +159,7 @@ const messages = {
       },
       nodeHealth: {
         statusOffline: '离线',
+        statusAuthFailed: '认证失败',
         statusHighLoad: '高负载',
         statusElevated: '负载较高',
         statusHealthy: '正常',
@@ -1906,6 +1908,7 @@ const messages = {
     shell: {
       brandSubtitle: '',
       searchPlaceholder: 'Search pages, users, nodes...',
+      userSearchPlaceholder: 'Search pages...',
       searchAriaLabel: 'Global command search',
       searchEmpty: 'No matching result',
       scopeServerTitle: 'Node',
@@ -2058,6 +2061,7 @@ const messages = {
       },
       nodeHealth: {
         statusOffline: 'Offline',
+        statusAuthFailed: 'Authentication failed',
         statusHighLoad: 'High Load',
         statusElevated: 'Elevated',
         statusHealthy: 'Healthy',

@@ -548,6 +548,24 @@ textarea {
   transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
 }
 
+/* Keep disabled controls visibly disabled in the authoritative stylesheet.  The
+ * app shell intentionally loads only the restrained layer plus a small set of
+ * overlays, so this state must not depend on a legacy polish bundle. */
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+  transform: none !important;
+  box-shadow: none !important;
+  filter: saturate(0.65);
+}
+
+.btn:disabled:hover,
+.btn[aria-disabled="true"]:hover {
+  transform: none;
+}
+
 .btn:hover {
   transform: translateY(-1px);
 }
@@ -707,6 +725,76 @@ select {
 .table-cell-center { text-align: center; }
 .table-cell-actions { text-align: right; }
 
+/* Audit rows use a two-line target cell. These rules live here because this is
+ * the stylesheet layer actually loaded by the app shell. */
+.audit-event-target {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.audit-event-target-label,
+.audit-event-target-meta {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.audit-event-target-meta {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.audit-event-node-cell {
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.client-ip-location-cell {
+  min-width: 150px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.node-health-tile-message {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.node-health-tile-message span {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subscription-user-address-card.is-unavailable {
+  border-color: var(--accent-warning-border);
+  background: color-mix(in srgb, var(--accent-warning-bg) 34%, var(--surface-panel));
+}
+
+.subscription-user-import-disabled {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 10px 12px;
+  border: 1px dashed var(--accent-warning-border);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--accent-warning-bg) 45%, transparent);
+  font-size: 12px;
+}
+
 .table-row-actions {
   display: inline-flex;
   justify-content: flex-end;
@@ -715,15 +803,73 @@ select {
 }
 
 .page-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  flex-wrap: wrap;
   padding: 12px 14px;
   gap: 12px;
 }
 
 .page-toolbar-main,
 .page-toolbar-actions,
+.page-toolbar-summary,
+.page-toolbar-meta,
 .list-toolbar-filters,
 .list-toolbar-actions-inner {
+  display: flex;
+  align-items: center;
+  min-width: 0;
   gap: 8px;
+}
+
+.page-toolbar-main,
+.list-toolbar-filters {
+  flex: 1 1 auto;
+}
+
+.page-toolbar-main,
+.page-toolbar-actions,
+.list-toolbar-filters,
+.list-toolbar-actions-inner {
+  flex-wrap: wrap;
+}
+
+.page-toolbar-actions,
+.list-toolbar-actions-inner {
+  justify-content: flex-end;
+}
+
+.page-toolbar-summary {
+  min-height: 32px;
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.page-toolbar:has(.page-toolbar-actions) .page-toolbar-summary {
+  margin-left: 0;
+}
+
+.page-toolbar-meta {
+  width: 100%;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.list-toolbar {
+  display: flex;
+  align-items: center;
+}
+
+.list-toolbar-filters :is(.form-input, .form-select) {
+  min-width: min(100%, 180px);
+}
+
+.list-toolbar-actions-inner {
+  justify-content: flex-end;
 }
 
 /* Dashboard */
@@ -2585,6 +2731,24 @@ select {
   .node-health-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .node-health-workbench { grid-template-columns: 1fr; }
   .audit-filter-grid--events-primary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .page-toolbar--stack-tablet {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .page-toolbar--stack-tablet .page-toolbar-main,
+  .page-toolbar--stack-tablet .page-toolbar-actions,
+  .page-toolbar--stack-tablet .page-toolbar-summary,
+  .page-toolbar--stack-tablet .page-toolbar-meta {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .page-toolbar--stack-tablet .page-toolbar-actions,
+  .page-toolbar--stack-tablet .list-toolbar-actions-inner {
+    justify-content: flex-start;
+  }
 }
 
 @media (min-width: 769px) {
@@ -2691,6 +2855,15 @@ select {
   .list-toolbar {
     padding: 10px;
     align-items: stretch;
+  }
+
+  .page-toolbar--stack-tablet,
+  .page-toolbar--stack-tablet .page-toolbar-main,
+  .page-toolbar--stack-tablet .page-toolbar-actions,
+  .page-toolbar--stack-tablet .page-toolbar-summary,
+  .page-toolbar--stack-tablet .page-toolbar-meta {
+    width: 100%;
+    margin-left: 0;
   }
 
   .servers-toolbar {
@@ -2817,5 +2990,36 @@ select {
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Keep the inbound filter row compact despite legacy toolbar overrides. */
+.page-content .inbounds-toolbar.list-toolbar {
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: nowrap !important;
+  gap: 12px !important;
+}
+
+.page-content .inbounds-toolbar.list-toolbar .list-toolbar-filters {
+  flex: 0 1 360px !important;
+  width: min(360px, 100%) !important;
+}
+
+.page-content .inbounds-toolbar.list-toolbar .page-toolbar-summary,
+.page-content .inbounds-toolbar.list-toolbar .list-toolbar-actions-inner {
+  flex: 0 0 auto !important;
+}
+
+@media (max-width: 768px) {
+  .page-content .inbounds-toolbar.list-toolbar {
+    flex-wrap: wrap !important;
+  }
+
+  .page-content .inbounds-toolbar.list-toolbar .list-toolbar-filters,
+  .page-content .inbounds-toolbar.list-toolbar .page-toolbar-summary,
+  .page-content .inbounds-toolbar.list-toolbar .list-toolbar-actions-inner {
+    flex: 1 1 100% !important;
+    width: 100% !important;
   }
 }

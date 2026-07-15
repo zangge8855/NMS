@@ -28,6 +28,7 @@ import {
     getTlsCertPathsCompat,
 } from '../lib/panelApiCompat.js';
 import { invalidateServerPanelSnapshotCache } from '../lib/serverPanelSnapshotService.js';
+import { enrichClientIpPayload } from '../lib/clientIpEnrichment.js';
 
 const router = Router();
 const upload = multer({
@@ -166,7 +167,15 @@ async function tryCompatPanelRequest(client, method, panelPath, body = {}, files
 
     match = panelPath.match(/^\/panel\/api\/inbounds\/clientIps\/([^/]+)$/) || panelPath.match(/^\/panel\/api\/clients\/ips\/([^/]+)$/);
     if (match) {
-        return getClientIpsCompat(client, safeDecodePathSegment(match[1]));
+        const response = await getClientIpsCompat(client, safeDecodePathSegment(match[1]));
+        if (response?.data?.success === false) return response;
+        return {
+            ...response,
+            data: {
+                ...(response.data || {}),
+                obj: await enrichClientIpPayload(response?.data?.obj),
+            },
+        };
     }
 
     match = panelPath.match(/^\/panel\/api\/inbounds\/clearClientIps\/([^/]+)$/) || panelPath.match(/^\/panel\/api\/clients\/clearIps\/([^/]+)$/);

@@ -35,6 +35,11 @@ function getNodeHealthCopy(locale) {
             noMatch: 'No matching nodes',
             addNode: 'Add Node',
             clearFilter: 'Clear filter',
+            authFailed: 'Credentials rejected',
+            connectionRefused: 'Connection refused',
+            connectTimeout: 'Connection timed out',
+            networkError: 'Network error',
+            panelRequestFailed: 'Panel request failed',
         }
         : {
             searchPlaceholder: '搜索节点',
@@ -49,15 +54,37 @@ function getNodeHealthCopy(locale) {
             noMatch: '没有匹配节点',
             addNode: '前往添加节点',
             clearFilter: '清空筛选',
+            authFailed: '凭据无效',
+            connectionRefused: '节点拒绝连接',
+            connectTimeout: '连接超时',
+            networkError: '网络异常',
+            panelRequestFailed: '面板请求失败',
         };
 }
 
 function getNodeColor(serverData, t) {
-    if (!serverData?.online) return { tone: 'danger', dot: 'var(--accent-danger)', label: t('pages.nodeHealth.statusOffline') };
+    if (!serverData?.online) {
+        if (serverData?.reasonCode === 'auth_failed') {
+            return { tone: 'warning', dot: 'var(--accent-warning)', label: t('pages.nodeHealth.statusAuthFailed') };
+        }
+        return { tone: 'danger', dot: 'var(--accent-danger)', label: t('pages.nodeHealth.statusOffline') };
+    }
     const cpu = serverData.status?.cpu ?? 0;
     if (cpu > 85) return { tone: 'danger', dot: 'var(--accent-danger)', label: t('pages.nodeHealth.statusHighLoad') };
     if (cpu > 70) return { tone: 'warning', dot: 'var(--accent-warning)', label: t('pages.nodeHealth.statusElevated') };
     return { tone: 'success', dot: 'var(--accent-success)', label: t('pages.nodeHealth.statusHealthy') };
+}
+
+function getNodeFailureCopy(serverData, copy) {
+    const labels = {
+        auth_failed: copy.authFailed,
+        connection_refused: copy.connectionRefused,
+        connect_timeout: copy.connectTimeout,
+        network_error: copy.networkError,
+        dns_error: copy.networkError,
+        panel_request_failed: copy.panelRequestFailed,
+    };
+    return labels[String(serverData?.reasonCode || '').trim()] || copy.offline;
 }
 
 function buildSparkline(points, width = 132, height = 34, padding = 3) {
@@ -97,7 +124,8 @@ function getNodePriority(entry) {
 
 function NodeTile({ server, serverData, trend = [], showSparkline = false }) {
     const navigate = useNavigate();
-    const { t } = useI18n();
+    const { t, locale } = useI18n();
+    const copy = getNodeHealthCopy(locale);
     const color = getNodeColor(serverData, t);
     const isOnline = serverData?.online;
     const cpu = serverData?.status?.cpu ?? 0;
@@ -191,7 +219,10 @@ function NodeTile({ server, serverData, trend = [], showSparkline = false }) {
                 </div>
             ) : (
                 <div className="node-health-tile-message">
-                    {serverData?.error || t('pages.nodeHealth.unreachable')}
+                    <strong>{getNodeFailureCopy(serverData, copy)}</strong>
+                    {serverData?.error && serverData.error !== getNodeFailureCopy(serverData, copy) ? (
+                        <span title={serverData.error}>{serverData.error}</span>
+                    ) : null}
                 </div>
             )}
 
@@ -287,7 +318,9 @@ export default function NodeHealthGrid({ servers, serverStatuses, trendHistory =
         ? filteredEntries
         : filteredEntries.slice(0, initialLimit);
     const summary = entries.reduce((acc, entry) => {
-        if (!entry.serverData?.online) {
+        if (!entry.serverData?.online && entry.tone === 'warning') {
+            acc.warning += 1;
+        } else if (!entry.serverData?.online) {
             acc.offline += 1;
         } else if (entry.tone === 'danger') {
             acc.critical += 1;

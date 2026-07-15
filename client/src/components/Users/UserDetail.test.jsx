@@ -465,9 +465,9 @@ describe('UserDetail', () => {
         await screen.findByText('总流量: 3 KB');
         expect(screen.getByText('实时速度: 计算中')).toBeInTheDocument();
         await waitFor(() => {
-            expect(intervalRegistrations.some((item) => item.delay === 5000)).toBe(true);
+            expect(intervalRegistrations.some((item) => item.delay === 15000)).toBe(true);
         });
-        const refreshCallback = intervalRegistrations.find((item) => item.delay === 5000)?.callback;
+        const refreshCallback = intervalRegistrations.find((item) => item.delay === 15000)?.callback;
 
         await act(async () => {
             nowMs = 6_000;
@@ -801,7 +801,7 @@ describe('UserDetail', () => {
         expect(within(badgeGroup).getByText('已停用')).toBeInTheDocument();
 
         await user.click(within(actionGroup).getByRole('button', { name: '刷新' }));
-        await user.click(within(actionGroup).getByRole('button', { name: '已启用' }));
+        await user.click(within(actionGroup).getByRole('button', { name: '启用该用户' }));
 
         await waitFor(() => {
             expect(within(badgeGroup).getByText('已启用')).toBeInTheDocument();
@@ -816,7 +816,7 @@ describe('UserDetail', () => {
         await waitFor(() => {
             expect(within(badgeGroup).getByText('已启用')).toBeInTheDocument();
             expect(within(badgeGroup).queryByText('已停用')).not.toBeInTheDocument();
-            expect(within(actionGroup).getByRole('button', { name: '已停用' })).toBeInTheDocument();
+            expect(within(actionGroup).getByRole('button', { name: '禁用该用户' })).toBeInTheDocument();
         });
     });
 });

@@ -38,6 +38,8 @@ describe('ClientIpModal', () => {
                         lastSeen: '2026-03-20T06:30:00.000Z',
                         source: 'real',
                         note: 'ISP',
+                        ipLocation: '上海市',
+                        ipCarrier: '中国电信',
                     },
                 ]}
                 onClose={() => {}}
@@ -48,5 +50,7 @@ describe('ClientIpModal', () => {
         expect(container.querySelector('.client-ip-table')).toBeTruthy();
         expect(screen.getByRole('columnheader', { name: 'IP' })).toBeInTheDocument();
         expect(screen.getByText('203.0.113.18')).toBeInTheDocument();
+        expect(screen.getByText('上海市')).toBeInTheDocument();
+        expect(screen.getByText('中国电信')).toBeInTheDocument();
     });
 });

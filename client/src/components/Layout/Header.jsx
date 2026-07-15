@@ -456,7 +456,7 @@ export default function Header({
                         <HiOutlineMagnifyingGlass className="header-search-icon" aria-hidden="true" />
                         <input
                             ref={inputRef}
-                            placeholder={t('shell.searchPlaceholder')}
+                            placeholder={t(isAdmin ? 'shell.searchPlaceholder' : 'shell.userSearchPlaceholder')}
                             className="header-search-input"
                             value={searchTerm}
                             onChange={(event) => {

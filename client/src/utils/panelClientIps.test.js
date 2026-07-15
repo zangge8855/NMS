@@ -13,6 +13,8 @@ describe('panel client ip helpers', () => {
                 lastSeen: '',
                 source: '',
                 note: '',
+                ipLocation: '',
+                ipCarrier: '',
             },
             {
                 ip: '2001:db8::1',
@@ -20,6 +22,8 @@ describe('panel client ip helpers', () => {
                 lastSeen: '',
                 source: '',
                 note: '',
+                ipLocation: '',
+                ipCarrier: '',
             },
         ]);
     });
@@ -39,6 +43,8 @@ describe('panel client ip helpers', () => {
                 lastSeen: '2026-03-10T10:00:00.000Z',
                 source: 'access.log',
                 note: '',
+                ipLocation: '',
+                ipCarrier: '',
             },
         ]);
     });
@@ -54,6 +60,8 @@ describe('panel client ip helpers', () => {
                 lastSeen: '',
                 source: '',
                 note: '',
+                ipLocation: '',
+                ipCarrier: '',
             },
             {
                 ip: '2001:db8::7',
@@ -61,6 +69,8 @@ describe('panel client ip helpers', () => {
                 lastSeen: '2026-03-08T08:00:00.000Z',
                 source: '',
                 note: 'recent',
+                ipLocation: '',
+                ipCarrier: '',
             },
         ]);
     });
@@ -86,6 +96,28 @@ describe('panel client ip helpers', () => {
                 lastSeen: '2026-03-10T12:00:00.000Z',
                 source: 'server1',
                 note: '',
+                ipLocation: '',
+                ipCarrier: '',
+            },
+        ]);
+    });
+
+    it('keeps geo and carrier fields returned by the proxy', () => {
+        expect(normalizePanelClientIps([
+            {
+                ip: '198.51.100.10',
+                ipLocation: '上海市',
+                ipCarrier: '中国电信',
+            },
+        ])).toEqual([
+            {
+                ip: '198.51.100.10',
+                count: 0,
+                lastSeen: '',
+                source: '',
+                note: '',
+                ipLocation: '上海市',
+                ipCarrier: '中国电信',
             },
         ]);
     });

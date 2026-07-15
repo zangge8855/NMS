@@ -15,6 +15,8 @@ const CLIENT_IP_COPY = {
         empty: '暂无节点访问 IP 记录',
         emptySubtitle: '当节点侧产生新的代理访问后，可刷新查看最新记录。',
         ip: 'IP',
+        location: '归属地 / 运营商',
+        unresolved: '未解析',
         count: '次数',
         lastSeen: '最近时间',
         note: '备注',
@@ -29,6 +31,8 @@ const CLIENT_IP_COPY = {
         empty: 'No node access IP records',
         emptySubtitle: 'Refresh after the node records new proxy traffic for this user.',
         ip: 'IP',
+        location: 'Location / Carrier',
+        unresolved: 'Unresolved',
         count: 'Count',
         lastSeen: 'Last Seen',
         note: 'Note',
@@ -91,7 +95,7 @@ export default function ClientIpModal({
                     <Table
                         loading={loading}
                         rows={4}
-                        cols={4}
+                        cols={5}
                         empty={items.length === 0}
                         emptyStateProps={{
                             title: copy.empty,
@@ -107,6 +111,7 @@ export default function ClientIpModal({
                         tableClassName="client-ip-table"
                         headers={[
                             <th key="ip">{copy.ip}</th>,
+                            <th key="location">{copy.location}</th>,
                             <th key="count" className="table-cell-center client-ip-count-column">{copy.count}</th>,
                             <th key="last" className="table-cell-center client-ip-last-seen-column">{copy.lastSeen}</th>,
                             <th key="note">{copy.note}</th>
@@ -115,6 +120,10 @@ export default function ClientIpModal({
                         {items.map((item) => (
                             <tr key={item.ip}>
                                 <td data-label={copy.ip} className="font-mono client-ip-address-cell">{item.ip}</td>
+                                <td data-label={copy.location} className="text-xs client-ip-location-cell">
+                                    <div>{item.ipLocation || (item.ipCarrier ? '-' : copy.unresolved)}</div>
+                                    {item.ipCarrier ? <div className="text-muted">{item.ipCarrier}</div> : null}
+                                </td>
                                 <td data-label={copy.count} className="table-cell-center client-ip-count-cell">{item.count > 0 ? item.count : '-'}</td>
                                 <td data-label={copy.lastSeen} className="table-cell-center client-ip-last-seen-cell">{formatDateTime(item.lastSeen, locale)}</td>
                                 <td data-label={copy.note} className="text-xs text-muted client-ip-note-cell">

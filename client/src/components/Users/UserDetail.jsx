@@ -182,6 +182,8 @@ function getUserDetailCopy(locale = 'zh-CN') {
                 resetFailed: 'Failed to reset subscription link',
                 userEnabled: 'User enabled',
                 userDisabled: 'User disabled',
+                enableUser: 'Enable this user',
+                disableUser: 'Disable this user',
                 actionFailed: 'Action failed',
                 clientIpTitle: 'Node Access IP - {server}',
                 clientIpSubtitle: '{email} · Node-level record{inbound}',
@@ -343,6 +345,8 @@ function getUserDetailCopy(locale = 'zh-CN') {
             resetFailed: '重置订阅链接失败',
             userEnabled: '用户已启用',
             userDisabled: '用户已停用',
+            enableUser: '启用该用户',
+            disableUser: '禁用该用户',
             actionFailed: '操作失败',
             clientIpTitle: '节点访问 IP — {server}',
             clientIpSubtitle: '{email} · 节点级记录{inbound}',
@@ -579,7 +583,7 @@ function normalizeUserDetailPayload(payload) {
 }
 
 const USER_DETAIL_SNAPSHOT_TTL_MS = 2 * 60_000;
-const USER_DETAIL_LIVE_TRAFFIC_POLL_MS = 5_000;
+const USER_DETAIL_LIVE_TRAFFIC_POLL_MS = 15_000;
 const EMPTY_LIVE_TRAFFIC_SUMMARY = Object.freeze({
     ready: false,
     upPerSecond: 0,
@@ -1094,14 +1098,29 @@ export default function UserDetail() {
         }
 
         const timer = window.setInterval(() => (
+            document.visibilityState === 'visible'
+                ? fetchClients({
+                    background: true,
+                    force: true,
+                    preserveCurrent: true,
+                })
+                : undefined
+        ), USER_DETAIL_LIVE_TRAFFIC_POLL_MS);
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState !== 'visible') return;
             fetchClients({
                 background: true,
                 force: true,
                 preserveCurrent: true,
-            })
-        ), USER_DETAIL_LIVE_TRAFFIC_POLL_MS);
+            });
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
 
-        return () => window.clearInterval(timer);
+        return () => {
+            window.clearInterval(timer);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
     }, [activeTab, clientsFetched, clientsLoading, detail, serversLoading, serverInventoryKey]);
 
     useEffect(() => {
@@ -1552,7 +1571,7 @@ export default function UserDetail() {
                                 className={`btn btn-sm ${user.enabled ? 'btn-danger' : 'btn-success'}`}
                                 onClick={handleToggleEnabled}
                             >
-                                {user.enabled ? <><HiOutlineNoSymbol /> {copy.labels.disabled}</> : <><HiOutlinePlayCircle /> {copy.labels.enabled}</>}
+                                {user.enabled ? <><HiOutlineNoSymbol /> {copy.labels.disableUser}</> : <><HiOutlinePlayCircle /> {copy.labels.enableUser}</>}
                             </button>
                             <button className="btn btn-secondary btn-sm" onClick={() => navigate(`/clients?edit=${user.id}`)}>
                                 <HiOutlinePencilSquare /> {t('comp.common.edit')}

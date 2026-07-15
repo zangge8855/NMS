@@ -2216,7 +2216,13 @@ export default function AuditCenter() {
                                                     <td data-label={copy.tables.event}>{formatAuditEventLabel(item, locale)}</td>
                                                     <td data-label={copy.tables.result} className="table-cell-center audit-event-result-cell"><span className={`badge ${statusBadgeClass(item.outcome)}`}>{formatAuditStatusLabel(item.outcome, locale)}</span></td>
                                                     <td data-label={copy.tables.actor}>{formatAuditActorLabel(item, locale)}</td>
-                                                    <td data-label={copy.tables.node} className="table-cell-center audit-event-node-cell">{item.serverId || '-'}</td>
+                                                    <td
+                                                        data-label={copy.tables.node}
+                                                        className="table-cell-center audit-event-node-cell"
+                                                        title={item.serverId || '-'}
+                                                    >
+                                                        {item.serverId || '-'}
+                                                    </td>
                                                     <td data-label={copy.tables.user}>
                                                         <div className="audit-event-target">
                                                             <span className="audit-event-target-label">{resolveAuditTarget(item)}</span>
