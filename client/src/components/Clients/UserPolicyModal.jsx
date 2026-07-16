@@ -2,7 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { HiOutlineCheck, HiOutlineXMark } from 'react-icons/hi2';
 import toast from 'react-hot-toast';
 import api from '../../api/client.js';
-import { bytesToGigabytesInput, gigabytesInputToBytes, normalizeLimitIp } from '../../utils/entitlements.js';
+import {
+    bytesPerSecondToKilobytesInput,
+    bytesToGigabytesInput,
+    gigabytesInputToBytes,
+    kilobytesInputToBytesPerSecond,
+    normalizeLimitIp,
+} from '../../utils/entitlements.js';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import ModalShell from '../UI/ModalShell.jsx';
 import EmptyState from '../UI/EmptyState.jsx';
@@ -70,8 +76,8 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                 setNoProtocolLimit(protocolScopeMode === 'all');
                 setLimitIp(String(normalizeLimitIp(payload.limitIp)));
                 setTrafficLimitGb(bytesToGigabytesInput(payload.trafficLimitBytes));
-                setSpeedLimitUp(String(Math.round(Number(payload.speedLimitUp || 0) / 1024)));
-                setSpeedLimitDown(String(Math.round(Number(payload.speedLimitDown || 0) / 1024)));
+                setSpeedLimitUp(bytesPerSecondToKilobytesInput(payload.speedLimitUp));
+                setSpeedLimitDown(bytesPerSecondToKilobytesInput(payload.speedLimitDown));
             } catch (error) {
                 if (!cancelled) {
                     const msg = error.response?.data?.msg || error.message || t('comp.userPolicy.loadFailed');
@@ -120,8 +126,8 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
             limitIp: normalizeLimitIp(limitIp),
             trafficLimitBytes: gigabytesInputToBytes(trafficLimitGb),
             // Speed limits are stored and forwarded as B/s (UI shows KB/s) — match UsersHub / ClientModal.
-            speedLimitUp: Number(speedLimitUp || 0) * 1024,
-            speedLimitDown: Number(speedLimitDown || 0) * 1024,
+            speedLimitUp: kilobytesInputToBytesPerSecond(speedLimitUp),
+            speedLimitDown: kilobytesInputToBytesPerSecond(speedLimitDown),
         };
 
         setSaving(true);

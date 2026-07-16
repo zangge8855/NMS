@@ -10,6 +10,12 @@ import { generateSecurePassword, generateUuidLocal, generateHexToken } from '../
 import ModalShell from '../UI/ModalShell.jsx';
 import toast from 'react-hot-toast';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
+import {
+    bytesPerSecondToKilobytesInput,
+    bytesToGigabytesInput,
+    gigabytesInputToBytes,
+    kilobytesInputToBytesPerSecond,
+} from '../../utils/entitlements.js';
 
 const BATCH_CLIENT_PROTOCOLS = new Set(['vmess', 'vless', 'trojan', 'shadowsocks']);
 
@@ -137,7 +143,7 @@ export default function ClientModal({
                 setUuid(currentId || (needsUuid ? currentPassword : ''));
                 setPassword(currentPassword || (needsPassword ? currentId : ''));
                 setSubId(editingClient.subId || '');
-                setTotalGB(editingClient.totalGB ? editingClient.totalGB / (1024 * 1024 * 1024) : 0);
+                setTotalGB(bytesToGigabytesInput(editingClient.totalGB));
                 {
                     const rawExpiry = Number(editingClient.expiryTime || 0);
                     setExpiryTime(rawExpiry);
@@ -152,8 +158,8 @@ export default function ClientModal({
                 }
                 setEnable(editingClient.enable !== false);
                 setLimitIp(editingClient.limitIp || 0);
-                setSpeedLimitUp(String(Math.round(Number(editingClient.speedLimitUp || 0) / 1024)));
-                setSpeedLimitDown(String(Math.round(Number(editingClient.speedLimitDown || 0) / 1024)));
+                setSpeedLimitUp(bytesPerSecondToKilobytesInput(editingClient.speedLimitUp));
+                setSpeedLimitDown(bytesPerSecondToKilobytesInput(editingClient.speedLimitDown));
                 setTgId(String(editingClient.tgId || ''));
                 setComment(String(editingClient.comment || ''));
                 setReset(Number(editingClient.reset || 0));
@@ -413,7 +419,7 @@ export default function ClientModal({
                 id: normalizedUuid,
                 password: normalizedPassword,
                 email,
-                totalGB: Number(totalGB) * 1024 * 1024 * 1024,
+                totalGB: gigabytesInputToBytes(totalGB),
                 expiryTime: Math.max(0, Number(resolvedExpiryTime || 0)),
                 enable,
                 tgId: String(tgId || '').trim(),
@@ -421,15 +427,15 @@ export default function ClientModal({
                 comment: String(comment || '').trim(),
                 reset: Math.max(0, Number(reset || 0)),
                 limitIp: Number(limitIp),
-                speedLimitUp: Number(speedLimitUp || 0) * 1024,
-                speedLimitDown: Number(speedLimitDown || 0) * 1024,
+                speedLimitUp: kilobytesInputToBytesPerSecond(speedLimitUp),
+                speedLimitDown: kilobytesInputToBytesPerSecond(speedLimitDown),
                 flow: isFlowSupported ? flow : '',
             };
 
             if (editingClient) {
                 if (isBatchEdit) {
                     const updateTargets = editTargets.map((item) => {
-                        const isTotalGBChanged = Number(totalGB) * 1024 * 1024 * 1024 !== Number(editingClient.totalGB || 0);
+                        const isTotalGBChanged = gigabytesInputToBytes(totalGB) !== Number(editingClient.totalGB || 0);
                         const isExpiryTimeChanged = Math.max(0, Number(resolvedExpiryTime || 0)) !== Number(editingClient.expiryTime || 0);
                         const isEnableChanged = enable !== (editingClient.enable !== false);
                         const isTgIdChanged = String(tgId || '').trim() !== String(editingClient.tgId || '').trim();
@@ -437,8 +443,8 @@ export default function ClientModal({
                         const isCommentChanged = String(comment || '').trim() !== String(editingClient.comment || '').trim();
                         const isResetChanged = Number(reset || 0) !== Number(editingClient.reset || 0);
                         const isLimitIpChanged = Number(limitIp || 0) !== Number(editingClient.limitIp || 0);
-                        const isSpeedLimitUpChanged = Number(speedLimitUp || 0) * 1024 !== Number(editingClient.speedLimitUp || 0);
-                        const isSpeedLimitDownChanged = Number(speedLimitDown || 0) * 1024 !== Number(editingClient.speedLimitDown || 0);
+                        const isSpeedLimitUpChanged = kilobytesInputToBytesPerSecond(speedLimitUp) !== Number(editingClient.speedLimitUp || 0);
+                        const isSpeedLimitDownChanged = kilobytesInputToBytesPerSecond(speedLimitDown) !== Number(editingClient.speedLimitDown || 0);
                         const isFlowChanged = flow !== (editingClient.flow || '');
 
                         const mergedClient = {
@@ -446,7 +452,7 @@ export default function ClientModal({
                             id: item.id || normalizedUuid,
                             password: item.password || normalizedPassword,
                             email: item.email || email,
-                            totalGB: isTotalGBChanged ? (Number(totalGB) * 1024 * 1024 * 1024) : (item.totalGB || 0),
+                            totalGB: isTotalGBChanged ? gigabytesInputToBytes(totalGB) : (item.totalGB || 0),
                             expiryTime: isExpiryTimeChanged ? Math.max(0, Number(resolvedExpiryTime || 0)) : (item.expiryTime || 0),
                             enable: isEnableChanged ? enable : (item.enable !== false),
                             tgId: isTgIdChanged ? String(tgId || '').trim() : String(item.tgId || '').trim(),
@@ -454,8 +460,8 @@ export default function ClientModal({
                             comment: isCommentChanged ? String(comment || '').trim() : String(item.comment || '').trim(),
                             reset: isResetChanged ? Number(reset || 0) : Number(item.reset || 0),
                             limitIp: isLimitIpChanged ? Number(limitIp || 0) : Number(item.limitIp || 0),
-                            speedLimitUp: isSpeedLimitUpChanged ? (Number(speedLimitUp || 0) * 1024) : (item.speedLimitUp || 0),
-                            speedLimitDown: isSpeedLimitDownChanged ? (Number(speedLimitDown || 0) * 1024) : (item.speedLimitDown || 0),
+                            speedLimitUp: isSpeedLimitUpChanged ? kilobytesInputToBytesPerSecond(speedLimitUp) : (item.speedLimitUp || 0),
+                            speedLimitDown: isSpeedLimitDownChanged ? kilobytesInputToBytesPerSecond(speedLimitDown) : (item.speedLimitDown || 0),
                             flow: isFlowChanged ? flow : (item.flow || ''),
                         };
 

@@ -310,9 +310,7 @@ body {
 }
 
 .main-scroll-region {
-  background:
-    radial-gradient(900px 460px at 55% -260px, color-mix(in srgb, var(--accent-primary) 9%, transparent), transparent 72%),
-    var(--bg-primary);
+  background: var(--bg-primary);
 }
 
 .page-content,
@@ -337,7 +335,7 @@ body {
 .subscriptions-toolbar {
   border-color: var(--border-color);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
 }
 
 .card:hover {
@@ -436,7 +434,7 @@ select {
 .dashboard-hero-kpis,
 .dashboard-stats-grid {
   border-radius: 14px;
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
 }
 
 .dashboard-hero-kpis {
@@ -507,9 +505,9 @@ select {
 .node-health-tile[data-tone="danger"]::before { background: var(--accent-danger); }
 
 .node-health-tile:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   border-color: var(--stroke-medium);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-sm);
 }
 
 /* Large workbenches: clearer section boundaries and less dead space. */
@@ -558,7 +556,7 @@ select {
 .settings-nav {
   padding: 5px;
   border-radius: 13px;
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
 }
 
 .settings-nav-item {
@@ -977,6 +975,10 @@ select {
     --header-height: 62px;
   }
 
+  html {
+    scroll-padding-bottom: calc(var(--mobile-bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 28px);
+  }
+
   .header {
     padding: 8px 12px;
   }
@@ -991,7 +993,7 @@ select {
 
   .page-content,
   .page-content--wide {
-    padding: 14px 12px calc(var(--mobile-bottom-nav-height) + 30px);
+    padding: 14px 12px calc(var(--mobile-bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 48px);
   }
 
   .dashboard-hero-kpis,
@@ -1136,7 +1138,7 @@ main .tasks-page .table-container,
 main .capabilities-page .table-container {
   background: var(--surface-panel) !important;
   border-color: var(--border-color) !important;
-  box-shadow: var(--shadow-sm) !important;
+  box-shadow: none !important;
 }
 
 main .table-container .table,
@@ -1231,7 +1233,7 @@ main .logs-toolbar,
 main .tasks-filter-card {
   background: var(--surface-panel) !important;
   border-color: var(--border-color) !important;
-  box-shadow: var(--shadow-sm) !important;
+  box-shadow: none !important;
 }
 
 main .servers-selection-bar,
@@ -1255,7 +1257,7 @@ main .subscription-user-workbench,
 main .downloads-center {
   background: var(--surface-panel) !important;
   border-color: var(--border-color) !important;
-  box-shadow: var(--shadow-sm) !important;
+  box-shadow: none !important;
 }
 
 [data-theme="light"] main .table-container .table tbody tr,

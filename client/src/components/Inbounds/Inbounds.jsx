@@ -7,7 +7,13 @@ import Header from '../Layout/Header.jsx';
 import { copyToClipboard, formatBytes, getErrorMessage } from '../../utils/format.js';
 import { attachBatchRiskToken } from '../../utils/riskConfirm.js';
 import { getClientIdentifier } from '../../utils/protocol.js';
-import { bytesToGigabytesInput, gigabytesInputToBytes, normalizeLimitIp } from '../../utils/entitlements.js';
+import {
+    bytesPerSecondToKilobytesInput,
+    bytesToGigabytesInput,
+    gigabytesInputToBytes,
+    kilobytesInputToBytesPerSecond,
+    normalizeLimitIp,
+} from '../../utils/entitlements.js';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../contexts/ConfirmContext.jsx';
 import {
@@ -1137,8 +1143,8 @@ export default function Inbounds() {
         setEntitlementExpiryDate(toLocalDateTimeString(client.expiryTime));
         setEntitlementLimitIp(String(normalizeLimitIp(client.limitIp)));
         setEntitlementTrafficLimitGb(bytesToGigabytesInput(resolveClientQuota(client)));
-        setEntitlementSpeedLimitUp(String(Math.round(Number(client.speedLimitUp || 0) / 1024)));
-        setEntitlementSpeedLimitDown(String(Math.round(Number(client.speedLimitDown || 0) / 1024)));
+        setEntitlementSpeedLimitUp(bytesPerSecondToKilobytesInput(client.speedLimitUp));
+        setEntitlementSpeedLimitDown(bytesPerSecondToKilobytesInput(client.speedLimitDown));
         setEntitlementTgId(String(client.tgId || 0));
         setEntitlementGroup(client.group || '');
         setEntitlementComment(client.comment || '');
@@ -1177,8 +1183,8 @@ export default function Inbounds() {
                 expiryTime: entitlementExpiryDate ? new Date(entitlementExpiryDate).getTime() : 0,
                 limitIp: normalizeLimitIp(entitlementLimitIp),
                 trafficLimitBytes: gigabytesInputToBytes(entitlementTrafficLimitGb),
-                speedLimitUp: Number(entitlementSpeedLimitUp || 0) * 1024,
-                speedLimitDown: Number(entitlementSpeedLimitDown || 0) * 1024,
+                speedLimitUp: kilobytesInputToBytesPerSecond(entitlementSpeedLimitUp),
+                speedLimitDown: kilobytesInputToBytesPerSecond(entitlementSpeedLimitDown),
                 tgId: Number(entitlementTgId) || 0,
                 group: entitlementGroup.trim(),
                 comment: entitlementComment.trim(),

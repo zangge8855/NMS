@@ -1,4 +1,5 @@
 const GIGABYTE_BYTES = 1024 * 1024 * 1024;
+const KILOBYTE_BYTES = 1024;
 
 export function normalizeLimitIp(value) {
     const parsed = Number(value);
@@ -20,4 +21,16 @@ export function bytesToGigabytesInput(value) {
         ? gigabytes
         : Number(gigabytes.toFixed(2));
     return String(rounded);
+}
+
+export function kilobytesInputToBytesPerSecond(value) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+    return Math.round(parsed * KILOBYTE_BYTES);
+}
+
+export function bytesPerSecondToKilobytesInput(value) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed <= 0) return '0';
+    return String(Math.round(parsed / KILOBYTE_BYTES));
 }

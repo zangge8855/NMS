@@ -20,6 +20,7 @@ describe('NodeHealthGrid', () => {
 
         expect(screen.getByText('认证失败')).toBeInTheDocument();
         expect(screen.getByText('凭据无效')).toBeInTheDocument();
-        expect(screen.getByText('invalid username or password')).toBeInTheDocument();
+        expect(screen.getByText('打开节点详情检查配置并重试。')).toBeInTheDocument();
+        expect(screen.queryByText('invalid username or password')).not.toBeInTheDocument();
     });
 });

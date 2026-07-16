@@ -177,7 +177,7 @@ a:hover {
   color: var(--accent-primary-hover);
 }
 
-/* Scrollbar — defined in interaction-polish.css */
+/* Scrollbar styles live in the active restrained UI layer. */
 
 /* --- Utilities --- */
 .h-full {
@@ -1032,7 +1032,7 @@ a:hover {
   transform-origin: center;
 }
 
-/* .btn:active — defined in interaction-polish.css */
+/* .btn:active is finalized in the active UI layer. */
 
 .btn:focus-visible,
 .theme-toggle-btn:focus-visible,
@@ -1046,7 +1046,7 @@ a:hover {
   box-shadow: var(--focus-ring-shadow);
 }
 
-/* .btn-primary base + hover — defined in interaction-polish.css */
+/* .btn-primary base + hover are finalized in the active UI layer. */
 
 .btn-secondary {
   background: rgba(255, 255, 255, 0.03);
@@ -1178,7 +1178,7 @@ a:hover {
   color: var(--text-muted);
 }
 
-/* .form-select appearance — defined in interaction-polish.css */
+/* .form-select appearance is finalized in the active UI layer. */
 
 /* --- Custom Checkbox & Radio --- */
 input[type="checkbox"],
@@ -1295,7 +1295,7 @@ input[type="radio"]:focus {
   border-bottom: none;
 }
 
-/* .table tr:hover — defined in interaction-polish.css */
+/* .table tr:hover is finalized in the active UI layer. */
 
 /* --- Badges --- */
 .badge {
@@ -1573,7 +1573,7 @@ input[type="radio"]:focus {
   color: var(--text-muted);
 }
 
-/* --- Empty State — defined in interaction-polish.css --- */
+/* --- Empty State --- */
 
 /* --- Tooltip --- */
 .tooltip-wrapper {
@@ -6576,7 +6576,7 @@ body::before {
 
 .inbounds-protocol-col {
   /* Keep wide enough for long protocol names (SHADOWSOCKS / DOKODEMO-DOOR).
-     Authoritative widths live in console-redesign.css; this is a non-!important floor. */
+     Component widths are finalized in the active workspace layer. */
   width: 140px;
   min-width: 120px;
 }

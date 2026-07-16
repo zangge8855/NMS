@@ -834,7 +834,7 @@ export default function Servers() {
         const rowBusy = isServerBusy(server.id);
         const credentialStatus = String(server.credentialStatus || 'configured');
         const serverGroup = server.group || t('comp.servers.ungrouped');
-        const serverTags = Array.isArray(server.tags) ? server.tags.slice(0, 3) : [];
+        const serverTags = Array.isArray(server.tags) ? server.tags : [];
         const serverEnvironment = formatServerEnvironment(server.environment, locale);
         const authLabel = server.apiTokenConfigured ? 'API Token' : (server.username || '-');
         const testState = testResults[server.id];
@@ -943,9 +943,12 @@ export default function Servers() {
 
                 {serverTags.length > 0 ? (
                     <div className="servers-mobile-tags">
-                        {serverTags.map((tag) => (
+                        {serverTags.slice(0, 1).map((tag) => (
                             <span key={`${server.id}-${tag}`} className="badge badge-info">{tag}</span>
                         ))}
+                        {serverTags.length > 1 ? (
+                            <span className="badge badge-neutral" title={serverTags.slice(1).join(', ')}>+{serverTags.length - 1}</span>
+                        ) : null}
                     </div>
                 ) : null}
 
@@ -1122,7 +1125,7 @@ export default function Servers() {
                             const rowBusy = isServerBusy(server.id);
                             const credentialStatus = String(server.credentialStatus || 'configured');
                             const serverGroup = server.group || t('comp.servers.ungrouped');
-                            const serverTags = Array.isArray(server.tags) ? server.tags.slice(0, 3) : [];
+                            const serverTags = Array.isArray(server.tags) ? server.tags : [];
                             const serverEnvironment = formatServerEnvironment(server.environment, locale);
                             const authLabel = server.apiTokenConfigured ? 'API Token' : (server.username || '-');
                             const testState = testResults[server.id];
@@ -1208,9 +1211,12 @@ export default function Servers() {
                                                     <div className="servers-mobile-summary-row">
                                                         <span className="badge badge-neutral">{t('comp.servers.groupPrefix')}: {serverGroup}</span>
                                                         {serverEnvironment ? <span className="badge badge-info">{serverEnvironment}</span> : null}
-                                                        {serverTags.slice(0, 2).map((tag) => (
+                                                        {serverTags.slice(0, 1).map((tag) => (
                                                             <span key={`${server.id}-mobile-${tag}`} className="badge badge-info">{tag}</span>
                                                         ))}
+                                                        {serverTags.length > 1 ? (
+                                                            <span className="badge badge-neutral" title={serverTags.slice(1).join(', ')}>+{serverTags.length - 1}</span>
+                                                        ) : null}
                                                     </div>
                                                     <div className="servers-mobile-summary-row servers-mobile-summary-row--account">
                                                         <span className="servers-mobile-account-name">{authLabel}</span>
@@ -1234,9 +1240,18 @@ export default function Servers() {
                                     <td className="servers-tags-cell" data-label={t('pages.servers.cols.group')}>
                                         <div className="flex flex-wrap gap-2 text-xs server-card-tags">
                                         <span className="badge badge-neutral">{t('comp.servers.groupPrefix')}: {serverGroup}</span>
-                                        {serverTags.map((tag) => (
+                                        {serverTags.slice(0, 1).map((tag) => (
                                             <span key={`${server.id}-${tag}`} className="badge badge-info">{tag}</span>
                                         ))}
+                                        {serverTags.length > 1 ? (
+                                            <span
+                                                className="badge badge-neutral"
+                                                title={serverTags.slice(1).join(', ')}
+                                                aria-label={serverTags.slice(1).join(', ')}
+                                            >
+                                                +{serverTags.length - 1}
+                                            </span>
+                                        ) : null}
                                         </div>
                                     </td>
                                     <td className="servers-account-cell" data-label={t('pages.servers.cols.account')}>

@@ -40,6 +40,7 @@ function getNodeHealthCopy(locale) {
             connectTimeout: 'Connection timed out',
             networkError: 'Network error',
             panelRequestFailed: 'Panel request failed',
+            inspectHint: 'Open node details to inspect and retry.',
         }
         : {
             searchPlaceholder: '搜索节点',
@@ -59,6 +60,7 @@ function getNodeHealthCopy(locale) {
             connectTimeout: '连接超时',
             networkError: '网络异常',
             panelRequestFailed: '面板请求失败',
+            inspectHint: '打开节点详情检查配置并重试。',
         };
 }
 
@@ -220,8 +222,8 @@ function NodeTile({ server, serverData, trend = [], showSparkline = false }) {
             ) : (
                 <div className="node-health-tile-message">
                     <strong>{getNodeFailureCopy(serverData, copy)}</strong>
-                    {serverData?.error && serverData.error !== getNodeFailureCopy(serverData, copy) ? (
-                        <span title={serverData.error}>{serverData.error}</span>
+                    {serverData?.error ? (
+                        <span>{copy.inspectHint}</span>
                     ) : null}
                 </div>
             )}
