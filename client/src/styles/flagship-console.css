@@ -1480,3 +1480,158 @@ main .downloads-center {
     margin-top: 19px;
   }
 }
+
+/* Flagship shell identity and hierarchy. */
+.sidebar-logo-subtitle {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 650;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.sidebar-identity {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  margin: 0 10px 8px;
+  padding: 10px;
+  border-top: 1px solid var(--stroke-soft);
+  border-bottom: 1px solid var(--stroke-soft);
+}
+
+.sidebar-identity-avatar {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--accent-primary-border);
+  border-radius: 10px;
+  color: var(--accent-primary);
+  background: var(--accent-primary-bg);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.sidebar-identity-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar-identity-copy strong {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-identity-copy > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 9px;
+}
+
+.sidebar-identity-status {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent-success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-success) 12%, transparent);
+}
+
+.header-title-group::before {
+  content: "NMS CONTROL PLANE";
+  display: block;
+  margin-bottom: 2px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 650;
+  letter-spacing: 0.14em;
+}
+
+/* Ordinary metadata stays quiet; color is reserved for operational state. */
+main .badge-info:not(.badge-status),
+main .server-card-tags .badge-info,
+main .servers-mobile-tags .badge-info {
+  color: var(--text-secondary) !important;
+  background: var(--surface-soft) !important;
+  border-color: var(--stroke-medium) !important;
+}
+
+/* Settings becomes a readiness workspace instead of a card mosaic. */
+.settings-grid--status {
+  gap: 12px;
+}
+
+.settings-grid--status .settings-panel,
+.settings-grid--status .settings-status-panel,
+.settings-grid--status .settings-status-db-panel {
+  border-radius: 12px !important;
+  box-shadow: none !important;
+}
+
+.settings-status-grid {
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+}
+
+.settings-status-grid > * {
+  border: 0 !important;
+  border-bottom: 1px solid var(--stroke-soft) !important;
+  border-radius: 0 !important;
+}
+
+.settings-status-grid > *:last-child {
+  border-bottom: 0 !important;
+}
+
+/* Subscription import is the primary action; unavailable QR space stays visually quiet. */
+.subscriptions-page .subscription-user-qr-panel {
+  background: color-mix(in srgb, var(--surface-soft) 74%, transparent) !important;
+  box-shadow: none !important;
+}
+
+.subscriptions-page .subscription-user-qr-panel:has(.subscription-user-import-disabled) {
+  border-style: dashed !important;
+  opacity: 0.78;
+}
+
+.subscription-user-danger-row {
+  margin-top: 16px;
+  background: color-mix(in srgb, var(--accent-danger) 5%, var(--surface-panel)) !important;
+  border-color: color-mix(in srgb, var(--accent-danger) 24%, var(--border-color)) !important;
+}
+
+/* Authentication remains sparse but presents NMS as a product, not a generic form. */
+.login-brand-row::after {
+  content: "CONTROL PLANE";
+  display: block;
+  margin-left: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 650;
+  letter-spacing: 0.18em;
+}
+
+@media (max-width: 768px) {
+  .header-title-group::before {
+    display: none;
+  }
+
+  .sidebar-identity {
+    margin-inline: 8px;
+  }
+}

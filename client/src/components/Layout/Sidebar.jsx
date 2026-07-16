@@ -177,6 +177,22 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
                 })}
             </nav>
             <div className="sidebar-utility">
+                {!collapsed && user ? (
+                    <div className="sidebar-identity" aria-label={user.username || user.email || user.role}>
+                        <span className="sidebar-identity-avatar">
+                            {String(user.username || user.email || 'N').trim().charAt(0).toUpperCase()}
+                        </span>
+                        <span className="sidebar-identity-copy">
+                            <strong>{user.username || user.email || 'NMS'}</strong>
+                            <span>
+                                <i className="sidebar-identity-status" aria-hidden="true" />
+                                {locale === 'en-US'
+                                    ? (isGlobalView ? 'Global control plane' : 'Node workspace')
+                                    : (isGlobalView ? '全局控制平面' : '节点工作区')}
+                            </span>
+                        </span>
+                    </div>
+                ) : null}
                 {visibleFooterItems.map((item) => (
                     <NavLink
                         key={item.path}
