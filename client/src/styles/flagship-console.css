@@ -440,6 +440,10 @@ select {
 .dashboard-hero-kpis {
   position: relative;
   overflow: hidden;
+  grid-template-columns: minmax(1.35fr, 1.5fr) repeat(2, minmax(0, 1fr));
+  background:
+    linear-gradient(110deg, color-mix(in srgb, var(--accent-primary) 7%, var(--surface-panel)), var(--surface-panel) 38%),
+    var(--surface-panel);
 }
 
 .dashboard-hero-kpis::before {
@@ -455,6 +459,25 @@ select {
 .dashboard-hero-kpi {
   min-height: 96px;
   padding: 15px 20px;
+}
+
+.dashboard-hero-kpi:first-child {
+  min-height: 128px;
+  justify-content: center;
+  padding-left: 28px;
+}
+
+.dashboard-hero-kpi:first-child .dashboard-hero-kpi-value {
+  font-size: clamp(2rem, 3vw, 2.75rem);
+  letter-spacing: -0.04em;
+}
+
+.dashboard-hero-kpi:first-child .dashboard-hero-kpi-meta {
+  max-width: 28rem;
+}
+
+.dashboard-hero-kpi:not(:first-child) .dashboard-hero-kpi-value {
+  font-size: clamp(1.55rem, 2.3vw, 2.1rem);
 }
 
 .dashboard-hero-kpi-value,
@@ -1002,6 +1025,10 @@ select {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .dashboard-hero-kpis {
+    grid-template-columns: 1.25fr repeat(2, minmax(0, 1fr));
+  }
+
   .dashboard-hero-kpi,
   .dashboard-stat-card,
   .dashboard-stats-grid .card {
@@ -1009,6 +1036,15 @@ select {
     padding: 13px 11px;
     border-right: 1px solid var(--border-color);
     border-bottom: 0;
+  }
+
+  .dashboard-hero-kpi:first-child {
+    min-height: 104px;
+    padding-left: 13px;
+  }
+
+  .dashboard-hero-kpi:first-child .dashboard-hero-kpi-value {
+    font-size: 1.6rem;
   }
 
   .dashboard-hero-kpi:last-child,
