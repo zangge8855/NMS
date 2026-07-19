@@ -1313,7 +1313,13 @@ select {
   right: 0;
   z-index: 2;
   background: var(--surface-panel);
-  box-shadow: -12px 0 18px -18px rgba(0, 0, 0, 0.6);
+  /* Soft edge hint for horizontal-scroll overlap; the previous 0.6-alpha black
+     band read as a stray divider on wide viewports where nothing scrolls. */
+  box-shadow: -10px 0 14px -16px rgba(0, 0, 0, 0.32);
+}
+
+[data-theme="light"] .servers-table .servers-actions-cell {
+  box-shadow: -10px 0 14px -16px rgba(13, 27, 47, 0.16);
 }
 
 .servers-table .servers-row-actions {
