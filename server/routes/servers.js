@@ -15,6 +15,7 @@ import { normalizeBoolean as parseBoolean } from '../lib/normalize.js';
 import { buildGlobalDashboardSnapshot, buildSingleDashboardSnapshot } from '../lib/dashboardSnapshotService.js';
 import { buildServerDetailSnapshot } from '../lib/serverDetailSnapshotService.js';
 import { buildErrorSnapshot, getServerLogSnapshot, getServerLogSnapshots } from '../lib/serverLogsSnapshotService.js';
+import { invalidateServerPanelSnapshotCache } from '../lib/serverPanelSnapshotService.js';
 import { fetchServerLogPayload as fetchServerLogResult, normalizeLogCount as normalizeRequestedLogCount, normalizeLogSource as normalizeRequestedLogSource } from '../services/panelLogsService.js';
 
 const router = Router();
@@ -868,6 +869,7 @@ router.delete('/:id', (req, res) => {
     const actor = String(req.user?.username || req.user?.role || 'admin');
     const affectedPolicies = userPolicyStore.removeServerId(serverId, actor);
     const affectedGroups = userGroupStore.removeServerId(serverId, actor);
+    invalidateServerPanelSnapshotCache(serverId);
     appendSecurityAudit('server_deleted', req, { serverId, affectedPolicies, affectedGroups });
     res.json({
         success: true,

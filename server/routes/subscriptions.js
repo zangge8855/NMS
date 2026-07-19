@@ -471,12 +471,14 @@ function getRealityParams(stream) {
     const serverNames = toTrimmedList(rs.serverNames);
     const shortIds = toTrimmedList(rs.shortIds);
 
-    const sni = firstNonEmpty(rsSettings.serverName, serverNames[0]);
-    const pbk = firstNonEmpty(rsSettings.publicKey);
-    const fp = firstNonEmpty(rsSettings.fingerprint, 'chrome');
+    // Sanaei 3x-ui nests client-facing params under realitySettings.settings,
+    // while other panel forks store them flat on realitySettings.
+    const sni = firstNonEmpty(rsSettings.serverName, rs.serverName, serverNames[0]);
+    const pbk = firstNonEmpty(rsSettings.publicKey, rs.publicKey);
+    const fp = firstNonEmpty(rsSettings.fingerprint, rs.fingerprint, 'chrome');
     const sid = firstNonEmpty(shortIds[0]);
-    const spx = firstNonEmpty(rsSettings.spiderX, '/');
-    const pqv = firstNonEmpty(rsSettings.mldsa65Verify);
+    const spx = firstNonEmpty(rsSettings.spiderX, rs.spiderX, '/');
+    const pqv = firstNonEmpty(rsSettings.mldsa65Verify, rs.mldsa65Verify);
 
     return { sni, pbk, fp, sid, spx, pqv };
 }
@@ -3297,18 +3299,24 @@ function resolveSingboxBuildOptions(req) {
 
 function verifyPublicTokenRequest(hintedEmail, tokenId, tokenSecret, store = subscriptionTokenStore) {
     const normalizedHint = normalizeEmail(hintedEmail);
-    if (!normalizedHint) {
-        return store.verifyByTokenId(tokenId, tokenSecret);
+    let cleanSecret = String(tokenSecret || '').trim();
+    const dotIndex = cleanSecret.indexOf('.');
+    if (dotIndex >= 0) {
+        cleanSecret = cleanSecret.slice(dotIndex + 1);
     }
 
-    const verification = store.verify(normalizedHint, tokenId, tokenSecret);
+    if (!normalizedHint) {
+        return store.verifyByTokenId(tokenId, cleanSecret);
+    }
+
+    const verification = store.verify(normalizedHint, tokenId, cleanSecret);
     if (verification.ok || verification.reason !== 'not-found') {
         return {
             ...verification,
             email: normalizedHint,
         };
     }
-    return store.verifyByTokenId(tokenId, tokenSecret);
+    return store.verifyByTokenId(tokenId, cleanSecret);
 }
 
 async function handlePublicTokenRequest(req, res, emailFromPath = '') {
@@ -3317,7 +3325,8 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
     const tokenSecret = String(req.params.token || '').trim();
     const mode = normalizeMode(req.query.mode);
     const serverId = normalizeServerId(req.query.serverId);
-    const format = normalizeSubscriptionFormat(req.query.format);
+    // `target` is the subconverter-style alias for `format` that most client apps send.
+    const format = normalizeSubscriptionFormat(firstNonEmpty(req.query.format, req.query.target));
 
     if (!tokenId || !tokenSecret) {
         appendSecurityAudit('subscription_public_denied', req, {
@@ -3360,9 +3369,17 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
             return res.status(410).send('subscription token expired');
         }
         if (verification.reason === 'revoked') {
-            return res.status(403).send('subscription token revoked');
+            return res.status(401).send('subscription token revoked');
         }
-        return res.status(403).send('invalid subscription token');
+        if (verification.reason === 'not-found') {
+            return res.status(404).send('subscription token not found');
+        }
+        return res.status(401).send('invalid subscription token');
+    }
+
+    const user = userStore.getBySubscriptionEmail(email) || userStore.getByEmail(email) || null;
+    if (user && user.enabled === false) {
+        return res.status(403).send('user is disabled');
     }
 
     const {
@@ -3387,6 +3404,31 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
         return res.status(404).send('server not found');
     }
     if (links.length === 0) {
+        // A valid token whose policy scopes the user to zero servers is enforcement,
+        // not a broken link: serve an empty 200 payload so client apps clear their
+        // node list instead of keeping stale nodes behind a 410 error.
+        if (inactiveReason === 'blocked-by-policy') {
+            subscriptionTokenStore.touchLastUsedByTokenId(tokenId);
+            appendSubscriptionAccessAudit(req, {
+                email,
+                tokenId,
+                status: 'success',
+                reason: 'blocked-by-policy',
+                mode,
+                serverId,
+                format,
+            });
+            res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+            res.setHeader('X-Subscription-Token-Id', tokenId);
+            res.setHeader('Subscription-Userinfo', buildSubscriptionUserInfoHeader({
+                uploadTrafficBytes,
+                downloadTrafficBytes,
+                trafficLimitBytes,
+                expiryTime,
+            }));
+            const emptyPayload = buildSubscriptionPayload([]);
+            return res.send(format === 'raw' ? emptyPayload.raw : emptyPayload.encoded);
+        }
         appendSubscriptionAccessAudit(req, {
             email,
             tokenId,
@@ -3461,7 +3503,7 @@ router.get('/public/:email/:sig', async (req, res) => {
     const sig = String(req.params.sig || '');
     const mode = normalizeMode(req.query.mode);
     const serverId = normalizeServerId(req.query.serverId);
-    const format = normalizeSubscriptionFormat(req.query.format);
+    const format = normalizeSubscriptionFormat(firstNonEmpty(req.query.format, req.query.target));
 
     if (!email || !verifyEmailSig(email, sig)) {
         appendSecurityAudit('subscription_public_denied_legacy', req, {
@@ -3503,6 +3545,28 @@ router.get('/public/:email/:sig', async (req, res) => {
         return res.status(404).send('server not found');
     }
     if (links.length === 0) {
+        // Mirror the token route: policy-scoped-to-zero is enforcement, serve empty 200.
+        if (inactiveReason === 'blocked-by-policy') {
+            appendSubscriptionAccessAudit(req, {
+                email,
+                tokenId: 'legacy-signature',
+                status: 'success',
+                reason: 'blocked-by-policy',
+                mode,
+                serverId,
+                format,
+            });
+            res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+            res.setHeader('X-Subscription-Legacy', '1');
+            res.setHeader('Subscription-Userinfo', buildSubscriptionUserInfoHeader({
+                uploadTrafficBytes,
+                downloadTrafficBytes,
+                trafficLimitBytes,
+                expiryTime,
+            }));
+            const emptyPayload = buildSubscriptionPayload([]);
+            return res.send(format === 'raw' ? emptyPayload.raw : emptyPayload.encoded);
+        }
         appendSubscriptionAccessAudit(req, {
             email,
             tokenId: 'legacy-signature',

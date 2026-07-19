@@ -101,8 +101,8 @@ async function querySubscriptionAccess(filters = {}, options = {}, deps = {}) {
 function listSubscriptionTokens(email, deps = {}) {
     const repository = deps.subscriptionTokenRepository || subscriptionTokenRepository;
     const normalizedEmail = normalizeEmail(email);
-    if (!normalizedEmail) {
-        throw createHttpError(400, 'Email is required');
+    if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+        throw createHttpError(400, 'Invalid email format');
     }
     return {
         email: normalizedEmail,
@@ -118,8 +118,8 @@ function listSubscriptionTokens(email, deps = {}) {
 function issueSubscriptionToken(email, input = {}, deps = {}) {
     const repository = deps.subscriptionTokenRepository || subscriptionTokenRepository;
     const normalizedEmail = normalizeEmail(email);
-    if (!normalizedEmail) {
-        throw createHttpError(400, 'Email is required');
+    if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+        throw createHttpError(400, 'Invalid email format');
     }
 
     const issued = repository.issue(normalizedEmail, {
@@ -144,8 +144,8 @@ function issueSubscriptionToken(email, input = {}, deps = {}) {
 function resetPersistentSubscriptionToken(email, input = {}, deps = {}) {
     const repository = deps.subscriptionTokenRepository || subscriptionTokenRepository;
     const normalizedEmail = normalizeEmail(email);
-    if (!normalizedEmail) {
-        throw createHttpError(400, 'Email is required');
+    if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+        throw createHttpError(400, 'Invalid email format');
     }
 
     const scopeName = String(input.name || '').trim();
@@ -192,8 +192,8 @@ function resetPersistentSubscriptionToken(email, input = {}, deps = {}) {
 function revokeSubscriptionTokens(email, input = {}, deps = {}) {
     const repository = deps.subscriptionTokenRepository || subscriptionTokenRepository;
     const normalizedEmail = normalizeEmail(email);
-    if (!normalizedEmail) {
-        throw createHttpError(400, 'Email is required');
+    if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+        throw createHttpError(400, 'Invalid email format');
     }
 
     const reason = String(input.reason || 'manual-revoke').trim() || 'manual-revoke';

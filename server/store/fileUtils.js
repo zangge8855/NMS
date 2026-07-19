@@ -27,7 +27,13 @@ function makeTempFile(file) {
 export function saveObjectAtomic(file, data) {
     if (!shouldWriteFile()) return;
 
+    if (data === undefined || data === null) {
+        throw new Error('Serialization aborted: input data is null or undefined');
+    }
     const content = JSON.stringify(data, null, 2);
+    if (typeof content !== 'string' || content === 'undefined' || content.trim() === '' || content === 'null') {
+        throw new Error('Serialization aborted: stringify returned empty or invalid string');
+    }
     const tempFile = makeTempFile(file);
 
     try {
@@ -71,7 +77,13 @@ export function saveObjectAtomic(file, data) {
 export async function saveObjectAtomicAsync(file, data) {
     if (!shouldWriteFile()) return;
 
+    if (data === undefined || data === null) {
+        throw new Error('Serialization aborted: input data is null or undefined');
+    }
     const content = JSON.stringify(data, null, 2);
+    if (typeof content !== 'string' || content === 'undefined' || content.trim() === '' || content === 'null') {
+        throw new Error('Serialization aborted: stringify returned empty or invalid string');
+    }
     const tempFile = makeTempFile(file);
 
     try {

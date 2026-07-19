@@ -91,6 +91,7 @@ const REVIEW_FIXTURE_VALUES = Object.freeze({
     tokenRevokedSecret: deriveFixtureOpaqueValue('review-revoked-token-secret', 'REVIEW_REVOKED_TOKEN_SECRET', { prefix: 'rvtok_' }),
     tokenAdminSecret: deriveFixtureOpaqueValue('review-admin-token-secret', 'REVIEW_ADMIN_TOKEN_SECRET', { prefix: 'rvtok_' }),
     realityPrivateKey: deriveFixtureOpaqueValue('review-reality-private-key', 'REVIEW_REALITY_PRIVATE_KEY', { prefix: 'fixture-reality-' }),
+    realityPublicKey: deriveFixtureOpaqueValue('review-reality-public-key', 'REVIEW_REALITY_PUBLIC_KEY', { prefix: 'fixture-reality-pbk-' }),
     trojanClientPassword: deriveFixturePassword('review-trojan-client-password', 'REVIEW_TROJAN_CLIENT_PASSWORD'),
     shadowsocksClientPassword: deriveFixturePassword('review-shadowsocks-client-password', 'REVIEW_SHADOWSOCKS_CLIENT_PASSWORD'),
     invalidPanelPassword: deriveFixturePassword('review-invalid-panel-password', 'REVIEW_PANEL_INVALID_PASSWORD'),
@@ -334,6 +335,11 @@ function buildHealthyPanelState() {
                         serverNames: ['www.cloudflare.com'],
                         privateKey: REVIEW_FIXTURE_VALUES.realityPrivateKey,
                         shortIds: ['2f1d8a8b'],
+                        settings: {
+                            publicKey: REVIEW_FIXTURE_VALUES.realityPublicKey,
+                            fingerprint: 'chrome',
+                            spiderX: '/',
+                        },
                     },
                 },
                 clientStats: [

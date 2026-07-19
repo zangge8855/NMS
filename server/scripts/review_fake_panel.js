@@ -209,6 +209,14 @@ function createPanelApp(definition) {
         if (sessions.has(sessionId)) {
             return next();
         }
+        const authHeader = req.headers.authorization || '';
+        if (authHeader.startsWith('Bearer ')) {
+            const tokenVal = authHeader.substring(7).trim();
+            const tokenObj = state.apiTokens.find(t => t.token === tokenVal && t.enabled !== false);
+            if (tokenObj) {
+                return next();
+            }
+        }
         return res.status(401).json({
             success: false,
             msg: 'session expired',

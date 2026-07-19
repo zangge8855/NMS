@@ -26,6 +26,7 @@ import xrayConfigRoutes from './routes/xrayConfig.js';
 import { bootstrapDatabase } from './db/bootstrap.js';
 import { flushSnapshotQueue } from './db/snapshots.js';
 import { getStoreModes } from './db/runtimeModes.js';
+import { closeDb } from './db/client.js';
 import { backfillStoresToDatabase, hydrateStoresFromDatabase } from './store/storeRegistry.js';
 import systemSettingsStore from './store/systemSettingsStore.js';
 import { registerClientBuildRoutes } from './lib/clientBuild.js';
@@ -125,7 +126,9 @@ export function createApp(options = {}) {
         windowMs: 60 * 1000,
         max: 60,
         standardHeaders: 'draft-7',
-        legacyHeaders: false,
+        // Subscription clients in the wild parse the legacy X-RateLimit-* names,
+        // so emit both the draft-7 combined header and the legacy trio.
+        legacyHeaders: true,
         message: { success: false, msg: 'Too many requests' },
     });
     app.use('/api/subscriptions/public', publicSubLimiter);
@@ -226,6 +229,8 @@ function setupGracefulShutdown(httpServer) {
         // most recent store updates on shutdown (no-op in file mode).
         const flushAndExit = (code) => {
             flushSnapshotQueue()
+                .catch(() => {})
+                .then(() => closeDb())
                 .catch(() => {})
                 .finally(() => process.exit(code));
         };

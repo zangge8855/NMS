@@ -64,6 +64,7 @@ function saveArray(file, data) {
     next.finally(() => {
         if (saveChains.get(file) === next) saveChains.delete(file);
     });
+    return next;
 }
 
 function normalizeDateInput(value, fallback = null) {
@@ -79,13 +80,20 @@ function toPositiveInt(value, fallback) {
     return Math.floor(parsed);
 }
 
-function redactSensitive(value) {
+function redactSensitive(value, visited = new Set()) {
     if (value === null || value === undefined) return value;
     if (typeof value === 'string') return value;
     if (typeof value !== 'object') return value;
 
+    if (visited.has(value)) {
+        return '[CIRCULAR]';
+    }
+    visited.add(value);
+
     if (Array.isArray(value)) {
-        return value.map((item) => redactSensitive(item));
+        const result = value.map((item) => redactSensitive(item, visited));
+        visited.delete(value);
+        return result;
     }
 
     const output = {};
@@ -94,8 +102,9 @@ function redactSensitive(value) {
             output[key] = '[REDACTED]';
             continue;
         }
-        output[key] = redactSensitive(raw);
+        output[key] = redactSensitive(raw, visited);
     }
+    visited.delete(value);
     return output;
 }
 
@@ -559,9 +568,10 @@ class AuditStore {
     }
 
     _save() {
-        saveArray(AUDIT_EVENTS_FILE, this.events);
-        saveArray(SUB_ACCESS_FILE, this.subscriptionAccess);
+        const p1 = saveArray(AUDIT_EVENTS_FILE, this.events);
+        const p2 = saveArray(SUB_ACCESS_FILE, this.subscriptionAccess);
         this._mirrorSnapshot();
+        return Promise.all([p1, p2]);
     }
 }
 

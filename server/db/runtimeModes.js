@@ -27,6 +27,7 @@ export function getStoreModes() {
     return {
         readMode,
         writeMode,
+        userStore: readMode,
     };
 }
 

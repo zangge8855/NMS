@@ -80,7 +80,7 @@ async function fetchServerPanelSnapshot(server, options = {}) {
                 id: server.id,
                 name: server.name,
             },
-            inbounds: [],
+            inbounds: null,
             onlines: [],
             lastOnline: {},
             inboundsError: normalized,

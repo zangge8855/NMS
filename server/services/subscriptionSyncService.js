@@ -24,6 +24,13 @@ import {
     isServerAllowedByPolicy,
 } from '../lib/userPolicyResolver.js';
 
+function redactCredentials(message) {
+    if (typeof message !== 'string') return message;
+    let sanitized = message.replace(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g, '[REDACTED_UUID]');
+    sanitized = sanitized.replace(/\/delClient\/[^/\s?]+/g, '/delClient/[REDACTED]');
+    return sanitized;
+}
+
 function normalizeEmailInput(value) {
     return String(value || '').trim().toLowerCase();
 }
@@ -264,7 +271,7 @@ async function migrateManagedSubscriptionEmail(sourceEmail, targetEmail, options
                 serverId: server.id,
                 serverName: server.name,
                 status: 'failed',
-                error: buildPanelListFailureMessage(error),
+                error: redactCredentials(buildPanelListFailureMessage(error)),
             });
             continue;
         }
@@ -340,7 +347,7 @@ async function migrateManagedSubscriptionEmail(sourceEmail, targetEmail, options
                 inboundRemark: item.inboundRemark,
                 protocol: item.protocol,
                 status: 'failed',
-                error: error.message || 'client-email-migration-failed',
+                error: redactCredentials(error.message || 'client-email-migration-failed'),
             });
             break;
         }
@@ -371,7 +378,7 @@ async function migrateManagedSubscriptionEmail(sourceEmail, targetEmail, options
                 inboundRemark: item.inboundRemark,
                 protocol: item.protocol,
                 status: 'rollback_failed',
-                error: error.message || 'client-email-rollback-failed',
+                error: redactCredentials(error.message || 'client-email-rollback-failed'),
             });
         }
     }
@@ -417,7 +424,7 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
                 serverId: server.id,
                 serverName: server.name,
                 status: 'failed',
-                error: buildPanelListFailureMessage(error),
+                error: redactCredentials(buildPanelListFailureMessage(error)),
             });
             result.failed += 1;
             result.total += 1;
@@ -468,7 +475,7 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
                             inboundRemark: inbound.remark || '',
                             protocol,
                             status: 'failed',
-                            error: error.message,
+                            error: redactCredentials(error.message),
                         });
                     }
                 }
@@ -598,7 +605,7 @@ async function autoDeployClients(subscriptionEmail, policy, options = {}, deps =
                     inboundRemark: inbound.remark || '',
                     protocol,
                     status: 'failed',
-                    error: error.message,
+                    error: redactCredentials(error.message),
                 });
             }
         }
@@ -656,7 +663,7 @@ async function autoRemoveClients(subscriptionEmail, options = {}, deps = {}) {
                 serverId: server.id,
                 serverName: server.name,
                 status: 'failed',
-                reason: `panel-unreachable: ${String(error?.message || error)}`,
+                reason: redactCredentials(`panel-unreachable: ${String(error?.message || error)}`),
             });
             continue;
         }
@@ -698,7 +705,7 @@ async function autoRemoveClients(subscriptionEmail, options = {}, deps = {}) {
                     inboundRemark: inbound.remark || '',
                     protocol,
                     status: 'failed',
-                    error: error.message,
+                    error: redactCredentials(error.message),
                 });
             }
         }
@@ -729,7 +736,7 @@ async function autoSetManagedClientsEnabled(subscriptionEmail, enabled, options 
                 serverId: server.id,
                 serverName: server.name,
                 status: 'failed',
-                error: buildPanelListFailureMessage(error),
+                error: redactCredentials(buildPanelListFailureMessage(error)),
             });
             continue;
         }
@@ -867,7 +874,7 @@ async function autoSetManagedClientsEnabled(subscriptionEmail, enabled, options 
                     inboundRemark: inbound.remark || '',
                     protocol,
                     status: 'failed',
-                    error: error.message,
+                    error: redactCredentials(error.message),
                 });
             }
         }

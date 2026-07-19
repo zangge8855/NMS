@@ -24,7 +24,7 @@ test('getServerPanelSnapshot degrades auth failures into per-server errors', asy
     );
 
     assert.equal(snapshot.server.id, 'server-a');
-    assert.deepEqual(snapshot.inbounds, []);
+    assert.equal(snapshot.inbounds, null);
     assert.deepEqual(snapshot.onlines, []);
     assert.equal(snapshot.inboundsError?.code, 'PANEL_LOGIN_FAILED');
     assert.equal(snapshot.inboundsError?.message, 'invalid username or password');
@@ -75,7 +75,7 @@ test('getServerPanelSnapshots keeps healthy snapshots when one server auth fails
     assert.equal(snapshots[0].inbounds.length, 1);
     assert.equal(snapshots[0].inboundsError, null);
     assert.equal(snapshots[1].server.id, 'server-b');
-    assert.deepEqual(snapshots[1].inbounds, []);
+    assert.equal(snapshots[1].inbounds, null);
     assert.equal(snapshots[1].inboundsError?.code, 'PANEL_LOGIN_FAILED');
     assert.equal(snapshots[1].onlinesError?.code, 'PANEL_LOGIN_FAILED');
 });
