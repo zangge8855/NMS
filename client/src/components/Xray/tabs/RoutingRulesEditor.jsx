@@ -80,16 +80,18 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
 
     const updateRule = (index, field, val) => {
         const newRules = [...(config.rules || [])];
+        const nextRule = { ...(newRules[index] || {}) };
         if (field === 'domain' || field === 'ip') {
             const arr = val.split(',').map(s => s.trim()).filter(Boolean);
             if (arr.length > 0) {
-                newRules[index][field] = arr;
+                nextRule[field] = arr;
             } else {
-                delete newRules[index][field];
+                delete nextRule[field];
             }
         } else {
-            newRules[index][field] = val;
+            nextRule[field] = val;
         }
+        newRules[index] = nextRule;
         setConfig({ ...config, rules: newRules });
     };
 

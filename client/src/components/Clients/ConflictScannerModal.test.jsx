@@ -16,6 +16,7 @@ vi.mock('../../utils/riskConfirm.js', () => ({
 
 vi.mock('../UI/ModalShell.jsx', () => ({
     default: ({ children }) => <div data-testid="modal-shell">{children}</div>,
+    acquireModalStackSlot: () => ({ isTopmost: () => true, release: () => {} }),
 }));
 
 vi.mock('../UI/EmptyState.jsx', () => ({

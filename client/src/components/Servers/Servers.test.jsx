@@ -28,6 +28,7 @@ vi.mock('../Layout/Header.jsx', () => ({
 
 vi.mock('../UI/ModalShell.jsx', () => ({
     default: ({ isOpen, children }) => (isOpen ? <div>{children}</div> : null),
+    acquireModalStackSlot: () => ({ isTopmost: () => true, release: () => {} }),
 }));
 
 vi.mock('../UI/EmptyState.jsx', () => ({

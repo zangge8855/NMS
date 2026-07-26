@@ -11,6 +11,24 @@ const MODAL_EXIT_DURATION_MS = 240;
 // close them both at once or make the two focus traps fight each other.
 let modalInstanceSeq = 0;
 const modalStack = [];
+
+// Lets non-ModalShell overlays (e.g. the enlarged-QR portal) participate in the
+// shared modal stack, so the ModalShell beneath them stops treating itself as
+// topmost — otherwise one Escape would close both layers at once.
+export function acquireModalStackSlot() {
+    const id = ++modalInstanceSeq;
+    modalStack.push(id);
+    let released = false;
+    return {
+        isTopmost: () => modalStack.length > 0 && modalStack[modalStack.length - 1] === id,
+        release: () => {
+            if (released) return;
+            released = true;
+            const idx = modalStack.indexOf(id);
+            if (idx !== -1) modalStack.splice(idx, 1);
+        },
+    };
+}
 const FOCUSABLE_SELECTOR = [
     'a[href]',
     'area[href]',

@@ -32,6 +32,7 @@ vi.mock('../Layout/Header.jsx', () => ({
 
 vi.mock('../UI/ModalShell.jsx', () => ({
     default: ({ children }) => <div>{children}</div>,
+    acquireModalStackSlot: () => ({ isTopmost: () => true, release: () => {} }),
 }));
 
 vi.mock('../UI/SkeletonTable.jsx', () => ({

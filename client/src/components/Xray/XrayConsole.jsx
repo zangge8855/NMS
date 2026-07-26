@@ -148,8 +148,15 @@ export default function XrayConsole() {
             const next = res?.data?.obj;
             if (next?.snapshot) {
                 setSnapshot(next.snapshot);
-                if (next?.template) setTemplate(next.template);
                 if (next?.source) setSource(String(next.source));
+                if (next?.template) {
+                    setTemplate(next.template);
+                } else {
+                    // The save response is expected to echo the template; if it
+                    // is missing, refetch instead of keeping a stale one that a
+                    // later save would push back to the node.
+                    await loadConfig();
+                }
             } else {
                 await loadConfig();
             }

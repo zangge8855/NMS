@@ -42,6 +42,7 @@ vi.mock('../UI/ClientIpModal.jsx', () => ({
 
 vi.mock('../UI/ModalShell.jsx', () => ({
     default: ({ children }) => <div>{children}</div>,
+    acquireModalStackSlot: () => ({ isTopmost: () => true, release: () => {} }),
 }));
 
 vi.mock('../Subscriptions/SubscriptionClientLinks.jsx', () => ({

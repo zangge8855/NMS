@@ -5,6 +5,7 @@ import BatchResultModal from './BatchResultModal.jsx';
 
 vi.mock('../UI/ModalShell.jsx', () => ({
     default: ({ children }) => <div data-testid="modal-shell">{children}</div>,
+    acquireModalStackSlot: () => ({ isTopmost: () => true, release: () => {} }),
 }));
 
 describe('BatchResultModal', () => {

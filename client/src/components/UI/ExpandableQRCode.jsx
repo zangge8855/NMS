@@ -5,6 +5,7 @@ import { HiOutlineXMark, HiOutlineArrowsPointingOut, HiOutlineClipboard } from '
 import { copyToClipboard } from '../../utils/format.js';
 import toast from 'react-hot-toast';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
+import { acquireModalStackSlot } from './ModalShell.jsx';
 
 /**
  * Subscription QR with click-to-enlarge: tap/click the QR to open a large
@@ -35,9 +36,24 @@ export default function ExpandableQRCode({
     }, []);
 
     const close = useCallback(() => setExpanded(false), []);
-    const onKey = useCallback((event) => {
-        if (event.key === 'Escape') close();
-    }, [close]);
+
+    // The enlarged overlay joins the shared modal stack while open, so an
+    // underlying ModalShell no longer counts itself topmost — one Escape then
+    // collapses only the QR layer instead of also dismissing the host modal.
+    useEffect(() => {
+        if (!expanded) return undefined;
+        const slot = acquireModalStackSlot();
+        const handleKeyDown = (event) => {
+            if (event.key !== 'Escape' || !slot.isTopmost()) return;
+            event.preventDefault();
+            close();
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+            slot.release();
+        };
+    }, [expanded, close]);
 
     if (!value) return null;
     const isTooLong = String(value || '').length > maxQrValueLength;
@@ -103,7 +119,6 @@ export default function ExpandableQRCode({
                     onClick={(event) => {
                         if (event.target === event.currentTarget) close();
                     }}
-                    onKeyDown={onKey}
                     tabIndex={-1}
                 >
                     <div className="expandable-qr-card">

@@ -45,6 +45,7 @@ vi.mock('../Batch/BatchResultModal.jsx', () => ({
 
 vi.mock('../UI/ModalShell.jsx', () => ({
     default: ({ children }) => <div>{children}</div>,
+    acquireModalStackSlot: () => ({ isTopmost: () => true, release: () => {} }),
 }));
 
 vi.mock('../UI/EmptyState.jsx', () => ({

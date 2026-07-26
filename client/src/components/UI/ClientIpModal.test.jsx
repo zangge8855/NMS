@@ -5,6 +5,7 @@ import ClientIpModal from './ClientIpModal.jsx';
 
 vi.mock('./ModalShell.jsx', () => ({
     default: ({ children }) => <div>{children}</div>,
+    acquireModalStackSlot: () => ({ isTopmost: () => true, release: () => {} }),
 }));
 
 vi.mock('./SkeletonTable.jsx', () => ({

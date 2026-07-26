@@ -32,12 +32,9 @@ vi.mock('../Tasks/TaskProgressModal.jsx', () => ({
     default: () => null,
 }));
 
-vi.mock('../Server/Server.jsx', () => ({
-    default: ({ embedded }) => <div>{embedded ? '嵌入式节点控制台' : '节点控制台页面'}</div>,
-}));
-
 vi.mock('../UI/ModalShell.jsx', () => ({
     default: ({ children }) => <div>{children}</div>,
+    acquireModalStackSlot: () => ({ isTopmost: () => true, release: () => {} }),
 }));
 
 vi.mock('react-hot-toast', () => ({
