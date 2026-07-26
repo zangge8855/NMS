@@ -15,8 +15,8 @@
 |---|------|-------|-------------|--------|
 | 0 | E2E Test Suite | Design and implement Tier 1-4 tests, publish `TEST_READY.md` | none | DONE (Output: /root/NMS/server/tests/e2e.test.js, /root/NMS/TEST_READY.md) |
 | 1 | Server-Side Data Store & Integrity Fixes | R1: trafficStatsStore, fileUtils, auditStore, storeRegistry, systemSettingsStore, graceful shutdown db state flush, user deletion panel cleanup | none | DONE (Conv: bbe834ef-c18a-425c-811d-eead7c371edd, Audit: 757b6ef3-824d-4c41-91d6-31602295bd35) |
-| 2 | API Routes & Alerts | R2 & R3: batch redaction replay, unhandled Express rejections, 3x-ui API validation, passwordHash/salt filter, token TTL defaults, global snapshot cache, backup alert loops, notifications.json atomic write | M1 | IN_PROGRESS |
-| 3 | Client UI, Design System & i18n | R4 & R5: speed limit units, xrayConfig template save, UI request loops, theme colors (dark theme variables, white-on-white text, flagship v3 Indigo colors, color-mix), ServerDetail & SystemSettings translation | M2 | PLANNED |
+| 2 | API Routes & Alerts | R2 & R3: batch redaction replay, unhandled Express rejections, 3x-ui API validation, passwordHash/salt filter, token TTL defaults, global snapshot cache, backup alert loops, notifications.json atomic write | M1 | DONE (verified 2026-07-26; residual hardening — userGroups/userPolicy numeric 400s, token noExpiry-only, per-server cache eviction, ISP partial-refresh, Telegram NaN guards — landed same day with regression tests) |
+| 3 | Client UI, Design System & i18n | R4 & R5: speed limit units, xrayConfig template save, UI request loops, theme colors (dark theme variables, white-on-white text, flagship blue accent, color-mix), ServerDetail & SystemSettings translation | M2 | DONE (verified 2026-07-26; runtime EN-locale sweep clean on all 14 routes; orphaned styles restored — CircularMeter/log chips/pagination; Escape-stacking + RoutingRules state fixes) |
 
 ## Interface Contracts
 ### Backup Restoration Contract
