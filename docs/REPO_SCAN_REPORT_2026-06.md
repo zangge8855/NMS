@@ -112,3 +112,29 @@
 - 删除节点后 `cpuHistoryCache` / `throughputBaselineByServerId` 永久泄漏 → 删除路由逐出（含回归测试）。
 - QR 放大层叠加模态时 Escape 双关闭 → 纳入共享 modalStack。
 - RoutingRulesEditor 原地修改 React state → 复制后更新。
+
+## 2026-07-26 第二轮复核（覆盖首轮盲区：认证/授权、WS、订阅路由、客户端运行时层、移动端）
+
+第二轮派 3 个领域核查代理（auth/route 安全、WS/订阅/中间件、客户端运行时）+ 移动端 390px 双主题全页 + 桌面弹窗/下拉/搜索截图审查。发现并修复：
+
+### 严重（Critical / High）
+- ✅ **[CRITICAL] 2FA 完全绕过**：`middleware/auth.js` 裸 `jwt.verify` 不校验 `type`/`aud`/`algorithms`；而 2FA 挑战令牌用同密钥签名并携带 `role`、在第二因子完成前就返回给客户端 → 仅有密码的攻击者可将挑战令牌当完整管理员会话令牌用满 5 分钟。修：锁定 HS256 + 拒绝任何带 `type` 的令牌（会话令牌从不设 type）。含 4 例回归测试。
+- ✅ **[HIGH] 跨账号数据泄漏 ×2**：`logout()`/会话过期仅清 token，不清 sessionStorage 快照与模块缓存（managed-users cache 的 `snapshotHydrated` 闩锁）→ 同一浏览器标签页管理员 A 登出、B 登入后，B 会看到 A 的用户列表(⌘K 搜索)、通知、未读角标、服务器列表、仪表盘，直到后台请求覆盖。修：新增 `clearAppSessionState()`（含 `clearAllSessionSnapshots()` 按前缀清扫，覆盖动态键如 per-server 用户统计/telemetry）接入 logout + session-expired。端到端验证登出后 sessionStorage 归零。含回归测试。
+- ✅ **[HIGH·移动端] 订阅页在 <1080px 从不塌成单列**：CSS 特异性 bug——`@media(max-width:1320px)` 的 `.subscriptions-workbench:not(--simple)` (0,2,0) 压过 `@media(max-width:1080px)` 的裸类 (0,1,0)，两列布局一直保留到手机宽度，主列被压到 62px、内容全部竖排断裂，页面高达 2555px 完全不可用。修：塌缩规则改用同特异性 `:not(--simple)` 选择器。验证 390/768px 均单列。
+
+### 中/低（Medium / Low）
+- ✅ **[MEDIUM] 订阅转换器崩溃挂起**：`parseVmessProxy`/`parseSingboxVmessOutbound` 中 `JSON.parse("null")` 返回 null 不抛错，随后属性访问抛出 TypeError 逃出 try/catch → 一个畸形 `vmess://` 节点使整个 clash/sing-box/surge 配置构建失败，Express4 未捕获拒绝导致客户端请求永久挂起。修：解析后守卫非对象载荷。含回归测试。
+- ✅ **[MEDIUM] 到期通知漏发+重复**：`subscriptionExpiryNotifier` 用 `limit:50`（本为管理台展示用）截断通知派发 → 排名 51+ 的用户永不收到到期提醒；且 `clearResolvedUsers` 按截断集清 dedup 键 → 用户在 top-50 内外漂移时重复告警。修：通知派发不截断，处理全部窗口内用户。含回归测试。
+- ✅ **[LOW] WS 广播裸 `ws.send()`**：集群/任务/通知三处广播未用 `safeSend`，单个 socket 在 readyState 检查与 send 之间断开会抛出 → 跳过本轮剩余客户端，或在 taskQueue/notification 监听器中冒泡回 emit() 表现为伪任务失败。修：新增 `safeSendRaw`（发送已序列化载荷 + try/catch）用于三处。
+
+### 已核查为稳健（无需改动）
+- 路由挂载全部经 authMiddleware+adminOnly；仅 auth/subscription/health 公开且各自内部鉴权。
+- 公开订阅令牌模型：email 绑定 + timing-safe 比较 + 由令牌记录（非路径）解析 email → 无 IDOR。
+- 服务器/凭据响应经 `_publicServer` 脱敏投影；无凭据回显。
+- 速率限制 key/skip 逻辑正确；`trustProxy` 默认 loopback，XFF 无法伪造 `req.ip`。
+- panelClient 会话 cookie 按服务器隔离；serverHealthMonitor 状态机正确抑制重复/瞬态告警。
+- 移动端其余页面（仪表盘/服务器/设置等）+ 桌面弹窗/下拉/搜索面板布局均干净。
+
+### 记为待办（今日不触发或需较大设计改动）
+- [MEDIUM] 改密/禁用/删除用户不撤销现有令牌（24h TTL 限界）——需 tokenVersion/jti 机制，属独立特性。
+- [LOW] 传统签名订阅路由缺禁用用户闸门（正常由面板客户端同步兜底）；Surge 节点名含逗号/等号未转义；taskQueue.start 无终态守卫；wsServer 单例监听器在二次 init 时累积（生产单次 init 无害）；客户端 checkAuth 在 500/离线时信任本地 JWT（离线容忍权衡）；WS 重连复用一次性 ticket（30s 节流内）。
