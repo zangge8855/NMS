@@ -1526,6 +1526,10 @@ function parseVmessProxy(link, usedNames, index) {
     } catch {
         return null;
     }
+    // JSON.parse("null") / a bare scalar or array parses without throwing but
+    // has no vmess fields; guard before property access so one malformed node
+    // link can't throw past the caller and hang the whole config build.
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
 
     const server = firstNonEmpty(payload.add, payload.server);
     const port = Number(payload.port);
@@ -2437,6 +2441,9 @@ function parseSingboxVmessOutbound(link, usedNames, index) {
     } catch {
         return null;
     }
+    // See parseVmessProxy: a non-object payload (null/array/scalar) parses
+    // cleanly but would throw on the property access below.
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
 
     const server = firstNonEmpty(payload.add, payload.server);
     const serverPort = Number(payload.port);

@@ -386,7 +386,7 @@ export function initWebSocket(httpServer) {
             // Broadcast to all connected clients
             for (const ws of wss.clients) {
                 if (ws.readyState !== 1) continue; // OPEN = 1
-                ws.send(clusterPayload);
+                safeSendRaw(ws, clusterPayload);
 
                 // If subscribed to a specific server, send detailed status
                 if (ws.subscribedServerId && snapshot.byServerId?.[ws.subscribedServerId]) {
@@ -417,7 +417,7 @@ export function initWebSocket(httpServer) {
         for (const ws of wss.clients) {
             if (ws.readyState !== 1) continue;
             if (ws.subscribedTaskIds?.has(task.id)) {
-                ws.send(payload);
+                safeSendRaw(ws, payload);
             }
         }
     });
@@ -434,12 +434,27 @@ export function initWebSocket(httpServer) {
         });
         for (const ws of wss.clients) {
             if (ws.readyState !== 1) continue;
-            ws.send(payload);
+            safeSendRaw(ws, payload);
         }
     });
 
     console.log('  🔌 WebSocket server initialized on /ws');
     return wss;
+}
+
+// Send an already-serialized payload (broadcast loops stringify once, then fan
+// out). A socket can tear down between the readyState check and send; without
+// this guard the throw skips the rest of that broadcast tick, or — for the
+// taskQueue/notification listeners — propagates back into emit() and surfaces
+// as a spurious task failure.
+function safeSendRaw(ws, payload) {
+    try {
+        if (ws.readyState === 1) {
+            ws.send(payload);
+        }
+    } catch {
+        // ignore a single dead socket; keep broadcasting to the rest
+    }
 }
 
 function safeSend(ws, data) {

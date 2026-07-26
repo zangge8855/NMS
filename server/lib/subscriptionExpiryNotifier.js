@@ -193,7 +193,12 @@ export function createSubscriptionExpiryNotifier(options = {}) {
             now: now(),
             userStore: userRepo,
             policyStore: policyRepo,
-            limit: 50,
+            // No limit for notification dispatch: the 50-item cap is only for the
+            // admin display snapshot. Truncating here both skipped users ranked
+            // 51+ entirely and — because clearResolvedUsers() purges dedup keys
+            // outside the truncated set — re-fired duplicate alerts whenever a
+            // user drifted in and out of the top 50 between runs.
+            limit: Number.MAX_SAFE_INTEGER,
         });
         const activeKeys = new Set();
 

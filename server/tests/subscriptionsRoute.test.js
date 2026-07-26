@@ -599,6 +599,23 @@ describe('mihomo config generation', () => {
     it('returns an empty payload when no clash-compatible links exist', () => {
         assert.equal(buildMihomoConfigFromLinks(['socks://unsupported.example.com']), '');
     });
+
+    it('skips a malformed vmess link (base64 "null") without throwing', () => {
+        // JSON.parse("null") returns null and used to throw on the next property
+        // access, aborting the whole build and hanging the client request.
+        const nullVmess = `vmess://${Buffer.from('null').toString('base64')}`;
+        const scalarVmess = `vmess://${Buffer.from('42').toString('base64')}`;
+        let yamlText;
+        assert.doesNotThrow(() => {
+            yamlText = buildMihomoConfigFromLinks(
+                [nullVmess, scalarVmess, vmessLink],
+                'https://sub.example.com/base?format=clash'
+            );
+        });
+        const parsed = parseGeneratedYaml(yamlText);
+        // Only the one valid vmess node survives; the malformed links are dropped.
+        assert.deepEqual(parsed.proxies.map((item) => item.type), ['vmess']);
+    });
 });
 
 describe('surge config generation', () => {

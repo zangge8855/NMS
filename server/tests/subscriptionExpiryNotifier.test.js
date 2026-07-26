@@ -74,3 +74,34 @@ test('subscriptionExpiryNotifier emits stage-based notifications without duplica
     assert.equal(calls.length, 2);
     assert.match(calls[1].body, /还有 1 天到期/);
 });
+
+test('subscriptionExpiryNotifier notifies every in-window user, not just the first 50', () => {
+    const now = new Date('2026-03-16T00:00:00.000Z').getTime();
+    // 60 users all inside the warning window — more than the old 50-item cap.
+    const users = Array.from({ length: 60 }, (_, i) => ({
+        username: `user${i}`,
+        email: `user${i}@example.com`,
+        subscriptionEmail: `user${i}@example.com`,
+        role: 'user',
+        enabled: true,
+    }));
+    const calls = [];
+    const service = createSubscriptionExpiryNotifier({
+        now: () => now,
+        userStore: { getAll: () => users },
+        policyStore: {
+            // Stagger expiry so sort order is well-defined; all within 3 days.
+            get(email) {
+                const idx = Number(String(email).replace(/\D/g, '')) || 0;
+                return { expiryTime: now + (2 * 24 * 60 * 60 * 1000) + idx * 1000 };
+            },
+        },
+        notificationService: { notify: (p) => { calls.push(p); return p; } },
+    });
+
+    service.runOnce();
+    assert.equal(calls.length, 60);
+    // Second run with no stage change must not re-fire any (dedup intact for all).
+    service.runOnce();
+    assert.equal(calls.length, 60);
+});
