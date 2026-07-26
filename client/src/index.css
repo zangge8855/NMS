@@ -14953,7 +14953,11 @@ input[type="radio"]:focus-visible {
 }
 
 @media (max-width: 1080px) {
-  .subscriptions-workbench {
+  /* Must match the (0,2,0) specificity of the max-width:1320px
+     `:not(--simple)` rule above, otherwise that higher-specificity two-column
+     rule wins at every width below 1080 and the workbench never collapses —
+     crushing the main column to a sliver of vertical text on phones. */
+  .subscriptions-workbench:not(.subscriptions-workbench--simple) {
     grid-template-columns: 1fr;
   }
 }

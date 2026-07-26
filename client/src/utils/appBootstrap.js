@@ -1,4 +1,6 @@
-import { writeSessionSnapshot } from './sessionSnapshot.js';
+import { writeSessionSnapshot, clearAllSessionSnapshots } from './sessionSnapshot.js';
+import { invalidateManagedUsersCache } from './managedUsersCache.js';
+import { invalidateServerPanelDataCache } from './serverPanelDataCache.js';
 
 const SERVER_CONTEXT_SNAPSHOT_KEY = 'server_context_bootstrap_v1';
 const MANAGED_USERS_SNAPSHOT_KEY = 'managed_users_v1';
@@ -142,4 +144,17 @@ export function applyAppBootstrapSnapshots(payload = {}) {
             tasks: tasks.tasks,
         }), { source: APP_BOOTSTRAP_SOURCE });
     }
+}
+
+// Logout / session-expiry must drop every cached trace of the previous account.
+// The session snapshots are keyed per session (not per user), so on a shared
+// tab the next admin would otherwise see the prior admin's user list,
+// notifications, unread badge, servers, and dashboard until each background
+// fetch overwrites them. clearAllSessionSnapshots() also catches dynamically
+// keyed snapshots (per-server user stats, per-window telemetry) a static list
+// would miss.
+export function clearAppSessionState() {
+    clearAllSessionSnapshots();
+    invalidateManagedUsersCache();
+    invalidateServerPanelDataCache();
 }

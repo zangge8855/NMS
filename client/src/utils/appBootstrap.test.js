@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest';
-import { applyAppBootstrapSnapshots } from './appBootstrap.js';
-import { readSessionSnapshot } from './sessionSnapshot.js';
+import { applyAppBootstrapSnapshots, clearAppSessionState } from './appBootstrap.js';
+import { readSessionSnapshot, writeSessionSnapshot } from './sessionSnapshot.js';
+import { applyManagedUsersSnapshot, getManagedUsersSnapshot } from './managedUsersCache.js';
 
 describe('applyAppBootstrapSnapshots', () => {
     beforeEach(() => {
@@ -220,5 +221,49 @@ describe('applyAppBootstrapSnapshots', () => {
                 },
             ],
         });
+    });
+});
+
+describe('clearAppSessionState', () => {
+    beforeEach(() => {
+        window.sessionStorage.clear();
+    });
+
+    it('clears every account-scoped snapshot and the managed-users cache latch on logout', () => {
+        // Seed the state a logged-in admin would leave behind.
+        applyAppBootstrapSnapshots({
+            serverContext: { servers: [{ id: 'server-a', name: 'Node A' }] },
+            managedUsers: [{ id: 'user-1', username: 'alice', email: 'alice@example.com', role: 'user' }],
+            notifications: { notifications: [{ id: 'n1', title: 'Notice' }], unreadCount: 3, loadedLimit: 1 },
+            tasks: { tasks: [{ id: 'task-1', type: 'clients' }] },
+        });
+        applyManagedUsersSnapshot([{ id: 'user-1', username: 'alice', email: 'alice@example.com', role: 'user' }]);
+        // A dynamically-keyed snapshot (per-server-set user stats) — the kind a
+        // static key list would miss.
+        writeSessionSnapshot('managed_user_stats_v1:server-a|server-b', { total: 3 });
+        expect(readSessionSnapshot('managed_users_v1')).toBeTruthy();
+        expect(readSessionSnapshot('managed_user_stats_v1:server-a|server-b')).toBeTruthy();
+        expect(getManagedUsersSnapshot()).toHaveLength(1);
+
+        clearAppSessionState();
+
+        // Nothing account-scoped survives for the next admin on the same tab.
+        for (const key of [
+            'server_context_bootstrap_v1',
+            'managed_users_v1',
+            'managed_user_stats_v1:server-a|server-b',
+            'notification_center_bootstrap_v1',
+            'dashboard_global_v1',
+            'audit_events_v1',
+            'audit_traffic_v2',
+            'audit_access_v1',
+            'system_settings_bootstrap_v1',
+            'tasks_page_bootstrap_v1',
+        ]) {
+            expect(readSessionSnapshot(key)).toBeNull();
+        }
+        // Module cache is invalidated AND its backing snapshot is gone, so a
+        // re-hydration attempt finds nothing — the next admin starts empty.
+        expect(getManagedUsersSnapshot()).toHaveLength(0);
     });
 });

@@ -127,3 +127,26 @@ export function clearSessionSnapshot(key) {
         // ignore storage cleanup failures
     }
 }
+
+// Remove every session snapshot, including dynamically-keyed ones (per-server
+// user stats, per-window telemetry) that a static key list can't enumerate.
+// Everything under SNAPSHOT_PREFIX is transient, account-scoped data cache —
+// theme/locale live in localStorage — so a logout must wipe all of it.
+export function clearAllSessionSnapshots() {
+    if (!canUseSessionStorage()) return;
+    try {
+        pendingWrites.forEach((handle) => cancelScheduledSnapshotWrite(handle));
+        pendingWrites.clear();
+        const doomed = [];
+        for (let i = 0; i < window.sessionStorage.length; i += 1) {
+            const storageKey = window.sessionStorage.key(i);
+            if (storageKey && storageKey.startsWith(SNAPSHOT_PREFIX)) doomed.push(storageKey);
+        }
+        doomed.forEach((storageKey) => window.sessionStorage.removeItem(storageKey));
+        window.dispatchEvent(new CustomEvent(SESSION_SNAPSHOT_EVENT, {
+            detail: { key: '', action: 'clear-all', source: '', storageKey: '' },
+        }));
+    } catch {
+        // ignore storage cleanup failures
+    }
+}

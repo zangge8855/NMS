@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useNavigate } from 'react-router-dom';
 import api, { getStoredToken, setStoredToken, clearStoredToken } from '../api/client.js';
 import { DEFAULT_LOCALE, getLocaleMessage, VALID_LOCALES } from '../i18n/messages.js';
+import { clearAppSessionState } from '../utils/appBootstrap.js';
 
 function resolveUiLocale() {
     if (typeof document !== 'undefined') {
@@ -40,6 +41,7 @@ export function AuthProvider({ children }) {
     useEffect(() => {
         const handler = () => {
             clearStoredToken();
+            clearAppSessionState();
             setToken(null);
             setIsAuthenticated(false);
             setUser(null);
@@ -164,6 +166,7 @@ export function AuthProvider({ children }) {
 
     const logout = () => {
         clearStoredToken();
+        clearAppSessionState();
         setToken(null);
         setIsAuthenticated(false);
         setUser(null);
