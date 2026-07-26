@@ -1330,11 +1330,11 @@ export default function SystemSettings() {
             });
             const obj = res.data?.obj || null;
             if (obj?.taskId) {
-                // 异步模式：显示进度弹窗
+                // Async mode: show the progress modal.
                 setBackfillTaskId(obj.taskId);
                 toast(t('pages.settings.theBackfillTaskHasBeenStartedPlease'));
             } else {
-                // 同步模式回退
+                // Sync-mode fallback.
                 const output = obj;
                 setDbBackfillResult(output);
                 const failed = Number(output?.failed || 0);

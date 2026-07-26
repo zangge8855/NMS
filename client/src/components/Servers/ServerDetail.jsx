@@ -67,13 +67,14 @@ function readServerDetailSnapshot(serverId) {
 
 function StatMini({ label, value, suffix }) {
     const animated = useAnimatedCounter(typeof value === 'number' ? value : 0);
-    const displayValue = value === null || value === undefined
-        ? '...'
-        : (typeof value === 'number' ? `${animated}${suffix || ''}` : `${value}${suffix || ''}`);
+    const pending = value === null || value === undefined;
+    const mainValue = pending ? '...' : String(typeof value === 'number' ? animated : value);
+    const suffixText = pending ? '' : String(suffix || '');
     return (
         <div className="stat-mini-card">
-            <div className="stat-mini-value" title={displayValue}>
-                <span className="stat-mini-value-text">{displayValue}</span>
+            <div className="stat-mini-value" title={`${mainValue}${suffixText}`}>
+                <span className="stat-mini-value-text">{mainValue}</span>
+                {suffixText ? <span className="stat-mini-value-suffix">{suffixText}</span> : null}
             </div>
             <div className="stat-mini-label">{label}</div>
         </div>

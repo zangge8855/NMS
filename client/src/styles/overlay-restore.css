@@ -18,6 +18,9 @@
  *   2. Subscription QR modal  — mobile scan sheet (.subscription-qr-modal-*)
  *   3. Chart tooltip          — themed recharts tooltip (.chart-tooltip-*)
  *   4. Security bootstrap      — forced-setup fixed overlay (.security-bootstrap-*)
+ *   5. Circular usage meters   — subscription quota rings (.circular-meter-*);
+ *      without these rules the SVG circles take the browser default black fill
+ *      and render as giant black discs.
  */
 
 /* ==========================================================================
@@ -557,4 +560,122 @@
 [data-theme="light"] .subscription-qr-modal-surface {
   background: rgba(255, 255, 255, 0.98);
   box-shadow: 0 18px 38px rgba(15, 23, 42, 0.1);
+}
+
+/* ==========================================================================
+ * 5. Circular usage meters — subscription quota rings (used traffic /
+ *    remaining quota / expiry). Only rendered on the Subscriptions page via
+ *    .subscription-meter-grid. SVG circles need explicit `fill: none`.
+ * ======================================================================== */
+.subscription-meter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.circular-meter {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--stroke-soft);
+  border-radius: var(--radius-lg);
+  background: var(--surface-subtle);
+}
+
+.circular-meter-visual {
+  position: relative;
+  width: 64px;
+  height: 64px;
+}
+
+.circular-meter-svg {
+  display: block;
+  width: 64px;
+  height: 64px;
+  transform: rotate(-90deg);
+}
+
+.circular-meter-track,
+.circular-meter-value-ring {
+  fill: none;
+  stroke-width: 8;
+}
+
+.circular-meter-track {
+  stroke: color-mix(in srgb, var(--text-muted) 24%, transparent);
+}
+
+.circular-meter-value-ring {
+  stroke: var(--accent-primary);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.6s cubic-bezier(0.16, 1, 0.3, 1), stroke 180ms ease;
+}
+
+.circular-meter--success .circular-meter-value-ring {
+  stroke: var(--accent-success);
+}
+
+.circular-meter--warning .circular-meter-value-ring {
+  stroke: var(--accent-warning);
+}
+
+.circular-meter--danger .circular-meter-value-ring {
+  stroke: var(--accent-danger);
+}
+
+.circular-meter-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.circular-meter-percent {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.circular-meter-copy {
+  min-width: 0;
+}
+
+.circular-meter-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.circular-meter-value {
+  margin-top: 2px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.circular-meter-meta {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.circular-meter.is-pulse .circular-meter-value-ring {
+  animation: circular-meter-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes circular-meter-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .circular-meter.is-pulse .circular-meter-value-ring {
+    animation: none;
+  }
 }

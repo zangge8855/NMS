@@ -28,7 +28,7 @@
   --surface-subtle: rgba(255, 255, 255, 0.014);
   --surface-hover: rgba(255, 255, 255, 0.048);
   --surface-table-header: #101823;
-  --surface-table-row-hover: rgba(99, 102, 241, 0.055);
+  --surface-table-row-hover: rgba(47, 125, 246, 0.055);
   --table-container-bg: #141c28;
   --floating-panel-bg: #17202d;
   --mobile-sheet-bg: #141c28;
@@ -48,12 +48,12 @@
   --text-inverse: #0b1220;
   --text-on-accent: #ffffff;
 
-  --accent-primary: #6366f1;
-  --accent-primary-hover: #777af5;
-  --accent-primary-bg: rgba(99, 102, 241, 0.11);
-  --accent-primary-soft: rgba(99, 102, 241, 0.15);
-  --accent-primary-border: rgba(129, 140, 248, 0.28);
-  --accent-primary-glow: rgba(99, 102, 241, 0.18);
+  --accent-primary: #2f7df6;
+  --accent-primary-hover: #4c91ff;
+  --accent-primary-bg: rgba(47, 125, 246, 0.11);
+  --accent-primary-soft: rgba(47, 125, 246, 0.15);
+  --accent-primary-border: rgba(76, 145, 255, 0.28);
+  --accent-primary-glow: rgba(47, 125, 246, 0.18);
   --accent-success: #34d399;
   --accent-success-bg: rgba(52, 211, 153, 0.1);
   --accent-success-border: rgba(52, 211, 153, 0.24);
@@ -67,7 +67,7 @@
   --accent-info-bg: rgba(96, 165, 250, 0.1);
   --accent-info-border: rgba(96, 165, 250, 0.22);
 
-  --gradient-primary: linear-gradient(180deg, #6d70f3 0%, #5558dc 100%);
+  --gradient-primary: linear-gradient(180deg, #3c88fb 0%, #2569db 100%);
   --gradient-success: linear-gradient(180deg, #34d399 0%, #10b981 100%);
   --gradient-danger: linear-gradient(180deg, #fb7185 0%, #e11d48 100%);
   --gradient-surface: linear-gradient(180deg, #151e2b 0%, #121a26 100%);
@@ -97,7 +97,7 @@
   --transition-fast: 140ms cubic-bezier(0.2, 0, 0, 1);
   --transition-base: 190ms cubic-bezier(0.2, 0, 0, 1);
   --transition-slow: 260ms cubic-bezier(0.2, 0, 0, 1);
-  --focus-ring-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+  --focus-ring-shadow: 0 0 0 3px rgba(47, 125, 246, 0.2);
   color-scheme: dark;
 }
 
@@ -117,14 +117,14 @@
   --surface-subtle: rgba(15, 23, 42, 0.014);
   --surface-hover: rgba(15, 23, 42, 0.045);
   --surface-table-header: #f4f7fa;
-  --surface-table-row-hover: rgba(79, 70, 229, 0.035);
+  --surface-table-row-hover: rgba(37, 105, 219, 0.035);
   --table-container-bg: #ffffff;
   --floating-panel-bg: #ffffff;
   --mobile-sheet-bg: #ffffff;
   --log-bg: #f5f7fa;
   --log-text: #243247;
   --border-color: rgba(15, 23, 42, 0.1);
-  --border-highlight: rgba(79, 70, 229, 0.25);
+  --border-highlight: rgba(37, 105, 219, 0.25);
   --stroke-soft: rgba(15, 23, 42, 0.07);
   --stroke-medium: rgba(15, 23, 42, 0.15);
   --overlay-backdrop: rgba(15, 23, 42, 0.38);
@@ -132,11 +132,11 @@
   --text-secondary: #435169;
   --text-muted: #6b778b;
   --text-inverse: #ffffff;
-  --accent-primary: #4f46e5;
-  --accent-primary-hover: #4338ca;
-  --accent-primary-bg: rgba(79, 70, 229, 0.08);
-  --accent-primary-soft: rgba(79, 70, 229, 0.12);
-  --accent-primary-border: rgba(79, 70, 229, 0.22);
+  --accent-primary: #2569db;
+  --accent-primary-hover: #1f5bc0;
+  --accent-primary-bg: rgba(37, 105, 219, 0.08);
+  --accent-primary-soft: rgba(37, 105, 219, 0.12);
+  --accent-primary-border: rgba(37, 105, 219, 0.22);
   --accent-success: #047857;
   --accent-warning: #a16207;
   --accent-danger: #be123c;
@@ -1313,13 +1313,14 @@ select {
   right: 0;
   z-index: 2;
   background: var(--surface-panel);
-  /* Soft edge hint for horizontal-scroll overlap; the previous 0.6-alpha black
-     band read as a stray divider on wide viewports where nothing scrolls. */
-  box-shadow: -10px 0 14px -16px rgba(0, 0, 0, 0.32);
+  /* Faint edge hint for horizontal-scroll overlap. Kept close to invisible on
+     purpose: on wide viewports nothing scrolls and any stronger shadow reads
+     as a stray vertical divider between the status and action columns. */
+  box-shadow: -6px 0 10px -12px rgba(0, 0, 0, 0.18);
 }
 
 [data-theme="light"] .servers-table .servers-actions-cell {
-  box-shadow: -10px 0 14px -16px rgba(13, 27, 47, 0.16);
+  box-shadow: -6px 0 10px -12px rgba(13, 27, 47, 0.1);
 }
 
 .servers-table .servers-row-actions {
@@ -1428,8 +1429,10 @@ select {
   }
 
   .inbounds-table .inbounds-node-col {
-    width: 116px;
-    min-width: 116px;
+    /* Users/traffic columns are hidden at this breakpoint, so give node names
+       ("Review Healthy Node") the room instead of ellipsizing after one word. */
+    width: 170px;
+    min-width: 150px;
   }
 
   .inbounds-table .inbounds-remark-col {
@@ -2100,7 +2103,7 @@ select {
 .login-page {
   min-height: 100svh;
   background:
-    radial-gradient(700px 420px at 12% 0%, rgba(99, 102, 241, 0.11), transparent 62%),
+    radial-gradient(700px 420px at 12% 0%, rgba(47, 125, 246, 0.11), transparent 62%),
     var(--bg-primary);
 }
 

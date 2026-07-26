@@ -279,7 +279,11 @@ export default function App() {
                     bottom: 'calc(var(--mobile-bottom-nav-height, 78px) + env(safe-area-inset-bottom, 0px) + 14px)',
                     left: '12px',
                     right: '12px',
-                } : undefined}
+                } : {
+                    // Keep desktop toasts below the fixed header so they never
+                    // cover the search box / language toggle / notification bell.
+                    top: 'calc(var(--header-height, 68px) + 12px)',
+                }}
                 toastOptions={{
                     style: {
                         background: 'var(--bg-secondary)',

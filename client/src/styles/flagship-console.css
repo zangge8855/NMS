@@ -42,8 +42,10 @@
   --accent-primary-soft: rgba(47, 125, 246, 0.18);
   --accent-primary-border: rgba(76, 145, 255, 0.34);
   --accent-primary-glow: rgba(47, 125, 246, 0.22);
+  --accent-info: #4c91ff;
   --gradient-primary: linear-gradient(180deg, #3c88fb 0%, #2569db 100%);
   --focus-ring-shadow: 0 0 0 3px rgba(47, 125, 246, 0.22);
+  --focus-ring-border: #4c91ff;
   --shadow-xs: 0 1px 2px rgba(1, 7, 16, 0.24);
   --shadow-sm: 0 1px 2px rgba(1, 7, 16, 0.22), 0 8px 24px -20px rgba(1, 7, 16, 0.72);
   --shadow-md: 0 18px 42px -30px rgba(1, 7, 16, 0.82);
@@ -89,6 +91,9 @@
   --accent-primary-bg: rgba(37, 105, 219, 0.085);
   --accent-primary-soft: rgba(37, 105, 219, 0.13);
   --accent-primary-border: rgba(37, 105, 219, 0.24);
+  --accent-info: #2569db;
+  --focus-ring-shadow: 0 0 0 3px rgba(37, 105, 219, 0.2);
+  --focus-ring-border: #2569db;
   --shadow-xs: 0 1px 2px rgba(13, 27, 47, 0.045);
   --shadow-sm: 0 1px 2px rgba(13, 27, 47, 0.045), 0 14px 32px -28px rgba(13, 27, 47, 0.42);
   --shadow-md: 0 18px 44px -32px rgba(13, 27, 47, 0.45);
@@ -1595,6 +1600,19 @@ main .servers-mobile-tags .badge-info {
 
 .settings-status-grid > *:last-child {
   border-bottom: 0 !important;
+}
+
+/* Readiness values carry compound copy ("认证失败 1 · 拒绝 2 …"); let them
+   wrap onto a second line instead of hard-ellipsizing mid-word. */
+.settings-kpi-card-body {
+  grid-template-columns: minmax(150px, 1fr) minmax(0, 1fr);
+}
+
+.settings-kpi-card-value {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
 }
 
 /* Subscription import is the primary action; unavailable QR space stays visually quiet. */

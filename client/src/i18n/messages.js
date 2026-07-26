@@ -1007,6 +1007,7 @@ const messages = {
           sequence: '序号',
           node: '节点',
           remark: '备注',
+          kind: '类型',
           protocol: '协议',
           listenPort: '监听:端口',
           users: '用户数',
