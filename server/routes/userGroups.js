@@ -22,9 +22,19 @@ function normalizeStringList(input = []) {
     ));
 }
 
-function normalizeNonNegativeInt(value) {
-    const num = Math.floor(Number(value));
-    return Number.isFinite(num) && num > 0 ? num : 0;
+// Empty / absent means "no limit" (0), but garbage input must NOT silently
+// become 0 — for these fields 0 disables the limit entirely, so a typo would
+// grant an unlimited policy. Reject anything that is present but not a
+// non-negative finite number.
+function parseNonNegativeInt(value, field) {
+    if (value === undefined || value === null || value === '') return 0;
+    const num = Number(value);
+    if (!Number.isFinite(num) || num < 0) {
+        const error = new Error(`Invalid value for ${field}: expected a non-negative number`);
+        error.status = 400;
+        throw error;
+    }
+    return Math.floor(num);
 }
 
 function normalizeGroupPayload(body = {}) {
@@ -39,11 +49,11 @@ function normalizeGroupPayload(body = {}) {
         blockedInboundKeys: normalizeStringList(body?.blockedInboundKeys),
         serverScopeMode: String(body?.serverScopeMode || '').trim().toLowerCase(),
         protocolScopeMode: String(body?.protocolScopeMode || '').trim().toLowerCase(),
-        expiryTime: normalizeNonNegativeInt(body?.expiryTime),
-        limitIp: normalizeNonNegativeInt(body?.limitIp),
-        trafficLimitBytes: normalizeNonNegativeInt(body?.trafficLimitBytes),
-        speedLimitUp: normalizeNonNegativeInt(body?.speedLimitUp),
-        speedLimitDown: normalizeNonNegativeInt(body?.speedLimitDown),
+        expiryTime: parseNonNegativeInt(body?.expiryTime, 'expiryTime'),
+        limitIp: parseNonNegativeInt(body?.limitIp, 'limitIp'),
+        trafficLimitBytes: parseNonNegativeInt(body?.trafficLimitBytes, 'trafficLimitBytes'),
+        speedLimitUp: parseNonNegativeInt(body?.speedLimitUp, 'speedLimitUp'),
+        speedLimitDown: parseNonNegativeInt(body?.speedLimitDown, 'speedLimitDown'),
         trafficResetCycle: String(body?.trafficResetCycle || 'none').trim().toLowerCase(),
         ipLimitPolicy: String(body?.ipLimitPolicy || 'first-wins').trim().toLowerCase(),
     };
@@ -223,3 +233,4 @@ router.delete('/:id', async (req, res) => {
 });
 
 export default router;
+export { normalizeGroupPayload, parseNonNegativeInt };

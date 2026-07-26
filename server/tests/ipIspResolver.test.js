@@ -37,4 +37,32 @@ describe('ip isp resolver', () => {
         assert.equal(await resolver.lookup('192.168.1.10'), '');
         assert.equal(await resolver.lookup('9.9.9.9'), '');
     });
+
+    it('keeps the fuller dataset when a forced refresh only partially succeeds', async () => {
+        let failCu = false;
+        const resolver = createIpIspResolver({
+            enabled: true,
+            sources: [
+                { label: '中国电信', urls: ['https://example.com/ct.txt'] },
+                { label: '中国联通', urls: ['https://example.com/cu.txt'] },
+            ],
+            fetcher: async ({ url }) => {
+                if (url.endsWith('/ct.txt')) return '1.1.1.0/24\n';
+                if (url.endsWith('/cu.txt')) {
+                    if (failCu) throw new Error('cu upstream down');
+                    return '8.8.8.0/24\n';
+                }
+                throw new Error(`unexpected url ${url}`);
+            },
+        });
+
+        assert.equal(await resolver.lookup('8.8.8.8'), '中国联通');
+
+        failCu = true;
+        await resolver._loadRecords(true);
+
+        // The partial refresh (only 电信 succeeded) must not wipe 联通 coverage.
+        assert.equal(await resolver.lookup('8.8.8.8'), '中国联通');
+        assert.equal(await resolver.lookup('1.1.1.1'), '中国电信');
+    });
 });

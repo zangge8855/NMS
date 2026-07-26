@@ -72,6 +72,11 @@ async function updateClientEntitlement(payload = {}, actor = 'admin', deps = {})
 
     const clientIdentifier = resolveClientIdentifier(match, protocol);
     const email = requestedEmail || normalizeEmail(match.email);
+    if (mode === 'follow_policy' && !email) {
+        // Without an email there is no subscription policy to follow; falling
+        // through would silently apply the global default policy record.
+        throw createHttpError(400, '该客户端没有邮箱标识，无法跟随订阅策略');
+    }
 
     const entitlement = mode === 'follow_policy'
         ? (() => {

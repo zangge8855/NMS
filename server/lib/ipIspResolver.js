@@ -208,9 +208,11 @@ export function createIpIspResolver(options = {}) {
         inflight = (async () => {
             const records = [];
             let loadedSources = 0;
+            let totalUrls = 0;
             try {
                 const tasks = runtime.sources.flatMap((source) => {
                     const urls = Array.isArray(source?.urls) ? source.urls : [];
+                    totalUrls += urls.length;
                     return urls.map(async (url) => {
                         const payload = await fetcher({ url, timeoutMs: runtime.timeoutMs });
                         loadedSources += 1;
@@ -224,12 +226,24 @@ export function createIpIspResolver(options = {}) {
                 });
                 await Promise.allSettled(tasks);
 
-                if (loadedSources > 0) {
+                if (loadedSources > 0 && loadedSources >= totalUrls) {
                     dataset.records = records;
                     dataset.loadedAt = now;
                     dataset.sourceCount = loadedSources;
                     dataset.expiresAt = now + (runtime.cacheTtlSeconds * 1000);
                     ipCache.clear();
+                } else if (loadedSources > 0) {
+                    // Partial refresh: adopt the fresh set only when it is at
+                    // least as complete as what we already hold, and always
+                    // retry soon — otherwise a transient outage of one source
+                    // would silently shrink ISP coverage for a full TTL.
+                    if (records.length >= dataset.records.length) {
+                        dataset.records = records;
+                        dataset.loadedAt = now;
+                        dataset.sourceCount = loadedSources;
+                        ipCache.clear();
+                    }
+                    dataset.expiresAt = now + (FAILURE_CACHE_TTL_SECONDS * 1000);
                 } else {
                     dataset.expiresAt = now + (FAILURE_CACHE_TTL_SECONDS * 1000);
                 }

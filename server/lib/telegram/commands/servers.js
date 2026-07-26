@@ -50,12 +50,21 @@ export function registerServerCommands(registry, ctx) {
                 const onlineUsers = Number.isFinite(parsedOnline) ? parsedOnline : 0;
                 const cpuValue = s.cpu ?? s.status?.cpu;
                 const memValue = s.mem ?? s.status?.mem;
-                const cpu = cpuValue != null ? `${Number(cpuValue).toFixed(0)}%` : '-';
-                const mem = typeof memValue === 'object' && memValue
-                    ? `${Math.round((Number(memValue.current || 0) / Math.max(1, Number(memValue.total || 1))) * 100)}%`
-                    : memValue != null
-                        ? `${Number(memValue).toFixed(0)}%`
-                        : '-';
+                const asFinite = (value) => {
+                    const parsed = Number(value);
+                    return Number.isFinite(parsed) ? parsed : null;
+                };
+                const parsedCpu = asFinite(cpuValue);
+                const cpu = parsedCpu != null ? `${parsedCpu.toFixed(0)}%` : '-';
+                let mem = '-';
+                if (typeof memValue === 'object' && memValue) {
+                    const current = asFinite(memValue.current) ?? 0;
+                    const totalMem = asFinite(memValue.total);
+                    mem = totalMem > 0 ? `${Math.round((current / totalMem) * 100)}%` : '-';
+                } else {
+                    const parsedMem = asFinite(memValue);
+                    if (parsedMem != null) mem = `${parsedMem.toFixed(0)}%`;
+                }
                 return `• <b>${name}</b> · ${health} · 在线 ${onlineUsers} · CPU ${cpu} · MEM ${mem}`;
             });
             const summaryLine = (snapshot?.summary)

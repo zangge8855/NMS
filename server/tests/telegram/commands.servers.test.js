@@ -51,3 +51,37 @@ test('/servers reads the live cluster item payload and renders node rows', async
     assert.match(result.text, /CPU 22%/);
     assert.match(result.text, /MEM 50%/);
 });
+
+test('/servers never renders NaN for malformed cpu/mem payloads', async () => {
+    const registry = createCommandRegistry();
+    registerServerCommands(registry, {
+        helpers: makeHelpers(),
+        listSessions: createListSessionStore(),
+        services: {
+            async serverStatus() {
+                return {
+                    collectClusterStatusSnapshot: async () => ({
+                        items: [{
+                            serverId: 'srv-b',
+                            name: 'Node B',
+                            health: 'healthy',
+                            onlineCount: 'not-a-number',
+                            status: { cpu: 'garbage', mem: { current: 512, total: 'oops' } },
+                        }],
+                        summary: { total: 1, healthy: 1, degraded: 0, unreachable: 0 },
+                    }),
+                };
+            },
+        },
+    });
+
+    const result = await registry.dispatch({
+        command: '/servers',
+        args: { positional: [], raw: '', page: 1 },
+    });
+
+    assert.doesNotMatch(result.text, /NaN/);
+    assert.match(result.text, /在线 0/);
+    assert.match(result.text, /CPU -/);
+    assert.match(result.text, /MEM -/);
+});

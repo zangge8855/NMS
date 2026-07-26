@@ -16,6 +16,14 @@ const CPU_HISTORY_TTL_MS = 20_000;
 const LIVE_TRAFFIC_OVERLAY_SKEW_MS = 60_000;
 const cpuHistoryCache = new Map();
 
+// Keyed per serverId with no TTL-based eviction, so deleted servers must be
+// evicted explicitly or the entry lives for the process lifetime.
+function evictServerDashboardCaches(serverId) {
+    const normalizedServerId = String(serverId || '').trim();
+    if (!normalizedServerId) return false;
+    return cpuHistoryCache.delete(normalizedServerId);
+}
+
 function safeNumber(value) {
     const parsed = Number(value);
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
@@ -884,4 +892,5 @@ export {
     buildDashboardPresenceFromPanelSnapshots,
     buildGlobalDashboardSnapshot,
     buildSingleDashboardSnapshot,
+    evictServerDashboardCaches,
 };

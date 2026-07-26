@@ -191,8 +191,10 @@ class SubscriptionTokenStore {
         }
 
         const requestedTtl = Number(options.ttlDays);
-        const noExpiry = options.noExpiry === true
-            || (Number.isFinite(requestedTtl) && requestedTtl <= 0);
+        // Only the explicit noExpiry flag may mint a never-expiring token.
+        // A zero/negative/invalid ttlDays falls back to the default TTL, so a
+        // caller typo cannot silently create a permanent credential.
+        const noExpiry = options.noExpiry === true;
         const ttlDays = noExpiry
             ? 0
             : (Number.isFinite(requestedTtl) && requestedTtl > 0

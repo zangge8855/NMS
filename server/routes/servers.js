@@ -12,7 +12,8 @@ import { authMiddleware, adminOnly } from '../middleware/auth.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import config from '../config.js';
 import { normalizeBoolean as parseBoolean } from '../lib/normalize.js';
-import { buildGlobalDashboardSnapshot, buildSingleDashboardSnapshot } from '../lib/dashboardSnapshotService.js';
+import { buildGlobalDashboardSnapshot, buildSingleDashboardSnapshot, evictServerDashboardCaches } from '../lib/dashboardSnapshotService.js';
+import { evictServerStatusCaches } from '../lib/serverStatusService.js';
 import { buildServerDetailSnapshot } from '../lib/serverDetailSnapshotService.js';
 import { buildErrorSnapshot, getServerLogSnapshot, getServerLogSnapshots } from '../lib/serverLogsSnapshotService.js';
 import { invalidateServerPanelSnapshotCache } from '../lib/serverPanelSnapshotService.js';
@@ -870,6 +871,8 @@ router.delete('/:id', (req, res) => {
     const affectedPolicies = userPolicyStore.removeServerId(serverId, actor);
     const affectedGroups = userGroupStore.removeServerId(serverId, actor);
     invalidateServerPanelSnapshotCache(serverId);
+    evictServerDashboardCaches(serverId);
+    evictServerStatusCaches(serverId);
     appendSecurityAudit('server_deleted', req, { serverId, affectedPolicies, affectedGroups });
     res.json({
         success: true,

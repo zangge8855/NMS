@@ -296,20 +296,6 @@ class JobStore {
         return cleared;
     }
 
-    markCanceled(id) {
-        const idx = this.jobs.findIndex((item) => item.id === id);
-        if (idx === -1) return null;
-        const target = this.jobs[idx];
-        if (target.status === 'success' || target.status === 'failed' || target.status === 'partial_success') {
-            return null;
-        }
-        target.status = 'canceled';
-        target.canceledAt = new Date().toISOString();
-        target.updatedAt = target.canceledAt;
-        this._save();
-        return this._sanitizeEntry(target);
-    }
-
     exportState() {
         return {
             jobs: this.jobs,

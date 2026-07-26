@@ -513,6 +513,14 @@ export function resetClusterStatusSnapshotCache() {
     throughputBaselineByServerId.clear();
 }
 
+// The throughput baseline map is keyed per serverId and never expires, so a
+// deleted server must be evicted explicitly to avoid a slow leak.
+export function evictServerStatusCaches(serverId) {
+    const normalizedServerId = String(serverId || '').trim();
+    if (!normalizedServerId) return false;
+    return throughputBaselineByServerId.delete(normalizedServerId);
+}
+
 function runWarmSnapshotCycle(options = {}) {
     return collectClusterStatusSnapshot({
         includeDetails: false,

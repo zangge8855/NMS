@@ -81,4 +81,43 @@ describe('clientEntitlementService', () => {
         assert.equal(postCalls[0][0], 'post');
         assert.equal(postCalls[1][0], 'remove');
     });
+
+    it('rejects follow_policy when the matched client has no email identity', async () => {
+        await assert.rejects(
+            updateClientEntitlement({
+                serverId: 'srv-1',
+                inboundId: '10',
+                clientIdentifier: 'uuid-1',
+                protocol: 'vless',
+                mode: 'follow_policy',
+            }, 'admin', {
+                serverRepository: {
+                    getById: () => ({ id: 'srv-1', name: 'srv-1' }),
+                },
+                userPolicyRepository: {
+                    get: () => {
+                        throw new Error('policy repository must not be consulted without an email');
+                    },
+                },
+                overrideRepository: {},
+                listPanelInbounds: async () => ({
+                    client: { post: async () => ({ data: { success: true } }) },
+                    inbounds: [{
+                        id: '10',
+                        protocol: 'vless',
+                        settings: JSON.stringify({
+                            clients: [{
+                                id: 'uuid-1',
+                                email: '',
+                                expiryTime: 0,
+                                limitIp: 0,
+                                totalGB: 0,
+                            }],
+                        }),
+                    }],
+                }),
+            }),
+            (error) => error?.status === 400
+        );
+    });
 });

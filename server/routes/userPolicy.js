@@ -63,6 +63,19 @@ function normalizeNonNegativeInt(value, fallback = 0) {
     return Math.max(0, Math.floor(parsed));
 }
 
+// For request-supplied limit fields, 0 means "unlimited", so garbage must not
+// silently coerce to 0. Empty / null clears the limit intentionally.
+function parseRequestLimit(value, field) {
+    if (value === undefined || value === null || value === '') return 0;
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+        const error = new Error(`Invalid value for ${field}: expected a non-negative number`);
+        error.status = 400;
+        throw error;
+    }
+    return Math.floor(parsed);
+}
+
 // Project a raw user record down to non-sensitive fields. The service returns the live
 // store record (which carries passwordHash/passwordSalt/pbkdf2Iterations and 2FA/verification
 // bookkeeping); never ship that to the client.
@@ -164,19 +177,19 @@ router.put('/:email', async (req, res) => {
                 serverScopeMode,
                 protocolScopeMode,
                 expiryTime: Object.prototype.hasOwnProperty.call(req.body || {}, 'expiryTime')
-                    ? normalizeNonNegativeInt(req.body?.expiryTime, 0)
+                    ? parseRequestLimit(req.body?.expiryTime, 'expiryTime')
                     : normalizeNonNegativeInt(currentPolicy.expiryTime, 0),
                 limitIp: Object.prototype.hasOwnProperty.call(req.body || {}, 'limitIp')
-                    ? normalizeNonNegativeInt(req.body?.limitIp, 0)
+                    ? parseRequestLimit(req.body?.limitIp, 'limitIp')
                     : normalizeNonNegativeInt(currentPolicy.limitIp, 0),
                 trafficLimitBytes: Object.prototype.hasOwnProperty.call(req.body || {}, 'trafficLimitBytes')
-                    ? normalizeNonNegativeInt(req.body?.trafficLimitBytes, 0)
+                    ? parseRequestLimit(req.body?.trafficLimitBytes, 'trafficLimitBytes')
                     : normalizeNonNegativeInt(currentPolicy.trafficLimitBytes, 0),
                 speedLimitUp: Object.prototype.hasOwnProperty.call(req.body || {}, 'speedLimitUp')
-                    ? normalizeNonNegativeInt(req.body?.speedLimitUp, 0)
+                    ? parseRequestLimit(req.body?.speedLimitUp, 'speedLimitUp')
                     : normalizeNonNegativeInt(currentPolicy.speedLimitUp, 0),
                 speedLimitDown: Object.prototype.hasOwnProperty.call(req.body || {}, 'speedLimitDown')
-                    ? normalizeNonNegativeInt(req.body?.speedLimitDown, 0)
+                    ? parseRequestLimit(req.body?.speedLimitDown, 'speedLimitDown')
                     : normalizeNonNegativeInt(currentPolicy.speedLimitDown, 0),
                 trafficResetCycle: String(req.body?.trafficResetCycle || currentPolicy.trafficResetCycle || 'none').trim().toLowerCase(),
                 ipLimitPolicy: String(req.body?.ipLimitPolicy || currentPolicy.ipLimitPolicy || 'first-wins').trim().toLowerCase(),
@@ -219,3 +232,4 @@ router.put('/:email', async (req, res) => {
 });
 
 export default router;
+export { parseRequestLimit };

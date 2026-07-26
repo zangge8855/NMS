@@ -1661,22 +1661,10 @@ router.post('/history/:id/retry', async (req, res) => {
     }
 });
 
-router.post('/history/:id/cancel', (req, res) => {
-    const canceled = jobStore.markCanceled(req.params.id);
-    if (!canceled) {
-        return res.status(409).json({
-            success: false,
-            msg: 'Job is not cancellable',
-        });
-    }
-    appendSecurityAudit('batch_history_canceled', req, {
-        historyId: req.params.id,
-    });
-    return res.json({
-        success: true,
-        obj: toHistoryItem(canceled, true),
-    });
-});
+// Note: batch history entries are recorded only after the underlying run has
+// finished (every status is terminal), so a "cancel" endpoint can never
+// succeed. The former /history/:id/cancel and /:id/cancel routes were removed
+// as dead code; long-running work is cancelled through the task queue instead.
 
 // Job-style aliases for /api/jobs mount.
 router.get('/', (req, res) => {
@@ -1754,20 +1742,6 @@ router.post(`/:id(${JOB_ID_PATTERN})/retry`, async (req, res) => {
         const error = toHttpError(err, 500, '重试失败');
         return res.status(error.status).json({ success: false, msg: error.message });
     }
-});
-
-router.post(`/:id(${JOB_ID_PATTERN})/cancel`, (req, res) => {
-    const canceled = jobStore.markCanceled(req.params.id);
-    if (!canceled) {
-        return res.status(409).json({
-            success: false,
-            msg: 'Job is not cancellable',
-        });
-    }
-    return res.json({
-        success: true,
-        obj: toHistoryItem(canceled, true),
-    });
 });
 
 export default router;
