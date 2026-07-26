@@ -14,7 +14,14 @@ export function authMiddleware(req, res, next) {
 
     const token = authHeader.split(' ')[1];
     try {
-        const decoded = jwt.verify(token, config.jwt.secret);
+        const decoded = jwt.verify(token, config.jwt.secret, { algorithms: ['HS256'] });
+        // Session tokens carry no `type`. Every typed token minted with the same
+        // secret — the 2FA challenge (pre-second-factor) and WebSocket tickets —
+        // is NOT a session bearer; accepting one here would let a password-only
+        // client replay its 2FA challenge as a full admin session.
+        if (decoded && decoded.type) {
+            return res.status(401).json({ success: false, msg: 'Invalid or expired token' });
+        }
         req.user = decoded;
         next();
     } catch (err) {
