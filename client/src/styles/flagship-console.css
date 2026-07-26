@@ -1602,17 +1602,103 @@ main .servers-mobile-tags .badge-info {
   border-bottom: 0 !important;
 }
 
-/* Readiness values carry compound copy ("认证失败 1 · 拒绝 2 …"); let them
-   wrap onto a second line instead of hard-ellipsizing mid-word. */
-.settings-kpi-card-body {
-  grid-template-columns: minmax(150px, 1fr) minmax(0, 1fr);
+/* Status rows read as an at-a-glance readiness board. An operational-state
+   color (taken from each row's indicator) drives a left rail and the icon
+   tile, so rows needing attention (amber/red) separate from healthy (green)
+   and optional/not-configured (neutral) at a glance — honoring flagship's
+   "color is reserved for operational state" rule that the old flat-gray list
+   ignored. State is CSS-driven via :has(); the JSX is untouched. */
+.settings-status-grid .settings-kpi-card {
+  --kpi-state: var(--text-muted);
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "tile label"
+    "tile value"
+    "tile meta";
+  align-items: center;
+  align-content: center;
+  column-gap: 13px;
+  row-gap: 2px;
+  min-height: 62px;
+  padding: 11px 18px 11px 20px;
 }
 
-.settings-kpi-card-value {
+.settings-status-grid .settings-kpi-card:has(.settings-kpi-card-indicator.is-active) {
+  --kpi-state: var(--accent-success);
+}
+.settings-status-grid .settings-kpi-card:has(.settings-kpi-card-indicator.is-warning) {
+  --kpi-state: var(--accent-warning);
+}
+.settings-status-grid .settings-kpi-card:has(.settings-kpi-card-indicator.is-danger) {
+  --kpi-state: var(--accent-danger);
+}
+/* is-inactive stays neutral: "not configured / optional" is not an alarm. */
+
+.settings-status-grid .settings-kpi-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--kpi-state);
+  opacity: 0.8;
+}
+
+/* Unwrap the header/body wrappers so their leaf children join the card grid,
+   letting the label sit directly above the value. */
+.settings-status-grid .settings-kpi-card-header,
+.settings-status-grid .settings-kpi-card-body {
+  display: contents;
+}
+
+.settings-status-grid .settings-kpi-card-icon {
+  grid-area: tile;
+  align-self: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  color: var(--kpi-state);
+  background: color-mix(in srgb, var(--kpi-state) 13%, transparent);
+  border-color: color-mix(in srgb, var(--kpi-state) 26%, transparent);
+}
+
+.settings-status-grid .settings-kpi-card-title {
+  grid-area: label;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.settings-status-grid .settings-kpi-card-value {
+  grid-area: value;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text-primary);
   white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
   overflow-wrap: anywhere;
+}
+
+.settings-status-grid .settings-kpi-card-meta {
+  grid-area: meta;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* State now lives in the rail + tinted tile, so the tiny status dot is
+   redundant clutter. */
+.settings-status-grid .settings-kpi-card-indicator {
+  display: none;
 }
 
 /* Subscription import is the primary action; unavailable QR space stays visually quiet. */
