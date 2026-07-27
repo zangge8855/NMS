@@ -120,10 +120,12 @@ export default function SubscriptionClientLinks({
             key: 'windows',
             title: 'Windows',
             summary: copy.chooseAny,
-            appLinks: buildLinks(toolLookup, ['flclash', 'v2rayn', 'sparkle']),
+            badge: 'PC / 桌面端',
+            appLinks: buildLinks(toolLookup, ['clash-verge', 'mihomo-party', 'flclash', 'v2rayn', 'hiddify', 'singbox']),
             profileRules: [
-                buildRule(toolLookup, profileLookup, ['flclash', 'sparkle'], 'clash'),
+                buildRule(toolLookup, profileLookup, ['clash-verge', 'mihomo-party', 'flclash'], 'clash'),
                 buildRule(toolLookup, profileLookup, ['v2rayn'], 'v2rayn', 'v2rayN'),
+                buildRule(toolLookup, profileLookup, ['hiddify', 'singbox'], 'singbox'),
             ].filter(Boolean),
             quickKeys: [],
         },
@@ -131,10 +133,12 @@ export default function SubscriptionClientLinks({
             key: 'macos',
             title: 'macOS',
             summary: copy.chooseAny,
-            appLinks: buildLinks(toolLookup, ['flclash', 'sparkle', 'v2rayn']),
+            badge: 'Mac / 桌面端',
+            appLinks: buildLinks(toolLookup, ['clash-verge', 'mihomo-party', 'flclash', 'surge', 'stash', 'singbox']),
             profileRules: [
-                buildRule(toolLookup, profileLookup, ['flclash', 'sparkle'], 'clash'),
-                buildRule(toolLookup, profileLookup, ['v2rayn'], 'v2rayn', 'v2rayN'),
+                buildRule(toolLookup, profileLookup, ['clash-verge', 'mihomo-party', 'flclash', 'stash'], 'clash'),
+                buildRule(toolLookup, profileLookup, ['surge'], 'surge'),
+                buildRule(toolLookup, profileLookup, ['singbox'], 'singbox'),
             ].filter(Boolean),
             quickKeys: [],
         },
@@ -142,10 +146,12 @@ export default function SubscriptionClientLinks({
             key: 'android',
             title: 'Android',
             summary: copy.chooseAny,
-            appLinks: buildLinks(toolLookup, ['flclash', 'cmfa', 'exclave']),
+            badge: '安卓 / 移动端',
+            appLinks: buildLinks(toolLookup, ['flclash', 'v2rayng', 'nekobox-android', 'cmfa', 'hiddify', 'singbox']),
             profileRules: [
                 buildRule(toolLookup, profileLookup, ['flclash', 'cmfa'], 'clash'),
-                buildRule(toolLookup, profileLookup, ['exclave'], 'v2rayn', 'Exclave'),
+                buildRule(toolLookup, profileLookup, ['v2rayng', 'nekobox-android'], 'v2rayn', 'v2rayNG / NekoBox'),
+                buildRule(toolLookup, profileLookup, ['hiddify', 'singbox'], 'singbox'),
             ].filter(Boolean),
             quickKeys: [],
         },
@@ -153,16 +159,43 @@ export default function SubscriptionClientLinks({
             key: 'ios',
             title: 'iPhone / iPad',
             summary: copy.chooseAny,
-            appLinks: buildLinks(toolLookup, ['shadowrocket', 'stash', 'surge', 'singbox']),
+            badge: 'iOS / 移动端',
+            appLinks: buildLinks(toolLookup, ['shadowrocket', 'stash', 'surge', 'loon', 'egern', 'singbox', 'karing']),
             profileRules: [
                 buildRule(toolLookup, profileLookup, ['stash'], 'clash'),
                 buildRule(toolLookup, profileLookup, ['shadowrocket'], 'v2rayn', 'Shadowrocket'),
-                buildRule(toolLookup, profileLookup, ['surge'], 'surge'),
-                buildRule(toolLookup, profileLookup, ['singbox'], 'singbox'),
+                buildRule(toolLookup, profileLookup, ['surge', 'loon', 'egern'], 'surge'),
+                buildRule(toolLookup, profileLookup, ['singbox', 'karing'], 'singbox'),
             ].filter(Boolean),
             quickKeys: ['shadowrocket', 'clash-family', 'surge', 'singbox'],
         },
-    ]), [copy.chooseAny, profileLookup, toolLookup]);
+        {
+            key: 'linux',
+            title: 'Linux',
+            summary: copy.chooseAny,
+            badge: 'Linux / 服务器',
+            appLinks: buildLinks(toolLookup, ['clash-verge', 'flclash', 'nekobox-windows', 'hiddify', 'singbox']),
+            profileRules: [
+                buildRule(toolLookup, profileLookup, ['clash-verge', 'flclash'], 'clash'),
+                buildRule(toolLookup, profileLookup, ['nekobox-windows'], 'v2rayn', 'NekoRai'),
+                buildRule(toolLookup, profileLookup, ['hiddify', 'singbox'], 'singbox'),
+            ].filter(Boolean),
+            quickKeys: [],
+        },
+        {
+            key: 'router',
+            title: locale === 'en-US' ? 'Routers & OpenWrt' : '路由器 / 软路由',
+            summary: locale === 'en-US' ? 'OpenWrt, Asus, Xiaomi, Merlin routers.' : '适合 OpenWrt、华硕、小米及软路由网关。',
+            badge: '网关 / 路由器',
+            appLinks: buildLinks(toolLookup, ['openclash', 'passwall', 'shellcrash', 'homeproxy']),
+            profileRules: [
+                buildRule(toolLookup, profileLookup, ['openclash', 'shellcrash'], 'clash'),
+                buildRule(toolLookup, profileLookup, ['passwall'], 'v2rayn', 'PassWall'),
+                buildRule(toolLookup, profileLookup, ['homeproxy'], 'singbox'),
+            ].filter(Boolean),
+            quickKeys: [],
+        },
+    ]), [copy.chooseAny, locale, profileLookup, toolLookup]);
 
     if (quickActions.length === 0 && toolSites.length === 0) return null;
 
@@ -192,7 +225,10 @@ export default function SubscriptionClientLinks({
                             return (
                                 <div key={item.key} className={`subscription-device-card${compact ? ' subscription-device-card--compact' : ''}`}>
                                     <div className="subscription-device-card-head">
-                                        <div className="subscription-device-title">{item.title}</div>
+                                        <div className="subscription-device-title-row">
+                                            <div className="subscription-device-title">{item.title}</div>
+                                            {item.badge && <span className="badge badge-neutral">{item.badge}</span>}
+                                        </div>
                                         {!compact && <div className="subscription-device-text">{item.summary}</div>}
                                     </div>
                                     {compact ? (

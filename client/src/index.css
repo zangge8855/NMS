@@ -14263,6 +14263,13 @@ input[type="radio"]:focus-visible {
   gap: 4px;
 }
 
+.subscription-device-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .subscription-device-compact-layout {
   display: flex;
   flex-direction: column;
