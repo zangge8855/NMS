@@ -1,8 +1,18 @@
-import test from 'node:test';
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 
-process.env.DATA_DIR = '/tmp/nms-panel-client-test';
+const TEST_DATA_DIR = path.join(os.tmpdir(), `nms-panel-client-test-${process.pid}-${Date.now()}`);
+process.env.DATA_DIR = TEST_DATA_DIR;
+
+after(() => {
+    if (fs.existsSync(TEST_DATA_DIR)) {
+        fs.rmSync(TEST_DATA_DIR, { recursive: true, force: true });
+    }
+});
 
 const { ensureAuthenticated } = await import('../lib/panelClient.js');
 const { default: serverStore } = await import('../store/serverStore.js');

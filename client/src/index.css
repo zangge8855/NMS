@@ -113,6 +113,25 @@
   --font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   --font-display: 'Outfit', 'Inter', 'Noto Sans SC Variable', 'Segoe UI', system-ui, sans-serif;
   color-scheme: dark;
+
+  /* Additional UI Custom Properties */
+  --border-subtle: #27272a;
+  --mouse-x: 0px;
+  --mouse-y: 0px;
+  --log-line-color: #27272a;
+  --surface-card-bg: var(--surface-panel, #18181b);
+  --surface-card-border: var(--border-subtle, #27272a);
+  --surface-card-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  --surface-card-shadow-hover: 0 6px 16px rgba(0,0,0,0.15);
+  --skeleton-from: #27272a;
+  --skeleton-via: #3f3f46;
+  --skeleton-template: repeat(auto-fill, minmax(200px, 1fr));
+  --skeleton-cols: repeat(4, 1fr);
+  --node-color: #3b82f6;
+  --surface-elevated: var(--surface-panel, #18181b);
+  --floating-panel-border: var(--border-subtle, #27272a);
+  --floating-panel-shadow: 0 10px 25px -5px rgba(0,0,0,0.3);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @font-face {

@@ -201,8 +201,8 @@ describe('Capabilities', () => {
 
         expect(await screen.findByText('Protocols 0 · Tools 0')).toBeInTheDocument();
         expect(screen.getAllByRole('button', { name: 'Refresh' }).length).toBeGreaterThan(0);
-        expect(screen.getByText('No matrix entries')).toBeInTheDocument();
-        expect(screen.getByText('No tool entries')).toBeInTheDocument();
+        expect(await screen.findByText('No matrix entries')).toBeInTheDocument();
+        expect(await screen.findByText('No tool entries')).toBeInTheDocument();
     });
 
     it('ignores stale capability results after switching to another node', async () => {

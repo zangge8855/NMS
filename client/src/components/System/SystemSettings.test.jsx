@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithRouter } from '../../test/render.jsx';
 import SystemSettings from './SystemSettings.jsx';
@@ -734,10 +734,8 @@ describe('SystemSettings', () => {
         const clashConfigInput = await screen.findByLabelText('Clash / Mihomo Config URL');
         const singboxConfigInput = screen.getByLabelText('sing-box Config URL');
 
-        await user.clear(clashConfigInput);
-        await user.type(clashConfigInput, 'https://worker.example.com/subconverter?selectedRules=balanced&lang=en');
-        await user.clear(singboxConfigInput);
-        await user.type(singboxConfigInput, 'https://worker.example.com/subconverter?selectedRules=comprehensive');
+        fireEvent.change(clashConfigInput, { target: { value: 'https://worker.example.com/subconverter?selectedRules=balanced&lang=en' } });
+        fireEvent.change(singboxConfigInput, { target: { value: 'https://worker.example.com/subconverter?selectedRules=comprehensive' } });
         await user.click(screen.getByRole('button', { name: '保存设置' }));
 
         await waitFor(() => {

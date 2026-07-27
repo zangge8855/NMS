@@ -5,7 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const TEST_DATA_DIR = path.join(__dirname, '.invite_code_store_test_data');
+const TEST_DATA_DIR = path.join(__dirname, `.invite_code_store_test_data_${process.pid}_${Date.now()}`);
 const BOOTSTRAP_DATA_DIR = path.join(TEST_DATA_DIR, '__bootstrap__');
 const TEST_CASES_DIR = path.join(TEST_DATA_DIR, 'cases');
 

@@ -13,7 +13,7 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Override data dir to use temp location for tests
-const TEST_DATA_DIR = path.join(__dirname, '.test_data');
+const TEST_DATA_DIR = path.join(__dirname, `.test_data_user_store_${process.pid}_${Date.now()}`);
 process.env.DATA_DIR = TEST_DATA_DIR;
 process.env.JWT_SECRET = 'test-secret-key-for-unit-tests';
 process.env.ADMIN_USERNAME = 'cluster-admin-test';

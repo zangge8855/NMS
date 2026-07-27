@@ -1,4 +1,4 @@
-import { afterEach, describe, it } from 'node:test';
+import { after, afterEach, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'fs';
 import os from 'os';
@@ -13,7 +13,7 @@ import {
 
 const tempDirs = [];
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const TEST_DATA_ROOT = join(__dirname, '.test_data', 'startup-preflight');
+const TEST_DATA_ROOT = join(__dirname, `.test_data_startup_preflight_${process.pid}_${Date.now()}`);
 
 function makeTempDir() {
     fs.mkdirSync(TEST_DATA_ROOT, { recursive: true });
@@ -26,6 +26,12 @@ afterEach(() => {
     while (tempDirs.length > 0) {
         const dir = tempDirs.pop();
         fs.rmSync(dir, { recursive: true, force: true });
+    }
+});
+
+after(() => {
+    if (fs.existsSync(TEST_DATA_ROOT)) {
+        fs.rmSync(TEST_DATA_ROOT, { recursive: true, force: true });
     }
 });
 

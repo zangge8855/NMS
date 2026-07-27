@@ -1020,23 +1020,23 @@ export default function UsersHub() {
 
                 <div className="users-mobile-metrics">
                     <div className="users-mobile-metric">
-                        <span className="users-mobile-metric-label">{t('usersHub.cols.online')}</span>
+                        <span className="users-mobile-metric-label">{t('pages.usersHub.cols.online')}</span>
                         <span className="users-mobile-metric-value">
                             {user.onlineStatus.detail || user.onlineStatus.label}
                         </span>
                     </div>
                     <div className="users-mobile-metric">
-                        <span className="users-mobile-metric-label">{t('usersHub.cols.nodeCount')}</span>
+                        <span className="users-mobile-metric-label">{t('pages.usersHub.cols.nodeCount')}</span>
                         <span className="users-mobile-metric-value">
                             {user.statsPending ? syncingCopy.status : (user.clientData.count || 0)}
                         </span>
                     </div>
                     <div className="users-mobile-metric">
-                        <span className="users-mobile-metric-label">{t('usersHub.cols.traffic')}</span>
+                        <span className="users-mobile-metric-label">{t('pages.usersHub.cols.traffic')}</span>
                         <span className="users-mobile-metric-value">{userTrafficSummary}</span>
                     </div>
                     <div className="users-mobile-metric">
-                        <span className="users-mobile-metric-label">{t('usersHub.cols.expiry')}</span>
+                        <span className="users-mobile-metric-label">{t('pages.usersHub.cols.expiry')}</span>
                         <span className="users-mobile-metric-value">{userExpiryLabel}</span>
                     </div>
                 </div>

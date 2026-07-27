@@ -5,7 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const TEST_DATA_DIR = path.join(__dirname, '.system_settings_test_data');
+const TEST_DATA_DIR = path.join(__dirname, `.system_settings_test_data_${process.pid}_${Date.now()}`);
 
 function cleanTestData() {
     if (fs.existsSync(TEST_DATA_DIR)) {

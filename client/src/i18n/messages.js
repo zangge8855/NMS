@@ -47,6 +47,14 @@ const messages = {
       settings: '系统设置',
       servers: '服务器管理',
     },
+    usersHub: {
+      cols: {
+        online: '在线状态',
+        nodeCount: '节点数',
+        traffic: '已用流量',
+        expiry: '到期时间',
+      },
+    },
     pages: {
       dashboardEmpty: {
         title: '仪表盘',
@@ -443,6 +451,8 @@ const messages = {
         eyebrow: '审计与安全',
       },
       settings: {
+        disabledState: '已禁用',
+        unrecordedFilename: '未记录文件名',
         title: '系统设置',
         subtitle: '全局参数、运行诊断、存储与备份状态',
         limitedSubtitle: '仅管理员可查看和调整全局运行参数',
@@ -1483,6 +1493,7 @@ const messages = {
         validationRealityFpSpx: 'REALITY 链接关键参数缺失: fingerprint / spiderX',
       },
       clients: {
+        notSet: '未设置',
         addFailed: '添加失败',
         updateFailed: '更新失败',
         batchAddFailed: '批量添加失败',
@@ -1579,6 +1590,15 @@ const messages = {
         selectAllInboundsOnNode: '全选当前节点入站',
       },
       users: {
+        unsetEmail: '未设置邮箱',
+        provisionLoadFailed: '开通数据加载失败',
+        batchAdjustTitle: '批量调整到期 / 流量',
+        batchAdjustDescription: '将调整当前用户的 {count} 个节点客户端。负数表示扣减；永不过期或不限流量的客户端会跳过对应字段。',
+        expiryDaysDelta: '到期天数变化',
+        expiryDaysPlaceholder: '例如：30 或 -7',
+        trafficDelta: '流量变化',
+        trafficDeltaPlaceholder: '例如：100 或 -20',
+        executeAdjust: '执行调整',
         subscriptionReady: '订阅已开通，链接已生成',
         statusPending: '待审核',
         statusEnabled: '已启用',
@@ -1949,6 +1969,14 @@ const messages = {
       tasks: 'Tasks',
       settings: 'Settings',
       servers: 'Servers',
+    },
+    usersHub: {
+      cols: {
+        online: 'Online Status',
+        nodeCount: 'Node Count',
+        traffic: 'Traffic Used',
+        expiry: 'Expiry Time',
+      },
     },
     pages: {
       dashboardEmpty: {
@@ -2346,6 +2374,8 @@ const messages = {
         eyebrow: 'Audit & Security',
       },
       settings: {
+        disabledState: 'Disabled',
+        unrecordedFilename: 'Unrecorded filename',
         title: 'System Settings',
         subtitle: 'Global parameters, diagnostics, storage, and backups',
         limitedSubtitle: 'Only administrators can view and change global settings',
@@ -3386,6 +3416,7 @@ const messages = {
         validationRealityFpSpx: 'REALITY link params missing: fingerprint / spiderX',
       },
       clients: {
+        notSet: 'Not set',
         addFailed: 'Add failed',
         updateFailed: 'Update failed',
         batchAddFailed: 'Batch add failed',
@@ -3482,6 +3513,15 @@ const messages = {
         selectAllInboundsOnNode: 'Select all inbounds on current nodes',
       },
       users: {
+        unsetEmail: 'No email set',
+        provisionLoadFailed: 'Failed to load provision data',
+        batchAdjustTitle: 'Batch Adjust Expiry / Traffic',
+        batchAdjustDescription: 'This will adjust {count} node clients for the current user. Negative values subtract; permanent or unlimited clients skip the corresponding field.',
+        expiryDaysDelta: 'Expiry Change (Days)',
+        expiryDaysPlaceholder: 'e.g. 30 or -7',
+        trafficDelta: 'Traffic Change',
+        trafficDeltaPlaceholder: 'e.g. 100 or -20',
+        executeAdjust: 'Execute adjustment',
         subscriptionReady: 'Subscription activated, link generated',
         statusPending: 'Pending',
         statusEnabled: 'Enabled',

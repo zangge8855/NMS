@@ -173,7 +173,6 @@ const TOOL_SITES = [
         links: [
             { key: 'clash-verge', label: 'Verge Rev', url: 'https://github.com/clash-verge-rev/clash-verge-rev' },
             { key: 'mihomo-party', label: 'Mihomo Party', url: 'https://mihomo.party/' },
-            { key: 'flclash', label: 'FlClash', url: 'https://github.com/chen08209/FlClash' },
             { key: 'stash', label: 'Stash', url: 'https://stash.wiki/get-started' },
         ],
     },

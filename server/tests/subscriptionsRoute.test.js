@@ -1,12 +1,21 @@
-import { describe, it } from 'node:test';
+import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-process.env.DATA_DIR = path.join('/tmp', 'nms-subscriptions-route-test');
+const TEST_DATA_DIR = path.join(os.tmpdir(), `nms-subscriptions-route-test-${process.pid}-${Date.now()}`);
+process.env.DATA_DIR = TEST_DATA_DIR;
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test-secret-key-for-subscription-routes';
+
+after(() => {
+    if (fs.existsSync(TEST_DATA_DIR)) {
+        fs.rmSync(TEST_DATA_DIR, { recursive: true, force: true });
+    }
+});
 
 const {
     buildClientLink,

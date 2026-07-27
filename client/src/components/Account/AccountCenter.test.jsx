@@ -1,5 +1,5 @@
 import React from 'react';
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithRouter } from '../../test/render.jsx';
 import AccountCenter from './AccountCenter.jsx';
@@ -77,12 +77,10 @@ describe('AccountCenter', () => {
         expect(usernameInput).toHaveValue('alice');
         expect(emailInput).toHaveValue('alice@example.com');
 
-        await user.clear(usernameInput);
-        await user.type(usernameInput, 'alice-next');
-        await user.clear(emailInput);
-        await user.type(emailInput, 'alice.next@example.com');
+        fireEvent.change(usernameInput, { target: { value: 'alice-next' } });
+        fireEvent.change(emailInput, { target: { value: 'alice.next@example.com' } });
         await user.click(screen.getByRole('button', { name: '发送验证码' }));
-        await user.type(screen.getByLabelText('邮箱验证码'), '123456');
+        fireEvent.change(screen.getByLabelText('邮箱验证码'), { target: { value: '123456' } });
         await user.click(screen.getByRole('button', { name: '保存账户' }));
 
         expect(api.post).toHaveBeenCalledWith('/auth/profile/send-code', {
