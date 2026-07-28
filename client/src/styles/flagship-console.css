@@ -43,6 +43,13 @@
   --accent-primary-border: rgba(76, 145, 255, 0.34);
   --accent-primary-glow: rgba(47, 125, 246, 0.22);
   --accent-info: #4c91ff;
+  --accent-secondary: #8b5cf6;
+  --accent-secondary-bg: rgba(139, 92, 246, 0.15);
+  --accent-secondary-glow: rgba(139, 92, 246, 0.3);
+  --accent-tertiary: #06b6d4;
+  --accent-tertiary-bg: rgba(6, 182, 212, 0.15);
+  --accent-tertiary-glow: rgba(6, 182, 212, 0.3);
+  --border-neutral: rgba(148, 163, 184, 0.14);
   --gradient-primary: linear-gradient(180deg, #3c88fb 0%, #2569db 100%);
   --focus-ring-shadow: 0 0 0 3px rgba(47, 125, 246, 0.22);
   --focus-ring-border: #4c91ff;
@@ -81,6 +88,7 @@
   --mobile-sheet-bg: #ffffff;
   --border-color: #d9e0e9;
   --border-highlight: rgba(37, 105, 219, 0.35);
+  --border-neutral: rgba(13, 27, 47, 0.12);
   --stroke-soft: #e8edf3;
   --stroke-medium: #c8d1dc;
   --text-primary: #0d1b2f;
@@ -92,6 +100,12 @@
   --accent-primary-soft: rgba(37, 105, 219, 0.13);
   --accent-primary-border: rgba(37, 105, 219, 0.24);
   --accent-info: #2569db;
+  --accent-secondary: #7c3aed;
+  --accent-secondary-bg: rgba(124, 58, 237, 0.1);
+  --accent-secondary-glow: rgba(124, 58, 237, 0.2);
+  --accent-tertiary: #0891b2;
+  --accent-tertiary-bg: rgba(8, 145, 178, 0.1);
+  --accent-tertiary-glow: rgba(8, 145, 178, 0.2);
   --focus-ring-shadow: 0 0 0 3px rgba(37, 105, 219, 0.2);
   --focus-ring-border: #2569db;
   --shadow-xs: 0 1px 2px rgba(13, 27, 47, 0.045);

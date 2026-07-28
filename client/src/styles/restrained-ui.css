@@ -67,6 +67,16 @@
   --accent-info-bg: rgba(96, 165, 250, 0.1);
   --accent-info-border: rgba(96, 165, 250, 0.22);
 
+  --accent-secondary: #818cf8;
+  --accent-secondary-bg: rgba(129, 140, 248, 0.12);
+  --accent-secondary-glow: rgba(129, 140, 248, 0.25);
+
+  --accent-tertiary: #38bdf8;
+  --accent-tertiary-bg: rgba(56, 189, 248, 0.12);
+  --accent-tertiary-glow: rgba(56, 189, 248, 0.25);
+
+  --border-neutral: rgba(148, 163, 184, 0.12);
+
   --gradient-primary: linear-gradient(180deg, #3c88fb 0%, #2569db 100%);
   --gradient-success: linear-gradient(180deg, #34d399 0%, #10b981 100%);
   --gradient-danger: linear-gradient(180deg, #fb7185 0%, #e11d48 100%);
