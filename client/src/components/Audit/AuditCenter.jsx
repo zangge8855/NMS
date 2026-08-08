@@ -1938,10 +1938,10 @@ export default function AuditCenter() {
         [selectedServerId, topServers]
     );
     const leaderboardTrendParams = useMemo(() => {
-        if (trafficWindow === 'week') return { days: 7, granularity: 'day', labelZh: '7日趋势', labelEn: '7d Trend' };
-        if (trafficWindow === 'month') return { days: 30, granularity: 'day', labelZh: '30日趋势', labelEn: '30d Trend' };
+        if (selectedTrafficWindow === 'week') return { days: 7, granularity: 'day', labelZh: '7日趋势', labelEn: '7d Trend' };
+        if (selectedTrafficWindow === 'month') return { days: 30, granularity: 'day', labelZh: '30日趋势', labelEn: '30d Trend' };
         return { days: 1, granularity: 'hour', labelZh: '24h 趋势', labelEn: '24h Trend' };
-    }, [trafficWindow]);
+    }, [selectedTrafficWindow]);
     const leaderboardTrendLabel = locale === 'en-US' ? leaderboardTrendParams.labelEn : leaderboardTrendParams.labelZh;
     const {
         userTrends: trafficUserRowTrends,

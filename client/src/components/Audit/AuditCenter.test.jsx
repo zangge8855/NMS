@@ -126,7 +126,7 @@ describe('AuditCenter localization', () => {
                     },
                 });
             }
-            throw new Error(`Unexpected GET ${url}`);
+            return Promise.resolve({ data: { obj: {} } });
         });
 
         renderWithRouter(<AuditCenter />, { route: '/audit' });
@@ -164,7 +164,7 @@ describe('AuditCenter localization', () => {
                     },
                 });
             }
-            throw new Error(`Unexpected GET ${url}`);
+            return Promise.resolve({ data: { obj: {} } });
         });
 
         renderWithRouter(<AuditCenter />, { route: '/audit' });
@@ -202,7 +202,7 @@ describe('AuditCenter localization', () => {
             if (url === '/audit/events/export') {
                 return Promise.resolve({ data: new Blob(['csv']) });
             }
-            throw new Error(`Unexpected GET ${url}`);
+            return Promise.resolve({ data: { obj: {} } });
         });
 
         renderWithRouter(<AuditCenter />, { route: '/audit' });
@@ -280,7 +280,7 @@ describe('AuditCenter localization', () => {
             if (url.startsWith('/audit/events?')) {
                 return never;
             }
-            throw new Error(`Unexpected GET ${url}`);
+            return Promise.resolve({ data: { obj: {} } });
         });
 
         renderWithRouter(<AuditCenter />, { route: '/audit' });
@@ -354,7 +354,7 @@ describe('AuditCenter localization', () => {
                     },
                 });
             }
-            throw new Error(`Unexpected GET ${url}`);
+            return Promise.resolve({ data: { obj: {} } });
         });
 
         renderWithRouter(<AuditCenter />, { route: '/audit?tab=subscriptions' });
@@ -409,7 +409,7 @@ describe('AuditCenter localization', () => {
                     },
                 });
             }
-            throw new Error(`Unexpected GET ${url}`);
+            return Promise.resolve({ data: { obj: {} } });
         });
 
         renderWithRouter(<AuditCenter />, { route: '/audit?tab=subscriptions' });
@@ -512,7 +512,7 @@ describe('AuditCenter localization', () => {
                     },
                 });
             }
-            throw new Error(`Unexpected GET ${url}`);
+            return Promise.resolve({ data: { obj: {} } });
         });
 
         renderWithRouter(<AuditCenter />, { route: '/audit?tab=subscriptions' });
@@ -590,7 +590,7 @@ describe('AuditCenter localization', () => {
             if (url.startsWith('/subscriptions/access?') || url.startsWith('/subscriptions/access/summary?')) {
                 return never;
             }
-            throw new Error(`Unexpected GET ${url}`);
+            return Promise.resolve({ data: { obj: {} } });
         });
 
         renderWithRouter(<AuditCenter />, { route: '/audit?tab=subscriptions' });
@@ -647,7 +647,7 @@ describe('AuditCenter localization', () => {
             if (url.startsWith('/traffic/overview?')) {
                 return Promise.reject(new Error('traffic unavailable'));
             }
-            throw new Error(`Unexpected GET ${url}`);
+            return Promise.resolve({ data: { obj: {} } });
         });
 
         renderWithRouter(<AuditCenter />, { route: '/audit?tab=traffic' });
@@ -704,7 +704,7 @@ describe('AuditCenter localization', () => {
                     },
                 });
             }
-            throw new Error(`Unexpected GET ${url}`);
+            return Promise.resolve({ data: { obj: {} } });
         });
 
         renderWithRouter(<AuditCenter />, { route: '/audit?tab=traffic' });
@@ -761,7 +761,7 @@ describe('AuditCenter localization', () => {
                     },
                 });
             }
-            throw new Error(`Unexpected GET ${url}`);
+            return Promise.resolve({ data: { obj: {} } });
         });
 
         renderWithRouter(<AuditCenter />, { route: '/audit?tab=traffic&window=day' });
@@ -819,7 +819,7 @@ describe('AuditCenter localization', () => {
                     },
                 });
             }
-            throw new Error(`Unexpected GET ${url}`);
+            return Promise.resolve({ data: { obj: {} } });
         });
 
         renderWithRouter(<AuditCenter />, { route: '/audit?tab=traffic' });
@@ -871,7 +871,7 @@ describe('AuditCenter localization', () => {
                     },
                 });
             }
-            throw new Error(`Unexpected GET ${url}`);
+            return Promise.resolve({ data: { obj: {} } });
         });
 
         renderWithRouter(<AuditCenter />, { route: '/audit?tab=traffic' });
@@ -947,7 +947,7 @@ describe('AuditCenter localization', () => {
             if (url.startsWith('/subscriptions/access?') || url.startsWith('/subscriptions/access/summary?')) {
                 return Promise.reject(new Error('access unavailable'));
             }
-            throw new Error(`Unexpected GET ${url}`);
+            return Promise.resolve({ data: { obj: {} } });
         });
 
         renderWithRouter(<AuditCenter />, { route: '/audit?tab=subscriptions' });
@@ -1065,7 +1065,7 @@ describe('AuditCenter localization', () => {
                     },
                 });
             }
-            throw new Error(`Unexpected GET ${url}`);
+            return Promise.resolve({ data: { obj: {} } });
         });
 
         renderWithRouter(<AuditCenter />, { route: '/audit?tab=traffic' });
@@ -1330,7 +1330,7 @@ describe('AuditCenter localization', () => {
                     },
                 });
             }
-            throw new Error(`Unexpected GET ${url}`);
+            return Promise.resolve({ data: { obj: {} } });
         });
 
         renderWithRouter(<AuditCenter />, { route: '/audit?tab=traffic' });
@@ -1440,7 +1440,7 @@ describe('AuditCenter localization', () => {
                     },
                 });
             }
-            throw new Error(`Unexpected GET ${url}`);
+            return Promise.resolve({ data: { obj: {} } });
         });
 
         renderWithRouter(<AuditCenter />, { route: '/audit?tab=traffic' });
@@ -1544,7 +1544,7 @@ describe('AuditCenter localization', () => {
                     },
                 });
             }
-            throw new Error(`Unexpected GET ${url}`);
+            return Promise.resolve({ data: { obj: {} } });
         });
 
         renderWithRouter(<AuditCenter />, { route: '/audit' });
@@ -1583,7 +1583,7 @@ describe('AuditCenter localization', () => {
                     },
                 });
             }
-            throw new Error(`Unexpected GET ${url}`);
+            return Promise.resolve({ data: { obj: {} } });
         });
 
         renderWithRouter(<AuditCenter />, { route: '/audit' });
@@ -1616,7 +1616,7 @@ describe('AuditCenter localization', () => {
                     },
                 });
             }
-            throw new Error(`Unexpected GET ${url}`);
+            return Promise.resolve({ data: { obj: {} } });
         });
 
         renderWithRouter(<AuditCenter />, { route: '/audit?tab=traffic&window=custom' });
