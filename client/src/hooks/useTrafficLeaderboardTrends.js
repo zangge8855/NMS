@@ -11,6 +11,8 @@ export default function useTrafficLeaderboardTrends({
     enabled = false,
     topUsers = [],
     topServers = [],
+    days = 1,
+    granularity = 'hour',
 }) {
     const [userTrends, setUserTrends] = useState({});
     const [serverTrends, setServerTrends] = useState({});
@@ -49,8 +51,8 @@ export default function useTrafficLeaderboardTrends({
                         if (!email) return [email, []];
                         const res = await api.get(`/traffic/users/${encodeURIComponent(email)}/trend`, {
                             params: {
-                                days: 1,
-                                granularity: 'hour',
+                                days,
+                                granularity,
                             },
                         });
                         return [email, toTrendSeries(res.data?.obj?.points)];
@@ -62,8 +64,8 @@ export default function useTrafficLeaderboardTrends({
                         if (!serverId) return [serverId, []];
                         const res = await api.get(`/traffic/servers/${encodeURIComponent(serverId)}/trend`, {
                             params: {
-                                days: 1,
-                                granularity: 'hour',
+                                days,
+                                granularity,
                             },
                         });
                         return [serverId, toTrendSeries(res.data?.obj?.points)];
@@ -100,7 +102,7 @@ export default function useTrafficLeaderboardTrends({
         });
 
         return undefined;
-    }, [enabled, serverKey, userKey]);
+    }, [enabled, serverKey, userKey, days, granularity]);
 
     return {
         userTrends,

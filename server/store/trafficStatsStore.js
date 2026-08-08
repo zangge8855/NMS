@@ -648,14 +648,10 @@ class TrafficStatsStore {
             let bucketTs;
             let granularity;
             if (ts < dailyCutoff) {
-                const d = new Date(ts);
-                d.setUTCHours(0, 0, 0, 0);
-                bucketTs = d.toISOString();
+                bucketTs = floorToDay(new Date(ts)).toISOString();
                 granularity = 'day';
             } else {
-                const d = new Date(ts);
-                d.setUTCMinutes(0, 0, 0);
-                bucketTs = d.toISOString();
+                bucketTs = floorToHour(new Date(ts)).toISOString();
                 granularity = 'hour';
             }
 
@@ -710,14 +706,10 @@ class TrafficStatsStore {
             let bucketTs;
             let granularity;
             if (ts < dailyCutoff) {
-                const d = new Date(ts);
-                d.setUTCHours(0, 0, 0, 0);
-                bucketTs = d.toISOString();
+                bucketTs = floorToDay(new Date(ts)).toISOString();
                 granularity = 'day';
             } else {
-                const d = new Date(ts);
-                d.setUTCMinutes(0, 0, 0);
-                bucketTs = d.toISOString();
+                bucketTs = floorToHour(new Date(ts)).toISOString();
                 granularity = 'hour';
             }
 

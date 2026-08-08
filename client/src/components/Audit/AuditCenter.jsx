@@ -1937,7 +1937,12 @@ export default function AuditCenter() {
         () => topServers.find((item) => item.serverId === selectedServerId) || null,
         [selectedServerId, topServers]
     );
-    const leaderboardTrendLabel = locale === 'en-US' ? '24h Trend' : '24h 趋势';
+    const leaderboardTrendParams = useMemo(() => {
+        if (trafficWindow === 'week') return { days: 7, granularity: 'day', labelZh: '7日趋势', labelEn: '7d Trend' };
+        if (trafficWindow === 'month') return { days: 30, granularity: 'day', labelZh: '30日趋势', labelEn: '30d Trend' };
+        return { days: 1, granularity: 'hour', labelZh: '24h 趋势', labelEn: '24h Trend' };
+    }, [trafficWindow]);
+    const leaderboardTrendLabel = locale === 'en-US' ? leaderboardTrendParams.labelEn : leaderboardTrendParams.labelZh;
     const {
         userTrends: trafficUserRowTrends,
         serverTrends: trafficServerRowTrends,
@@ -1945,6 +1950,8 @@ export default function AuditCenter() {
         enabled: tab === 'traffic',
         topUsers,
         topServers,
+        days: leaderboardTrendParams.days,
+        granularity: leaderboardTrendParams.granularity,
     });
     const auditTabs = useMemo(() => ([
         {
