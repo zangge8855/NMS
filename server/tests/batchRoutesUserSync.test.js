@@ -138,6 +138,7 @@ test('POST /api/jobs/:id/retry retries only failed user sync targets and writes 
 
     const result = await runScenario('tests/helpers/batchRoutesUserSyncScenario.js', {
         cwd: SERVER_ROOT,
+        timeoutMs: 30_000,
         env: {
             NODE_ENV: 'test',
             DATA_DIR: dataDir,

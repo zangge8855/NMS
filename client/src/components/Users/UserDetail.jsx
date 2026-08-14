@@ -248,6 +248,7 @@ function getUserDetailCopy(locale = 'zh-CN') {
                 qrHint: 'Scan with {label} to import',
                 qrUnavailable: 'No QR code is available for this format',
                 clientIpNotice: 'If the node runs an older 3x-ui build without the clientIps API, the Node IP button is disabled automatically.',
+                batchAdjustClients: 'Batch Adjust Expiry / Traffic',
                 noClientsTitle: 'No node records',
                 noClientsSubtitle: 'This user is not linked to any node yet',
                 server: 'Server',
@@ -410,7 +411,8 @@ function getUserDetailCopy(locale = 'zh-CN') {
             qrTitle: '二维码',
             qrHint: '使用 {label} 扫码导入',
             qrUnavailable: '当前格式暂无二维码',
-            clientIpNotice: '旧版 3x-ui 节点不支持 `clientIps` 接口时，节点 IP 按钮会自动禁用。',
+            clientIpNotice: '若节点 3x-ui 版本较低无 clientIps 接口，节点 IP 按钮会自动禁用。',
+            batchAdjustClients: '批量调整到期/流量',
             noClientsTitle: '暂无节点记录',
             noClientsSubtitle: '该用户在各节点上还没有关联配置',
             server: '服务器',
@@ -1817,7 +1819,7 @@ export default function UserDetail() {
                                             onClick={() => setClientAdjustOpen(true)}
                                             disabled={clientsLoading}
                                         >
-                                            <HiOutlineCalendarDays /> 批量调整到期/流量
+                                            <HiOutlineCalendarDays /> {copy.labels.batchAdjustClients}
                                         </button>
                                     </div>
                                 )}
