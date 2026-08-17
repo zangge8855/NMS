@@ -22,7 +22,6 @@ const state: SnapshotState = {
     pendingWrites: 0,
 };
 
-let writeChain: Promise<void> = Promise.resolve();
 const SNAPSHOT_PRIVACY_REDACTION_STORE_KEYS = new Set<string>(['traffic']);
 
 function qIdent(identifier: string): string {
@@ -177,6 +176,61 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errMsg = 'Timeou
     ]);
 }
 
+const pendingWritesMap = new Map<string, any>();
+let isProcessingQueue = false;
+let flushResolvers: Array<() => void> = [];
+
+async function processQueue(): Promise<void> {
+    if (isProcessingQueue) return;
+    isProcessingQueue = true;
+    try {
+        while (pendingWritesMap.size > 0) {
+            const entries = Array.from(pendingWritesMap.entries());
+            pendingWritesMap.clear();
+            for (const [key, body] of entries) {
+                let success = false;
+                let lastErr: any = null;
+                // Try up to 2 attempts for transient hiccups (connection retry, momentary lock)
+                for (let attempt = 0; attempt < 2; attempt++) {
+                    try {
+                        await withTimeout(
+                            upsertSnapshot(key, body),
+                            10000,
+                            `Write timeout for ${key} after 10000ms`
+                        );
+                        success = true;
+                        break;
+                    } catch (err: any) {
+                        lastErr = err;
+                        if (attempt === 0) {
+                            await new Promise(r => setTimeout(r, 200));
+                        }
+                    }
+                }
+
+                if (success) {
+                    alertEngine.recordSuccess();
+                    state.writesSucceeded += 1;
+                    state.lastWriteAt = new Date().toISOString();
+                } else {
+                    const errMsg = String(lastErr?.message || lastErr);
+                    alertEngine.recordFailure(key, errMsg);
+                    state.writesFailed += 1;
+                    state.lastError = errMsg;
+                }
+            }
+        }
+    } finally {
+        isProcessingQueue = false;
+        state.pendingWrites = pendingWritesMap.size;
+        if (flushResolvers.length > 0) {
+            const resolvers = flushResolvers;
+            flushResolvers = [];
+            resolvers.forEach(resolve => resolve());
+        }
+    }
+}
+
 export function queueSnapshotWrite(storeKey: string, payload: any, options: SnapshotRedactionOptions = {}): void {
     if (!isDbEnabled() || !isDbReady()) return;
     const key = String(storeKey || '').trim();
@@ -185,32 +239,18 @@ export function queueSnapshotWrite(storeKey: string, payload: any, options: Snap
     const body = applyPrivacyRedaction(key, payload, options);
 
     state.writesQueued += 1;
-    state.pendingWrites += 1;
+    pendingWritesMap.set(key, body);
+    state.pendingWrites = pendingWritesMap.size;
 
-    writeChain = writeChain
-        .then(async () => {
-            await withTimeout(
-                upsertSnapshot(key, body),
-                10000,
-                `Write timeout for ${key} after 10000ms`
-            );
-            alertEngine.recordSuccess();
-            state.writesSucceeded += 1;
-            state.lastWriteAt = new Date().toISOString();
-        })
-        .catch((error: any) => {
-            const errMsg = String(error?.message || error);
-            alertEngine.recordFailure(key, errMsg);
-            state.writesFailed += 1;
-            state.lastError = errMsg;
-        })
-        .finally(() => {
-            state.pendingWrites = Math.max(0, state.pendingWrites - 1);
-        });
+    void processQueue();
 }
 
 export async function flushSnapshotQueue(): Promise<void> {
-    await writeChain;
+    if (!isProcessingQueue && pendingWritesMap.size === 0) return;
+    await new Promise<void>((resolve) => {
+        flushResolvers.push(resolve);
+        void processQueue();
+    });
 }
 
 export interface SnapshotMeta {

@@ -8097,11 +8097,13 @@ body::before {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 16px;
-  border-radius: 22px;
-  border: 1px solid var(--stroke-soft);
-  background: linear-gradient(180deg, rgba(17, 17, 19, 0.88), rgba(17, 17, 19, 0.68));
-  box-shadow: var(--shadow-sm);
+  padding: 16px 20px;
+  border-radius: var(--radius-xl, 20px);
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: var(--shadow-md);
 }
 
 .audit-nav-head {
@@ -9132,20 +9134,21 @@ body::before {
   position: sticky;
   top: calc(76px + env(safe-area-inset-top, 0px));
   z-index: 8;
-  padding: 10px;
-  border-radius: 20px;
-  border: 1px solid var(--stroke-soft);
-  background:
-    radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 30%),
-    linear-gradient(180deg, rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.46));
-  box-shadow: var(--shadow-sm);
+  padding: 8px;
+  border-radius: var(--radius-xl, 20px);
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: var(--shadow-md);
+  margin-bottom: 20px;
 }
 
 .settings-nav-list {
   display: flex;
   flex: 1 1 auto;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -9155,33 +9158,46 @@ body::before {
   gap: 8px;
 }
 
+@media (max-width: 1024px) {
+  .settings-nav-list--workspace {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .settings-nav-list--workspace {
+    grid-template-columns: 1fr;
+  }
+}
+
 .settings-nav-item {
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
   gap: 12px;
-  flex: 1 1 164px;
-  min-height: 54px;
+  min-height: 48px;
   min-width: 0;
-  padding: 12px 14px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.028);
-  color: var(--text-primary);
-  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+  padding: 10px 16px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .settings-nav-item:hover,
 .settings-nav-item:focus-visible {
-  background: rgba(59, 130, 246, 0.12);
-  border-color: rgba(59, 130, 246, 0.18);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
   transform: translateY(-1px);
 }
 
 .settings-nav-item.is-active {
-  background: rgba(59, 130, 246, 0.14);
-  border-color: rgba(59, 130, 246, 0.2);
-  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.08);
+  background: var(--accent-primary-bg);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #ffffff;
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.15);
 }
 
 .settings-nav-item-icon {
@@ -9241,16 +9257,16 @@ body::before {
 
 .settings-save-dock {
   position: sticky;
-  bottom: 8px;
-  z-index: 9;
-  margin-top: 2px;
-  padding: 10px 12px;
+  bottom: 16px;
+  z-index: 99;
+  margin-top: 16px;
+  padding: 12px 20px;
   border-radius: 18px;
-  border: 1px solid var(--stroke-soft);
-  background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.72));
-  backdrop-filter: blur(16px);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.24);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  background: rgba(15, 23, 42, 0.9);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
 }
 
 .settings-save-dock-inner {
@@ -9382,9 +9398,11 @@ body::before {
 }
 
 .settings-panel-subtitle,
-.settings-form-cluster-note,
-.settings-panel .section-header-subtitle {
-  display: none;
+.settings-form-cluster-note {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin-top: 2px;
 }
 
 .settings-fieldset {
@@ -9789,7 +9807,10 @@ body::before {
 }
 
 .settings-toggle-description {
-  display: none;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin-top: 4px;
 }
 
 .settings-sensitive-field {
@@ -13349,122 +13370,246 @@ input[type="radio"]:focus-visible {
   border-radius: var(--radius-lg);
 }
 
-.subscription-user-flow {
+/* ==========================================================================
+   Subscription Center — Premium Modern UI & Glassmorphic Dashboard
+   ========================================================================== */
+
+.subscriptions-page {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.subscription-user-workbench {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 20px;
 }
 
-.subscription-user-hero {
+/* 1. Hero & Service Overview Header */
+.subscription-user-hero-strip {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  padding: 16px 18px;
-  border-radius: 18px;
-  border: 1px solid var(--subscription-accent-border);
-  background: var(--subscription-accent-surface);
+  gap: 20px;
+  padding: 22px 28px;
+  border-radius: var(--radius-xl, 20px);
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(18, 18, 20, 0.75) 100%);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
-.subscription-user-main-grid {
-  display: grid;
-  grid-template-columns: minmax(280px, 0.95fr) minmax(0, 1.2fr);
-  gap: 16px;
+@media (max-width: 768px) {
+  .subscription-user-hero-strip {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 18px 20px;
+  }
 }
 
-.subscription-user-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px;
-  border-radius: 16px;
-  border: 1px solid var(--stroke-soft);
-  background: var(--subscription-surface);
-  min-width: 0;
-}
-
-.subscription-user-panel--import {
-  gap: 10px;
-}
-
-.subscription-user-panel-topbar {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.subscription-user-panel-head {
+.subscription-user-hero-copy {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.subscription-user-panel-title {
-  font-size: 16px;
-  line-height: 1.35;
+.subscription-user-kicker {
+  font-size: 11px;
   font-weight: 700;
-  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent-primary);
 }
 
-.subscription-user-panel-title--flow {
-  margin-bottom: 2px;
+.subscription-user-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
 }
 
-.subscription-user-panel-text {
-  font-size: 12px;
-  line-height: 1.6;
+.subscription-user-subtitle {
+  font-size: 13px;
   color: var(--text-secondary);
 }
 
-.subscription-user-panel--type .subscription-profile-switches {
-  padding-bottom: 0;
+.subscription-user-status-pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.subscription-user-import-layout {
+/* 2. Top Metric Hub Cards */
+.subscription-user-meter-strip {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 188px;
-  gap: 14px;
-  align-items: start;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
 }
 
-.subscription-link-card--user-focus {
+@media (max-width: 768px) {
+  .subscription-user-meter-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+.subscription-user-meter-pill {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-width: 0;
-  max-width: 620px;
-  padding: 12px 14px;
-  border-radius: 16px;
-  border: 1px solid var(--subscription-strong-border);
-  background: var(--subscription-strong-surface);
-  box-shadow: var(--subscription-strong-shadow);
-}
-
-.subscription-link-card--user-with-qr {
-  max-width: none;
-}
-
-.subscription-user-address-shell {
-  display: flex;
-  min-width: 0;
   flex-direction: column;
   gap: 8px;
+  padding: 18px 22px;
+  border-radius: 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.subscription-user-address-grid {
-  display: grid;
-  width: min(100%, calc(var(--subscription-address-measure) + 146px));
-  grid-template-columns: minmax(0, 1fr) 136px;
-  gap: 10px;
-  align-items: start;
+.subscription-user-meter-pill:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-highlight);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.6);
 }
 
-.subscription-user-address-main {
+.subscription-user-meter-pill--info {
+  border-left: 3px solid var(--accent-primary);
+}
+
+.subscription-user-meter-pill--success {
+  border-left: 3px solid var(--accent-success);
+}
+
+.subscription-user-meter-pill--warning {
+  border-left: 3px solid var(--accent-warning);
+}
+
+.subscription-user-meter-pill--danger {
+  border-left: 3px solid var(--accent-danger);
+}
+
+.subscription-user-meter-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.subscription-user-meter-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.subscription-user-meter-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* 3. Core Import Console Stage */
+.subscription-user-import-stage {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 26px 28px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+@media (max-width: 768px) {
+  .subscription-user-import-stage {
+    padding: 18px;
+  }
+}
+
+.subscription-user-section-head {
   display: flex;
-  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.subscription-user-section-label {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+}
+
+.subscription-user-section-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* Segmented Profile Toggle Bar */
+.subscription-profile-switches--user-stage {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 18px 0 22px 0;
+  padding: 6px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--stroke-soft);
+  border-radius: 14px;
+}
+
+.subscription-profile-switches--user-stage .btn {
+  flex: 1 1 auto;
+  min-height: 38px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.subscription-profile-switches--user-stage .btn-primary {
+  background: var(--accent-primary);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+  border-color: transparent;
+}
+
+.subscription-profile-switches--user-stage .btn-secondary {
+  background: transparent;
+  color: var(--text-secondary);
+  border-color: transparent;
+}
+
+.subscription-profile-switches--user-stage .btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
+
+/* Address Card & QR Code Deck Layout */
+.subscription-user-address-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 210px;
+  gap: 20px;
+  align-items: stretch;
+}
+
+@media (max-width: 960px) {
+  .subscription-user-address-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.subscription-user-address-card {
+  display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 16px;
+  padding: 22px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
 }
 
 .subscription-user-address-head {
@@ -13474,233 +13619,230 @@ input[type="radio"]:focus-visible {
   gap: 12px;
 }
 
-.subscription-user-address-copy {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 0;
-}
-
 .subscription-user-address-label {
-  font-size: 12px;
-  line-height: 1.35;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-primary);
+}
+
+.subscription-user-address-helper {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.subscription-link-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--stroke-soft);
+}
+
+.subscription-current-profile-tools-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.subscription-current-profile-tools-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.subscription-current-profile-tools-list .badge {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--stroke-soft);
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.subscription-user-address-main {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.subscription-url-input {
+  width: 100%;
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--border-color);
+  color: #60a5fa;
+  font-size: 12px;
+  font-family: var(--font-mono, monospace);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.subscription-url-input:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+  outline: none;
 }
 
 .subscription-user-address-actions {
   display: flex;
-  flex-wrap: nowrap;
-  gap: 6px;
-  align-items: stretch;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: none;
-}
-
-.subscription-user-address-actions .btn {
-  flex: 0 0 auto;
-  min-height: 34px;
-  white-space: nowrap;
-}
-
-.subscription-user-address-actions::-webkit-scrollbar {
-  display: none;
-}
-
-.subscription-user-import-btn {
-  flex: 0 0 auto;
-  padding-inline: 10px;
-  font-size: 11px;
-  white-space: nowrap;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
 }
 
 .subscription-user-copy-btn {
-  flex: 0 0 auto;
-  min-width: 124px;
+  min-height: 40px;
+  padding: 0 22px;
   font-weight: 700;
+  font-size: 13px;
+  border-radius: 10px;
+}
+
+.subscription-user-import-btn {
+  min-height: 40px;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .subscription-user-address-note {
-  font-size: 10px;
-  line-height: 1.45;
+  font-size: 12px;
   color: var(--text-muted);
+  line-height: 1.5;
 }
 
-.subscription-address-status-grid {
-  display: grid;
-  width: min(100%, var(--subscription-address-measure));
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 5px;
-  align-items: stretch;
-}
-
-.subscription-address-status-card {
+/* 4. High-Resolution QR Card */
+.subscription-inline-qr--user-side {
   display: flex;
-  min-width: 0;
   flex-direction: column;
-  justify-content: flex-start;
-  gap: 3px;
-  min-height: 54px;
-  padding: 7px 9px;
-  border-radius: 12px;
-  border: 1px solid var(--stroke-soft);
-  background: var(--subscription-surface-subtle);
-}
-
-.subscription-address-status-card--info {
-  border-color: rgba(59, 130, 246, 0.18);
-  background: rgba(59, 130, 246, 0.08);
-}
-
-.subscription-address-status-card--success {
-  border-color: rgba(16, 185, 129, 0.18);
-  background: rgba(16, 185, 129, 0.08);
-}
-
-.subscription-address-status-card--warning {
-  border-color: rgba(245, 158, 11, 0.2);
-  background: rgba(245, 158, 11, 0.08);
-}
-
-.subscription-address-status-card--danger {
-  border-color: rgba(239, 68, 68, 0.2);
-  background: rgba(239, 68, 68, 0.08);
-}
-
-.subscription-address-status-head {
-  display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 5px;
+  justify-content: center;
+  gap: 12px;
+  padding: 22px 18px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  text-align: center;
 }
 
-.subscription-address-status-label {
-  font-size: 9px;
-  line-height: 1.2;
-  letter-spacing: 0.03em;
+.subscription-inline-qr-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.subscription-inline-qr-surface {
+  padding: 10px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  line-height: 0;
+  transition: transform 0.2s ease;
+}
+
+.subscription-inline-qr-surface:hover {
+  transform: scale(1.03);
+}
+
+.subscription-inline-qr-surface svg {
+  width: 120px;
+  height: 120px;
+}
+
+.subscription-inline-qr-text {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.subscription-inline-qr-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 16px;
+  text-align: center;
   color: var(--text-muted);
 }
 
-.subscription-address-status-meta {
-  flex: 0 0 auto;
-  font-size: 9px;
-  line-height: 1;
-  font-weight: 700;
+.subscription-inline-qr-empty-icon {
+  font-size: 36px;
+  opacity: 0.4;
+}
+
+.subscription-inline-qr-empty-title {
+  font-size: 13px;
+  font-weight: 600;
   color: var(--text-secondary);
 }
 
-.subscription-address-status-value {
-  min-width: 0;
+.subscription-inline-qr-empty-text {
   font-size: 11px;
-  line-height: 1.25;
-  font-weight: 700;
-  color: var(--text-primary);
-  overflow-wrap: anywhere;
 }
 
-.subscription-user-address-foot {
+/* 5. Danger Zone & Reset Link Footer */
+.subscription-user-address-foot.subscription-user-danger-row {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  padding-top: 8px;
-  border-top: 1px solid var(--stroke-soft);
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 24px;
+  padding: 16px 20px;
+  border-radius: 14px;
+  background: rgba(239, 68, 68, 0.04);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+}
+
+@media (max-width: 768px) {
+  .subscription-user-address-foot.subscription-user-danger-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
 }
 
 .subscription-user-reset-inline-btn {
-  flex: 0 0 auto;
-  min-width: 118px;
-  font-weight: 700;
+  min-height: 36px;
+  padding: 0 16px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
+  flex-shrink: 0;
 }
 
 .subscription-user-reset-inline-copy {
   display: flex;
-  min-width: 0;
-  flex: 1 1 240px;
   align-items: center;
-  flex-wrap: nowrap;
-  gap: 5px;
-  font-size: 11px;
-  line-height: 1.5;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 
 .subscription-user-reset-inline-icon {
-  width: 15px;
-  height: 15px;
+  font-size: 18px;
   color: var(--accent-danger);
-  flex: 0 0 auto;
+  flex-shrink: 0;
 }
 
 .subscription-user-reset-inline-title {
-  font-size: inherit;
-  line-height: inherit;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.subscription-user-reset-inline-note {
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.subscription-user-reset-inline-divider {
-  color: var(--text-secondary);
+  font-weight: 700;
+  color: var(--accent-danger);
 }
 
 .subscription-user-reset-inline-text {
-  font-size: inherit;
-  line-height: inherit;
-  font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--text-muted);
 }
 
-.subscription-user-step {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-  border-radius: 18px;
-  border: 1px solid var(--stroke-soft);
-  background: var(--surface-soft);
-}
-
-.subscription-user-step--highlight {
-  border-color: var(--subscription-accent-border);
-  background: var(--subscription-accent-surface);
-}
-
-.subscription-user-step-head {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.subscription-user-step-kicker {
-  font-size: 11px;
-  line-height: 1.2;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--accent-primary);
-  font-weight: 700;
-}
-
-.subscription-user-step-title {
-  font-size: 18px;
-  line-height: 1.35;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.subscription-user-step-text {
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--text-secondary);
-  max-width: 52ch;
-}
-
+/* Compatibility Rules for Legacy / Admin Views */
 .subscription-hero-copy {
   display: flex;
   flex-direction: column;
@@ -13733,10 +13875,10 @@ input[type="radio"]:focus-visible {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 14px;
+  padding: 16px 18px;
   border-radius: 16px;
-  border: 1px solid var(--subscription-accent-border);
-  background: var(--subscription-accent-surface);
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
 }
 
 .subscription-admin-focus--overview {

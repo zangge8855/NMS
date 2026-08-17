@@ -17,8 +17,8 @@ export interface AlertEngineConfig {
 
 const DEFAULT_CONFIG: AlertEngineConfig = {
     windowMs: 5 * 60 * 1000,       // 5分钟滑动窗口
-    failureThreshold: 3,             // 窗口内失败超过3次触发告警
-    consecutiveThreshold: 2,         // 连续失败2次触发告警
+    failureThreshold: 5,             // 窗口内失败超过5次触发告警 (提高阈值，避免瞬时网络抖动误报)
+    consecutiveThreshold: 3,         // 连续失败3次触发告警
 };
 
 export interface AlertEvent {
