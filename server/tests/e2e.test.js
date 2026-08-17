@@ -5,6 +5,11 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import net from 'net';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const SERVER_DIR = path.resolve(__dirname, '..');
 
 let TEMP_DATA_DIR;
 let backendPort;
@@ -60,7 +65,7 @@ before(async () => {
         `--healthy-port=${healthyPort}`,
         `--legacy-port=${legacyPort}`
     ], {
-        cwd: '/root/NMS/server',
+        cwd: SERVER_DIR,
         env: {
             ...process.env,
             REVIEW_PANEL_HOST: '127.0.0.1'
@@ -132,7 +137,7 @@ before(async () => {
 
     // 6. Spawn the NMS backend server in another child process
     nmsProc = spawn(process.execPath, ['--import', 'tsx', 'index.ts'], {
-        cwd: '/root/NMS/server',
+        cwd: SERVER_DIR,
         env: {
             ...process.env,
             PORT: String(backendPort),

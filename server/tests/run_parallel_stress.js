@@ -1,12 +1,15 @@
-import { spawn } from 'child_process';
-import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const SERVER_DIR = path.resolve(__dirname, '..');
 
 function runChild(command, args) {
     return new Promise((resolve, reject) => {
         const start = Date.now();
         console.log(`[Start] ${command} ${args.join(' ')}`);
         const proc = spawn(command, args, {
-            cwd: '/root/NMS/server',
+            cwd: SERVER_DIR,
             env: process.env,
             stdio: 'pipe'
         });

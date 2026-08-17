@@ -44,7 +44,7 @@ describe('UserPolicyModal', () => {
         );
 
         expect(await screen.findByRole('heading', { name: '订阅权限策略' })).toBeInTheDocument();
-        expect(screen.getByText('可访问服务器')).toBeInTheDocument();
+        expect(await screen.findByText('可访问服务器')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /保存策略/ })).toBeInTheDocument();
     });
 

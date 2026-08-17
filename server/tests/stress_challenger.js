@@ -4,6 +4,11 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const SERVER_DIR = path.resolve(__dirname, '..');
 import { saveObjectAtomic, saveObjectAtomicAsync } from '../store/fileUtils.js';
 import notificationService, { SEVERITY } from '../lib/notifications.js';
 import alertEngine from '../lib/alertEngine.js';
@@ -202,7 +207,7 @@ test('STRESS 4.1: Express Server API concurrent requests under heavy load', asyn
     fs.mkdirSync(dataDir, { recursive: true });
 
     const nmsProc = spawn('node', ['index.js'], {
-        cwd: '/root/NMS/server',
+        cwd: SERVER_DIR,
         env: {
             ...process.env,
             PORT: String(serverPort),
