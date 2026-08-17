@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import { getPasswordPolicyError, getPasswordPolicyHint } from '../../utils/passwordPolicy.js';
 import TwoFactorPanel from './TwoFactorPanel.jsx';
+import PasswordStrengthMeter from '../UI/PasswordStrengthMeter.jsx';
 
 function getAccountCopy(locale = 'zh-CN') {
     if (locale === 'en-US') {
@@ -389,6 +390,7 @@ export default function AccountCenter() {
                                     onChange={(event) => setNewPassword(event.target.value)}
                                     autoComplete="new-password"
                                 />
+                                <PasswordStrengthMeter password={newPassword} locale={locale} />
                             </div>
                             <div className="form-group mb-0">
                                 <label className="form-label" htmlFor="account-confirm-password">{copy.confirmPassword}</label>

@@ -1753,3 +1753,282 @@ main .servers-mobile-tags .badge-info {
     margin-inline: 8px;
   }
 }
+
+/* ==========================================================================
+   Comprehensive UI Polish & Refinements
+   ========================================================================== */
+
+/* --- Password Strength Meter --- */
+.password-strength-meter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  margin-bottom: 4px;
+}
+
+.password-strength-bars {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+  height: 4px;
+}
+
+.password-strength-bar {
+  flex: 1;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--surface-soft);
+  border: 1px solid var(--stroke-soft);
+  transition: background-color 240ms cubic-bezier(0.16, 1, 0.3, 1), transform 240ms ease;
+}
+
+.password-strength-meter[data-tone="danger"] .password-strength-bar.active {
+  background: #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
+}
+
+.password-strength-meter[data-tone="warning"] .password-strength-bar.active {
+  background: #f59e0b;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.4);
+}
+
+.password-strength-meter[data-tone="info"] .password-strength-bar.active {
+  background: #3b82f6;
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.4);
+}
+
+.password-strength-meter[data-tone="success"] .password-strength-bar.active {
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
+}
+
+.password-strength-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  min-width: 32px;
+  text-align: right;
+  letter-spacing: 0.02em;
+}
+
+.password-strength-meter[data-tone="danger"] .password-strength-label { color: #ef4444; }
+.password-strength-meter[data-tone="warning"] .password-strength-label { color: #f59e0b; }
+.password-strength-meter[data-tone="info"] .password-strength-label { color: #3b82f6; }
+.password-strength-meter[data-tone="success"] .password-strength-label { color: #10b981; }
+
+/* --- Protocol Specific Badges --- */
+.badge-protocol {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
+.badge-vless,
+[data-protocol="vless"] {
+  background: rgba(47, 125, 246, 0.14) !important;
+  color: #60a5fa !important;
+  border: 1px solid rgba(96, 165, 250, 0.28) !important;
+}
+
+.badge-vmess,
+[data-protocol="vmess"] {
+  background: rgba(139, 92, 246, 0.14) !important;
+  color: #c084fc !important;
+  border: 1px solid rgba(192, 132, 252, 0.28) !important;
+}
+
+.badge-trojan,
+[data-protocol="trojan"] {
+  background: rgba(16, 185, 129, 0.14) !important;
+  color: #34d399 !important;
+  border: 1px solid rgba(52, 211, 153, 0.28) !important;
+}
+
+.badge-shadowsocks,
+.badge-ss,
+[data-protocol="shadowsocks"] {
+  background: rgba(245, 158, 11, 0.14) !important;
+  color: #fbbf24 !important;
+  border: 1px solid rgba(251, 191, 36, 0.28) !important;
+}
+
+/* --- User Avatar Initial Badge --- */
+.user-avatar-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, rgba(47, 125, 246, 0.22), rgba(139, 92, 246, 0.22));
+  color: #93c5fd;
+  border: 1px solid rgba(147, 197, 253, 0.24);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
+  user-select: none;
+}
+
+/* --- Floating Bulk Action Dock --- */
+.floating-bulk-dock {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(0);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+  background: color-mix(in srgb, var(--surface-overlay) 88%, #000);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(76, 145, 255, 0.35);
+  border-radius: 9999px;
+  box-shadow: 0 18px 40px -8px rgba(0, 0, 0, 0.8), 0 0 20px rgba(47, 125, 246, 0.18);
+  animation: dockSlideUp 260ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes dockSlideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(18px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+.floating-bulk-dock-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text-primary);
+  padding-right: 8px;
+  border-right: 1px solid var(--border-color);
+}
+
+.floating-bulk-dock-badge {
+  background: var(--accent-primary);
+  color: #fff;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+/* --- Client Import Cards & Buttons --- */
+.client-import-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.client-import-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--text-primary);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+  cursor: pointer;
+}
+
+.client-import-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-highlight);
+  background: var(--bg-card-hover);
+  box-shadow: 0 8px 20px -8px rgba(47, 125, 246, 0.3);
+}
+
+.client-import-card-name {
+  font-size: 12px;
+  font-weight: 650;
+  margin-top: 6px;
+}
+
+.client-import-card-action {
+  font-size: 10px;
+  color: var(--accent-primary);
+  margin-top: 2px;
+}
+
+/* --- Node Latency Pulse Indicator --- */
+.ping-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 5px;
+}
+
+.ping-dot.ping-good {
+  background: #10b981;
+  box-shadow: 0 0 6px #10b981;
+}
+
+.ping-dot.ping-medium {
+  background: #f59e0b;
+  box-shadow: 0 0 6px #f59e0b;
+}
+
+.ping-dot.ping-poor {
+  background: #ef4444;
+  box-shadow: 0 0 6px #ef4444;
+}
+
+/* --- Polish Buttons & Interactive Regions --- */
+.btn {
+  transition: transform 140ms ease, background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.btn-primary {
+  transition: all 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px -6px rgba(47, 125, 246, 0.55);
+}
+
+/* --- Smooth Table Hover Transition --- */
+.table tbody tr {
+  transition: background-color 120ms ease;
+}
+
+/* --- Polished Empty States --- */
+.empty-state {
+  padding: 44px 20px;
+  text-align: center;
+}
+
+.empty-state-icon {
+  width: 48px;
+  height: 48px;
+  margin-inline: auto;
+  margin-bottom: 14px;
+  color: var(--text-muted);
+  opacity: 0.75;
+}
+

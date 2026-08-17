@@ -12,6 +12,7 @@ import {
 } from 'react-icons/hi2';
 import { getPasswordPolicyError, getPasswordPolicyHint } from '../../utils/passwordPolicy.js';
 import { buildSiteAssetPath } from '../../utils/sitePath.js';
+import PasswordStrengthMeter from '../UI/PasswordStrengthMeter.jsx';
 
 const MODE_LOGIN = 'login';
 const MODE_REGISTER = 'register';
@@ -538,6 +539,7 @@ export default function Login() {
                                             autoComplete="new-password"
                                         />
                                     </div>
+                                    <PasswordStrengthMeter password={regPassword} locale={locale} />
                                     <p className="text-muted text-sm mt-1">{passwordPolicyHint}</p>
                                 </div>
                                 <div className="form-group">
@@ -706,6 +708,7 @@ export default function Login() {
                                             autoComplete="new-password"
                                         />
                                     </div>
+                                    <PasswordStrengthMeter password={resetPassword} locale={locale} />
                                     <p className="text-muted text-sm mt-1">{passwordPolicyHint}</p>
                                 </div>
 

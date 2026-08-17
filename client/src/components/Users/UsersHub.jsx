@@ -7,6 +7,7 @@ import Header from '../Layout/Header.jsx';
 import { useI18n } from '../../contexts/LanguageContext.jsx';
 import { copyToClipboard, formatBytes, formatDateOnly } from '../../utils/format.js';
 import { getPasswordPolicyError, getPasswordPolicyHint } from '../../utils/passwordPolicy.js';
+import PasswordStrengthMeter from '../UI/PasswordStrengthMeter.jsx';
 import { buildSubscriptionProfileBundle } from '../../utils/subscriptionProfiles.js';
 import { normalizeEmail } from '../../utils/protocol.js';
 import {
@@ -2344,6 +2345,7 @@ export default function UsersHub() {
                                             <HiOutlineArrowPath />
                                         </button>
                                     </div>
+                                    <PasswordStrengthMeter password={createPassword} locale={locale} />
                                     <p className="text-muted text-sm mt-1">{getPasswordPolicyHint(locale)}</p>
                                 </div>
                                 </div>
@@ -2494,6 +2496,7 @@ export default function UsersHub() {
                                             <HiOutlineArrowPath />
                                         </button>
                                     </div>
+                                    <PasswordStrengthMeter password={editPassword} locale={locale} />
                                     <p className="text-muted text-sm mt-1">{getPasswordPolicyHint(locale)}</p>
                                 </div>
                                 <div className="form-group">
