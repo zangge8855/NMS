@@ -1,0 +1,464 @@
+import fs from 'fs';
+import path from 'path';
+import config from '../config.js';
+import auditStore from '../store/auditStore.js';
+import { resolveClientIp } from './requestIp.js';
+import notificationService, { SEVERITY } from './notifications.js';
+import { enrichAuditEvent } from './auditEventEnrichment.js';
+
+const AUDIT_FILE = path.join(config.dataDir, 'security_audit.log');
+
+// Persistent write stream for audit log — avoids blocking the event loop on
+// every appendSecurityAudit call. The stream is created lazily so the data
+// directory can be ensured first.
+let auditStream: fs.WriteStream | null = null;
+function getAuditStream(): fs.WriteStream {
+    if (!auditStream) {
+        ensureAuditDir();
+        auditStream = fs.createWriteStream(AUDIT_FILE, { flags: 'a' });
+        auditStream.on('error', (err) => {
+            console.error('[SecurityAudit] write stream error:', err);
+            // Discard broken stream so the next call creates a fresh one.
+            auditStream = null;
+        });
+    }
+    return auditStream;
+}
+
+const LOGIN_PATTERN_WINDOW_MS = 5 * 60 * 1000;
+const ACCESS_PATTERN_WINDOW_MS = 10 * 60 * 1000;
+const LOGIN_PATTERN_EVENTS = new Set<string>([
+    'login_failed',
+    'login_denied_email_unverified',
+    'login_denied_user_disabled',
+    'login_rate_limited',
+]);
+const ACCESS_PATTERN_EVENTS = new Set<string>([
+    'subscription_public_denied',
+    'subscription_public_denied_legacy',
+]);
+
+export interface SecurityPatternEventSummary {
+    id?: string;
+    eventType: string;
+    ip: string;
+    ts: number;
+    details: any;
+    path?: string;
+    targetEmail?: string;
+}
+
+// ── Lightweight in-memory sliding window for pattern matching ──
+// Instead of querying auditStore for 200 records on every call, we maintain a
+// small ring buffer of security-relevant event summaries that is appended to
+// inside appendSecurityAudit. getRecentMatchingEvents reads from this buffer.
+const recentSecurityEvents: SecurityPatternEventSummary[] = [];
+const MAX_RECENT_EVENTS = 500;
+const AUDIT_PATTERN_QUERY_PAGE_SIZE = 200;
+const SECURITY_PATTERN_EVENT_TYPES = new Set<string>([
+    ...LOGIN_PATTERN_EVENTS,
+    ...ACCESS_PATTERN_EVENTS,
+]);
+
+function ensureAuditDir(): void {
+    if (!fs.existsSync(config.dataDir)) {
+        fs.mkdirSync(config.dataDir, { recursive: true });
+    }
+}
+
+function redactSensitive(value: any): any {
+    if (value === null || value === undefined) return value;
+    if (typeof value === 'string') return value;
+    if (typeof value !== 'object') return value;
+
+    const blockedKeys = new Set<string>([
+        'password',
+        'token',
+        'authorization',
+        'cookie',
+        'secret',
+        'tokensecret',
+        'tokensecretenc',
+        'tokensecrethash',
+    ]);
+
+    if (Array.isArray(value)) {
+        return value.map((item) => redactSensitive(item));
+    }
+
+    const out: Record<string, any> = {};
+    for (const [key, raw] of Object.entries(value)) {
+        if (blockedKeys.has(String(key).toLowerCase())) {
+            out[key] = '[REDACTED]';
+            continue;
+        }
+        out[key] = redactSensitive(raw);
+    }
+    return out;
+}
+
+function getRecentMatchingEvents(windowMs: number, predicate: (item: SecurityPatternEventSummary) => boolean): SecurityPatternEventSummary[] {
+    const cutoff = Date.now() - windowMs;
+    return recentSecurityEvents.filter((item) => item.ts >= cutoff && predicate(item));
+}
+
+function normalizeSecurityPatternEvent(item: any = {}): SecurityPatternEventSummary {
+    const normalizedTs = typeof item?.ts === 'number'
+        ? item.ts
+        : new Date(item?.ts || 0).getTime();
+    return {
+        id: String(item?.id || '').trim(),
+        eventType: String(item?.eventType || item?.event || '').trim().toLowerCase(),
+        ip: String(item?.ip || '').trim(),
+        ts: Number.isFinite(normalizedTs) ? normalizedTs : 0,
+        details: item?.details && typeof item.details === 'object' && !Array.isArray(item.details)
+            ? item.details
+            : {},
+        path: String(item?.path || '').trim(),
+        targetEmail: String(item?.targetEmail || '').trim().toLowerCase(),
+    };
+}
+
+function getRecentPersistedMatchingEvents(windowMs: number, predicate: (item: SecurityPatternEventSummary) => boolean): SecurityPatternEventSummary[] {
+    const cutoff = Date.now() - windowMs;
+    try {
+        const result = auditStore.queryEvents({
+            page: 1,
+            pageSize: AUDIT_PATTERN_QUERY_PAGE_SIZE,
+        });
+        const items = Array.isArray(result?.items) ? result.items : [];
+        return items
+            .map((item) => normalizeSecurityPatternEvent(item))
+            .filter((item) => item.ts >= cutoff && predicate(item));
+    } catch {
+        return [];
+    }
+}
+
+export interface LoginPatternSummary {
+    recentAttempts: number;
+    distinctTargets: number;
+    rateLimited: boolean;
+    suspectedBruteforce: boolean;
+}
+
+function buildLoginPatternSummary(recentEvents: SecurityPatternEventSummary[] = [], details: any = {}): LoginPatternSummary | null {
+    if (!Array.isArray(recentEvents) || recentEvents.length === 0) return null;
+    const targets = new Set<string>();
+    let rateLimited = false;
+    recentEvents.forEach((item) => {
+        const candidate = String(
+            item?.details?.username
+            || item?.details?.email
+            || item?.targetEmail
+            || details?.username
+            || details?.email
+            || ''
+        ).trim().toLowerCase();
+        if (candidate) targets.add(candidate);
+        if (String(item?.eventType || '').trim().toLowerCase() === 'login_rate_limited') {
+            rateLimited = true;
+        }
+    });
+
+    return {
+        recentAttempts: recentEvents.length,
+        distinctTargets: targets.size,
+        rateLimited,
+        suspectedBruteforce: recentEvents.length >= 8 || targets.size >= 3 || rateLimited,
+    };
+}
+
+function isLoginPatternStronger(candidate: LoginPatternSummary | null = null, baseline: LoginPatternSummary | null = null): boolean {
+    if (!candidate) return false;
+    if (!baseline) return true;
+    if (candidate.suspectedBruteforce !== baseline.suspectedBruteforce) {
+        return candidate.suspectedBruteforce;
+    }
+    if (candidate.rateLimited !== baseline.rateLimited) {
+        return candidate.rateLimited;
+    }
+    if (candidate.recentAttempts !== baseline.recentAttempts) {
+        return candidate.recentAttempts > baseline.recentAttempts;
+    }
+    if (candidate.distinctTargets !== baseline.distinctTargets) {
+        return candidate.distinctTargets > baseline.distinctTargets;
+    }
+    return false;
+}
+
+function summarizeLoginPattern(entry: any = {}, details: any = {}): LoginPatternSummary | null {
+    const ip = String(entry.ip || '').trim();
+    if (!ip) return null;
+    const matchesIp = (item: SecurityPatternEventSummary) => (
+        LOGIN_PATTERN_EVENTS.has(String(item?.eventType || '').trim().toLowerCase())
+        && String(item?.ip || '').trim() === ip
+    );
+    const bufferedEvents = getRecentMatchingEvents(LOGIN_PATTERN_WINDOW_MS, matchesIp);
+    const bufferedSummary = buildLoginPatternSummary(bufferedEvents, details);
+    if (bufferedSummary?.suspectedBruteforce) return bufferedSummary;
+
+    const persistedEvents = getRecentPersistedMatchingEvents(LOGIN_PATTERN_WINDOW_MS, matchesIp);
+    const persistedSummary = buildLoginPatternSummary(persistedEvents, details);
+    if (isLoginPatternStronger(persistedSummary, bufferedSummary)) {
+        return persistedSummary;
+    }
+    return bufferedSummary || persistedSummary;
+}
+
+export interface AccessPatternSummary {
+    recentDeniedCount: number;
+    distinctPaths: number;
+    suspectedScan: boolean;
+}
+
+function buildAccessPatternSummary(recentEvents: SecurityPatternEventSummary[] = []): AccessPatternSummary | null {
+    if (!Array.isArray(recentEvents) || recentEvents.length === 0) return null;
+
+    const paths = new Set<string>();
+    recentEvents.forEach((item) => {
+        const pathValue = String(item?.path || '').trim();
+        if (pathValue) paths.add(pathValue);
+    });
+
+    return {
+        recentDeniedCount: recentEvents.length,
+        distinctPaths: paths.size || 1,
+        suspectedScan: recentEvents.length >= 12 || paths.size >= 3,
+    };
+}
+
+function isAccessPatternStronger(candidate: AccessPatternSummary | null = null, baseline: AccessPatternSummary | null = null): boolean {
+    if (!candidate) return false;
+    if (!baseline) return true;
+    if (candidate.suspectedScan !== baseline.suspectedScan) {
+        return candidate.suspectedScan;
+    }
+    if (candidate.recentDeniedCount !== baseline.recentDeniedCount) {
+        return candidate.recentDeniedCount > baseline.recentDeniedCount;
+    }
+    if (candidate.distinctPaths !== baseline.distinctPaths) {
+        return candidate.distinctPaths > baseline.distinctPaths;
+    }
+    return false;
+}
+
+function summarizeAccessPattern(entry: any = {}): AccessPatternSummary | null {
+    const ip = String(entry.ip || '').trim();
+    if (!ip) return null;
+    const matchesIp = (item: SecurityPatternEventSummary) => (
+        ACCESS_PATTERN_EVENTS.has(String(item?.eventType || '').trim().toLowerCase())
+        && String(item?.ip || '').trim() === ip
+    );
+    const bufferedEvents = getRecentMatchingEvents(ACCESS_PATTERN_WINDOW_MS, matchesIp);
+    const bufferedSummary = buildAccessPatternSummary(bufferedEvents);
+    if (bufferedSummary?.suspectedScan) return bufferedSummary;
+
+    const persistedEvents = getRecentPersistedMatchingEvents(ACCESS_PATTERN_WINDOW_MS, matchesIp);
+    const persistedSummary = buildAccessPatternSummary(persistedEvents);
+    if (isAccessPatternStronger(persistedSummary, bufferedSummary)) {
+        return persistedSummary;
+    }
+    return bufferedSummary || persistedSummary;
+}
+
+function buildAuditNotification(entry: any = {}): any {
+    const eventKey = String(entry.eventType || entry.event || '').trim().toLowerCase();
+    const ip = String(entry.ip || '').trim() || 'unknown';
+    const actor = String(entry.actor || '').trim() || 'anonymous';
+    const pathValue = String(entry.path || '').trim() || '-';
+    const details = entry?.details && typeof entry.details === 'object' && !Array.isArray(entry.details)
+        ? entry.details
+        : {};
+    const loginPattern = LOGIN_PATTERN_EVENTS.has(eventKey) ? summarizeLoginPattern(entry, details) : null;
+    const accessPattern = ACCESS_PATTERN_EVENTS.has(eventKey) ? summarizeAccessPattern(entry) : null;
+
+    const definitions: Record<string, any> = {
+        login_failed: {
+            type: 'security_login_failed',
+            severity: loginPattern?.suspectedBruteforce ? SEVERITY.CRITICAL : SEVERITY.WARNING,
+            title: loginPattern?.suspectedBruteforce ? '疑似登录爆破' : '登录失败',
+            body: `检测到登录失败请求。IP ${ip} · 用户 ${String(details.username || details.email || actor || '-').trim() || '-'} · 路径 ${pathValue}${loginPattern ? ` · 近 5 分钟同源 ${loginPattern.recentAttempts} 次 / ${loginPattern.distinctTargets} 个账号` : ''}`,
+            dedupKey: `security:${eventKey}:${ip}:${String(details.username || details.email || '-').trim().toLowerCase()}`,
+            telegramTopics: loginPattern?.suspectedBruteforce ? ['security_audit', 'emergency_alert'] : ['security_audit'],
+        },
+        login_denied_email_unverified: {
+            type: 'security_login_denied_email_unverified',
+            severity: loginPattern?.suspectedBruteforce ? SEVERITY.CRITICAL : SEVERITY.WARNING,
+            title: '未验证邮箱尝试登录',
+            body: `检测到未完成邮箱验证的登录尝试。IP ${ip} · 用户 ${String(details.username || details.email || actor || '-').trim() || '-'} · 路径 ${pathValue}${loginPattern ? ` · 近 5 分钟同源 ${loginPattern.recentAttempts} 次 / ${loginPattern.distinctTargets} 个账号` : ''}`,
+            dedupKey: `security:${eventKey}:${ip}:${String(details.username || details.email || '-').trim().toLowerCase()}`,
+            telegramTopics: loginPattern?.suspectedBruteforce ? ['security_audit', 'emergency_alert'] : ['security_audit'],
+        },
+        login_denied_user_disabled: {
+            type: 'security_login_denied_user_disabled',
+            severity: loginPattern?.suspectedBruteforce ? SEVERITY.CRITICAL : SEVERITY.WARNING,
+            title: '停用账号尝试登录',
+            body: `检测到停用账号登录尝试。IP ${ip} · 用户 ${String(details.username || details.email || actor || '-').trim() || '-'} · 路径 ${pathValue}${loginPattern ? ` · 近 5 分钟同源 ${loginPattern.recentAttempts} 次 / ${loginPattern.distinctTargets} 个账号` : ''}`,
+            dedupKey: `security:${eventKey}:${ip}:${String(details.username || details.email || '-').trim().toLowerCase()}`,
+            telegramTopics: loginPattern?.suspectedBruteforce ? ['security_audit', 'emergency_alert'] : ['security_audit'],
+        },
+        login_rate_limited: {
+            type: 'security_attack_login_rate_limited',
+            severity: SEVERITY.CRITICAL,
+            title: (loginPattern?.distinctTargets ?? 0) >= 3 ? '登录接口疑似爆破并触发限流' : '登录接口触发限流',
+            body: `检测到登录接口被频繁尝试，IP ${ip} 已触发限流。路径: ${pathValue}${loginPattern ? ` · 近 5 分钟同源 ${loginPattern.recentAttempts} 次 / ${loginPattern.distinctTargets} 个账号` : ''}`,
+            dedupKey: `security:${eventKey}:${ip}`,
+            telegramTopics: ['security_audit', 'emergency_alert'],
+        },
+        register_rate_limited: {
+            type: 'security_attack_register_rate_limited',
+            severity: SEVERITY.CRITICAL,
+            title: '注册接口触发限流',
+            body: `检测到注册接口被频繁请求，IP ${ip} 已触发限流。路径: ${pathValue}`,
+            dedupKey: `security:${eventKey}:${ip}`,
+            telegramTopics: ['security_audit', 'emergency_alert'],
+        },
+        password_reset_request_rate_limited: {
+            type: 'security_attack_password_reset_rate_limited',
+            severity: SEVERITY.CRITICAL,
+            title: '重置密码接口触发限流',
+            body: `检测到密码重置接口被频繁请求，IP ${ip} 已触发限流。路径: ${pathValue}`,
+            dedupKey: `security:${eventKey}:${ip}`,
+            telegramTopics: ['security_audit', 'emergency_alert'],
+        },
+        subscription_public_denied: {
+            type: 'security_subscription_denied',
+            severity: accessPattern?.suspectedScan ? SEVERITY.CRITICAL : SEVERITY.WARNING,
+            title: accessPattern?.suspectedScan ? '公开订阅入口疑似扫描' : '公开订阅访问被拒绝',
+            body: `公开订阅入口收到异常访问并被拒绝。IP ${ip} · 路径 ${pathValue}${accessPattern ? ` · 近 10 分钟同源 ${accessPattern.recentDeniedCount} 次` : ''}`,
+            dedupKey: `security:${eventKey}:${ip}:${pathValue}`,
+            telegramTopics: accessPattern?.suspectedScan ? ['security_audit', 'emergency_alert'] : ['security_audit'],
+        },
+        subscription_public_denied_legacy: {
+            type: 'security_subscription_denied_legacy',
+            severity: accessPattern?.suspectedScan ? SEVERITY.CRITICAL : SEVERITY.WARNING,
+            title: accessPattern?.suspectedScan ? '旧版订阅入口疑似扫描' : '旧版订阅访问被拒绝',
+            body: `旧版订阅入口收到异常访问并被拒绝。IP ${ip} · 路径 ${pathValue}${accessPattern ? ` · 近 10 分钟同源 ${accessPattern.recentDeniedCount} 次` : ''}`,
+            dedupKey: `security:${eventKey}:${ip}:${pathValue}`,
+            telegramTopics: accessPattern?.suspectedScan ? ['security_audit', 'emergency_alert'] : ['security_audit'],
+        },
+        batch_clients_high_risk_action: {
+            type: 'security_batch_clients_high_risk_action',
+            severity: SEVERITY.WARNING,
+            title: '批量客户端高风险操作',
+            body: `管理员 ${actor} 触发了批量客户端高风险操作。目标数: ${Number(details.targetCount || 0)}`,
+            dedupKey: `security:${eventKey}:${actor}:${pathValue}`,
+            telegramTopics: ['security_audit'],
+        },
+        batch_inbounds_high_risk_action: {
+            type: 'security_batch_inbounds_high_risk_action',
+            severity: SEVERITY.WARNING,
+            title: '批量入站高风险操作',
+            body: `管理员 ${actor} 触发了批量入站高风险操作。目标数: ${Number(details.targetCount || 0)}`,
+            dedupKey: `security:${eventKey}:${actor}:${pathValue}`,
+            telegramTopics: ['security_audit'],
+        },
+        batch_high_risk_retry: {
+            type: 'security_batch_high_risk_retry',
+            severity: SEVERITY.WARNING,
+            title: '高风险批量任务重试',
+            body: `管理员 ${actor} 重新执行了高风险批量任务。任务: ${String(details.taskId || '').trim() || '-'}`,
+            dedupKey: `security:${eventKey}:${String(details.taskId || '').trim() || actor}`,
+            telegramTopics: ['security_audit'],
+        },
+    };
+
+    const matched = definitions[eventKey];
+    if (!matched) return null;
+
+    return {
+        type: matched.type,
+        severity: matched.severity,
+        title: matched.title,
+        body: matched.body,
+        meta: {
+            event: eventKey,
+            ip,
+            actor,
+            path: pathValue,
+            method: String(entry.method || '').trim(),
+            telegramTopics: matched.telegramTopics,
+            recentAttempts: loginPattern?.recentAttempts || 0,
+            distinctTargets: loginPattern?.distinctTargets || 0,
+            rateLimited: loginPattern?.rateLimited || false,
+            suspectedBruteforce: loginPattern?.suspectedBruteforce || false,
+            recentDeniedCount: accessPattern?.recentDeniedCount || 0,
+            distinctPaths: accessPattern?.distinctPaths || 0,
+            suspectedScan: accessPattern?.suspectedScan || false,
+        },
+        dedupKey: matched.dedupKey,
+    };
+}
+
+function applyAuditNotificationEnrichment(notification: any = {}, entry: any = {}): any {
+    return {
+        ...notification,
+        meta: {
+            ...(notification.meta || {}),
+            ip: String(entry.ip || notification.meta?.ip || '').trim(),
+            ipLocation: String(entry.ipLocation || '').trim(),
+            ipCarrier: String(entry.ipCarrier || '').trim(),
+            method: String(entry.method || notification.meta?.method || '').trim(),
+            path: String(entry.path || notification.meta?.path || '').trim(),
+        },
+    };
+}
+
+export function appendSecurityAudit(event: string, req: any, details: any = {}, options: any = {}): void {
+    try {
+        ensureAuditDir();
+        const safeDetails = redactSensitive(details);
+        const entry = {
+            ts: new Date().toISOString(),
+            event,
+            ip: resolveClientIp(req),
+            actor: req?.user?.username || req?.user?.userId || 'anonymous',
+            method: req?.method || null,
+            path: req?.originalUrl || null,
+            details: safeDetails,
+        };
+        getAuditStream().write(`${JSON.stringify(entry)}\n`);
+
+        const storedEntry = auditStore.appendEvent({
+            event,
+            req,
+            details: safeDetails,
+            outcome: typeof options?.outcome === 'string' ? options.outcome : '',
+        });
+
+        // Push security-relevant events into the in-memory ring buffer so
+        // pattern queries avoid hitting the full audit store.
+        const eventKey = String(event || '').trim().toLowerCase();
+        if (SECURITY_PATTERN_EVENT_TYPES.has(eventKey)) {
+            recentSecurityEvents.push({
+                eventType: eventKey,
+                ip: entry.ip,
+                ts: Date.now(),
+                details: safeDetails,
+                path: entry.path || '',
+            });
+            if (recentSecurityEvents.length > MAX_RECENT_EVENTS) {
+                recentSecurityEvents.splice(0, recentSecurityEvents.length - MAX_RECENT_EVENTS);
+            }
+        }
+
+        const notification = buildAuditNotification(storedEntry);
+        if (notification) {
+            void (async () => {
+                try {
+                    const enrichedEntry = await enrichAuditEvent(storedEntry);
+                    notificationService.notify(applyAuditNotificationEnrichment(notification, enrichedEntry || storedEntry));
+                } catch {
+                    notificationService.notify(notification);
+                }
+            })();
+        }
+    } catch {
+        // Ignore audit errors to avoid affecting main request flow.
+    }
+}
+
+export function __resetRecentSecurityEventsForTests(): void {
+    recentSecurityEvents.length = 0;
+}

@@ -1,0 +1,235 @@
+import config from '../config.js';
+import ipGeoResolver from '../lib/ipGeoResolver.js';
+import ipIspResolver from '../lib/ipIspResolver.js';
+import { createHttpError } from '../lib/httpError.js';
+import auditRepository from '../repositories/auditRepository.js';
+import subscriptionTokenRepository from '../repositories/subscriptionTokenRepository.js';
+import systemSettingsRepository from '../repositories/systemSettingsRepository.js';
+
+function normalizeEmail(email: unknown): string {
+    return String(email || '').trim().toLowerCase();
+}
+
+function toPositiveInt(value: unknown, fallback: number): number {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+    return Math.floor(parsed);
+}
+
+function resolveTtlDays(value: unknown): number {
+    const requested = toPositiveInt(value, config.subscription.defaultTtlDays);
+    return Math.max(1, Math.min(requested, config.subscription.maxTtlDays));
+}
+
+function normalizeBoolean(value: unknown, fallback: boolean = false): boolean {
+    if (value === undefined || value === null) return fallback;
+    if (typeof value === 'boolean') return value;
+    const text = String(value).trim().toLowerCase();
+    if (['1', 'true', 'yes', 'on'].includes(text)) return true;
+    if (['0', 'false', 'no', 'off'].includes(text)) return false;
+    return fallback;
+}
+
+async function enrichAccessPayloadWithGeo(payload: any, includeGeo: boolean = true, deps: any = {}) {
+    const settingsRepository = deps.systemSettingsRepository || systemSettingsRepository;
+    const resolver = deps.ipGeoResolver || ipGeoResolver;
+    const ispResolver = deps.ipIspResolver || ipIspResolver;
+    const base = payload && typeof payload === 'object' ? payload : {};
+    const items = Array.isArray(base.items) ? base.items : [];
+    const topIps = Array.isArray(base.topIps) ? base.topIps : [];
+
+    resolver.configure(settingsRepository.getAuditIpGeo());
+    const geoEnabled = includeGeo && resolver.isEnabled();
+    const ispEnabled = includeGeo && typeof ispResolver?.isEnabled === 'function' && ispResolver.isEnabled();
+    const ipCandidates = [
+        ...items.map((item: any) => item?.clientIp || item?.ip),
+        ...topIps.map((item: any) => item?.ip),
+    ];
+
+    let map = new Map();
+    let ispMap = new Map();
+    if (geoEnabled) {
+        try {
+            map = await resolver.lookupMany(ipCandidates);
+        } catch {
+            map = new Map();
+        }
+    }
+    if (ispEnabled) {
+        try {
+            ispMap = await ispResolver.lookupMany(ipCandidates);
+        } catch {
+            ispMap = new Map();
+        }
+    }
+
+    return {
+        ...base,
+        items: items.map((item: any) => ({
+            ...item,
+            ipLocation: geoEnabled ? resolver.pickFromMap(map, item?.clientIp || item?.ip) : '',
+            ipCarrier: ispEnabled ? ispResolver.pickFromMap(ispMap, item?.clientIp || item?.ip) : '',
+        })),
+        topIps: topIps.map((item: any) => ({
+            ...item,
+            ipLocation: geoEnabled ? resolver.pickFromMap(map, item?.ip) : '',
+            ipCarrier: ispEnabled ? ispResolver.pickFromMap(ispMap, item?.ip) : '',
+        })),
+        geo: {
+            ...resolver.metadata(),
+            enabled: geoEnabled,
+            isp: {
+                ...ispResolver.metadata(),
+                enabled: ispEnabled,
+            },
+        },
+    };
+}
+
+async function summarizeSubscriptionAccess(filters: any = {}, options: any = {}, deps: any = {}) {
+    const repository = deps.auditRepository || auditRepository;
+    const summary = repository.summarizeSubscriptionAccess(filters);
+    return enrichAccessPayloadWithGeo(summary, options.includeGeo !== false, deps);
+}
+
+async function querySubscriptionAccess(filters: any = {}, options: any = {}, deps: any = {}) {
+    const repository = deps.auditRepository || auditRepository;
+    const result = repository.querySubscriptionAccess(filters);
+    return enrichAccessPayloadWithGeo(result, options.includeGeo !== false, deps);
+}
+
+function listSubscriptionTokens(email: string, deps: any = {}) {
+    const repository = deps.subscriptionTokenRepository || subscriptionTokenRepository;
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+        throw createHttpError(400, 'Invalid email format');
+    }
+    return {
+        email: normalizedEmail,
+        active: repository.countActiveByEmail(normalizedEmail),
+        limit: config.subscription.maxActiveTokensPerUser,
+        tokens: repository.listByEmail(normalizedEmail, {
+            includeRevoked: true,
+            includeExpired: true,
+        }),
+    };
+}
+
+function issueSubscriptionToken(email: string, input: any = {}, deps: any = {}) {
+    const repository = deps.subscriptionTokenRepository || subscriptionTokenRepository;
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+        throw createHttpError(400, 'Invalid email format');
+    }
+
+    const issued = repository.issue(normalizedEmail, {
+        name: String(input.name || '').trim(),
+        ttlDays: resolveTtlDays(input.ttlDays),
+        createdBy: input.createdBy || 'admin',
+    });
+
+    return {
+        email: normalizedEmail,
+        name: String(input.name || '').trim(),
+        ttlDays: resolveTtlDays(input.ttlDays),
+        tokenId: issued.tokenId,
+        token: issued.token,
+        metadata: issued.metadata,
+        urls: typeof input.buildUrls === 'function'
+            ? input.buildUrls(issued.token)
+            : {},
+    };
+}
+
+function resetPersistentSubscriptionToken(email: string, input: any = {}, deps: any = {}) {
+    const repository = deps.subscriptionTokenRepository || subscriptionTokenRepository;
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+        throw createHttpError(400, 'Invalid email format');
+    }
+
+    const scopeName = String(input.name || '').trim();
+    if (!scopeName) {
+        throw createHttpError(400, 'scope name is required');
+    }
+
+    const reason = String(input.reason || 'subscription-link-reset').trim() || 'subscription-link-reset';
+    const activeTokens = repository.listByEmail(normalizedEmail, {
+        includeRevoked: false,
+        includeExpired: false,
+    }).filter((token: any) => String(token?.name || '').trim() === scopeName);
+
+    let revokedCount = 0;
+    activeTokens.forEach((token: any) => {
+        const revoked = repository.revoke(normalizedEmail, token.id, reason);
+        if (revoked) {
+            revokedCount += 1;
+        }
+    });
+
+    const issued = repository.issue(normalizedEmail, {
+        name: scopeName,
+        ttlDays: 0,
+        noExpiry: true,
+        ignoreActiveLimit: true,
+        createdBy: input.createdBy || 'system',
+    });
+
+    return {
+        email: normalizedEmail,
+        name: scopeName,
+        revokedCount,
+        reason,
+        tokenId: issued.tokenId,
+        token: issued.token,
+        metadata: issued.metadata,
+        urls: typeof input.buildUrls === 'function'
+            ? input.buildUrls(issued.token)
+            : {},
+    };
+}
+
+function revokeSubscriptionTokens(email: string, input: any = {}, deps: any = {}) {
+    const repository = deps.subscriptionTokenRepository || subscriptionTokenRepository;
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+        throw createHttpError(400, 'Invalid email format');
+    }
+
+    const reason = String(input.reason || 'manual-revoke').trim() || 'manual-revoke';
+    if (normalizeBoolean(input.revokeAll, false)) {
+        return {
+            email: normalizedEmail,
+            revokeAll: true,
+            revoked: repository.revokeAllByEmail(normalizedEmail, reason),
+            reason,
+        };
+    }
+
+    const tokenId = String(input.tokenId || '').trim();
+    if (!tokenId) {
+        throw createHttpError(400, 'tokenId is required');
+    }
+
+    const revoked = repository.revoke(normalizedEmail, tokenId, reason);
+    if (!revoked) {
+        throw createHttpError(404, 'Token not found');
+    }
+
+    return {
+        email: normalizedEmail,
+        revokeAll: false,
+        tokenId,
+        revoked,
+        reason,
+    };
+}
+
+export {
+    issueSubscriptionToken,
+    listSubscriptionTokens,
+    querySubscriptionAccess,
+    resetPersistentSubscriptionToken,
+    revokeSubscriptionTokens,
+    summarizeSubscriptionAccess,
+};

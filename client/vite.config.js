@@ -49,7 +49,7 @@ export default defineConfig({
             },
         },
         globals: true,
-        setupFiles: './src/test/setup.js',
+        setupFiles: './src/test/setup.ts',
         testTimeout: 20_000,
         clearMocks: true,
         restoreMocks: true,

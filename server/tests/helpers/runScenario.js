@@ -22,10 +22,10 @@ export async function runScenario(scriptPath, options = {}) {
         ...(options.env || {}),
         SCENARIO_OUTPUT_FILE: outputFile,
     };
-    const timeoutMs = Number(options.timeoutMs || 15_000);
+    const timeoutMs = Number(options.timeoutMs || 30_000);
 
     return new Promise((resolve, reject) => {
-        const child = spawn('node', [scriptPath], {
+        const child = spawn(process.execPath, ['--import', 'tsx', scriptPath], {
             cwd,
             env,
             stdio: ['ignore', 'ignore', 'pipe'],

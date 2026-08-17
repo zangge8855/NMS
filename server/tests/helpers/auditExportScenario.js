@@ -39,6 +39,7 @@ async function main() {
         headers: response.headers,
         text: response.text,
     });
+    process.exit(0);
 }
 
 main().catch((error) => {

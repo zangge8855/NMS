@@ -5,15 +5,16 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node index.js",
-    "start:prod": "node scripts/start_production.js",
-    "dev": "node --watch index.js",
-    "db:backfill": "node scripts/backfill_to_db.js",
-    "db:verify": "node scripts/verify_db_consistency.js",
-    "review:fake-panel": "node scripts/review_fake_panel.js",
-    "review:seed": "node scripts/seed_review_harness.js",
-    "review:server": "node scripts/review_server.js",
-    "test": "node --test"
+    "build": "tsc --noEmit",
+    "start": "node --import tsx index.ts",
+    "start:prod": "node --import tsx scripts/start_production.js",
+    "dev": "tsx watch index.ts",
+    "db:backfill": "node --import tsx scripts/backfill_to_db.js",
+    "db:verify": "node --import tsx scripts/verify_db_consistency.js",
+    "review:fake-panel": "node --import tsx scripts/review_fake_panel.js",
+    "review:seed": "node --import tsx scripts/seed_review_harness.js",
+    "review:server": "node --import tsx scripts/review_server.js",
+    "test": "node --import tsx --test"
   },
   "dependencies": {
     "axios": "^1.18.1",
@@ -27,9 +28,23 @@
     "multer": "^2.2.0",
     "nodemailer": "^9.0.1",
     "pg": "^8.13.1",
+    "tsx": "^4.20.0",
     "ws": "^8.21.0"
   },
   "overrides": {
     "qs": "^6.15.0"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.25",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.2.0",
+    "@types/node": "^26.2.0",
+    "@types/nodemailer": "^8.0.1",
+    "@types/pg": "^8.21.0",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2"
   }
 }

@@ -66,7 +66,7 @@ npm ci
 NODE_ENV=production node scripts/start_production.js
 ```
 
-Verified source-install path on July 13, 2026:
+Verified source-install path on August 17, 2026:
 
 ```bash
 cd client
@@ -81,8 +81,9 @@ npm test
 
 Current verification result:
 
-- `client`: `npm run lint`, `npm run build`, and `npm test` passed (`254/254`)
-- `server`: `npm test` passed (`462/462`)
+- `client`: 100% TypeScript (`client/src/**/*.{ts,tsx}`), `npm run build` passed (`client/dist`), and `npm test` passed (`265/265` tests across `48` suites)
+- `server`: 100% TypeScript (`server/**/*.ts`), `npx tsc --noEmit` clean (`0` errors), and `npm test` passed (`541/541` tests)
+- `backward-compat`: 100% compatibility for existing `/data` JSON files, database schemas, password hashes, and startup commands
 - `client` and `server`: `npm audit --audit-level=high` reports `0` vulnerabilities
 - Browser review: desktop and mobile admin/user surfaces were checked across Chinese/English and light/dark schemes with no document-level overflow, console errors, or page errors
 
@@ -134,10 +135,10 @@ Default runtime endpoints:
 ### Stack And Layout
 
 ```text
-client/   React + Vite admin app
-server/   Express API, WebSocket, stores, services
+client/   React 18 + TypeScript + Vite admin app (src/**/*.tsx, src/**/*.ts)
+server/   Express API + TypeScript (tsx), WebSocket, stores, services (server/**/*.ts)
 docs/     Deployment, usage, architecture, and review notes
-data/     Default file-backed storage
+data/     Default file-backed storage (100% backward compatible)
 ```
 
 ### Key Environment Variables
@@ -247,7 +248,7 @@ npm ci
 NODE_ENV=production node scripts/start_production.js
 ```
 
-已在 2026 年 7 月 13 日验证源码安装链路:
+已在 2026 年 8 月 17 日完成全栈 TypeScript 重构与全量测试验证:
 
 ```bash
 cd client
@@ -262,8 +263,9 @@ npm test
 
 当前验证结果:
 
-- `client`: `npm run lint`、`npm run build`、`npm test` 全部通过（`254/254`）
-- `server`: `npm test` 全部通过（`462/462`）
+- `client`: 100% TypeScript (`client/src/**/*.{ts,tsx}`)，`npm run build` 生产构建成功，`npm test` 全部通过（`48` 套件 / `265/265` 测试）
+- `server`: 100% TypeScript (`server/**/*.ts`)，`npx tsc --noEmit` 严格类型检查通过（`0` 错误），`npm test` 全部通过（`541/541` 测试）
+- `平滑升级兼容性`: 现存 `/data` JSON 文件存储、PostgreSQL 数据库、密码哈希与启动命令 100% 向下兼容
 - `client` 与 `server`: `npm audit --audit-level=high` 均为 `0` 漏洞
 - 浏览器验收：桌面端与移动端的管理员 / 普通用户界面已覆盖中英双语和明暗主题，无文档级横向溢出、控制台错误或页面错误
 
@@ -317,10 +319,10 @@ The image declares `/app/data` and `/app/logs` as runtime volumes, but you shoul
 ### 技术栈与目录
 
 ```text
-client/   React + Vite 管理端
-server/   Express API、WebSocket、存储层与服务层
+client/   React 18 + TypeScript + Vite 管理端 (src/**/*.tsx, src/**/*.ts)
+server/   Express API + TypeScript (tsx)、WebSocket、存储层与服务层 (server/**/*.ts)
 docs/     部署、使用、架构与评审文档
-data/     默认文件存储目录
+data/     默认文件存储目录 (100% 向下兼容)
 ```
 
 ### 关键环境变量

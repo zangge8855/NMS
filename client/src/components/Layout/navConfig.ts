@@ -1,0 +1,184 @@
+import type { ComponentType } from 'react';
+import {
+    HiOutlineArrowDownTray,
+    HiOutlineChartBarSquare,
+    HiOutlineServerStack,
+    HiOutlineUsers,
+    HiOutlineCog6Tooth,
+    HiOutlineWrenchScrewdriver,
+    HiOutlineRss,
+    HiOutlineSignal,
+    HiOutlineShieldCheck,
+    HiOutlineUserCircle,
+    HiOutlineCommandLine,
+} from 'react-icons/hi2';
+
+export interface LocalizedString {
+    'zh-CN': string;
+    'en-US': string;
+    [key: string]: string;
+}
+
+export type LocalizedText = string | LocalizedString;
+
+export interface NavChildItem {
+    path: string;
+    tabId?: string;
+    label: LocalizedText;
+}
+
+export interface NavItem {
+    path: string;
+    icon: ComponentType<{ className?: string }>;
+    label: LocalizedText;
+    supportsGlobal?: boolean;
+    adminOnly?: boolean;
+    userOnly?: boolean;
+    keywords?: string[];
+    children?: NavChildItem[];
+    section?: LocalizedText;
+    [key: string]: any;
+}
+
+export interface NavSection {
+    title: LocalizedText;
+    items: NavItem[];
+}
+
+function localize(copy: LocalizedText | undefined, locale = 'zh-CN'): string {
+    if (typeof copy === 'string') return copy;
+    if (!copy || typeof copy !== 'object') return '';
+    return copy[locale] || copy['zh-CN'] || '';
+}
+
+export const navSections: NavSection[] = [
+    {
+        title: { 'zh-CN': '管理', 'en-US': 'Manage' },
+        items: [
+            { path: '/', icon: HiOutlineChartBarSquare, label: { 'zh-CN': '仪表盘', 'en-US': 'Dashboard' }, supportsGlobal: true, adminOnly: true, keywords: ['首页', '概览', 'dashboard'] },
+            { path: '/inbounds', icon: HiOutlineSignal, label: { 'zh-CN': '入站管理', 'en-US': 'Inbounds' }, supportsGlobal: true, keywords: ['协议', '端口', '流量', 'inbound'] },
+            { path: '/clients', icon: HiOutlineUsers, label: { 'zh-CN': '用户管理', 'en-US': 'Users' }, supportsGlobal: true, keywords: ['账号', '用户', '客户端', 'users', 'clients'] },
+            { path: '/audit', icon: HiOutlineShieldCheck, label: { 'zh-CN': '审计中心', 'en-US': 'Audit' }, supportsGlobal: true, keywords: ['审计', '日志', '安全', 'audit', '任务', '批量', 'jobs', 'tasks', '操作历史'] },
+            { path: '/subscriptions', icon: HiOutlineRss, label: { 'zh-CN': '订阅中心', 'en-US': 'Subscriptions' }, supportsGlobal: true, userOnly: true, keywords: ['订阅', 'subscription', '账户', '密码', 'profile'] },
+            { path: '/downloads', icon: HiOutlineArrowDownTray, label: { 'zh-CN': '软件下载', 'en-US': 'Downloads' }, supportsGlobal: true, userOnly: true, keywords: ['下载', '软件', '客户端', 'downloads', 'clients', 'apps'] },
+            { path: '/account', icon: HiOutlineUserCircle, label: { 'zh-CN': '账户', 'en-US': 'Account' }, supportsGlobal: true, userOnly: true, keywords: ['账号', '账户', '邮箱', '密码', 'account', 'email', 'password', 'profile'] },
+            { path: '/xray', icon: HiOutlineCommandLine, label: { 'zh-CN': 'Xray 设置', 'en-US': 'Xray Settings' }, supportsGlobal: false, adminOnly: true, keywords: ['路由', '出站', 'routing', 'outbounds', 'dns', 'balancer', 'xray'] },
+            { path: '/tools', icon: HiOutlineWrenchScrewdriver, label: { 'zh-CN': '节点工具', 'en-US': 'Node Tools' }, supportsGlobal: false, keywords: ['工具', 'tools'] },
+        ],
+    },
+    {
+        title: { 'zh-CN': '系统', 'en-US': 'System' },
+        items: [
+            {
+                path: '/settings',
+                icon: HiOutlineCog6Tooth,
+                label: { 'zh-CN': '系统设置', 'en-US': 'Settings' },
+                supportsGlobal: true,
+                adminOnly: true,
+                keywords: ['设置', 'system', 'settings', '节点', '控制台', 'console', 'backup', 'monitor', 'database'],
+                children: [
+                    { path: '/settings?tab=status', tabId: 'status', label: { 'zh-CN': '运行状态', 'en-US': 'Status' } },
+                    { path: '/settings?tab=access', tabId: 'access', label: { 'zh-CN': '接入与混淆', 'en-US': 'Access' } },
+                    { path: '/settings?tab=policy', tabId: 'policy', label: { 'zh-CN': '策略配置', 'en-US': 'Policy' } },
+                    { path: '/settings?tab=monitor', tabId: 'monitor', label: { 'zh-CN': '通知与推送', 'en-US': 'Notifications' } },
+                    { path: '/settings?tab=backup', tabId: 'backup', label: { 'zh-CN': '数据备份', 'en-US': 'Backup' } },
+                ]
+            },
+            { path: '/servers', icon: HiOutlineServerStack, label: { 'zh-CN': '服务器管理', 'en-US': 'Servers' }, supportsGlobal: true, adminOnly: true, keywords: ['服务器', '节点', '能力', '探测', 'capabilities', 'server', 'registry'] },
+        ],
+    },
+];
+
+export const footerNavItems: NavItem[] = [];
+
+const mobileNavPresets = {
+    admin: ['/', '/inbounds', '/clients', '/audit'],
+    user: ['/subscriptions', '/downloads', '/account'],
+};
+
+export const navItems: NavItem[] = [...navSections.flatMap((section) => section.items), ...footerNavItems];
+
+export function getNavItemForPath(pathname?: string | null): NavItem | null {
+    const currentPath = String(pathname || '').trim();
+    if (!currentPath) return null;
+    if (currentPath === '/') {
+        return navItems.find((item) => item.path === '/') || null;
+    }
+
+    const exactMatch = navItems.find((item) => item.path === currentPath);
+    if (exactMatch) return exactMatch;
+
+    return navItems
+        .filter((item) => item.path && item.path !== '/')
+        .sort((left, right) => right.path.length - left.path.length)
+        .find((item) => currentPath.startsWith(`${item.path}/`)) || null;
+}
+
+function shouldIncludeNavItem(item: NavItem, { isAdmin, isGlobalView }: { isAdmin?: boolean; isGlobalView?: boolean }): boolean {
+    if (!isAdmin) return item.userOnly === true || item.path === '/subscriptions';
+    if (item.userOnly && isAdmin) return false;
+    if (item.adminOnly && !isAdmin) return false;
+    if (isGlobalView && item.supportsGlobal === false) return false;
+    return true;
+}
+
+export interface NavFilterOptions {
+    isAdmin?: boolean;
+    isGlobalView?: boolean;
+    locale?: string;
+}
+
+export function getVisibleNavSections({ isAdmin, isGlobalView, locale = 'zh-CN' }: NavFilterOptions) {
+    return navSections
+        .map((section) => ({
+            ...section,
+            title: localize(section.title, locale),
+            items: section.items
+                .filter((item) => shouldIncludeNavItem(item, { isAdmin, isGlobalView }))
+                .map((item) => ({
+                    ...item,
+                    label: localize(item.label, locale),
+                    children: Array.isArray(item.children)
+                        ? item.children.map((child) => ({
+                              ...child,
+                              label: localize(child.label, locale),
+                          }))
+                        : undefined,
+                })),
+        }))
+        .filter((section) => section.items.length > 0);
+}
+
+export function getVisibleFooterNavItems({ isAdmin, isGlobalView, locale = 'zh-CN' }: NavFilterOptions) {
+    return footerNavItems
+        .filter((item) => shouldIncludeNavItem(item, { isAdmin, isGlobalView }))
+        .map((item) => ({
+            ...item,
+            label: localize(item.label, locale),
+            section: localize(item.section, locale),
+        }));
+}
+
+export function getVisibleMobileNavItems({ isAdmin, isGlobalView, locale = 'zh-CN' }: NavFilterOptions) {
+    const preset = isAdmin ? mobileNavPresets.admin : mobileNavPresets.user;
+
+    return preset
+        .map((path) => navItems.find((item) => item.path === path))
+        .filter((item): item is NavItem => Boolean(item))
+        .filter((item) => shouldIncludeNavItem(item, { isAdmin, isGlobalView }))
+        .map((item) => ({
+            ...item,
+            label: localize(item.label, locale),
+        }));
+}
+
+export function getSearchableNavItems({ isAdmin, isGlobalView, locale = 'zh-CN' }: NavFilterOptions) {
+    const sectionItems = getVisibleNavSections({ isAdmin, isGlobalView, locale }).flatMap((section) =>
+        section.items.map((item) => ({ ...item, section: section.title }))
+    );
+    const footerItems = getVisibleFooterNavItems({ isAdmin, isGlobalView, locale }).map((item) => ({
+        ...item,
+        section: item.section || localize({ 'zh-CN': '系统', 'en-US': 'System' }, locale),
+    }));
+    return [...sectionItems, ...footerItems];
+}

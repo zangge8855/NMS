@@ -51,6 +51,7 @@ async function main() {
             body: detailResponse.json,
         },
     });
+    process.exit(0);
 }
 
 main().catch((error) => {

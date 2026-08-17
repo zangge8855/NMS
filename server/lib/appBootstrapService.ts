@@ -1,0 +1,387 @@
+import notificationService from './notifications.js';
+import { getCachedClusterStatusSnapshot } from './serverStatusService.js';
+import { getCachedServerPanelSnapshots } from './serverPanelSnapshotService.js';
+import {
+    buildDashboardPresenceFromPanelSnapshots,
+    buildDashboardTrafficWindowTotals,
+} from './dashboardSnapshotService.js';
+import alertEngine from './alertEngine.js';
+import serverHealthMonitor from './serverHealthMonitor.js';
+import telegramAlertService from './telegramAlertService.js';
+import { getEmailStatus } from './mailer.js';
+import { getBackupStatus } from './systemBackup.js';
+import auditStore from '../store/auditStore.js';
+import config from '../config.js';
+import {
+    getSnapshotStatus,
+    listSnapshotPrivacyRedactionStoreKeys,
+    listSnapshotsMeta,
+} from '../db/snapshots.js';
+import { getStoreModes, getSupportedModes } from '../db/runtimeModes.js';
+import { isDbEnabled, isDbReady } from '../db/client.js';
+import inviteCodeStore from '../store/inviteCodeStore.js';
+import jobStore from '../store/jobStore.js';
+import serverStore from '../store/serverStore.js';
+import serverTelemetryStore from '../store/serverTelemetryStore.js';
+import systemSettingsStore from '../store/systemSettingsStore.js';
+import trafficStatsStore, { buildCalendarTrafficWindowRange } from '../store/trafficStatsStore.js';
+import userStore from '../store/userStore.js';
+import { listStoreKeys } from '../store/storeRegistry.js';
+
+const INITIAL_NOTIFICATION_LIMIT = 1;
+const INITIAL_AUDIT_EVENTS_PAGE_SIZE = 20;
+const INITIAL_ACCESS_PAGE_SIZE = 30;
+const INITIAL_TASK_HISTORY_PAGE_SIZE = 100;
+const AUDIT_TRAFFIC_TOP_LIMIT = 10;
+const AUDIT_TRAFFIC_WEEK_WINDOW = 'this_week';
+const AUDIT_TRAFFIC_MONTH_WINDOW = 'this_month';
+const AUDIT_ACCESS_WEEK_DAYS = 7;
+const AUDIT_ACCESS_MONTH_DAYS = 30;
+
+function coerceFiniteNumber(value: unknown): number | null {
+    if (value === undefined || value === null || value === '') return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
+function firstFiniteNumber(...values: unknown[]): number {
+    for (const value of values) {
+        const parsed = coerceFiniteNumber(value);
+        if (parsed !== null) return parsed;
+    }
+    return 0;
+}
+
+function buildDashboardAccountSummary() {
+    const rows = userStore.getAll().filter((item: any) => item?.role !== 'admin');
+    return {
+        totalUsers: rows.length,
+        pendingUsers: rows.filter((item: any) => item?.enabled === false).length,
+    };
+}
+
+function buildManagedUsersBootstrap() {
+    return userStore.getAll().filter((item: any) => item?.role !== 'admin');
+}
+
+function buildRegistrationRuntimeSnapshot() {
+    return {
+        enabled: config.registration.enabled === true,
+        inviteOnlyEnabled: systemSettingsStore.getRegistration().inviteOnlyEnabled === true,
+        passwordResetEnabled: config.registration.passwordResetEnabled !== false,
+    };
+}
+
+function buildRollingWindowRange(days: number) {
+    const windowDays = Math.max(1, Number(days || 1));
+    const to = new Date();
+    const from = new Date(to.getTime() - (windowDays * 24 * 60 * 60 * 1000));
+    return {
+        from: from.toISOString(),
+        to: to.toISOString(),
+    };
+}
+
+function buildAuditEventsBootstrap() {
+    return {
+        eventsData: auditStore.queryEvents({
+            page: 1,
+            pageSize: INITIAL_AUDIT_EVENTS_PAGE_SIZE,
+        }),
+    };
+}
+
+function buildAuditTrafficBootstrap() {
+    const monthRange = buildCalendarTrafficWindowRange(AUDIT_TRAFFIC_MONTH_WINDOW);
+    const weekRange = buildCalendarTrafficWindowRange(AUDIT_TRAFFIC_WEEK_WINDOW);
+    const trafficBatch = typeof (trafficStatsStore as any).getOverviewBatch === 'function'
+        ? (trafficStatsStore as any).getOverviewBatch([
+            {
+                key: 'month',
+                from: monthRange?.from,
+                to: monthRange?.to,
+                top: AUDIT_TRAFFIC_TOP_LIMIT,
+            },
+            {
+                key: 'week',
+                from: weekRange?.from,
+                to: weekRange?.to,
+                top: AUDIT_TRAFFIC_TOP_LIMIT,
+            },
+        ], {
+            top: AUDIT_TRAFFIC_TOP_LIMIT,
+        })
+        : {
+            month: trafficStatsStore.getOverview({
+                from: monthRange?.from,
+                to: monthRange?.to,
+                top: AUDIT_TRAFFIC_TOP_LIMIT,
+            }),
+            week: trafficStatsStore.getOverview({
+                from: weekRange?.from,
+                to: weekRange?.to,
+                top: AUDIT_TRAFFIC_TOP_LIMIT,
+            }),
+        };
+    const trafficOverview = trafficBatch.month;
+    const trafficWeek = trafficBatch.week;
+
+    return {
+        trafficOverview,
+        trafficWindows: {
+            week: trafficWeek,
+            month: trafficOverview,
+        },
+        trafficStatus: trafficStatsStore.getCollectionStatus(),
+    };
+}
+
+function buildAuditAccessBootstrap() {
+    const accessData = auditStore.querySubscriptionAccess({
+        page: 1,
+        pageSize: INITIAL_ACCESS_PAGE_SIZE,
+    });
+    const accessSummary = auditStore.summarizeSubscriptionAccess({});
+    const weekRange = buildRollingWindowRange(AUDIT_ACCESS_WEEK_DAYS);
+    const monthRange = buildRollingWindowRange(AUDIT_ACCESS_MONTH_DAYS);
+
+    return {
+        accessData,
+        accessSummary,
+        accessUserWindows: {
+            week: auditStore.summarizeSubscriptionAccess(weekRange),
+            month: auditStore.summarizeSubscriptionAccess(monthRange),
+        },
+    };
+}
+
+function buildAuditBootstrap() {
+    return {
+        events: buildAuditEventsBootstrap(),
+        traffic: buildAuditTrafficBootstrap(),
+        access: buildAuditAccessBootstrap(),
+    };
+}
+
+async function ensureTrafficBootstrapSamples() {
+    try {
+        await trafficStatsStore.collectIfStale(false);
+    } catch {
+        // Bootstrap should still render with the latest persisted traffic snapshot.
+    }
+}
+
+async function buildDbStatusBootstrap() {
+    const supportedModes = getSupportedModes();
+    const status = getSnapshotStatus();
+    let snapshots: any[] = [];
+
+    if (isDbEnabled() && isDbReady()) {
+        try {
+            snapshots = await listSnapshotsMeta();
+        } catch {
+            snapshots = [];
+        }
+    }
+
+    return {
+        ...status,
+        supportedModes,
+        currentModes: getStoreModes(),
+        snapshots,
+        storeKeys: listStoreKeys(),
+        redactionEligibleKeys: listSnapshotPrivacyRedactionStoreKeys(),
+        defaults: {
+            dryRun: config.db?.backfillDryRunDefault !== false,
+            redact: config.db?.backfillRedact !== false,
+        },
+    };
+}
+
+function buildMonitorStatusBootstrap() {
+    return {
+        healthMonitor: serverHealthMonitor.getStatus(),
+        dbAlerts: alertEngine.getStats(),
+        telegram: telegramAlertService.getStatus(),
+        notifications: {
+            unreadCount: notificationService.unreadCount(),
+        },
+    };
+}
+
+async function buildSystemSettingsBootstrap() {
+    return {
+        settings: systemSettingsStore.getAll(),
+        dbStatus: await buildDbStatusBootstrap(),
+        emailStatus: getEmailStatus(),
+        backupStatus: getBackupStatus(),
+        monitorStatus: buildMonitorStatusBootstrap(),
+        registrationRuntime: buildRegistrationRuntimeSnapshot(),
+        inviteCodes: inviteCodeStore.list(),
+    };
+}
+
+function buildTasksBootstrap() {
+    const history = jobStore.list({
+        page: 1,
+        pageSize: INITIAL_TASK_HISTORY_PAGE_SIZE,
+    });
+
+    return {
+        tasks: Array.isArray(history?.items) ? history.items : [],
+    };
+}
+
+function buildFallbackServerStatuses(telemetryOverview: any = {}) {
+    const items = Array.isArray(telemetryOverview?.items) ? telemetryOverview.items : [];
+    return items.reduce((acc: Record<string, any>, item: any) => {
+        const serverId = String(item?.serverId || '').trim();
+        if (!serverId) return acc;
+        acc[serverId] = {
+            serverId,
+            name: String(item?.serverName || '').trim(),
+            online: item?.current?.online === true,
+            error: '',
+            inboundCount: 0,
+            activeInbounds: 0,
+            managedOnlineCount: 0,
+            managedTrafficTotal: 0,
+            managedTrafficReady: false,
+            nodeRemarks: [],
+            nodeRemarkPreview: [],
+            nodeRemarkCount: 0,
+            status: null,
+        };
+        return acc;
+    }, {});
+}
+
+function buildDashboardSnapshot(telemetryOverview: any = {}) {
+    const cachedSnapshot = getCachedClusterStatusSnapshot();
+    const cachedPanelSnapshots = getCachedServerPanelSnapshots({
+        includeOnlines: true,
+    });
+    const presence = cachedPanelSnapshots.length > 0
+        ? buildDashboardPresenceFromPanelSnapshots(userStore.getAll(), cachedPanelSnapshots)
+        : null;
+    const summary = cachedSnapshot?.summary || {};
+    const byServerId = cachedSnapshot?.byServerId && typeof cachedSnapshot.byServerId === 'object'
+        ? cachedSnapshot.byServerId
+        : {};
+
+    const hasCachedClusterData = Object.keys(byServerId).length > 0;
+    const serverStatuses = hasCachedClusterData
+        ? Object.entries(byServerId).reduce((acc: Record<string, any>, [serverId, serverData]: [string, any]) => {
+            acc[serverId] = {
+                serverId: serverData?.serverId || serverId,
+                name: String(serverData?.name || '').trim(),
+                online: serverData?.online === true,
+                error: String(serverData?.error || '').trim(),
+                inboundCount: Number(serverData?.inboundCount || 0),
+                activeInbounds: Number(serverData?.activeInbounds || 0),
+                managedOnlineCount: 0,
+                managedTrafficTotal: 0,
+                managedTrafficReady: false,
+                nodeRemarks: [],
+                nodeRemarkPreview: [],
+                nodeRemarkCount: 0,
+                status: serverData?.status && typeof serverData.status === 'object'
+                    ? serverData.status
+                    : null,
+            };
+            return acc;
+        }, {})
+        : buildFallbackServerStatuses(telemetryOverview);
+
+    const telemetryItems = Array.isArray(telemetryOverview?.items) ? telemetryOverview.items : [];
+    const onlineServersFallback = telemetryItems.filter((item: any) => item?.current?.online === true).length;
+    cachedPanelSnapshots.forEach((snapshot) => {
+        const serverId = String(snapshot?.server?.id || snapshot?.serverId || '').trim();
+        if (!serverId || !serverStatuses[serverId]) return;
+        if (!Array.isArray(snapshot?.inbounds)) return;
+        const inbounds = snapshot.inbounds;
+        serverStatuses[serverId].inboundCount = inbounds.length;
+        serverStatuses[serverId].activeInbounds = inbounds.filter((item: any) => item?.enable !== false).length;
+    });
+    const derivedInboundTotals: any = Object.values(serverStatuses).reduce((acc: any, item: any) => {
+        acc.total += Number(item?.inboundCount || 0);
+        acc.active += Number(item?.activeInbounds || 0);
+        return acc;
+    }, { total: 0, active: 0 });
+    const hasCachedPanelInbounds = cachedPanelSnapshots.some((snapshot) => Array.isArray(snapshot?.inbounds));
+
+    return {
+        serverStatuses,
+        globalStats: {
+            totalUp: firstFiniteNumber(summary?.totalUp, 0),
+            totalDown: firstFiniteNumber(summary?.totalDown, 0),
+            totalOnline: presence ? presence.onlineRows.length : firstFiniteNumber(summary?.totalOnline, 0),
+            totalInbounds: hasCachedPanelInbounds ? derivedInboundTotals.total : firstFiniteNumber(summary?.totalInbounds, 0),
+            activeInbounds: hasCachedPanelInbounds ? derivedInboundTotals.active : firstFiniteNumber(summary?.activeInbounds, 0),
+            serverCount: firstFiniteNumber(summary?.total, telemetryItems.length, 0),
+            onlineServers: firstFiniteNumber(summary?.onlineServers, onlineServersFallback, 0),
+        },
+        globalManagedOnlineCount: presence ? presence.onlineRows.length : null,
+        globalOnlineUsers: presence?.onlineRows || [],
+        globalOnlineSessionCount: Number(presence?.onlineSessionCount || 0),
+        globalAccountSummary: buildDashboardAccountSummary(),
+        throughputSummary: summary?.throughput || {
+            ready: false,
+            readyServers: 0,
+            upPerSecond: 0,
+            downPerSecond: 0,
+            totalPerSecond: 0,
+        },
+        trafficWindowTotals: buildDashboardTrafficWindowTotals({
+            trafficStatsStore,
+            users: userStore.getAll(),
+            panelSnapshots: cachedPanelSnapshots,
+        }),
+        globalPresenceReady: presence != null,
+    };
+}
+
+export async function buildAppBootstrapPayload(user: any = null, options: any = {}): Promise<any> {
+    const role = String(user?.role || '').trim().toLowerCase();
+    const profile = String(options?.profile || 'full').trim().toLowerCase();
+    const shellOnly = profile === 'shell';
+    const payload: any = {
+        issuedAt: new Date().toISOString(),
+    };
+
+    if (role !== 'admin') {
+        return payload;
+    }
+
+    const servers = serverStore.getAll();
+    const telemetryOverview = serverTelemetryStore.getOverview({
+        servers,
+        hours: 24,
+        points: 24,
+    });
+
+    payload.serverContext = {
+        servers,
+        activeServerId: 'global',
+    };
+    payload.managedUsers = buildManagedUsersBootstrap();
+    payload.telemetryOverview = telemetryOverview;
+    payload.notifications = {
+        notifications: notificationService.getAll({
+            limit: INITIAL_NOTIFICATION_LIMIT,
+            offset: 0,
+        }).items,
+        unreadCount: notificationService.unreadCount(),
+        loadedLimit: INITIAL_NOTIFICATION_LIMIT,
+    };
+    await ensureTrafficBootstrapSamples();
+    payload.dashboard = buildDashboardSnapshot(telemetryOverview);
+    if (shellOnly) {
+        return payload;
+    }
+    payload.audit = buildAuditBootstrap();
+    payload.systemSettings = await buildSystemSettingsBootstrap();
+    payload.tasks = buildTasksBootstrap();
+
+    return payload;
+}

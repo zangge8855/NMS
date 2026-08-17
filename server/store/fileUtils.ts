@@ -1,0 +1,112 @@
+import fs from 'fs';
+import crypto from 'crypto';
+import { shouldWriteFile } from './dbMirror.js';
+
+// Monotonic counter so two writers entering in the same millisecond (and even with the
+// same PID) never derive the same temp filename. A same-name collision would let two
+// concurrent writers truncate and interleave into one temp file, corrupting it before
+// either rename publishes.
+function makeTempFile(file: string): string {
+    // This helper can be reached during an ESM dependency cycle while dbMirror is
+    // still evaluating. Keeping the counter on globalThis avoids a temporal-dead-zone
+    // failure before this module's body has finished initialization.
+    const counterKey = Symbol.for('nms.fileUtils.tempCounter');
+    const tempCounter = ((Number((globalThis as any)[counterKey]) || 0) + 1) % Number.MAX_SAFE_INTEGER;
+    (globalThis as any)[counterKey] = tempCounter;
+    const rand = crypto.randomBytes(6).toString('hex');
+    return `${file}.${process.pid}.${Date.now()}.${tempCounter}.${rand}.tmp`;
+}
+
+/**
+ * Saves a JSON object to a file atomically by writing to a temporary file
+ * first and then renaming it. This prevents file corruption during crashes.
+ *
+ * @param file The path to the file to write.
+ * @param data The JSON serializable data to save.
+ */
+export function saveObjectAtomic(file: string, data: any): void {
+    if (!shouldWriteFile()) return;
+
+    if (data === undefined || data === null) {
+        throw new Error('Serialization aborted: input data is null or undefined');
+    }
+    const content = JSON.stringify(data, null, 2);
+    if (typeof content !== 'string' || content === 'undefined' || content.trim() === '' || content === 'null') {
+        throw new Error('Serialization aborted: stringify returned empty or invalid string');
+    }
+    const tempFile = makeTempFile(file);
+
+    try {
+        fs.writeFileSync(tempFile, content, 'utf8');
+        fs.renameSync(tempFile, file);
+    } catch (e: any) {
+        // Only fall back to a direct write when the temp file was fully written but the
+        // rename failed (e.g. Windows file locks / cross-device links). If the temp write
+        // itself failed (ENOSPC, EACCES, …), a direct write would truncate the real file
+        // first and could fail mid-write, destroying the last good copy — so rethrow.
+        const isRenameError = e.syscall === 'rename' || e.code === 'EXDEV';
+        if (isRenameError) {
+            try {
+                fs.writeFileSync(file, content, 'utf8');
+            } catch (writeErr) {
+                console.error(`[Store Error] Failed to fallback write to ${file}:`, writeErr);
+                throw writeErr;
+            }
+        } else {
+            console.error(`[Store Error] Failed to write file atomically for ${file}:`, e);
+            throw e;
+        }
+    } finally {
+        if (fs.existsSync(tempFile)) {
+            try {
+                fs.rmSync(tempFile, { force: true });
+            } catch {
+                // Best-effort cleanup.
+            }
+        }
+    }
+}
+
+/**
+ * Saves a JSON object to a file atomically and asynchronously using promises.
+ *
+ * @param file The path to the file to write.
+ * @param data The JSON serializable data to save.
+ * @returns Promise<void>
+ */
+export async function saveObjectAtomicAsync(file: string, data: any): Promise<void> {
+    if (!shouldWriteFile()) return;
+
+    if (data === undefined || data === null) {
+        throw new Error('Serialization aborted: input data is null or undefined');
+    }
+    const content = JSON.stringify(data, null, 2);
+    if (typeof content !== 'string' || content === 'undefined' || content.trim() === '' || content === 'null') {
+        throw new Error('Serialization aborted: stringify returned empty or invalid string');
+    }
+    const tempFile = makeTempFile(file);
+
+    try {
+        await fs.promises.writeFile(tempFile, content, 'utf8');
+        await fs.promises.rename(tempFile, file);
+    } catch (e: any) {
+        const isRenameError = e.syscall === 'rename' || e.code === 'EXDEV';
+        if (isRenameError) {
+            try {
+                await fs.promises.writeFile(file, content, 'utf8');
+            } catch (writeErr) {
+                console.error(`[Store Error] Failed to fallback async write to ${file}:`, writeErr);
+                throw writeErr;
+            }
+        } else {
+            console.error(`[Store Error] Failed to write file atomically async for ${file}:`, e);
+            throw e;
+        }
+    } finally {
+        try {
+            await fs.promises.rm(tempFile, { force: true });
+        } catch {
+            // Best-effort cleanup.
+        }
+    }
+}

@@ -1,0 +1,320 @@
+import React, { Component, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from './contexts/AuthContext';
+import { ServerProvider } from './contexts/ServerContext';
+import { ThemeProvider } from './contexts/ThemeContext';
+import { NotificationProvider } from './contexts/NotificationContext';
+import { Toaster } from 'react-hot-toast';
+import useMediaQuery from './hooks/useMediaQuery';
+import { getLocaleMessage } from './i18n/messages';
+import MobileBottomNav from './components/Layout/MobileBottomNav';
+import SecurityBootstrapWizard from './components/System/SecurityBootstrapWizard';
+import api from './api/client';
+import useWebSocket from './hooks/useWebSocket';
+import { applyAppBootstrapSnapshots } from './utils/appBootstrap';
+
+const Login = lazy(() => import('./components/Login/Login'));
+const Sidebar = lazy(() => import('./components/Layout/Sidebar'));
+const loadDashboardPage = () => import('./components/Dashboard/Dashboard');
+const loadInboundsPage = () => import('./components/Inbounds/Inbounds');
+const loadUsersHubPage = () => import('./components/Users/UsersHub');
+
+const Dashboard = lazy(loadDashboardPage);
+const Inbounds = lazy(loadInboundsPage);
+const UsersHub = lazy(loadUsersHubPage);
+const UserDetail = lazy(() => import('./components/Users/UserDetail'));
+const Subscriptions = lazy(() => import('./components/Subscriptions/Subscriptions'));
+const DownloadsCenter = lazy(() => import('./components/Subscriptions/DownloadsCenter'));
+const AccountCenter = lazy(() => import('./components/Account/AccountCenter'));
+const Logs = lazy(() => import('./components/Logs/Logs'));
+const Tools = lazy(() => import('./components/Tools/Tools'));
+const Servers = lazy(() => import('./components/Servers/Servers'));
+const ServerDetail = lazy(() => import('./components/Servers/ServerDetail'));
+const Capabilities = lazy(() => import('./components/Capabilities/Capabilities'));
+const AuditCenter = lazy(() => import('./components/Audit/AuditCenter'));
+const SystemSettings = lazy(() => import('./components/System/SystemSettings'));
+const XrayConsole = lazy(() => import('./components/Xray/XrayConsole'));
+
+interface ErrorBoundaryProps {
+    children: ReactNode;
+}
+
+interface ErrorBoundaryState {
+    hasError: boolean;
+}
+
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+    constructor(props: ErrorBoundaryProps) {
+        super(props);
+        this.state = { hasError: false };
+    }
+
+    static getDerivedStateFromError(): ErrorBoundaryState {
+        return { hasError: true };
+    }
+
+    componentDidCatch(error: Error, info: React.ErrorInfo) {
+        console.error('[ErrorBoundary]', error, info?.componentStack);
+    }
+
+    render() {
+        if (this.state.hasError) {
+            const locale = document.documentElement.lang === 'en' ? 'en-US' : 'zh-CN';
+            return (
+                <div className="app-error-boundary">
+                    <div className="app-error-boundary-title">
+                        {getLocaleMessage(locale, 'comp.common.errorBoundaryTitle')}
+                    </div>
+                    <div className="app-error-boundary-subtitle">
+                        {getLocaleMessage(locale, 'comp.common.errorBoundarySubtitle')}
+                    </div>
+                    <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => window.location.reload()}
+                    >
+                        {getLocaleMessage(locale, 'comp.common.errorBoundaryAction')}
+                    </button>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}
+
+function PageFallback() {
+    return (
+        <div className="app-page-fallback">
+            <span className="spinner spinner-md" />
+        </div>
+    );
+}
+
+function LazyPage({ children }: { children: ReactNode }) {
+    return <Suspense fallback={<PageFallback />}>{children}</Suspense>;
+}
+
+function getWsUrl(ticket: string | null): string | null {
+    if (!ticket) return null;
+    const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const host = String((import.meta as any).env?.VITE_WS_HOST || '').trim() || window.location.host;
+    return `${proto}://${host}/ws?ticket=${encodeURIComponent(ticket)}`;
+}
+
+function ProtectedLayout() {
+    const { user, token } = useAuth();
+    const isAdmin = user?.role === 'admin';
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [rootWsTicket, setRootWsTicket] = useState('');
+    const lastWsTicketFetchAtRef = useRef(0);
+    const isMobile = useMediaQuery('(max-width: 768px)');
+    const rootWsUrl = useMemo(
+        () => (isAdmin ? getWsUrl(rootWsTicket) : null),
+        [isAdmin, rootWsTicket]
+    );
+    const { status: rootWsStatus, lastMessage: rootWsLastMessage } = useWebSocket(rootWsUrl);
+
+    useEffect(() => {
+        if (!isMobile) {
+            setSidebarOpen(false);
+        }
+    }, [isMobile]);
+
+    useEffect(() => {
+        const handleGlobalKeyDown = (e: KeyboardEvent) => {
+            if (e.altKey && e.key.toLowerCase() === 's') {
+                e.preventDefault();
+                if (isMobile) {
+                    setSidebarOpen((current) => !current);
+                } else {
+                    setSidebarCollapsed((current) => !current);
+                }
+            }
+        };
+        window.addEventListener('keydown', handleGlobalKeyDown);
+        return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+    }, [isMobile]);
+
+    useEffect(() => {
+        if (!token) return undefined;
+        let cancelled = false;
+        const timer = window.setTimeout(async () => {
+            try {
+                const res = await api.get('/auth/bootstrap', {
+                    params: { profile: 'shell' },
+                });
+                if (cancelled) return;
+                applyAppBootstrapSnapshots(res.data?.obj || {});
+            } catch (error: any) {
+                console.error('Failed to load app bootstrap:', error?.response?.data || error?.message || error);
+            }
+        }, 0);
+
+        return () => {
+            cancelled = true;
+            window.clearTimeout(timer);
+        };
+    }, [token]);
+
+    useEffect(() => {
+        if (!isAdmin || !token) return undefined;
+        const preloadAdminWorkspaces = () => {
+            loadUsersHubPage().catch(() => {});
+            loadInboundsPage().catch(() => {});
+        };
+        if (typeof (window as any).requestIdleCallback === 'function') {
+            const idleId = (window as any).requestIdleCallback(preloadAdminWorkspaces, { timeout: 2500 });
+            return () => (window as any).cancelIdleCallback?.(idleId);
+        }
+        const timer = window.setTimeout(preloadAdminWorkspaces, 1200);
+        return () => window.clearTimeout(timer);
+    }, [isAdmin, token]);
+
+    const fetchRootWsTicket = useCallback(async ({ force = false } = {}) => {
+        if (!isAdmin || !token) {
+            setRootWsTicket('');
+            return;
+        }
+        const now = Date.now();
+        if (!force && now - lastWsTicketFetchAtRef.current < 30_000) {
+            return;
+        }
+        lastWsTicketFetchAtRef.current = now;
+        try {
+            const res = await api.post('/ws/ticket');
+            setRootWsTicket(String(res.data?.obj?.ticket || ''));
+        } catch (error: any) {
+            console.error('Failed to fetch root websocket ticket:', error?.response?.data || error?.message || error);
+        }
+    }, [isAdmin, token]);
+
+    useEffect(() => {
+        if (!isAdmin || !token) {
+            setRootWsTicket('');
+            return undefined;
+        }
+        fetchRootWsTicket({ force: true });
+        const interval = setInterval(() => fetchRootWsTicket({ force: true }), 5 * 60 * 1000);
+        return () => clearInterval(interval);
+    }, [fetchRootWsTicket, isAdmin, token]);
+
+    useEffect(() => {
+        if (!isAdmin || !token) return;
+        if (rootWsStatus === 'reconnecting' || rootWsStatus === 'disconnected') {
+            fetchRootWsTicket();
+        }
+    }, [fetchRootWsTicket, isAdmin, rootWsStatus, token]);
+
+    const effectiveCollapsed = isMobile ? false : sidebarCollapsed;
+
+    return (
+        <ServerProvider enabled={isAdmin}>
+        <NotificationProvider enabled={isAdmin} wsLastMessage={isAdmin ? rootWsLastMessage : null}>
+            <div className="app-layout">
+                <div
+                    className={`sidebar-backdrop ${sidebarOpen ? 'show' : ''}`}
+                    onClick={() => setSidebarOpen(false)}
+                    aria-hidden="true"
+                />
+                <Suspense fallback={null}>
+                    <Sidebar
+                        collapsed={effectiveCollapsed}
+                        open={sidebarOpen}
+                        isMobile={isMobile}
+                        onClose={() => setSidebarOpen(false)}
+                        onToggle={() => {
+                            if (isMobile) {
+                                setSidebarOpen((current) => !current);
+                                return;
+                            }
+                            setSidebarCollapsed(!sidebarCollapsed);
+                        }}
+                    />
+                </Suspense>
+                <main className={`main-content ${effectiveCollapsed ? 'collapsed' : ''}`}>
+                    <div className="main-scroll-region">
+                        <Routes>
+                            <Route path="/" element={isAdmin ? <LazyPage><Dashboard /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/inbounds" element={isAdmin ? <LazyPage><Inbounds /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/clients" element={isAdmin ? <LazyPage><UsersHub /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/clients/:userId" element={isAdmin ? <LazyPage><UserDetail /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/subscriptions" element={<LazyPage><Subscriptions /></LazyPage>} />
+                            <Route path="/downloads" element={isAdmin ? <Navigate to="/subscriptions" replace /> : <LazyPage><DownloadsCenter /></LazyPage>} />
+                            <Route path="/account" element={<LazyPage><AccountCenter /></LazyPage>} />
+                            <Route path="/logs" element={isAdmin ? <LazyPage><Logs /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/server" element={isAdmin ? <Navigate to="/settings?tab=console" replace /> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/tools" element={isAdmin ? <LazyPage><Tools /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/capabilities" element={isAdmin ? <LazyPage><Capabilities /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/xray" element={isAdmin ? <LazyPage><XrayConsole /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/tasks" element={isAdmin ? <Navigate to="/audit" replace /> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/audit" element={isAdmin ? <LazyPage><AuditCenter /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/servers" element={isAdmin ? <LazyPage><Servers /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/servers/:serverId" element={isAdmin ? <LazyPage><ServerDetail /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/accounts" element={isAdmin ? <Navigate to="/clients" replace /> : <Navigate to="/account" replace />} />
+                            <Route path="/settings" element={isAdmin ? <LazyPage><SystemSettings /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="*" element={<Navigate to={isAdmin ? '/' : '/subscriptions'} replace />} />
+                        </Routes>
+                    </div>
+                    {isMobile ? <MobileBottomNav onOpenMenu={() => setSidebarOpen(true)} /> : null}
+                </main>
+                {isAdmin ? <SecurityBootstrapWizard /> : null}
+            </div>
+        </NotificationProvider>
+        </ServerProvider>
+    );
+}
+
+export default function App() {
+    const { isAuthenticated, loading } = useAuth();
+    const isMobile = useMediaQuery('(max-width: 768px)');
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-screen" style={{ background: 'var(--bg-primary)' }}>
+                <span className="spinner" style={{ width: '32px', height: '32px' }} />
+            </div>
+        );
+    }
+
+    return (
+        <ErrorBoundary>
+        <ThemeProvider>
+            <Toaster
+                position={isMobile ? 'bottom-center' : 'top-right'}
+                containerStyle={isMobile ? {
+                    bottom: 'calc(var(--mobile-bottom-nav-height, 78px) + env(safe-area-inset-bottom, 0px) + 14px)',
+                    left: '12px',
+                    right: '12px',
+                } : {
+                    // Keep desktop toasts below the fixed header so they never
+                    // cover the search box / language toggle / notification bell.
+                    top: 'calc(var(--header-height, 68px) + 12px)',
+                }}
+                toastOptions={{
+                    style: {
+                        background: 'var(--bg-secondary)',
+                        color: 'var(--text-primary)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: 'var(--radius-md)',
+                        fontSize: '13px',
+                    },
+                    success: {
+                        iconTheme: { primary: '#10b981', secondary: '#fff' },
+                    },
+                    error: {
+                        iconTheme: { primary: '#ef4444', secondary: '#fff' },
+                    },
+                }}
+            />
+            <Routes>
+                <Route
+                    path="/login"
+                    element={isAuthenticated ? <Navigate to="/" replace /> : <LazyPage><Login /></LazyPage>}
+                />
+                <Route path="/*" element={isAuthenticated ? <ProtectedLayout /> : <Navigate to="/login" replace />} />
+            </Routes>
+        </ThemeProvider>
+        </ErrorBoundary>
+    );
+}

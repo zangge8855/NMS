@@ -1,0 +1,232 @@
+import { Router, type Request, type Response } from 'express';
+import serverStore from '../store/serverStore.js';
+import jobStore from '../store/jobStore.js';
+import { appendSecurityAudit } from '../lib/securityAudit.js';
+import { toHttpError } from '../lib/httpError.js';
+import {
+    buildManagedUserSyncJobPayload,
+    createUserGroup,
+    deleteUserGroup,
+    listUserGroups,
+    syncUserGroupMembers,
+    updateUserGroup,
+} from '../services/userAdminService.js';
+
+const router = Router();
+
+function normalizeStringList(input: any = []): string[] {
+    return Array.from(new Set(
+        (Array.isArray(input) ? input : [])
+            .map((item) => String(item || '').trim())
+            .filter(Boolean)
+    ));
+}
+
+function parseNonNegativeInt(value: unknown, field: string): number {
+    if (value === undefined || value === null || value === '') return 0;
+    const num = Number(value);
+    if (!Number.isFinite(num) || num < 0) {
+        const error: any = new Error(`Invalid value for ${field}: expected a non-negative number`);
+        error.status = 400;
+        throw error;
+    }
+    return Math.floor(num);
+}
+
+function normalizeGroupPayload(body: any = {}) {
+    const payload: any = {
+        name: String(body?.name || '').trim(),
+        description: String(body?.description || '').trim(),
+        enabled: body?.enabled !== false,
+        allowedServerIds: normalizeStringList(body?.allowedServerIds),
+        blockedServerIds: normalizeStringList(body?.blockedServerIds),
+        allowedProtocols: normalizeStringList(body?.allowedProtocols).map((item) => item.toLowerCase()),
+        allowedInboundKeys: normalizeStringList(body?.allowedInboundKeys),
+        blockedInboundKeys: normalizeStringList(body?.blockedInboundKeys),
+        serverScopeMode: String(body?.serverScopeMode || '').trim().toLowerCase(),
+        protocolScopeMode: String(body?.protocolScopeMode || '').trim().toLowerCase(),
+        expiryTime: parseNonNegativeInt(body?.expiryTime, 'expiryTime'),
+        limitIp: parseNonNegativeInt(body?.limitIp, 'limitIp'),
+        trafficLimitBytes: parseNonNegativeInt(body?.trafficLimitBytes, 'trafficLimitBytes'),
+        speedLimitUp: parseNonNegativeInt(body?.speedLimitUp, 'speedLimitUp'),
+        speedLimitDown: parseNonNegativeInt(body?.speedLimitDown, 'speedLimitDown'),
+        trafficResetCycle: String(body?.trafficResetCycle || 'none').trim().toLowerCase(),
+        ipLimitPolicy: String(body?.ipLimitPolicy || 'first-wins').trim().toLowerCase(),
+    };
+    if (Object.prototype.hasOwnProperty.call(body || {}, 'memberUserIds')) {
+        payload.memberUserIds = normalizeStringList(body?.memberUserIds);
+    }
+    return payload;
+}
+
+function validateServerIds(payload: any = {}) {
+    const existing = new Set(serverStore.getAll().map((item: any) => item.id));
+    const invalid = [
+        ...normalizeStringList(payload.allowedServerIds),
+        ...normalizeStringList(payload.blockedServerIds),
+    ].filter((item) => !existing.has(item));
+    if (invalid.length > 0) {
+        const error: any = new Error(`Unknown server IDs: ${Array.from(new Set(invalid)).join(', ')}`);
+        error.status = 400;
+        throw error;
+    }
+}
+
+function appendGroupSyncHistory(req: Request, sync: any = {}, operation: string = 'group_policy_update'): string[] {
+    const ids: string[] = [];
+    const actor = (req as any).user?.username || (req as any).user?.role || 'admin';
+    (Array.isArray(sync.details) ? sync.details : []).forEach((detail) => {
+        const failed = detail?.status === 'partial_failure' || detail?.status === 'failed';
+        if (!failed) return;
+        const jobPayload = buildManagedUserSyncJobPayload({
+            operation,
+            target: {
+                id: detail.userId,
+                username: detail.username,
+            },
+            subscriptionEmail: detail.subscriptionEmail,
+            enabled: true,
+            clientSync: detail.clientSync,
+            deployment: detail.deployment,
+        });
+        if (Number(jobPayload.output?.summary?.failed || 0) <= 0 && detail?.status !== 'failed') return;
+        const entry = jobStore.appendBatch({
+            type: 'user_sync',
+            action: operation,
+            output: jobPayload.output,
+            actor,
+            requestSnapshot: {
+                ...jobPayload.requestSnapshot,
+                groupId: sync.group?.id || '',
+            },
+        });
+        ids.push(entry.id);
+    });
+    return ids;
+}
+
+router.get('/', (_req: Request, res: Response) => {
+    return res.json({
+        success: true,
+        obj: listUserGroups(),
+    });
+});
+
+router.post('/', async (req: Request, res: Response) => {
+    try {
+        const actor = (req as any).user?.username || (req as any).user?.role || 'admin';
+        const payload = normalizeGroupPayload(req.body);
+        validateServerIds(payload);
+        const result = await createUserGroup(payload, actor);
+        const syncHistoryIds = appendGroupSyncHistory(req, result.sync, 'group_policy_create');
+        appendSecurityAudit('user_group_created', req, {
+            groupId: result.group.id,
+            groupName: result.group.name,
+            assignedUsers: result.membership?.assignedUsers?.length || 0,
+            failedUsers: result.sync?.failedUsers || 0,
+            syncHistoryIds,
+        });
+        return res.json({
+            success: true,
+            msg: result.sync.failedUsers > 0
+                ? '用户分组已创建，但部分 3x-ui 节点同步失败，可在任务历史中重试'
+                : '用户分组已创建',
+            obj: {
+                ...result,
+                syncHistoryIds,
+            },
+        });
+    } catch (error) {
+        const httpError = toHttpError(error, 400, '创建用户分组失败');
+        return res.status(httpError.status).json({ success: false, msg: httpError.message });
+    }
+});
+
+router.put('/:id', async (req: Request, res: Response) => {
+    try {
+        const actor = (req as any).user?.username || (req as any).user?.role || 'admin';
+        const payload = normalizeGroupPayload(req.body);
+        validateServerIds(payload);
+        const result = await updateUserGroup(req.params.id, payload, actor);
+        const syncHistoryIds = appendGroupSyncHistory(req, result.sync, 'group_policy_update');
+        appendSecurityAudit('user_group_updated', req, {
+            groupId: result.group.id,
+            groupName: result.group.name,
+            syncedUsers: result.sync.syncedUsers,
+            failedUsers: result.sync.failedUsers,
+            syncHistoryIds,
+        });
+        return res.json({
+            success: true,
+            msg: result.sync.failedUsers > 0
+                ? '用户分组已保存，但部分 3x-ui 节点同步失败，可在任务历史中重试'
+                : '用户分组已保存',
+            obj: {
+                ...result,
+                syncHistoryIds,
+            },
+        });
+    } catch (error) {
+        const httpError = toHttpError(error, 400, '更新用户分组失败');
+        return res.status(httpError.status).json({ success: false, msg: httpError.message });
+    }
+});
+
+router.post('/:id/sync', async (req: Request, res: Response) => {
+    try {
+        const actor = (req as any).user?.username || (req as any).user?.role || 'admin';
+        const sync = await syncUserGroupMembers(req.params.id, actor);
+        const syncHistoryIds = appendGroupSyncHistory(req, sync, 'group_policy_sync');
+        appendSecurityAudit('user_group_synced', req, {
+            groupId: sync.group.id,
+            groupName: sync.group.name,
+            syncedUsers: sync.syncedUsers,
+            failedUsers: sync.failedUsers,
+            syncHistoryIds,
+        });
+        return res.json({
+            success: true,
+            msg: sync.failedUsers > 0
+                ? '分组同步已完成，但部分用户存在失败项'
+                : '分组同步已完成',
+            obj: {
+                sync,
+                syncHistoryIds,
+            },
+        });
+    } catch (error) {
+        const httpError = toHttpError(error, 400, '同步用户分组失败');
+        return res.status(httpError.status).json({ success: false, msg: httpError.message });
+    }
+});
+
+router.delete('/:id', async (req: Request, res: Response) => {
+    try {
+        const actor = (req as any).user?.username || (req as any).user?.role || 'admin';
+        const result = await deleteUserGroup(req.params.id, actor);
+        const syncHistoryIds = appendGroupSyncHistory(req, result.sync, 'group_policy_delete');
+        appendSecurityAudit('user_group_deleted', req, {
+            groupId: result.group.id,
+            groupName: result.group.name,
+            affectedUsers: result.sync.totalUsers,
+            failedUsers: result.sync.failedUsers,
+            syncHistoryIds,
+        });
+        return res.json({
+            success: true,
+            msg: result.sync.failedUsers > 0
+                ? '用户分组已删除，但部分成员同步失败'
+                : '用户分组已删除',
+            obj: {
+                ...result,
+                syncHistoryIds,
+            },
+        });
+    } catch (error) {
+        const httpError = toHttpError(error, 400, '删除用户分组失败');
+        return res.status(httpError.status).json({ success: false, msg: httpError.message });
+    }
+});
+
+export default router;
+export { normalizeGroupPayload, parseNonNegativeInt };

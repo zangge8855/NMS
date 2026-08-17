@@ -1,0 +1,399 @@
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, resolve, isAbsolute } from 'path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: resolve(__dirname, '..', '.env') });
+
+const nodeEnv: string = process.env.NODE_ENV || 'development';
+const isProduction: boolean = nodeEnv === 'production';
+const DEFAULT_JWT_SECRET = 'default-secret-change-me';
+const jwtSecret: string = process.env.JWT_SECRET || DEFAULT_JWT_SECRET;
+const credentialsSecret: string = process.env.CREDENTIALS_SECRET || jwtSecret;
+if (!process.env.CREDENTIALS_SECRET && !isProduction) {
+    console.warn('[Config] CREDENTIALS_SECRET is not set — falling back to JWT_SECRET. Set a dedicated secret for production.');
+}
+const adminUsername: string = process.env.ADMIN_USERNAME || 'admin';
+const adminPassword: string = process.env.ADMIN_PASSWORD || 'admin';
+const enforceStrictSecurity: boolean = isProduction || process.env.ENFORCE_STRICT_SECURITY === 'true';
+const defaultDataDir: string = resolve(__dirname, '..', 'data');
+const isDevelopment: boolean = nodeEnv === 'development';
+
+function resolveDataDir(value?: string | null): string {
+    const text = String(value || '').trim();
+    if (!text) return defaultDataDir;
+    if (isAbsolute(text)) return text;
+    return resolve(__dirname, '..', text);
+}
+
+function parsePositiveInt(value: unknown, fallback: number): number {
+    const parsed = parseInt(String(value), 10);
+    if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+    return parsed;
+}
+
+function parseBoolean(value: unknown, fallback: boolean = false): boolean {
+    if (value === undefined || value === null || value === '') return fallback;
+    const text = String(value).trim().toLowerCase();
+    if (['1', 'true', 'yes', 'on'].includes(text)) return true;
+    if (['0', 'false', 'no', 'off'].includes(text)) return false;
+    return fallback;
+}
+
+function parseStringList(value: unknown): string[] {
+    return String(value || '')
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+}
+
+function parseTrustProxy(value: unknown): boolean | string[] {
+    const raw = String(value || '').trim();
+    if (!raw) return ['loopback'];
+    const lower = raw.toLowerCase();
+    if (['false', '0', 'off', 'no'].includes(lower)) return false;
+    if (['true', '1', 'on', 'yes'].includes(lower)) return true;
+    const list = parseStringList(raw);
+    return list.length > 0 ? list : ['loopback'];
+}
+
+function parseHttpUrl(value: unknown): string {
+    const text = String(value || '').trim();
+    if (!text) return '';
+    try {
+        const parsed = new URL(text);
+        if (!['http:', 'https:'].includes(parsed.protocol)) return '';
+        return text;
+    } catch {
+        return '';
+    }
+}
+
+function parseHttpTemplateUrl(value: unknown, fallback: string = ''): string {
+    const text = String(value || '').trim();
+    const candidate = text || String(fallback || '').trim();
+    if (!candidate) return '';
+    try {
+        const probe = candidate.replaceAll('{ip}', '1.1.1.1');
+        const parsed = new URL(probe);
+        if (!['http:', 'https:'].includes(parsed.protocol)) return '';
+        return candidate;
+    } catch {
+        return '';
+    }
+}
+
+function parseStoreReadMode(value: unknown, fallback: string = 'file'): string {
+    const text = String(value || '').trim().toLowerCase();
+    if (['file', 'db'].includes(text)) return text;
+    return fallback;
+}
+
+function parseStoreWriteMode(value: unknown, fallback: string = 'file'): string {
+    const text = String(value || '').trim().toLowerCase();
+    if (['file', 'dual', 'db'].includes(text)) return text;
+    return fallback;
+}
+
+function isWeakJwtSecret(value: unknown): boolean {
+    const text = String(value || '');
+    return text.length < 32 || text === DEFAULT_JWT_SECRET;
+}
+
+function isWeakCredentialsSecret(value: unknown): boolean {
+    const text = String(value || '');
+    if (text.length < 32) return true;
+    if (text === DEFAULT_JWT_SECRET) return true;
+    if (text === jwtSecret) return true;
+    return false;
+}
+
+function isWeakAdminPassword(value: unknown): boolean {
+    const text = String(value || '');
+    if (text.length < 8) return true;
+    const typeCount = [
+        /[a-z]/.test(text),
+        /[A-Z]/.test(text),
+        /\d/.test(text),
+        /[^A-Za-z0-9]/.test(text),
+    ].filter(Boolean).length;
+    if (typeCount < 3) return true;
+    const lower = text.toLowerCase();
+    return ['admin', 'admin123', 'password', '12345678'].includes(lower);
+}
+
+function isWeakAdminUsername(value: unknown): boolean {
+    const text = String(value || '').trim().toLowerCase();
+    if (!text) return true;
+    if (text.length < 3) return true;
+    return ['admin', 'administrator', 'root'].includes(text);
+}
+
+if (enforceStrictSecurity && isWeakJwtSecret(jwtSecret)) {
+    throw new Error('Unsafe JWT_SECRET. Set a strong secret (length >= 32) before startup.');
+}
+
+if (enforceStrictSecurity && isWeakAdminPassword(adminPassword)) {
+    throw new Error('Unsafe ADMIN_PASSWORD. Set a strong admin password before startup.');
+}
+
+if (enforceStrictSecurity && isWeakAdminUsername(adminUsername)) {
+    throw new Error('Unsafe ADMIN_USERNAME. Set a non-default admin username before startup.');
+}
+
+if (enforceStrictSecurity && !process.env.CREDENTIALS_SECRET) {
+    throw new Error('Unsafe CREDENTIALS_SECRET. Set a dedicated secret (length >= 32) before startup.');
+}
+
+if (enforceStrictSecurity && isWeakCredentialsSecret(credentialsSecret)) {
+    throw new Error('Unsafe CREDENTIALS_SECRET. Do not reuse JWT_SECRET and use a strong secret (length >= 32).');
+}
+
+export interface AppConfig {
+    jwt: {
+        secret: string;
+        expiresIn: string;
+    };
+    auth: {
+        adminUsername: string;
+        adminPassword: string;
+        allowLegacyPasswordLogin: boolean;
+    };
+    security: {
+        enforceStrictSecurity: boolean;
+        trustProxy: boolean | string[];
+        hstsEnabled: boolean;
+        hstsMaxAgeSeconds: number;
+    };
+    credentials: {
+        secret: string;
+        legacySecrets: string[];
+    };
+    ws: {
+        ticketTtlSeconds: number;
+    };
+    smtp: {
+        service: string;
+        host: string;
+        port: number;
+        secure: boolean;
+        requireTLS: boolean;
+        ignoreTLS: boolean;
+        authMethod: string;
+        tlsServername: string;
+        tlsRejectUnauthorized: boolean;
+        connectionTimeoutMs: number;
+        greetingTimeoutMs: number;
+        socketTimeoutMs: number;
+        user: string;
+        pass: string;
+        from: string;
+    };
+    registration: {
+        enabled: boolean;
+        defaultRole: string;
+        verifyCodeTtlMinutes: number;
+        passwordResetCodeTtlMinutes: number;
+        passwordResetEnabled: boolean;
+    };
+    subscription: {
+        defaultTtlDays: number;
+        maxTtlDays: number;
+        maxActiveTokensPerUser: number;
+        publicBaseUrl: string;
+        converter: {
+            baseUrl: string;
+            clashConfigUrl: string;
+            singboxConfigUrl: string;
+            surgeConfigUrl: string;
+        };
+    };
+    audit: {
+        retentionDays: number;
+        maxPageSize: number;
+        ipGeo: {
+            enabled: boolean;
+            provider: string;
+            endpoint: string;
+            timeoutMs: number;
+            cacheTtlSeconds: number;
+        };
+        ipIsp: {
+            enabled: boolean;
+            timeoutMs: number;
+            cacheTtlSeconds: number;
+        };
+    };
+    traffic: {
+        retentionDays: number;
+        sampleIntervalSeconds: number;
+        collectorConcurrency: number;
+    };
+    performance: {
+        clusterStatusIntervalMs: number;
+        panelSnapshotIntervalMs: number;
+        wsBroadcastIntervalMs: number;
+        trafficOverviewCacheTtlMs: number;
+    };
+    jobs: {
+        retentionDays: number;
+        maxPageSize: number;
+        maxRecords: number;
+        maxConcurrency: number;
+    };
+    servers: {
+        allowPrivateServerUrl: boolean;
+    };
+    db: {
+        enabled: boolean;
+        url: string;
+        schema: string;
+        poolMax: number;
+        sslMode: string;
+        migrationAuto: boolean;
+        storeReadMode: string;
+        storeWriteMode: string;
+        backfillRedact: boolean;
+        backfillDryRunDefault: boolean;
+        privacyMode: string;
+    };
+    telegram: {
+        enabled: boolean;
+        botToken: string;
+        chatId: string;
+        commandMenuEnabled: boolean;
+        apiBaseUrl: string;
+        alertSeverities: string[];
+        auditEvents: string[];
+        dedupWindowMs: number;
+    };
+    port: number;
+    nodeEnv: string;
+    dataDir: string;
+}
+
+const config: AppConfig = {
+    jwt: {
+        secret: jwtSecret,
+        expiresIn: process.env.JWT_EXPIRES_IN || '24h',
+    },
+    auth: {
+        adminUsername,
+        adminPassword,
+        allowLegacyPasswordLogin: parseBoolean(process.env.ALLOW_LEGACY_PASSWORD_LOGIN, true),
+    },
+    security: {
+        enforceStrictSecurity,
+        trustProxy: parseTrustProxy(process.env.TRUST_PROXY),
+        hstsEnabled: parseBoolean(process.env.SECURITY_HSTS_ENABLED, isProduction),
+        hstsMaxAgeSeconds: parsePositiveInt(process.env.SECURITY_HSTS_MAX_AGE_SECONDS, 15552000),
+    },
+    credentials: {
+        secret: credentialsSecret,
+        legacySecrets: parseStringList(process.env.CREDENTIALS_LEGACY_SECRETS),
+    },
+    ws: {
+        ticketTtlSeconds: parsePositiveInt(process.env.WS_TICKET_TTL_SECONDS, 600),
+    },
+    smtp: {
+        service: process.env.SMTP_SERVICE || '',
+        host: process.env.SMTP_HOST || '',
+        port: parsePositiveInt(process.env.SMTP_PORT, 587),
+        secure: parseBoolean(process.env.SMTP_SECURE, false),
+        requireTLS: parseBoolean(process.env.SMTP_REQUIRE_TLS, false),
+        ignoreTLS: parseBoolean(process.env.SMTP_IGNORE_TLS, false),
+        authMethod: String(process.env.SMTP_AUTH_METHOD || '').trim().toUpperCase(),
+        tlsServername: String(process.env.SMTP_TLS_SERVERNAME || '').trim(),
+        tlsRejectUnauthorized: parseBoolean(process.env.SMTP_TLS_REJECT_UNAUTHORIZED, true),
+        connectionTimeoutMs: parsePositiveInt(process.env.SMTP_CONNECTION_TIMEOUT_MS, 10000),
+        greetingTimeoutMs: parsePositiveInt(process.env.SMTP_GREETING_TIMEOUT_MS, 10000),
+        socketTimeoutMs: parsePositiveInt(process.env.SMTP_SOCKET_TIMEOUT_MS, 30000),
+        user: process.env.SMTP_USER || '',
+        pass: process.env.SMTP_PASS || '',
+        from: process.env.SMTP_FROM || process.env.SMTP_USER || '',
+    },
+    registration: {
+        enabled: parseBoolean(process.env.REGISTRATION_ENABLED, true),
+        defaultRole: process.env.REGISTRATION_DEFAULT_ROLE || 'user',
+        verifyCodeTtlMinutes: parsePositiveInt(process.env.VERIFY_CODE_TTL_MINUTES, 15),
+        passwordResetCodeTtlMinutes: parsePositiveInt(process.env.PASSWORD_RESET_CODE_TTL_MINUTES, 15),
+        passwordResetEnabled: parseBoolean(process.env.PASSWORD_RESET_ENABLED, true),
+    },
+    subscription: {
+        defaultTtlDays: parsePositiveInt(process.env.SUB_TOKEN_DEFAULT_TTL_DAYS, 30),
+        maxTtlDays: parsePositiveInt(process.env.SUB_TOKEN_MAX_TTL_DAYS, 365),
+        maxActiveTokensPerUser: parsePositiveInt(process.env.SUB_TOKEN_MAX_ACTIVE, 5),
+        publicBaseUrl: parseHttpUrl(process.env.SUB_PUBLIC_BASE_URL),
+        converter: {
+            baseUrl: parseHttpUrl(process.env.SUB_CONVERTER_BASE_URL),
+            clashConfigUrl: parseHttpUrl(process.env.SUB_CONVERTER_CLASH_CONFIG_URL),
+            singboxConfigUrl: parseHttpUrl(process.env.SUB_CONVERTER_SINGBOX_CONFIG_URL),
+            surgeConfigUrl: parseHttpUrl(process.env.SUB_CONVERTER_SURGE_CONFIG_URL),
+        },
+    },
+    audit: {
+        retentionDays: parsePositiveInt(process.env.AUDIT_RETENTION_DAYS, 365),
+        maxPageSize: parsePositiveInt(process.env.AUDIT_MAX_PAGE_SIZE, 200),
+        ipGeo: {
+            enabled: parseBoolean(process.env.AUDIT_IP_GEO_ENABLED, false),
+            provider: String(process.env.AUDIT_IP_GEO_PROVIDER || 'ip_api').trim().toLowerCase() || 'ip_api',
+            endpoint: parseHttpTemplateUrl(process.env.AUDIT_IP_GEO_ENDPOINT, 'http://ip-api.com/json/{ip}?fields=status,country,regionName,city&lang=zh-CN'),
+            timeoutMs: parsePositiveInt(process.env.AUDIT_IP_GEO_TIMEOUT_MS, 3000),
+            cacheTtlSeconds: parsePositiveInt(process.env.AUDIT_IP_GEO_CACHE_TTL_SECONDS, 21600),
+        },
+        ipIsp: {
+            enabled: parseBoolean(process.env.AUDIT_IP_ISP_ENABLED, true),
+            timeoutMs: parsePositiveInt(process.env.AUDIT_IP_ISP_TIMEOUT_MS, 3500),
+            cacheTtlSeconds: parsePositiveInt(process.env.AUDIT_IP_ISP_CACHE_TTL_SECONDS, 86400),
+        },
+    },
+    traffic: {
+        retentionDays: parsePositiveInt(process.env.TRAFFIC_RETENTION_DAYS, 365),
+        sampleIntervalSeconds: parsePositiveInt(process.env.TRAFFIC_SAMPLE_INTERVAL_SECONDS, 300),
+        collectorConcurrency: parsePositiveInt(process.env.TRAFFIC_COLLECTOR_CONCURRENCY, 3),
+    },
+    performance: {
+        clusterStatusIntervalMs: parsePositiveInt(process.env.CLUSTER_STATUS_INTERVAL_MS, 30_000),
+        panelSnapshotIntervalMs: parsePositiveInt(process.env.PANEL_SNAPSHOT_INTERVAL_MS, 60_000),
+        wsBroadcastIntervalMs: parsePositiveInt(process.env.WS_BROADCAST_INTERVAL_MS, 15_000),
+        trafficOverviewCacheTtlMs: parsePositiveInt(process.env.TRAFFIC_OVERVIEW_CACHE_TTL_MS, 5_000),
+    },
+    jobs: {
+        retentionDays: parsePositiveInt(process.env.JOB_RETENTION_DAYS, 90),
+        maxPageSize: parsePositiveInt(process.env.JOB_MAX_PAGE_SIZE, 200),
+        maxRecords: parsePositiveInt(process.env.JOB_MAX_RECORDS, 2000),
+        maxConcurrency: parsePositiveInt(process.env.JOB_MAX_CONCURRENCY, 10),
+    },
+    servers: {
+        allowPrivateServerUrl: parseBoolean(process.env.ALLOW_PRIVATE_SERVER_URL, false),
+    },
+    db: {
+        enabled: parseBoolean(process.env.DB_ENABLED, false),
+        url: process.env.DB_URL || '',
+        schema: String(process.env.DB_SCHEMA || 'nms').trim() || 'nms',
+        poolMax: parsePositiveInt(process.env.DB_POOL_MAX, 10),
+        sslMode: String(process.env.DB_SSL_MODE || 'disable').trim().toLowerCase() || 'disable',
+        migrationAuto: parseBoolean(process.env.DB_MIGRATION_AUTO, true),
+        storeReadMode: parseStoreReadMode(process.env.STORE_READ_MODE, 'file'),
+        storeWriteMode: parseStoreWriteMode(process.env.STORE_WRITE_MODE, 'file'),
+        backfillRedact: parseBoolean(process.env.DB_BACKFILL_REDACT, false),
+        backfillDryRunDefault: parseBoolean(process.env.DB_BACKFILL_DRY_RUN, true),
+        privacyMode: String(process.env.DB_PRIVACY_MODE || (isDevelopment ? 'strict' : 'standard')).trim().toLowerCase() || 'standard',
+    },
+    telegram: {
+        enabled: parseBoolean(process.env.TELEGRAM_ALERTS_ENABLED, false),
+        botToken: String(process.env.TELEGRAM_BOT_TOKEN || '').trim(),
+        chatId: String(process.env.TELEGRAM_CHAT_ID || '').trim(),
+        commandMenuEnabled: parseBoolean(process.env.TELEGRAM_COMMAND_MENU_ENABLED, false),
+        apiBaseUrl: parseHttpUrl(process.env.TELEGRAM_API_BASE_URL) || 'https://api.telegram.org',
+        alertSeverities: parseStringList(process.env.TELEGRAM_ALERT_SEVERITIES || 'warning,critical'),
+        auditEvents: parseStringList(process.env.TELEGRAM_AUDIT_EVENTS),
+        dedupWindowMs: parsePositiveInt(process.env.TELEGRAM_ALERT_DEDUP_MS, 2 * 60 * 1000),
+    },
+    port: parseInt(String(process.env.PORT || ''), 10) || 3001,
+    nodeEnv,
+    // Path to store server registry
+    dataDir: resolveDataDir(process.env.DATA_DIR),
+};
+
+export default config;

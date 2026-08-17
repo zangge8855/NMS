@@ -1,0 +1,370 @@
+function appendQuery(url: string, query: Record<string, any> = {}): string {
+    const base = String(url || '').trim();
+    if (!base) return '';
+    const entries = Object.entries(query)
+        .filter(([, value]) => value !== undefined && value !== null && String(value) !== '');
+    if (entries.length === 0) return base;
+    const qs = entries
+        .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+        .join('&');
+    return `${base}${base.includes('?') ? '&' : '?'}${qs}`;
+}
+
+function normalizeUrl(value: any): string {
+    const text = String(value || '').trim();
+    return text || '';
+}
+
+function isExternalConverterUrl(url: string): boolean {
+    const text = normalizeUrl(url);
+    if (!text) return false;
+    try {
+        const parsed = new URL(text);
+        if (!parsed.searchParams.has('config')) return false;
+
+        const pathname = parsed.pathname.replace(/\/+$/, '');
+        const hasTargetStyle = parsed.searchParams.has('target')
+            && parsed.searchParams.has('url')
+            && /(?:^|\/)sub$/i.test(pathname);
+        const hasLegacyPathStyle = /\/(?:clash|singbox|surge)$/i.test(pathname);
+        return hasTargetStyle || hasLegacyPathStyle;
+    } catch {
+        return false;
+    }
+}
+
+function extractConverterBaseUrl(url: string): string {
+    const text = normalizeUrl(url);
+    if (!text) return '';
+    try {
+        const parsed = new URL(text);
+        const pathname = parsed.pathname.replace(/\/+$/, '');
+        parsed.search = '';
+        parsed.hash = '';
+        if (/(?:^|\/)sub$/i.test(pathname)) {
+            parsed.pathname = pathname.replace(/\/sub$/i, '') || '/';
+        } else {
+            parsed.pathname = pathname.replace(/\/(?:clash|singbox|surge)$/i, '') || '/';
+        }
+        return parsed.toString().replace(/\/+$/, '');
+    } catch {
+        return '';
+    }
+}
+
+function extractUrlHost(url: string): string {
+    const text = normalizeUrl(url);
+    if (!text) return '';
+    try {
+        return new URL(text).host || '';
+    } catch {
+        return '';
+    }
+}
+
+function encodeBase64Utf8(value: string): string {
+    const text = String(value || '');
+    const base64Encode = globalThis?.btoa;
+    if (typeof base64Encode === 'function' && typeof TextEncoder === 'function') {
+        const bytes = new TextEncoder().encode(text);
+        let binary = '';
+        bytes.forEach((byte) => {
+            binary += String.fromCharCode(byte);
+        });
+        return base64Encode(binary);
+    }
+    const nodeBuffer = (globalThis as any)?.Buffer;
+    if (nodeBuffer?.from) {
+        return nodeBuffer.from(text, 'utf8').toString('base64');
+    }
+    return '';
+}
+
+function buildShadowrocketImportUrl(sourceUrl: string): string {
+    const url = normalizeUrl(sourceUrl);
+    if (!url) return '';
+    const encoded = encodeBase64Utf8(url);
+    return encoded ? `sub://${encoded}#${encodeURIComponent('NMS')}` : '';
+}
+
+function buildStashImportUrl(sourceUrl: string, name: string = 'NMS'): string {
+    const url = normalizeUrl(sourceUrl);
+    if (!url) return '';
+    return `stash://install-config?url=${encodeURIComponent(url)}&name=${encodeURIComponent(String(name || 'NMS'))}`;
+}
+
+function buildClashImportUrl(sourceUrl: string): string {
+    const url = normalizeUrl(sourceUrl);
+    if (!url) return '';
+    return `clash://install-config?url=${encodeURIComponent(url)}`;
+}
+
+function buildSurgeImportUrl(sourceUrl: string): string {
+    const url = normalizeUrl(sourceUrl);
+    if (!url) return '';
+    return `surge:///install-config?url=${encodeURIComponent(url)}`;
+}
+
+function buildSingboxImportUrl(sourceUrl: string, name: string = 'NMS'): string {
+    const url = normalizeUrl(sourceUrl);
+    if (!url) return '';
+    return `sing-box://import-remote-profile?url=${encodeURIComponent(url)}#${encodeURIComponent(String(name || 'NMS'))}`;
+}
+
+function getSubscriptionProfileCopy(locale: string = 'zh-CN') {
+    if (locale === 'en-US') {
+        return {
+            shadowrocketHint: 'Import the standard subscription',
+            clashFamilyHint: 'Use this YAML for Verge Rev / Mihomo Party / Stash',
+            surgeHint: 'Import the Surge profile',
+            singboxHint: 'Import the remote profile',
+            profileStandard: 'Standard Link',
+            profileStandardHint: 'For v2rayN / v2rayNG / Shadowrocket',
+            profileClashHint: 'For Clash / Mihomo / Stash',
+            profileSingboxHint: 'For sing-box',
+            profileSurgeHint: 'For Surge',
+            profileRawHint: 'Raw node list',
+            supportedClientsLabel: 'Compatible Clients',
+        };
+    }
+    return {
+        shadowrocketHint: '导入通用订阅',
+        clashFamilyHint: 'Verge Rev / Mihomo Party / Stash 共用这一组 YAML',
+        surgeHint: '导入 Surge 配置',
+        singboxHint: '导入 Remote Profile',
+        profileStandard: '通用链接',
+        profileStandardHint: '给 v2rayN / v2rayNG / Shadowrocket',
+        profileClashHint: '给 Clash / Mihomo / Stash',
+        profileSingboxHint: '给 sing-box',
+        profileSurgeHint: '给 Surge',
+        profileRawHint: '原始节点列表',
+        supportedClientsLabel: '适用软件',
+    };
+}
+
+export interface ToolSiteLink {
+    key: string;
+    label: string;
+    url: string;
+}
+
+export interface ToolSiteItem {
+    key: string;
+    label: string;
+    url?: string;
+    category?: string;
+    core?: string;
+    links?: ToolSiteLink[];
+}
+
+const TOOL_SITES: ToolSiteItem[] = [
+    { key: 'clash-verge', label: 'Clash Verge Rev', url: 'https://github.com/clash-verge-rev/clash-verge-rev', category: 'desktop', core: 'Mihomo' },
+    { key: 'mihomo-party', label: 'Mihomo Party', url: 'https://mihomo.party/', category: 'desktop', core: 'Mihomo' },
+    { key: 'flclash', label: 'FlClash', url: 'https://github.com/chen08209/FlClash', category: 'multi', core: 'Mihomo' },
+    { key: 'sparkle', label: 'Sparkle', url: 'https://www.sparkle.pics/', category: 'desktop', core: 'Mihomo' },
+    { key: 'clash-nyanpasu', label: 'Clash Nyanpasu', url: 'https://github.com/keiko233/clash-nyanpasu', category: 'desktop', core: 'Mihomo' },
+    { key: 'v2rayn', label: 'v2rayN', url: 'https://github.com/2dust/v2rayN', category: 'desktop', core: 'Xray' },
+    { key: 'v2rayng', label: 'v2rayNG', url: 'https://github.com/2dust/v2rayNG', category: 'android', core: 'Xray' },
+    { key: 'exclave', label: 'Exclave', url: 'https://github.com/dyhkwong/Exclave', category: 'mobile', core: 'Xray' },
+    { key: 'nekobox-android', label: 'NekoBox', url: 'https://github.com/MatsuriDayo/NekoBoxForAndroid', category: 'android', core: 'Sing-box' },
+    { key: 'nekobox-windows', label: 'NekoRai', url: 'https://github.com/MatsuriDayo/nekoray', category: 'desktop', core: 'Sing-box' },
+    { key: 'cmfa', label: 'CMFA', url: 'https://github.com/MetaCubeX/ClashMetaForAndroid', category: 'android', core: 'Mihomo' },
+    { key: 'shadowrocket', label: 'Shadowrocket', url: 'https://apps.apple.com/app/shadowrocket/id932747118', category: 'ios', core: 'Custom' },
+    { key: 'stash', label: 'Stash', url: 'https://stash.wiki/get-started', category: 'ios', core: 'Mihomo' },
+    { key: 'surge', label: 'Surge', url: 'https://nssurge.com/', category: 'apple', core: 'Surge' },
+    { key: 'loon', label: 'Loon', url: 'https://nsloon.com/', category: 'ios', core: 'Loon' },
+    { key: 'egern', label: 'Egern', url: 'https://egernapp.com/', category: 'ios', core: 'Egern' },
+    { key: 'singbox', label: 'sing-box', url: 'https://sing-box.sagernet.org/clients/', category: 'multi', core: 'Sing-box' },
+    { key: 'hiddify', label: 'Hiddify', url: 'https://github.com/hiddify/hiddify-app', category: 'multi', core: 'Sing-box' },
+    { key: 'gui-singbox', label: 'GUI Sing-box', url: 'https://github.com/chika0801/GUISingBox', category: 'desktop', core: 'Sing-box' },
+    { key: 'karing', label: 'Karing', url: 'https://karing.app/', category: 'multi', core: 'Sing-box' },
+    { key: 'openclash', label: 'OpenClash', url: 'https://github.com/vernesong/OpenClash', category: 'router', core: 'Mihomo' },
+    { key: 'passwall', label: 'PassWall', url: 'https://github.com/xiaorouji/openwrt-passwall', category: 'router', core: 'Xray / Sing-box' },
+    { key: 'shellcrash', label: 'ShellCrash', url: 'https://github.com/juewuy/ShellCrash', category: 'router', core: 'Mihomo' },
+    { key: 'homeproxy', label: 'HomeProxy', url: 'https://github.com/immortalwrt/homeproxy', category: 'router', core: 'Sing-box' },
+    {
+        key: 'clash-family',
+        label: 'Clash / Mihomo 系列',
+        links: [
+            { key: 'clash-verge', label: 'Verge Rev', url: 'https://github.com/clash-verge-rev/clash-verge-rev' },
+            { key: 'mihomo-party', label: 'Mihomo Party', url: 'https://mihomo.party/' },
+            { key: 'stash', label: 'Stash', url: 'https://stash.wiki/get-started' },
+        ],
+    },
+];
+
+export interface ImportActionItem {
+    key: string;
+    label: string;
+    platform: string;
+    href?: string;
+    hint?: string;
+    siteUrl?: string;
+    actions?: Array<{ key: string; label: string; href: string }>;
+    siteLinks?: ToolSiteLink[];
+}
+
+export interface SubscriptionProfileItem {
+    key: string;
+    label: string;
+    url: string;
+    hint: string;
+    supportedClientsLabel: string;
+    supportedClients: string[];
+}
+
+export interface SubscriptionProfileBundle {
+    mergedUrl: string;
+    rawUrl: string;
+    v2raynUrl: string;
+    clashUrl: string;
+    mihomoUrl: string;
+    singboxUrl: string;
+    surgeUrl: string;
+    singboxImportUrl: string;
+    externalConverterConfigured: boolean;
+    externalConverterBaseUrl: string;
+    externalConverterHost: string;
+    importActions: ImportActionItem[];
+    toolSites: ToolSiteItem[];
+    profiles: SubscriptionProfileItem[];
+    availableProfiles: SubscriptionProfileItem[];
+    defaultProfileKey: string;
+}
+
+export function buildSubscriptionProfileBundle(payload: Record<string, any> = {}, locale: string = 'zh-CN'): SubscriptionProfileBundle {
+    const copy = getSubscriptionProfileCopy(locale);
+    const mergedUrl = normalizeUrl(payload.subscriptionUrl) || normalizeUrl(payload.legacySubscriptionUrl);
+    const rawUrl = normalizeUrl(payload.subscriptionUrlRaw) || appendQuery(mergedUrl, { format: 'raw' });
+    const importSourceUrl = rawUrl || mergedUrl;
+
+    const v2raynUrl = normalizeUrl(payload.subscriptionUrlV2rayn) || mergedUrl;
+    const clashUrl = normalizeUrl(payload.subscriptionUrlClash)
+        || normalizeUrl(payload.subscriptionUrlMihomo)
+        || appendQuery(mergedUrl, { format: 'clash' });
+    const mihomoUrl = clashUrl;
+    const singboxUrl = normalizeUrl(payload.subscriptionUrlSingbox);
+    const surgeUrl = normalizeUrl(payload.subscriptionUrlSurge);
+    const wrappedProfileUrls = [clashUrl, singboxUrl, surgeUrl].filter(isExternalConverterUrl);
+    const externalConverterBaseUrl = extractConverterBaseUrl(wrappedProfileUrls[0] || '');
+    const externalConverterHost = extractUrlHost(externalConverterBaseUrl);
+    const externalConverterConfigured = wrappedProfileUrls.length > 0 && !!externalConverterBaseUrl;
+    const singboxImportUrl = buildSingboxImportUrl(singboxUrl);
+    const clashFamilyLinks = TOOL_SITES.find((item) => item.key === 'clash-family')?.links || [];
+    const importActions: ImportActionItem[] = [
+        {
+            key: 'shadowrocket',
+            label: 'Shadowrocket',
+            platform: 'iPhone / iPad',
+            href: buildShadowrocketImportUrl(v2raynUrl || importSourceUrl),
+            hint: copy.shadowrocketHint,
+            siteUrl: TOOL_SITES.find((item) => item.key === 'shadowrocket')?.url || '',
+        },
+        {
+            key: 'clash-family',
+            label: 'Clash / Mihomo 系列',
+            platform: 'Desktop / iPhone / iPad',
+            hint: copy.clashFamilyHint,
+            actions: [
+                {
+                    key: 'clash',
+                    label: 'Clash / Mihomo',
+                    href: buildClashImportUrl(clashUrl),
+                },
+                {
+                    key: 'stash',
+                    label: 'Stash',
+                    href: buildStashImportUrl(clashUrl),
+                },
+            ].filter((item) => item.href),
+            siteLinks: clashFamilyLinks,
+        },
+        {
+            key: 'surge',
+            label: 'Surge',
+            platform: 'iPhone / iPad / Mac',
+            href: buildSurgeImportUrl(surgeUrl),
+            hint: copy.surgeHint,
+            siteUrl: TOOL_SITES.find((item) => item.key === 'surge')?.url || '',
+        },
+        {
+            key: 'singbox',
+            label: 'sing-box',
+            platform: 'Desktop / Mobile',
+            href: singboxImportUrl,
+            hint: copy.singboxHint,
+            siteUrl: TOOL_SITES.find((item) => item.key === 'singbox')?.url || '',
+        },
+    ].filter((item) => item.href || (Array.isArray(item.actions) && item.actions.length > 0));
+
+    const profiles: SubscriptionProfileItem[] = [
+        {
+            key: 'v2rayn',
+            label: copy.profileStandard,
+            url: v2raynUrl,
+            hint: copy.profileStandardHint,
+            supportedClientsLabel: copy.supportedClientsLabel,
+            supportedClients: ['v2rayN', 'Exclave', 'Shadowrocket'],
+        },
+        {
+            key: 'clash',
+            label: 'Clash / Mihomo',
+            url: clashUrl,
+            hint: copy.profileClashHint,
+            supportedClientsLabel: copy.supportedClientsLabel,
+            supportedClients: ['FlClash', 'Sparkle', 'CMFA', 'Stash'],
+        },
+        {
+            key: 'singbox',
+            label: 'sing-box',
+            url: singboxUrl,
+            hint: copy.profileSingboxHint,
+            supportedClientsLabel: copy.supportedClientsLabel,
+            supportedClients: ['sing-box'],
+        },
+        {
+            key: 'surge',
+            label: 'Surge',
+            url: surgeUrl,
+            hint: copy.profileSurgeHint,
+            supportedClientsLabel: copy.supportedClientsLabel,
+            supportedClients: ['Surge'],
+        },
+        {
+            key: 'raw',
+            label: 'Raw',
+            url: rawUrl,
+            hint: copy.profileRawHint,
+            supportedClientsLabel: copy.supportedClientsLabel,
+            supportedClients: locale === 'en-US' ? ['Advanced Clients', 'Manual Import'] : ['高级客户端', '手动导入'],
+        },
+    ];
+
+    const availableProfiles = profiles.filter((item) => item.url);
+    const defaultProfileKey = availableProfiles[0]?.key || '';
+
+    return {
+        mergedUrl,
+        rawUrl,
+        v2raynUrl,
+        clashUrl,
+        mihomoUrl,
+        singboxUrl,
+        surgeUrl,
+        singboxImportUrl,
+        externalConverterConfigured,
+        externalConverterBaseUrl,
+        externalConverterHost,
+        importActions,
+        toolSites: TOOL_SITES,
+        profiles,
+        availableProfiles,
+        defaultProfileKey,
+    };
+}
+
+export function findSubscriptionProfile(bundle: SubscriptionProfileBundle | null | undefined, key?: string | null): SubscriptionProfileItem | null {
+    const profiles = Array.isArray(bundle?.profiles) ? bundle.profiles : [];
+    const normalizedKey = String(key || '').trim() === 'mihomo' ? 'clash' : String(key || '').trim();
+    return profiles.find((item) => item.key === normalizedKey) || profiles.find((item) => item.url) || null;
+}

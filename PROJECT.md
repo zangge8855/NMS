@@ -1,22 +1,23 @@
-# Project: NMS Bug Fixes and Enhancements
+# Project: NMS TypeScript Full Refactoring & Production Hardening
 
 ## Architecture
-- **Client**: React + Vite + Vitest + ESLint. Located in `/root/NMS/client/`. Main entry point `/root/NMS/client/src/main.jsx`. Global styles in `/root/NMS/client/src/index.css`.
-- **Server**: Node.js + Express + Node Native Test Runner (`node --test`). Located in `/root/NMS/server/`. Global entry point `/root/NMS/server/index.js`. Stores located in `/root/NMS/server/store/`, services in `/root/NMS/server/services/`, routes in `/root/NMS/server/routes/`.
+- **Client**: React 18 + TypeScript + Vite + Vitest + ESLint. Located in `/root/NMS/client/`. Main entry point `/root/NMS/client/src/main.tsx`. Type definitions in `/root/NMS/client/src/types/index.ts`. Global styles in `/root/NMS/client/src/index.css`.
+- **Server**: Node.js ESM + TypeScript (`tsx`) + Express + Node Native Test Runner (`node --import tsx --test`). Located in `/root/NMS/server/`. Global entry point `/root/NMS/server/index.ts` (with backward-compatible loader `/root/NMS/server/index.js`). Domain types in `/root/NMS/server/types/index.ts`. Stores in `/root/NMS/server/store/`, services in `/root/NMS/server/services/`, routes in `/root/NMS/server/routes/`.
 
 ## Code Layout
-- **Client Codebase**: `/root/NMS/client/`
-- **Server Codebase**: `/root/NMS/server/`
-- **Client Tests**: `/root/NMS/client/src/**/*.test.jsx` (run via `npm run test` inside client folder)
-- **Server Tests**: `/root/NMS/server/tests/**/*.test.js` (run via `npm test` inside server folder)
+- **Client Codebase**: `/root/NMS/client/` (100% TypeScript / TSX)
+- **Server Codebase**: `/root/NMS/server/` (100% TypeScript)
+- **Client Tests**: `/root/NMS/client/src/**/*.test.{ts,tsx}` (run via `npm test` inside client folder, 265 tests passing)
+- **Server Tests**: `/root/NMS/server/tests/**/*.test.js` (run via `npm test` inside server folder, 541 tests passing)
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
 | 0 | E2E Test Suite | Design and implement Tier 1-4 tests, publish `TEST_READY.md` | none | DONE (Output: /root/NMS/server/tests/e2e.test.js, /root/NMS/TEST_READY.md) |
-| 1 | Server-Side Data Store & Integrity Fixes | R1: trafficStatsStore, fileUtils, auditStore, storeRegistry, systemSettingsStore, graceful shutdown db state flush, user deletion panel cleanup | none | DONE (Conv: bbe834ef-c18a-425c-811d-eead7c371edd, Audit: 757b6ef3-824d-4c41-91d6-31602295bd35) |
-| 2 | API Routes & Alerts | R2 & R3: batch redaction replay, unhandled Express rejections, 3x-ui API validation, passwordHash/salt filter, token TTL defaults, global snapshot cache, backup alert loops, notifications.json atomic write | M1 | DONE (verified 2026-07-26; residual hardening — userGroups/userPolicy numeric 400s, token noExpiry-only, per-server cache eviction, ISP partial-refresh, Telegram NaN guards — landed same day with regression tests) |
-| 3 | Client UI, Design System & i18n | R4 & R5: speed limit units, xrayConfig template save, UI request loops, theme colors (dark theme variables, white-on-white text, flagship blue accent, color-mix), ServerDetail & SystemSettings translation | M2 | DONE (verified 2026-07-26; runtime EN-locale sweep clean on all 14 routes; orphaned styles restored — CircularMeter/log chips/pagination; Escape-stacking + RoutingRules state fixes) |
+| 1 | Server-Side Data Store & Integrity Fixes | R1: trafficStatsStore, fileUtils, auditStore, storeRegistry, systemSettingsStore, graceful shutdown db state flush, user deletion panel cleanup | none | DONE |
+| 2 | API Routes & Alerts | R2 & R3: batch redaction replay, unhandled Express rejections, 3x-ui API validation, passwordHash/salt filter, token TTL defaults, global snapshot cache, backup alert loops, notifications.json atomic write | M1 | DONE |
+| 3 | Client UI, Design System & i18n | R4 & R5: speed limit units, xrayConfig template save, UI request loops, theme colors, ServerDetail & SystemSettings translation | M2 | DONE |
+| 4 | Full TypeScript Migration | 100% full-stack TS refactoring: `server/**/*.ts`, `client/src/**/*.{ts,tsx}`, shared type contracts, backward-compatible runtime loader, 0 regression | M1-M3 | DONE (Server: 541/541 tests pass, Client: 265/265 tests pass, Production build 100% clean) |
 
 ## Interface Contracts
 ### Backup Restoration Contract

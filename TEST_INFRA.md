@@ -15,7 +15,7 @@
 | 5 | Alerts & SMTP Diagnostics | ORIGINAL_REQUEST §R3 | 5 | 5 | ✓ |
 
 ## Test Architecture
-- **Test Runner**: Node Native Test Runner (`node --test`).
+- **Test Runner**: Node Native Test Runner (`node --import tsx --test` or `npm test`).
 - **Dynamic Port Selection**: Starts the Express server in a child process on a random TCP port.
 - **REST / HTTP client**: Uses the native `fetch` API for zero external dependency.
 - **Verification Logic**: Checks response status codes, header values, JSON structures, error message translations, and config content constraints.

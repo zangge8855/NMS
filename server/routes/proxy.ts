@@ -1,0 +1,437 @@
+import { Router, type Request, type Response, type NextFunction } from 'express';
+import { ensureAuthenticated } from '../lib/panelClient.js';
+import { authMiddleware } from '../middleware/auth.js';
+import multer from 'multer';
+import {
+    cleanupDepletedClientsCompat,
+    clearClientIpsCompat,
+    fetchClientRecordCompat,
+    fetchPanelOnlineClients,
+    getClientIpsCompat,
+    isUnsupportedPanelEndpointError,
+    normalizeInboundIds,
+    parseLegacyAddClientBody,
+    parseLegacyUpdateClientBody,
+    postAddClientCompat,
+    postAttachClientToInboundsCompat,
+    postBulkAdjustClientsCompat,
+    postDeleteClientFromInboundCompat,
+    postDetachClientFromInboundsCompat,
+    postUpdateClientCompat,
+    resetInboundTrafficCompat,
+    postRestartXrayCompat,
+    postStopXrayCompat,
+    postImportDBCompat,
+    postUpdateGeofileCompat,
+    postTelegramBackupCompat,
+    getExportDBCompat,
+    getTlsCertPathsCompat,
+} from '../lib/panelApiCompat.js';
+import { invalidateServerPanelSnapshotCache } from '../lib/serverPanelSnapshotService.js';
+import { enrichClientIpPayload } from '../lib/clientIpEnrichment.js';
+
+const router = Router();
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+        fileSize: 20 * 1024 * 1024,
+        files: 3,
+        fields: 200,
+    },
+});
+const ALLOWED_METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
+const ALLOWED_PREFIXES = ['/panel/api/', '/server/api/', '/sub/'];
+
+function isAllowedPanelPath(path: unknown): boolean {
+    if (!path || typeof path !== 'string') return false;
+    if (!path.startsWith('/')) return false;
+    if (path.includes('..')) return false;
+    return ALLOWED_PREFIXES.some((prefix) => path.startsWith(prefix));
+}
+
+function safeDecodePathSegment(value: unknown = ''): string {
+    try {
+        return decodeURIComponent(String(value || ''));
+    } catch {
+        return String(value || '');
+    }
+}
+
+async function tryCompatPanelRequest(client: any, method: string, panelPath: string, body: any = {}, files: any[] = []): Promise<any> {
+    if (method !== 'POST') return null;
+
+    if (panelPath === '/panel/api/server/restartXray' || panelPath === '/panel/api/server/restartXrayService') {
+        return postRestartXrayCompat(client);
+    }
+
+    if (panelPath === '/panel/api/server/stopXray' || panelPath === '/panel/api/server/stopXrayService') {
+        return postStopXrayCompat(client);
+    }
+
+    if (panelPath === '/panel/api/server/database/import' || panelPath === '/panel/api/server/importDB') {
+        return postImportDBCompat(client, files);
+    }
+
+    if (panelPath === '/panel/api/server/geofile/update' || panelPath === '/panel/api/server/updateGeofile') {
+        return postUpdateGeofileCompat(client);
+    }
+
+    if (panelPath === '/panel/api/server/telegram/backup' || panelPath === '/panel/api/backuptotgbot') {
+        return postTelegramBackupCompat(client);
+    }
+
+    if (panelPath === '/panel/api/clients/add') {
+        const clientData = body?.client;
+        const inboundIds = normalizeInboundIds(body?.inboundIds);
+        if (!clientData || inboundIds.length === 0) return null;
+        for (const inboundId of inboundIds) {
+            await postAddClientCompat(client, inboundId, clientData);
+        }
+        return {
+            status: 200,
+            data: { success: true, obj: { added: inboundIds.length } },
+        };
+    }
+
+    if (panelPath === '/panel/api/clients/bulkAdjust') {
+        return postBulkAdjustClientsCompat(client, body || {});
+    }
+
+    let match = panelPath.match(/^\/panel\/api\/clients\/update\/([^/]+)$/);
+    if (match) {
+        const email = safeDecodePathSegment(match[1]);
+        const clientData = body || {};
+        const record = await fetchClientRecordCompat(client, email);
+        if (!record || !record.client || !record.inboundIds || record.inboundIds.length === 0) {
+            return {
+                status: 404,
+                data: { success: false, msg: 'client not found' },
+            };
+        }
+        for (const inboundId of record.inboundIds) {
+            await postUpdateClientCompat(client, inboundId, email, clientData, {
+                currentEmail: email,
+                clientData,
+            });
+        }
+        return {
+            status: 200,
+            data: { success: true, obj: clientData },
+        };
+    }
+
+    match = panelPath.match(/^\/panel\/api\/clients\/del\/([^/]+)$/);
+    if (match) {
+        const email = safeDecodePathSegment(match[1]);
+        const record = await fetchClientRecordCompat(client, email);
+        if (!record || !record.inboundIds || record.inboundIds.length === 0) {
+            return {
+                status: 404,
+                data: { success: false, msg: 'client not found' },
+            };
+        }
+        for (const inboundId of record.inboundIds) {
+            await postDeleteClientFromInboundCompat(client, inboundId, email, { email });
+        }
+        return {
+            status: 200,
+            data: { success: true, obj: { deleted: record.inboundIds.length } },
+        };
+    }
+
+    match = panelPath.match(/^\/panel\/api\/clients\/resetTraffic\/([^/]+)$/);
+    if (match) {
+        const email = safeDecodePathSegment(match[1]);
+        const encodedEmail = encodeURIComponent(email);
+        try {
+            return await client.post(`/panel/api/clients/resetTraffic/${encodedEmail}`);
+        } catch (error) {
+            if (!isUnsupportedPanelEndpointError(error)) {
+                throw error;
+            }
+            return {
+                status: 501,
+                data: { success: false, msg: 'Resetting traffic for a single client is not supported by this panel version' },
+            };
+        }
+    }
+
+    if (
+        panelPath === '/panel/api/clients/onlinesByGuid'
+        || panelPath === '/panel/api/clients/onlinesByNode'
+        || panelPath === '/panel/api/clients/onlines'
+        || panelPath === '/panel/api/inbounds/onlines'
+    ) {
+        return fetchPanelOnlineClients(client);
+    }
+
+    match = panelPath.match(/^\/panel\/api\/inbounds\/clientIps\/([^/]+)$/) || panelPath.match(/^\/panel\/api\/clients\/ips\/([^/]+)$/);
+    if (match) {
+        const response = await getClientIpsCompat(client, safeDecodePathSegment(match[1]));
+        if (response?.data?.success === false) return response;
+        return {
+            ...response,
+            data: {
+                ...(response.data || {}),
+                obj: await enrichClientIpPayload(response?.data?.obj),
+            },
+        };
+    }
+
+    match = panelPath.match(/^\/panel\/api\/inbounds\/clearClientIps\/([^/]+)$/) || panelPath.match(/^\/panel\/api\/clients\/clearIps\/([^/]+)$/);
+    if (match) {
+        return clearClientIpsCompat(client, safeDecodePathSegment(match[1]));
+    }
+
+    match = panelPath.match(/^\/panel\/api\/clients\/([^/]+)\/attach$/);
+    if (match) {
+        return postAttachClientToInboundsCompat(
+            client,
+            safeDecodePathSegment(match[1]),
+            body?.inboundIds,
+            { clientData: body?.client }
+        );
+    }
+
+    match = panelPath.match(/^\/panel\/api\/clients\/([^/]+)\/detach$/);
+    if (match) {
+        return postDetachClientFromInboundsCompat(
+            client,
+            safeDecodePathSegment(match[1]),
+            body?.inboundIds
+        );
+    }
+
+    if (panelPath === '/panel/api/inbounds/addClient') {
+        const parsed = parseLegacyAddClientBody(body);
+        if (!parsed.client) return null;
+        return postAddClientCompat(client, parsed.inboundId, parsed.client);
+    }
+
+    match = panelPath.match(/^\/panel\/api\/inbounds\/updateClient\/([^/]+)$/);
+    if (match) {
+        const identifier = safeDecodePathSegment(match[1]);
+        const clientData = parseLegacyUpdateClientBody(body);
+        return postUpdateClientCompat(client, body?.id, identifier, clientData, {
+            clientData,
+        });
+    }
+
+    match = panelPath.match(/^\/panel\/api\/inbounds\/([^/]+)\/delClient\/([^/]+)$/);
+    if (match) {
+        const inboundId = safeDecodePathSegment(match[1]);
+        const identifier = safeDecodePathSegment(match[2]);
+        return postDeleteClientFromInboundCompat(client, inboundId, identifier, {
+            email: body?.email,
+        });
+    }
+
+    match = panelPath.match(/^\/panel\/api\/inbounds\/delClient\/([^/]+)$/);
+    if (match) {
+        const inboundId = safeDecodePathSegment(match[1]);
+        const identifier = body?.id || body?.clientId || body?.email || body?.password;
+        if (!identifier) return null;
+        return postDeleteClientFromInboundCompat(client, inboundId, identifier, {
+            email: body?.email,
+        });
+    }
+
+    match = panelPath.match(/^\/panel\/api\/inbounds\/(?:resetAllClientTraffics|resetTraffic)\/([^/]+)$/);
+    if (match) {
+        return resetInboundTrafficCompat(client, safeDecodePathSegment(match[1]));
+    }
+
+    match = panelPath.match(/^\/panel\/api\/inbounds\/delDepletedClients\/([^/]+)$/);
+    if (match) {
+        return cleanupDepletedClientsCompat(client, safeDecodePathSegment(match[1]));
+    }
+
+    return null;
+}
+
+async function tryCompatPanelGetRequest(client: any, panelPath: string): Promise<any> {
+    if (panelPath === '/panel/api/server/database/export' || panelPath === '/panel/api/server/getDb') {
+        return getExportDBCompat(client);
+    }
+
+    if (panelPath === '/panel/api/server/tlsCertPaths' || panelPath === '/panel/api/server/getWebCertFiles') {
+        return getTlsCertPathsCompat(client);
+    }
+
+    let match = panelPath.match(/^\/panel\/api\/clients\/get\/([^/]+)$/);
+    if (match) {
+        const record = await fetchClientRecordCompat(client, safeDecodePathSegment(match[1]));
+        if (!record?.client) {
+            return {
+                status: 404,
+                data: { success: false, msg: 'client not found' },
+            };
+        }
+        return {
+            status: 200,
+            data: { success: true, obj: record },
+        };
+    }
+
+    return null;
+}
+
+// All proxy routes require auth
+router.use(authMiddleware);
+
+router.all('/:serverId/*', upload.any(), async (req: Request, res: Response) => {
+    const { serverId } = req.params;
+
+    const panelPath = '/' + req.params[0];
+    const method = String(req.method || '').toUpperCase();
+
+    if (!ALLOWED_METHODS.has(method)) {
+        return res.status(405).json({
+            success: false,
+            msg: `Method not allowed: ${method}`,
+        });
+    }
+
+    if (!isAllowedPanelPath(panelPath)) {
+        return res.status(400).json({
+            success: false,
+            msg: `Path not allowed: ${panelPath}`,
+        });
+    }
+
+    try {
+        const client = await ensureAuthenticated(serverId);
+
+        const axiosConfig: any = {
+            method: method.toLowerCase(),
+            url: panelPath,
+            timeout: 60000,
+        };
+
+        if (Object.keys(req.query).length > 0) {
+            axiosConfig.params = req.query;
+        }
+
+        const files = req.files as Express.Multer.File[];
+        if (files && files.length > 0) {
+            const FormData = (await import('form-data')).default;
+            const form = new FormData();
+            for (const file of files) {
+                form.append(file.fieldname, file.buffer, {
+                    filename: file.originalname,
+                    contentType: file.mimetype,
+                });
+            }
+            axiosConfig.data = form;
+            axiosConfig.headers = {
+                ...form.getHeaders(),
+            };
+        } else if (req.body && Object.keys(req.body).length > 0) {
+            const contentType = req.headers['content-type'] || '';
+            if (contentType.includes('application/json')) {
+                axiosConfig.data = req.body;
+                axiosConfig.headers = { 'Content-Type': 'application/json' };
+            } else {
+                const params = new URLSearchParams();
+                for (const [key, val] of Object.entries(req.body)) {
+                    if (typeof val === 'object') {
+                        params.append(key, JSON.stringify(val));
+                    } else {
+                        params.append(key, val as string);
+                    }
+                }
+                axiosConfig.data = params.toString();
+                axiosConfig.headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
+            }
+        }
+
+        const panelRes = await client(axiosConfig);
+
+        if (String(panelRes.headers['content-type'] || '').includes('application/octet-stream')) {
+            res.set({
+                'Content-Type': 'application/octet-stream',
+                'Content-Disposition': panelRes.headers['content-disposition'] || 'attachment; filename=x-ui.db',
+            });
+            return res.send(Buffer.from(panelRes.data));
+        }
+
+        if (method === 'POST' || method === 'PUT' || method === 'DELETE') {
+            invalidateServerPanelSnapshotCache(serverId);
+        }
+
+        res.status(panelRes.status).json(panelRes.data);
+    } catch (error: any) {
+        if (error?.message === 'Server not found') {
+            return res.status(404).json({
+                success: false,
+                msg: '节点不存在，请刷新节点列表后重试',
+            });
+        }
+
+        if (error?.code === 'PANEL_CREDENTIAL_UNREADABLE' || error?.code === 'PANEL_CREDENTIAL_MISSING') {
+            return res.status(400).json({
+                success: false,
+                code: error.code,
+                msg: '节点凭据不可用，请在“服务器管理”中重新输入并保存 3x-ui 凭据',
+            });
+        }
+        if (error?.code === 'PANEL_LOGIN_FAILED') {
+            return res.status(401).json({
+                success: false,
+                code: error.code,
+                msg: `3x-ui 认证失败: ${error.message || '用户名或密码错误'}`,
+            });
+        }
+
+        if (error.response && isUnsupportedPanelEndpointError(error)) {
+            try {
+                const client = await ensureAuthenticated(serverId);
+                const compatRes = method === 'GET'
+                    ? await tryCompatPanelGetRequest(client, panelPath)
+                    : await tryCompatPanelRequest(client, method, panelPath, req.body || {}, req.files as Express.Multer.File[]);
+                if (compatRes) {
+                    if (compatRes.isBinary) {
+                        res.set(compatRes.headers || {});
+                        return res.send(compatRes.data);
+                    }
+                    return res.status(compatRes.status || 200).json(compatRes.data);
+                }
+            } catch (compatError: any) {
+                if (compatError.response) {
+                    return res.status(compatError.response.status).json(compatError.response.data || {
+                        success: false,
+                        msg: `Panel error: ${compatError.response.statusText}`,
+                    });
+                }
+                return res.status(502).json({
+                    success: false,
+                    msg: `Failed to connect to panel: ${compatError.message}`,
+                });
+            }
+        }
+
+        if (error.response) {
+            res.status(error.response.status).json(error.response.data || {
+                success: false,
+                msg: `Panel error: ${error.response.statusText}`,
+            });
+        } else {
+            res.status(502).json({
+                success: false,
+                msg: `Failed to connect to panel: ${error.message}`,
+            });
+        }
+    }
+});
+
+router.use((err: any, _req: Request, res: Response, next: NextFunction) => {
+    if (err instanceof multer.MulterError) {
+        return res.status(400).json({
+            success: false,
+            msg: `Upload rejected: ${err.message}`,
+        });
+    }
+    return next(err);
+});
+
+export default router;

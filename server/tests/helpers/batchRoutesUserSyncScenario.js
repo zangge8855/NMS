@@ -45,6 +45,7 @@ async function main() {
             body: historyResponse.json,
         },
     });
+    process.exit(0);
 }
 
 main().catch((error) => {

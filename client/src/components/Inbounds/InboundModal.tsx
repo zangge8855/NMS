@@ -1,0 +1,3797 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { HiOutlineXMark, HiOutlineCheck } from 'react-icons/hi2';
+import { useServer } from '../../contexts/ServerContext';
+import api from '../../api/client';
+import { attachBatchRiskToken } from '../../utils/riskConfirm';
+import { getErrorMessage } from '../../utils/format';
+import { useI18n } from '../../contexts/LanguageContext';
+import ModalShell from '../UI/ModalShell';
+import toast from 'react-hot-toast';
+
+const PROTOCOL_SCHEMA_FALLBACK = [
+    { key: 'vless', label: 'VLESS', legacyKeys: [], supports: { transports: ['tcp', 'ws', 'grpc', 'kcp', 'httpupgrade', 'xhttp'], securities: ['none', 'tls', 'reality'], tlsTransports: ['tcp', 'ws', 'grpc', 'httpupgrade', 'xhttp'], realityTransports: ['tcp', 'http', 'grpc', 'xhttp'] } },
+    { key: 'vmess', label: 'VMess', legacyKeys: [], supports: { transports: ['tcp', 'ws', 'grpc', 'kcp', 'httpupgrade', 'xhttp'], securities: ['none', 'tls'], tlsTransports: ['tcp', 'ws', 'grpc', 'httpupgrade', 'xhttp'] } },
+    { key: 'trojan', label: 'Trojan', legacyKeys: [], supports: { transports: ['tcp', 'ws', 'grpc', 'kcp', 'httpupgrade', 'xhttp'], securities: ['none', 'tls', 'reality'], tlsTransports: ['tcp', 'ws', 'grpc', 'httpupgrade', 'xhttp'], realityTransports: ['tcp', 'http', 'grpc', 'xhttp'] } },
+    { key: 'shadowsocks', label: 'Shadowsocks', legacyKeys: [], supports: { transports: ['tcp', 'ws', 'grpc', 'kcp', 'httpupgrade', 'xhttp'], securities: ['none', 'tls'], tlsTransports: ['tcp', 'ws', 'grpc', 'httpupgrade', 'xhttp'] } },
+    { key: 'http', label: 'HTTP', legacyKeys: [], supports: { transports: ['tcp'], securities: ['none'] } },
+    { key: 'tunnel', label: 'Tunnel', legacyKeys: ['dokodemo-door'], supports: { transports: [], securities: [] } },
+    { key: 'mixed', label: 'Mixed', legacyKeys: ['socks'], supports: { transports: [], securities: [] } },
+    { key: 'wireguard', label: 'WireGuard', legacyKeys: [], supports: { transports: [], securities: [] } },
+    { key: 'tun', label: 'TUN', legacyKeys: [], supports: { transports: [], securities: [] } },
+    { key: 'mtproto', label: 'MTProto', legacyKeys: [], supports: { transports: [], securities: [] } },
+    { key: 'hysteria', label: 'Hysteria', legacyKeys: [], supports: { transports: [], securities: ['tls'] } },
+    { key: 'hysteria2', label: 'Hysteria2', legacyKeys: ['hy2'], supports: { transports: [], securities: ['tls'] } },
+];
+const _PROTOCOL_FALLBACK = PROTOCOL_SCHEMA_FALLBACK.map((item) => item.key);
+
+const NETWORK_LABELS = {
+    tcp: 'TCP',
+    ws: 'WebSocket (WS)',
+    grpc: 'gRPC',
+    kcp: 'KCP',
+    quic: 'QUIC',
+    httpupgrade: 'HTTP Upgrade',
+    xhttp: 'XHTTP',
+    udp: 'UDP',
+};
+
+const SECURITY_LABELS = {
+    none: 'None',
+    tls: 'TLS',
+    reality: 'REALITY',
+};
+
+const FINGERPRINT_OPTIONS = ['chrome', 'firefox', 'safari', 'ios', 'android', 'edge', 'qq', '360', 'random', 'randomized', 'randomizednoalpn', 'unsafe'];
+const _VMESS_SECURITY_OPTIONS = ['auto', 'aes-128-gcm', 'chacha20-poly1305', 'none', 'zero'];
+const TLS_VERSION_OPTIONS = ['1.0', '1.1', '1.2', '1.3'];
+const TLS_CIPHER_OPTIONS = [
+    '',
+    'TLS_AES_128_GCM_SHA256',
+    'TLS_AES_256_GCM_SHA384',
+    'TLS_CHACHA20_POLY1305_SHA256',
+    'TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA',
+    'TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA',
+    'TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA',
+    'TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA',
+    'TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256',
+    'TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384',
+    'TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256',
+    'TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384',
+    'TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256',
+    'TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256',
+];
+const _SS_METHOD_OPTIONS = [
+    'aes-256-gcm',
+    'chacha20-poly1305',
+    'chacha20-ietf-poly1305',
+    'xchacha20-ietf-poly1305',
+    '2022-blake3-aes-128-gcm',
+    '2022-blake3-aes-256-gcm',
+    '2022-blake3-chacha20-poly1305',
+];
+const VLESS_FLOW_OPTIONS = ['', 'xtls-rprx-vision', 'xtls-rprx-vision-udp443'];
+const TRAFFIC_RESET_OPTIONS = ['never', 'daily', 'weekly', 'monthly'];
+const SOCKOPT_DOMAIN_STRATEGY_OPTIONS = [
+    'AsIs',
+    'UseIP',
+    'UseIPv6v4',
+    'UseIPv6',
+    'UseIPv4v6',
+    'UseIPv4',
+    'ForceIP',
+    'ForceIPv6v4',
+    'ForceIPv6',
+    'ForceIPv4v6',
+    'ForceIPv4',
+];
+const SOCKOPT_TCP_CONGESTION_OPTIONS = ['bbr', 'cubic', 'reno'];
+const SOCKOPT_TPROXY_OPTIONS = ['off', 'redirect', 'tproxy'];
+const XHTTP_PADDING_PLACEMENT_OPTIONS = ['', 'queryInHeader', 'header'];
+const XHTTP_PADDING_METHOD_OPTIONS = ['', 'repeat-x', 'tokenish'];
+const XHTTP_HTTP_METHOD_OPTIONS = ['', 'POST', 'PUT', 'GET'];
+const XHTTP_SESSION_SEQ_PLACEMENT_OPTIONS = ['', 'path', 'header', 'cookie', 'query'];
+const XHTTP_UPLINK_DATA_PLACEMENT_OPTIONS = ['', 'body', 'header', 'query'];
+const DEFAULT_MTPROTO_FAKE_TLS_DOMAIN = 'www.cloudflare.com';
+
+const STREAM_PROTOCOLS = new Set(['vmess', 'vless', 'trojan', 'shadowsocks']);
+const LOWER_NUM_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
+const ALPHA_NUM_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+const HEX_CHARS = '0123456789abcdef';
+const DEFAULT_REALITY_TARGET = { target: 'www.apple.com:443', sni: 'www.apple.com,apple.com' };
+
+function randomString(length, charset) {
+    const size = Math.max(0, Number(length) || 0);
+    if (size === 0) return '';
+    const chars = charset || ALPHA_NUM_CHARS;
+    let result = '';
+    for (let i = 0; i < size; i += 1) {
+        result += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return result;
+}
+
+function randomUuid() {
+    if (typeof globalThis !== 'undefined' && globalThis.crypto?.randomUUID) {
+        return globalThis.crypto.randomUUID();
+    }
+    const raw = randomString(32, HEX_CHARS).split('');
+    raw[12] = '4';
+    raw[16] = HEX_CHARS[(parseInt(raw[16], 16) & 0x3) | 0x8];
+    return `${raw.slice(0, 8).join('')}-${raw.slice(8, 12).join('')}-${raw.slice(12, 16).join('')}-${raw.slice(16, 20).join('')}-${raw.slice(20, 32).join('')}`;
+}
+
+function randomShadowsocksPassword() {
+    return randomString(32, `${ALPHA_NUM_CHARS}_-`);
+}
+
+function stringToUtf8Hex(value) {
+    const text = String(value || '');
+    if (typeof TextEncoder !== 'undefined') {
+        return Array.from(new TextEncoder().encode(text))
+            .map((byte) => byte.toString(16).padStart(2, '0'))
+            .join('');
+    }
+    return Array.from(text)
+        .map((char) => char.charCodeAt(0).toString(16).padStart(2, '0'))
+        .join('');
+}
+
+function randomMtprotoSecret(domain = DEFAULT_MTPROTO_FAKE_TLS_DOMAIN) {
+    return `ee${randomString(32, HEX_CHARS)}${stringToUtf8Hex(domain)}`;
+}
+
+function deepClone(value) {
+    try {
+        return JSON.parse(JSON.stringify(value));
+    } catch {
+        return value;
+    }
+}
+
+function parseJsonObject(text, fallbackValue = {}) {
+    try {
+        const parsed = JSON.parse(text);
+        if (parsed && typeof parsed === 'object') return parsed;
+    } catch { }
+    return deepClone(fallbackValue);
+}
+
+function normalizeHeadersObject(input) {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) return {};
+    return input;
+}
+
+function normalizeProtocolName(value, schemas = PROTOCOL_SCHEMA_FALLBACK) {
+    const raw = String(value || '').trim().toLowerCase();
+    if (!raw) return '';
+    const matched = (Array.isArray(schemas) ? schemas : []).find((item) => {
+        const key = String(item?.key || '').trim().toLowerCase();
+        if (!key) return false;
+        if (key === raw) return true;
+        return (Array.isArray(item?.legacyKeys) ? item.legacyKeys : [])
+            .map((legacy) => String(legacy || '').trim().toLowerCase())
+            .includes(raw);
+    });
+    return matched?.key || raw;
+}
+
+function _convertHeadersObjectToRows(headers) {
+    if (!headers || typeof headers !== 'object' || Array.isArray(headers)) return [];
+    return Object.entries(headers).map(([name, value]) => ({
+        name: String(name || ''),
+        value: Array.isArray(value) ? String(value[0] || '') : String(value || ''),
+    }));
+}
+
+function _convertHeaderRowsToObject(rows) {
+    const result = {};
+    (Array.isArray(rows) ? rows : []).forEach((row) => {
+        const name = String(row?.name || '').trim();
+        if (!name) return;
+        result[name] = String(row?.value || '');
+    });
+    return result;
+}
+
+function createBaseClient() {
+    return {
+        email: randomString(8, LOWER_NUM_CHARS),
+        limitIp: 0,
+        totalGB: 0,
+        expiryTime: 0,
+        enable: true,
+        tgId: '',
+        subId: randomString(16, LOWER_NUM_CHARS),
+        comment: '',
+        reset: 0,
+    };
+}
+
+function createDefaultSettings(protocolKey = 'vmess') {
+    const protocol = String(protocolKey || '').toLowerCase();
+    if (protocol === 'vmess') {
+        return {
+            clients: [
+                {
+                    id: randomUuid(),
+                    security: 'auto',
+                    ...createBaseClient(),
+                },
+            ],
+        };
+    }
+
+    if (protocol === 'vless') {
+        return {
+            clients: [
+                {
+                    id: randomUuid(),
+                    flow: '',
+                    ...createBaseClient(),
+                },
+            ],
+            decryption: 'none',
+            encryption: 'none',
+            selectedAuth: undefined,
+            testseed: [900, 500, 900, 256],
+            fallbacks: [],
+        };
+    }
+
+    if (protocol === 'trojan') {
+        return {
+            clients: [
+                {
+                    password: randomString(10, ALPHA_NUM_CHARS),
+                    ...createBaseClient(),
+                },
+            ],
+            fallbacks: [],
+        };
+    }
+
+    if (protocol === 'shadowsocks') {
+        return {
+            method: '2022-blake3-aes-256-gcm',
+            password: randomShadowsocksPassword(),
+            network: 'tcp,udp',
+            clients: [
+                {
+                    method: '',
+                    password: randomShadowsocksPassword(),
+                    ...createBaseClient(),
+                },
+            ],
+            ivCheck: false,
+        };
+    }
+
+    if (protocol === 'dokodemo-door') {
+        return { network: 'tcp,udp', address: '', port: '' };
+    }
+
+    if (protocol === 'socks') {
+        return {
+            auth: 'password',
+            accounts: [{ user: randomString(10, ALPHA_NUM_CHARS), pass: randomString(10, ALPHA_NUM_CHARS) }],
+            udp: false,
+        };
+    }
+
+    if (protocol === 'http') {
+        return {
+            accounts: [{ user: randomString(10, ALPHA_NUM_CHARS), pass: randomString(10, ALPHA_NUM_CHARS) }],
+            allowTransparent: false,
+        };
+    }
+
+    if (protocol === 'tunnel') {
+        return { address: '', port: '', portMap: [], network: 'tcp,udp', followRedirect: false };
+    }
+
+    if (protocol === 'mixed') {
+        return {
+            auth: 'password',
+            accounts: [{ user: randomString(10, ALPHA_NUM_CHARS), pass: randomString(10, ALPHA_NUM_CHARS) }],
+            udp: false,
+            ip: '127.0.0.1',
+        };
+    }
+
+    if (protocol === 'wireguard') {
+        return {
+            mtu: 1420,
+            secretKey: '',
+            peers: [{
+                privateKey: '',
+                publicKey: '',
+                allowedIPs: ['10.0.0.2/32'],
+                keepAlive: 0,
+            }],
+            noKernelTun: false,
+        };
+    }
+
+    if (protocol === 'tun') {
+        return { name: 'xray0', mtu: 1500, userLevel: 0 };
+    }
+
+    if (protocol === 'mtproto') {
+        return {
+            fakeTlsDomain: DEFAULT_MTPROTO_FAKE_TLS_DOMAIN,
+            secret: randomMtprotoSecret(DEFAULT_MTPROTO_FAKE_TLS_DOMAIN),
+        };
+    }
+
+    if (protocol === 'hysteria') {
+        return {
+            up_mbps: 0,
+            down_mbps: 0,
+            obfs: '',
+            alpn: ['h3'],
+            recv_window_conn: 0,
+            recv_window: 0,
+            disable_mtu_discovery: false,
+            clients: [{
+                auth_str: randomString(16, ALPHA_NUM_CHARS),
+                ...createBaseClient(),
+            }],
+        };
+    }
+
+    if (protocol === 'hysteria2' || protocol === 'hy2') {
+        return {
+            up_mbps: 0,
+            down_mbps: 0,
+            ignore_client_bandwidth: false,
+            obfs: { type: '', password: '' },
+            clients: [{
+                password: randomString(16, ALPHA_NUM_CHARS),
+                ...createBaseClient(),
+            }],
+        };
+    }
+
+    return {};
+}
+
+function createDefaultTlsSettings() {
+    return {
+        serverName: '',
+        minVersion: '1.2',
+        maxVersion: '1.3',
+        cipherSuites: '',
+        rejectUnknownSni: false,
+        disableSystemRoot: false,
+        enableSessionResumption: false,
+        certificates: [{ certificateFile: '', keyFile: '', oneTimeLoading: false, usage: 'encipherment', buildChain: false }],
+        alpn: ['h2', 'http/1.1'],
+        echServerKeys: '',
+        echForceQuery: 'none',
+        settings: { fingerprint: 'chrome', echConfigList: '' },
+    };
+}
+
+function createDefaultRealitySettings() {
+    return {
+        show: false,
+        xver: 0,
+        target: DEFAULT_REALITY_TARGET.target,
+        serverNames: DEFAULT_REALITY_TARGET.sni.split(',').map((item) => item.trim()).filter(Boolean),
+        privateKey: '',
+        minClientVer: '',
+        maxClientVer: '',
+        maxTimediff: 0,
+        shortIds: [randomString(8, HEX_CHARS)],
+        mldsa65Seed: '',
+        settings: { publicKey: '', fingerprint: 'chrome', serverName: '', spiderX: '/', mldsa65Verify: '' },
+    };
+}
+
+function createDefaultTransportSettings(network = 'tcp') {
+    if (network === 'kcp') {
+        return { kcpSettings: { mtu: 1350, tti: 20, uplinkCapacity: 5, downlinkCapacity: 20, congestion: false, readBufferSize: 1, writeBufferSize: 1 } };
+    }
+    if (network === 'ws') {
+        return { wsSettings: { acceptProxyProtocol: false, path: '/', host: '', headers: {}, heartbeatPeriod: 0 } };
+    }
+    if (network === 'grpc') {
+        return { grpcSettings: { serviceName: '', authority: '', multiMode: false } };
+    }
+    if (network === 'httpupgrade') {
+        return { httpupgradeSettings: { acceptProxyProtocol: false, path: '/', host: '', headers: {} } };
+    }
+    if (network === 'xhttp') {
+        return {
+            xhttpSettings: {
+                path: '/',
+                host: '',
+                headers: {},
+                scMaxBufferedPosts: 30,
+                scMaxEachPostBytes: '1000000',
+                scStreamUpServerSecs: '20-80',
+                noSSEHeader: false,
+                xPaddingBytes: '100-1000',
+                mode: 'auto',
+                xPaddingObfsMode: false,
+                xPaddingKey: '',
+                xPaddingHeader: '',
+                xPaddingPlacement: '',
+                xPaddingMethod: '',
+                uplinkHTTPMethod: '',
+                sessionPlacement: '',
+                sessionKey: '',
+                seqPlacement: '',
+                seqKey: '',
+                uplinkDataPlacement: '',
+                uplinkDataKey: '',
+                uplinkChunkSize: 0,
+            },
+        };
+    }
+    return { tcpSettings: { acceptProxyProtocol: false, header: { type: 'none' } } };
+}
+
+function createDefaultStream(network = 'tcp', security = 'none') {
+    const normalizedNetwork = String(network || 'tcp').toLowerCase();
+    const normalizedSecurity = String(security || 'none').toLowerCase();
+    const stream: Record<string, any> = {
+        network: normalizedNetwork,
+        security: normalizedSecurity,
+        externalProxy: [],
+        ...createDefaultTransportSettings(normalizedNetwork),
+    };
+
+    if (normalizedSecurity === 'tls') {
+        stream.tlsSettings = createDefaultTlsSettings();
+    }
+    if (normalizedSecurity === 'reality') {
+        stream.realitySettings = createDefaultRealitySettings();
+    }
+    return stream;
+}
+
+function isObject(value) {
+    return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function hasKeys(value) {
+    return isObject(value) && Object.keys(value).length > 0;
+}
+
+function normalizeStreamForSubmission(rawStream, protocolKey) {
+    const protocol = String(protocolKey || '').toLowerCase();
+    const source = isObject(rawStream) ? rawStream : {};
+    if (!STREAM_PROTOCOLS.has(protocol)) {
+        if (hasKeys(source.sockopt)) {
+            return { sockopt: source.sockopt };
+        }
+        return null;
+    }
+
+    const network = String(source.network || 'tcp').toLowerCase();
+    const security = String(source.security || 'none').toLowerCase();
+    const normalized = {
+        network,
+        security,
+        externalProxy: Array.isArray(source.externalProxy) ? source.externalProxy : [],
+    };
+
+    Object.assign(normalized, createDefaultTransportSettings(network));
+    if (network === 'tcp' && hasKeys(source.tcpSettings)) normalized.tcpSettings = source.tcpSettings;
+    if (network === 'kcp' && hasKeys(source.kcpSettings)) normalized.kcpSettings = source.kcpSettings;
+    if (network === 'ws' && hasKeys(source.wsSettings)) normalized.wsSettings = source.wsSettings;
+    if (network === 'grpc' && hasKeys(source.grpcSettings)) normalized.grpcSettings = source.grpcSettings;
+    if (network === 'httpupgrade' && hasKeys(source.httpupgradeSettings)) normalized.httpupgradeSettings = source.httpupgradeSettings;
+    if (network === 'xhttp' && hasKeys(source.xhttpSettings)) normalized.xhttpSettings = source.xhttpSettings;
+
+    if (security === 'tls') {
+        normalized.tlsSettings = hasKeys(source.tlsSettings)
+            ? source.tlsSettings
+            : createDefaultTlsSettings();
+    }
+    if (security === 'reality') {
+        normalized.realitySettings = hasKeys(source.realitySettings)
+            ? source.realitySettings
+            : createDefaultRealitySettings();
+    }
+    if (hasKeys(source.finalmask) && Array.isArray(source.finalmask.udp) && source.finalmask.udp.length > 0) {
+        normalized.finalmask = source.finalmask;
+    }
+    if (hasKeys(source.sockopt)) {
+        normalized.sockopt = source.sockopt;
+    }
+    return normalized;
+}
+
+export function validateInboundPayload(protocol, port, stream, protocolSchema = null, translate = null) {
+    const t = typeof translate === 'function'
+        ? translate
+        : (key) => key;
+    const normalizedPort = Number(port);
+    if (!Number.isInteger(normalizedPort) || normalizedPort <= 0 || normalizedPort > 65535) {
+        return { ok: false, msg: t('comp.inbounds.validationPortRange') };
+    }
+
+    const network = String(stream?.network || 'tcp').toLowerCase();
+    const allowedNetworks = Array.isArray(protocolSchema?.supports?.transports)
+        ? protocolSchema.supports.transports.map((item) => String(item).toLowerCase())
+        : [];
+    if (allowedNetworks.length > 0 && !allowedNetworks.includes(network)) {
+        return {
+            ok: false,
+            msg: t('comp.inbounds.validationTransportUnsupported', {
+                protocol: String(protocol || '').toUpperCase(),
+                network,
+            }),
+        };
+    }
+
+    if (network === 'ws' && !String(stream?.wsSettings?.path || '').trim()) {
+        return { ok: false, msg: t('comp.inbounds.validationWsPathRequired') };
+    }
+    if (network === 'grpc' && !String(stream?.grpcSettings?.serviceName || '').trim()) {
+        return { ok: false, msg: t('comp.inbounds.validationGrpcServiceRequired') };
+    }
+
+    const security = String(stream?.security || 'none').toLowerCase();
+    const allowedSecurities = Array.isArray(protocolSchema?.supports?.securities)
+        ? protocolSchema.supports.securities.map((item) => String(item).toLowerCase())
+        : [];
+    if (allowedSecurities.length > 0 && !allowedSecurities.includes(security)) {
+        return {
+            ok: false,
+            msg: t('comp.inbounds.validationSecurityUnsupported', {
+                protocol: String(protocol || '').toUpperCase(),
+                security,
+            }),
+        };
+    }
+
+    if (security === 'tls') {
+        const serverName = String(stream?.tlsSettings?.serverName || '').trim();
+        if (!serverName) {
+            return { ok: false, msg: t('comp.inbounds.validationTlsSniRequired') };
+        }
+    }
+
+    if (security === 'reality') {
+        const rs = stream?.realitySettings || {};
+        const rsSettings = rs.settings || {};
+        const dest = String(rs.target || rs.dest || '').trim();
+        const serverNames = typeof rs.serverNames === 'string' ? rs.serverNames : (rs.serverNames?.[0] || '');
+        const sni = String(rsSettings.serverName || serverNames || '').trim();
+        if (!dest || !sni) {
+            return { ok: false, msg: t('comp.inbounds.validationRealityDestSni') };
+        }
+    }
+
+    const normalizedProtocol = String(protocol || '').toLowerCase();
+    if (security === 'reality' && (normalizedProtocol === 'vless' || normalizedProtocol === 'trojan')) {
+        const rs = stream?.realitySettings || {};
+        const rsSettings = rs.settings || {};
+        const fp = String(rsSettings.fingerprint || '').trim();
+        const spx = String(rsSettings.spiderX || '').trim();
+        if (!fp || !spx) {
+            return { ok: false, msg: t('comp.inbounds.validationRealityFpSpx') };
+        }
+    }
+
+    return { ok: true };
+}
+
+function toLocalDateTimeInput(timestampMs) {
+    const value = Number(timestampMs || 0);
+    if (!Number.isFinite(value) || value <= 0) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const local = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+    return local.toISOString().slice(0, 16);
+}
+
+function fromLocalDateTimeInput(input) {
+    const text = String(input || '').trim();
+    if (!text) return 0;
+    const parsed = new Date(text);
+    const ts = parsed.getTime();
+    return Number.isFinite(ts) ? ts : 0;
+}
+
+export default function InboundModal({ isOpen, onClose, editingInbound = null, onSuccess, servers = [], onBatchResult }) {
+    const { t, locale } = useI18n();
+    const deepCopy = useMemo(() => locale === 'en-US' ? {
+        vlessParams: 'VLESS protocol settings', defaultX25519: 'Default (X25519)', authKey: 'Authentication key', noFallback: 'No fallback configured',
+        hysteria2Params: 'Hysteria2 protocol settings', uploadBandwidth: 'Upload bandwidth (up_mbps)', downloadBandwidth: 'Download bandwidth (down_mbps)', unlimitedRecommended: '0 = Unlimited (recommended)',
+        obfsType: 'Obfuscation type (obfs.type)', disabled: 'Disabled', obfsPassword: 'Obfuscation password (obfs.password)', optionalClientMatch: 'Optional; must match the client',
+        clientPassword: 'Client password (clients[0].password)', randomPassword: 'Generate random password', wireguardParams: 'WireGuard protocol settings', serverKey: 'Server key (secretKey)',
+        x25519PrivateKey: 'X25519 private key (base64)', peers: 'Peers', allowedIps: 'AllowedIPs (comma-separated)', keepAlive: 'KeepAlive (seconds, 0 = disabled)',
+        preSharedKey: 'PreSharedKey (optional)', noPeers: 'No peers configured. Select “Add peer” to begin.', tunnelParams: 'Tunnel / Dokodemo protocol settings', targetAddress: 'Target address (address)',
+        targetAddressPlaceholder: 'e.g. 1.1.1.1 or example.com', targetPort: 'Target port (port)', network: 'Network', timeout: 'Timeout (seconds)', userLevel: 'User level',
+        transport: 'Transport settings', sniffing: 'Traffic sniffing', tcpAdvanced: 'TCP advanced options', requestPath: 'Request Path (comma-separated)', wsAdvanced: 'WS advanced options',
+        httpUpgradeAdvanced: 'HTTPUpgrade advanced options', serverNamePlaceholder: 'e.g. apple.com', echActions: 'ECH certificate actions', generate: 'Generate', clear: 'Clear',
+        certificateFirst: 'Certificate (first entry)', certificatePath: 'Certificate file path', privateKeyPath: 'Private key file path', certificateUsage: 'Certificate usage',
+        encipherment: 'encipherment (encryption)', verify: 'verify (client verification)', issue: 'issue (sub-certificate issuance)', generateKeys: 'Generate keys', targetWebsite: 'Target website',
+        optionalBlank: 'Optional; usually left blank', mldsaActions: 'mldsa65 actions', noExternalProxy: 'No external proxy configured', trustedXff: 'Trusted XFF (comma-separated)',
+        noUdpMask: 'No UDP mask configured', cancel: 'Cancel', saveConfig: 'Save configuration',
+    } : {
+        vlessParams: 'VLESS 协议参数', defaultX25519: '默认（X25519）', authKey: 'Authentication 密钥', noFallback: '未配置 fallback',
+        hysteria2Params: 'Hysteria2 协议参数', uploadBandwidth: '上行带宽 (up_mbps)', downloadBandwidth: '下行带宽 (down_mbps)', unlimitedRecommended: '0 = 不限速（建议）',
+        obfsType: '混淆类型 (obfs.type)', disabled: '不启用', obfsPassword: '混淆密码 (obfs.password)', optionalClientMatch: '选填：需与客户端一致',
+        clientPassword: '客户端密码 (clients[0].password)', randomPassword: '随机生成密码', wireguardParams: 'WireGuard 协议参数', serverKey: '服务端密钥 (secretKey)',
+        x25519PrivateKey: 'X25519 私钥 (base64)', peers: '对端 (peers)', allowedIps: 'AllowedIPs（逗号分隔）', keepAlive: 'KeepAlive（秒，0 = 关闭）',
+        preSharedKey: 'PreSharedKey（选填）', noPeers: '尚无对端，点击“添加对端”开始配置。', tunnelParams: 'Tunnel / Dokodemo 协议参数', targetAddress: '目标地址 (address)',
+        targetAddressPlaceholder: '如 1.1.1.1 或 example.com', targetPort: '目标端口 (port)', network: '网络 (network)', timeout: '超时（秒）', userLevel: '用户级别 (userLevel)',
+        transport: '传输配置', sniffing: '流量嗅探 (Sniffing)', tcpAdvanced: 'TCP 高级开关', requestPath: 'Request Path（逗号分隔）', wsAdvanced: 'WS 高级开关',
+        httpUpgradeAdvanced: 'HTTPUpgrade 高级开关', serverNamePlaceholder: '例如：apple.com', echActions: 'ECH 证书操作', generate: '生成', clear: '清空',
+        certificateFirst: '证书（第 1 条）', certificatePath: '证书文件路径', privateKeyPath: '私钥文件路径', certificateUsage: '证书用途',
+        encipherment: 'encipherment（加密）', verify: 'verify（验证客户端）', issue: 'issue（签发子证书）', generateKeys: '生成密钥', targetWebsite: '目标网站 (Target)',
+        optionalBlank: '可选，通常留空', mldsaActions: 'mldsa65 操作', noExternalProxy: '未配置 external proxy', trustedXff: 'Trusted XFF（逗号分隔）',
+        noUdpMask: '未配置 UDP mask', cancel: '取消', saveConfig: '保存配置',
+    }, [locale]);
+    const { panelApi } = useServer();
+    const defaultProtocol = 'vless';
+    const [loading, setLoading] = useState(false);
+    const [isAdvanced, setIsAdvanced] = useState(false);
+    const [schemaProtocols, setSchemaProtocols] = useState(PROTOCOL_SCHEMA_FALLBACK);
+
+    // Form State
+    const [remark, setRemark] = useState('');
+    const [protocol, setProtocol] = useState(defaultProtocol);
+    const [port, setPort] = useState('');
+    const [listen, setListen] = useState('');
+    const [inboundEnabled, setInboundEnabled] = useState(true);
+    const [trafficReset, setTrafficReset] = useState('never');
+    const [totalGB, setTotalGB] = useState(0);
+    const [_expiryTime, setExpiryTime] = useState(0);
+    const [expiryMode, setExpiryMode] = useState('never');
+    const [expiryDateTime, setExpiryDateTime] = useState('');
+    const [expiryAfterDays, setExpiryAfterDays] = useState('');
+    const [selectedServerIds, setSelectedServerIds] = useState([]);
+    const [syncExistingSubscriptions, setSyncExistingSubscriptions] = useState(false);
+
+    // Raw JSON State (always the source of truth for submission)
+    const [settings, setSettings] = useState(JSON.stringify(createDefaultSettings(defaultProtocol), null, 2));
+    const [streamSettings, setStreamSettings] = useState(JSON.stringify(createDefaultStream('tcp', 'none'), null, 2));
+    const [sniffing, setSniffing] = useState(JSON.stringify({ enabled: false, destOverride: ['http', 'tls', 'quic', 'fakedns'], metadataOnly: false, routeOnly: false }, null, 2));
+
+    // Simple Mode State
+    const [simpleStream, setSimpleStream] = useState({
+        network: 'tcp',
+        security: 'none',
+        tcpHeaderType: 'none',
+        tcpAcceptProxyProtocol: false,
+        kcpMtu: 1350,
+        kcpTti: 20,
+        kcpUplinkCapacity: 5,
+        kcpDownlinkCapacity: 20,
+        kcpCongestion: false,
+        kcpReadBufferSize: 1,
+        kcpWriteBufferSize: 1,
+        wsPath: '/',
+        wsHost: '',
+        wsAcceptProxyProtocol: false,
+        grpcServiceName: '',
+        grpcAuthority: '',
+        httpupgradePath: '/',
+        httpupgradeHost: '',
+        httpupgradeAcceptProxyProtocol: false,
+        xhttpPath: '/',
+        xhttpHost: '',
+        xhttpMode: 'auto',
+        tlsSni: '',
+        tlsFingerprint: 'chrome',
+        tlsAlpn: 'h2,http/1.1',
+        realityShow: true,
+        realityXver: 0,
+        realityDest: DEFAULT_REALITY_TARGET.target,
+        realitySNI: DEFAULT_REALITY_TARGET.sni.split(',')[0] || 'www.apple.com',
+        realityShortId: '',
+        realityPrivateKey: '',
+        realityMinClientVer: '',
+        realityMaxClientVer: '',
+        realityMaxTimediff: 0,
+        realityPublicKey: '',
+        realityFingerprint: 'chrome',
+        realitySpiderX: '/',
+        realityMldsa65Seed: '',
+        realityMldsa65Verify: '',
+    });
+
+    const protocolDefaultSettings = useMemo(
+        () => createDefaultSettings(protocol),
+        [protocol]
+    );
+
+    const settingsObj = useMemo(
+        () => parseJsonObject(settings, protocolDefaultSettings),
+        [settings, protocolDefaultSettings]
+    );
+
+    const streamObj = useMemo(
+        () => parseJsonObject(streamSettings, createDefaultStream(simpleStream.network, simpleStream.security)),
+        [streamSettings, simpleStream.network, simpleStream.security]
+    );
+
+    const updateSettingsJson = (updater) => {
+        setSettings((prev) => {
+            const draft = parseJsonObject(prev, protocolDefaultSettings);
+            updater(draft);
+            return JSON.stringify(draft, null, 2);
+        });
+    };
+
+    const updateStreamJson = (updater) => {
+        setStreamSettings((prev) => {
+            const draft = parseJsonObject(prev, createDefaultStream(simpleStream.network, simpleStream.security));
+            updater(draft);
+            return JSON.stringify(draft, null, 2);
+        });
+    };
+
+    const ensurePrimaryClient = (draft) => {
+        if (!Array.isArray(draft.clients) || draft.clients.length === 0) {
+            const seeded = protocolDefaultSettings?.clients?.[0] || createBaseClient();
+            draft.clients = [deepClone(seeded)];
+        }
+        return draft.clients[0];
+    };
+
+    const protocolSchemas = useMemo(() => {
+        if (!Array.isArray(schemaProtocols) || schemaProtocols.length === 0) return PROTOCOL_SCHEMA_FALLBACK;
+        return schemaProtocols;
+    }, [schemaProtocols]);
+
+    const protocolOptions = useMemo(
+        () => protocolSchemas.map((item) => ({
+            key: String(item?.key || '').toLowerCase(),
+            label: String(item?.label || item?.key || '').trim() || String(item?.key || '').toUpperCase(),
+            legacyKeys: Array.isArray(item?.legacyKeys) ? item.legacyKeys : [],
+        })).filter((item) => item.key),
+        [protocolSchemas]
+    );
+
+    const protocolSchemaMap = useMemo(() => {
+        const map = new Map();
+        protocolSchemas.forEach((item) => {
+            const key = String(item?.key || '').toLowerCase();
+            if (!key) return;
+            map.set(key, item);
+        });
+        return map;
+    }, [protocolSchemas]);
+
+    const currentProtocolSchema = useMemo(
+        () => protocolSchemaMap.get(String(protocol || '').toLowerCase()) || PROTOCOL_SCHEMA_FALLBACK[0],
+        [protocol, protocolSchemaMap]
+    );
+
+    const networkOptions = useMemo(() => {
+        const supports = currentProtocolSchema?.supports?.transports;
+        if (Array.isArray(supports) && supports.length > 0) {
+            return supports.map((item) => String(item).toLowerCase());
+        }
+        return ['tcp'];
+    }, [currentProtocolSchema]);
+
+    const securityOptions = useMemo(() => {
+        const supports = currentProtocolSchema?.supports?.securities;
+        if (!Array.isArray(supports) || supports.length === 0) return ['none'];
+        const network = simpleStream.network || 'tcp';
+        const tlsTransports = currentProtocolSchema?.supports?.tlsTransports;
+        const realityTransports = currentProtocolSchema?.supports?.realityTransports;
+        return supports
+            .map((item) => String(item).toLowerCase())
+            .filter((sec) => {
+                if (sec === 'tls' && Array.isArray(tlsTransports) && !tlsTransports.includes(network)) return false;
+                if (sec === 'reality' && Array.isArray(realityTransports) && !realityTransports.includes(network)) return false;
+                return true;
+            });
+    }, [currentProtocolSchema, simpleStream.network]);
+
+    const normalizedProtocol = useMemo(
+        () => String(protocol || '').toLowerCase(),
+        [protocol]
+    );
+
+    const primaryClient = useMemo(() => {
+        if (Array.isArray(settingsObj?.clients) && settingsObj.clients.length > 0) {
+            return settingsObj.clients[0];
+        }
+        return null;
+    }, [settingsObj]);
+
+    const vlessFallbacks = useMemo(
+        () => (Array.isArray(settingsObj?.fallbacks) ? settingsObj.fallbacks : []),
+        [settingsObj]
+    );
+
+    const vlessTestseed = useMemo(() => {
+        if (Array.isArray(settingsObj?.testseed) && settingsObj.testseed.length >= 4) {
+            return settingsObj.testseed.slice(0, 4).map((item) => Number(item || 0));
+        }
+        return [900, 500, 900, 256];
+    }, [settingsObj]);
+
+    // Initialize form
+    useEffect(() => {
+        if (editingInbound) {
+            setRemark(editingInbound.remark);
+                setProtocol(normalizeProtocolName(editingInbound.protocol, protocolSchemas));
+            setPort(editingInbound.port);
+            setListen(editingInbound.listen);
+            setInboundEnabled(editingInbound.enable !== false);
+            setTrafficReset(String(editingInbound.trafficReset || 'never'));
+            setTotalGB(editingInbound.total ? editingInbound.total / (1024 * 1024 * 1024) : 0);
+            {
+                const rawExpiry = Number(editingInbound.expiryTime || 0);
+                setExpiryTime(rawExpiry);
+                if (rawExpiry > 0) {
+                    setExpiryMode('datetime');
+                    setExpiryDateTime(toLocalDateTimeInput(rawExpiry));
+                } else {
+                    setExpiryMode('never');
+                    setExpiryDateTime('');
+                }
+                setExpiryAfterDays('');
+            }
+            setSettings(editingInbound.settings);
+            setStreamSettings(editingInbound.streamSettings || JSON.stringify(createDefaultStream('tcp', 'none'), null, 2));
+            setSniffing(editingInbound.sniffing || JSON.stringify({ enabled: false, destOverride: ['http', 'tls', 'quic', 'fakedns'], metadataOnly: false, routeOnly: false }, null, 2));
+            setSyncExistingSubscriptions(false);
+
+            // Try to parse simplified state
+            try {
+                const stream = JSON.parse(editingInbound.streamSettings);
+                const realityServerNames = stream.realitySettings?.serverNames;
+                const realitySNI = typeof realityServerNames === 'string'
+                    ? realityServerNames.split(',')[0]
+                    : (realityServerNames?.[0] || '');
+                const realityShortIds = stream.realitySettings?.shortIds;
+                const realityShortId = typeof realityShortIds === 'string'
+                    ? realityShortIds.split(',')[0]
+                    : (realityShortIds?.[0] || '');
+                setSimpleStream({
+                    network: stream.network || 'tcp',
+                    security: stream.security || 'none',
+                    tcpHeaderType: stream.tcpSettings?.header?.type || 'none',
+                    tcpAcceptProxyProtocol: !!stream.tcpSettings?.acceptProxyProtocol,
+                    kcpMtu: Number(stream.kcpSettings?.mtu || 1350),
+                    kcpTti: Number(stream.kcpSettings?.tti || 20),
+                    kcpUplinkCapacity: Number(stream.kcpSettings?.uplinkCapacity || 5),
+                    kcpDownlinkCapacity: Number(stream.kcpSettings?.downlinkCapacity || 20),
+                    kcpCongestion: !!stream.kcpSettings?.congestion,
+                    kcpReadBufferSize: Number(stream.kcpSettings?.readBufferSize || 1),
+                    kcpWriteBufferSize: Number(stream.kcpSettings?.writeBufferSize || 1),
+                    wsPath: stream.wsSettings?.path || '/',
+                    wsHost: stream.wsSettings?.host || stream.wsSettings?.headers?.Host || '',
+                    wsAcceptProxyProtocol: !!stream.wsSettings?.acceptProxyProtocol,
+                    grpcServiceName: stream.grpcSettings?.serviceName || '',
+                    grpcAuthority: stream.grpcSettings?.authority || '',
+                    httpupgradePath: stream.httpupgradeSettings?.path || '/',
+                    httpupgradeHost: stream.httpupgradeSettings?.host || '',
+                    httpupgradeAcceptProxyProtocol: !!stream.httpupgradeSettings?.acceptProxyProtocol,
+                    xhttpPath: stream.xhttpSettings?.path || '/',
+                    xhttpHost: stream.xhttpSettings?.host || '',
+                    xhttpMode: stream.xhttpSettings?.mode || 'auto',
+                    tlsSni: stream.tlsSettings?.serverName || '',
+                    tlsFingerprint: stream.tlsSettings?.settings?.fingerprint || 'chrome',
+                    tlsAlpn: Array.isArray(stream.tlsSettings?.alpn) ? stream.tlsSettings.alpn.join(',') : (stream.tlsSettings?.alpn || 'h2,http/1.1'),
+                    realityShow: stream.realitySettings?.show !== false,
+                    realityXver: Number(stream.realitySettings?.xver || 0),
+                    realityDest: stream.realitySettings?.target || stream.realitySettings?.dest || '',
+                    realitySNI: realitySNI,
+                    realityShortId: realityShortId,
+                    realityPrivateKey: stream.realitySettings?.privateKey || '',
+                    realityMinClientVer: stream.realitySettings?.minClientVer || '',
+                    realityMaxClientVer: stream.realitySettings?.maxClientVer || '',
+                    realityMaxTimediff: Number(stream.realitySettings?.maxTimediff || 0),
+                    realityPublicKey: stream.realitySettings?.settings?.publicKey || '',
+                    realityFingerprint: stream.realitySettings?.settings?.fingerprint || 'chrome',
+                    realitySpiderX: stream.realitySettings?.settings?.spiderX || '/',
+                    realityMldsa65Seed: stream.realitySettings?.mldsa65Seed || '',
+                    realityMldsa65Verify: stream.realitySettings?.settings?.mldsa65Verify || '',
+                });
+            } catch { }
+        } else {
+            // Reset
+            setRemark('');
+            setProtocol(defaultProtocol);
+            setPort(Math.floor(Math.random() * 20000) + 10000);
+            setListen('');
+            setInboundEnabled(true);
+            setTrafficReset('never');
+            setTotalGB(0);
+            setExpiryTime(0);
+            setExpiryMode('never');
+            setExpiryDateTime('');
+            setExpiryAfterDays('');
+            setSettings(JSON.stringify(createDefaultSettings(defaultProtocol), null, 2));
+            setStreamSettings(JSON.stringify(createDefaultStream('tcp', 'none'), null, 2));
+            setSniffing(JSON.stringify({ enabled: false, destOverride: ['http', 'tls', 'quic', 'fakedns'], metadataOnly: false, routeOnly: false }, null, 2));
+            setSyncExistingSubscriptions(false);
+            setSimpleStream({
+                network: 'tcp',
+                security: 'none',
+                tcpHeaderType: 'none',
+                tcpAcceptProxyProtocol: false,
+                kcpMtu: 1350,
+                kcpTti: 20,
+                kcpUplinkCapacity: 5,
+                kcpDownlinkCapacity: 20,
+                kcpCongestion: false,
+                kcpReadBufferSize: 1,
+                kcpWriteBufferSize: 1,
+                wsPath: '/',
+                wsHost: '',
+                wsAcceptProxyProtocol: false,
+                grpcServiceName: '',
+                grpcAuthority: '',
+                httpupgradePath: '/',
+                httpupgradeHost: '',
+                httpupgradeAcceptProxyProtocol: false,
+                xhttpPath: '/',
+                xhttpHost: '',
+                xhttpMode: 'auto',
+                tlsSni: '',
+                tlsFingerprint: 'chrome',
+                tlsAlpn: 'h2,http/1.1',
+                realityShow: true,
+                realityXver: 0,
+                realityDest: DEFAULT_REALITY_TARGET.target,
+                realitySNI: DEFAULT_REALITY_TARGET.sni.split(',')[0] || 'www.apple.com',
+                realityShortId: '',
+                realityPrivateKey: '',
+                realityMinClientVer: '',
+                realityMaxClientVer: '',
+                realityMaxTimediff: 0,
+                realityPublicKey: '',
+                realityFingerprint: 'chrome',
+                realitySpiderX: '/',
+                realityMldsa65Seed: '',
+                realityMldsa65Verify: '',
+            });
+            if (servers.length > 0) setSelectedServerIds(servers.map(s => s.id));
+        }
+    }, [defaultProtocol, editingInbound, isOpen, servers]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+
+        let cancelled = false;
+        const loadProtocolSchemas = async () => {
+            try {
+                const res = await api.get('/protocol-schemas');
+                const list = Array.isArray(res.data?.obj?.protocols) ? res.data.obj.protocols : [];
+                const normalized = list
+                    .map((item) => ({
+                        key: String(item?.key || '').toLowerCase(),
+                        label: String(item?.label || item?.key || '').trim() || String(item?.key || '').toUpperCase(),
+                        legacyKeys: Array.isArray(item?.legacyKeys) ? item.legacyKeys : [],
+                        supports: {
+                            transports: Array.isArray(item?.supports?.transports) && item.supports.transports.length > 0
+                                ? item.supports.transports
+                                : ['tcp'],
+                            securities: Array.isArray(item?.supports?.securities) && item.supports.securities.length > 0
+                                ? item.supports.securities
+                                : ['none'],
+                            tlsTransports: Array.isArray(item?.supports?.tlsTransports) ? item.supports.tlsTransports : undefined,
+                            realityTransports: Array.isArray(item?.supports?.realityTransports) ? item.supports.realityTransports : undefined,
+                        },
+                    }))
+                    .filter((item) => item.key);
+                if (!cancelled && normalized.length > 0) {
+                    setSchemaProtocols(normalized);
+                }
+            } catch {
+                if (!cancelled) {
+                    setSchemaProtocols(PROTOCOL_SCHEMA_FALLBACK);
+                }
+            }
+        };
+        loadProtocolSchemas();
+        return () => { cancelled = true; };
+    }, [isOpen]);
+
+    // Protocol Change -> Reset Settings
+    useEffect(() => {
+        if (!editingInbound && isOpen) {
+            setSettings(JSON.stringify(createDefaultSettings(protocol), null, 2));
+        }
+    }, [protocol, editingInbound, isOpen]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        setSimpleStream((prev) => {
+            const nextNetwork = networkOptions.includes(prev.network)
+                ? prev.network
+                : (networkOptions[0] || 'tcp');
+            const nextSecurity = securityOptions.includes(prev.security)
+                ? prev.security
+                : (securityOptions[0] || 'none');
+
+            if (nextNetwork === prev.network && nextSecurity === prev.security) {
+                return prev;
+            }
+            return {
+                ...prev,
+                network: nextNetwork,
+                security: nextSecurity,
+            };
+        });
+    }, [isOpen, networkOptions, securityOptions]);
+
+    // Simple Mode -> Update JSON
+    useEffect(() => {
+        if (!isAdvanced && isOpen) {
+            let stream;
+            try {
+                stream = JSON.parse(streamSettings);
+            } catch {
+                stream = createDefaultStream(simpleStream.network, simpleStream.security);
+            }
+
+            stream.network = simpleStream.network;
+            stream.security = simpleStream.security;
+
+            if (simpleStream.network === 'tcp') {
+                stream.tcpSettings = stream.tcpSettings || {};
+                stream.tcpSettings.header = stream.tcpSettings.header || {};
+                stream.tcpSettings.header.type = simpleStream.tcpHeaderType || 'none';
+                stream.tcpSettings.acceptProxyProtocol = !!simpleStream.tcpAcceptProxyProtocol;
+            } else if (simpleStream.network === 'kcp') {
+                stream.kcpSettings = stream.kcpSettings || {};
+                stream.kcpSettings.mtu = Number(simpleStream.kcpMtu || 1350);
+                stream.kcpSettings.tti = Number(simpleStream.kcpTti || 20);
+                stream.kcpSettings.uplinkCapacity = Number(simpleStream.kcpUplinkCapacity || 5);
+                stream.kcpSettings.downlinkCapacity = Number(simpleStream.kcpDownlinkCapacity || 20);
+                stream.kcpSettings.congestion = !!simpleStream.kcpCongestion;
+                stream.kcpSettings.readBufferSize = Number(simpleStream.kcpReadBufferSize || 1);
+                stream.kcpSettings.writeBufferSize = Number(simpleStream.kcpWriteBufferSize || 1);
+            } else if (simpleStream.network === 'ws') {
+                stream.wsSettings = stream.wsSettings || {};
+                stream.wsSettings.path = simpleStream.wsPath;
+                stream.wsSettings.host = simpleStream.wsHost || '';
+                stream.wsSettings.acceptProxyProtocol = !!simpleStream.wsAcceptProxyProtocol;
+                if (simpleStream.wsHost) {
+                    stream.wsSettings.headers = { Host: simpleStream.wsHost };
+                }
+            } else if (simpleStream.network === 'grpc') {
+                stream.grpcSettings = stream.grpcSettings || {};
+                stream.grpcSettings.serviceName = simpleStream.grpcServiceName || '';
+                stream.grpcSettings.authority = simpleStream.grpcAuthority || '';
+            } else if (simpleStream.network === 'httpupgrade') {
+                stream.httpupgradeSettings = stream.httpupgradeSettings || {};
+                stream.httpupgradeSettings.path = simpleStream.httpupgradePath || '/';
+                stream.httpupgradeSettings.host = simpleStream.httpupgradeHost || '';
+                stream.httpupgradeSettings.acceptProxyProtocol = !!simpleStream.httpupgradeAcceptProxyProtocol;
+            } else if (simpleStream.network === 'xhttp') {
+                stream.xhttpSettings = stream.xhttpSettings || {};
+                stream.xhttpSettings.path = simpleStream.xhttpPath || '/';
+                stream.xhttpSettings.host = simpleStream.xhttpHost || '';
+                stream.xhttpSettings.mode = simpleStream.xhttpMode || 'auto';
+            }
+
+            if (simpleStream.security === 'tls') {
+                stream.tlsSettings = stream.tlsSettings || {};
+                stream.tlsSettings.serverName = simpleStream.tlsSni || '';
+                stream.tlsSettings.settings = stream.tlsSettings.settings || {};
+                stream.tlsSettings.settings.fingerprint = simpleStream.tlsFingerprint || 'chrome';
+                const alpnArr = (simpleStream.tlsAlpn || '').split(',').map(s => s.trim()).filter(Boolean);
+                stream.tlsSettings.alpn = alpnArr.length > 0 ? alpnArr : ['h2', 'http/1.1'];
+            }
+
+            // Reality
+            if (simpleStream.security === 'reality') {
+                stream.realitySettings = stream.realitySettings || createDefaultRealitySettings();
+                stream.realitySettings.settings = stream.realitySettings.settings || {};
+                stream.realitySettings.show = !!simpleStream.realityShow;
+                stream.realitySettings.xver = Number(simpleStream.realityXver || 0);
+                stream.realitySettings.target = simpleStream.realityDest;
+                delete stream.realitySettings.dest; // remove legacy field
+                stream.realitySettings.serverNames = simpleStream.realitySNI
+                    ? simpleStream.realitySNI.split(',').map(s => s.trim()).filter(Boolean)
+                    : DEFAULT_REALITY_TARGET.sni.split(',').map(s => s.trim()).filter(Boolean);
+                stream.realitySettings.shortIds = simpleStream.realityShortId
+                    ? simpleStream.realityShortId.split(',').map(s => s.trim())
+                    : [randomString(8, HEX_CHARS)];
+                stream.realitySettings.privateKey = simpleStream.realityPrivateKey;
+                stream.realitySettings.minClientVer = simpleStream.realityMinClientVer || '';
+                stream.realitySettings.maxClientVer = simpleStream.realityMaxClientVer || '';
+                stream.realitySettings.maxTimediff = Number(simpleStream.realityMaxTimediff || 0);
+                stream.realitySettings.mldsa65Seed = simpleStream.realityMldsa65Seed || '';
+                stream.realitySettings.settings.publicKey = simpleStream.realityPublicKey;
+                stream.realitySettings.settings.fingerprint = simpleStream.realityFingerprint || 'chrome';
+                stream.realitySettings.settings.spiderX = simpleStream.realitySpiderX || '/';
+                stream.realitySettings.settings.mldsa65Verify = simpleStream.realityMldsa65Verify || '';
+            }
+
+            setStreamSettings(JSON.stringify(stream, null, 2));
+        }
+    }, [simpleStream, isAdvanced]);
+
+    const resolveToolServerId = () => {
+        if (editingInbound?.serverId) return editingInbound.serverId;
+        if (Array.isArray(selectedServerIds) && selectedServerIds.length > 0) {
+            return selectedServerIds[0];
+        }
+        if (servers.length > 0) {
+            return servers[0].id;
+        }
+        return '';
+    };
+
+    const callPanelTool = async (serverId, method, path, payload = undefined) => {
+        const lowerMethod = String(method || 'get').toLowerCase();
+        if (serverId) {
+            const base = `/panel/${serverId}${path}`;
+            if (lowerMethod === 'post') return api.post(base, payload || {});
+            return api.get(base);
+        }
+        if (lowerMethod === 'post') return panelApi('post', path, payload || {});
+        return panelApi('get', path);
+    };
+
+    const generateRealityKeys = async () => {
+        try {
+            const preferredServerId = resolveToolServerId();
+            if (!preferredServerId) {
+                toast.error(t('comp.inbounds.selectServerFirst'));
+                return;
+            }
+            const keys = await fetchRealityKeyPair(preferredServerId);
+            if (!keys?.privateKey || !keys?.publicKey) return;
+
+            setSimpleStream(prev => ({
+                ...prev,
+                realityPrivateKey: keys.privateKey,
+                realityPublicKey: keys.publicKey
+            }));
+
+            let stream;
+            try {
+                stream = JSON.parse(streamSettings);
+            } catch {
+                stream = createDefaultStream('tcp', 'none');
+            }
+
+            stream.realitySettings = stream.realitySettings || {};
+            stream.realitySettings.settings = stream.realitySettings.settings || {};
+            stream.realitySettings.privateKey = keys.privateKey;
+            stream.realitySettings.settings.publicKey = keys.publicKey;
+            setStreamSettings(JSON.stringify(stream, null, 2));
+        } catch (error) {
+            toast.error(error?.response?.data?.msg || error?.message || t('comp.inbounds.genRealityFailed'));
+        }
+    };
+
+    const generateShortId = async () => {
+        const sid = Array.from({ length: 8 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+        setSimpleStream(prev => ({ ...prev, realityShortId: sid }));
+    };
+
+    const createShortId = () =>
+        Array.from({ length: 8 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+
+    const fetchRealityKeyPair = async (serverId) => {
+        const res = await callPanelTool(serverId, 'get', '/panel/api/server/getNewX25519Cert');
+        if (res.data?.obj?.privateKey && res.data?.obj?.publicKey) {
+            return res.data.obj;
+        }
+        throw new Error('Reality key pair generation failed');
+    };
+
+    const fetchVlessEncOptions = async (serverId) => {
+        const res = await callPanelTool(serverId, 'get', '/panel/api/server/getNewVlessEnc');
+        return Array.isArray(res.data?.obj?.auths) ? res.data.obj.auths : [];
+    };
+
+    const generateVlessEncKeys = async () => {
+        try {
+            const selectedAuth = String(settingsObj?.selectedAuth || '').trim();
+            if (!selectedAuth) {
+                toast.error(t('comp.inbounds.selectAuthFirst'));
+                return;
+            }
+            const preferredServerId = resolveToolServerId();
+            if (!preferredServerId) {
+                toast.error(t('comp.inbounds.selectServerFirst'));
+                return;
+            }
+            const auths = await fetchVlessEncOptions(preferredServerId);
+            const block = auths.find((item) => item?.label === selectedAuth);
+            if (!block) {
+                toast.error(t('comp.inbounds.authGenUnsupported'));
+                return;
+            }
+            updateSettingsJson((draft) => {
+                draft.selectedAuth = selectedAuth;
+                draft.decryption = String(block.decryption || 'none');
+                draft.encryption = String(block.encryption || 'none');
+            });
+            toast.success(t('comp.inbounds.vlessKeysUpdated'));
+        } catch (error) {
+            toast.error(error?.response?.data?.msg || error?.message || t('comp.inbounds.genVlessFailed'));
+        }
+    };
+
+    const clearVlessEncKeys = () => {
+        updateSettingsJson((draft) => {
+            draft.decryption = 'none';
+            draft.encryption = 'none';
+            draft.selectedAuth = undefined;
+        });
+    };
+
+    const fetchMldsa65Seed = async (serverId) => {
+        const res = await callPanelTool(serverId, 'get', '/panel/api/server/getNewmldsa65');
+        if (res.data?.obj?.seed && res.data?.obj?.verify) {
+            return { seed: String(res.data.obj.seed), verify: String(res.data.obj.verify) };
+        }
+        throw new Error('MLDSA65 generation failed');
+    };
+
+    const generateMldsa65Seed = async () => {
+        try {
+            const preferredServerId = resolveToolServerId();
+            if (!preferredServerId) {
+                toast.error(t('comp.inbounds.selectServerForMldsa'));
+                return;
+            }
+            const mldsa = await fetchMldsa65Seed(preferredServerId);
+            setSimpleStream((prev) => ({
+                ...prev,
+                realityMldsa65Seed: mldsa.seed,
+                realityMldsa65Verify: mldsa.verify,
+            }));
+            updateStreamJson((draft) => {
+                draft.realitySettings = draft.realitySettings || {};
+                draft.realitySettings.settings = draft.realitySettings.settings || {};
+                draft.realitySettings.mldsa65Seed = mldsa.seed;
+                draft.realitySettings.settings.mldsa65Verify = mldsa.verify;
+            });
+            toast.success(t('comp.inbounds.mldsaGenerated'));
+        } catch (error) {
+            toast.error(error?.response?.data?.msg || error?.message || t('comp.inbounds.genMldsaFailed'));
+        }
+    };
+
+    const clearMldsa65Seed = () => {
+        setSimpleStream((prev) => ({
+            ...prev,
+            realityMldsa65Seed: '',
+            realityMldsa65Verify: '',
+        }));
+        updateStreamJson((draft) => {
+            draft.realitySettings = draft.realitySettings || {};
+            draft.realitySettings.settings = draft.realitySettings.settings || {};
+            draft.realitySettings.mldsa65Seed = '';
+            draft.realitySettings.settings.mldsa65Verify = '';
+        });
+    };
+
+    const fetchEchCert = async (serverId, sni) => {
+        const res = await callPanelTool(serverId, 'post', '/panel/api/server/getNewEchCert', { sni: sni || '' });
+        if (res.data?.obj?.echServerKeys !== undefined && res.data?.obj?.echConfigList !== undefined) {
+            return {
+                echServerKeys: String(res.data.obj.echServerKeys || ''),
+                echConfigList: String(res.data.obj.echConfigList || ''),
+            };
+        }
+        throw new Error('ECH certificate generation failed');
+    };
+
+    const generateEchCert = async () => {
+        try {
+            const preferredServerId = resolveToolServerId();
+            if (!preferredServerId) {
+                toast.error(t('comp.inbounds.selectServerForEch'));
+                return;
+            }
+            const sni = String(simpleStream.tlsSni || streamObj?.tlsSettings?.serverName || '').trim();
+            if (!sni) {
+                toast.error(t('comp.inbounds.tlsSniRequired'));
+                return;
+            }
+            const ech = await fetchEchCert(preferredServerId, sni);
+            updateStreamJson((draft) => {
+                draft.tlsSettings = draft.tlsSettings || {};
+                draft.tlsSettings.settings = draft.tlsSettings.settings || {};
+                draft.tlsSettings.echServerKeys = ech.echServerKeys;
+                draft.tlsSettings.settings.echConfigList = ech.echConfigList;
+            });
+            toast.success(t('comp.inbounds.echGenerated'));
+        } catch (error) {
+            toast.error(error?.response?.data?.msg || error?.message || t('comp.inbounds.genEchFailed'));
+        }
+    };
+
+    const clearEchCert = () => {
+        updateStreamJson((draft) => {
+            draft.tlsSettings = draft.tlsSettings || {};
+            draft.tlsSettings.settings = draft.tlsSettings.settings || {};
+            draft.tlsSettings.echServerKeys = '';
+            draft.tlsSettings.settings.echConfigList = '';
+        });
+    };
+
+    const ensureRealityStreamForServer = async (baseStream, serverId) => {
+        const stream = JSON.parse(JSON.stringify(baseStream || {}));
+        if ((stream.security || 'none') !== 'reality') {
+            return stream;
+        }
+
+        stream.realitySettings = stream.realitySettings || {};
+        stream.realitySettings.settings = stream.realitySettings.settings || {};
+
+        if (!stream.realitySettings.target && !stream.realitySettings.dest) {
+            stream.realitySettings.target = simpleStream.realityDest || DEFAULT_REALITY_TARGET.target;
+        } else if (stream.realitySettings.dest && !stream.realitySettings.target) {
+            // Migrate legacy dest → target
+            stream.realitySettings.target = stream.realitySettings.dest;
+            delete stream.realitySettings.dest;
+        }
+
+        // Handle serverNames — always output as array for Xray-core
+        const sn = stream.realitySettings.serverNames;
+        if (!sn || (typeof sn === 'string' && !sn.trim()) || (Array.isArray(sn) && sn.length === 0)) {
+            stream.realitySettings.serverNames = [simpleStream.realitySNI || (DEFAULT_REALITY_TARGET.sni.split(',')[0] || 'www.apple.com')];
+        } else if (typeof sn === 'string') {
+            stream.realitySettings.serverNames = sn.split(',').map(s => s.trim()).filter(Boolean);
+            if (stream.realitySettings.serverNames.length === 0) {
+                stream.realitySettings.serverNames = [simpleStream.realitySNI || (DEFAULT_REALITY_TARGET.sni.split(',')[0] || 'www.apple.com')];
+            }
+        }
+
+        // Handle shortIds — always output as array for Xray-core
+        const si = stream.realitySettings.shortIds;
+        if (!si || (typeof si === 'string' && !si.trim()) || (Array.isArray(si) && si.length === 0)) {
+            stream.realitySettings.shortIds = [simpleStream.realityShortId || createShortId()];
+        } else if (typeof si === 'string') {
+            stream.realitySettings.shortIds = si.split(',').map(s => s.trim());
+            if (stream.realitySettings.shortIds.length === 0) {
+                stream.realitySettings.shortIds = [simpleStream.realityShortId || createShortId()];
+            }
+        }
+
+        if (!stream.realitySettings.settings.fingerprint) {
+            stream.realitySettings.settings.fingerprint = simpleStream.realityFingerprint || 'chrome';
+        }
+        if (!stream.realitySettings.settings.spiderX) {
+            stream.realitySettings.settings.spiderX = simpleStream.realitySpiderX || '/';
+        }
+
+        const missingPrivate = !stream.realitySettings.privateKey;
+        const missingPublic = !stream.realitySettings.settings.publicKey;
+
+        if (missingPrivate || missingPublic) {
+            const keys = await fetchRealityKeyPair(serverId);
+            stream.realitySettings.privateKey = keys.privateKey;
+            stream.realitySettings.settings.publicKey = keys.publicKey;
+        }
+
+        return stream;
+    };
+
+    const createInboundParams = ({ settingsValue, streamSettingsValue, sniffingValue, expiryTimeValue }) => {
+        const params = new URLSearchParams();
+        params.append('remark', remark);
+        params.append('protocol', protocol);
+        params.append('port', port);
+        params.append('listen', listen);
+        params.append('total', Number(totalGB) * 1024 * 1024 * 1024);
+        params.append('expiryTime', Number(expiryTimeValue || 0));
+        params.append('trafficReset', trafficReset);
+        params.append('settings', typeof settingsValue === 'string' ? settingsValue : JSON.stringify(settingsValue || {}));
+        if (streamSettingsValue !== undefined && streamSettingsValue !== null) {
+            params.append(
+                'streamSettings',
+                typeof streamSettingsValue === 'string'
+                    ? streamSettingsValue
+                    : JSON.stringify(streamSettingsValue)
+            );
+        }
+        params.append('sniffing', typeof sniffingValue === 'string' ? sniffingValue : JSON.stringify(sniffingValue || {}));
+        params.append('enable', String(inboundEnabled));
+        return params;
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            // Validate JSON
+            let parsedStreamSettings;
+            let parsedSettings;
+            let parsedSniffing;
+            try {
+                parsedSettings = JSON.parse(settings);
+                parsedStreamSettings = JSON.parse(streamSettings);
+                parsedSniffing = JSON.parse(sniffing);
+            } catch {
+                toast.error(t('comp.inbounds.invalidJsonAdvanced'));
+                setLoading(false);
+                return;
+            }
+
+            const normalizedProtocol = String(protocol || '').toLowerCase();
+            const isStreamProtocol = STREAM_PROTOCOLS.has(normalizedProtocol);
+            const preStream = isStreamProtocol
+                ? normalizeStreamForSubmission(parsedStreamSettings, normalizedProtocol) || {}
+                : {};
+            const preValidation = validateInboundPayload(protocol, port, preStream, currentProtocolSchema, t);
+            if (!preValidation.ok) {
+                toast.error(preValidation.msg);
+                setLoading(false);
+                return;
+            }
+
+            let resolvedExpiryTime = 0;
+            if (expiryMode === 'datetime') {
+                resolvedExpiryTime = fromLocalDateTimeInput(expiryDateTime);
+                if (!resolvedExpiryTime) {
+                    toast.error(t('comp.inbounds.invalidExpiryDateTime'));
+                    setLoading(false);
+                    return;
+                }
+            } else if (expiryMode === 'days') {
+                const days = Number(expiryAfterDays || 0);
+                if (!Number.isFinite(days) || days <= 0) {
+                    toast.error(t('comp.inbounds.invalidExpiryDays'));
+                    setLoading(false);
+                    return;
+                }
+                resolvedExpiryTime = Date.now() + (Math.floor(days) * 24 * 60 * 60 * 1000);
+            } else {
+                resolvedExpiryTime = 0;
+            }
+
+            if (editingInbound) {
+                const serverId = editingInbound.serverId;
+                let streamForTarget = parsedStreamSettings;
+                if (isStreamProtocol) {
+                    streamForTarget = await ensureRealityStreamForServer(parsedStreamSettings, serverId);
+                }
+                const streamPayload = normalizeStreamForSubmission(streamForTarget, normalizedProtocol);
+                if (isStreamProtocol) {
+                    const validation = validateInboundPayload(protocol, port, streamPayload || {}, currentProtocolSchema, t);
+                    if (!validation.ok) {
+                        toast.error(validation.msg);
+                        setLoading(false);
+                        return;
+                    }
+                }
+                const params = createInboundParams({
+                    settingsValue: parsedSettings,
+                    streamSettingsValue: streamPayload,
+                    sniffingValue: parsedSniffing,
+                    expiryTimeValue: resolvedExpiryTime,
+                });
+
+                if (serverId) {
+                    await api.post(`/panel/${serverId}/panel/api/inbounds/update/${editingInbound.id}`, params, {
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+                    });
+                } else {
+                    await panelApi('post', `/panel/api/inbounds/update/${editingInbound.id}`, params, {
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+                    });
+                }
+                toast.success(t('comp.inbounds.inboundUpdated'));
+            } else {
+                if (selectedServerIds.length === 0) {
+                    toast.error(t('comp.inbounds.selectTargetServer'));
+                    setLoading(false);
+                    return;
+                }
+
+                const targets = await Promise.all(selectedServerIds.map(async (sid) => {
+                    let streamForTarget = parsedStreamSettings;
+                    if (isStreamProtocol) {
+                        streamForTarget = await ensureRealityStreamForServer(parsedStreamSettings, sid);
+                    }
+                    const streamPayload = normalizeStreamForSubmission(streamForTarget, normalizedProtocol);
+                    if (isStreamProtocol) {
+                        const validation = validateInboundPayload(protocol, port, streamPayload || {}, currentProtocolSchema, t);
+                        if (!validation.ok) {
+                            throw new Error(`[${sid}] ${validation.msg}`);
+                        }
+                    }
+                    const payload = {
+                        remark,
+                        protocol,
+                        port: Number(port),
+                        listen,
+                        total: Number(totalGB) * 1024 * 1024 * 1024,
+                        expiryTime: Math.max(0, Number(resolvedExpiryTime || 0)),
+                        trafficReset,
+                        settings: parsedSettings,
+                        sniffing: parsedSniffing,
+                        enable: inboundEnabled,
+                    };
+                    if (streamPayload !== null && streamPayload !== undefined) {
+                        payload.streamSettings = streamPayload;
+                    }
+                    return { serverId: sid, payload };
+                }));
+
+                const batchPayload = await attachBatchRiskToken({
+                    action: 'add',
+                    targets,
+                    syncExistingSubscriptions,
+                }, {
+                    type: 'inbounds',
+                    action: 'add',
+                    targetCount: targets.length,
+                });
+                const res = await api.post('/batch/inbounds', batchPayload);
+                const output = res.data?.obj;
+                const summary = output?.summary || {
+                    success: 0,
+                    total: targets.length,
+                    failed: targets.length,
+                };
+                const syncSummary = output?.subscriptionSync || null;
+                onBatchResult?.(t('comp.inbounds.batchAddResult'), output || null);
+                if (summary.failed === 0) {
+                    if (syncSummary && syncExistingSubscriptions) {
+                        toast.success(t('comp.inbounds.deploySuccessWithSync', {
+                            success: summary.success,
+                            synced: syncSummary.syncedUsers || 0,
+                        }));
+                    } else {
+                        toast.success(t('comp.inbounds.deploySuccess', { success: summary.success }));
+                    }
+                } else if (syncSummary && syncExistingSubscriptions) {
+                    toast.error(t('comp.inbounds.deployPartialWithSync', {
+                        success: summary.success,
+                        failed: summary.failed,
+                        synced: syncSummary.syncedUsers || 0,
+                    }));
+                } else {
+                    toast.error(t('comp.inbounds.deployPartial', {
+                        success: summary.success,
+                        failed: summary.failed,
+                    }));
+                }
+            }
+            onSuccess();
+            onClose();
+        } catch (err) {
+            console.error(err);
+            const msg = getErrorMessage(err, t('comp.common.unknownError'), locale);
+            toast.error(editingInbound
+                ? t('comp.inbounds.updateFailedWithMsg', { msg })
+                : t('comp.inbounds.addFailedWithMsg', { msg }));
+        }
+        setLoading(false);
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <ModalShell isOpen={isOpen} onClose={onClose}>
+            <div className="modal modal-lg inbound-modal" onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h3 className="modal-title">{editingInbound ? t('comp.inbounds.modalEditTitle') : t('comp.inbounds.modalBatchAddTitle')}</h3>
+                    <div className="flex items-center gap-4">
+                        <label className="flex items-center gap-2 cursor-pointer text-sm text-secondary">
+                            <input
+                                type="checkbox"
+                                checked={isAdvanced}
+                                onChange={e => setIsAdvanced(e.target.checked)}
+                            />
+                            {t('comp.inbounds.expertMode')}
+                        </label>
+                        <button type="button" className="modal-close" onClick={onClose} aria-label={t('comp.common.close')} title={t('comp.common.close')}>
+                            <HiOutlineXMark />
+                        </button>
+                    </div>
+                </div>
+
+                <form onSubmit={handleSubmit}>
+                    <div className="modal-body">
+                        {/* Target Servers */}
+                        {!editingInbound && servers.length > 0 && (
+                            <div className="form-group mb-6 p-4 rounded-lg bg-surface-soft border border-stroke-soft">
+                                <label className="form-label mb-2 block">{t('comp.inbounds.deployTargets', { selected: selectedServerIds.length, total: servers.length })}</label>
+                                <div className="flex flex-wrap gap-4">
+                                    <label className="flex items-center gap-2 cursor-pointer badge badge-neutral">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedServerIds.length === servers.length}
+                                            onChange={(e) => {
+                                                if (e.target.checked) setSelectedServerIds(servers.map(s => s.id));
+                                                else setSelectedServerIds([]);
+                                            }}
+                                        />
+                                        <span>{t('comp.inbounds.selectAll')}</span>
+                                    </label>
+                                    {servers.map(s => (
+                                        <label key={s.id} className="flex items-center gap-2 cursor-pointer badge badge-neutral">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedServerIds.includes(s.id)}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) setSelectedServerIds(prev => Array.from(new Set([...prev, s.id])));
+                                                    else setSelectedServerIds(prev => prev.filter(id => id !== s.id));
+                                                }}
+                                            />
+                                            <span>{s.name}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                                <label className="mt-3 flex items-start gap-2 cursor-pointer text-sm text-secondary">
+                                    <input
+                                        type="checkbox"
+                                        checked={syncExistingSubscriptions}
+                                        onChange={(e) => setSyncExistingSubscriptions(e.target.checked)}
+                                    />
+                                    <span>{t('comp.inbounds.syncExistingHint')}</span>
+                                </label>
+                            </div>
+                        )}
+
+                        {/* Basic Info */}
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                            <div className="form-group">
+                                <label className="form-label">{t('comp.inbounds.labelRemark')}</label>
+                                <input className="form-input" value={remark} onChange={e => setRemark(e.target.value)} placeholder="Name" />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">{t('comp.inbounds.labelProtocol')}</label>
+                                <select className="form-select" value={protocol} onChange={e => setProtocol(e.target.value)} disabled={!!editingInbound}>
+                                    {protocolOptions.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">{t('comp.inbounds.labelPort')}</label>
+                                <input className="form-input" type="number" value={port} onChange={e => setPort(e.target.value)} required />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">{t('comp.inbounds.labelListen')}</label>
+                                <input
+                                    className="form-input"
+                                    value={listen}
+                                    onChange={e => setListen(e.target.value)}
+                                    placeholder={t('comp.inbounds.listenPlaceholder')}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">{t('comp.inbounds.labelTrafficGb')}</label>
+                                <input className="form-input" type="number" value={totalGB} onChange={e => setTotalGB(e.target.value)} placeholder={t('comp.inbounds.unlimitedPlaceholder')} />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">{t('comp.inbounds.labelTrafficReset')}</label>
+                                <select className="form-select" value={trafficReset} onChange={(e) => setTrafficReset(e.target.value)}>
+                                    {TRAFFIC_RESET_OPTIONS.map((item) => (
+                                        <option key={item} value={item}>{item}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">{t('comp.inbounds.labelExpiryMode')}</label>
+                                <select className="form-select" value={expiryMode} onChange={(e) => setExpiryMode(e.target.value)}>
+                                    <option value="never">{t('comp.inbounds.expiryNever')}</option>
+                                    <option value="datetime">{t('comp.inbounds.expiryDatetime')}</option>
+                                    <option value="days">{t('comp.inbounds.expiryDays')}</option>
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">{t('comp.inbounds.labelExpiryParam')}</label>
+                                {expiryMode === 'datetime' && (
+                                    <input
+                                        className="form-input"
+                                        type="datetime-local"
+                                        value={expiryDateTime}
+                                        onChange={(e) => setExpiryDateTime(e.target.value)}
+                                    />
+                                )}
+                                {expiryMode === 'days' && (
+                                    <input
+                                        className="form-input"
+                                        type="number"
+                                        min={1}
+                                        value={expiryAfterDays}
+                                        onChange={(e) => setExpiryAfterDays(e.target.value)}
+                                        placeholder={t('comp.inbounds.daysPlaceholder')}
+                                    />
+                                )}
+                                {expiryMode === 'never' && (
+                                    <input className="form-input" value={t('comp.inbounds.expiryNever')} readOnly />
+                                )}
+                            </div>
+                            <div className="form-group inbound-inline-checkbox-group">
+                                <label className="inbound-inline-checkbox-label">
+                                    <input type="checkbox" checked={inboundEnabled} onChange={(e) => setInboundEnabled(e.target.checked)} />
+                                    {t('comp.inbounds.enableInbound')}
+                                </label>
+                            </div>
+                        </div>
+
+                        {/* Simple vs Advanced Toggle */}
+                        {isAdvanced ? (
+                            <>
+                                <div className="form-group">
+                                    <label className="form-label">{t('comp.inbounds.labelSettings')}</label>
+                                    <textarea className="form-textarea font-mono text-sm" rows={6} value={settings} onChange={e => setSettings(e.target.value)} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">{t('comp.inbounds.labelStream')}</label>
+                                    <textarea className="form-textarea font-mono text-sm" rows={8} value={streamSettings} onChange={e => setStreamSettings(e.target.value)} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Sniffing</label>
+                                    <textarea className="form-textarea font-mono text-sm" rows={4} value={sniffing} onChange={e => setSniffing(e.target.value)} />
+                                </div>
+                            </>
+                        ) : (
+                            <div className="bg-surface-soft p-4 rounded-lg border border-stroke-soft">
+                                {normalizedProtocol === 'vless' && (
+                                    <div className="border border-stroke-soft rounded-lg p-4 mb-4">
+                                        <h4 className="text-secondary text-sm font-bold mb-3 uppercase tracking-wider">{deepCopy.vlessParams}</h4>
+                                        <div className="grid grid-cols-2 gap-4 mb-3">
+                                            <div className="form-group">
+                                                <label className="form-label">Authentication</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={String(settingsObj?.selectedAuth || '')}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        draft.selectedAuth = e.target.value || undefined;
+                                                    })}
+                                                >
+                                                    <option value="">{deepCopy.defaultX25519}</option>
+                                                    <option value="X25519, not Post-Quantum">X25519, not Post-Quantum</option>
+                                                    <option value="ML-KEM-768, Post-Quantum">ML-KEM-768, Post-Quantum</option>
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Flow</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={String(primaryClient?.flow || '')}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        const client = ensurePrimaryClient(draft);
+                                                        client.flow = e.target.value || '';
+                                                    })}
+                                                >
+                                                    {VLESS_FLOW_OPTIONS.map((item) => (
+                                                        <option key={item || '__empty'} value={item}>
+                                                            {item || t('comp.inbounds.notSet')}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4 mb-3">
+                                            <div className="form-group">
+                                                <label className="form-label">UUID</label>
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        className="form-input font-mono"
+                                                        value={String(primaryClient?.id || '')}
+                                                        onChange={(e) => updateSettingsJson((draft) => {
+                                                            const client = ensurePrimaryClient(draft);
+                                                            client.id = e.target.value;
+                                                        })}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-secondary btn-sm"
+                                                        onClick={() => updateSettingsJson((draft) => {
+                                                            const client = ensurePrimaryClient(draft);
+                                                            client.id = randomUuid();
+                                                        })}
+                                                    >
+                                                        生成
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Email</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={String(primaryClient?.email || '')}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        const client = ensurePrimaryClient(draft);
+                                                        client.email = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4 mb-3">
+                                            <div className="form-group">
+                                                <label className="form-label">Decryption</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={String(settingsObj?.decryption || '')}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        draft.decryption = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Encryption</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={String(settingsObj?.encryption || '')}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        draft.encryption = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="form-group mb-3">
+                                            <label className="form-label">{deepCopy.authKey}</label>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-secondary btn-sm"
+                                                    onClick={generateVlessEncKeys}
+                                                >
+                                                    生成
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-secondary btn-sm"
+                                                    onClick={clearVlessEncKeys}
+                                                >
+                                                    清空
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {simpleStream.network === 'tcp' && !String(settingsObj?.selectedAuth || '').trim() && (
+                                            <div className="mb-3">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <label className="form-label">Fallbacks</label>
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-secondary btn-sm"
+                                                        onClick={() => updateSettingsJson((draft) => {
+                                                            if (!Array.isArray(draft.fallbacks)) draft.fallbacks = [];
+                                                            draft.fallbacks.push({ name: '', alpn: '', path: '', dest: '', xver: 0 });
+                                                        })}
+                                                    >
+                                                        新增
+                                                    </button>
+                                                </div>
+                                                {vlessFallbacks.length === 0 && (
+                                                    <div className="text-xs text-muted">{deepCopy.noFallback}</div>
+                                                )}
+                                                {vlessFallbacks.map((fallback, index) => (
+                                                    <div key={`vless-fallback-${index}`} className="border border-stroke-soft rounded-lg p-3 mb-2">
+                                                        <div className="flex justify-between items-center mb-2">
+                                                            <span className="text-xs text-secondary">Fallback #{index + 1}</span>
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-secondary btn-xs"
+                                                                onClick={() => updateSettingsJson((draft) => {
+                                                                    if (!Array.isArray(draft.fallbacks)) draft.fallbacks = [];
+                                                                    draft.fallbacks.splice(index, 1);
+                                                                })}
+                                                            >
+                                                                删除
+                                                            </button>
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-3">
+                                                            <div className="form-group">
+                                                                <label className="form-label">SNI</label>
+                                                                <input
+                                                                    className="form-input"
+                                                                    value={String(fallback?.name || '')}
+                                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                                        if (!Array.isArray(draft.fallbacks)) draft.fallbacks = [];
+                                                                        draft.fallbacks[index] = draft.fallbacks[index] || {};
+                                                                        draft.fallbacks[index].name = e.target.value;
+                                                                    })}
+                                                                />
+                                                            </div>
+                                                            <div className="form-group">
+                                                                <label className="form-label">ALPN</label>
+                                                                <input
+                                                                    className="form-input"
+                                                                    value={String(fallback?.alpn || '')}
+                                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                                        if (!Array.isArray(draft.fallbacks)) draft.fallbacks = [];
+                                                                        draft.fallbacks[index] = draft.fallbacks[index] || {};
+                                                                        draft.fallbacks[index].alpn = e.target.value;
+                                                                    })}
+                                                                />
+                                                            </div>
+                                                            <div className="form-group">
+                                                                <label className="form-label">Path</label>
+                                                                <input
+                                                                    className="form-input"
+                                                                    value={String(fallback?.path || '')}
+                                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                                        if (!Array.isArray(draft.fallbacks)) draft.fallbacks = [];
+                                                                        draft.fallbacks[index] = draft.fallbacks[index] || {};
+                                                                        draft.fallbacks[index].path = e.target.value;
+                                                                    })}
+                                                                />
+                                                            </div>
+                                                            <div className="form-group">
+                                                                <label className="form-label">Dest</label>
+                                                                <input
+                                                                    className="form-input"
+                                                                    value={String(fallback?.dest || '')}
+                                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                                        if (!Array.isArray(draft.fallbacks)) draft.fallbacks = [];
+                                                                        draft.fallbacks[index] = draft.fallbacks[index] || {};
+                                                                        draft.fallbacks[index].dest = e.target.value;
+                                                                    })}
+                                                                />
+                                                            </div>
+                                                            <div className="form-group">
+                                                                <label className="form-label">xVer</label>
+                                                                <input
+                                                                    className="form-input"
+                                                                    type="number"
+                                                                    min={0}
+                                                                    max={2}
+                                                                    value={Number(fallback?.xver || 0)}
+                                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                                        if (!Array.isArray(draft.fallbacks)) draft.fallbacks = [];
+                                                                        draft.fallbacks[index] = draft.fallbacks[index] || {};
+                                                                        draft.fallbacks[index].xver = Number(e.target.value || 0);
+                                                                    })}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {(primaryClient?.flow === 'xtls-rprx-vision' || primaryClient?.flow === 'xtls-rprx-vision-udp443') && (
+                                            <div>
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <label className="form-label">Vision Seed</label>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-secondary btn-xs"
+                                                            onClick={() => updateSettingsJson((draft) => {
+                                                                draft.testseed = [
+                                                                    Math.floor(Math.random() * 1000),
+                                                                    Math.floor(Math.random() * 1000),
+                                                                    Math.floor(Math.random() * 1000),
+                                                                    Math.floor(Math.random() * 1000),
+                                                                ];
+                                                            })}
+                                                        >
+                                                            Rand
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-secondary btn-xs"
+                                                            onClick={() => updateSettingsJson((draft) => {
+                                                                draft.testseed = [900, 500, 900, 256];
+                                                            })}
+                                                        >
+                                                            Reset
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div className="grid grid-cols-4 gap-2">
+                                                    {vlessTestseed.map((seed, idx) => (
+                                                        <input
+                                                            key={`vless-seed-${idx}`}
+                                                            className="form-input"
+                                                            type="number"
+                                                            min={0}
+                                                            max={9999}
+                                                            value={seed}
+                                                            onChange={(e) => updateSettingsJson((draft) => {
+                                                                const current = Array.isArray(draft.testseed) ? draft.testseed.slice(0, 4) : [900, 500, 900, 256];
+                                                                while (current.length < 4) current.push(0);
+                                                                current[idx] = Number(e.target.value || 0);
+                                                                draft.testseed = current;
+                                                            })}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {(normalizedProtocol === 'hysteria2' || normalizedProtocol === 'hy2') && (
+                                    <div className="border border-stroke-soft rounded-lg p-4 mb-4">
+                                        <h4 className="text-secondary text-sm font-bold mb-3 uppercase tracking-wider">{deepCopy.hysteria2Params}</h4>
+                                        <div className="grid grid-cols-2 gap-4 mb-3">
+                                            <div className="form-group">
+                                                <label className="form-label">{deepCopy.uploadBandwidth}</label>
+                                                <input
+                                                    className="form-input"
+                                                    type="number"
+                                                    min={0}
+                                                    value={Number(settingsObj?.up_mbps || 0)}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        draft.up_mbps = Number(e.target.value || 0);
+                                                    })}
+                                                />
+                                                <div className="text-xs text-muted mt-1">{deepCopy.unlimitedRecommended}</div>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">{deepCopy.downloadBandwidth}</label>
+                                                <input
+                                                    className="form-input"
+                                                    type="number"
+                                                    min={0}
+                                                    value={Number(settingsObj?.down_mbps || 0)}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        draft.down_mbps = Number(e.target.value || 0);
+                                                    })}
+                                                />
+                                                <div className="text-xs text-muted mt-1">{deepCopy.unlimitedRecommended}</div>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4 mb-3">
+                                            <div className="form-group">
+                                                <label className="form-label">{deepCopy.obfsType}</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={String(settingsObj?.obfs?.type || '')}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        if (!draft.obfs || typeof draft.obfs !== 'object') draft.obfs = { type: '', password: '' };
+                                                        draft.obfs.type = e.target.value;
+                                                    })}
+                                                >
+                                                    <option value="">{deepCopy.disabled}</option>
+                                                    <option value="salamander">salamander</option>
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">{deepCopy.obfsPassword}</label>
+                                                <input
+                                                    className="form-input font-mono"
+                                                    value={String(settingsObj?.obfs?.password || '')}
+                                                    placeholder={deepCopy.optionalClientMatch}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        if (!draft.obfs || typeof draft.obfs !== 'object') draft.obfs = { type: '', password: '' };
+                                                        draft.obfs.password = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="form-group mb-3">
+                                            <label className="flex items-center gap-2 cursor-pointer text-sm">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={Boolean(settingsObj?.ignore_client_bandwidth)}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        draft.ignore_client_bandwidth = e.target.checked;
+                                                    })}
+                                                />
+                                                忽略客户端带宽 (ignore_client_bandwidth)
+                                            </label>
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">{deepCopy.clientPassword}</label>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    className="form-input font-mono"
+                                                    value={String(primaryClient?.password || '')}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        const client = ensurePrimaryClient(draft);
+                                                        client.password = e.target.value;
+                                                    })}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-secondary btn-icon"
+                                                    title={deepCopy.randomPassword}
+                                                    onClick={() => updateSettingsJson((draft) => {
+                                                        const client = ensurePrimaryClient(draft);
+                                                        client.password = Array.from({ length: 16 }, () =>
+                                                            'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[
+                                                                Math.floor(Math.random() * 62)
+                                                            ]
+                                                        ).join('');
+                                                    })}
+                                                >
+                                                    随机
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {normalizedProtocol === 'wireguard' && (
+                                    <div className="border border-stroke-soft rounded-lg p-4 mb-4">
+                                        <h4 className="text-secondary text-sm font-bold mb-3 uppercase tracking-wider">{deepCopy.wireguardParams}</h4>
+                                        <div className="grid grid-cols-2 gap-4 mb-3">
+                                            <div className="form-group">
+                                                <label className="form-label">MTU</label>
+                                                <input
+                                                    className="form-input"
+                                                    type="number"
+                                                    min={576}
+                                                    max={9000}
+                                                    value={Number(settingsObj?.mtu || 1420)}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        draft.mtu = Number(e.target.value || 1420);
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="flex items-center gap-2 cursor-pointer pt-6 text-sm">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={Boolean(settingsObj?.noKernelTun)}
+                                                        onChange={(e) => updateSettingsJson((draft) => {
+                                                            draft.noKernelTun = e.target.checked;
+                                                        })}
+                                                    />
+                                                    不使用内核 TUN (noKernelTun)
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div className="form-group mb-3">
+                                            <label className="form-label">{deepCopy.serverKey}</label>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    className="form-input font-mono"
+                                                    value={String(settingsObj?.secretKey || '')}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        draft.secretKey = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="text-xs text-muted mt-1">{deepCopy.x25519PrivateKey}</div>
+                                        </div>
+                                        <div className="form-group">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <label className="form-label">{deepCopy.peers}</label>
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-secondary btn-xs"
+                                                    onClick={() => updateSettingsJson((draft) => {
+                                                        if (!Array.isArray(draft.peers)) draft.peers = [];
+                                                        draft.peers.push({
+                                                            publicKey: '',
+                                                            allowedIPs: ['0.0.0.0/0'],
+                                                            keepAlive: 0,
+                                                        });
+                                                    })}
+                                                >
+                                                    + 添加对端
+                                                </button>
+                                            </div>
+                                            {(Array.isArray(settingsObj?.peers) ? settingsObj.peers : []).map((peer, peerIdx) => (
+                                                <div key={`wg-peer-${peerIdx}`} className="border border-stroke-soft rounded-lg p-3 mb-2">
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <span className="text-secondary text-xs font-bold">Peer #{peerIdx + 1}</span>
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-danger btn-xs"
+                                                            onClick={() => updateSettingsJson((draft) => {
+                                                                if (Array.isArray(draft.peers)) {
+                                                                    draft.peers.splice(peerIdx, 1);
+                                                                }
+                                                            })}
+                                                        >
+                                                            删除
+                                                        </button>
+                                                    </div>
+                                                    <div className="grid grid-cols-1 gap-2">
+                                                        <div className="form-group">
+                                                            <label className="form-label text-xs">PublicKey</label>
+                                                            <input
+                                                                className="form-input font-mono"
+                                                                value={String(peer?.publicKey || '')}
+                                                                onChange={(e) => updateSettingsJson((draft) => {
+                                                                    draft.peers[peerIdx].publicKey = e.target.value;
+                                                                })}
+                                                            />
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-2">
+                                                            <div className="form-group">
+                                                                <label className="form-label text-xs">{deepCopy.allowedIps}</label>
+                                                                <input
+                                                                    className="form-input font-mono"
+                                                                    value={(Array.isArray(peer?.allowedIPs) ? peer.allowedIPs : ['0.0.0.0/0']).join(', ')}
+                                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                                        draft.peers[peerIdx].allowedIPs = e.target.value
+                                                                            .split(',')
+                                                                            .map((s) => s.trim())
+                                                                            .filter(Boolean);
+                                                                    })}
+                                                                />
+                                                            </div>
+                                                            <div className="form-group">
+                                                                <label className="form-label text-xs">{deepCopy.keepAlive}</label>
+                                                                <input
+                                                                    className="form-input"
+                                                                    type="number"
+                                                                    min={0}
+                                                                    value={Number(peer?.keepAlive || 0)}
+                                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                                        draft.peers[peerIdx].keepAlive = Number(e.target.value || 0);
+                                                                    })}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <div className="form-group">
+                                                            <label className="form-label text-xs">{deepCopy.preSharedKey}</label>
+                                                            <input
+                                                                className="form-input font-mono"
+                                                                value={String(peer?.preSharedKey || '')}
+                                                                onChange={(e) => updateSettingsJson((draft) => {
+                                                                    draft.peers[peerIdx].preSharedKey = e.target.value;
+                                                                })}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {(!Array.isArray(settingsObj?.peers) || settingsObj.peers.length === 0) && (
+                                                <div className="text-xs text-muted">{deepCopy.noPeers}</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {(normalizedProtocol === 'tunnel' || normalizedProtocol === 'dokodemo-door') && (
+                                    <div className="border border-stroke-soft rounded-lg p-4 mb-4">
+                                        <h4 className="text-secondary text-sm font-bold mb-3 uppercase tracking-wider">{deepCopy.tunnelParams}</h4>
+                                        <div className="grid grid-cols-2 gap-4 mb-3">
+                                            <div className="form-group">
+                                                <label className="form-label">{deepCopy.targetAddress}</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={String(settingsObj?.address || '')}
+                                                    placeholder={deepCopy.targetAddressPlaceholder}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        draft.address = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">{deepCopy.targetPort}</label>
+                                                <input
+                                                    className="form-input"
+                                                    type="number"
+                                                    min={1}
+                                                    max={65535}
+                                                    value={Number(settingsObj?.port || 0)}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        draft.port = Number(e.target.value || 0);
+                                                    })}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4 mb-3">
+                                            <div className="form-group">
+                                                <label className="form-label">{deepCopy.network}</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={String(settingsObj?.network || 'tcp,udp')}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        draft.network = e.target.value;
+                                                    })}
+                                                >
+                                                    <option value="tcp">tcp</option>
+                                                    <option value="udp">udp</option>
+                                                    <option value="tcp,udp">tcp + udp</option>
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">{deepCopy.timeout}</label>
+                                                <input
+                                                    className="form-input"
+                                                    type="number"
+                                                    min={0}
+                                                    value={Number(settingsObj?.timeout || 0)}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        draft.timeout = Number(e.target.value || 0);
+                                                    })}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="form-group">
+                                                <label className="flex items-center gap-2 cursor-pointer text-sm">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={Boolean(settingsObj?.followRedirect)}
+                                                        onChange={(e) => updateSettingsJson((draft) => {
+                                                            draft.followRedirect = e.target.checked;
+                                                        })}
+                                                    />
+                                                    透明代理跟随重定向 (followRedirect)
+                                                </label>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">{deepCopy.userLevel}</label>
+                                                <input
+                                                    className="form-input"
+                                                    type="number"
+                                                    min={0}
+                                                    value={Number(settingsObj?.userLevel || 0)}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        draft.userLevel = Number(e.target.value || 0);
+                                                    })}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <h4 className="text-secondary text-sm font-bold mb-4 uppercase tracking-wider">{deepCopy.transport}</h4>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="form-group">
+                                        <label className="form-label">{t('comp.inbounds.labelNetwork')}</label>
+                                        <select className="form-select" value={simpleStream.network} onChange={e => setSimpleStream({ ...simpleStream, network: e.target.value })}>
+                                            {networkOptions.map((item) => (
+                                                <option key={item} value={item}>
+                                                    {NETWORK_LABELS[item] || item.toUpperCase()}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">{t('comp.inbounds.labelSecurity')}</label>
+                                        <select className="form-select" value={simpleStream.security} onChange={e => setSimpleStream({ ...simpleStream, security: e.target.value })}>
+                                            {securityOptions.map((item) => (
+                                                <option key={item} value={item}>
+                                                    {SECURITY_LABELS[item] || item.toUpperCase()}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className="border-t border-stroke-soft pt-4 mt-4">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h4 className="text-secondary text-sm font-bold uppercase tracking-wider">{deepCopy.sniffing}</h4>
+                                        <label className="flex items-center gap-2 cursor-pointer text-sm">
+                                            <input
+                                                type="checkbox"
+                                                checked={(() => { try { return JSON.parse(sniffing).enabled; } catch { return true; } })()}
+                                                onChange={(e) => {
+                                                    try {
+                                                        const s = JSON.parse(sniffing);
+                                                        s.enabled = e.target.checked;
+                                                        setSniffing(JSON.stringify(s, null, 2));
+                                                    } catch { }
+                                                }}
+                                            />
+                                            启用
+                                        </label>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="form-group">
+                                            <label className="form-label">{t('comp.inbounds.labelDestOverride')}</label>
+                                            <div className="flex flex-wrap gap-2">
+                                                {['http', 'tls', 'quic', 'fakedns'].map(p => (
+                                                    <label key={p} className="badge badge-neutral flex items-center gap-1 cursor-pointer">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={(() => {
+                                                                try {
+                                                                    const s = JSON.parse(sniffing);
+                                                                    return Array.isArray(s.destOverride) && s.destOverride.includes(p);
+                                                                } catch { return false; }
+                                                            })()}
+                                                            onChange={(e) => {
+                                                                try {
+                                                                    const s = JSON.parse(sniffing);
+                                                                    const current = Array.isArray(s.destOverride) ? s.destOverride : [];
+                                                                    if (e.target.checked) {
+                                                                        s.destOverride = [...new Set([...current, p])];
+                                                                    } else {
+                                                                        s.destOverride = current.filter(x => x !== p);
+                                                                    }
+                                                                    setSniffing(JSON.stringify(s, null, 2));
+                                                                } catch { }
+                                                            }}
+                                                        />
+                                                        {p}
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col gap-2">
+                                            <label className="flex items-center gap-2 cursor-pointer text-sm mt-6">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={(() => { try { return !!JSON.parse(sniffing).routeOnly; } catch { return false; } })()}
+                                                    onChange={(e) => {
+                                                        try {
+                                                            const s = JSON.parse(sniffing);
+                                                            s.routeOnly = e.target.checked;
+                                                            setSniffing(JSON.stringify(s, null, 2));
+                                                        } catch { }
+                                                    }}
+                                                />
+                                                仅路由 (Route Only)
+                                            </label>
+                                            <label className="flex items-center gap-2 cursor-pointer text-sm">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={(() => { try { return !!JSON.parse(sniffing).metadataOnly; } catch { return false; } })()}
+                                                    onChange={(e) => {
+                                                        try {
+                                                            const s = JSON.parse(sniffing);
+                                                            s.metadataOnly = e.target.checked;
+                                                            setSniffing(JSON.stringify(s, null, 2));
+                                                        } catch { }
+                                                    }}
+                                                />
+                                                仅元数据 (Metadata Only)
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Dynamic Fields based on selection */}
+                                {simpleStream.network === 'tcp' && (
+                                    <div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="form-group">
+                                                <label className="form-label">TCP Header Type</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={simpleStream.tcpHeaderType}
+                                                    onChange={e => setSimpleStream({ ...simpleStream, tcpHeaderType: e.target.value })}
+                                                >
+                                                    {['none', 'http', 'srtp', 'utp', 'wechat-video', 'dtls', 'wireguard'].map((item) => (
+                                                        <option key={item} value={item}>{item}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">{deepCopy.tcpAdvanced}</label>
+                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={!!simpleStream.tcpAcceptProxyProtocol}
+                                                        onChange={e => setSimpleStream({ ...simpleStream, tcpAcceptProxyProtocol: e.target.checked })}
+                                                    />
+                                                    Accept Proxy Protocol
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        {simpleStream.tcpHeaderType === 'http' && (
+                                            <div className="mt-3 border border-stroke-soft rounded-lg p-3">
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div className="form-group">
+                                                        <label className="form-label">Request Version</label>
+                                                        <input
+                                                            className="form-input"
+                                                            value={String(streamObj?.tcpSettings?.header?.request?.version || '1.1')}
+                                                            onChange={(e) => updateStreamJson((draft) => {
+                                                                draft.tcpSettings = draft.tcpSettings || {};
+                                                                draft.tcpSettings.header = draft.tcpSettings.header || { type: 'http' };
+                                                                draft.tcpSettings.header.request = draft.tcpSettings.header.request || {};
+                                                                draft.tcpSettings.header.request.version = e.target.value;
+                                                            })}
+                                                        />
+                                                    </div>
+                                                    <div className="form-group">
+                                                        <label className="form-label">Request Method</label>
+                                                        <input
+                                                            className="form-input"
+                                                            value={String(streamObj?.tcpSettings?.header?.request?.method || 'GET')}
+                                                            onChange={(e) => updateStreamJson((draft) => {
+                                                                draft.tcpSettings = draft.tcpSettings || {};
+                                                                draft.tcpSettings.header = draft.tcpSettings.header || { type: 'http' };
+                                                                draft.tcpSettings.header.request = draft.tcpSettings.header.request || {};
+                                                                draft.tcpSettings.header.request.method = e.target.value;
+                                                            })}
+                                                        />
+                                                    </div>
+                                                    <div className="form-group">
+                                                        <label className="form-label">{deepCopy.requestPath}</label>
+                                                        <input
+                                                            className="form-input"
+                                                            value={Array.isArray(streamObj?.tcpSettings?.header?.request?.path)
+                                                                ? streamObj.tcpSettings.header.request.path.join(',')
+                                                                : '/'}
+                                                            onChange={(e) => updateStreamJson((draft) => {
+                                                                draft.tcpSettings = draft.tcpSettings || {};
+                                                                draft.tcpSettings.header = draft.tcpSettings.header || { type: 'http' };
+                                                                draft.tcpSettings.header.request = draft.tcpSettings.header.request || {};
+                                                                draft.tcpSettings.header.request.path = String(e.target.value || '/')
+                                                                    .split(',')
+                                                                    .map((item) => item.trim())
+                                                                    .filter(Boolean);
+                                                                if (draft.tcpSettings.header.request.path.length === 0) {
+                                                                    draft.tcpSettings.header.request.path = ['/'];
+                                                                }
+                                                            })}
+                                                        />
+                                                    </div>
+                                                    <div className="form-group">
+                                                        <label className="form-label">Request Host</label>
+                                                        <input
+                                                            className="form-input"
+                                                            value={String(streamObj?.tcpSettings?.header?.request?.headers?.Host?.[0] || '')}
+                                                            onChange={(e) => updateStreamJson((draft) => {
+                                                                draft.tcpSettings = draft.tcpSettings || {};
+                                                                draft.tcpSettings.header = draft.tcpSettings.header || { type: 'http' };
+                                                                draft.tcpSettings.header.request = draft.tcpSettings.header.request || {};
+                                                                draft.tcpSettings.header.request.headers = normalizeHeadersObject(draft.tcpSettings.header.request.headers);
+                                                                draft.tcpSettings.header.request.headers.Host = [e.target.value];
+                                                            })}
+                                                        />
+                                                    </div>
+                                                    <div className="form-group">
+                                                        <label className="form-label">Response Version</label>
+                                                        <input
+                                                            className="form-input"
+                                                            value={String(streamObj?.tcpSettings?.header?.response?.version || '1.1')}
+                                                            onChange={(e) => updateStreamJson((draft) => {
+                                                                draft.tcpSettings = draft.tcpSettings || {};
+                                                                draft.tcpSettings.header = draft.tcpSettings.header || { type: 'http' };
+                                                                draft.tcpSettings.header.response = draft.tcpSettings.header.response || {};
+                                                                draft.tcpSettings.header.response.version = e.target.value;
+                                                            })}
+                                                        />
+                                                    </div>
+                                                    <div className="form-group">
+                                                        <label className="form-label">Response Status</label>
+                                                        <input
+                                                            className="form-input"
+                                                            value={String(streamObj?.tcpSettings?.header?.response?.status || '200')}
+                                                            onChange={(e) => updateStreamJson((draft) => {
+                                                                draft.tcpSettings = draft.tcpSettings || {};
+                                                                draft.tcpSettings.header = draft.tcpSettings.header || { type: 'http' };
+                                                                draft.tcpSettings.header.response = draft.tcpSettings.header.response || {};
+                                                                draft.tcpSettings.header.response.status = e.target.value;
+                                                            })}
+                                                        />
+                                                    </div>
+                                                    <div className="form-group">
+                                                        <label className="form-label">Response Reason</label>
+                                                        <input
+                                                            className="form-input"
+                                                            value={String(streamObj?.tcpSettings?.header?.response?.reason || 'OK')}
+                                                            onChange={(e) => updateStreamJson((draft) => {
+                                                                draft.tcpSettings = draft.tcpSettings || {};
+                                                                draft.tcpSettings.header = draft.tcpSettings.header || { type: 'http' };
+                                                                draft.tcpSettings.header.response = draft.tcpSettings.header.response || {};
+                                                                draft.tcpSettings.header.response.reason = e.target.value;
+                                                            })}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {simpleStream.network === 'kcp' && (
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div className="form-group">
+                                            <label className="form-label">MTU</label>
+                                            <input
+                                                className="form-input"
+                                                type="number"
+                                                min={576}
+                                                max={1460}
+                                                value={simpleStream.kcpMtu}
+                                                onChange={e => setSimpleStream({ ...simpleStream, kcpMtu: Number(e.target.value || 1350) })}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">TTI (ms)</label>
+                                            <input
+                                                className="form-input"
+                                                type="number"
+                                                min={10}
+                                                max={100}
+                                                value={simpleStream.kcpTti}
+                                                onChange={e => setSimpleStream({ ...simpleStream, kcpTti: Number(e.target.value || 20) })}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Uplink (MB/s)</label>
+                                            <input
+                                                className="form-input"
+                                                type="number"
+                                                min={0}
+                                                value={simpleStream.kcpUplinkCapacity}
+                                                onChange={e => setSimpleStream({ ...simpleStream, kcpUplinkCapacity: Number(e.target.value || 0) })}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Downlink (MB/s)</label>
+                                            <input
+                                                className="form-input"
+                                                type="number"
+                                                min={0}
+                                                value={simpleStream.kcpDownlinkCapacity}
+                                                onChange={e => setSimpleStream({ ...simpleStream, kcpDownlinkCapacity: Number(e.target.value || 0) })}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Read Buffer (MB)</label>
+                                            <input
+                                                className="form-input"
+                                                type="number"
+                                                min={0}
+                                                value={simpleStream.kcpReadBufferSize}
+                                                onChange={e => setSimpleStream({ ...simpleStream, kcpReadBufferSize: Number(e.target.value || 0) })}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Write Buffer (MB)</label>
+                                            <input
+                                                className="form-input"
+                                                type="number"
+                                                min={0}
+                                                value={simpleStream.kcpWriteBufferSize}
+                                                onChange={e => setSimpleStream({ ...simpleStream, kcpWriteBufferSize: Number(e.target.value || 0) })}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Congestion</label>
+                                            <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={!!simpleStream.kcpCongestion}
+                                                    onChange={e => setSimpleStream({ ...simpleStream, kcpCongestion: e.target.checked })}
+                                                />
+                                                开启
+                                            </label>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {simpleStream.network === 'ws' && (
+                                    <div>
+                                        <div className="grid grid-cols-3 gap-4">
+                                            <div className="form-group">
+                                                <label className="form-label">WS Path</label>
+                                                <input className="form-input" value={simpleStream.wsPath} onChange={e => setSimpleStream({ ...simpleStream, wsPath: e.target.value })} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">WS Host</label>
+                                                <input className="form-input" value={simpleStream.wsHost} onChange={e => setSimpleStream({ ...simpleStream, wsHost: e.target.value })} placeholder="Optional" />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">{deepCopy.wsAdvanced}</label>
+                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={!!simpleStream.wsAcceptProxyProtocol}
+                                                        onChange={e => setSimpleStream({ ...simpleStream, wsAcceptProxyProtocol: e.target.checked })}
+                                                    />
+                                                    Accept Proxy Protocol
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4 mt-2">
+                                            <div className="form-group">
+                                                <label className="form-label">Heartbeat Period</label>
+                                                <input
+                                                    className="form-input"
+                                                    type="number"
+                                                    min={0}
+                                                    value={Number(streamObj?.wsSettings?.heartbeatPeriod || 0)}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.wsSettings = draft.wsSettings || {};
+                                                        draft.wsSettings.heartbeatPeriod = Number(e.target.value || 0);
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">WS Headers (JSON)</label>
+                                                <input
+                                                    className="form-input font-mono text-xs"
+                                                    value={JSON.stringify(streamObj?.wsSettings?.headers || {})}
+                                                    onChange={(e) => {
+                                                        try {
+                                                            const parsed = parseJsonObject(e.target.value, {});
+                                                            updateStreamJson((draft) => {
+                                                                draft.wsSettings = draft.wsSettings || {};
+                                                                draft.wsSettings.headers = parsed;
+                                                            });
+                                                        } catch { }
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {simpleStream.network === 'grpc' && (
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div className="form-group">
+                                            <label className="form-label">gRPC Service Name</label>
+                                            <input
+                                                className="form-input"
+                                                value={simpleStream.grpcServiceName}
+                                                onChange={e => setSimpleStream({ ...simpleStream, grpcServiceName: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">gRPC Authority</label>
+                                            <input
+                                                className="form-input"
+                                                value={simpleStream.grpcAuthority}
+                                                onChange={e => setSimpleStream({ ...simpleStream, grpcAuthority: e.target.value })}
+                                                placeholder="Optional"
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Multi Mode</label>
+                                            <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={!!streamObj?.grpcSettings?.multiMode}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.grpcSettings = draft.grpcSettings || {};
+                                                        draft.grpcSettings.multiMode = e.target.checked;
+                                                    })}
+                                                />
+                                                开启
+                                            </label>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {simpleStream.network === 'httpupgrade' && (
+                                    <div>
+                                        <div className="grid grid-cols-3 gap-4">
+                                            <div className="form-group">
+                                                <label className="form-label">HTTPUpgrade Path</label>
+                                                <input className="form-input" value={simpleStream.httpupgradePath} onChange={e => setSimpleStream({ ...simpleStream, httpupgradePath: e.target.value })} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">HTTPUpgrade Host</label>
+                                                <input className="form-input" value={simpleStream.httpupgradeHost} onChange={e => setSimpleStream({ ...simpleStream, httpupgradeHost: e.target.value })} placeholder="Optional" />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">{deepCopy.httpUpgradeAdvanced}</label>
+                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={!!simpleStream.httpupgradeAcceptProxyProtocol}
+                                                        onChange={e => setSimpleStream({ ...simpleStream, httpupgradeAcceptProxyProtocol: e.target.checked })}
+                                                    />
+                                                    Accept Proxy Protocol
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div className="form-group mt-2">
+                                            <label className="form-label">HTTPUpgrade Headers (JSON)</label>
+                                            <input
+                                                className="form-input font-mono text-xs"
+                                                value={JSON.stringify(streamObj?.httpupgradeSettings?.headers || {})}
+                                                onChange={(e) => {
+                                                    const parsed = parseJsonObject(e.target.value, {});
+                                                    updateStreamJson((draft) => {
+                                                        draft.httpupgradeSettings = draft.httpupgradeSettings || {};
+                                                        draft.httpupgradeSettings.headers = parsed;
+                                                    });
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {simpleStream.network === 'xhttp' && (
+                                    <div>
+                                        <div className="grid grid-cols-3 gap-4">
+                                            <div className="form-group">
+                                                <label className="form-label">XHTTP Path</label>
+                                                <input className="form-input" value={simpleStream.xhttpPath} onChange={e => setSimpleStream({ ...simpleStream, xhttpPath: e.target.value })} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">XHTTP Host</label>
+                                                <input className="form-input" value={simpleStream.xhttpHost} onChange={e => setSimpleStream({ ...simpleStream, xhttpHost: e.target.value })} placeholder="Optional" />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">XHTTP Mode</label>
+                                                <select className="form-select" value={simpleStream.xhttpMode} onChange={e => setSimpleStream({ ...simpleStream, xhttpMode: e.target.value })}>
+                                                    <option value="auto">auto</option>
+                                                    <option value="packet-up">packet-up</option>
+                                                    <option value="stream-up">stream-up</option>
+                                                    <option value="stream-one">stream-one</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-4 mt-2">
+                                            <div className="form-group">
+                                                <label className="form-label">Max Buffered Upload</label>
+                                                <input
+                                                    className="form-input"
+                                                    type="number"
+                                                    min={0}
+                                                    value={Number(streamObj?.xhttpSettings?.scMaxBufferedPosts || 30)}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.scMaxBufferedPosts = Number(e.target.value || 0);
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Max Upload Size(Byte)</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={String(streamObj?.xhttpSettings?.scMaxEachPostBytes || '1000000')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.scMaxEachPostBytes = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Stream-Up Server</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={String(streamObj?.xhttpSettings?.scStreamUpServerSecs || '20-80')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.scStreamUpServerSecs = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Padding Bytes</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={String(streamObj?.xhttpSettings?.xPaddingBytes || '100-1000')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.xPaddingBytes = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">No SSE Header</label>
+                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={!!streamObj?.xhttpSettings?.noSSEHeader}
+                                                        onChange={(e) => updateStreamJson((draft) => {
+                                                            draft.xhttpSettings = draft.xhttpSettings || {};
+                                                            draft.xhttpSettings.noSSEHeader = e.target.checked;
+                                                        })}
+                                                    />
+                                                    开启
+                                                </label>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Padding Obfs Mode</label>
+                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={!!streamObj?.xhttpSettings?.xPaddingObfsMode}
+                                                        onChange={(e) => updateStreamJson((draft) => {
+                                                            draft.xhttpSettings = draft.xhttpSettings || {};
+                                                            draft.xhttpSettings.xPaddingObfsMode = e.target.checked;
+                                                        })}
+                                                    />
+                                                    开启
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-4 mt-2">
+                                            <div className="form-group">
+                                                <label className="form-label">Padding Key</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={String(streamObj?.xhttpSettings?.xPaddingKey || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.xPaddingKey = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Padding Header</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={String(streamObj?.xhttpSettings?.xPaddingHeader || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.xPaddingHeader = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Padding Placement</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={String(streamObj?.xhttpSettings?.xPaddingPlacement || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.xPaddingPlacement = e.target.value;
+                                                    })}
+                                                >
+                                                    {XHTTP_PADDING_PLACEMENT_OPTIONS.map((item) => (
+                                                        <option key={item || '__default'} value={item}>
+                                                            {item || 'Default (queryInHeader)'}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Padding Method</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={String(streamObj?.xhttpSettings?.xPaddingMethod || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.xPaddingMethod = e.target.value;
+                                                    })}
+                                                >
+                                                    {XHTTP_PADDING_METHOD_OPTIONS.map((item) => (
+                                                        <option key={item || '__default'} value={item}>
+                                                            {item || 'Default (repeat-x)'}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Uplink HTTP Method</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={String(streamObj?.xhttpSettings?.uplinkHTTPMethod || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.uplinkHTTPMethod = e.target.value;
+                                                    })}
+                                                >
+                                                    {XHTTP_HTTP_METHOD_OPTIONS.map((item) => (
+                                                        <option key={item || '__default'} value={item}>
+                                                            {item || 'Default (POST)'}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Session Placement</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={String(streamObj?.xhttpSettings?.sessionPlacement || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.sessionPlacement = e.target.value;
+                                                    })}
+                                                >
+                                                    {XHTTP_SESSION_SEQ_PLACEMENT_OPTIONS.map((item) => (
+                                                        <option key={item || '__default'} value={item}>
+                                                            {item || 'Default (path)'}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Session Key</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={String(streamObj?.xhttpSettings?.sessionKey || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.sessionKey = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Sequence Placement</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={String(streamObj?.xhttpSettings?.seqPlacement || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.seqPlacement = e.target.value;
+                                                    })}
+                                                >
+                                                    {XHTTP_SESSION_SEQ_PLACEMENT_OPTIONS.map((item) => (
+                                                        <option key={item || '__default'} value={item}>
+                                                            {item || 'Default (path)'}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Sequence Key</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={String(streamObj?.xhttpSettings?.seqKey || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.seqKey = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Uplink Data Placement</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={String(streamObj?.xhttpSettings?.uplinkDataPlacement || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.uplinkDataPlacement = e.target.value;
+                                                    })}
+                                                >
+                                                    {XHTTP_UPLINK_DATA_PLACEMENT_OPTIONS.map((item) => (
+                                                        <option key={item || '__default'} value={item}>
+                                                            {item || 'Default (body)'}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Uplink Data Key</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={String(streamObj?.xhttpSettings?.uplinkDataKey || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.uplinkDataKey = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Uplink Chunk Size</label>
+                                                <input
+                                                    className="form-input"
+                                                    type="number"
+                                                    min={0}
+                                                    value={Number(streamObj?.xhttpSettings?.uplinkChunkSize || 0)}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.uplinkChunkSize = Number(e.target.value || 0);
+                                                    })}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="form-group mt-2">
+                                            <label className="form-label">XHTTP Headers (JSON)</label>
+                                            <input
+                                                className="form-input font-mono text-xs"
+                                                value={JSON.stringify(streamObj?.xhttpSettings?.headers || {})}
+                                                onChange={(e) => {
+                                                    const parsed = parseJsonObject(e.target.value, {});
+                                                    updateStreamJson((draft) => {
+                                                        draft.xhttpSettings = draft.xhttpSettings || {};
+                                                        draft.xhttpSettings.headers = parsed;
+                                                    });
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {simpleStream.security === 'tls' && (
+                                    <div>
+                                        <div className="grid grid-cols-3 gap-4">
+                                            <div className="form-group">
+                                                <label className="form-label">TLS SNI (serverName)</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={simpleStream.tlsSni}
+                                                    onChange={e => setSimpleStream({ ...simpleStream, tlsSni: e.target.value })}
+                                                    placeholder={deepCopy.serverNamePlaceholder}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Fingerprint</label>
+                                                <select className="form-select" value={simpleStream.tlsFingerprint} onChange={e => setSimpleStream({ ...simpleStream, tlsFingerprint: e.target.value })}>
+                                                    {!FINGERPRINT_OPTIONS.includes(simpleStream.tlsFingerprint) && simpleStream.tlsFingerprint && (
+                                                        <option value={simpleStream.tlsFingerprint}>{simpleStream.tlsFingerprint}</option>
+                                                    )}
+                                                    {FINGERPRINT_OPTIONS.map(fp => (
+                                                        <option key={fp} value={fp}>{fp}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">ALPN</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={simpleStream.tlsAlpn}
+                                                    onChange={e => setSimpleStream({ ...simpleStream, tlsAlpn: e.target.value })}
+                                                    placeholder="h2,http/1.1"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-4 mt-2">
+                                            <div className="form-group">
+                                                <label className="form-label">Min Version</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={String(streamObj?.tlsSettings?.minVersion || '1.2')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.tlsSettings = draft.tlsSettings || {};
+                                                        draft.tlsSettings.minVersion = e.target.value;
+                                                    })}
+                                                >
+                                                    {TLS_VERSION_OPTIONS.map((item) => (
+                                                        <option key={item} value={item}>{item}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Max Version</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={String(streamObj?.tlsSettings?.maxVersion || '1.3')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.tlsSettings = draft.tlsSettings || {};
+                                                        draft.tlsSettings.maxVersion = e.target.value;
+                                                    })}
+                                                >
+                                                    {TLS_VERSION_OPTIONS.map((item) => (
+                                                        <option key={item} value={item}>{item}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Cipher Suites</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={String(streamObj?.tlsSettings?.cipherSuites || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.tlsSettings = draft.tlsSettings || {};
+                                                        draft.tlsSettings.cipherSuites = e.target.value;
+                                                    })}
+                                                >
+                                                    {TLS_CIPHER_OPTIONS.map((item) => (
+                                                        <option key={item || '__auto'} value={item}>
+                                                            {item || 'Auto'}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-4 mt-2">
+                                            <div className="form-group">
+                                                <label className="form-label">Reject Unknown SNI</label>
+                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={!!streamObj?.tlsSettings?.rejectUnknownSni}
+                                                        onChange={(e) => updateStreamJson((draft) => {
+                                                            draft.tlsSettings = draft.tlsSettings || {};
+                                                            draft.tlsSettings.rejectUnknownSni = e.target.checked;
+                                                        })}
+                                                    />
+                                                    开启
+                                                </label>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Disable System Root</label>
+                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={!!streamObj?.tlsSettings?.disableSystemRoot}
+                                                        onChange={(e) => updateStreamJson((draft) => {
+                                                            draft.tlsSettings = draft.tlsSettings || {};
+                                                            draft.tlsSettings.disableSystemRoot = e.target.checked;
+                                                        })}
+                                                    />
+                                                    开启
+                                                </label>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Session Resumption</label>
+                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={!!streamObj?.tlsSettings?.enableSessionResumption}
+                                                        onChange={(e) => updateStreamJson((draft) => {
+                                                            draft.tlsSettings = draft.tlsSettings || {};
+                                                            draft.tlsSettings.enableSessionResumption = e.target.checked;
+                                                        })}
+                                                    />
+                                                    开启
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4 mt-2">
+                                            <div className="form-group">
+                                                <label className="form-label">ECH Server Keys</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={String(streamObj?.tlsSettings?.echServerKeys || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.tlsSettings = draft.tlsSettings || {};
+                                                        draft.tlsSettings.echServerKeys = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">ECH Config List</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={String(streamObj?.tlsSettings?.settings?.echConfigList || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.tlsSettings = draft.tlsSettings || {};
+                                                        draft.tlsSettings.settings = draft.tlsSettings.settings || {};
+                                                        draft.tlsSettings.settings.echConfigList = e.target.value;
+                                                    })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">ECH Force Query</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={String(streamObj?.tlsSettings?.echForceQuery || 'none')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.tlsSettings = draft.tlsSettings || {};
+                                                        draft.tlsSettings.echForceQuery = e.target.value;
+                                                    })}
+                                                >
+                                                    <option value="none">none</option>
+                                                    <option value="half">half</option>
+                                                    <option value="full">full</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div className="form-group mt-2">
+                                            <label className="form-label">{deepCopy.echActions}</label>
+                                            <div className="flex gap-2">
+                                                <button type="button" className="btn btn-secondary btn-sm" onClick={generateEchCert}>{deepCopy.generate}</button>
+                                                <button type="button" className="btn btn-secondary btn-sm" onClick={clearEchCert}>{deepCopy.clear}</button>
+                                            </div>
+                                        </div>
+                                        <div className="border border-stroke-soft rounded-lg p-3 mt-2">
+                                            <label className="form-label mb-2 block">{deepCopy.certificateFirst}</label>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="form-group">
+                                                    <label className="form-label">{deepCopy.certificatePath}</label>
+                                                    <input
+                                                        className="form-input"
+                                                        value={String(streamObj?.tlsSettings?.certificates?.[0]?.certificateFile || '')}
+                                                        onChange={(e) => updateStreamJson((draft) => {
+                                                            draft.tlsSettings = draft.tlsSettings || {};
+                                                            if (!Array.isArray(draft.tlsSettings.certificates) || draft.tlsSettings.certificates.length === 0) {
+                                                                draft.tlsSettings.certificates = [{ certificateFile: '', keyFile: '', oneTimeLoading: false, usage: 'encipherment', buildChain: false }];
+                                                            }
+                                                            draft.tlsSettings.certificates[0].certificateFile = e.target.value;
+                                                        })}
+                                                    />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label">{deepCopy.privateKeyPath}</label>
+                                                    <input
+                                                        className="form-input"
+                                                        value={String(streamObj?.tlsSettings?.certificates?.[0]?.keyFile || '')}
+                                                        onChange={(e) => updateStreamJson((draft) => {
+                                                            draft.tlsSettings = draft.tlsSettings || {};
+                                                            if (!Array.isArray(draft.tlsSettings.certificates) || draft.tlsSettings.certificates.length === 0) {
+                                                                draft.tlsSettings.certificates = [{ certificateFile: '', keyFile: '', oneTimeLoading: false, usage: 'encipherment', buildChain: false }];
+                                                            }
+                                                            draft.tlsSettings.certificates[0].keyFile = e.target.value;
+                                                        })}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-4 mt-2">
+                                                <div className="form-group flex-1">
+                                                    <label className="form-label">{deepCopy.certificateUsage}</label>
+                                                    <select className="form-select"
+                                                        value={String(streamObj?.tlsSettings?.certificates?.[0]?.usage || 'encipherment')}
+                                                        onChange={(e) => updateStreamJson((draft) => {
+                                                            draft.tlsSettings = draft.tlsSettings || {};
+                                                            if (!Array.isArray(draft.tlsSettings.certificates) || draft.tlsSettings.certificates.length === 0) {
+                                                                draft.tlsSettings.certificates = [{ certificateFile: '', keyFile: '', oneTimeLoading: false, usage: 'encipherment', buildChain: false }];
+                                                            }
+                                                            draft.tlsSettings.certificates[0].usage = e.target.value;
+                                                        })}
+                                                    >
+                                                        <option value="encipherment">{deepCopy.encipherment}</option>
+                                                        <option value="verify">{deepCopy.verify}</option>
+                                                        <option value="issue">{deepCopy.issue}</option>
+                                                    </select>
+                                                </div>
+                                                <div className="flex items-center gap-4">
+                                                    <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={!!streamObj?.tlsSettings?.certificates?.[0]?.oneTimeLoading}
+                                                            onChange={(e) => updateStreamJson((draft) => {
+                                                                draft.tlsSettings = draft.tlsSettings || {};
+                                                                if (!Array.isArray(draft.tlsSettings.certificates) || draft.tlsSettings.certificates.length === 0) {
+                                                                    draft.tlsSettings.certificates = [{ certificateFile: '', keyFile: '', oneTimeLoading: false, usage: 'encipherment', buildChain: false }];
+                                                                }
+                                                                draft.tlsSettings.certificates[0].oneTimeLoading = e.target.checked;
+                                                            })}
+                                                        />
+                                                        一次性加载
+                                                    </label>
+                                                    {String(streamObj?.tlsSettings?.certificates?.[0]?.usage || 'encipherment') === 'issue' && (
+                                                        <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={!!streamObj?.tlsSettings?.certificates?.[0]?.buildChain}
+                                                                onChange={(e) => updateStreamJson((draft) => {
+                                                                    draft.tlsSettings = draft.tlsSettings || {};
+                                                                    if (!Array.isArray(draft.tlsSettings.certificates) || draft.tlsSettings.certificates.length === 0) {
+                                                                        draft.tlsSettings.certificates = [{ certificateFile: '', keyFile: '', oneTimeLoading: false, usage: 'encipherment', buildChain: false }];
+                                                                    }
+                                                                    draft.tlsSettings.certificates[0].buildChain = e.target.checked;
+                                                                })}
+                                                            />
+                                                            构建证书链
+                                                        </label>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {simpleStream.security === 'reality' && (
+                                    <div className="border-t border-stroke-soft pt-4 mt-2">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <label className="form-label">Reality Settings</label>
+                                            <button type="button" className="btn btn-primary btn-sm" onClick={generateRealityKeys}>{deepCopy.generateKeys}</button>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="form-group">
+                                                <label className="form-label">Show</label>
+                                                <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={!!simpleStream.realityShow}
+                                                        onChange={e => setSimpleStream({ ...simpleStream, realityShow: e.target.checked })}
+                                                    />
+                                                    启用
+                                                </label>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Xver</label>
+                                                <input
+                                                    className="form-input"
+                                                    type="number"
+                                                    min={0}
+                                                    max={2}
+                                                    value={simpleStream.realityXver}
+                                                    onChange={e => setSimpleStream({ ...simpleStream, realityXver: Number(e.target.value || 0) })}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="form-group">
+                                            <label className="form-label">{deepCopy.targetWebsite}</label>
+                                            <input className="form-input" value={simpleStream.realityDest} onChange={e => setSimpleStream({ ...simpleStream, realityDest: e.target.value })} />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">SNI (ServerName)</label>
+                                            <input className="form-input" value={simpleStream.realitySNI} onChange={e => setSimpleStream({ ...simpleStream, realitySNI: e.target.value })} />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Reality Settings ServerName</label>
+                                            <input
+                                                className="form-input"
+                                                value={String(streamObj?.realitySettings?.settings?.serverName || '')}
+                                                onChange={(e) => updateStreamJson((draft) => {
+                                                    draft.realitySettings = draft.realitySettings || {};
+                                                    draft.realitySettings.settings = draft.realitySettings.settings || {};
+                                                    draft.realitySettings.settings.serverName = e.target.value;
+                                                })}
+                                                placeholder={deepCopy.optionalBlank}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">ShortId</label>
+                                            <div className="flex gap-2">
+                                                <input className="form-input" value={simpleStream.realityShortId} onChange={e => setSimpleStream({ ...simpleStream, realityShortId: e.target.value })} />
+                                                <button type="button" className="btn btn-secondary btn-sm" onClick={generateShortId}>{deepCopy.generate}</button>
+                                            </div>
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">PrivateKey</label>
+                                            <input className="form-input font-mono text-xs" value={simpleStream.realityPrivateKey} onChange={e => setSimpleStream({ ...simpleStream, realityPrivateKey: e.target.value })} />
+                                            <div className="text-xs text-muted mt-1">
+                                                REALITY 服务端私钥；留空时保存会自动为每个目标节点生成密钥对
+                                            </div>
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">PublicKey</label>
+                                            <input className="form-input font-mono text-xs" value={simpleStream.realityPublicKey} onChange={e => setSimpleStream({ ...simpleStream, realityPublicKey: e.target.value })} />
+                                            <div className="text-xs text-muted mt-1">
+                                                订阅链接所需 pbk 参数（可手动填入，或点击“生成密钥”自动填充）
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-4">
+                                            <div className="form-group">
+                                                <label className="form-label">Min Client Ver</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={simpleStream.realityMinClientVer}
+                                                    onChange={e => setSimpleStream({ ...simpleStream, realityMinClientVer: e.target.value })}
+                                                    placeholder="Optional"
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Max Client Ver</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={simpleStream.realityMaxClientVer}
+                                                    onChange={e => setSimpleStream({ ...simpleStream, realityMaxClientVer: e.target.value })}
+                                                    placeholder="Optional"
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Max TimeDiff</label>
+                                                <input
+                                                    className="form-input"
+                                                    type="number"
+                                                    min={0}
+                                                    value={simpleStream.realityMaxTimediff}
+                                                    onChange={e => setSimpleStream({ ...simpleStream, realityMaxTimediff: Number(e.target.value || 0) })}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="form-group">
+                                                <label className="form-label">Fingerprint (fp)</label>
+                                                <select className="form-select" value={simpleStream.realityFingerprint} onChange={e => setSimpleStream({ ...simpleStream, realityFingerprint: e.target.value })}>
+                                                    {!FINGERPRINT_OPTIONS.includes(simpleStream.realityFingerprint) && simpleStream.realityFingerprint && (
+                                                        <option value={simpleStream.realityFingerprint}>{simpleStream.realityFingerprint}</option>
+                                                    )}
+                                                    {FINGERPRINT_OPTIONS.map(fp => (
+                                                        <option key={fp} value={fp}>{fp}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">SpiderX (spx)</label>
+                                                <input className="form-input" value={simpleStream.realitySpiderX} onChange={e => setSimpleStream({ ...simpleStream, realitySpiderX: e.target.value })} />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="form-group">
+                                                <label className="form-label">mldsa65 Seed</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={simpleStream.realityMldsa65Seed}
+                                                    onChange={e => setSimpleStream({ ...simpleStream, realityMldsa65Seed: e.target.value })}
+                                                    placeholder="Optional"
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">mldsa65 Verify</label>
+                                                <input
+                                                    className="form-input"
+                                                    value={simpleStream.realityMldsa65Verify}
+                                                    onChange={e => setSimpleStream({ ...simpleStream, realityMldsa65Verify: e.target.value })}
+                                                    placeholder="Optional"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="form-group mt-2">
+                                            <label className="form-label">{deepCopy.mldsaActions}</label>
+                                            <div className="flex gap-2">
+                                                <button type="button" className="btn btn-secondary btn-sm" onClick={generateMldsa65Seed}>{deepCopy.generate}</button>
+                                                <button type="button" className="btn btn-secondary btn-sm" onClick={clearMldsa65Seed}>{deepCopy.clear}</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {STREAM_PROTOCOLS.has(normalizedProtocol) && (
+                                    <div className="border-t border-stroke-soft pt-4 mt-4">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <h4 className="text-secondary text-sm font-bold uppercase tracking-wider">External Proxy</h4>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-secondary btn-xs"
+                                                    onClick={() => updateStreamJson((draft) => {
+                                                        draft.externalProxy = Array.isArray(draft.externalProxy) ? draft.externalProxy : [];
+                                                        draft.externalProxy.push({ forceTls: 'same', dest: '', port: 443, remark: '' });
+                                                    })}
+                                                >
+                                                    新增
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-secondary btn-xs"
+                                                    onClick={() => updateStreamJson((draft) => {
+                                                        draft.externalProxy = [];
+                                                    })}
+                                                >
+                                                    清空
+                                                </button>
+                                            </div>
+                                        </div>
+                                        {(Array.isArray(streamObj?.externalProxy) ? streamObj.externalProxy : []).length === 0 && (
+                                            <div className="text-xs text-muted mb-3">{deepCopy.noExternalProxy}</div>
+                                        )}
+                                        {(Array.isArray(streamObj?.externalProxy) ? streamObj.externalProxy : []).map((row, index) => (
+                                            <div key={`external-proxy-${index}`} className="grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-3 mb-2">
+                                                <select
+                                                    className="form-select"
+                                                    value={String(row?.forceTls || 'same')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.externalProxy = Array.isArray(draft.externalProxy) ? draft.externalProxy : [];
+                                                        draft.externalProxy[index] = draft.externalProxy[index] || {};
+                                                        draft.externalProxy[index].forceTls = e.target.value;
+                                                    })}
+                                                >
+                                                    <option value="same">same</option>
+                                                    <option value="none">none</option>
+                                                    <option value="tls">tls</option>
+                                                </select>
+                                                <input
+                                                    className="form-input"
+                                                    value={String(row?.dest || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.externalProxy = Array.isArray(draft.externalProxy) ? draft.externalProxy : [];
+                                                        draft.externalProxy[index] = draft.externalProxy[index] || {};
+                                                        draft.externalProxy[index].dest = e.target.value;
+                                                    })}
+                                                    placeholder="dest"
+                                                />
+                                                <input
+                                                    className="form-input"
+                                                    type="number"
+                                                    min={1}
+                                                    max={65535}
+                                                    value={Number(row?.port || 443)}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.externalProxy = Array.isArray(draft.externalProxy) ? draft.externalProxy : [];
+                                                        draft.externalProxy[index] = draft.externalProxy[index] || {};
+                                                        draft.externalProxy[index].port = Number(e.target.value || 443);
+                                                    })}
+                                                    placeholder="port"
+                                                />
+                                                <input
+                                                    className="form-input"
+                                                    value={String(row?.remark || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.externalProxy = Array.isArray(draft.externalProxy) ? draft.externalProxy : [];
+                                                        draft.externalProxy[index] = draft.externalProxy[index] || {};
+                                                        draft.externalProxy[index].remark = e.target.value;
+                                                    })}
+                                                    placeholder="remark"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-secondary btn-xs"
+                                                    onClick={() => updateStreamJson((draft) => {
+                                                        draft.externalProxy = Array.isArray(draft.externalProxy) ? draft.externalProxy : [];
+                                                        draft.externalProxy.splice(index, 1);
+                                                    })}
+                                                >
+                                                    删除
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {STREAM_PROTOCOLS.has(normalizedProtocol) && (
+                                    <div className="border-t border-stroke-soft pt-4 mt-4">
+                                        <h4 className="text-secondary text-sm font-bold uppercase tracking-wider mb-2">Sockopt</h4>
+                                        <label className="badge badge-neutral flex items-center gap-2 cursor-pointer mb-3 w-fit">
+                                            <input
+                                                type="checkbox"
+                                                checked={!!streamObj?.sockopt}
+                                                onChange={(e) => updateStreamJson((draft) => {
+                                                    if (e.target.checked) {
+                                                        draft.sockopt = draft.sockopt || {
+                                                            acceptProxyProtocol: false,
+                                                            tcpFastOpen: false,
+                                                            mark: 0,
+                                                            tproxy: 'off',
+                                                            tcpMptcp: false,
+                                                            penetrate: false,
+                                                            domainStrategy: 'UseIP',
+                                                            tcpMaxSeg: 1440,
+                                                            dialerProxy: '',
+                                                            tcpKeepAliveInterval: 0,
+                                                            tcpKeepAliveIdle: 300,
+                                                            tcpUserTimeout: 10000,
+                                                            tcpcongestion: 'bbr',
+                                                            V6Only: false,
+                                                            tcpWindowClamp: 600,
+                                                            interface: '',
+                                                            trustedXForwardedFor: [],
+                                                        };
+                                                    } else {
+                                                        delete draft.sockopt;
+                                                    }
+                                                })}
+                                            />
+                                            启用 Sockopt
+                                        </label>
+                                        {!!streamObj?.sockopt && (
+                                            <div className="grid grid-cols-3 gap-4">
+                                                <div className="form-group">
+                                                    <label className="form-label">Route Mark</label>
+                                                    <input className="form-input" type="number" min={0} value={Number(streamObj?.sockopt?.mark || 0)} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.mark = Number(e.target.value || 0); })} />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label">TCP KeepAlive Interval</label>
+                                                    <input className="form-input" type="number" min={0} value={Number(streamObj?.sockopt?.tcpKeepAliveInterval || 0)} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpKeepAliveInterval = Number(e.target.value || 0); })} />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label">TCP KeepAlive Idle</label>
+                                                    <input className="form-input" type="number" min={0} value={Number(streamObj?.sockopt?.tcpKeepAliveIdle || 0)} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpKeepAliveIdle = Number(e.target.value || 0); })} />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label">TCP Max Seg</label>
+                                                    <input className="form-input" type="number" min={0} value={Number(streamObj?.sockopt?.tcpMaxSeg || 0)} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpMaxSeg = Number(e.target.value || 0); })} />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label">TCP User Timeout</label>
+                                                    <input className="form-input" type="number" min={0} value={Number(streamObj?.sockopt?.tcpUserTimeout || 0)} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpUserTimeout = Number(e.target.value || 0); })} />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label">TCP Window Clamp</label>
+                                                    <input className="form-input" type="number" min={0} value={Number(streamObj?.sockopt?.tcpWindowClamp || 0)} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpWindowClamp = Number(e.target.value || 0); })} />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label">Domain Strategy</label>
+                                                    <select className="form-select" value={String(streamObj?.sockopt?.domainStrategy || 'UseIP')} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.domainStrategy = e.target.value; })}>
+                                                        {SOCKOPT_DOMAIN_STRATEGY_OPTIONS.map((item) => (
+                                                            <option key={item} value={item}>{item}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label">TCP Congestion</label>
+                                                    <select className="form-select" value={String(streamObj?.sockopt?.tcpcongestion || 'bbr')} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpcongestion = e.target.value; })}>
+                                                        {SOCKOPT_TCP_CONGESTION_OPTIONS.map((item) => (
+                                                            <option key={item} value={item}>{item}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label">TProxy</label>
+                                                    <select className="form-select" value={String(streamObj?.sockopt?.tproxy || 'off')} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tproxy = e.target.value; })}>
+                                                        {SOCKOPT_TPROXY_OPTIONS.map((item) => (
+                                                            <option key={item} value={item}>{item}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label">Dialer Proxy</label>
+                                                    <input className="form-input" value={String(streamObj?.sockopt?.dialerProxy || '')} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.dialerProxy = e.target.value; })} />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label">Interface Name</label>
+                                                    <input className="form-input" value={String(streamObj?.sockopt?.interface || '')} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.interface = e.target.value; })} />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label">{deepCopy.trustedXff}</label>
+                                                    <input
+                                                        className="form-input"
+                                                        value={Array.isArray(streamObj?.sockopt?.trustedXForwardedFor) ? streamObj.sockopt.trustedXForwardedFor.join(',') : ''}
+                                                        onChange={(e) => updateStreamJson((draft) => {
+                                                            draft.sockopt = draft.sockopt || {};
+                                                            draft.sockopt.trustedXForwardedFor = String(e.target.value || '')
+                                                                .split(',')
+                                                                .map((item) => item.trim())
+                                                                .filter(Boolean);
+                                                        })}
+                                                    />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label">Sockopt Flags</label>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {[
+                                                            ['acceptProxyProtocol', 'Accept Proxy'],
+                                                            ['tcpFastOpen', 'TFO'],
+                                                            ['tcpMptcp', 'MPTCP'],
+                                                            ['penetrate', 'Penetrate'],
+                                                            ['V6Only', 'V6Only'],
+                                                        ].map(([key, label]) => (
+                                                            <label key={key} className="badge badge-neutral flex items-center gap-1 cursor-pointer">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={!!streamObj?.sockopt?.[key]}
+                                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                                        draft.sockopt = draft.sockopt || {};
+                                                                        draft.sockopt[key] = e.target.checked;
+                                                                    })}
+                                                                />
+                                                                {label}
+                                                            </label>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {STREAM_PROTOCOLS.has(normalizedProtocol) && ['tcp', 'ws', 'httpupgrade', 'xhttp', 'kcp'].includes(simpleStream.network) && (
+                                    <div className="border-t border-stroke-soft pt-4 mt-4">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <h4 className="text-secondary text-sm font-bold uppercase tracking-wider">UDP Masks (FinalMask)</h4>
+                                            <button
+                                                type="button"
+                                                className="btn btn-secondary btn-xs"
+                                                onClick={() => updateStreamJson((draft) => {
+                                                    draft.finalmask = draft.finalmask || {};
+                                                    draft.finalmask.udp = Array.isArray(draft.finalmask.udp) ? draft.finalmask.udp : [];
+                                                    draft.finalmask.udp.push({
+                                                        type: simpleStream.network === 'kcp' ? 'mkcp-aes128gcm' : 'xdns',
+                                                        settings: {},
+                                                    });
+                                                })}
+                                            >
+                                                新增 Mask
+                                            </button>
+                                        </div>
+                                        {(Array.isArray(streamObj?.finalmask?.udp) ? streamObj.finalmask.udp : []).length === 0 && (
+                                            <div className="text-xs text-muted mb-2">{deepCopy.noUdpMask}</div>
+                                        )}
+                                        {(Array.isArray(streamObj?.finalmask?.udp) ? streamObj.finalmask.udp : []).map((mask, index) => (
+                                            <div key={`udp-mask-${index}`} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-3 mb-2">
+                                                <input
+                                                    className="form-input"
+                                                    value={String(mask?.type || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.finalmask = draft.finalmask || {};
+                                                        draft.finalmask.udp = Array.isArray(draft.finalmask.udp) ? draft.finalmask.udp : [];
+                                                        draft.finalmask.udp[index] = draft.finalmask.udp[index] || {};
+                                                        draft.finalmask.udp[index].type = e.target.value;
+                                                    })}
+                                                    placeholder="type"
+                                                />
+                                                <input
+                                                    className="form-input"
+                                                    value={String(mask?.settings?.password || mask?.settings?.domain || mask?.settings?.ip || '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.finalmask = draft.finalmask || {};
+                                                        draft.finalmask.udp = Array.isArray(draft.finalmask.udp) ? draft.finalmask.udp : [];
+                                                        const current = draft.finalmask.udp[index] || { type: 'xdns', settings: {} };
+                                                        current.settings = current.settings || {};
+                                                        if (current.type === 'mkcp-aes128gcm' || current.type === 'salamander') current.settings.password = e.target.value;
+                                                        else if (current.type === 'xicmp') current.settings.ip = e.target.value;
+                                                        else current.settings.domain = e.target.value;
+                                                        draft.finalmask.udp[index] = current;
+                                                    })}
+                                                    placeholder="settings"
+                                                />
+                                                <input
+                                                    className="form-input"
+                                                    value={String(mask?.settings?.id ?? '')}
+                                                    onChange={(e) => updateStreamJson((draft) => {
+                                                        draft.finalmask = draft.finalmask || {};
+                                                        draft.finalmask.udp = Array.isArray(draft.finalmask.udp) ? draft.finalmask.udp : [];
+                                                        const current = draft.finalmask.udp[index] || { type: 'xicmp', settings: {} };
+                                                        current.settings = current.settings || {};
+                                                        current.settings.id = Number(e.target.value || 0);
+                                                        draft.finalmask.udp[index] = current;
+                                                    })}
+                                                    placeholder="id (仅 xicmp)"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-secondary btn-xs"
+                                                    onClick={() => updateStreamJson((draft) => {
+                                                        draft.finalmask = draft.finalmask || {};
+                                                        draft.finalmask.udp = Array.isArray(draft.finalmask.udp) ? draft.finalmask.udp : [];
+                                                        draft.finalmask.udp.splice(index, 1);
+                                                    })}
+                                                >
+                                                    删除
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="modal-footer">
+                        <button type="button" className="btn btn-secondary" onClick={onClose}>{deepCopy.cancel}</button>
+                        <button type="submit" className="btn btn-primary" disabled={loading}>
+                            {loading ? <span className="spinner" /> : <><HiOutlineCheck /> {deepCopy.saveConfig}</>}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </ModalShell>
+    );
+}

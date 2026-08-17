@@ -54,7 +54,8 @@ before(async () => {
     nmsBaseUrl = `http://127.0.0.1:${backendPort}`;
 
     // 3. Spawn the mock panels in a child process
-    fakePanelProc = spawn('node', [
+    fakePanelProc = spawn(process.execPath, [
+        '--import', 'tsx',
         'scripts/review_fake_panel.js',
         `--healthy-port=${healthyPort}`,
         `--legacy-port=${legacyPort}`
@@ -130,7 +131,7 @@ before(async () => {
     healthyPanelToken = panelTokenJson.obj.token;
 
     // 6. Spawn the NMS backend server in another child process
-    nmsProc = spawn('node', ['index.js'], {
+    nmsProc = spawn(process.execPath, ['--import', 'tsx', 'index.ts'], {
         cwd: '/root/NMS/server',
         env: {
             ...process.env,

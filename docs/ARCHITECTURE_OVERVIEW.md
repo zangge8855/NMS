@@ -6,8 +6,8 @@
 
 NMS 由三层组成：
 
-- 前端：`client/` 下的 React + Vite 单页应用，负责 Dashboard、Servers、Inbounds、Users、Subscriptions、Audit、System Settings 等页面
-- 后端：`server/index.js` 启动的 Express 应用，提供 REST API、WebSocket ticket、静态资源托管与统一错误处理
+- 前端：`client/` 下的 React 18 + TypeScript + Vite 单页应用，所有组件使用 TSX，类型定义位于 `client/src/types/index.ts`
+- 后端：`server/index.ts`（支持 `server/index.js` 兼容引导）启动的 Express + TypeScript 应用，提供 REST API、WebSocket ticket、静态资源托管与统一错误处理，类型定义位于 `server/types/index.ts`
 - 数据层：默认使用 `data/` 下的文件存储，可按配置切换到 PostgreSQL 或文件 / 数据库双写模式
 
 ### 请求流
@@ -20,23 +20,24 @@ NMS 由三层组成：
 
 ### 后端分层
 
-- `routes/`: HTTP 接口入口，负责参数校验、权限边界与响应格式
-- `services/`: 业务编排，例如订阅同步、邮件验证码、用户管理、日志聚合
-- `repositories/` / `store/`: 数据访问层，适配文件模式与数据库模式
-- `lib/`: 通用能力，如健康检查、审计、告警、协议目录、邮件发送
-- `db/`: PostgreSQL 启动、schema 与运行模式管理
+- `routes/`: HTTP 接口入口，负责参数校验、权限边界与响应格式（`routes/*.ts`）
+- `services/`: 业务编排，例如订阅同步、邮件验证码、用户管理、日志聚合（`services/*.ts`）
+- `repositories/` / `store/`: 数据访问与持久化层，适配文件模式与数据库模式（`repositories/*.ts`, `store/*.ts`）
+- `lib/`: 通用能力，如健康检查、审计、告警、协议目录、邮件发送（`lib/*.ts`）
+- `db/`: PostgreSQL 启动、schema 与运行模式管理（`db/*.ts`）
+- `types/`: 核心领域实体与接口契约声明（`types/*.ts`）
 
 ### 关键模块
 
-- 认证与安全：`auth`, `middleware/auth.js`, `services/authSessionService.js`, `services/emailAuthService.js`
-- 节点与面板：`routes/servers.js`, `services/panelGateway.js`, `lib/panelClient.js`, `lib/serverHealthMonitor.js`, `lib/serverStatusService.js`
-- 用户与订阅管理：`routes/users.js`, `routes/clients.js`, `services/userAdminService.js`, `lib/clientEntitlements.js`
-- 订阅中心与访问审计：`routes/subscriptions.js`, `services/subscriptionSyncService.js`, `services/subscriptionAuditService.js`, `lib/subscriptionAlias.js`
-- 审计与流量：`routes/audit.js`, `routes/traffic.js`, `store/trafficStatsStore.js`, `lib/auditEventEnrichment.js`
-- 系统设置与邀请码：`routes/system.js`, `store/systemSettingsStore.js`, `store/inviteCodeStore.js`
-- Telegram 通知与汇总：`lib/telegramAlertService.js`, `lib/notifications.js`, `lib/subscriptionExpiryNotifier.js`, `lib/alertEngine.js`
-- 安全加固：`lib/securityAudit.js`（持久化写入流 + 内存环形缓冲）, `lib/batchRiskControl.js`, `lib/taskQueue.js`（队列容量上限）, `lib/requestIp.js`, `lib/ipGeoResolver.js`, `lib/ipIspResolver.js`
-- 站点伪装：`lib/siteCamouflage.js`, `middleware/siteCamouflage.js`, `middleware/searchBotProtection.js`
+- 认证与安全：`auth`, `middleware/auth.ts`, `services/authSessionService.ts`, `services/emailAuthService.ts`
+- 节点与面板：`routes/servers.ts`, `services/panelGateway.ts`, `lib/panelClient.ts`, `lib/serverHealthMonitor.ts`, `lib/serverStatusService.ts`
+- 用户与订阅管理：`routes/users.ts`, `routes/clients.ts`, `services/userAdminService.ts`, `lib/clientEntitlements.ts`
+- 订阅中心与访问审计：`routes/subscriptions.ts`, `services/subscriptionSyncService.ts`, `services/subscriptionAuditService.ts`, `lib/subscriptionAlias.ts`
+- 审计与流量：`routes/audit.ts`, `routes/traffic.ts`, `store/trafficStatsStore.ts`, `lib/auditEventEnrichment.ts`
+- 系统设置与邀请码：`routes/system.ts`, `store/systemSettingsStore.ts`, `store/inviteCodeStore.ts`
+- Telegram 通知与汇总：`lib/telegramAlertService.ts`, `lib/notifications.ts`, `lib/subscriptionExpiryNotifier.ts`, `lib/alertEngine.ts`
+- 安全加固：`lib/securityAudit.ts`（持久化写入流 + 内存环形缓冲）, `lib/batchRiskControl.ts`, `lib/taskQueue.ts`（队列容量上限）, `lib/requestIp.ts`, `lib/ipGeoResolver.ts`, `lib/ipIspResolver.ts`
+- 站点伪装：`lib/siteCamouflage.ts`, `middleware/siteCamouflage.ts`, `middleware/searchBotProtection.ts`
 
 ### 存储模式
 
@@ -115,8 +116,8 @@ NMS 由三层组成：
 
 NMS is built from three layers:
 
-- Frontend: a React + Vite SPA under `client/`, covering Dashboard, Servers, Inbounds, Users, Subscriptions, Audit, and System Settings
-- Backend: an Express app started by `server/index.js`, exposing REST APIs, WebSocket ticket endpoints, static asset hosting, and global error handling
+- Frontend: a React 18 + TypeScript + Vite SPA under `client/`, covering Dashboard, Servers, Inbounds, Users, Subscriptions, Audit, and System Settings with type models in `client/src/types/index.ts`
+- Backend: an Express app started by `server/index.ts` (with backward-compatible `server/index.js` loader), exposing REST APIs, WebSocket ticket endpoints, static asset hosting, and global error handling with domain types in `server/types/index.ts`
 - Data layer: file-backed stores under `data/` by default, with optional PostgreSQL or dual-write runtime modes
 
 ### Request flow
@@ -129,23 +130,24 @@ NMS is built from three layers:
 
 ### Backend layers
 
-- `routes/`: HTTP entry points, response shape, and permission boundaries
-- `services/`: business orchestration for subscriptions, email auth, user admin, and log aggregation
-- `repositories/` / `store/`: persistence adapters for file and database modes
-- `lib/`: shared utilities such as health monitoring, auditing, alerts, protocol catalog, and mail delivery
-- `db/`: PostgreSQL bootstrap, schema management, and runtime mode control
+- `routes/`: HTTP entry points, response shape, and permission boundaries (`routes/*.ts`)
+- `services/`: business orchestration for subscriptions, email auth, user admin, and log aggregation (`services/*.ts`)
+- `repositories/` / `store/`: persistence adapters for file and database modes (`repositories/*.ts`, `store/*.ts`)
+- `lib/`: shared utilities such as health monitoring, auditing, alerts, protocol catalog, and mail delivery (`lib/*.ts`)
+- `db/`: PostgreSQL bootstrap, schema management, and runtime mode control (`db/*.ts`)
+- `types/`: core domain interfaces and API payload types (`types/*.ts`)
 
 ### Key modules
 
-- Auth and security: `auth`, `middleware/auth.js`, `services/authSessionService.js`, `services/emailAuthService.js`
-- Servers and panel access: `routes/servers.js`, `services/panelGateway.js`, `lib/panelClient.js`, `lib/serverHealthMonitor.js`, `lib/serverStatusService.js`
-- Users and subscription administration: `routes/users.js`, `routes/clients.js`, `services/userAdminService.js`, `lib/clientEntitlements.js`
-- Subscription center and access audit: `routes/subscriptions.js`, `services/subscriptionSyncService.js`, `services/subscriptionAuditService.js`, `lib/subscriptionAlias.js`
-- Audit and traffic: `routes/audit.js`, `routes/traffic.js`, `store/trafficStatsStore.js`, `lib/auditEventEnrichment.js`
-- System settings and invite codes: `routes/system.js`, `store/systemSettingsStore.js`, `store/inviteCodeStore.js`
-- Telegram notifications and digests: `lib/telegramAlertService.js`, `lib/notifications.js`, `lib/subscriptionExpiryNotifier.js`, `lib/alertEngine.js`
-- Security hardening: `lib/securityAudit.js` (persistent write stream + in-memory ring buffer), `lib/batchRiskControl.js`, `lib/taskQueue.js` (queue capacity cap), `lib/requestIp.js`, `lib/ipGeoResolver.js`, `lib/ipIspResolver.js`
-- Site camouflage: `lib/siteCamouflage.js`, `middleware/siteCamouflage.js`, `middleware/searchBotProtection.js`
+- Auth and security: `auth`, `middleware/auth.ts`, `services/authSessionService.ts`, `services/emailAuthService.ts`
+- Servers and panel access: `routes/servers.ts`, `services/panelGateway.ts`, `lib/panelClient.ts`, `lib/serverHealthMonitor.ts`, `lib/serverStatusService.ts`
+- Users and subscription administration: `routes/users.ts`, `routes/clients.ts`, `services/userAdminService.ts`, `lib/clientEntitlements.ts`
+- Subscription center and access audit: `routes/subscriptions.ts`, `services/subscriptionSyncService.ts`, `services/subscriptionAuditService.ts`, `lib/subscriptionAlias.ts`
+- Audit and traffic: `routes/audit.ts`, `routes/traffic.ts`, `store/trafficStatsStore.ts`, `lib/auditEventEnrichment.ts`
+- System settings and invite codes: `routes/system.ts`, `store/systemSettingsStore.ts`, `store/inviteCodeStore.ts`
+- Telegram notifications and digests: `lib/telegramAlertService.ts`, `lib/notifications.ts`, `lib/subscriptionExpiryNotifier.ts`, `lib/alertEngine.ts`
+- Security hardening: `lib/securityAudit.ts` (persistent write stream + in-memory ring buffer), `lib/batchRiskControl.ts`, `lib/taskQueue.ts` (queue capacity cap), `lib/requestIp.ts`, `lib/ipGeoResolver.ts`, `lib/ipIspResolver.ts`
+- Site camouflage: `lib/siteCamouflage.ts`, `middleware/siteCamouflage.ts`, `middleware/searchBotProtection.ts`
 
 ### Storage modes
 
