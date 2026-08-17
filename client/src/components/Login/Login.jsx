@@ -401,9 +401,11 @@ export default function Login() {
                                 ) : null}
                             </div>
                         </div>
-                        <div className="login-form-heading">
-                            <h1>{modeTitle}</h1>
-                        </div>
+                        {(!registrationEnabled || (mode !== MODE_LOGIN && mode !== MODE_REGISTER)) && mode !== MODE_VERIFY && mode !== MODE_FORGOT && (
+                            <div className="login-form-heading">
+                                <h1>{modeTitle}</h1>
+                            </div>
+                        )}
 
                         {registrationEnabled && (mode === MODE_LOGIN || mode === MODE_REGISTER) && (
                             <div className="auth-tabs" role="tablist" aria-label={t('pages.login.title')}>
