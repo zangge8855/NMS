@@ -2032,3 +2032,76 @@ main .servers-mobile-tags .badge-info {
   opacity: 0.75;
 }
 
+/* --- Users Identity Alignment --- */
+.users-identity-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.users-identity-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* --- Settings Danger Zone Card --- */
+.settings-danger-card {
+  border: 1px solid rgba(239, 68, 68, 0.35) !important;
+  background: color-mix(in srgb, var(--accent-danger) 6%, var(--surface-panel)) !important;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4px 20px -4px rgba(239, 68, 68, 0.15);
+}
+
+.settings-danger-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #ef4444;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+/* --- Modal Entrance Spring Animation --- */
+.modal-shell {
+  animation: modalSpringIn 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+@keyframes modalSpringIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* --- Custom Sleek Scrollbar --- */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.35);
+}
+
+

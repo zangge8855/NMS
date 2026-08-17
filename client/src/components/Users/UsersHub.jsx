@@ -1971,11 +1971,16 @@ export default function UsersHub() {
                                                         className="table-cell-link table-cell-link-button users-identity-link"
                                                         title={displayEmail ? `${user.username}\n${displayEmail}` : user.username}
                                                     >
-                                                        <span className="users-identity-primary">{user.username}</span>
-                                                        <span className={`users-identity-secondary${displayEmail ? '' : ' is-empty'}`}>
-                                                            {displayEmail || t('comp.users.unsetEmail')}
+                                                        <span className="user-avatar-badge" aria-hidden="true">
+                                                            {String(user.username || user.email || 'U').slice(0, 1).toUpperCase()}
                                                         </span>
-                                                        {groupLabel ? <span className="badge badge-info text-xs mt-1">{groupLabel}</span> : null}
+                                                        <span className="users-identity-copy">
+                                                            <span className="users-identity-primary">{user.username}</span>
+                                                            <span className={`users-identity-secondary${displayEmail ? '' : ' is-empty'}`}>
+                                                                {displayEmail || t('comp.users.unsetEmail')}
+                                                            </span>
+                                                            {groupLabel ? <span className="badge badge-info text-xs mt-1">{groupLabel}</span> : null}
+                                                        </span>
                                                     </button>
                                                 </td>
                                                 <td data-label={t('pages.usersHub.cols.status')} className="table-cell-center users-status-cell">
