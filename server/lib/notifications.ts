@@ -15,6 +15,8 @@ import path from 'path';
 import config from '../config.js';
 import telegramAlertService from './telegramAlertService.js';
 import { saveObjectAtomic } from '../store/fileUtils.js';
+import systemSettingsStore from '../store/systemSettingsStore.js';
+import { sendWebhookAlert } from './alertWebhookService.js';
 
 export const SEVERITY = {
     INFO: 'info',
@@ -155,6 +157,33 @@ class NotificationService extends EventEmitter {
             suppressed: false,
         });
         void (telegramAlertService as any).notifyNotification?.(notification);
+
+        try {
+            const webhookConfig = (systemSettingsStore as any)?.getSnapshot?.()?.webhook || (systemSettingsStore as any)?.settings?.webhook;
+            if (webhookConfig && (webhookConfig.url || webhookConfig.barkKey)) {
+                const isOffline = notification.type.includes('offline') || notification.type.includes('node');
+                const isTraffic = notification.type.includes('traffic');
+                const isCert = notification.type.includes('cert');
+                const events = webhookConfig.events || {};
+                const allow = (isOffline && events.nodeOffline !== false)
+                    || (isTraffic && events.trafficAlert !== false)
+                    || (isCert && events.certExpiring !== false)
+                    || (!isOffline && !isTraffic && !isCert);
+
+                if (allow) {
+                    void sendWebhookAlert(webhookConfig, {
+                        title: notification.title,
+                        message: notification.body,
+                        level: notification.severity === 'critical' ? 'error' : (notification.severity === 'warning' ? 'warning' : 'info'),
+                        event: notification.type,
+                        timestamp: notification.createdAt,
+                        extra: notification.meta,
+                    }).catch(() => {});
+                }
+            }
+        } catch {
+            // Ignore webhook dispatch errors
+        }
 
         this._scheduleSave();
         return notification;

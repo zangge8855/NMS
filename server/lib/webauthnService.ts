@@ -35,8 +35,11 @@ function getChallenge(id: string) {
 
 function getRpDetails(req: Request) {
     const rpName = 'NMS';
-    const rpID = req.hostname || 'localhost';
-    const origin = `${req.protocol}://${req.get('host')}`;
+    const hostHeader = req.get('x-forwarded-host') || req.get('host') || 'localhost';
+    const hostname = hostHeader.split(':')[0];
+    const rpID = req.hostname || hostname || 'localhost';
+    const proto = req.get('x-forwarded-proto') || req.protocol || 'http';
+    const origin = `${proto}://${hostHeader}`;
     return { rpName, rpID, origin };
 }
 

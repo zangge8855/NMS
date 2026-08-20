@@ -1027,33 +1027,51 @@ router.patch('/batch', (req, res) => {
 
 function probeServer(urlStr: string): Promise<{ latencyMs: number, online: boolean, httpStatus?: number }> {
     try {
-        const url = new URL(urlStr);
+        if (!urlStr || typeof urlStr !== 'string') {
+            return Promise.resolve({ online: false, latencyMs: -1 });
+        }
+        const trimmed = urlStr.trim();
+        const urlStrWithProto = trimmed.includes('://') ? trimmed : `http://${trimmed}`;
+        const url = new URL(urlStrWithProto);
         const port = url.port ? parseInt(url.port, 10) : (url.protocol === 'https:' ? 443 : 80);
         const host = url.hostname;
 
+        if (!host) {
+            return Promise.resolve({ online: false, latencyMs: -1 });
+        }
+
         const start = Date.now();
         return new Promise((resolve) => {
+            let settled = false;
             const socket = new net.Socket();
-            socket.setTimeout(2000);
+            socket.setTimeout(2500);
+
+            const finish = (online: boolean, latencyMs: number) => {
+                if (settled) return;
+                settled = true;
+                try { socket.destroy(); } catch {}
+                resolve({ online, latencyMs });
+            };
             
             socket.on('connect', () => {
-                const latencyMs = Date.now() - start;
-                socket.destroy();
-                resolve({ online: true, latencyMs });
+                finish(true, Date.now() - start);
             });
 
             socket.on('timeout', () => {
-                socket.destroy();
-                resolve({ online: false, latencyMs: -1 });
+                finish(false, -1);
             });
 
             socket.on('error', () => {
-                resolve({ online: false, latencyMs: -1 });
+                finish(false, -1);
             });
 
-            socket.connect(port, host);
+            try {
+                socket.connect(port, host);
+            } catch {
+                finish(false, -1);
+            }
         });
-    } catch (err) {
+    } catch {
         return Promise.resolve({ online: false, latencyMs: -1 });
     }
 }

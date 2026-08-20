@@ -3362,7 +3362,6 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
     const routingPolicy = String(req.query.policy || "rules").toLowerCase();
     // `target` is the subconverter-style alias for `format` that most client apps send.
     const format = normalizeSubscriptionFormat(firstNonEmpty(req.query.format, req.query.target));
-    const routingPolicy = String(req.query.policy || "rules").toLowerCase();
 
     if (!tokenId || !tokenSecret) {
         appendSecurityAudit('subscription_public_denied', req, {
@@ -3414,8 +3413,16 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
     }
 
     const user = userStore.getBySubscriptionEmail(email) || userStore.getByEmail(email) || null;
-    if (user && user.enabled === false) {
-        return res.status(403).send('user is disabled');
+    if (user) {
+        if (user.enabled === false) {
+            return res.status(403).send('user is disabled');
+        }
+        if (user.isGuest === true && user.guestExpiresAt && new Date(user.guestExpiresAt).getTime() < Date.now()) {
+            return res.status(410).send('guest pass expired');
+        }
+        if (user.expiresAt && new Date(user.expiresAt).getTime() < Date.now()) {
+            return res.status(410).send('user subscription expired');
+        }
     }
 
     const {
@@ -3521,8 +3528,7 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         return res.send(profile);
     }
-    if (format === 'raw') return res.send(raw);
-    return res.send(encoded);
+    return res.send(format === 'raw' ? raw : encoded);
 }
 
 router.get('/public/t/:tokenId/:token', async (req, res) => {
@@ -3541,7 +3547,6 @@ router.get('/public/:email/:sig', async (req, res) => {
     const serverId = normalizeServerId(req.query.serverId);
     const routingPolicy = String(req.query.policy || "rules").toLowerCase();
     const format = normalizeSubscriptionFormat(firstNonEmpty(req.query.format, req.query.target));
-    const routingPolicy = String(req.query.policy || "rules").toLowerCase();
 
     if (!email || !verifyEmailSig(email, sig)) {
         appendSecurityAudit('subscription_public_denied_legacy', req, {
