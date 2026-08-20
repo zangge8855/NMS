@@ -241,6 +241,8 @@ router.post('/guest-pass', authMiddleware, adminOnly, (req: Request, res: Respon
             role: 'user',
             enabled: true,
             emailVerified: true,
+            isGuest: true,
+            guestExpiresAt: expiresAt,
         });
 
         // Set policy limits if needed
@@ -260,6 +262,14 @@ router.post('/guest-pass', authMiddleware, adminOnly, (req: Request, res: Respon
             expiresAt,
         });
 
+        const tokenInfo = subscriptionTokenStore.issue(email, {
+            createdBy: 'guest-pass',
+            ttlDays: Math.max(1, Math.ceil(hours / 24)),
+            name: `访客试用 (${hours}小时)`,
+        });
+
+        const subscriptionUrl = `${req.protocol}://${req.get('host')}/api/subscriptions/public/t/${tokenInfo.publicTokenId}/${tokenInfo.tokenSecret}`;
+
         return res.json({
             success: true,
             msg: '临时访客试用码创建成功',
@@ -271,8 +281,11 @@ router.post('/guest-pass', authMiddleware, adminOnly, (req: Request, res: Respon
                 durationHours: hours,
                 trafficLimitGb: limitGb,
                 expiresAt,
+                subscriptionUrl,
+                token: tokenInfo.token,
             },
         });
+
     } catch (err: any) {
         return res.status(400).json({ success: false, msg: err.message || '创建访客试用码失败' });
     }

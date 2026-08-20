@@ -165,6 +165,17 @@ function buildDraft(source = null) {
             sendSecurityAudit: settings.telegram?.sendSecurityAudit !== false,
             sendEmergencyAlerts: settings.telegram?.sendEmergencyAlerts !== false,
         },
+        webhook: {
+            channel: toText(settings.webhook?.channel, 'bark'),
+            url: toText(settings.webhook?.url, ''),
+            barkKey: toText(settings.webhook?.barkKey, ''),
+            secret: toText(settings.webhook?.secret, ''),
+            events: {
+                nodeOffline: settings.webhook?.events?.nodeOffline !== false,
+                trafficAlert: settings.webhook?.events?.trafficAlert !== false,
+                certExpiring: settings.webhook?.events?.certExpiring !== false,
+            }
+        },
     };
 }
 
@@ -587,6 +598,7 @@ export default function SystemSettings() {
             auditIpGeo: !areComparableSettingsEqual(draft.auditIpGeo, baselineDraft.auditIpGeo),
             subscription: !areComparableSettingsEqual(draft.subscription, baselineDraft.subscription),
             telegram: !areComparableSettingsEqual(draft.telegram, baselineDraft.telegram),
+            webhook: !areComparableSettingsEqual(draft.webhook, baselineDraft.webhook),
         };
     }, [baselineDraft, draft, settings]);
     const accessDangerState = useMemo(() => ({
@@ -599,7 +611,7 @@ export default function SystemSettings() {
         status: false,
         access: dirtySectionMap.site || dirtySectionMap.registration || dirtySectionMap.subscription,
         policy: dirtySectionMap.security || dirtySectionMap.audit || dirtySectionMap.auditIpGeo,
-        operations: dirtySectionMap.telegram,
+        operations: dirtySectionMap.telegram || dirtySectionMap.webhook,
         backup: false,
     }), [dirtySectionMap]);
     const dirtyWorkspaceIds = useMemo(() => (
@@ -1640,10 +1652,10 @@ export default function SystemSettings() {
         setWebhookTestLoading(true);
         try {
             const res = await api.post('/system/notifications/test-webhook', {
-                channel: webhookChannel,
-                url: webhookUrl,
-                barkKey: webhookBarkKey,
-                secret: webhookSecret,
+                channel: draft.webhook.channel,
+                url: draft.webhook.url,
+                barkKey: draft.webhook.barkKey,
+                secret: draft.webhook.secret,
             });
             if (res.data?.success) {
                 toast.success(res.data?.msg || (locale === 'en-US' ? 'Webhook test alert sent successfully!' : 'Webhook 测试通知发送成功！'));
@@ -2669,8 +2681,8 @@ export default function SystemSettings() {
                             <label className="form-label font-semibold">{locale === 'en-US' ? 'Webhook Channel' : '推送渠道'}</label>
                             <select
                                 className="form-input"
-                                value={webhookChannel}
-                                onChange={(e) => setWebhookChannel(e.target.value as any)}
+                                value={draft.webhook.channel}
+                                onChange={(e) => patchField('webhook', 'channel', e.target.value)}
                             >
                                 <option value="bark">Bark (iOS 极速纯推送)</option>
                                 <option value="discord">Discord Webhook</option>
@@ -2680,15 +2692,15 @@ export default function SystemSettings() {
                             </select>
                         </div>
 
-                        {webhookChannel === 'bark' ? (
+                        {draft.webhook.channel === 'bark' ? (
                             <div className="form-group">
                                 <label className="form-label font-semibold">Bark Device Key</label>
                                 <input
                                     type="text"
                                     className="form-input font-mono"
                                     placeholder="例如: AbCdEfGhIjKlMnOp"
-                                    value={webhookBarkKey}
-                                    onChange={(e) => setWebhookBarkKey(e.target.value)}
+                                    value={draft.webhook.barkKey}
+                                    onChange={(e) => patchField('webhook', 'barkKey', e.target.value)}
                                 />
                                 <div className="text-xs text-muted mt-1">{locale === 'en-US' ? 'Enter the device key from the Bark iOS app.' : '在 iPhone 打开 Bark App 复制设备 Key。'}</div>
                             </div>
@@ -2698,26 +2710,59 @@ export default function SystemSettings() {
                                 <input
                                     type="text"
                                     className="form-input font-mono text-xs"
-                                    placeholder={webhookChannel === 'discord' ? 'https://discord.com/api/webhooks/...' : 'https://open.feishu.cn/open-apis/bot/v2/hook/...'}
-                                    value={webhookUrl}
-                                    onChange={(e) => setWebhookUrl(e.target.value)}
+                                    placeholder={draft.webhook.channel === 'discord' ? 'https://discord.com/api/webhooks/...' : 'https://open.feishu.cn/open-apis/bot/v2/hook/...'}
+                                    value={draft.webhook.url}
+                                    onChange={(e) => patchField('webhook', 'url', e.target.value)}
                                 />
                             </div>
                         )}
                     </div>
 
-                    {webhookChannel === 'custom' && (
+                    {draft.webhook.channel === 'custom' && (
                         <div className="form-group mt-2">
                             <label className="form-label font-semibold">{locale === 'en-US' ? 'Signature / Secret Token (Optional)' : '签名密钥 / Secret (可选)'}</label>
                             <input
                                 type="password"
                                 className="form-input font-mono"
-                                value={webhookSecret}
-                                onChange={(e) => setWebhookSecret(e.target.value)}
+                                value={draft.webhook.secret}
+                                onChange={(e) => patchField('webhook', 'secret', e.target.value)}
                                 placeholder="X-NMS-Signature token"
                             />
                         </div>
                     )}
+
+                    <div className="form-group mt-4">
+                        <label className="form-label font-semibold">{locale === 'en-US' ? 'Notification Events' : '推送事件'}</label>
+                        <div className="settings-checkbox-group">
+                            <label className="form-check-label" htmlFor="webhook-event-node-offline">
+                                <input
+                                    id="webhook-event-node-offline"
+                                    type="checkbox"
+                                    checked={draft.webhook.events.nodeOffline}
+                                    onChange={(e) => patchField('webhook', 'events', { ...draft.webhook.events, nodeOffline: e.target.checked })}
+                                />
+                                <span>{locale === 'en-US' ? 'Node Offline' : '节点离线 Node Offline'}</span>
+                            </label>
+                            <label className="form-check-label" htmlFor="webhook-event-traffic-alert">
+                                <input
+                                    id="webhook-event-traffic-alert"
+                                    type="checkbox"
+                                    checked={draft.webhook.events.trafficAlert}
+                                    onChange={(e) => patchField('webhook', 'events', { ...draft.webhook.events, trafficAlert: e.target.checked })}
+                                />
+                                <span>{locale === 'en-US' ? 'Traffic Alert' : '流量预警 Traffic Alert'}</span>
+                            </label>
+                            <label className="form-check-label" htmlFor="webhook-event-cert-expiring">
+                                <input
+                                    id="webhook-event-cert-expiring"
+                                    type="checkbox"
+                                    checked={draft.webhook.events.certExpiring}
+                                    onChange={(e) => patchField('webhook', 'events', { ...draft.webhook.events, certExpiring: e.target.checked })}
+                                />
+                                <span>{locale === 'en-US' ? 'TLS Cert Expiring' : '证书即将过期 TLS Cert Expiring'}</span>
+                            </label>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
