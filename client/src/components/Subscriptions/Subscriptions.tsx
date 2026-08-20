@@ -385,6 +385,7 @@ export default function Subscriptions() {
     const [refreshing, setRefreshing] = useState(false);
     const [result, setResult] = useState(initialResult);
     const [profileKey, setProfileKey] = useState(() => bootstrapRef.current?.profileKey || initialResult?.bundle?.defaultProfileKey || 'v2rayn');
+    const [routingPolicy, setRoutingPolicy] = useState('rules');
     const [resetLoading, setResetLoading] = useState(false);
     const [qrModalOpen, setQrModalOpen] = useState(false);
     const ui = useMemo(
@@ -394,10 +395,18 @@ export default function Subscriptions() {
 
     const normalizedEmail = useMemo(() => String(selectedEmail || '').trim(), [selectedEmail]);
     const deferredEmail = useDeferredValue(normalizedEmail);
-    const activeProfile = useMemo(
-        () => findSubscriptionProfile(result?.bundle, profileKey),
-        [result, profileKey]
-    );
+    const activeProfile = useMemo(() => {
+        const profile = findSubscriptionProfile(result?.bundle, profileKey);
+        if (!profile || !profile.url) return profile;
+        if (routingPolicy && routingPolicy !== 'rules') {
+            const separator = profile.url.includes('?') ? '&' : '?';
+            return {
+                ...profile,
+                url: `${profile.url}${separator}policy=${encodeURIComponent(routingPolicy)}`,
+            };
+        }
+        return profile;
+    }, [result, profileKey, routingPolicy]);
     const activeProfileSupportedClients = useMemo(
         () => (Array.isArray(activeProfile?.supportedClients) ? activeProfile.supportedClients : []),
         [activeProfile]
