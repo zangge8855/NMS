@@ -1,4 +1,3 @@
-import fetch from 'node-fetch';
 
 export async function sendWebhookAlert(config: any, payload: any) {
     const { channel, url, barkKey } = config;

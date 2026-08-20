@@ -234,7 +234,7 @@ router.post('/guest-pass', authMiddleware, adminOnly, (req: Request, res: Respon
         const tempPassword = `Pass_${crypto.randomBytes(4).toString('hex')}!`;
         const expiresAt = new Date(Date.now() + hours * 3600 * 1000).toISOString();
 
-        const newUser = userStore.create({
+        const newUser = userStore.add({
             username,
             email,
             password: tempPassword,
@@ -247,10 +247,10 @@ router.post('/guest-pass', authMiddleware, adminOnly, (req: Request, res: Respon
 
         // Set policy limits if needed
         if (newUser && newUser.id) {
-            userPolicyStore.setPolicy(newUser.id, {
+            userPolicyStore.upsert(email, {
                 trafficLimitBytes: Math.floor(limitGb * 1024 * 1024 * 1024),
-                expiresAt,
-                note: `[临时访客] ${note} (${hours}小时限时 / ${limitGb}GB)`,
+                expiryTime: new Date(expiresAt).getTime(),
+                comment: `[临时访客] ${note} (${hours}小时限时 / ${limitGb}GB)`,
             });
         }
 

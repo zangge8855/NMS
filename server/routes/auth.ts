@@ -17,6 +17,7 @@ import {
 import {
     changeOwnPassword,
     createLoginSession,
+    createDirectUserSession,
     requestOwnProfileUpdateVerification,
     updateOwnProfile,
     validateSession,
@@ -26,6 +27,7 @@ import {
     disableTwoFactor,
     getTwoFactorStatus,
 } from '../services/authSessionService.js';
+import userStore from '../store/userStore.js';
 import {
     createPasskeyRegistrationOptions,
     verifyPasskeyRegistration,
@@ -1131,14 +1133,15 @@ router.post('/2fa/disable', authMiddleware, (req, res) => {
  */
 router.get('/passkey/list', authMiddleware, (req, res) => {
     try {
-        const user = userStore.getById(req.user.id);
+        const userId = req.user?.userId || req.user?.id;
+        const user = userStore.getById(userId);
         const passkeys = Array.isArray(user?.passkeys) ? user.passkeys : [];
         const sanitized = passkeys.map((pk: any) => ({
-            id: pk.id,
-            deviceName: pk.deviceName || '通行密钥',
+            id: pk.id || pk.credentialID,
+            deviceName: pk.deviceName || pk.name || '通行密钥',
             aaguid: pk.aaguid,
             createdAt: pk.createdAt,
-            lastUsedAt: pk.lastUsedAt,
+            lastUsedAt: pk.lastUsedAt || pk.lastUsed,
             transports: pk.transports || [],
         }));
         return res.json({ success: true, obj: sanitized });
@@ -1153,7 +1156,8 @@ router.get('/passkey/list', authMiddleware, (req, res) => {
  */
 router.post('/passkey/register-options', authMiddleware, async (req, res) => {
     try {
-        const user = userStore.getById(req.user.id);
+        const userId = req.user?.userId || req.user?.id;
+        const user = userStore.getById(userId);
         if (!user) {
             return res.status(404).json({ success: false, msg: '用户不存在' });
         }
@@ -1170,7 +1174,8 @@ router.post('/passkey/register-options', authMiddleware, async (req, res) => {
  */
 router.post('/passkey/register-verify', authMiddleware, async (req, res) => {
     try {
-        const user = userStore.getById(req.user.id);
+        const userId = req.user?.userId || req.user?.id;
+        const user = userStore.getById(userId);
         if (!user) {
             return res.status(404).json({ success: false, msg: '用户不存在' });
         }
@@ -1247,21 +1252,22 @@ router.post('/passkey/login-verify', async (req, res) => {
             return res.status(403).json({ success: false, msg: '访客体验账号仅限节点订阅使用，禁止登录 Web 管理后台' });
         }
 
-        const passkey = (user.passkeys || []).find((pk: any) => pk.id === credentialId);
+        const passkey = (user.passkeys || []).find((pk: any) => pk.id === credentialId || pk.credentialID === credentialId);
         if (!passkey) {
             recordLoginFailure(clientIp, user.username);
             return res.status(401).json({ success: false, msg: '凭证无效' });
         }
 
         const { newCounter } = await verifyPasskeyLogin(req, challengeSessionId, response, passkey);
-        userStore.updatePasskeyCounter(user.id, passkey.id, newCounter);
+        userStore.updatePasskeyCounter(user.id, passkey.id || passkey.credentialID, newCounter);
         clearLoginRate(clientIp, user.username);
 
-        const { token, user: sanitizedUser } = createLoginSession(user, req);
+        const { token, user: sanitizedUser, audit } = createDirectUserSession(user);
         appendSecurityAudit('login_passkey_success', req, {
-            username: user.username,
-            passkeyId: passkey.id,
-            deviceName: passkey.deviceName,
+            ip: clientIp,
+            ...audit,
+            passkeyId: passkey.id || passkey.credentialID,
+            deviceName: passkey.deviceName || passkey.name,
         });
 
         return res.json({
@@ -1287,7 +1293,8 @@ router.delete('/passkey/:id', authMiddleware, (req, res) => {
         if (!passkeyId) {
             return res.status(400).json({ success: false, msg: '缺少 Passkey ID' });
         }
-        const removed = userStore.removePasskey(req.user.id, passkeyId);
+        const userId = req.user?.userId || req.user?.id;
+        const removed = userStore.removePasskey(userId, passkeyId);
         if (!removed) {
             return res.status(404).json({ success: false, msg: '未找到该 Passkey 或无权删除' });
         }
@@ -1312,7 +1319,8 @@ router.patch('/passkey/:id', authMiddleware, (req, res) => {
         if (!passkeyId || !deviceName) {
             return res.status(400).json({ success: false, msg: '参数不完整' });
         }
-        const updated = userStore.renamePasskey(req.user.id, passkeyId, deviceName);
+        const userId = req.user?.userId || req.user?.id;
+        const updated = userStore.renamePasskey(userId, passkeyId, deviceName);
         if (!updated) {
             return res.status(404).json({ success: false, msg: '未找到该 Passkey' });
         }

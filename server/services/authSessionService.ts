@@ -554,8 +554,22 @@ function updateOwnProfile(payload: any = {}, currentUser: any = {}, deps: any = 
     };
 }
 
+function createDirectUserSession(user: any, deps: any = {}): any {
+    const tokenPayload = { userId: user.id, role: user.role, username: user.username };
+    return {
+        success: true,
+        token: buildSignedToken(tokenPayload, deps),
+        user: buildSessionUser(user, tokenPayload),
+        audit: {
+            ...buildAuditUser(user, tokenPayload),
+            legacyMode: false,
+        },
+    };
+}
+
 export {
     createLoginSession,
+    createDirectUserSession,
     validateSession,
     changeOwnPassword,
     requestOwnProfileUpdateVerification,
@@ -566,3 +580,4 @@ export {
     disableTwoFactor,
     getTwoFactorStatus,
 };
+

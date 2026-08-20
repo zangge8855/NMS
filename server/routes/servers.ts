@@ -1078,7 +1078,7 @@ function probeServer(urlStr: string): Promise<{ latencyMs: number, online: boole
 
 router.post('/ping-all', authMiddleware, adminOnly, async (req: any, res: any) => {
     try {
-        const servers = serverStore.list();
+        const servers = serverStore.getAll();
         const results: Record<string, { latencyMs: number, online: boolean }> = {};
         
         await Promise.all(servers.map(async (srv: any) => {
@@ -1094,7 +1094,7 @@ router.post('/ping-all', authMiddleware, adminOnly, async (req: any, res: any) =
 
 router.post('/:id/ping', authMiddleware, adminOnly, async (req: any, res: any) => {
     try {
-        const server = serverStore.get(req.params.id);
+        const server = serverStore.getById(req.params.id);
         if (!server) {
             return res.status(404).json({ success: false, msg: 'Server not found' });
         }

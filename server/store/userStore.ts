@@ -594,7 +594,7 @@ class UserStore {
     findUserByPasskeyId(credentialId: string): any {
         const targetId = String(credentialId || '').trim();
         if (!targetId) return null;
-        return this.users.find(u => Array.isArray(u.passkeys) && u.passkeys.some((pk: any) => pk.id === targetId)) || null;
+        return this.users.find(u => Array.isArray(u.passkeys) && u.passkeys.some((pk: any) => pk.id === targetId || pk.credentialID === targetId)) || null;
     }
 
     /** 添加 Passkey */
@@ -604,8 +604,9 @@ class UserStore {
         if (!Array.isArray(this.users[idx].passkeys)) {
             this.users[idx].passkeys = [];
         }
+        const passkeyId = passkey.id || passkey.credentialID;
         // 检查是否已存在相同 ID
-        const existingIdx = this.users[idx].passkeys.findIndex((pk: any) => pk.id === passkey.id);
+        const existingIdx = this.users[idx].passkeys.findIndex((pk: any) => (pk.id && pk.id === passkeyId) || (pk.credentialID && pk.credentialID === passkeyId));
         if (existingIdx !== -1) {
             this.users[idx].passkeys[existingIdx] = passkey;
         } else {
@@ -621,7 +622,7 @@ class UserStore {
         if (idx === -1) return false;
         if (!Array.isArray(this.users[idx].passkeys)) return false;
         const initialLen = this.users[idx].passkeys.length;
-        this.users[idx].passkeys = this.users[idx].passkeys.filter((pk: any) => pk.id !== passkeyId);
+        this.users[idx].passkeys = this.users[idx].passkeys.filter((pk: any) => pk.id !== passkeyId && pk.credentialID !== passkeyId);
         if (this.users[idx].passkeys.length !== initialLen) {
             this._save();
             return true;
@@ -634,7 +635,7 @@ class UserStore {
         const idx = this.users.findIndex(u => u.id === userId);
         if (idx === -1) return false;
         if (!Array.isArray(this.users[idx].passkeys)) return false;
-        const pk = this.users[idx].passkeys.find((p: any) => p.id === passkeyId);
+        const pk = this.users[idx].passkeys.find((p: any) => p.id === passkeyId || p.credentialID === passkeyId);
         if (!pk) return false;
         pk.deviceName = String(deviceName || 'Passkey 密钥').trim().slice(0, 50);
         this._save();
@@ -646,7 +647,7 @@ class UserStore {
         const idx = this.users.findIndex(u => u.id === userId);
         if (idx === -1) return false;
         if (!Array.isArray(this.users[idx].passkeys)) return false;
-        const pk = this.users[idx].passkeys.find((p: any) => p.id === credentialId);
+        const pk = this.users[idx].passkeys.find((p: any) => p.id === credentialId || p.credentialID === credentialId);
         if (!pk) return false;
         pk.counter = newCounter;
         pk.lastUsedAt = new Date().toISOString();
@@ -664,61 +665,6 @@ class UserStore {
             if (adminCount <= 1) throw new Error('不能删除最后一个管理员');
         }
         this.users.splice(idx, 1);
-        this._save();
-        return true;
-    }
-
-    addPasskey(userId: string, passkey: any): boolean {
-        const idx = this.users.findIndex(u => u.id === userId);
-        if (idx === -1) return false;
-        if (!Array.isArray(this.users[idx].passkeys)) this.users[idx].passkeys = [];
-        this.users[idx].passkeys.push(passkey);
-        this._save();
-        return true;
-    }
-
-    removePasskey(userId: string, passkeyId: string): boolean {
-        const idx = this.users.findIndex(u => u.id === userId);
-        if (idx === -1) return false;
-        if (!Array.isArray(this.users[idx].passkeys)) return false;
-        const pkIdx = this.users[idx].passkeys.findIndex((p: any) => p.credentialID === passkeyId);
-        if (pkIdx === -1) return false;
-        this.users[idx].passkeys.splice(pkIdx, 1);
-        this._save();
-        return true;
-    }
-
-    renamePasskey(userId: string, passkeyId: string, name: string): boolean {
-        const idx = this.users.findIndex(u => u.id === userId);
-        if (idx === -1) return false;
-        if (!Array.isArray(this.users[idx].passkeys)) return false;
-        const pk = this.users[idx].passkeys.find((p: any) => p.credentialID === passkeyId);
-        if (!pk) return false;
-        pk.name = name;
-        this._save();
-        return true;
-    }
-
-    getPasskeys(userId: string): any[] {
-        const user = this.users.find(u => u.id === userId);
-        if (!user) return [];
-        return Array.isArray(user.passkeys) ? user.passkeys : [];
-    }
-
-    findUserByPasskeyId(credentialId: string): any {
-        return this.users.find(u => {
-            if (!Array.isArray(u.passkeys)) return false;
-            return u.passkeys.some((p: any) => p.credentialID === credentialId);
-        }) || null;
-    }
-
-    updatePasskeyCounter(userId: string, credentialId: string, newCounter: number): boolean {
-        const user = this.users.find(u => u.id === userId);
-        if (!user || !Array.isArray(user.passkeys)) return false;
-        const pk = user.passkeys.find((p: any) => p.credentialID === credentialId);
-        if (!pk) return false;
-        pk.counter = newCounter;
-        pk.lastUsed = new Date().toISOString();
         this._save();
         return true;
     }
