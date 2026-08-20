@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
-const distDir = path.resolve(process.cwd(), 'dist');
+const distDir = path.resolve(__dirname, '..', 'dist');
 
 function removeWithFs() {
     fs.rmSync(distDir, {

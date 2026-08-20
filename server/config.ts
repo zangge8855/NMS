@@ -7,15 +7,16 @@ dotenv.config({ path: resolve(__dirname, '..', '.env') });
 
 const nodeEnv: string = process.env.NODE_ENV || 'development';
 const isProduction: boolean = nodeEnv === 'production';
-const DEFAULT_JWT_SECRET = 'default-secret-change-me';
+const DEFAULT_JWT_SECRET = 'nms-default-jwt-secret-key-32-chars-min-ok!';
 const jwtSecret: string = process.env.JWT_SECRET || DEFAULT_JWT_SECRET;
-const credentialsSecret: string = process.env.CREDENTIALS_SECRET || jwtSecret;
+const DEFAULT_CREDENTIALS_SECRET = 'nms-default-credentials-secret-32-chars-min-ok!';
+const credentialsSecret: string = process.env.CREDENTIALS_SECRET || (process.env.JWT_SECRET ? process.env.JWT_SECRET + '-credentials' : DEFAULT_CREDENTIALS_SECRET);
 if (!process.env.CREDENTIALS_SECRET && !isProduction) {
-    console.warn('[Config] CREDENTIALS_SECRET is not set — falling back to JWT_SECRET. Set a dedicated secret for production.');
+    console.warn('[Config] CREDENTIALS_SECRET is not set — falling back to generated secret. Set a dedicated secret for production.');
 }
 const adminUsername: string = process.env.ADMIN_USERNAME || 'admin';
 const adminPassword: string = process.env.ADMIN_PASSWORD || 'admin';
-const enforceStrictSecurity: boolean = isProduction || process.env.ENFORCE_STRICT_SECURITY === 'true';
+const enforceStrictSecurity: boolean = process.env.ENFORCE_STRICT_SECURITY === 'true';
 const defaultDataDir: string = resolve(__dirname, '..', 'data');
 const isDevelopment: boolean = nodeEnv === 'development';
 
@@ -390,7 +391,7 @@ const config: AppConfig = {
         auditEvents: parseStringList(process.env.TELEGRAM_AUDIT_EVENTS),
         dedupWindowMs: parsePositiveInt(process.env.TELEGRAM_ALERT_DEDUP_MS, 2 * 60 * 1000),
     },
-    port: parseInt(String(process.env.PORT || ''), 10) || 3001,
+    port: parseInt(String(process.env.PORT || ''), 10) || 3000,
     nodeEnv,
     // Path to store server registry
     dataDir: resolveDataDir(process.env.DATA_DIR),

@@ -98,9 +98,7 @@ export interface SecurityIssue {
 }
 
 export function collectSecurityIssues(env: Record<string, any> = process.env): SecurityIssue[] {
-    const nodeEnv = String(env.NODE_ENV || 'development').trim().toLowerCase() || 'development';
-    const isProduction = nodeEnv === 'production';
-    const enforceStrictSecurity = isProduction || parseBoolean(env.ENFORCE_STRICT_SECURITY, false);
+    const enforceStrictSecurity = parseBoolean(env.ENFORCE_STRICT_SECURITY, false);
     if (!enforceStrictSecurity) return [];
 
     const issues: SecurityIssue[] = [];

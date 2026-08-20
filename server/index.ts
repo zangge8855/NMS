@@ -44,7 +44,7 @@ import { pathToFileURL } from 'url';
 import { resolve } from 'path';
 
 function shouldServeClientBuild(): boolean {
-    return config.nodeEnv === 'production' || process.env.SERVE_CLIENT === 'true';
+    return process.env.SERVE_CLIENT !== 'false';
 }
 
 export function createApp(options: { serveClientBuild?: boolean } = {}): Express {
@@ -61,7 +61,7 @@ export function createApp(options: { serveClientBuild?: boolean } = {}): Express
     }));
     app.use(createSearchBotProtectionMiddleware());
     app.use(cors({
-        origin: config.nodeEnv === 'development' ? 'http://localhost:5173' : false,
+        origin: true,
         credentials: true,
     }));
     app.use(cookieParser());
@@ -305,7 +305,7 @@ export async function startServer(options: { port?: number | string; app?: Expre
 
     await new Promise<void>((resolvePromise, rejectPromise) => {
         httpServer.once('error', rejectPromise);
-        httpServer.listen(port, () => {
+        httpServer.listen(port, '0.0.0.0', () => {
             httpServer.off('error', rejectPromise);
             resolvePromise();
         });
