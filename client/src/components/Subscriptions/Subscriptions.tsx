@@ -1105,7 +1105,7 @@ export default function Subscriptions() {
 
                                             <div className="subscription-profile-notes">
                                                 <div className="text-xs text-muted">{ui.manualImportHint}</div>
-                                                {isAdmin && patchedBundle?.externalConverterConfigured && (
+                                                {isAdmin && result?.bundle?.externalConverterConfigured && (
                                                     <div className="text-xs text-muted">
                                                         {ui.adminConverterHint}
                                                         {' '}
