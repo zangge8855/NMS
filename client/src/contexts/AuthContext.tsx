@@ -187,7 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const res = await api.post('/auth/verify-email', { email, code });
             return res.data;
         } catch (err: any) {
-            return err.response?.data || { success: false, msg: '验证失败' };
+            return err.response?.data || { success: false, msg: getLocaleMessage(resolveUiLocale(), 'comp.common.operationFailed') };
         }
     };
 
@@ -197,7 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const res = await api.post('/auth/resend-code', { email });
             return res.data;
         } catch (err: any) {
-            return err.response?.data || { success: false, msg: '发送失败' };
+            return err.response?.data || { success: false, msg: getLocaleMessage(resolveUiLocale(), 'comp.common.operationFailed') };
         }
     };
 
@@ -207,7 +207,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const res = await api.post('/auth/forgot-password', { email });
             return res.data;
         } catch (err: any) {
-            return err.response?.data || { success: false, msg: '发送失败' };
+            return err.response?.data || { success: false, msg: getLocaleMessage(resolveUiLocale(), 'comp.common.operationFailed') };
         }
     };
 
@@ -217,7 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const res = await api.post('/auth/reset-password', { email, code, newPassword });
             return res.data;
         } catch (err: any) {
-            return err.response?.data || { success: false, msg: '重置失败' };
+            return err.response?.data || { success: false, msg: getLocaleMessage(resolveUiLocale(), 'comp.common.operationFailed') };
         }
     };
 

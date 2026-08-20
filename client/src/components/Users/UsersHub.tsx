@@ -1838,28 +1838,24 @@ export default function UsersHub() {
                                     <span>{t('pages.usersHub.toolbar.statusActive')}</span>
                                     <span className="filter-chip-count count-success">{statusCounts.active}</span>
                                 </button>
-                                {statusCounts.warningTraffic > 0 && (
-                                    <button
-                                        type="button"
-                                        className={`filter-chip ${statusFilter === 'warning_traffic' ? 'active' : ''}`}
-                                        onClick={() => setStatusFilter('warning_traffic')}
-                                    >
-                                        <span className="filter-chip-dot dot-warning" />
-                                        <span>{locale === 'en-US' ? 'Traffic >80%' : '流量预警'}</span>
-                                        <span className="filter-chip-count count-warning">{statusCounts.warningTraffic}</span>
-                                    </button>
-                                )}
-                                {statusCounts.expiring > 0 && (
-                                    <button
-                                        type="button"
-                                        className={`filter-chip ${statusFilter === 'expiring' ? 'active' : ''}`}
-                                        onClick={() => setStatusFilter('expiring')}
-                                    >
-                                        <span className="filter-chip-dot dot-warning" />
-                                        <span>{locale === 'en-US' ? 'Expiring <7d' : '即将到期'}</span>
-                                        <span className="filter-chip-count count-warning">{statusCounts.expiring}</span>
-                                    </button>
-                                )}
+                                <button
+                                    type="button"
+                                    className={`filter-chip ${statusFilter === 'warning_traffic' ? 'active' : ''} ${statusCounts.warningTraffic === 0 ? 'opacity-50' : ''}`}
+                                    onClick={() => setStatusFilter('warning_traffic')}
+                                >
+                                    <span className="filter-chip-dot dot-warning" />
+                                    <span>{locale === 'en-US' ? 'Traffic >80%' : '流量预警'}</span>
+                                    <span className="filter-chip-count count-warning">{statusCounts.warningTraffic}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`filter-chip ${statusFilter === 'expiring' ? 'active' : ''} ${statusCounts.expiring === 0 ? 'opacity-50' : ''}`}
+                                    onClick={() => setStatusFilter('expiring')}
+                                >
+                                    <span className="filter-chip-dot dot-warning" />
+                                    <span>{locale === 'en-US' ? 'Expiring <7d' : '即将到期'}</span>
+                                    <span className="filter-chip-count count-warning">{statusCounts.expiring}</span>
+                                </button>
                                 <button
                                     type="button"
                                     className={`filter-chip ${statusFilter === 'disabled' ? 'active' : ''}`}

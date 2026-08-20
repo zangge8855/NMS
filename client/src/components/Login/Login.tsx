@@ -212,6 +212,7 @@ export default function Login() {
     // ── Two-Factor Authentication ───────────────────────────
     const handleTwoFactorLogin = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
+        if (loading) return;
         setError('');
         setSuccess('');
         if (!twoFactorChallengeToken) {

@@ -76,7 +76,7 @@ export function createSecurityHeadersMiddleware(options: SecurityHeadersOptions 
         "font-src 'self' data:",
         "style-src 'self' 'unsafe-inline'",
         "script-src 'self' 'unsafe-inline'",
-        "connect-src 'self' ws: wss: http://127.0.0.1:* http://localhost:* https://ipwho.is",
+        "connect-src 'self' ws://localhost:* wss://localhost:* ws://127.0.0.1:* wss://127.0.0.1:* https://ipwho.is",
     ].join('; ');
 
     return (req: Request, res: Response, next: NextFunction): void => {

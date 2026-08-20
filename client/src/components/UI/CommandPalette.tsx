@@ -42,6 +42,7 @@ function normalizeKeyword(value: any): string {
 function getCommandCopy(locale = 'zh-CN') {
     if (locale === 'en-US') {
         return {
+            quickLaunchBadge: 'NMS Quick Launch',
             paletteTitle: 'Command Palette',
             searchPlaceholder: 'Type a command, page, node, or user...',
             actions: 'Quick Actions',
@@ -67,6 +68,7 @@ function getCommandCopy(locale = 'zh-CN') {
         };
     }
     return {
+        quickLaunchBadge: 'NMS 快捷启动',
         paletteTitle: '全局命令面板',
         searchPlaceholder: '输入命令、页面、节点或用户进行搜索...',
         actions: '快捷操作',
@@ -346,7 +348,7 @@ export default function CommandPalette() {
     const executeItem = useCallback((item: CommandItem) => {
         setIsOpen(false);
         if (item.action) {
-            item.action();
+            try { item.action(); } catch { /* swallow action errors */ }
         } else if (item.path) {
             navigate(item.path);
         }
@@ -403,6 +405,7 @@ export default function CommandPalette() {
                     {searchTerm && (
                         <button
                             type="button"
+                            aria-label="Clear search"
                             className="command-palette-clear-btn"
                             onClick={() => {
                                 setSearchTerm('');
@@ -465,7 +468,7 @@ export default function CommandPalette() {
 
                 <div className="command-palette-footer">
                     <span className="command-palette-hint">{copy.navigationHint}</span>
-                    <span className="command-palette-badge">NMS Quick Launch</span>
+                    <span className="command-palette-badge">{copy.quickLaunchBadge}</span>
                 </div>
             </div>
         </div>,

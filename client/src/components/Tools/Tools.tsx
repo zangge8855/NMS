@@ -143,6 +143,8 @@ export default function Tools() {
                     pathTip: 'Copy the certificate path and fill into your 3X-UI / Xray Inbound TLS configuration.',
                 },
                 ip: {
+                    unknownCountry: 'Unknown',
+                    lookupFailed: 'Lookup failed',
                     title: 'IP Geolocation & Routing Diagnostics',
                     subtitle: 'Inspect network ASN, location, carrier ISP, and reachability for any IP or server hostname.',
                     inputPlaceholder: 'Enter IP address or hostname (e.g. 1.1.1.1 or google.com)',
@@ -200,6 +202,8 @@ export default function Tools() {
                     pathTip: '申请成功后，请将公钥与私钥路径直接填写入站节点的 TLS 证书路径中。',
                 },
                 ip: {
+                    unknownCountry: '未知',
+                    lookupFailed: '查询失败',
                     title: 'IP 归属地与网络路由快速诊断',
                     subtitle: '查询任意 IP 或主机名的地理位置、ASN 机构、运营商网络及连通性。',
                     inputPlaceholder: '输入 IP 地址或主机名（例如 1.1.1.1 或 google.com）',
@@ -364,7 +368,7 @@ ${cfEmail.trim() ? `export CF_Email="${cfEmail.trim()}"` : ''}
             } else {
                 setIpResult({
                     ip: target,
-                    country: '未知',
+                    country: copy.ip.unknownCountry || '未知',
                     flag: '🌐',
                     region: '-',
                     city: '-',
@@ -376,7 +380,7 @@ ${cfEmail.trim() ? `export CF_Email="${cfEmail.trim()}"` : ''}
         } catch {
             setIpResult({
                 ip: target,
-                country: '网络查询失败',
+                country: copy.ip.lookupFailed || '查询失败',
                 flag: '⚠️',
                 region: '-',
                 city: '-',
@@ -543,7 +547,7 @@ ${cfEmail.trim() ? `export CF_Email="${cfEmail.trim()}"` : ''}
                             divider
                         />
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div className="form-group">
                                 <label className="form-label font-semibold">{copy.ssl.domainLabel}</label>
                                 <input
@@ -562,6 +566,16 @@ ${cfEmail.trim() ? `export CF_Email="${cfEmail.trim()}"` : ''}
                                     placeholder={copy.ssl.tokenPlaceholder}
                                     value={cfToken}
                                     onChange={(e) => setCfToken(e.target.value)}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label font-semibold">{copy.ssl.emailLabel}</label>
+                                <input
+                                    type="email"
+                                    className="form-input"
+                                    placeholder={copy.ssl.emailPlaceholder || 'admin@example.com'}
+                                    value={cfEmail}
+                                    onChange={(e) => setCfEmail(e.target.value)}
                                 />
                             </div>
                             <div className="form-group">
