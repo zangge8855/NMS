@@ -3181,21 +3181,42 @@ export default function UsersHub() {
                                     <span>{locale === 'en-US' ? 'Guest Pass generated successfully!' : '临时访客试用账号已生成！'}</span>
                                 </div>
 
-                                <div className="p-4 rounded-xl bg-surface-panel border border-stroke-soft space-y-2 text-xs">
-                                    <div className="flex justify-between py-1 border-b border-stroke-soft">
-                                        <span className="text-muted">{locale === 'en-US' ? 'Username' : '临时用户名'}</span>
-                                        <span className="font-mono font-bold text-text-primary">{guestResult.username}</span>
+                                <div className="p-4 rounded-xl bg-surface-panel border border-stroke-soft space-y-3 text-xs">
+                                    <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-500 text-[11px] font-medium leading-relaxed">
+                                        {locale === 'en-US'
+                                            ? '⚠️ Guest accounts are strictly restricted to proxy subscription traffic testing. Logging into the Web management panel is prohibited.'
+                                            : '⚠️ 访客账号受系统安全策略限制，仅限客户端订阅测速使用，禁止登录 Web 管理后台。'}
                                     </div>
-                                    <div className="flex justify-between py-1 border-b border-stroke-soft">
-                                        <span className="text-muted">{locale === 'en-US' ? 'Password' : '登录密码'}</span>
-                                        <span className="font-mono font-bold text-text-primary">{guestResult.password}</span>
+
+                                    {guestResult.subscriptionUrl && (
+                                        <div className="space-y-1.5 pt-1">
+                                            <div className="text-muted font-semibold">{locale === 'en-US' ? 'One-Click Subscription URL' : '一键订阅链接'}</div>
+                                            <div className="flex gap-2">
+                                                <input className="form-input font-mono text-xs" value={guestResult.subscriptionUrl} readOnly />
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-secondary btn-sm shrink-0"
+                                                    onClick={async () => {
+                                                        await copyToClipboard(guestResult.subscriptionUrl);
+                                                        toast.success(locale === 'en-US' ? 'Subscription URL copied!' : '订阅链接已复制到剪贴板！');
+                                                    }}
+                                                >
+                                                    <HiOutlineClipboard /> {locale === 'en-US' ? 'Copy Link' : '复制链接'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="flex justify-between py-1.5 border-t border-b border-stroke-soft">
+                                        <span className="text-muted">{locale === 'en-US' ? 'Username' : '临时用户识别码'}</span>
+                                        <span className="font-mono font-bold text-text-primary">{guestResult.username}</span>
                                     </div>
                                     <div className="flex justify-between py-1 border-b border-stroke-soft">
                                         <span className="text-muted">{locale === 'en-US' ? 'Traffic Quota' : '流量限额'}</span>
                                         <span className="font-bold text-text-primary">{guestResult.trafficLimitGb} GB</span>
                                     </div>
                                     <div className="flex justify-between py-1">
-                                        <span className="text-muted">{locale === 'en-US' ? 'Expires At' : '失效时间'}</span>
+                                        <span className="text-muted">{locale === 'en-US' ? 'Expires At' : '有效期至'}</span>
                                         <span className="font-mono text-warning font-semibold">{formatDateOnly(guestResult.expiresAt)}</span>
                                     </div>
                                 </div>
@@ -3205,12 +3226,12 @@ export default function UsersHub() {
                                         type="button"
                                         className="btn btn-secondary"
                                         onClick={async () => {
-                                            const copyText = `NMS 访客试用账号:\n用户名: ${guestResult.username}\n密码: ${guestResult.password}\n流量限额: ${guestResult.trafficLimitGb}GB\n有效期至: ${guestResult.expiresAt}`;
+                                            const copyText = `【NMS 临时访客测速节点】\n订阅链接: ${guestResult.subscriptionUrl || '见管理面板'}\n识别码: ${guestResult.username}\n流量上限: ${guestResult.trafficLimitGb}GB\n有效期至: ${guestResult.expiresAt}\n(注: 此凭证仅供客户端导入节点测试，禁止登录后台)`;
                                             await copyToClipboard(copyText);
-                                            toast.success(locale === 'en-US' ? 'Credentials copied!' : '访客凭证已复制到剪贴板！');
+                                            toast.success(locale === 'en-US' ? 'Trial credentials copied!' : '访客体验信息已复制到剪贴板！');
                                         }}
                                     >
-                                        <HiOutlineClipboard /> {locale === 'en-US' ? 'Copy Info' : '复制凭据'}
+                                        <HiOutlineClipboard /> {locale === 'en-US' ? 'Copy All Info' : '复制完整信息'}
                                     </button>
                                     <button
                                         type="button"

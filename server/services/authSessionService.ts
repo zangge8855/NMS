@@ -130,6 +130,14 @@ function createLoginSession(payload: any = {}, deps: any = {}): any {
     }
 
     const fullUser = userRepo.getByUsername(user.username);
+    if (fullUser && (fullUser.isGuest === true || fullUser.role === 'guest')) {
+        return {
+            success: false,
+            reason: 'guest_login_forbidden',
+            audit: buildAuditUser(fullUser),
+        };
+    }
+
     if (fullUser && fullUser.email && !fullUser.emailVerified && fullUser.role !== 'admin') {
         return {
             success: false,

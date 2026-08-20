@@ -347,6 +347,16 @@ router.post('/login', (req, res) => {
                 msg: '账号待审核，请等待管理员审核通过后再登录',
             });
         }
+        if (result.reason === 'guest_login_forbidden') {
+            appendSecurityAudit('login_denied_guest_account', req, {
+                ...auditBase,
+                ...(result.audit || {}),
+            });
+            return res.status(403).json({
+                success: false,
+                msg: '访客体验账号仅限节点订阅使用，禁止登录 Web 管理后台',
+            });
+        }
 
         appendSecurityAudit('login_failed', req, {
             ...auditBase,
@@ -1229,6 +1239,12 @@ router.post('/passkey/login-verify', async (req, res) => {
             recordLoginFailure(clientIp, user.username);
             appendSecurityAudit('login_passkey_failed', req, { username: user.username, reason: 'account_disabled' });
             return res.status(403).json({ success: false, msg: '该账号已被禁用' });
+        }
+
+        if (user.isGuest === true || user.role === 'guest') {
+            recordLoginFailure(clientIp, user.username);
+            appendSecurityAudit('login_passkey_failed', req, { username: user.username, reason: 'guest_account_forbidden' });
+            return res.status(403).json({ success: false, msg: '访客体验账号仅限节点订阅使用，禁止登录 Web 管理后台' });
         }
 
         const passkey = (user.passkeys || []).find((pk: any) => pk.id === credentialId);

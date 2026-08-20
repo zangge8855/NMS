@@ -23,6 +23,9 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
         if (decoded && decoded.type) {
             return res.status(401).json({ success: false, msg: 'Invalid or expired token' });
         }
+        if (decoded && (decoded.isGuest || decoded.role === 'guest')) {
+            return res.status(403).json({ success: false, msg: '访客体验账号仅限节点订阅使用，禁止访问 Web 管理后台' });
+        }
         (req as any).user = decoded;
         next();
     } catch {
