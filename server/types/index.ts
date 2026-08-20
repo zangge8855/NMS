@@ -30,6 +30,16 @@ export interface User {
     passwordResetExpires?: number | null;
     twoFactorSecret?: string | null;
     twoFactorEnabled?: boolean;
+    passkeys?: Array<{
+        id: string;
+        publicKey: string;
+        counter: number;
+        deviceName?: string;
+        aaguid?: string;
+        transports?: string[];
+        createdAt: string;
+        lastUsedAt?: string;
+    }>;
 }
 
 export interface SanitizedUser {
@@ -45,6 +55,7 @@ export interface SanitizedUser {
     updatedAt?: number | string;
     lastLogin?: number | string | null;
     twoFactorEnabled?: boolean;
+    passkeysCount?: number;
 }
 
 export interface ServerNode {

@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useI18n } from '../../contexts/LanguageContext';
 import { getPasswordPolicyError, getPasswordPolicyHint } from '../../utils/passwordPolicy';
 import TwoFactorPanel from './TwoFactorPanel';
+import PasskeyPanel from './PasskeyPanel';
 import PasswordStrengthMeter from '../UI/PasswordStrengthMeter';
 
 function getAccountCopy(locale = 'zh-CN') {
@@ -418,6 +419,7 @@ export default function AccountCenter() {
                     </div>
 
                     <TwoFactorPanel locale={locale} />
+                    <PasskeyPanel locale={locale} />
                 </div>
             </div>
         </>

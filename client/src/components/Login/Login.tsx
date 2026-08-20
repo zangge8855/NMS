@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../../api/client';
+import { startAuthentication } from '@simplewebauthn/browser';
+import api, { setStoredToken } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import { useI18n } from '../../contexts/LanguageContext';
 import {
@@ -9,6 +10,8 @@ import {
     HiOutlineEnvelope,
     HiOutlineArrowPath,
     HiOutlineShieldCheck,
+    HiOutlineKey,
+    HiOutlineFingerPrint,
 } from 'react-icons/hi2';
 import { getPasswordPolicyError, getPasswordPolicyHint } from '../../utils/passwordPolicy';
 import { buildSiteAssetPath } from '../../utils/sitePath';
@@ -207,6 +210,42 @@ export default function Login() {
             setError(copy.networkFailed);
         }
         setLoading(false);
+    };
+
+    // ── Passkey (WebAuthn) ──────────────────────────────────
+    const handlePasskeyLogin = async () => {
+        if (loading) return;
+        setError('');
+        setSuccess('');
+        setLoading(true);
+        try {
+            const optRes = await api.post('/auth/passkey/login-options', {
+                identifier: loginIdentifier.trim() || undefined,
+            });
+            if (!optRes.data?.success || !optRes.data?.obj) {
+                throw new Error(optRes.data?.msg || (locale === 'en-US' ? 'Failed to get Passkey challenge' : '获取 Passkey 挑战失败'));
+            }
+            const { options, challengeSessionId } = optRes.data.obj;
+            const asseResp = await startAuthentication({ optionsJSON: options });
+            const verifyRes = await api.post('/auth/passkey/login-verify', {
+                challengeSessionId,
+                response: asseResp,
+            });
+            if (verifyRes.data?.success) {
+                setStoredToken(verifyRes.data.token);
+                window.location.href = '/';
+            } else {
+                throw new Error(verifyRes.data?.msg || (locale === 'en-US' ? 'Passkey verification failed' : 'Passkey 验证失败'));
+            }
+        } catch (err: any) {
+            if (err.name === 'NotAllowedError') {
+                setError(locale === 'en-US' ? 'Passkey sign-in cancelled' : '已取消通行密钥验证');
+            } else {
+                setError(err.response?.data?.msg || err.message || (locale === 'en-US' ? 'Passkey sign-in failed' : '通行密钥登录失败'));
+            }
+        } finally {
+            setLoading(false);
+        }
     };
 
     // ── Two-Factor Authentication ───────────────────────────
@@ -557,6 +596,23 @@ export default function Login() {
                                 >
                                     {loading ? <span className="spinner" /> : t('pages.login.loginButton')}
                                 </button>
+
+                                <div className="flex items-center gap-3 my-3">
+                                    <div className="flex-1 h-px bg-stroke-soft" />
+                                    <span className="text-xs text-muted font-medium">{locale === 'en-US' ? 'OR' : '或'}</span>
+                                    <div className="flex-1 h-px bg-stroke-soft" />
+                                </div>
+
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary w-full h-11 text-sm font-semibold flex items-center justify-center gap-2 border-stroke-soft hover:border-primary/40 transition-colors"
+                                    onClick={handlePasskeyLogin}
+                                    disabled={loading}
+                                >
+                                    <HiOutlineFingerPrint className="w-5 h-5 text-primary" />
+                                    <span>{locale === 'en-US' ? 'Sign in with Passkey' : '使用通行密钥 (Passkey) 登录'}</span>
+                                </button>
+
                                 {passwordResetEnabled && (
                                     <div className="verify-actions">
                                         <button

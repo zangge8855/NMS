@@ -51,6 +51,7 @@ import {
     HiOutlineNoSymbol,
     HiOutlinePlayCircle,
     HiOutlineArrowDownTray,
+    HiOutlineSparkles,
 } from 'react-icons/hi2';
 import SkeletonTable from '../UI/SkeletonTable';
 import EmptyState from '../UI/EmptyState';
@@ -352,6 +353,14 @@ export default function UsersHub() {
     const [provisionSelectedInboundKeys, setProvisionSelectedInboundKeys] = useState(new Set());
     const [inboundExpiries, setInboundExpiries] = useState(() => statsBootstrapRef.current?.inboundExpiries || []);
     const [allInbounds, setAllInbounds] = useState(() => statsBootstrapRef.current?.allInbounds || []);
+
+    // Guest pass modal
+    const [guestModalOpen, setGuestModalOpen] = useState(false);
+    const [guestDuration, setGuestDuration] = useState(24);
+    const [guestTrafficGb, setGuestTrafficGb] = useState(2);
+    const [guestNote, setGuestNote] = useState('访客临时体验');
+    const [guestCreating, setGuestCreating] = useState(false);
+    const [guestResult, setGuestResult] = useState<any>(null);
 
     // Edit user modal
     const [editOpen, setEditOpen] = useState(false);
@@ -1778,6 +1787,28 @@ export default function UsersHub() {
         }
     }, [users, loading, searchParams]);
 
+    const handleCreateGuestPass = async () => {
+        setGuestCreating(true);
+        try {
+            const res = await api.post('/users/guest-pass', {
+                durationHours: guestDuration,
+                trafficLimitGb: guestTrafficGb,
+                note: guestNote,
+            });
+            if (res.data?.success && res.data?.obj) {
+                setGuestResult(res.data.obj);
+                toast.success(locale === 'en-US' ? 'Guest pass created!' : '临时访客试用码创建成功！');
+                fetchData({ forceUsers: true });
+            } else {
+                throw new Error(res.data?.msg || '创建失败');
+            }
+        } catch (err: any) {
+            toast.error(err.response?.data?.msg || err.message || '创建访客试用码失败');
+        } finally {
+            setGuestCreating(false);
+        }
+    };
+
     return (
         <>
             <Header
@@ -1882,6 +1913,14 @@ export default function UsersHub() {
                         </button>
                         <button className="btn btn-secondary btn-sm" onClick={() => fetchData({ forceUsers: true })} title={t('pages.usersHub.toolbar.refreshTitle')}>
                             <HiOutlineArrowPath /> {t('pages.usersHub.toolbar.refresh')}
+                        </button>
+                        <button
+                            className="btn btn-secondary btn-sm flex items-center gap-1"
+                            onClick={() => { setGuestResult(null); setGuestModalOpen(true); }}
+                            title={locale === 'en-US' ? 'Guest Pass (Temporary Trial)' : '生成临时访客试用码'}
+                        >
+                            <HiOutlineSparkles className="text-warning" />
+                            <span>{locale === 'en-US' ? 'Guest Pass' : '访客试用码'}</span>
                         </button>
                         <button className="btn btn-primary btn-sm" onClick={openCreateModal} title={t('pages.usersHub.toolbar.addAccountTitle')}>
                             <HiOutlineUserPlus /> {t('pages.usersHub.toolbar.addAccount')}
@@ -3050,6 +3089,139 @@ export default function UsersHub() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </ModalShell>
+            )}
+
+            {/* Modal: Guest Temporary Pass */}
+            {guestModalOpen && (
+                <ModalShell
+                    isOpen={guestModalOpen}
+                    onClose={() => setGuestModalOpen(false)}
+                    title={locale === 'en-US' ? 'Generate Guest Temporary Pass' : '生成访客临时试用订阅码'}
+                    icon={<HiOutlineSparkles className="w-5 h-5 text-warning" />}
+                >
+                    <div className="space-y-4 pt-2">
+                        {!guestResult ? (
+                            <form
+                                onSubmit={(e) => {
+                                    e.preventDefault();
+                                    handleCreateGuestPass();
+                                }}
+                                className="space-y-4"
+                            >
+                                <div className="text-xs text-muted leading-relaxed">
+                                    {locale === 'en-US'
+                                        ? 'Generate a temporary trial account with limited duration and traffic limit. The account will automatically expire when duration ends.'
+                                        : '生成一个具有限时时长与限额流量的临时体验账号，到期后系统将自动失效回收，无需手动清理。'}
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="form-group">
+                                        <label className="form-label">{locale === 'en-US' ? 'Valid Duration' : '有效时长'}</label>
+                                        <select
+                                            className="form-input"
+                                            value={guestDuration}
+                                            onChange={(e) => setGuestDuration(Number(e.target.value))}
+                                        >
+                                            <option value={6}>{locale === 'en-US' ? '6 Hours' : '6 小时'}</option>
+                                            <option value={24}>{locale === 'en-US' ? '24 Hours (1 Day)' : '24 小时 (1 天)'}</option>
+                                            <option value={72}>{locale === 'en-US' ? '72 Hours (3 Days)' : '72 小时 (3 天)'}</option>
+                                            <option value={168}>{locale === 'en-US' ? '7 Days' : '7 天'}</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">{locale === 'en-US' ? 'Traffic Quota (GB)' : '流量限额 (GB)'}</label>
+                                        <select
+                                            className="form-input"
+                                            value={guestTrafficGb}
+                                            onChange={(e) => setGuestTrafficGb(Number(e.target.value))}
+                                        >
+                                            <option value={1}>1 GB</option>
+                                            <option value={2}>2 GB</option>
+                                            <option value={5}>5 GB</option>
+                                            <option value={10}>10 GB</option>
+                                            <option value={20}>20 GB</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className="form-group">
+                                    <label className="form-label">{locale === 'en-US' ? 'Remarks / Note' : '备注说明'}</label>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        value={guestNote}
+                                        onChange={(e) => setGuestNote(e.target.value)}
+                                        placeholder={locale === 'en-US' ? 'e.g. Trial for friend' : '例如: 朋友临时测速体验'}
+                                    />
+                                </div>
+
+                                <div className="modal-footer pt-4 border-t border-stroke-soft flex justify-end gap-2">
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary"
+                                        onClick={() => setGuestModalOpen(false)}
+                                    >
+                                        {t('comp.common.cancel')}
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="btn btn-primary"
+                                        disabled={guestCreating}
+                                    >
+                                        {guestCreating ? <span className="spinner" /> : <><HiOutlineSparkles /> {locale === 'en-US' ? 'Generate Pass' : '立即生成试用码'}</>}
+                                    </button>
+                                </div>
+                            </form>
+                        ) : (
+                            <div className="space-y-4 animate-fade-in">
+                                <div className="p-4 rounded-xl bg-success/10 border border-success/30 text-success text-xs font-semibold flex items-center gap-2">
+                                    <HiOutlineCheck className="w-5 h-5 shrink-0" />
+                                    <span>{locale === 'en-US' ? 'Guest Pass generated successfully!' : '临时访客试用账号已生成！'}</span>
+                                </div>
+
+                                <div className="p-4 rounded-xl bg-surface-panel border border-stroke-soft space-y-2 text-xs">
+                                    <div className="flex justify-between py-1 border-b border-stroke-soft">
+                                        <span className="text-muted">{locale === 'en-US' ? 'Username' : '临时用户名'}</span>
+                                        <span className="font-mono font-bold text-text-primary">{guestResult.username}</span>
+                                    </div>
+                                    <div className="flex justify-between py-1 border-b border-stroke-soft">
+                                        <span className="text-muted">{locale === 'en-US' ? 'Password' : '登录密码'}</span>
+                                        <span className="font-mono font-bold text-text-primary">{guestResult.password}</span>
+                                    </div>
+                                    <div className="flex justify-between py-1 border-b border-stroke-soft">
+                                        <span className="text-muted">{locale === 'en-US' ? 'Traffic Quota' : '流量限额'}</span>
+                                        <span className="font-bold text-text-primary">{guestResult.trafficLimitGb} GB</span>
+                                    </div>
+                                    <div className="flex justify-between py-1">
+                                        <span className="text-muted">{locale === 'en-US' ? 'Expires At' : '失效时间'}</span>
+                                        <span className="font-mono text-warning font-semibold">{formatDateOnly(guestResult.expiresAt)}</span>
+                                    </div>
+                                </div>
+
+                                <div className="modal-footer pt-4 border-t border-stroke-soft flex justify-end gap-2">
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary"
+                                        onClick={async () => {
+                                            const copyText = `NMS 访客试用账号:\n用户名: ${guestResult.username}\n密码: ${guestResult.password}\n流量限额: ${guestResult.trafficLimitGb}GB\n有效期至: ${guestResult.expiresAt}`;
+                                            await copyToClipboard(copyText);
+                                            toast.success(locale === 'en-US' ? 'Credentials copied!' : '访客凭证已复制到剪贴板！');
+                                        }}
+                                    >
+                                        <HiOutlineClipboard /> {locale === 'en-US' ? 'Copy Info' : '复制凭据'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn btn-primary"
+                                        onClick={() => setGuestModalOpen(false)}
+                                    >
+                                        {t('comp.users.close')}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </ModalShell>
             )}

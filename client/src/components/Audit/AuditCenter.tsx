@@ -35,6 +35,7 @@ import { readSessionSnapshot, SESSION_SNAPSHOT_EVENT, writeSessionSnapshot } fro
 const Logs = lazy(() => import('../Logs/Logs'));
 const TrafficLineChart = lazy(() => import('./TrafficLineChart'));
 const ProtocolPieChart = lazy(() => import('./ProtocolPieChart'));
+import ClientGeoDistributionCard from './ClientGeoDistributionCard';
 
 const AUDIT_TRAFFIC_TOP_LIMIT = 10;
 const AUDIT_TRAFFIC_DEFAULT_WINDOW = 'month';
@@ -2760,6 +2761,9 @@ export default function AuditCenter() {
 
                 {tab === 'subscriptions' && (
                     <>
+                        <div className="mb-6">
+                            <ClientGeoDistributionCard items={accessData.items || []} locale={locale} />
+                        </div>
                         <div className="card p-4 audit-control-card audit-control-card-subscriptions">
                             <div className="audit-control-head">
                                 <div className="audit-control-copy">

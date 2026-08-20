@@ -62,6 +62,13 @@ function normalizeInactiveReason(reason, locale = 'zh-CN') {
     return reason;
 }
 
+
+function appendRoutingPolicy(url, policy) {
+    if (!url || typeof url !== 'string') return url;
+    if (url.includes('policy=')) return url.replace(/policy=[^&]*/, 'policy=' + policy);
+    return url.includes('?') ? url + '&policy=' + policy : url + '?policy=' + policy;
+}
+
 function compactSubscriptionUrl(url) {
     const value = String(url || '').trim();
     if (value.length <= 34) return value;
@@ -1077,9 +1084,19 @@ export default function Subscriptions() {
                                                     </button>
                                                 ))}
                                             </div>
+
+                                            <div className="subscription-routing-policy" style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+                                                <span className="text-sm" style={{ marginRight: '0.5rem' }}>路由策略 / Policy:</span>
+                                                <select className="form-select form-select-sm" style={{ width: 'auto', display: 'inline-block' }} value={routingPolicy} onChange={e => setRoutingPolicy(e.target.value)}>
+                                                    <option value="rules">🚀 规则策略 (Rules)</option>
+                                                    <option value="global">🎯 全局代理 (Global)</option>
+                                                    <option value="auto">⚡ 自动优选 (Auto)</option>
+                                                </select>
+                                            </div>
+
                                             <div className="subscription-profile-notes">
                                                 <div className="text-xs text-muted">{ui.manualImportHint}</div>
-                                                {isAdmin && result.bundle?.externalConverterConfigured && (
+                                                {isAdmin && patchedBundle?.externalConverterConfigured && (
                                                     <div className="text-xs text-muted">
                                                         {ui.adminConverterHint}
                                                         {' '}

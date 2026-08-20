@@ -10,10 +10,13 @@ import { useNavigate } from 'react-router-dom';
 import { formatBytes } from '../../utils/format';
 import { useI18n } from '../../contexts/LanguageContext';
 import EmptyState from '../UI/EmptyState';
+import api from '../../api/client';
 import {
     HiOutlineServerStack,
     HiOutlineSignal,
     HiOutlineXMark,
+    HiOutlineBolt,
+    HiOutlineArrowPath,
 } from 'react-icons/hi2';
 
 const NODE_HEALTH_INITIAL_LIMIT = 6;
@@ -163,9 +166,10 @@ interface NodeTileProps {
     serverData: any;
     trend?: any[];
     showSparkline?: boolean;
+    ping?: { latencyMs: number; online: boolean };
 }
 
-function NodeTile({ server, serverData, trend = [], showSparkline = false }: NodeTileProps) {
+function NodeTile({ server, serverData, trend = [], showSparkline = false, ping }: NodeTileProps) {
     const navigate = useNavigate();
     const { t, locale } = useI18n();
     const copy = getNodeHealthCopy(locale);
@@ -230,7 +234,19 @@ function NodeTile({ server, serverData, trend = [], showSparkline = false }: Nod
                         )}
                     </div>
                 </div>
-                <span className="node-health-tone-pill">{color.label}</span>
+                <div className="flex items-center gap-1.5">
+                    {ping && (
+                        <span
+                            className={`badge ${ping.latencyMs > 0 && ping.latencyMs < 150 ? 'badge-success' : (ping.latencyMs > 0 && ping.latencyMs < 350 ? 'badge-warning' : 'badge-danger')}`}
+                            style={{ fontSize: '10px', padding: '2px 5px', height: 'auto', display: 'inline-flex', alignItems: 'center', gap: '2px' }}
+                            title={locale === 'en-US' ? `RTT Latency: ${ping.latencyMs}ms` : `实时探测延迟: ${ping.latencyMs}ms`}
+                        >
+                            <HiOutlineBolt style={{ fontSize: '11px' }} />
+                            {ping.latencyMs > 0 ? `${ping.latencyMs}ms` : (locale === 'en-US' ? 'Timeout' : '超时')}
+                        </span>
+                    )}
+                    <span className="node-health-tone-pill">{color.label}</span>
+                </div>
             </div>
 
             {isOnline ? (
@@ -329,6 +345,22 @@ export default function NodeHealthGrid({ servers, serverStatuses, trendHistory =
     const copy = getNodeHealthCopy(locale);
     const [expanded, setExpanded] = useState(false);
     const [query, setQuery] = useState('');
+    const [pinging, setPinging] = useState(false);
+    const [pingResults, setPingResults] = useState<Record<string, { latencyMs: number; online: boolean }>>({});
+
+    const handlePingAll = async () => {
+        setPinging(true);
+        try {
+            const res = await api.post('/servers/ping-all');
+            if (res.data?.success && res.data?.results) {
+                setPingResults(res.data.results);
+            }
+        } catch {
+            // ignore
+        } finally {
+            setPinging(false);
+        }
+    };
     const safeServers = Array.isArray(servers) ? servers : [];
     const hasStatuses = Boolean(serverStatuses && Object.keys(serverStatuses).length > 0);
     const entries = useMemo(() => (
@@ -433,6 +465,16 @@ export default function NodeHealthGrid({ servers, serverStatuses, trendHistory =
                         aria-label={copy.searchPlaceholder}
                     />
                     {denseMode && <span className="node-health-density-pill">{copy.denseMode}</span>}
+                    <button
+                        type="button"
+                        className="btn btn-secondary btn-sm flex items-center gap-1"
+                        onClick={handlePingAll}
+                        disabled={pinging}
+                        title={locale === 'en-US' ? 'Test Latency for All Nodes' : '一键测试全部节点延迟'}
+                    >
+                        {pinging ? <HiOutlineArrowPath className="spinning w-3.5 h-3.5" /> : <HiOutlineBolt className="text-warning w-3.5 h-3.5" />}
+                        <span>{locale === 'en-US' ? 'Ping All' : '一键测速'}</span>
+                    </button>
                     <span className="node-health-visible-count">{shownLabel}</span>
                     {canToggle && (
                         <button
@@ -454,6 +496,7 @@ export default function NodeHealthGrid({ servers, serverStatuses, trendHistory =
                                 key={server.id}
                                 server={server}
                                 serverData={serverData}
+                                ping={pingResults[server.id]}
                                 trend={trendHistory?.[server.id] || []}
                                 showSparkline={expanded}
                             />

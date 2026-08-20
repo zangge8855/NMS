@@ -2049,7 +2049,7 @@ function parseMihomoProxyFromLink(link, usedNames, index) {
     return null;
 }
 
-function buildMihomoConfigObject(links: any[] = []) {
+function buildMihomoConfigObject(links: any[] = [], routingPolicy: string = 'rules') {
     const usedNames = new Set();
     const proxies = [];
     (Array.isArray(links) ? links : []).forEach((link, index) => {
@@ -2059,6 +2059,42 @@ function buildMihomoConfigObject(links: any[] = []) {
     if (proxies.length === 0) return null;
 
     const proxyNames = proxies.map((item) => item.name);
+    
+    let proxyGroups = [];
+    let rules = [];
+    
+    if (routingPolicy === 'global') {
+        proxyGroups = [
+            { name: 'PROXY', type: 'select', proxies: proxyNames }
+        ];
+        rules = ['MATCH,PROXY'];
+    } else if (routingPolicy === 'auto') {
+        proxyGroups = [
+            { name: 'AUTO', type: 'url-test', proxies: proxyNames, url: 'https://www.gstatic.com/generate_204', interval: 300, tolerance: 50 }
+        ];
+        rules = ['MATCH,AUTO'];
+    } else {
+        proxyGroups = [
+            { name: '🚀 节点选择', type: 'select', proxies: ['⚡ 自动优选', ...proxyNames, '🎯 全球直连'] },
+            { name: '⚡ 自动优选', type: 'url-test', proxies: proxyNames, url: 'https://www.gstatic.com/generate_204', interval: 300, tolerance: 50 },
+            { name: '🤖 AI 服务', type: 'select', proxies: ['🚀 节点选择', ...proxyNames] },
+            { name: '🎬 国际流媒体', type: 'select', proxies: ['🚀 节点选择', ...proxyNames] },
+            { name: '🛑 广告拦截', type: 'select', proxies: ['REJECT', 'DIRECT'] },
+            { name: '🎯 全球直连', type: 'select', proxies: ['DIRECT', '🚀 节点选择'] }
+        ];
+        rules = [
+            ...LOCAL_DIRECT_RULES,
+            'GEOSITE,category-ads-all,🛑 广告拦截',
+            'GEOSITE,openai,🤖 AI 服务',
+            'GEOSITE,netflix,🎬 国际流媒体',
+            'GEOSITE,youtube,🎬 国际流媒体',
+            'GEOSITE,disney,🎬 国际流媒体',
+            'DOMAIN-SUFFIX,cn,🎯 全球直连',
+            'GEOIP,CN,🎯 全球直连',
+            'MATCH,🚀 节点选择'
+        ];
+    }
+
     return {
         port: 7890,
         'socks-port': 7891,
@@ -2102,32 +2138,13 @@ function buildMihomoConfigObject(links: any[] = []) {
             },
         },
         proxies,
-        'proxy-groups': [
-            {
-                name: 'PROXY',
-                type: 'select',
-                proxies: ['AUTO', ...proxyNames, 'DIRECT'],
-            },
-            {
-                name: 'AUTO',
-                type: 'url-test',
-                proxies: proxyNames,
-                url: 'https://www.gstatic.com/generate_204',
-                interval: 300,
-                tolerance: 50,
-            },
-        ],
-        rules: [
-            ...LOCAL_DIRECT_RULES,
-            'DOMAIN-SUFFIX,cn,DIRECT',
-            'GEOIP,CN,DIRECT',
-            'MATCH,PROXY',
-        ],
+        'proxy-groups': proxyGroups,
+        rules
     };
 }
 
-function buildMihomoConfigFromLinks(links: any[] = [], subscriptionUrl = '') {
-    const config = buildMihomoConfigObject(links);
+function buildMihomoConfigFromLinks(links: any[] = [], subscriptionUrl = "", routingPolicy = "rules") {
+    const config = buildMihomoConfigObject(links, routingPolicy);
     if (!config) return '';
     const lines = [];
     const managedUrl = String(subscriptionUrl || '').trim();
@@ -2213,7 +2230,7 @@ function buildSurgeProxyLine(proxy) {
     return '';
 }
 
-function buildSurgeConfigObject(links: any[] = []) {
+function buildSurgeConfigObject(links: any[] = [], routingPolicy = "rules") {
     const usedNames = new Set();
     const proxies = [];
     (Array.isArray(links) ? links : []).forEach((link, index) => {
@@ -2234,21 +2251,36 @@ function buildSurgeConfigObject(links: any[] = []) {
         general: SURGE_GENERAL_CONFIG,
         replica: SURGE_REPLICA_CONFIG,
         proxies,
-        groups: [
-            `PROXY = select, AUTO, ${proxyNames.join(', ')}, DIRECT`,
-            `AUTO = url-test, ${proxyNames.join(', ')}, url=http://cp.cloudflare.com/generate_204, interval=300`,
-        ],
-        rules: [
-            ...LOCAL_DIRECT_RULES,
-            'DOMAIN-SUFFIX,cn,DIRECT',
-            'GEOIP,CN,DIRECT',
-            'FINAL,PROXY',
-        ],
+        ...(() => {
+                if (routingPolicy === 'global') return { groups: [`PROXY = select, ${proxyNames.join(', ')}`], rules: ['FINAL,PROXY'] };
+                if (routingPolicy === 'auto') return { groups: [`AUTO = url-test, ${proxyNames.join(', ')}, url=http://cp.cloudflare.com/generate_204, interval=300`], rules: ['FINAL,AUTO'] };
+                return {
+                    groups: [
+                        `🚀 节点选择 = select, ⚡ 自动优选, ${proxyNames.join(', ')}, 🎯 全球直连`,
+                        `⚡ 自动优选 = url-test, ${proxyNames.join(', ')}, url=http://cp.cloudflare.com/generate_204, interval=300`,
+                        `🤖 AI 服务 = select, 🚀 节点选择, ${proxyNames.join(', ')}`,
+                        `🎬 国际流媒体 = select, 🚀 节点选择, ${proxyNames.join(', ')}`,
+                        `🛑 广告拦截 = select, REJECT, DIRECT`,
+                        `🎯 全球直连 = select, DIRECT, 🚀 节点选择`
+                    ],
+                    rules: [
+                        ...LOCAL_DIRECT_RULES,
+                        'DOMAIN-SET,geosite:category-ads-all,🛑 广告拦截',
+                        'DOMAIN-SET,geosite:openai,🤖 AI 服务',
+                        'DOMAIN-SET,geosite:netflix,🎬 国际流媒体',
+                        'DOMAIN-SET,geosite:youtube,🎬 国际流媒体',
+                        'DOMAIN-SET,geosite:disney,🎬 国际流媒体',
+                        'DOMAIN-SUFFIX,cn,🎯 全球直连',
+                        'GEOIP,CN,🎯 全球直连',
+                        'FINAL,🚀 节点选择'
+                    ]
+                };
+            })(),
     };
 }
 
-function buildSurgeConfigFromLinks(links: any[] = [], subscriptionUrl = '') {
-    const config = buildSurgeConfigObject(links);
+function buildSurgeConfigFromLinks(links: any[] = [], subscriptionUrl = '', routingPolicy = 'rules') {
+    const config = buildSurgeConfigObject(links, routingPolicy);
     if (!config) return '';
 
     const lines = [];
@@ -2645,6 +2677,7 @@ function parseSingboxOutboundFromLink(link, usedNames, index) {
 
 function buildSingboxConfigObject(links: any[] = [], options: any = {}) {
     const configVersion = resolveSingboxConfigVersion(options.version, options.userAgent);
+    const routingPolicy = options.routingPolicy || "rules";
     const usedNames = new Set();
     const proxies = [];
     (Array.isArray(links) ? links : []).forEach((link, index) => {
@@ -2719,57 +2752,55 @@ function buildSingboxConfigObject(links: any[] = [], options: any = {}) {
                 { type: 'mixed', tag: 'mixed-in', listen: '0.0.0.0', listen_port: 2080 },
                 { type: 'tun', tag: 'tun-in', address: '172.19.0.1/30', auto_route: true, strict_route: true, stack: 'mixed', sniff: true },
             ],
-            outbounds: [
-                { type: 'block', tag: 'REJECT' },
-                { type: 'direct', tag: 'DIRECT' },
-                ...proxies,
-                {
-                    type: 'urltest',
-                    tag: 'AUTO',
-                    outbounds: proxyTags,
-                    url: 'https://www.gstatic.com/generate_204',
-                    interval: '10m',
-                    tolerance: 50,
-                },
-                {
-                    type: 'selector',
-                    tag: 'PROXY',
-                    outbounds: ['AUTO', ...proxyTags, 'DIRECT'],
-                },
-            ],
+            ...(() => {
+                if (routingPolicy === 'global') {
+                    return { outbounds: [{ type: 'block', tag: 'REJECT' }, { type: 'direct', tag: 'DIRECT' }, ...proxies, { type: 'selector', tag: 'PROXY', outbounds: proxyTags }] };
+                }
+                if (routingPolicy === 'auto') {
+                    return { outbounds: [{ type: 'block', tag: 'REJECT' }, { type: 'direct', tag: 'DIRECT' }, ...proxies, { type: 'urltest', tag: 'AUTO', outbounds: proxyTags, url: 'https://www.gstatic.com/generate_204', interval: '10m', tolerance: 50 }] };
+                }
+                return {
+                    outbounds: [
+                        { type: 'block', tag: 'REJECT' },
+                        { type: 'direct', tag: 'DIRECT' },
+                        ...proxies,
+                        { type: 'urltest', tag: '⚡ 自动优选', outbounds: proxyTags, url: 'https://www.gstatic.com/generate_204', interval: '10m', tolerance: 50 },
+                        { type: 'selector', tag: '🚀 节点选择', outbounds: ['⚡ 自动优选', ...proxyTags, '🎯 全球直连'] },
+                        { type: 'selector', tag: '🤖 AI 服务', outbounds: ['🚀 节点选择', ...proxyTags] },
+                        { type: 'selector', tag: '🎬 国际流媒体', outbounds: ['🚀 节点选择', ...proxyTags] },
+                        { type: 'selector', tag: '🛑 广告拦截', outbounds: ['REJECT', 'DIRECT'] },
+                        { type: 'selector', tag: '🎯 全球直连', outbounds: ['DIRECT', '🚀 节点选择'] }
+                    ]
+                };
+            })(),
             route: {
                 rule_set: [
-                    {
-                        type: 'remote',
-                        tag: 'geoip-cn',
-                        format: 'binary',
-                        url: SINGBOX_GEOIP_CN_RULESET_URL,
-                        update_interval: '7d',
-                    },
-                ],
-                rules: [
-                    {
-                        action: 'sniff',
-                        timeout: '1s',
-                    },
-                    {
-                        protocol: 'dns',
-                        action: 'hijack-dns',
-                    },
-                    {
-                        ip_is_private: true,
-                        outbound: 'DIRECT',
-                    },
-                    {
-                        domain_suffix: ['.cn'],
-                        outbound: 'DIRECT',
-                    },
-                    {
-                        rule_set: ['geoip-cn'],
-                        outbound: 'DIRECT',
-                    },
-                ],
-                final: 'PROXY',
+                { type: 'remote', tag: 'geoip-cn', format: 'binary', url: SINGBOX_GEOIP_CN_RULESET_URL, update_interval: '7d' },
+                ...(routingPolicy === 'rules' ? [
+                    { type: 'remote', tag: 'geosite-category-ads-all', format: 'binary', url: 'https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-category-ads-all.srs', update_interval: '7d' },
+                    { type: 'remote', tag: 'geosite-openai', format: 'binary', url: 'https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-openai.srs', update_interval: '7d' },
+                    { type: 'remote', tag: 'geosite-netflix', format: 'binary', url: 'https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-netflix.srs', update_interval: '7d' },
+                    { type: 'remote', tag: 'geosite-youtube', format: 'binary', url: 'https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-youtube.srs', update_interval: '7d' },
+                    { type: 'remote', tag: 'geosite-disney', format: 'binary', url: 'https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-disney.srs', update_interval: '7d' }
+                ] : [])
+            ],
+                ...(() => {
+                if (routingPolicy === 'global') return { rules: [{action:'sniff',timeout:'1s'},{protocol:'dns',action:'hijack-dns'},{ip_is_private:true,outbound:'DIRECT'}], final: 'PROXY' };
+                if (routingPolicy === 'auto') return { rules: [{action:'sniff',timeout:'1s'},{protocol:'dns',action:'hijack-dns'},{ip_is_private:true,outbound:'DIRECT'}], final: 'AUTO' };
+                return {
+                    rules: [
+                        {action:'sniff',timeout:'1s'},
+                        {protocol:'dns',action:'hijack-dns'},
+                        {ip_is_private:true,outbound:'🎯 全球直连'},
+                        {rule_set:['geosite-category-ads-all'],outbound:'🛑 广告拦截'},
+                        {rule_set:['geosite-openai'],outbound:'🤖 AI 服务'},
+                        {rule_set:['geosite-netflix','geosite-youtube','geosite-disney'],outbound:'🎬 国际流媒体'},
+                        {domain_suffix:['.cn'],outbound:'🎯 全球直连'},
+                        {rule_set:['geoip-cn'],outbound:'🎯 全球直连'}
+                    ],
+                    final: '🚀 节点选择'
+                };
+            })(),
                 auto_detect_interface: true,
             },
             experimental: {
@@ -2843,61 +2874,56 @@ function buildSingboxConfigObject(links: any[] = [], options: any = {}) {
             { type: 'mixed', tag: 'mixed-in', listen: '0.0.0.0', listen_port: 2080 },
             { type: 'tun', tag: 'tun-in', address: '172.19.0.1/30', auto_route: true, strict_route: true, stack: 'mixed', sniff: true },
         ],
-        outbounds: [
-            { type: 'block', tag: 'REJECT' },
-            { type: 'direct', tag: 'DIRECT' },
-            ...proxies,
-            {
-                type: 'urltest',
-                tag: 'AUTO',
-                outbounds: proxyTags,
-                url: 'https://www.gstatic.com/generate_204',
-                interval: '10m',
-                tolerance: 50,
-            },
-            {
-                type: 'selector',
-                tag: 'PROXY',
-                outbounds: ['AUTO', ...proxyTags, 'DIRECT'],
-            },
-        ],
+        ...(() => {
+                if (routingPolicy === 'global') {
+                    return { outbounds: [{ type: 'block', tag: 'REJECT' }, { type: 'direct', tag: 'DIRECT' }, ...proxies, { type: 'selector', tag: 'PROXY', outbounds: proxyTags }] };
+                }
+                if (routingPolicy === 'auto') {
+                    return { outbounds: [{ type: 'block', tag: 'REJECT' }, { type: 'direct', tag: 'DIRECT' }, ...proxies, { type: 'urltest', tag: 'AUTO', outbounds: proxyTags, url: 'https://www.gstatic.com/generate_204', interval: '10m', tolerance: 50 }] };
+                }
+                return {
+                    outbounds: [
+                        { type: 'block', tag: 'REJECT' },
+                        { type: 'direct', tag: 'DIRECT' },
+                        ...proxies,
+                        { type: 'urltest', tag: '⚡ 自动优选', outbounds: proxyTags, url: 'https://www.gstatic.com/generate_204', interval: '10m', tolerance: 50 },
+                        { type: 'selector', tag: '🚀 节点选择', outbounds: ['⚡ 自动优选', ...proxyTags, '🎯 全球直连'] },
+                        { type: 'selector', tag: '🤖 AI 服务', outbounds: ['🚀 节点选择', ...proxyTags] },
+                        { type: 'selector', tag: '🎬 国际流媒体', outbounds: ['🚀 节点选择', ...proxyTags] },
+                        { type: 'selector', tag: '🛑 广告拦截', outbounds: ['REJECT', 'DIRECT'] },
+                        { type: 'selector', tag: '🎯 全球直连', outbounds: ['DIRECT', '🚀 节点选择'] }
+                    ]
+                };
+            })(),
         route: {
             default_domain_resolver: 'dns_resolver',
             rule_set: [
-                {
-                    type: 'remote',
-                    tag: 'geoip-cn',
-                    format: 'binary',
-                    url: SINGBOX_GEOIP_CN_RULESET_URL,
-                    update_interval: '7d',
-                },
+                { type: 'remote', tag: 'geoip-cn', format: 'binary', url: SINGBOX_GEOIP_CN_RULESET_URL, update_interval: '7d' },
+                ...(routingPolicy === 'rules' ? [
+                    { type: 'remote', tag: 'geosite-category-ads-all', format: 'binary', url: 'https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-category-ads-all.srs', update_interval: '7d' },
+                    { type: 'remote', tag: 'geosite-openai', format: 'binary', url: 'https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-openai.srs', update_interval: '7d' },
+                    { type: 'remote', tag: 'geosite-netflix', format: 'binary', url: 'https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-netflix.srs', update_interval: '7d' },
+                    { type: 'remote', tag: 'geosite-youtube', format: 'binary', url: 'https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-youtube.srs', update_interval: '7d' },
+                    { type: 'remote', tag: 'geosite-disney', format: 'binary', url: 'https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-disney.srs', update_interval: '7d' }
+                ] : [])
             ],
-            rules: [
-                {
-                    action: 'sniff',
-                    timeout: '1s',
-                },
-                {
-                    protocol: 'dns',
-                    action: 'hijack-dns',
-                },
-                {
-                    ip_is_private: true,
-                    action: 'route',
-                    outbound: 'DIRECT',
-                },
-                {
-                    domain_suffix: ['.cn'],
-                    action: 'route',
-                    outbound: 'DIRECT',
-                },
-                {
-                    rule_set: ['geoip-cn'],
-                    action: 'route',
-                    outbound: 'DIRECT',
-                },
-            ],
-            final: 'PROXY',
+            ...(() => {
+                if (routingPolicy === 'global') return { rules: [{action:'sniff',timeout:'1s'},{protocol:'dns',action:'hijack-dns'},{ip_is_private:true,action:'route',outbound:'DIRECT'}], final: 'PROXY' };
+                if (routingPolicy === 'auto') return { rules: [{action:'sniff',timeout:'1s'},{protocol:'dns',action:'hijack-dns'},{ip_is_private:true,action:'route',outbound:'DIRECT'}], final: 'AUTO' };
+                return {
+                    rules: [
+                        {action:'sniff',timeout:'1s'},
+                        {protocol:'dns',action:'hijack-dns'},
+                        {ip_is_private:true,action:'route',outbound:'🎯 全球直连'},
+                        {rule_set:['geosite-category-ads-all'],action:'route',outbound:'🛑 广告拦截'},
+                        {rule_set:['geosite-openai'],action:'route',outbound:'🤖 AI 服务'},
+                        {rule_set:['geosite-netflix','geosite-youtube','geosite-disney'],action:'route',outbound:'🎬 国际流媒体'},
+                        {domain_suffix:['.cn'],action:'route',outbound:'🎯 全球直连'},
+                        {rule_set:['geoip-cn'],action:'route',outbound:'🎯 全球直连'}
+                    ],
+                    final: '🚀 节点选择'
+                };
+            })(),
             auto_detect_interface: true,
         },
         experimental: {
@@ -3300,7 +3326,8 @@ function appendSubscriptionAccessAudit(req, payload: any = {}) {
 function resolveSingboxBuildOptions(req) {
     return {
         version: firstNonEmpty(req?.query?.singbox_version, req?.query?.sb_version, req?.query?.sb_ver),
-        userAgent: pickHeaderFirstValue(req?.headers?.['user-agent']) || '',
+        userAgent: pickHeaderFirstValue(req?.headers?.["user-agent"]) || "",
+        routingPolicy: String(req?.query?.policy || "rules").toLowerCase(),
     };
 }
 
@@ -3332,8 +3359,10 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
     const tokenSecret = String(req.params.token || '').trim();
     const mode = normalizeMode(req.query.mode);
     const serverId = normalizeServerId(req.query.serverId);
+    const routingPolicy = String(req.query.policy || "rules").toLowerCase();
     // `target` is the subconverter-style alias for `format` that most client apps send.
     const format = normalizeSubscriptionFormat(firstNonEmpty(req.query.format, req.query.target));
+    const routingPolicy = String(req.query.policy || "rules").toLowerCase();
 
     if (!tokenId || !tokenSecret) {
         appendSecurityAudit('subscription_public_denied', req, {
@@ -3469,7 +3498,7 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
         expiryTime,
     }));
     if (format === 'clash') {
-        const yaml = buildMihomoConfigFromLinks(links, scopedUrls.subscriptionUrlClash);
+        const yaml = buildMihomoConfigFromLinks(links, scopedUrls.subscriptionUrlClash, routingPolicy);
         if (!yaml) {
             return res.status(410).send('no clash-compatible links found');
         }
@@ -3485,7 +3514,7 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
         return res.send(profile);
     }
     if (format === 'surge') {
-        const profile = buildSurgeConfigFromLinks(links, scopedUrls.subscriptionUrlSurge);
+        const profile = buildSurgeConfigFromLinks(links, scopedUrls.subscriptionUrlSurge, routingPolicy);
         if (!profile) {
             return res.status(410).send('no surge-compatible links found');
         }
@@ -3510,7 +3539,9 @@ router.get('/public/:email/:sig', async (req, res) => {
     const sig = String(req.params.sig || '');
     const mode = normalizeMode(req.query.mode);
     const serverId = normalizeServerId(req.query.serverId);
+    const routingPolicy = String(req.query.policy || "rules").toLowerCase();
     const format = normalizeSubscriptionFormat(firstNonEmpty(req.query.format, req.query.target));
+    const routingPolicy = String(req.query.policy || "rules").toLowerCase();
 
     if (!email || !verifyEmailSig(email, sig)) {
         appendSecurityAudit('subscription_public_denied_legacy', req, {
@@ -3606,7 +3637,7 @@ router.get('/public/:email/:sig', async (req, res) => {
         expiryTime,
     }));
     if (format === 'clash') {
-        const yaml = buildMihomoConfigFromLinks(links, scopedUrls.subscriptionUrlClash);
+        const yaml = buildMihomoConfigFromLinks(links, scopedUrls.subscriptionUrlClash, routingPolicy);
         if (!yaml) {
             return res.status(410).send('no clash-compatible links found');
         }
@@ -3622,7 +3653,7 @@ router.get('/public/:email/:sig', async (req, res) => {
         return res.send(profile);
     }
     if (format === 'surge') {
-        const profile = buildSurgeConfigFromLinks(links, scopedUrls.subscriptionUrlSurge);
+        const profile = buildSurgeConfigFromLinks(links, scopedUrls.subscriptionUrlSurge, routingPolicy);
         if (!profile) {
             return res.status(410).send('no surge-compatible links found');
         }
@@ -3906,6 +3937,7 @@ router.get('/:email/raw', authMiddleware, ensureEmailAccess, async (req, res) =>
     const email = normalizeEmail(req.params.email);
     const mode = normalizeMode(req.query.mode);
     const serverId = normalizeServerId(req.query.serverId);
+    const routingPolicy = String(req.query.policy || "rules").toLowerCase();
     const { links, serverNotFound, inactiveReason } = await buildMergedLinksByEmail(email, { mode, serverId });
     if (serverNotFound) {
         return res.status(404).json({ success: false, msg: '节点不存在，请刷新节点列表后重试' });
@@ -3925,6 +3957,7 @@ router.get('/:email', authMiddleware, ensureEmailAccess, async (req, res) => {
     const email = normalizeEmail(req.params.email);
     const mode = normalizeMode(req.query.mode);
     const serverId = normalizeServerId(req.query.serverId);
+    const routingPolicy = String(req.query.policy || "rules").toLowerCase();
 
     const {
         links,

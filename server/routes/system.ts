@@ -31,6 +31,7 @@ import taskQueue, { TASK_STATUS } from '../lib/taskQueue.js';
 import notificationService from '../lib/notifications.js';
 import { getEmailStatus, verifySmtpConnection } from '../lib/mailer.js';
 import alertEngine from '../lib/alertEngine.js';
+import { sendWebhookAlert } from '../lib/alertWebhookService.js';
 import { getServerPanelSnapshots } from '../lib/serverPanelSnapshotService.js';
 import serverHealthMonitor from '../lib/serverHealthMonitor.js';
 import telegramAlertService from '../lib/telegramAlertService.js';
@@ -1244,6 +1245,31 @@ router.post('/notifications/read', authMiddleware, (req, res) => {
         return res.json({ success: ok, msg: ok ? 'Marked as read' : 'Notification not found' });
     }
     return res.status(400).json({ success: false, msg: 'Provide id or all=true' });
+});
+
+/**
+ * POST /api/system/notifications/test-webhook — 测试多渠道 Webhook 告警推送
+ */
+router.post('/notifications/test-webhook', authMiddleware, adminOnly, async (req, res) => {
+    try {
+        const { channel, url, barkKey, secret } = req.body || {};
+        if (!channel) {
+            return res.status(400).json({ success: false, msg: '请选择推送渠道' });
+        }
+        const result = await sendWebhookAlert(
+            { channel, url, barkKey, secret },
+            {
+                title: 'NMS 告警测试',
+                message: '这是一条来自 NMS 节点管家的测试通知，证明您的 Webhook 告警通道工作正常！',
+                level: 'info',
+                event: 'test_alert',
+                timestamp: new Date().toISOString(),
+            }
+        );
+        return res.json(result);
+    } catch (err: any) {
+        return res.status(400).json({ success: false, msg: err.message || 'Webhook 测试失败' });
+    }
 });
 
 router.post('/db/switch', adminOnly, async (req, res) => {

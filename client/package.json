@@ -16,6 +16,7 @@
         "@fontsource-variable/noto-sans-sc": "^5.2.10",
         "@fontsource-variable/schibsted-grotesk": "^5.2.8",
         "@fontsource/ibm-plex-mono": "^5.2.7",
+        "@simplewebauthn/browser": "^13.3.0",
         "axios": "^1.18.1",
         "qrcode.react": "^4.2.0",
         "react": "^18.3.0",

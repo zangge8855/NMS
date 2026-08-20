@@ -488,6 +488,11 @@ export default function SystemSettings() {
     const [monitorStatusLoading, setMonitorStatusLoading] = useState(false);
     const [monitorStatus, setMonitorStatus] = useState(() => settingsBootstrapRef.current?.monitorStatus || null);
     const [telegramTestLoading, setTelegramTestLoading] = useState(false);
+    const [webhookChannel, setWebhookChannel] = useState<'bark' | 'discord' | 'feishu' | 'wechat' | 'custom'>('bark');
+    const [webhookUrl, setWebhookUrl] = useState('');
+    const [webhookBarkKey, setWebhookBarkKey] = useState('');
+    const [webhookSecret, setWebhookSecret] = useState('');
+    const [webhookTestLoading, setWebhookTestLoading] = useState(false);
     const [editingTelegramChatId, setEditingTelegramChatId] = useState(false);
     const [registrationRuntime, setRegistrationRuntime] = useState(() => settingsBootstrapRef.current?.registrationRuntime || null);
     const [inviteCodesLoading, setInviteCodesLoading] = useState(false);
@@ -1631,6 +1636,27 @@ export default function SystemSettings() {
         setTelegramTestLoading(false);
     };
 
+    const testWebhookNotification = async () => {
+        setWebhookTestLoading(true);
+        try {
+            const res = await api.post('/system/notifications/test-webhook', {
+                channel: webhookChannel,
+                url: webhookUrl,
+                barkKey: webhookBarkKey,
+                secret: webhookSecret,
+            });
+            if (res.data?.success) {
+                toast.success(res.data?.msg || (locale === 'en-US' ? 'Webhook test alert sent successfully!' : 'Webhook 测试通知发送成功！'));
+            } else {
+                throw new Error(res.data?.msg || (locale === 'en-US' ? 'Failed to send webhook test alert' : '发送失败'));
+            }
+        } catch (error: any) {
+            toast.error(error.response?.data?.msg || error.message || (locale === 'en-US' ? 'Webhook test failed' : 'Webhook 测试失败'));
+        } finally {
+            setWebhookTestLoading(false);
+        }
+    };
+
     const localBackups = Array.isArray(backupStatus?.localBackups) ? backupStatus.localBackups : [];
     const latestLocalBackup = localBackups[0] || null;
     const lastTelegramBackup = backupStatus?.lastTelegramBackup || null;
@@ -2618,6 +2644,80 @@ export default function SystemSettings() {
                             inactiveLabel={t("pages.settings.doNotPush")}
                         />
                     </div>
+                </div>
+
+                {/* Multi-Channel Webhook Notifications */}
+                <div className="card p-4 settings-panel settings-panel--wide mt-4">
+                    <SectionHeader
+                        className="mb-3"
+                        compact
+                        title={locale === 'en-US' ? 'Multi-Channel Alert Webhooks (Bark / Discord / 飞书 / 企业微信)' : '多渠道 Webhook 告警推送 (Bark / Discord / 飞书 / 企业微信)'}
+                        subtitle={locale === 'en-US' ? 'Instant push notifications for node outages, traffic limits, and TLS certificate expiry.' : '节点离线、流量超标、TLS 证书即将过期时自动通过 Webhook 秒级推送到您的手机或聊天群组。'}
+                        actions={(
+                            <button
+                                className="btn btn-secondary btn-sm"
+                                onClick={testWebhookNotification}
+                                disabled={webhookTestLoading || (!webhookUrl && !webhookBarkKey)}
+                            >
+                                {webhookTestLoading ? <span className="spinner" /> : (locale === 'en-US' ? 'Send Test Alert' : '发送测试通知')}
+                            </button>
+                        )}
+                    />
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="form-group">
+                            <label className="form-label font-semibold">{locale === 'en-US' ? 'Webhook Channel' : '推送渠道'}</label>
+                            <select
+                                className="form-input"
+                                value={webhookChannel}
+                                onChange={(e) => setWebhookChannel(e.target.value as any)}
+                            >
+                                <option value="bark">Bark (iOS 极速纯推送)</option>
+                                <option value="discord">Discord Webhook</option>
+                                <option value="feishu">飞书机器人 (Lark Robot)</option>
+                                <option value="wechat">企业微信群机器人 (WeChat Work)</option>
+                                <option value="custom">自定义通用 Webhook (POST JSON)</option>
+                            </select>
+                        </div>
+
+                        {webhookChannel === 'bark' ? (
+                            <div className="form-group">
+                                <label className="form-label font-semibold">Bark Device Key</label>
+                                <input
+                                    type="text"
+                                    className="form-input font-mono"
+                                    placeholder="例如: AbCdEfGhIjKlMnOp"
+                                    value={webhookBarkKey}
+                                    onChange={(e) => setWebhookBarkKey(e.target.value)}
+                                />
+                                <div className="text-xs text-muted mt-1">{locale === 'en-US' ? 'Enter the device key from the Bark iOS app.' : '在 iPhone 打开 Bark App 复制设备 Key。'}</div>
+                            </div>
+                        ) : (
+                            <div className="form-group">
+                                <label className="form-label font-semibold">Webhook URL</label>
+                                <input
+                                    type="text"
+                                    className="form-input font-mono text-xs"
+                                    placeholder={webhookChannel === 'discord' ? 'https://discord.com/api/webhooks/...' : 'https://open.feishu.cn/open-apis/bot/v2/hook/...'}
+                                    value={webhookUrl}
+                                    onChange={(e) => setWebhookUrl(e.target.value)}
+                                />
+                            </div>
+                        )}
+                    </div>
+
+                    {webhookChannel === 'custom' && (
+                        <div className="form-group mt-2">
+                            <label className="form-label font-semibold">{locale === 'en-US' ? 'Signature / Secret Token (Optional)' : '签名密钥 / Secret (可选)'}</label>
+                            <input
+                                type="password"
+                                className="form-input font-mono"
+                                value={webhookSecret}
+                                onChange={(e) => setWebhookSecret(e.target.value)}
+                                placeholder="X-NMS-Signature token"
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

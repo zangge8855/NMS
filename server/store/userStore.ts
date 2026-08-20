@@ -125,6 +125,7 @@ class UserStore {
                     profileVerifyUsername: normalizeUsernameValue(item?.profileVerifyUsername),
                     profileVerifyEmail: normalizeEmailValue(item?.profileVerifyEmail),
                     groupId: normalizeGroupId(item?.groupId),
+                    passkeys: Array.isArray(item.passkeys) ? item.passkeys : [],
                 };
             });
         } catch (e: any) {
@@ -162,6 +163,7 @@ class UserStore {
                 profileVerifyUsername: '',
                 profileVerifyEmail: '',
                 createdAt: new Date().toISOString(),
+                passkeys: [],
             });
             this._save();
             console.log(`  👤 Default admin user created (username: ${adminUsername})`);
@@ -317,6 +319,7 @@ class UserStore {
             pbkdf2Iterations: iterations,
             role: normalizedRole,
             createdAt: new Date().toISOString(),
+            passkeys: [],
         };
         this.users.push(user);
         this._save();
@@ -580,6 +583,78 @@ class UserStore {
         return true;
     }
 
+    /** 获取用户的 Passkey 列表 */
+    getPasskeys(id: string): any[] {
+        const user = this.users.find(u => u.id === id);
+        if (!user || !Array.isArray(user.passkeys)) return [];
+        return user.passkeys;
+    }
+
+    /** 查找拥有指定 Passkey Credential ID 的用户 */
+    findUserByPasskeyId(credentialId: string): any {
+        const targetId = String(credentialId || '').trim();
+        if (!targetId) return null;
+        return this.users.find(u => Array.isArray(u.passkeys) && u.passkeys.some((pk: any) => pk.id === targetId)) || null;
+    }
+
+    /** 添加 Passkey */
+    addPasskey(id: string, passkey: any): boolean {
+        const idx = this.users.findIndex(u => u.id === id);
+        if (idx === -1) return false;
+        if (!Array.isArray(this.users[idx].passkeys)) {
+            this.users[idx].passkeys = [];
+        }
+        // 检查是否已存在相同 ID
+        const existingIdx = this.users[idx].passkeys.findIndex((pk: any) => pk.id === passkey.id);
+        if (existingIdx !== -1) {
+            this.users[idx].passkeys[existingIdx] = passkey;
+        } else {
+            this.users[idx].passkeys.push(passkey);
+        }
+        this._save();
+        return true;
+    }
+
+    /** 移除 Passkey */
+    removePasskey(userId: string, passkeyId: string): boolean {
+        const idx = this.users.findIndex(u => u.id === userId);
+        if (idx === -1) return false;
+        if (!Array.isArray(this.users[idx].passkeys)) return false;
+        const initialLen = this.users[idx].passkeys.length;
+        this.users[idx].passkeys = this.users[idx].passkeys.filter((pk: any) => pk.id !== passkeyId);
+        if (this.users[idx].passkeys.length !== initialLen) {
+            this._save();
+            return true;
+        }
+        return false;
+    }
+
+    /** 重命名 Passkey 设备名称 */
+    renamePasskey(userId: string, passkeyId: string, deviceName: string): boolean {
+        const idx = this.users.findIndex(u => u.id === userId);
+        if (idx === -1) return false;
+        if (!Array.isArray(this.users[idx].passkeys)) return false;
+        const pk = this.users[idx].passkeys.find((p: any) => p.id === passkeyId);
+        if (!pk) return false;
+        pk.deviceName = String(deviceName || 'Passkey 密钥').trim().slice(0, 50);
+        this._save();
+        return true;
+    }
+
+    /** 更新 Passkey 计数器与最后使用时间 */
+    updatePasskeyCounter(userId: string, credentialId: string, newCounter: number): boolean {
+        const idx = this.users.findIndex(u => u.id === userId);
+        if (idx === -1) return false;
+        if (!Array.isArray(this.users[idx].passkeys)) return false;
+        const pk = this.users[idx].passkeys.find((p: any) => p.id === credentialId);
+        if (!pk) return false;
+        pk.counter = newCounter;
+        pk.lastUsedAt = new Date().toISOString();
+        this.users[idx].lastLoginAt = new Date().toISOString();
+        this._save();
+        return true;
+    }
+
     remove(id: string): boolean {
         const idx = this.users.findIndex(u => u.id === id);
         if (idx === -1) return false;
@@ -589,6 +664,61 @@ class UserStore {
             if (adminCount <= 1) throw new Error('不能删除最后一个管理员');
         }
         this.users.splice(idx, 1);
+        this._save();
+        return true;
+    }
+
+    addPasskey(userId: string, passkey: any): boolean {
+        const idx = this.users.findIndex(u => u.id === userId);
+        if (idx === -1) return false;
+        if (!Array.isArray(this.users[idx].passkeys)) this.users[idx].passkeys = [];
+        this.users[idx].passkeys.push(passkey);
+        this._save();
+        return true;
+    }
+
+    removePasskey(userId: string, passkeyId: string): boolean {
+        const idx = this.users.findIndex(u => u.id === userId);
+        if (idx === -1) return false;
+        if (!Array.isArray(this.users[idx].passkeys)) return false;
+        const pkIdx = this.users[idx].passkeys.findIndex((p: any) => p.credentialID === passkeyId);
+        if (pkIdx === -1) return false;
+        this.users[idx].passkeys.splice(pkIdx, 1);
+        this._save();
+        return true;
+    }
+
+    renamePasskey(userId: string, passkeyId: string, name: string): boolean {
+        const idx = this.users.findIndex(u => u.id === userId);
+        if (idx === -1) return false;
+        if (!Array.isArray(this.users[idx].passkeys)) return false;
+        const pk = this.users[idx].passkeys.find((p: any) => p.credentialID === passkeyId);
+        if (!pk) return false;
+        pk.name = name;
+        this._save();
+        return true;
+    }
+
+    getPasskeys(userId: string): any[] {
+        const user = this.users.find(u => u.id === userId);
+        if (!user) return [];
+        return Array.isArray(user.passkeys) ? user.passkeys : [];
+    }
+
+    findUserByPasskeyId(credentialId: string): any {
+        return this.users.find(u => {
+            if (!Array.isArray(u.passkeys)) return false;
+            return u.passkeys.some((p: any) => p.credentialID === credentialId);
+        }) || null;
+    }
+
+    updatePasskeyCounter(userId: string, credentialId: string, newCounter: number): boolean {
+        const user = this.users.find(u => u.id === userId);
+        if (!user || !Array.isArray(user.passkeys)) return false;
+        const pk = user.passkeys.find((p: any) => p.credentialID === credentialId);
+        if (!pk) return false;
+        pk.counter = newCounter;
+        pk.lastUsed = new Date().toISOString();
         this._save();
         return true;
     }
@@ -613,6 +743,7 @@ class UserStore {
                     : normalizeEmailValue(item?.email),
                 subscriptionAliasPath: aliasCheck.ok ? aliasCheck.value : '',
                 groupId: normalizeGroupId(item?.groupId),
+                passkeys: Array.isArray(item.passkeys) ? item.passkeys : [],
             };
         });
         this._ensureDefaultAdmin();

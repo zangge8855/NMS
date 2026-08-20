@@ -102,6 +102,22 @@ export default function Servers() {
         addServer, addServersBatch, updateServer, removeServer, testConnection, fetchServers,
     } = useServer();
 
+    const [pingResults, setPingResults] = useState<Record<string, { latencyMs: number, online: boolean, httpStatus?: number }>>({});
+    const [pingingAll, setPingingAll] = useState(false);
+    const handlePingAll = async () => {
+        setPingingAll(true);
+        try {
+            const res = await api.post('/api/servers/ping-all');
+            if (res?.data?.success) {
+                setPingResults(res.data.results || {});
+            }
+        } catch (err) {
+            toast.error('Ping all failed');
+        } finally {
+            setPingingAll(false);
+        }
+    };
+
     const [showForm, setShowForm] = useState(false);
     const [showBatchForm, setShowBatchForm] = useState(false);
     const [editingId, setEditingId] = useState(null);
@@ -924,6 +940,19 @@ export default function Servers() {
                     <span className="badge badge-neutral">{t('comp.servers.groupPrefix')}: {serverGroup}</span>
                     {serverEnvironment ? <span className="badge badge-info">{serverEnvironment}</span> : null}
                     <span className={`badge ${liveStatusBadge.cls}`}>{liveStatusBadge.text}</span>
+                    {pingResults[server.id] && (
+                        pingResults[server.id].online ? (
+                            pingResults[server.id].latencyMs < 100 ? (
+                                <span className="badge badge-success">🟢 {pingResults[server.id].latencyMs}ms</span>
+                            ) : pingResults[server.id].latencyMs <= 300 ? (
+                                <span className="badge badge-warning">🟡 {pingResults[server.id].latencyMs}ms</span>
+                            ) : (
+                                <span className="badge badge-danger">🔴 {pingResults[server.id].latencyMs}ms</span>
+                            )
+                        ) : (
+                            <span className="badge badge-danger">🔴 Timeout</span>
+                        )
+                    )}
                     <span className={`badge ${testStateBadge}`}>{testStateText}</span>
                     <span className={`badge ${credentialBadge.cls}`}>{credentialBadge.text}</span>
                 </div>
@@ -1048,6 +1077,13 @@ export default function Servers() {
                     )}
                     actions={selectedIds.size > 0 ? null : (
                         <>
+                            <button
+                                className="btn btn-secondary btn-sm"
+                                onClick={handlePingAll}
+                                disabled={pingingAll}
+                            >
+                                {pingingAll ? <span className="spinner" /> : <HiOutlineSignal />} 一键测速 / Ping All
+                            </button>
                             <button
                                 className="btn btn-secondary btn-sm"
                                 onClick={() => { setBatchResult(null); setShowBatchForm(true); }}
@@ -1205,6 +1241,19 @@ export default function Servers() {
                                                 >
                                                     <span className="server-card-name">{server.name}</span>
                                                 </button>
+                                                {pingResults[server.id] && (
+                                                    pingResults[server.id].online ? (
+                                                        pingResults[server.id].latencyMs < 100 ? (
+                                                            <span className="badge badge-success">🟢 {pingResults[server.id].latencyMs}ms</span>
+                                                        ) : pingResults[server.id].latencyMs <= 300 ? (
+                                                            <span className="badge badge-warning">🟡 {pingResults[server.id].latencyMs}ms</span>
+                                                        ) : (
+                                                            <span className="badge badge-danger">🔴 {pingResults[server.id].latencyMs}ms</span>
+                                                        )
+                                                    ) : (
+                                                        <span className="badge badge-danger">🔴 Timeout</span>
+                                                    )
+                                                )}
                                             </div>
                                             {isCondensedLayout ? (
                                                 <div className="servers-mobile-summary servers-condensed-summary">

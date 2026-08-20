@@ -1,9 +1,11 @@
 import { Router, type Request, type Response } from 'express';
+import crypto from 'crypto';
 import userStore from '../store/userStore.js';
 import userPolicyStore from '../store/userPolicyStore.js';
 import userGroupStore from '../store/userGroupStore.js';
 import auditStore from '../store/auditStore.js';
 import subscriptionTokenStore from '../store/subscriptionTokenStore.js';
+import { authMiddleware, adminOnly } from '../middleware/auth.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import { normalizeEmail } from '../lib/normalize.js';
 import { querySubscriptionAccess } from '../services/subscriptionAuditService.js';
@@ -216,6 +218,64 @@ router.delete('/:id/tokens/:tid', (req: Request, res: Response) => {
         revokedReason: result.revokedReason || 'admin-revoke',
     }, { outcome: 'success' });
     return res.json({ success: true, obj: result });
+});
+
+/**
+ * POST /api/users/guest-pass — 创建临时访客试用订阅码
+ */
+router.post('/guest-pass', authMiddleware, adminOnly, (req: Request, res: Response) => {
+    try {
+        const { durationHours = 24, trafficLimitGb = 2, note = '访客临时体验' } = req.body || {};
+        const hours = Math.max(1, Math.min(720, Number(durationHours) || 24));
+        const limitGb = Math.max(0.5, Math.min(100, Number(trafficLimitGb) || 2));
+        const randomSuffix = crypto.randomBytes(3).toString('hex');
+        const username = `guest_${randomSuffix}`;
+        const email = `${username}@guest.local`;
+        const tempPassword = `Pass_${crypto.randomBytes(4).toString('hex')}!`;
+        const expiresAt = new Date(Date.now() + hours * 3600 * 1000).toISOString();
+
+        const newUser = userStore.create({
+            username,
+            email,
+            password: tempPassword,
+            role: 'user',
+            enabled: true,
+            emailVerified: true,
+        });
+
+        // Set policy limits if needed
+        if (newUser && newUser.id) {
+            userPolicyStore.setPolicy(newUser.id, {
+                trafficLimitBytes: Math.floor(limitGb * 1024 * 1024 * 1024),
+                expiresAt,
+                note: `[临时访客] ${note} (${hours}小时限时 / ${limitGb}GB)`,
+            });
+        }
+
+        appendSecurityAudit('guest_pass_created', req, {
+            username,
+            email,
+            durationHours: hours,
+            trafficLimitGb: limitGb,
+            expiresAt,
+        });
+
+        return res.json({
+            success: true,
+            msg: '临时访客试用码创建成功',
+            obj: {
+                user: newUser,
+                username,
+                email,
+                password: tempPassword,
+                durationHours: hours,
+                trafficLimitGb: limitGb,
+                expiresAt,
+            },
+        });
+    } catch (err: any) {
+        return res.status(400).json({ success: false, msg: err.message || '创建访客试用码失败' });
+    }
 });
 
 export default router;

@@ -26,6 +26,12 @@ import {
     disableTwoFactor,
     getTwoFactorStatus,
 } from '../services/authSessionService.js';
+import {
+    createPasskeyRegistrationOptions,
+    verifyPasskeyRegistration,
+    createPasskeyLoginOptions,
+    verifyPasskeyLogin,
+} from '../lib/webauthnService.js';
 import { buildAppBootstrapPayload } from '../lib/appBootstrapService.js';
 import {
     adminResetUserPassword,
@@ -1102,6 +1108,201 @@ router.post('/2fa/disable', authMiddleware, (req, res) => {
         return res.json({ success: true, msg: '2FA 已关闭', obj: { enabled: false } });
     } catch (err) {
         const error = toHttpError(err, 400, '关闭 2FA 失败');
+        return res.status(error.status).json({ success: false, msg: error.message });
+    }
+});
+
+// ============================================================================
+// Passkey (WebAuthn / FIDO2) 路由
+// ============================================================================
+
+/**
+ * GET /api/auth/passkey/list — 获取当前登录用户的 Passkey 列表
+ */
+router.get('/passkey/list', authMiddleware, (req, res) => {
+    try {
+        const user = userStore.getById(req.user.id);
+        const passkeys = Array.isArray(user?.passkeys) ? user.passkeys : [];
+        const sanitized = passkeys.map((pk: any) => ({
+            id: pk.id,
+            deviceName: pk.deviceName || '通行密钥',
+            aaguid: pk.aaguid,
+            createdAt: pk.createdAt,
+            lastUsedAt: pk.lastUsedAt,
+            transports: pk.transports || [],
+        }));
+        return res.json({ success: true, obj: sanitized });
+    } catch (err) {
+        const error = toHttpError(err, 400, '获取 Passkey 列表失败');
+        return res.status(error.status).json({ success: false, msg: error.message });
+    }
+});
+
+/**
+ * POST /api/auth/passkey/register-options — 生成 Passkey 注册挑战
+ */
+router.post('/passkey/register-options', authMiddleware, async (req, res) => {
+    try {
+        const user = userStore.getById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ success: false, msg: '用户不存在' });
+        }
+        const options = await createPasskeyRegistrationOptions(req, user);
+        return res.json({ success: true, obj: options });
+    } catch (err) {
+        const error = toHttpError(err, 400, '生成 Passkey 注册挑战失败');
+        return res.status(error.status).json({ success: false, msg: error.message });
+    }
+});
+
+/**
+ * POST /api/auth/passkey/register-verify — 校验 Passkey 注册响应并绑定
+ */
+router.post('/passkey/register-verify', authMiddleware, async (req, res) => {
+    try {
+        const user = userStore.getById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ success: false, msg: '用户不存在' });
+        }
+        const passkeyData = await verifyPasskeyRegistration(req, user, req.body);
+        userStore.addPasskey(user.id, passkeyData);
+        appendSecurityAudit('passkey_registered', req, {
+            username: user.username,
+            passkeyId: passkeyData.id,
+            deviceName: passkeyData.deviceName,
+        });
+        return res.json({
+            success: true,
+            msg: 'Passkey 通行密钥已成功添加',
+            obj: {
+                id: passkeyData.id,
+                deviceName: passkeyData.deviceName,
+                createdAt: passkeyData.createdAt,
+            },
+        });
+    } catch (err: any) {
+        const error = toHttpError(err, 400, 'Passkey 注册校验失败');
+        return res.status(error.status).json({ success: false, msg: error.message });
+    }
+});
+
+/**
+ * POST /api/auth/passkey/login-options — 生成 Passkey 登录挑战
+ */
+router.post('/passkey/login-options', async (req, res) => {
+    try {
+        const identifier = String(req.body?.identifier || '').trim();
+        let targetUser = undefined;
+        if (identifier) {
+            targetUser = userStore.getByLoginIdentifier(identifier);
+        }
+        const { options, challengeSessionId } = await createPasskeyLoginOptions(req, targetUser);
+        return res.json({ success: true, obj: { options, challengeSessionId } });
+    } catch (err) {
+        const error = toHttpError(err, 400, '生成 Passkey 登录挑战失败');
+        return res.status(error.status).json({ success: false, msg: error.message });
+    }
+});
+
+/**
+ * POST /api/auth/passkey/login-verify — 校验 Passkey 登录签名并签发 JWT
+ */
+router.post('/passkey/login-verify', async (req, res) => {
+    const clientIp = resolveClientIp(req);
+    const { challengeSessionId, response } = req.body || {};
+
+    if (!challengeSessionId || !response || !response.id) {
+        return res.status(400).json({ success: false, msg: '缺少必要参数' });
+    }
+
+    try {
+        const credentialId = response.id;
+        const user = userStore.findUserByPasskeyId(credentialId);
+
+        if (!user) {
+            recordLoginFailure(clientIp, 'passkey');
+            appendSecurityAudit('login_passkey_failed', req, { reason: 'credential_not_found', credentialId });
+            return res.status(401).json({ success: false, msg: '未找到匹配的 Passkey 凭据或该凭据已解绑' });
+        }
+
+        if (user.enabled === false) {
+            recordLoginFailure(clientIp, user.username);
+            appendSecurityAudit('login_passkey_failed', req, { username: user.username, reason: 'account_disabled' });
+            return res.status(403).json({ success: false, msg: '该账号已被禁用' });
+        }
+
+        const passkey = (user.passkeys || []).find((pk: any) => pk.id === credentialId);
+        if (!passkey) {
+            recordLoginFailure(clientIp, user.username);
+            return res.status(401).json({ success: false, msg: '凭证无效' });
+        }
+
+        const { newCounter } = await verifyPasskeyLogin(req, challengeSessionId, response, passkey);
+        userStore.updatePasskeyCounter(user.id, passkey.id, newCounter);
+        clearLoginRate(clientIp, user.username);
+
+        const { token, user: sanitizedUser } = createLoginSession(user, req);
+        appendSecurityAudit('login_passkey_success', req, {
+            username: user.username,
+            passkeyId: passkey.id,
+            deviceName: passkey.deviceName,
+        });
+
+        return res.json({
+            success: true,
+            msg: 'Passkey 验证成功，登录成功',
+            token,
+            user: sanitizedUser,
+        });
+    } catch (err: any) {
+        recordLoginFailure(clientIp, 'passkey');
+        appendSecurityAudit('login_passkey_failed', req, { reason: err?.message || 'verification_failed' });
+        const error = toHttpError(err, 401, 'Passkey 验证失败');
+        return res.status(error.status).json({ success: false, msg: error.message });
+    }
+});
+
+/**
+ * DELETE /api/auth/passkey/:id — 删除/解绑指定的 Passkey
+ */
+router.delete('/passkey/:id', authMiddleware, (req, res) => {
+    try {
+        const passkeyId = String(req.params.id || '').trim();
+        if (!passkeyId) {
+            return res.status(400).json({ success: false, msg: '缺少 Passkey ID' });
+        }
+        const removed = userStore.removePasskey(req.user.id, passkeyId);
+        if (!removed) {
+            return res.status(404).json({ success: false, msg: '未找到该 Passkey 或无权删除' });
+        }
+        appendSecurityAudit('passkey_deleted', req, {
+            username: req.user.username,
+            passkeyId,
+        });
+        return res.json({ success: true, msg: 'Passkey 已解绑' });
+    } catch (err) {
+        const error = toHttpError(err, 400, '解绑 Passkey 失败');
+        return res.status(error.status).json({ success: false, msg: error.message });
+    }
+});
+
+/**
+ * PATCH /api/auth/passkey/:id — 重命名 Passkey 设备备注
+ */
+router.patch('/passkey/:id', authMiddleware, (req, res) => {
+    try {
+        const passkeyId = String(req.params.id || '').trim();
+        const deviceName = String(req.body?.deviceName || '').trim();
+        if (!passkeyId || !deviceName) {
+            return res.status(400).json({ success: false, msg: '参数不完整' });
+        }
+        const updated = userStore.renamePasskey(req.user.id, passkeyId, deviceName);
+        if (!updated) {
+            return res.status(404).json({ success: false, msg: '未找到该 Passkey' });
+        }
+        return res.json({ success: true, msg: 'Passkey 备注已更新' });
+    } catch (err) {
+        const error = toHttpError(err, 400, '更新 Passkey 备注失败');
         return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
