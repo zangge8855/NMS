@@ -62,6 +62,9 @@ export default function Tools() {
     const { activeServerId, servers = [], panelApi } = useServer();
     const { locale, t } = useI18n();
     const navigate = useNavigate();
+    const [activeTab, setActiveTab] = useState<'node' | 'ssl' | 'ip'>('node');
+
+    // Page Server Selection Target
     const {
         serverList,
         hasServers,
@@ -80,9 +83,27 @@ export default function Tools() {
     const [loading, setLoading] = useState<Record<string, boolean>>({});
     const [catalogLoading, setCatalogLoading] = useState(() => hasTargetServer && cachedState == null);
     const [tools, setTools] = useState<ToolItem[]>(() => cachedState?.tools || []);
+
+    // SSL Assistant States
+    const [sslDomain, setSslDomain] = useState('');
+    const [cfEmail, setCfEmail] = useState('');
+    const [cfToken, setCfToken] = useState('');
+    const [sslCertPath, setSslCertPath] = useState('/root/cert/cert.crt');
+    const [sslKeyPath, setSslKeyPath] = useState('/root/cert/private.key');
+
+    // IP Diagnostics States
+    const [queryIp, setQueryIp] = useState('');
+    const [ipResult, setIpResult] = useState<any>(null);
+    const [ipLoading, setIpLoading] = useState(false);
+
     const copy = useMemo(() => (
         locale === 'en-US'
             ? {
+                tabs: {
+                    nodeTools: 'Node Panel Tools',
+                    sslAssistant: 'SSL & ACME Assistant',
+                    ipDiagnostics: 'IP & Geo Diagnostics',
+                },
                 catalogLoadFailed: 'Failed to load node tools',
                 selectServerFirst: 'Select a server first',
                 selectServerHint: 'Node tools only run against a single server. Choose a node to continue.',
@@ -94,7 +115,7 @@ export default function Tools() {
                 serverPlaceholder: 'Select node',
                 openSelectedServer: 'Open Node',
                 executeFailed: 'Run failed',
-                copied: 'Copied',
+                copied: 'Copied to clipboard',
                 toolbarTitle: 'Node Tooling',
                 toolbarSubtitle: 'Run helper endpoints exposed by the current node and copy the result when needed.',
                 refresh: 'Refresh',
@@ -107,8 +128,39 @@ export default function Tools() {
                 emptyTitle: 'No node tools available',
                 emptySubtitle: 'Refresh once first. If it is still empty, check whether the node panel exposes any tool endpoints.',
                 refreshCatalog: 'Refresh Tool Catalog',
+                ssl: {
+                    title: 'Cloudflare ACME Automated Certificate Generator',
+                    subtitle: 'Generate standard one-click acme.sh wildcard TLS certificate deployment scripts for 3X-UI nodes.',
+                    domainLabel: 'Domain Name (Root or Subdomain)',
+                    domainPlaceholder: 'e.g. node.yourdomain.com or *.yourdomain.com',
+                    emailLabel: 'Cloudflare Account Email (Optional)',
+                    tokenLabel: 'Cloudflare API Token / Global Key',
+                    tokenPlaceholder: 'Enter Cloudflare DNS API Token',
+                    certPathLabel: 'Target Certificate Path on Node',
+                    keyPathLabel: 'Target Private Key Path on Node',
+                    scriptTitle: 'Generated One-Click Execution Script',
+                    copyScript: 'Copy ACME Bash Script',
+                    pathTip: 'Copy the certificate path and fill into your 3X-UI / Xray Inbound TLS configuration.',
+                },
+                ip: {
+                    title: 'IP Geolocation & Routing Diagnostics',
+                    subtitle: 'Inspect network ASN, location, carrier ISP, and reachability for any IP or server hostname.',
+                    inputPlaceholder: 'Enter IP address or hostname (e.g. 1.1.1.1 or google.com)',
+                    lookup: 'Query',
+                    querying: 'Querying...',
+                    ipLabel: 'IP Address',
+                    locationLabel: 'Location & Country',
+                    carrierLabel: 'Carrier / ISP',
+                    asnLabel: 'ASN & Organization',
+                    bogonLabel: 'Bogon / Private IP',
+                }
             }
             : {
+                tabs: {
+                    nodeTools: '节点原生工具',
+                    sslAssistant: 'SSL & ACME 证书助手',
+                    ipDiagnostics: 'IP 归属地与网络诊断',
+                },
                 catalogLoadFailed: '加载节点工具失败',
                 selectServerFirst: '请先选择一台服务器',
                 selectServerHint: '节点工具仅支持单节点执行，选择一个节点后继续。',
@@ -120,7 +172,7 @@ export default function Tools() {
                 serverPlaceholder: '选择节点',
                 openSelectedServer: '打开节点',
                 executeFailed: '执行失败',
-                copied: '已复制',
+                copied: '已复制到剪贴板',
                 toolbarTitle: '节点工具集',
                 toolbarSubtitle: '执行当前节点暴露的辅助工具接口，并支持直接复制结果。',
                 refresh: '刷新',
@@ -133,6 +185,32 @@ export default function Tools() {
                 emptyTitle: '暂无可用节点工具',
                 emptySubtitle: '可以先刷新一次；如果仍为空，请检查节点面板是否暴露工具接口。',
                 refreshCatalog: '刷新工具目录',
+                ssl: {
+                    title: 'Cloudflare ACME 证书自动化签发脚本助手',
+                    subtitle: '快速生成基于 acme.sh 与 Cloudflare DNS API 的通配符证书一键申请与 3X-UI 自动配置脚本。',
+                    domainLabel: '申请域名（支持通配符）',
+                    domainPlaceholder: '例如 node.example.com 或 *.example.com',
+                    emailLabel: 'Cloudflare 账号邮箱（可选）',
+                    tokenLabel: 'Cloudflare DNS API Token',
+                    tokenPlaceholder: '输入 Cloudflare API Token',
+                    certPathLabel: '节点目标公钥路径 (Public Cert)',
+                    keyPathLabel: '节点目标私钥路径 (Private Key)',
+                    scriptTitle: '生成的一键执行 Shell 脚本',
+                    copyScript: '复制完整 ACME 脚本',
+                    pathTip: '申请成功后，请将公钥与私钥路径直接填写入站节点的 TLS 证书路径中。',
+                },
+                ip: {
+                    title: 'IP 归属地与网络路由快速诊断',
+                    subtitle: '查询任意 IP 或主机名的地理位置、ASN 机构、运营商网络及连通性。',
+                    inputPlaceholder: '输入 IP 地址或主机名（例如 1.1.1.1 或 google.com）',
+                    lookup: '诊断查询',
+                    querying: '查询中...',
+                    ipLabel: 'IP 地址',
+                    locationLabel: '地理位置与国家',
+                    carrierLabel: '网络运营商',
+                    asnLabel: 'ASN 归属组织',
+                    bogonLabel: '私有/保留地址',
+                }
             }
     ), [locale]);
 
@@ -235,127 +313,346 @@ export default function Tools() {
         toast.success(copy.copied);
     };
 
-    const serverSelectionAction = hasServers ? (
-        <div className="page-server-selection-action">
-            <PageServerSelector
-                servers={serverList}
-                value={draftServerId}
-                onChange={setDraftServerId}
-                label={copy.serverSelectorLabel}
-                placeholder={copy.serverPlaceholder}
-            />
-            <button
-                type="button"
-                className="btn btn-primary"
-                onClick={commitDraftServer}
-                disabled={!draftServerId}
-            >
-                {copy.openSelectedServer}
-            </button>
-        </div>
-    ) : (
-        <button type="button" className="btn btn-primary" onClick={() => navigate('/servers')}>
-            {copy.goToServers}
-        </button>
-    );
+    // Generated ACME script
+    const generatedAcmeScript = useMemo(() => {
+        const domain = sslDomain.trim() || 'yourdomain.com';
+        const isWildcard = domain.startsWith('*.') || !domain.includes('.');
+        const cleanDomain = domain.replace(/^\*\./, '');
+        const domainsParam = isWildcard ? `-d ${cleanDomain} -d *.${cleanDomain}` : `-d ${domain}`;
 
-    if (!hasTargetServer) {
-        return (
-            <>
-                <Header title={t('pages.tools.title')} />
-                <div className="page-content page-content--wide page-enter tools-page">
-                    <EmptyState
-                        title={hasDraftServer ? copy.confirmServerTitle : copy.selectServerFirst}
-                        subtitle={hasServers ? (hasDraftServer ? copy.confirmServerHint : copy.selectServerHint) : copy.noServersHint}
-                        icon={<HiOutlineWrench style={{ fontSize: '48px' }} />}
-                        surface
-                        action={serverSelectionAction}
-                    />
-                </div>
-            </>
-        );
-    }
+        return `# ==========================================
+# NMS 3X-UI Cloudflare ACME Automated Cert Issue
+# ==========================================
+mkdir -p /root/cert
+curl https://get.acme.sh | sh -s email=${cfEmail.trim() || 'admin@example.com'}
+source ~/.bashrc
+
+export CF_Token="${cfToken.trim() || 'YOUR_CLOUDFLARE_API_TOKEN'}"
+${cfEmail.trim() ? `export CF_Email="${cfEmail.trim()}"` : ''}
+
+~/.acme.sh/acme.sh --set-default-ca --server letsencrypt
+~/.acme.sh/acme.sh --issue --dns dns_cf ${domainsParam} --force
+
+~/.acme.sh/acme.sh --install-cert ${domainsParam} \\
+  --key-file "${sslKeyPath.trim() || '/root/cert/private.key'}" \\
+  --fullchain-file "${sslCertPath.trim() || '/root/cert/cert.crt'}" \\
+  --reloadcmd "x-ui restart || systemctl restart x-ui"
+
+~/.acme.sh/acme.sh --upgrade --auto-upgrade
+`;
+    }, [cfEmail, cfToken, sslCertPath, sslDomain, sslKeyPath]);
+
+    // Handle IP Lookup
+    const handleIpLookup = async () => {
+        const target = queryIp.trim();
+        if (!target) return;
+        setIpLoading(true);
+        try {
+            const res = await fetch(`https://ipwho.is/${encodeURIComponent(target)}`).then((r) => r.json());
+            if (res && res.success !== false) {
+                setIpResult({
+                    ip: res.ip,
+                    country: res.country,
+                    countryCode: res.country_code,
+                    flag: res.flag?.emoji || '🌐',
+                    region: res.region,
+                    city: res.city,
+                    isp: res.connection?.isp || res.connection?.org,
+                    asn: res.connection?.asn ? `AS${res.connection.asn} (${res.connection.org || ''})` : '-',
+                    isBogon: res.is_bogon === true,
+                });
+            } else {
+                setIpResult({
+                    ip: target,
+                    country: '未知',
+                    flag: '🌐',
+                    region: '-',
+                    city: '-',
+                    isp: '-',
+                    asn: '-',
+                    isBogon: false,
+                });
+            }
+        } catch {
+            setIpResult({
+                ip: target,
+                country: '网络查询失败',
+                flag: '⚠️',
+                region: '-',
+                city: '-',
+                isp: '-',
+                asn: '-',
+                isBogon: false,
+            });
+        } finally {
+            setIpLoading(false);
+        }
+    };
 
     return (
         <>
             <Header title={t('pages.tools.title')} />
             <div className="page-content page-content--wide page-enter tools-page">
-                <PageToolbar
-                    className="card mb-6 tools-toolbar"
-                    compact
-                    main={(
-                        <div className="tools-toolbar-copy">
-                            <div className="tools-toolbar-title">{copy.toolbarTitle}</div>
-                            <div className="tools-toolbar-note">{copy.toolbarSubtitle}</div>
-                        </div>
-                    )}
-                    actions={(
-                        <>
-                        {isUsingPageServer && hasServers ? (
-                            <PageServerSelector
-                                servers={serverList}
-                                value={targetServerId}
-                                onChange={setPageTargetServerId}
-                                label={copy.serverSelectorLabel}
-                                placeholder={copy.serverPlaceholder}
-                            />
-                        ) : null}
-                        <button className="btn btn-secondary btn-sm" onClick={() => fetchCatalog()} disabled={catalogLoading}>
-                            <HiOutlineArrowPath className={catalogLoading ? 'spinning' : ''} /> {copy.refresh}
-                        </button>
-                        </>
-                    )}
-                    meta={<span>{toolbarMeta}</span>}
-                />
-                {tools.length === 0 && !catalogLoading ? (
-                    <EmptyState
-                        title={copy.emptyTitle}
-                        subtitle={copy.emptySubtitle}
-                        surface
-                        action={(
-                            <button type="button" className="btn btn-secondary" onClick={() => fetchCatalog()}>
-                                <HiOutlineArrowPath /> {copy.refreshCatalog}
-                            </button>
-                        )}
-                    />
-                ) : (
-                    <div className="tools-grid">
-                        {(enabledTools.length > 0 ? enabledTools : tools).map((tool) => (
-                            <div className="card tool-card" key={tool.key}>
-                                <SectionHeader
-                                    compact divider
-                                    title={tool.label || tool.key}
-                                    subtitle={tool.description || copy.currentTool}
-                                    meta={(
-                                        <span className={`badge ${tool.available === false ? 'badge-danger' : 'badge-success'}`}>
-                                            {tool.available === false ? copy.unavailable : copy.executable}
-                                        </span>
-                                    )}
-                                />
+                {/* Sub-nav Tabs */}
+                <div className="flex gap-2 mb-6 border-b border-stroke-soft pb-3">
+                    <button
+                        type="button"
+                        className={`btn btn-sm ${activeTab === 'node' ? 'btn-primary' : 'btn-secondary'}`}
+                        onClick={() => setActiveTab('node')}
+                    >
+                        <HiOutlineWrench /> {copy.tabs.nodeTools}
+                    </button>
+                    <button
+                        type="button"
+                        className={`btn btn-sm ${activeTab === 'ssl' ? 'btn-primary' : 'btn-secondary'}`}
+                        onClick={() => setActiveTab('ssl')}
+                    >
+                        🔒 {copy.tabs.sslAssistant}
+                    </button>
+                    <button
+                        type="button"
+                        className={`btn btn-sm ${activeTab === 'ip' ? 'btn-primary' : 'btn-secondary'}`}
+                        onClick={() => setActiveTab('ip')}
+                    >
+                        🌐 {copy.tabs.ipDiagnostics}
+                    </button>
+                </div>
 
-                                {results[tool.key] && (
-                                    <div className="tool-card-result">
-                                        {results[tool.key]}
+                {activeTab === 'node' && (
+                    <>
+                        {!hasTargetServer ? (
+                            <EmptyState
+                                title={hasDraftServer ? copy.confirmServerTitle : copy.selectServerFirst}
+                                subtitle={hasServers ? (hasDraftServer ? copy.confirmServerHint : copy.selectServerHint) : copy.noServersHint}
+                                icon={<HiOutlineWrench style={{ fontSize: '48px' }} />}
+                                surface
+                                action={hasServers ? (
+                                    <div className="page-server-selection-action">
+                                        <PageServerSelector
+                                            servers={serverList}
+                                            value={draftServerId}
+                                            onChange={setDraftServerId}
+                                            label={copy.serverSelectorLabel}
+                                            placeholder={copy.serverPlaceholder}
+                                        />
+                                        <button
+                                            type="button"
+                                            className="btn btn-primary"
+                                            onClick={commitDraftServer}
+                                            disabled={!draftServerId}
+                                        >
+                                            {copy.openSelectedServer}
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button type="button" className="btn btn-primary" onClick={() => navigate('/servers')}>
+                                        {copy.goToServers}
+                                    </button>
+                                )}
+                            />
+                        ) : (
+                            <>
+                                <PageToolbar
+                                    className="card mb-6 tools-toolbar"
+                                    compact
+                                    main={(
+                                        <div className="tools-toolbar-copy">
+                                            <div className="tools-toolbar-title">{copy.toolbarTitle}</div>
+                                            <div className="tools-toolbar-note">{copy.toolbarSubtitle}</div>
+                                        </div>
+                                    )}
+                                    actions={(
+                                        <>
+                                        {isUsingPageServer && hasServers ? (
+                                            <PageServerSelector
+                                                servers={serverList}
+                                                value={targetServerId}
+                                                onChange={setPageTargetServerId}
+                                                label={copy.serverSelectorLabel}
+                                                placeholder={copy.serverPlaceholder}
+                                            />
+                                        ) : null}
+                                        <button className="btn btn-secondary btn-sm" onClick={() => fetchCatalog()} disabled={catalogLoading}>
+                                            <HiOutlineArrowPath className={catalogLoading ? 'spinning' : ''} /> {copy.refresh}
+                                        </button>
+                                        </>
+                                    )}
+                                    meta={<span>{toolbarMeta}</span>}
+                                />
+                                {tools.length === 0 && !catalogLoading ? (
+                                    <EmptyState
+                                        title={copy.emptyTitle}
+                                        subtitle={copy.emptySubtitle}
+                                        surface
+                                        action={(
+                                            <button type="button" className="btn btn-secondary" onClick={() => fetchCatalog()}>
+                                                <HiOutlineArrowPath /> {copy.refreshCatalog}
+                                            </button>
+                                        )}
+                                    />
+                                ) : (
+                                    <div className="tools-grid">
+                                        {(enabledTools.length > 0 ? enabledTools : tools).map((tool) => (
+                                            <div className="card tool-card" key={tool.key}>
+                                                <SectionHeader
+                                                    compact divider
+                                                    title={tool.label || tool.key}
+                                                    subtitle={tool.description || copy.currentTool}
+                                                    meta={(
+                                                        <span className={`badge ${tool.available === false ? 'badge-danger' : 'badge-success'}`}>
+                                                            {tool.available === false ? copy.unavailable : copy.executable}
+                                                        </span>
+                                                    )}
+                                                />
+
+                                                {results[tool.key] && (
+                                                    <div className="tool-card-result">
+                                                        {results[tool.key]}
+                                                    </div>
+                                                )}
+
+                                                <div className="tool-card-actions">
+                                                    <button
+                                                        className="btn btn-primary btn-sm"
+                                                        onClick={() => handleGenerate(tool)}
+                                                        disabled={loading[tool.key] || tool.available === false}
+                                                    >
+                                                        {loading[tool.key] ? <span className="spinner" /> : <HiOutlineArrowPath />}
+                                                        {copy.generate}
+                                                    </button>
+                                                    {results[tool.key] && (
+                                                        <button className="btn btn-secondary btn-sm" onClick={() => handleCopy(results[tool.key])}>
+                                                            <HiOutlineClipboard /> {copy.copy}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
                                 )}
+                            </>
+                        )}
+                    </>
+                )}
 
-                                <div className="tool-card-actions">
-                                    <button
-                                        className="btn btn-primary btn-sm"
-                                        onClick={() => handleGenerate(tool)}
-                                        disabled={loading[tool.key] || tool.available === false}
-                                    >
-                                        {loading[tool.key] ? <span className="spinner" /> : <HiOutlineArrowPath />}
-                                        {copy.generate}
-                                    </button>
-                                    {results[tool.key] && (
-                                        <button className="btn btn-secondary btn-sm" onClick={() => handleCopy(results[tool.key])}>
-                                            <HiOutlineClipboard /> {copy.copy}
-                                        </button>
-                                    )}
+                {activeTab === 'ssl' && (
+                    <div className="card p-6 space-y-6">
+                        <SectionHeader
+                            title={copy.ssl.title}
+                            subtitle={copy.ssl.subtitle}
+                            divider
+                        />
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="form-group">
+                                <label className="form-label font-semibold">{copy.ssl.domainLabel}</label>
+                                <input
+                                    type="text"
+                                    className="form-input"
+                                    placeholder={copy.ssl.domainPlaceholder}
+                                    value={sslDomain}
+                                    onChange={(e) => setSslDomain(e.target.value)}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label font-semibold">{copy.ssl.tokenLabel}</label>
+                                <input
+                                    type="password"
+                                    className="form-input"
+                                    placeholder={copy.ssl.tokenPlaceholder}
+                                    value={cfToken}
+                                    onChange={(e) => setCfToken(e.target.value)}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label font-semibold">{copy.ssl.certPathLabel}</label>
+                                <input
+                                    type="text"
+                                    className="form-input font-mono text-sm"
+                                    value={sslCertPath}
+                                    onChange={(e) => setSslCertPath(e.target.value)}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label font-semibold">{copy.ssl.keyPathLabel}</label>
+                                <input
+                                    type="text"
+                                    className="form-input font-mono text-sm"
+                                    value={sslKeyPath}
+                                    onChange={(e) => setSslKeyPath(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-3 pt-2">
+                            <div className="flex justify-between items-center">
+                                <label className="form-label font-semibold">{copy.ssl.scriptTitle}</label>
+                                <button
+                                    type="button"
+                                    className="btn btn-primary btn-sm"
+                                    onClick={() => handleCopy(generatedAcmeScript)}
+                                >
+                                    <HiOutlineClipboard /> {copy.ssl.copyScript}
+                                </button>
+                            </div>
+                            <pre className="p-4 rounded-xl bg-surface-panel border border-stroke-soft font-mono text-xs overflow-x-auto text-text-primary leading-relaxed">
+                                {generatedAcmeScript}
+                            </pre>
+                            <p className="text-xs text-muted">💡 {copy.ssl.pathTip}</p>
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'ip' && (
+                    <div className="card p-6 space-y-6">
+                        <SectionHeader
+                            title={copy.ip.title}
+                            subtitle={copy.ip.subtitle}
+                            divider
+                        />
+
+                        <div className="flex gap-3 max-w-xl">
+                            <input
+                                type="text"
+                                className="form-input flex-1 font-mono text-sm"
+                                placeholder={copy.ip.inputPlaceholder}
+                                value={queryIp}
+                                onChange={(e) => setQueryIp(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleIpLookup()}
+                            />
+                            <button
+                                type="button"
+                                className="btn btn-primary"
+                                onClick={handleIpLookup}
+                                disabled={ipLoading || !queryIp.trim()}
+                            >
+                                {ipLoading ? <span className="spinner" /> : copy.ip.lookup}
+                            </button>
+                        </div>
+
+                        {ipResult && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-stroke-soft animate-fade-in">
+                                <div className="p-4 rounded-xl bg-surface-panel border border-stroke-soft">
+                                    <div className="text-xs text-muted mb-1">{copy.ip.ipLabel}</div>
+                                    <div className="text-base font-mono font-bold">{ipResult.ip}</div>
+                                </div>
+                                <div className="p-4 rounded-xl bg-surface-panel border border-stroke-soft">
+                                    <div className="text-xs text-muted mb-1">{copy.ip.locationLabel}</div>
+                                    <div className="text-base font-bold flex items-center gap-2">
+                                        <span>{ipResult.flag}</span>
+                                        <span>{ipResult.country} {ipResult.city ? `(${ipResult.city})` : ''}</span>
+                                    </div>
+                                </div>
+                                <div className="p-4 rounded-xl bg-surface-panel border border-stroke-soft">
+                                    <div className="text-xs text-muted mb-1">{copy.ip.carrierLabel}</div>
+                                    <div className="text-sm font-semibold">{ipResult.isp || '-'}</div>
+                                </div>
+                                <div className="p-4 rounded-xl bg-surface-panel border border-stroke-soft">
+                                    <div className="text-xs text-muted mb-1">{copy.ip.asnLabel}</div>
+                                    <div className="text-xs font-mono text-muted">{ipResult.asn || '-'}</div>
                                 </div>
                             </div>
-                        ))}
+                        )}
                     </div>
                 )}
             </div>

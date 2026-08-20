@@ -18,8 +18,9 @@ const MODE_LOGIN = 'login';
 const MODE_REGISTER = 'register';
 const MODE_VERIFY = 'verify';
 const MODE_FORGOT = 'forgot';
+const MODE_TWO_FACTOR = 'two_factor';
 
-type AuthMode = typeof MODE_LOGIN | typeof MODE_REGISTER | typeof MODE_VERIFY | typeof MODE_FORGOT;
+type AuthMode = typeof MODE_LOGIN | typeof MODE_REGISTER | typeof MODE_VERIFY | typeof MODE_FORGOT | typeof MODE_TWO_FACTOR;
 
 export default function Login() {
     const logoSrc = buildSiteAssetPath('/nms-logo.png');
@@ -40,6 +41,8 @@ export default function Login() {
             verifyFailed: 'Verification failed',
             resendDone: 'The verification code has been sent again',
             sendFailed: 'Send failed',
+            twoFactorRequired: 'Please enter your 2FA authenticator code',
+            twoFactorFailed: 'Two-factor verification failed',
         }
         : {
             loginVerifyRequired: '请先完成邮箱验证',
@@ -53,10 +56,18 @@ export default function Login() {
             verifyFailed: '验证失败',
             resendDone: '验证码已重新发送',
             sendFailed: '发送失败',
+            twoFactorRequired: '请输入 2FA 动态验证码',
+            twoFactorFailed: '2FA 验证失败',
         };
     // Login fields
     const [loginIdentifier, setLoginIdentifier] = useState('');
     const [password, setPassword] = useState('');
+
+    // 2FA fields
+    const [twoFactorChallengeToken, setTwoFactorChallengeToken] = useState('');
+    const [twoFactorCode, setTwoFactorCode] = useState('');
+    const [twoFactorBackupCode, setTwoFactorBackupCode] = useState('');
+    const [twoFactorUseBackup, setTwoFactorUseBackup] = useState(false);
 
     // Register fields
     const [regUsername, setRegUsername] = useState('');
@@ -89,6 +100,7 @@ export default function Login() {
 
     const {
         login,
+        loginTwoFactor,
         register,
         verifyEmail: verifyEmailFn,
         resendCode,
@@ -175,6 +187,14 @@ export default function Login() {
             const result = await login(loginIdentifier.trim(), password);
             if (result.success) {
                 navigate('/', { replace: true });
+            } else if (result.needTwoFactor) {
+                setTwoFactorChallengeToken(result.challengeToken || '');
+                setTwoFactorCode('');
+                setTwoFactorBackupCode('');
+                setTwoFactorUseBackup(false);
+                setMode(MODE_TWO_FACTOR);
+                setError('');
+                setSuccess(result.msg || copy.twoFactorRequired);
             } else if (result.needVerify) {
                 setVerifyEmailAddr(result.email || '');
                 setMode(MODE_VERIFY);
@@ -187,6 +207,61 @@ export default function Login() {
             setError(copy.networkFailed);
         }
         setLoading(false);
+    };
+
+    // ── Two-Factor Authentication ───────────────────────────
+    const handleTwoFactorLogin = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        setError('');
+        setSuccess('');
+        if (!twoFactorChallengeToken) {
+            setError(copy.loginFailed);
+            setMode(MODE_LOGIN);
+            return;
+        }
+        const codeToSubmit = twoFactorUseBackup ? twoFactorBackupCode.trim() : twoFactorCode.trim();
+        if (!codeToSubmit) {
+            setError(twoFactorUseBackup ? t('pages.login.twoFactorBackupCodeInvalid') : t('pages.login.twoFactorCodeInvalid'));
+            return;
+        }
+        if (!twoFactorUseBackup && !/^\d{6}$/.test(codeToSubmit)) {
+            setError(t('pages.login.twoFactorCodeInvalid'));
+            return;
+        }
+        setLoading(true);
+        try {
+            const result = await loginTwoFactor(twoFactorChallengeToken, codeToSubmit, twoFactorUseBackup);
+            if (result.success) {
+                navigate('/', { replace: true });
+            } else {
+                setError(result.msg || copy.twoFactorFailed);
+            }
+        } catch {
+            setError(copy.networkFailed);
+        }
+        setLoading(false);
+    };
+
+    const handleTwoFactorCodeChange = (val: string) => {
+        const cleaned = val.replace(/\D/g, '').slice(0, 6);
+        setTwoFactorCode(cleaned);
+        if (cleaned.length === 6 && !loading && twoFactorChallengeToken) {
+            setError('');
+            setLoading(true);
+            loginTwoFactor(twoFactorChallengeToken, cleaned, false)
+                .then((result) => {
+                    if (result.success) {
+                        navigate('/', { replace: true });
+                    } else {
+                        setError(result.msg || copy.twoFactorFailed);
+                        setLoading(false);
+                    }
+                })
+                .catch(() => {
+                    setError(copy.networkFailed);
+                    setLoading(false);
+                });
+        }
     };
 
     // ── Register ────────────────────────────────────────────
@@ -367,6 +442,8 @@ export default function Login() {
             ? t('pages.login.registerTitle')
         : mode === MODE_VERIFY
             ? t('pages.login.verifyTitle')
+        : mode === MODE_TWO_FACTOR
+            ? t('pages.login.twoFactorTitle')
             : passwordResetEnabled
                 ? t('pages.login.forgotTitle')
                 : t('pages.login.title');
@@ -403,7 +480,7 @@ export default function Login() {
                                 ) : null}
                             </div>
                         </div>
-                        {(!registrationEnabled || (mode !== MODE_LOGIN && mode !== MODE_REGISTER)) && mode !== MODE_VERIFY && mode !== MODE_FORGOT && (
+                        {(!registrationEnabled || (mode !== MODE_LOGIN && mode !== MODE_REGISTER)) && mode !== MODE_VERIFY && mode !== MODE_FORGOT && mode !== MODE_TWO_FACTOR && (
                             <div className="login-form-heading">
                                 <h1>{modeTitle}</h1>
                             </div>
@@ -747,6 +824,87 @@ export default function Login() {
                                         type="button"
                                         className="btn-link"
                                         onClick={() => switchMode(MODE_LOGIN)}
+                                    >
+                                        {t('pages.login.toLogin')}
+                                    </button>
+                                </div>
+                            </form>
+                        )}
+
+                        {mode === MODE_TWO_FACTOR && (
+                            <form onSubmit={handleTwoFactorLogin} className="auth-form">
+                                <div className="verify-header">
+                                    <HiOutlineShieldCheck className="verify-icon" />
+                                    <h2>{t('pages.login.twoFactorTitle')}</h2>
+                                    <p className="text-muted text-sm">
+                                        {twoFactorUseBackup ? t('pages.login.twoFactorBackupSubtitle') : t('pages.login.twoFactorSubtitle')}
+                                    </p>
+                                </div>
+
+                                {!twoFactorUseBackup ? (
+                                    <div className="form-group">
+                                        <label className="form-label">{t('pages.login.twoFactorCode')}</label>
+                                        <input
+                                            type="text"
+                                            className="form-input verify-code-input"
+                                            placeholder={t('pages.login.twoFactorCodePlaceholder')}
+                                            value={twoFactorCode}
+                                            onChange={(e) => handleTwoFactorCodeChange(e.target.value)}
+                                            maxLength={6}
+                                            autoFocus
+                                            autoComplete="one-time-code"
+                                            inputMode="numeric"
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="form-group">
+                                        <label className="form-label">{t('pages.login.twoFactorBackupCode')}</label>
+                                        <div className="input-icon-wrapper">
+                                            <HiOutlineLockClosed className="input-icon" />
+                                            <input
+                                                type="text"
+                                                className="form-input input-with-icon font-mono"
+                                                placeholder={t('pages.login.twoFactorBackupPlaceholder')}
+                                                value={twoFactorBackupCode}
+                                                onChange={(e) => setTwoFactorBackupCode(e.target.value)}
+                                                autoFocus
+                                                autoComplete="off"
+                                                spellCheck={false}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                <button
+                                    type="submit"
+                                    className="btn btn-primary w-full h-11 text-sm font-bold tracking-wide"
+                                    disabled={loading || (twoFactorUseBackup ? !twoFactorBackupCode.trim() : twoFactorCode.length !== 6)}
+                                >
+                                    {loading ? <span className="spinner" /> : t('pages.login.twoFactorButton')}
+                                </button>
+
+                                <div className="verify-actions">
+                                    <button
+                                        type="button"
+                                        className="btn-link"
+                                        onClick={() => {
+                                            setTwoFactorUseBackup(!twoFactorUseBackup);
+                                            setError('');
+                                        }}
+                                    >
+                                        {twoFactorUseBackup ? t('pages.login.useTotpCode') : t('pages.login.useBackupCode')}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn-link"
+                                        onClick={() => {
+                                            setMode(MODE_LOGIN);
+                                            setTwoFactorChallengeToken('');
+                                            setTwoFactorCode('');
+                                            setTwoFactorBackupCode('');
+                                            setError('');
+                                            setSuccess('');
+                                        }}
                                     >
                                         {t('pages.login.toLogin')}
                                     </button>

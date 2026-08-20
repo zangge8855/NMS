@@ -1,0 +1,25 @@
+{
+  "short_name": "NMS",
+  "name": "NMS - Node Management System",
+  "description": "Enterprise-grade distributed multi-node proxy management system",
+  "icons": [
+    {
+      "src": "/nms-logo.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/nms-logo.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#090d16",
+  "theme_color": "#3b82f6",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "scope": "/"
+}

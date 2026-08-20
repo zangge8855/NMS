@@ -699,11 +699,55 @@ export default function UsersHub() {
             .sort(compareUsersFallback);
     }, [users, clientsMap, onlineMap, statsReady, syncingCopy.detail, syncingCopy.status, t]);
 
+    const statusCounts = useMemo(() => {
+        let total = allOrderedUsers.length;
+        let active = 0;
+        let warningTraffic = 0;
+        let expiring = 0;
+        let disabled = 0;
+
+        const now = Date.now();
+        const sevenDays = 7 * 86400000;
+
+        for (const user of allOrderedUsers) {
+            if (user.status.key === 'active' || user.status.key === 'enabled') active++;
+            if (user.status.key === 'disabled') disabled++;
+            const trafficLimit = safeNumber(user.trafficLimit);
+            const trafficUsed = resolveClientUsed(user.clientData);
+            if (trafficLimit > 0 && (trafficUsed / trafficLimit) >= 0.8) {
+                warningTraffic++;
+            }
+            const exp = Number(user.expiryTime || 0);
+            if (exp > now && exp <= now + sevenDays) {
+                expiring++;
+            }
+        }
+
+        return { total, active, warningTraffic, expiring, disabled };
+    }, [allOrderedUsers]);
+
     const filteredUsers = useMemo(() => {
         const search = String(deferredSearchTerm || '').trim().toLowerCase();
+        const now = Date.now();
+        const sevenDays = 7 * 86400000;
+
         return allOrderedUsers
             .filter((user) => {
-                if (statusFilter !== 'all' && user.status.key !== statusFilter) return false;
+                if (statusFilter === 'active') {
+                    if (user.status.key !== 'active' && user.status.key !== 'enabled') return false;
+                } else if (statusFilter === 'disabled') {
+                    if (user.status.key !== 'disabled') return false;
+                } else if (statusFilter === 'warning_traffic') {
+                    const trafficLimit = safeNumber(user.trafficLimit);
+                    const trafficUsed = resolveClientUsed(user.clientData);
+                    if (!(trafficLimit > 0 && (trafficUsed / trafficLimit) >= 0.8)) return false;
+                } else if (statusFilter === 'expiring') {
+                    const exp = Number(user.expiryTime || 0);
+                    if (!(exp > now && exp <= now + sevenDays)) return false;
+                } else if (statusFilter !== 'all' && user.status.key !== statusFilter) {
+                    return false;
+                }
+
                 if (!search) return true;
                 return [user.username, user.email, user.subscriptionEmail, user.status.label, user.onlineStatus.label]
                     .some((v) => String(v || '').toLowerCase().includes(search));
@@ -1765,25 +1809,68 @@ export default function UsersHub() {
                 <ListToolbar
                     className="users-toolbar glass-panel mb-6"
                     filters={(
-                        <>
-                        <div className="account-search-shell flex-1 max-w-sm">
-                            <HiOutlineMagnifyingGlass className="account-search-icon" />
-                            <input
-                                className="form-input account-search-input"
-                                aria-label={t('pages.usersHub.toolbar.searchPlaceholder')}
-                                placeholder={t('pages.usersHub.toolbar.searchPlaceholder')}
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
+                        <div className="users-filter-composite">
+                            <div className="account-search-shell flex-1 max-w-sm">
+                                <HiOutlineMagnifyingGlass className="account-search-icon" />
+                                <input
+                                    className="form-input account-search-input"
+                                    aria-label={t('pages.usersHub.toolbar.searchPlaceholder')}
+                                    placeholder={t('pages.usersHub.toolbar.searchPlaceholder')}
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                            </div>
+                            <div className="filter-chips-bar" role="group" aria-label="Status filter">
+                                <button
+                                    type="button"
+                                    className={`filter-chip ${statusFilter === 'all' ? 'active' : ''}`}
+                                    onClick={() => setStatusFilter('all')}
+                                >
+                                    <span>{t('pages.usersHub.toolbar.allStatus')}</span>
+                                    <span className="filter-chip-count">{statusCounts.total}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`filter-chip ${statusFilter === 'active' || statusFilter === 'enabled' ? 'active' : ''}`}
+                                    onClick={() => setStatusFilter('active')}
+                                >
+                                    <span className="filter-chip-dot dot-success" />
+                                    <span>{t('pages.usersHub.toolbar.statusActive')}</span>
+                                    <span className="filter-chip-count count-success">{statusCounts.active}</span>
+                                </button>
+                                {statusCounts.warningTraffic > 0 && (
+                                    <button
+                                        type="button"
+                                        className={`filter-chip ${statusFilter === 'warning_traffic' ? 'active' : ''}`}
+                                        onClick={() => setStatusFilter('warning_traffic')}
+                                    >
+                                        <span className="filter-chip-dot dot-warning" />
+                                        <span>{locale === 'en-US' ? 'Traffic >80%' : '流量预警'}</span>
+                                        <span className="filter-chip-count count-warning">{statusCounts.warningTraffic}</span>
+                                    </button>
+                                )}
+                                {statusCounts.expiring > 0 && (
+                                    <button
+                                        type="button"
+                                        className={`filter-chip ${statusFilter === 'expiring' ? 'active' : ''}`}
+                                        onClick={() => setStatusFilter('expiring')}
+                                    >
+                                        <span className="filter-chip-dot dot-warning" />
+                                        <span>{locale === 'en-US' ? 'Expiring <7d' : '即将到期'}</span>
+                                        <span className="filter-chip-count count-warning">{statusCounts.expiring}</span>
+                                    </button>
+                                )}
+                                <button
+                                    type="button"
+                                    className={`filter-chip ${statusFilter === 'disabled' ? 'active' : ''}`}
+                                    onClick={() => setStatusFilter('disabled')}
+                                >
+                                    <span className="filter-chip-dot dot-muted" />
+                                    <span>{t('pages.usersHub.toolbar.statusDisabled')}</span>
+                                    <span className="filter-chip-count">{statusCounts.disabled}</span>
+                                </button>
+                            </div>
                         </div>
-                        <select className="form-select users-filter-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-                            <option value="all">{t('pages.usersHub.toolbar.allStatus')}</option>
-                            <option value="active">{t('pages.usersHub.toolbar.statusActive')}</option>
-                            <option value="enabled">{t('pages.usersHub.toolbar.statusEnabled')}</option>
-                            <option value="disabled">{t('pages.usersHub.toolbar.statusDisabled')}</option>
-                            <option value="pending">{t('pages.usersHub.toolbar.statusPending')}</option>
-                        </select>
-                        </>
                     )}
                     summary={(
                         <div className="text-sm text-muted users-toolbar-summary">

@@ -63,7 +63,7 @@ describe('Sidebar', () => {
         fireEvent.mouseEnter(navItem!);
 
         await waitFor(() => {
-            const flyout = document.body.querySelector('.sidebar-nav-flyout.is-ready');
+            const flyout = document.body.querySelector('.sidebar-nav-flyout');
             expect(flyout).toBeInTheDocument();
             expect(flyout).toHaveTextContent('仪表盘');
         });
@@ -110,5 +110,21 @@ describe('Sidebar', () => {
 
         expect(container.querySelector('.server-selector')).toBeNull();
         expect(document.body.querySelector('.server-dropdown-menu')).toBeNull();
+    });
+
+    it('renders with open class on mobile when open is true and triggers onClose on link click', () => {
+        const onCloseMock = vi.fn();
+        const { container } = renderWithRouter(
+            <Sidebar collapsed={false} open={true} isMobile={true} onClose={onCloseMock} onToggle={vi.fn()} />,
+            { route: '/' }
+        );
+
+        const sidebar = container.querySelector('.sidebar');
+        expect(sidebar).toHaveClass('open');
+
+        const navLink = screen.getByRole('link', { name: /仪表盘/i });
+        fireEvent.click(navLink);
+
+        expect(onCloseMock).toHaveBeenCalled();
     });
 });

@@ -18,7 +18,8 @@ export interface AuthContextType {
     loading: boolean;
     user: (User & Record<string, any>) | null;
     token: string | null;
-    login: (identifier: string, password: string) => Promise<{ success: boolean; msg?: string; needVerify?: boolean; email?: string }>;
+    login: (identifier: string, password: string) => Promise<{ success: boolean; msg?: string; needVerify?: boolean; email?: string; needTwoFactor?: boolean; challengeToken?: string }>;
+    loginTwoFactor: (challengeToken: string, code: string, useBackupCode?: boolean) => Promise<{ success: boolean; msg?: string; user?: any }>;
     logout: () => void;
     register: (username: string, email: string, password: string, inviteCode?: string) => Promise<any>;
     verifyEmail: (email: string, code: string) => Promise<any>;
@@ -117,15 +118,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 setUser(res.data.user || null);
                 return { success: true };
             }
+            if (res.data.needTwoFactor) {
+                return {
+                    success: false,
+                    needTwoFactor: true,
+                    challengeToken: res.data.challengeToken,
+                    msg: res.data.msg,
+                };
+            }
             return { success: false, msg: res.data.msg };
         } catch (err: any) {
             const data = err.response?.data;
             if (data?.needVerify) {
                 return { success: false, msg: data.msg, needVerify: true, email: data.email };
             }
+            if (data?.needTwoFactor) {
+                return {
+                    success: false,
+                    msg: data.msg,
+                    needTwoFactor: true,
+                    challengeToken: data.challengeToken,
+                };
+            }
             return {
                 success: false,
                 msg: data?.msg || getLocaleMessage(resolveUiLocale(), 'comp.common.connectFailed'),
+            };
+        }
+    };
+
+    /** 完成 2FA 二次验证登录 */
+    const loginTwoFactor = async (challengeToken: string, code: string, useBackupCode: boolean = false) => {
+        try {
+            const res = await api.post('/auth/login/2fa', { challengeToken, code, useBackupCode });
+            if (res.data.success) {
+                setStoredToken(res.data.token);
+                setToken(res.data.token);
+                setIsAuthenticated(true);
+                setUser(res.data.user || null);
+                return { success: true, user: res.data.user };
+            }
+            return { success: false, msg: res.data.msg || getLocaleMessage(resolveUiLocale(), 'pages.login.twoFactorFailed') };
+        } catch (err: any) {
+            const data = err.response?.data;
+            return {
+                success: false,
+                msg: data?.msg || getLocaleMessage(resolveUiLocale(), 'comp.common.operationFailed'),
             };
         }
     };
@@ -201,7 +239,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return (
         <AuthContext.Provider value={{
             isAuthenticated, loading,
-            login, logout,
+            login, loginTwoFactor, logout,
             register, verifyEmail, resendCode,
             requestPasswordReset, resetPassword,
             user,

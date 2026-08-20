@@ -1015,15 +1015,28 @@ router.put('/profile', authMiddleware, (req, res) => {
  * POST /api/auth/login/2fa — 完成 2FA 登录
  */
 router.post('/login/2fa', (req, res) => {
+    const clientIp = resolveClientIp(req);
+    const rateState = getLoginRateState(clientIp, '2fa_challenge');
+    if (rateState.blocked) {
+        appendSecurityAudit('login_rate_limited', req, { ip: clientIp, action: '2fa_verify' });
+        return res.status(429).json({
+            success: false,
+            msg: `2FA 验证尝试过于频繁，请 ${LOGIN_RATE_WINDOW_MINUTES} 分钟后再试`,
+        });
+    }
+
     try {
         const result = completeTwoFactorLogin(req.body);
         if (!result.success) {
+            recordLoginFailure(clientIp, '2fa_challenge');
             appendSecurityAudit('login_two_factor_failed', req, result.audit || {});
             return res.status(401).json({ success: false, msg: '2FA 验证码不正确或已过期' });
         }
+        clearLoginRate(clientIp, '2fa_challenge');
         appendSecurityAudit('login_two_factor_success', req, result.audit || {});
         return res.json({ success: true, token: result.token, user: result.user });
     } catch (err) {
+        recordLoginFailure(clientIp, '2fa_challenge');
         const error = toHttpError(err, 401, '2FA 验证失败');
         return res.status(error.status).json({ success: false, msg: error.message });
     }

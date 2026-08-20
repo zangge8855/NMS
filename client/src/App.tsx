@@ -7,8 +7,10 @@ import { NotificationProvider } from './contexts/NotificationContext';
 import { Toaster } from 'react-hot-toast';
 import useMediaQuery from './hooks/useMediaQuery';
 import { getLocaleMessage } from './i18n/messages';
+import { HiOutlineBars3 } from 'react-icons/hi2';
 import MobileBottomNav from './components/Layout/MobileBottomNav';
 import SecurityBootstrapWizard from './components/System/SecurityBootstrapWizard';
+import CommandPalette from './components/UI/CommandPalette';
 import api from './api/client';
 import useWebSocket from './hooks/useWebSocket';
 import { applyAppBootstrapSnapshots } from './utils/appBootstrap';
@@ -207,14 +209,32 @@ function ProtectedLayout() {
     }, [fetchRootWsTicket, isAdmin, rootWsStatus, token]);
 
     const effectiveCollapsed = isMobile ? false : sidebarCollapsed;
+    const handleCloseSidebar = useCallback(() => setSidebarOpen(false), []);
+    const handleToggleSidebar = useCallback(() => {
+        if (isMobile) {
+            setSidebarOpen((current) => !current);
+            return;
+        }
+        setSidebarCollapsed((current) => !current);
+    }, [isMobile]);
 
     return (
         <ServerProvider enabled={isAdmin}>
         <NotificationProvider enabled={isAdmin} wsLastMessage={isAdmin ? rootWsLastMessage : null}>
             <div className="app-layout">
+                {isMobile && !sidebarOpen && (
+                    <button
+                        type="button"
+                        className="mobile-menu-btn"
+                        onClick={() => setSidebarOpen(true)}
+                        aria-label="Open menu"
+                    >
+                        <HiOutlineBars3 style={{ width: '22px', height: '22px' }} />
+                    </button>
+                )}
                 <div
                     className={`sidebar-backdrop ${sidebarOpen ? 'show' : ''}`}
-                    onClick={() => setSidebarOpen(false)}
+                    onClick={handleCloseSidebar}
                     aria-hidden="true"
                 />
                 <Suspense fallback={null}>
@@ -222,14 +242,8 @@ function ProtectedLayout() {
                         collapsed={effectiveCollapsed}
                         open={sidebarOpen}
                         isMobile={isMobile}
-                        onClose={() => setSidebarOpen(false)}
-                        onToggle={() => {
-                            if (isMobile) {
-                                setSidebarOpen((current) => !current);
-                                return;
-                            }
-                            setSidebarCollapsed(!sidebarCollapsed);
-                        }}
+                        onClose={handleCloseSidebar}
+                        onToggle={handleToggleSidebar}
                     />
                 </Suspense>
                 <main className={`main-content ${effectiveCollapsed ? 'collapsed' : ''}`}>
@@ -259,6 +273,7 @@ function ProtectedLayout() {
                     {isMobile ? <MobileBottomNav onOpenMenu={() => setSidebarOpen(true)} /> : null}
                 </main>
                 {isAdmin ? <SecurityBootstrapWizard /> : null}
+                <CommandPalette />
             </div>
         </NotificationProvider>
         </ServerProvider>

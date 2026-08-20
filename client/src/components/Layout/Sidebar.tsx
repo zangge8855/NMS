@@ -48,12 +48,13 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
     const visibleSections = getVisibleNavSections({ isAdmin, isGlobalView, locale });
     const visibleFooterItems = getVisibleFooterNavItems({ isAdmin, isGlobalView, locale });
 
-    navFlyoutAnchorRef.current = navFlyout?.anchorEl || null;
+    const onCloseRef = useRef(onClose);
+    onCloseRef.current = onClose;
 
     useEffect(() => {
         setNavFlyout(null);
-        onClose?.();
-    }, [location.pathname, onClose]);
+        onCloseRef.current?.();
+    }, [location.pathname]);
 
     useEffect(() => {
         if (!collapsed || isMobile) {
