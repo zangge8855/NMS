@@ -466,18 +466,19 @@ async function requestOwnProfileUpdateVerification(payload: any = {}, currentUse
     if (username === previousUsername && email === previousEmail) {
         throw createHttpError(400, '账号信息没有变化');
     }
-    if (!previousEmail) {
-        throw createHttpError(400, '当前账号未绑定登录邮箱');
+    const targetEmail = previousEmail || email;
+    if (!targetEmail) {
+        throw createHttpError(400, '请提供要绑定的邮箱');
     }
 
     const code = emailSender.generateVerifyCode();
     const expiresAt = buildExpiryIso(registrationConfig.verifyCodeTtlMinutes);
     try {
-        await emailSender.sendVerificationEmail(previousEmail, code, previousUsername || username);
+        await emailSender.sendVerificationEmail(targetEmail, code, previousUsername || username);
         userRepo.setProfileUpdateVerification(user.id, {
             code,
             expiresAt,
-            targetEmail: previousEmail,
+            targetEmail,
             username,
             email,
         });
@@ -499,7 +500,7 @@ async function requestOwnProfileUpdateVerification(payload: any = {}, currentUse
 
     return {
         user,
-        verificationEmail: previousEmail,
+        verificationEmail: targetEmail,
         username,
         email,
         expiresAt,
@@ -524,6 +525,8 @@ function updateOwnProfile(payload: any = {}, currentUser: any = {}, deps: any = 
         throw createHttpError(400, '账号信息没有变化');
     }
 
+    const targetEmail = previousEmail || email;
+
     if (!String(user?.profileVerifyCode || '').trim()) {
         throw createHttpError(400, '请先发送邮箱验证码');
     }
@@ -533,7 +536,7 @@ function updateOwnProfile(payload: any = {}, currentUser: any = {}, deps: any = 
     if (user.profileVerifyCodeExpiresAt && new Date(user.profileVerifyCodeExpiresAt) < new Date()) {
         throw createHttpError(400, '验证码已过期，请重新发送');
     }
-    if (normalizeEmailInput(user.profileVerifyTargetEmail) !== previousEmail) {
+    if (normalizeEmailInput(user.profileVerifyTargetEmail) !== targetEmail) {
         throw createHttpError(400, '验证邮箱已变化，请重新发送验证码');
     }
     if (normalizeUsernameInput(user.profileVerifyUsername) !== username || normalizeEmailInput(user.profileVerifyEmail) !== email) {

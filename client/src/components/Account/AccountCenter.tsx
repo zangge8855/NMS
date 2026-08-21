@@ -180,7 +180,7 @@ export default function AccountCenter() {
                 username: draft.nextUsername,
                 email: draft.nextEmail,
             });
-            const sentTo = String(res.data?.obj?.email || loginEmail || '').trim();
+            const sentTo = String(res.data?.obj?.verificationEmail || res.data?.obj?.email || loginEmail || draft.nextEmail || '').trim();
             setProfileCode('');
             setProfileCodeSentTo(sentTo);
             setProfileCodeSentDraftKey(draft.draftKey);

@@ -109,6 +109,7 @@ export default function Login() {
         resendCode,
         requestPasswordReset,
         resetPassword: resetPasswordFn,
+        refreshAuth,
     } = useAuth();
     const navigate = useNavigate();
     const registrationEnabled = registrationStatus.enabled !== false;
@@ -233,7 +234,8 @@ export default function Login() {
             });
             if (verifyRes.data?.success) {
                 setStoredToken(verifyRes.data.token);
-                window.location.href = '/';
+                await refreshAuth();
+                navigate('/', { replace: true });
             } else {
                 throw new Error(verifyRes.data?.msg || (locale === 'en-US' ? 'Passkey verification failed' : 'Passkey 验证失败'));
             }

@@ -341,6 +341,48 @@ test('requestOwnProfileUpdateVerification sends a code to the current login emai
     assert.equal(saved[0].payload.email, 'gina.new@example.com');
 });
 
+test('requestOwnProfileUpdateVerification sends code to new email when current account has no email', async () => {
+    const sent = [];
+    const repo = {
+        getById(id) {
+            return {
+                id: 'admin-initial',
+                username: 'admin',
+                role: 'admin',
+                email: '',
+                subscriptionEmail: '',
+                emailVerified: false,
+            };
+        },
+        setProfileUpdateVerification() {},
+    };
+    const fakeMailer = {
+        generateVerifyCode() {
+            return '123456';
+        },
+        async sendVerificationEmail(email, code, username) {
+            sent.push({ email, code, username });
+        },
+    };
+
+    const result = await requestOwnProfileUpdateVerification(
+        { username: 'admin', email: 'admin.new@example.com' },
+        { userId: 'admin-initial' },
+        {
+            userRepository: repo,
+            mailer: fakeMailer,
+            registrationConfig: { verifyCodeTtlMinutes: 10 },
+        }
+    );
+
+    assert.equal(result.verificationEmail, 'admin.new@example.com');
+    assert.deepEqual(sent, [{
+        email: 'admin.new@example.com',
+        code: '123456',
+        username: 'admin',
+    }]);
+});
+
 test('updateOwnProfile updates username and login email only after code verification', () => {
     let updatedPayload = null;
     const cleared = [];

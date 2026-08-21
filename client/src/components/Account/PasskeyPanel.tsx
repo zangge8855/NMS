@@ -10,6 +10,7 @@ import {
     HiOutlineShieldCheck,
     HiOutlineComputerDesktop,
     HiOutlineDevicePhoneMobile,
+    HiOutlineXMark,
 } from 'react-icons/hi2';
 import api from '../../api/client';
 import { getErrorMessage, formatDateOnly } from '../../utils/format';
@@ -306,59 +307,89 @@ export default function PasskeyPanel({ locale = 'zh-CN' }: PasskeyPanelProps) {
             )}
 
             {/* Modal: Rename Passkey */}
-            <ModalShell
-                isOpen={nameModalOpen}
-                onClose={() => setNameModalOpen(false)}
-                title={copy.renameTitle}
-                icon={<HiOutlinePencilSquare className="w-5 h-5 text-primary" />}
-                actions={
-                    <>
-                        <button type="button" className="btn btn-secondary" onClick={() => setNameModalOpen(false)}>
-                            {copy.cancel}
-                        </button>
-                        <button type="button" className="btn btn-primary" onClick={handleSaveName} disabled={!editName.trim()}>
-                            {copy.save}
-                        </button>
-                    </>
-                }
-            >
-                <div className="space-y-4 pt-2">
-                    <div className="form-group">
-                        <label className="form-label">{copy.deviceNameLabel}</label>
-                        <input
-                            type="text"
-                            className="form-input"
-                            value={editName}
-                            placeholder={copy.deviceNamePlaceholder}
-                            onChange={(e) => setEditName(e.target.value)}
-                            maxLength={50}
-                            autoFocus
-                        />
+            {nameModalOpen && (
+                <ModalShell
+                    isOpen={nameModalOpen}
+                    onClose={() => setNameModalOpen(false)}
+                >
+                    <div className="modal modal-md" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3 className="modal-title flex items-center gap-2">
+                                <HiOutlinePencilSquare className="w-5 h-5 text-primary" />
+                                {copy.renameTitle}
+                            </h3>
+                            <button
+                                type="button"
+                                className="modal-close"
+                                onClick={() => setNameModalOpen(false)}
+                                aria-label={copy.cancel}
+                                title={copy.cancel}
+                            >
+                                <HiOutlineXMark />
+                            </button>
+                        </div>
+                        <div className="modal-body space-y-4 pt-2">
+                            <div className="form-group">
+                                <label className="form-label">{copy.deviceNameLabel}</label>
+                                <input
+                                    type="text"
+                                    className="form-input"
+                                    value={editName}
+                                    placeholder={copy.deviceNamePlaceholder}
+                                    onChange={(e) => setEditName(e.target.value)}
+                                    maxLength={50}
+                                    autoFocus
+                                />
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button type="button" className="btn btn-secondary" onClick={() => setNameModalOpen(false)}>
+                                {copy.cancel}
+                            </button>
+                            <button type="button" className="btn btn-primary" onClick={handleSaveName} disabled={!editName.trim()}>
+                                {copy.save}
+                            </button>
+                        </div>
                     </div>
-                </div>
-            </ModalShell>
+                </ModalShell>
+            )}
 
             {/* Modal: Confirm Delete */}
-            <ModalShell
-                isOpen={deleteModalOpen}
-                onClose={() => setDeleteModalOpen(false)}
-                title={copy.deleteTitle}
-                icon={<HiOutlineTrash className="w-5 h-5 text-danger" />}
-                actions={
-                    <>
-                        <button type="button" className="btn btn-secondary" onClick={() => setDeleteModalOpen(false)}>
-                            {copy.cancel}
-                        </button>
-                        <button type="button" className="btn btn-danger" onClick={handleConfirmDelete}>
-                            {copy.confirmDelete}
-                        </button>
-                    </>
-                }
-            >
-                <div className="py-2 text-sm text-text-secondary leading-relaxed">
-                    {copy.deleteConfirm}
-                </div>
-            </ModalShell>
+            {deleteModalOpen && (
+                <ModalShell
+                    isOpen={deleteModalOpen}
+                    onClose={() => setDeleteModalOpen(false)}
+                >
+                    <div className="modal modal-md" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3 className="modal-title flex items-center gap-2">
+                                <HiOutlineTrash className="w-5 h-5 text-danger" />
+                                {copy.deleteTitle}
+                            </h3>
+                            <button
+                                type="button"
+                                className="modal-close"
+                                onClick={() => setDeleteModalOpen(false)}
+                                aria-label={copy.cancel}
+                                title={copy.cancel}
+                            >
+                                <HiOutlineXMark />
+                            </button>
+                        </div>
+                        <div className="modal-body py-2 text-sm text-text-secondary leading-relaxed">
+                            {copy.deleteConfirm}
+                        </div>
+                        <div className="modal-footer">
+                            <button type="button" className="btn btn-secondary" onClick={() => setDeleteModalOpen(false)}>
+                                {copy.cancel}
+                            </button>
+                            <button type="button" className="btn btn-danger" onClick={handleConfirmDelete}>
+                                {copy.confirmDelete}
+                            </button>
+                        </div>
+                    </div>
+                </ModalShell>
+            )}
         </div>
     );
 }

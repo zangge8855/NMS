@@ -3098,10 +3098,24 @@ export default function UsersHub() {
                 <ModalShell
                     isOpen={guestModalOpen}
                     onClose={() => setGuestModalOpen(false)}
-                    title={locale === 'en-US' ? 'Generate Guest Temporary Pass' : '生成访客临时试用订阅码'}
-                    icon={<HiOutlineSparkles className="w-5 h-5 text-warning" />}
                 >
-                    <div className="space-y-4 pt-2">
+                    <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3 className="modal-title flex items-center gap-2">
+                                <HiOutlineSparkles className="w-5 h-5 text-warning" />
+                                {locale === 'en-US' ? 'Generate Guest Temporary Pass' : '生成访客临时试用订阅码'}
+                            </h3>
+                            <button
+                                type="button"
+                                className="modal-close"
+                                onClick={() => setGuestModalOpen(false)}
+                                aria-label={t('pages.usersHub.groups.modal.close')}
+                                title={t('pages.usersHub.groups.modal.close')}
+                            >
+                                <HiOutlineXMark />
+                            </button>
+                        </div>
+                        <div className="modal-body space-y-4 pt-2">
                         {!guestResult ? (
                             <form
                                 onSubmit={(e) => {
@@ -3243,6 +3257,7 @@ export default function UsersHub() {
                                 </div>
                             </div>
                         )}
+                    </div>
                     </div>
                 </ModalShell>
             )}
