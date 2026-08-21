@@ -14,7 +14,7 @@
     "review:fake-panel": "node --import tsx scripts/review_fake_panel.js",
     "review:seed": "node --import tsx scripts/seed_review_harness.js",
     "review:server": "node --import tsx scripts/review_server.js",
-    "test": "node --import tsx --test"
+    "test": "node --import tsx --test --test-concurrency=1"
   },
   "dependencies": {
     "@simplewebauthn/server": "^13.3.2",

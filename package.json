@@ -12,6 +12,9 @@
     "build": "npm run build --workspace=client",
     "start": "node server/index.js",
     "lint": "npm run lint --workspace=client",
+    "test:server": "npm test --workspace=server",
+    "test:client": "npm test --workspace=client",
+    "test": "npm run test:server && npm run test:client",
     "seed:demo": "node server/scripts/seed_demo.js",
     "clean:data": "node server/scripts/clean_data.js"
   },

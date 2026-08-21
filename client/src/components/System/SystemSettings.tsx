@@ -1658,12 +1658,12 @@ export default function SystemSettings() {
                 secret: draft.webhook.secret,
             });
             if (res.data?.success) {
-                toast.success(res.data?.msg || (locale === 'en-US' ? 'Webhook test alert sent successfully!' : 'Webhook 测试通知发送成功！'));
+                toast.success(res.data?.msg || t('pages.settings.webhookSent', 'Webhook test alert sent successfully!'));
             } else {
-                throw new Error(res.data?.msg || (locale === 'en-US' ? 'Failed to send webhook test alert' : '发送失败'));
+                throw new Error(res.data?.msg || t('pages.settings.webhookSendFailed', 'Failed to send webhook test alert'));
             }
         } catch (error: any) {
-            toast.error(error.response?.data?.msg || error.message || (locale === 'en-US' ? 'Webhook test failed' : 'Webhook 测试失败'));
+            toast.error(error.response?.data?.msg || error.message || t('pages.settings.webhookTestFailed', 'Webhook test failed'));
         } finally {
             setWebhookTestLoading(false);
         }
@@ -2663,22 +2663,22 @@ export default function SystemSettings() {
                     <SectionHeader
                         className="mb-3"
                         compact
-                        title={locale === 'en-US' ? 'Multi-Channel Alert Webhooks (Bark / Discord / 飞书 / 企业微信)' : '多渠道 Webhook 告警推送 (Bark / Discord / 飞书 / 企业微信)'}
-                        subtitle={locale === 'en-US' ? 'Instant push notifications for node outages, traffic limits, and TLS certificate expiry.' : '节点离线、流量超标、TLS 证书即将过期时自动通过 Webhook 秒级推送到您的手机或聊天群组。'}
+                        title={t('pages.settings.webhookSectionTitle', '多渠道 Webhook 告警推送 (Bark / Discord / 飞书 / 企业微信)')}
+                        subtitle={t('pages.settings.webhookSectionSubtitle', '节点离线、流量超标、TLS 证书即将过期时自动通过 Webhook 秒级推送到您的手机或聊天群组。')}
                         actions={(
                             <button
                                 className="btn btn-secondary btn-sm"
                                 onClick={testWebhookNotification}
                                 disabled={webhookTestLoading || (!webhookUrl && !webhookBarkKey)}
                             >
-                                {webhookTestLoading ? <span className="spinner" /> : (locale === 'en-US' ? 'Send Test Alert' : '发送测试通知')}
+                                {webhookTestLoading ? <span className="spinner" /> : t('pages.settings.sendTestAlert', '发送测试通知')}
                             </button>
                         )}
                     />
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="form-group">
-                            <label className="form-label font-semibold">{locale === 'en-US' ? 'Webhook Channel' : '推送渠道'}</label>
+                            <label className="form-label font-semibold">{t('pages.settings.webhookChannel', '推送渠道')}</label>
                             <select
                                 className="form-input"
                                 value={draft.webhook.channel}
@@ -2702,7 +2702,7 @@ export default function SystemSettings() {
                                     value={draft.webhook.barkKey}
                                     onChange={(e) => patchField('webhook', 'barkKey', e.target.value)}
                                 />
-                                <div className="text-xs text-muted mt-1">{locale === 'en-US' ? 'Enter the device key from the Bark iOS app.' : '在 iPhone 打开 Bark App 复制设备 Key。'}</div>
+                                <div className="text-xs text-muted mt-1">{t('pages.settings.barkKeyHint', '在 iPhone 打开 Bark App 复制设备 Key。')}</div>
                             </div>
                         ) : (
                             <div className="form-group">
@@ -2720,7 +2720,7 @@ export default function SystemSettings() {
 
                     {draft.webhook.channel === 'custom' && (
                         <div className="form-group mt-2">
-                            <label className="form-label font-semibold">{locale === 'en-US' ? 'Signature / Secret Token (Optional)' : '签名密钥 / Secret (可选)'}</label>
+                            <label className="form-label font-semibold">{t('pages.settings.webhookSecret', '签名密钥 / Secret (可选)')}</label>
                             <input
                                 type="password"
                                 className="form-input font-mono"
@@ -2732,7 +2732,7 @@ export default function SystemSettings() {
                     )}
 
                     <div className="form-group mt-4">
-                        <label className="form-label font-semibold">{locale === 'en-US' ? 'Notification Events' : '推送事件'}</label>
+                        <label className="form-label font-semibold">{t('pages.settings.webhookEvents', '推送事件')}</label>
                         <div className="settings-checkbox-group">
                             <label className="form-check-label" htmlFor="webhook-event-node-offline">
                                 <input
@@ -2741,7 +2741,7 @@ export default function SystemSettings() {
                                     checked={draft.webhook.events.nodeOffline}
                                     onChange={(e) => patchField('webhook', 'events', { ...draft.webhook.events, nodeOffline: e.target.checked })}
                                 />
-                                <span>{locale === 'en-US' ? 'Node Offline' : '节点离线 Node Offline'}</span>
+                                <span>{t('pages.settings.eventNodeOffline', '节点离线 Node Offline')}</span>
                             </label>
                             <label className="form-check-label" htmlFor="webhook-event-traffic-alert">
                                 <input
@@ -2750,7 +2750,7 @@ export default function SystemSettings() {
                                     checked={draft.webhook.events.trafficAlert}
                                     onChange={(e) => patchField('webhook', 'events', { ...draft.webhook.events, trafficAlert: e.target.checked })}
                                 />
-                                <span>{locale === 'en-US' ? 'Traffic Alert' : '流量预警 Traffic Alert'}</span>
+                                <span>{t('pages.settings.eventTrafficAlert', '流量预警 Traffic Alert')}</span>
                             </label>
                             <label className="form-check-label" htmlFor="webhook-event-cert-expiring">
                                 <input
@@ -2759,7 +2759,7 @@ export default function SystemSettings() {
                                     checked={draft.webhook.events.certExpiring}
                                     onChange={(e) => patchField('webhook', 'events', { ...draft.webhook.events, certExpiring: e.target.checked })}
                                 />
-                                <span>{locale === 'en-US' ? 'TLS Cert Expiring' : '证书即将过期 TLS Cert Expiring'}</span>
+                                <span>{t('pages.settings.eventCertExpiring', '证书即将过期 TLS Cert Expiring')}</span>
                             </label>
                         </div>
                     </div>
