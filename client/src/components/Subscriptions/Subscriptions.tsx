@@ -357,8 +357,8 @@ export default function Subscriptions() {
     const isAdmin = user?.role === 'admin';
     const isUserOnly = !isAdmin;
     const defaultIdentity = useMemo(
-        () => String(user?.subscriptionEmail || '').trim(),
-        [user?.subscriptionEmail]
+        () => String(user?.subscriptionEmail || user?.email || user?.username || '').trim(),
+        [user?.subscriptionEmail, user?.email, user?.username]
     );
     const queryEmail = String(searchParams.get('email') || '').trim();
     const queryServerId = String(searchParams.get('serverId') || '').trim();

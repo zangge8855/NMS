@@ -82,6 +82,21 @@ describe('subscription access identity helpers', () => {
         assert.equal(allowed, true);
     });
 
+    it('allows user access by email when subscriptionEmail is empty string', () => {
+        const allowed = canAccessSubscriptionEmail(
+            { role: 'user', userId: 'u1', username: 'plainname' },
+            'User@Example.com',
+            {
+                findUserById: () => ({
+                    username: 'plainname',
+                    email: 'user@example.com',
+                    subscriptionEmail: '',
+                }),
+            }
+        );
+        assert.equal(allowed, true);
+    });
+
     it('denies user access when requested value only matches username', () => {
         const allowed = canAccessSubscriptionEmail(
             { role: 'user', userId: 'u1', username: 'plainname' },
