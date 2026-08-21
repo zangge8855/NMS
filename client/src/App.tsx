@@ -7,7 +7,9 @@ import { NotificationProvider } from './contexts/NotificationContext';
 import { Toaster } from 'react-hot-toast';
 import useMediaQuery from './hooks/useMediaQuery';
 import { getLocaleMessage } from './i18n/messages';
-import { HiOutlineBars3 } from 'react-icons/hi2';
+import { clearStoredToken } from './api/client';
+import { clearAppSessionState } from './utils/appBootstrap';
+import { HiOutlineBars3, HiOutlineExclamationTriangle } from 'react-icons/hi2';
 import MobileBottomNav from './components/Layout/MobileBottomNav';
 import SecurityBootstrapWizard from './components/System/SecurityBootstrapWizard';
 import CommandPalette from './components/UI/CommandPalette';
@@ -39,44 +41,143 @@ const XrayConsole = lazy(() => import('./components/Xray/XrayConsole'));
 
 interface ErrorBoundaryProps {
     children: ReactNode;
+    fallbackTitle?: string;
+    inline?: boolean;
 }
 
 interface ErrorBoundaryState {
     hasError: boolean;
+    error: Error | null;
 }
 
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     constructor(props: ErrorBoundaryProps) {
         super(props);
-        this.state = { hasError: false };
+        this.state = { hasError: false, error: null };
     }
 
-    static getDerivedStateFromError(): ErrorBoundaryState {
-        return { hasError: true };
+    static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+        return { hasError: true, error };
     }
 
     componentDidCatch(error: Error, info: React.ErrorInfo) {
         console.error('[ErrorBoundary]', error, info?.componentStack);
     }
 
+    handleReload = () => {
+        window.location.reload();
+    };
+
+    handleGoHome = () => {
+        window.location.href = '/';
+    };
+
+    handleResetAndRelogin = () => {
+        try {
+            clearStoredToken();
+            clearAppSessionState();
+            sessionStorage.clear();
+        } catch {}
+        window.location.href = '/login';
+    };
+
+    handleRetry = () => {
+        this.setState({ hasError: false, error: null });
+    };
+
     render() {
         if (this.state.hasError) {
-            const locale = document.documentElement.lang === 'en' ? 'en-US' : 'zh-CN';
+            const locale = typeof document !== 'undefined' && document.documentElement.lang === 'en' ? 'en-US' : 'zh-CN';
+            const isEn = locale === 'en-US';
+            const errorMessage = this.state.error?.message || '';
+
+            if (this.props.inline) {
+                return (
+                    <div className="page-error-boundary">
+                        <div className="app-error-boundary-card">
+                            <div className="app-error-boundary-icon">
+                                <HiOutlineExclamationTriangle />
+                            </div>
+                            <div className="app-error-boundary-title">
+                                {this.props.fallbackTitle || getLocaleMessage(locale, 'comp.common.errorBoundaryTitle')}
+                            </div>
+                            <div className="app-error-boundary-subtitle">
+                                {getLocaleMessage(locale, 'comp.common.errorBoundarySubtitle')}
+                            </div>
+                            {errorMessage ? (
+                                <div className="app-error-boundary-detail">
+                                    <code>{errorMessage}</code>
+                                </div>
+                            ) : null}
+                            <div className="app-error-boundary-actions">
+                                <button
+                                    type="button"
+                                    className="btn btn-primary btn-sm"
+                                    onClick={this.handleRetry}
+                                >
+                                    {isEn ? 'Try Again' : '重试'}
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={this.handleReload}
+                                >
+                                    {getLocaleMessage(locale, 'comp.common.errorBoundaryAction')}
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={this.handleGoHome}
+                                >
+                                    {isEn ? 'Go to Home' : '返回首页'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
             return (
                 <div className="app-error-boundary">
-                    <div className="app-error-boundary-title">
-                        {getLocaleMessage(locale, 'comp.common.errorBoundaryTitle')}
+                    <div className="app-error-boundary-card">
+                        <div className="app-error-boundary-icon">
+                            <HiOutlineExclamationTriangle />
+                        </div>
+                        <div className="app-error-boundary-title">
+                            {getLocaleMessage(locale, 'comp.common.errorBoundaryTitle')}
+                        </div>
+                        <div className="app-error-boundary-subtitle">
+                            {getLocaleMessage(locale, 'comp.common.errorBoundarySubtitle')}
+                        </div>
+                        {errorMessage ? (
+                            <div className="app-error-boundary-detail">
+                                <code>{errorMessage}</code>
+                            </div>
+                        ) : null}
+                        <div className="app-error-boundary-actions">
+                            <button
+                                type="button"
+                                className="btn btn-primary"
+                                onClick={this.handleReload}
+                            >
+                                {getLocaleMessage(locale, 'comp.common.errorBoundaryAction')}
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-secondary"
+                                onClick={this.handleGoHome}
+                            >
+                                {isEn ? 'Go to Home' : '返回首页'}
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-secondary"
+                                onClick={this.handleResetAndRelogin}
+                            >
+                                {isEn ? 'Clear Cache & Re-login' : '清除缓存并重新登录'}
+                            </button>
+                        </div>
                     </div>
-                    <div className="app-error-boundary-subtitle">
-                        {getLocaleMessage(locale, 'comp.common.errorBoundarySubtitle')}
-                    </div>
-                    <button
-                        type="button"
-                        className="btn btn-primary"
-                        onClick={() => window.location.reload()}
-                    >
-                        {getLocaleMessage(locale, 'comp.common.errorBoundaryAction')}
-                    </button>
                 </div>
             );
         }
@@ -93,7 +194,11 @@ function PageFallback() {
 }
 
 function LazyPage({ children }: { children: ReactNode }) {
-    return <Suspense fallback={<PageFallback />}>{children}</Suspense>;
+    return (
+        <ErrorBoundary inline>
+            <Suspense fallback={<PageFallback />}>{children}</Suspense>
+        </ErrorBoundary>
+    );
 }
 
 function getWsUrl(ticket: string | null): string | null {

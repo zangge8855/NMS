@@ -128,6 +128,14 @@ function normalizeManagedOnlineCount(value, fallback = null) {
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
+function normalizeGlobalOnlineUsers(items: any = []): any[] {
+    if (!Array.isArray(items)) return [];
+    return items.map((item) => ({
+        ...item,
+        nodeLabels: Array.isArray(item?.nodeLabels) ? item.nodeLabels : [],
+    }));
+}
+
 function readDashboardBootstrapSnapshot() {
     const snapshot = readSessionSnapshot(DASHBOARD_SNAPSHOT_KEY, {
         maxAgeMs: DASHBOARD_SNAPSHOT_TTL_MS,
@@ -143,7 +151,7 @@ function readDashboardBootstrapSnapshot() {
         totalUsers: Number(snapshot?.globalAccountSummary?.totalUsers || 0),
         pendingUsers: Number(snapshot?.globalAccountSummary?.pendingUsers || 0),
     };
-    const globalOnlineUsers = Array.isArray(snapshot?.globalOnlineUsers) ? snapshot.globalOnlineUsers : [];
+    const globalOnlineUsers = normalizeGlobalOnlineUsers(snapshot?.globalOnlineUsers);
     const fallbackManagedOnlineCount = snapshot?.globalPresenceReady === true
         ? normalizeManagedOnlineCount(globalStats.totalOnline, globalOnlineUsers.length)
         : null;
@@ -386,22 +394,25 @@ function OnlineUsersMobileList({ rows = [], showNodes = false, limit, t, keyPref
                         </div>
                     </div>
 
-                    {showNodes ? (
-                        <div className="dashboard-online-mobile-nodes">
-                            {row.nodeLabels.length === 0 ? (
-                                <span className="badge badge-neutral">{t('pages.dashboardCommon.unknownNode')}</span>
-                            ) : (
-                                row.nodeLabels.slice(0, 4).map((nodeLabel) => (
-                                    <span key={`${row.userId || row.label || index}-${nodeLabel}`} className="badge badge-info">
-                                        {nodeLabel}
-                                    </span>
-                                ))
-                            )}
-                            {row.nodeLabels.length > 4 ? (
-                                <span className="badge badge-neutral">+{row.nodeLabels.length - 4}</span>
-                            ) : null}
-                        </div>
-                    ) : null}
+                    {showNodes ? (() => {
+                        const nodeLabels = Array.isArray(row?.nodeLabels) ? row.nodeLabels : [];
+                        return (
+                            <div className="dashboard-online-mobile-nodes">
+                                {nodeLabels.length === 0 ? (
+                                    <span className="badge badge-neutral">{t('pages.dashboardCommon.unknownNode')}</span>
+                                ) : (
+                                    nodeLabels.slice(0, 4).map((nodeLabel) => (
+                                        <span key={`${row.userId || row.label || index}-${nodeLabel}`} className="badge badge-info">
+                                            {nodeLabel}
+                                        </span>
+                                    ))
+                                )}
+                                {nodeLabels.length > 4 ? (
+                                    <span className="badge badge-neutral">+{nodeLabels.length - 4}</span>
+                                ) : null}
+                            </div>
+                        );
+                    })() : null}
                 </div>
             ))}
             {rows.length > limit ? (
@@ -660,7 +671,7 @@ export default function Dashboard() {
     const applyGlobalDashboardSnapshot = useCallback((payload: any = {}) => {
         const nextServerStatuses = buildDashboardSnapshotServerStatuses(payload?.serverStatuses || {});
         const nextGlobalStats = normalizeGlobalStatsSnapshot(payload?.globalStats || {});
-        const nextGlobalOnlineUsers = Array.isArray(payload?.globalOnlineUsers) ? payload.globalOnlineUsers : [];
+        const nextGlobalOnlineUsers = normalizeGlobalOnlineUsers(payload?.globalOnlineUsers);
         const nextGlobalManagedOnlineCount = normalizeManagedOnlineCount(
             payload?.globalManagedOnlineCount,
             payload?.globalPresenceReady === true ? nextGlobalOnlineUsers.length : null
@@ -1277,16 +1288,21 @@ export default function Dashboard() {
                                                             </div>
                                                         </td>
                                                         <td data-label={t('pages.dashboardGlobal.onlineNodes')} className="dashboard-online-nodes-cell">
-                                                            <div className="flex flex-wrap gap-1.5">
-                                                                {row.nodeLabels.length === 0 ? (
-                                                                    <span className="badge badge-neutral">{t('pages.dashboardCommon.unknownNode')}</span>
-                                                                ) : (
-                                                                    row.nodeLabels.slice(0, 4).map((nodeLabel) => (
-                                                                        <span key={`${row.userId || row.label}-${nodeLabel}`} className="badge badge-info">{nodeLabel}</span>
-                                                                    ))
-                                                                )}
-                                                                {row.nodeLabels.length > 4 && <span className="badge badge-neutral">+{row.nodeLabels.length - 4}</span>}
-                                                            </div>
+                                                            {(() => {
+                                                                const nodeLabels = Array.isArray(row?.nodeLabels) ? row.nodeLabels : [];
+                                                                return (
+                                                                    <div className="flex flex-wrap gap-1.5">
+                                                                        {nodeLabels.length === 0 ? (
+                                                                            <span className="badge badge-neutral">{t('pages.dashboardCommon.unknownNode')}</span>
+                                                                        ) : (
+                                                                            nodeLabels.slice(0, 4).map((nodeLabel) => (
+                                                                                <span key={`${row.userId || row.label}-${nodeLabel}`} className="badge badge-info">{nodeLabel}</span>
+                                                                            ))
+                                                                        )}
+                                                                        {nodeLabels.length > 4 && <span className="badge badge-neutral">+{nodeLabels.length - 4}</span>}
+                                                                    </div>
+                                                                );
+                                                            })()}
                                                         </td>
                                                         <td data-label={t('pages.dashboardCommon.sessions')} className="table-cell-right font-mono dashboard-online-sessions-cell"><span className="badge badge-success">{row.sessions}</span></td>
                                                     </tr>
