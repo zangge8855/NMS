@@ -25,6 +25,7 @@ import { useI18n } from '../../contexts/LanguageContext';
 import EmptyState from '../UI/EmptyState';
 import SectionHeader from '../UI/SectionHeader';
 import useMediaQuery from '../../hooks/useMediaQuery';
+import { readSessionSnapshot, SESSION_SNAPSHOT_EVENT, writeSessionSnapshot } from '../../utils/sessionSnapshot';
 import { lazyWithRetry } from '../../utils/lazyWithRetry';
 
 const CpuHistoryChart = lazyWithRetry(() => import('./CpuHistoryChart'), 'CpuHistoryChart');

@@ -30,6 +30,7 @@ import { resolveAccessGeoDisplay } from '../../utils/accessGeo';
 import useMediaQuery from '../../hooks/useMediaQuery';
 import MiniSparkline from '../UI/MiniSparkline';
 import useTrafficLeaderboardTrends from '../../hooks/useTrafficLeaderboardTrends';
+import { readSessionSnapshot, SESSION_SNAPSHOT_EVENT, writeSessionSnapshot } from '../../utils/sessionSnapshot';
 import { lazyWithRetry } from '../../utils/lazyWithRetry';
 
 const Logs = lazyWithRetry(() => import('../Logs/Logs'), 'AuditLogs');
