@@ -28,8 +28,9 @@ import {
 
 function resolveUserSubscriptionEmail(user: any): string {
     if (!user || typeof user !== 'object') return '';
-    if (Object.prototype.hasOwnProperty.call(user, 'subscriptionEmail')) {
-        return normalizeEmailInput(user.subscriptionEmail);
+    const explicitSubEmail = normalizeEmailInput(user.subscriptionEmail);
+    if (explicitSubEmail) {
+        return explicitSubEmail;
     }
     return normalizeEmailInput(user.email);
 }

@@ -82,7 +82,7 @@ describe('UserStore', { concurrency: false }, () => {
         assert.equal(user.role, ROLES.user);
     });
 
-    it('should preserve explicit empty subscription binding', () => {
+    it('should fall back to email when subscription binding is empty', () => {
         const user = userStore.add({
             username: 'user_bind_empty',
             password: 'Pass1234!',
@@ -90,10 +90,10 @@ describe('UserStore', { concurrency: false }, () => {
             email: 'bind-empty@example.com',
             subscriptionEmail: '',
         });
-        assert.equal(user.subscriptionEmail, '');
+        assert.equal(user.subscriptionEmail, 'bind-empty@example.com');
         const stored = userStore.getByUsername('user_bind_empty');
         assert.equal(stored.subscriptionEmail, '');
-        assert.equal(userStore.getBySubscriptionEmail('bind-empty@example.com'), null);
+        assert.equal(userStore.getBySubscriptionEmail('bind-empty@example.com')?.id, user.id);
     });
 
     it('should normalize and store subscription alias paths', () => {

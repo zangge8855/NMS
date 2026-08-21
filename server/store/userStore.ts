@@ -56,13 +56,14 @@ function normalizeUsernameValue(value: unknown): string {
 }
 
 function hasSubscriptionBindingField(user: unknown): boolean {
-    return !!user && typeof user === 'object' && Object.prototype.hasOwnProperty.call(user, 'subscriptionEmail');
+    return !!user && typeof user === 'object' && Boolean(normalizeEmailValue((user as any).subscriptionEmail));
 }
 
 function resolveSubscriptionEmail(user: unknown): string {
     if (!user || typeof user !== 'object') return '';
-    if (hasSubscriptionBindingField(user)) {
-        return normalizeEmailValue((user as any).subscriptionEmail);
+    const explicit = normalizeEmailValue((user as any).subscriptionEmail);
+    if (explicit) {
+        return explicit;
     }
     return normalizeEmailValue((user as any).email);
 }

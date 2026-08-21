@@ -253,6 +253,8 @@ function ProtectedLayout() {
                             <Route path="/inbounds" element={isAdmin ? <LazyPage><Inbounds /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                             <Route path="/clients" element={isAdmin ? <LazyPage><UsersHub /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                             <Route path="/clients/:userId" element={isAdmin ? <LazyPage><UserDetail /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/users" element={isAdmin ? <Navigate to="/clients" replace /> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/users/:userId" element={isAdmin ? <Navigate to="/clients" replace /> : <Navigate to="/subscriptions" replace />} />
                             <Route path="/subscriptions" element={<LazyPage><Subscriptions /></LazyPage>} />
                             <Route path="/downloads" element={isAdmin ? <Navigate to="/subscriptions" replace /> : <LazyPage><DownloadsCenter /></LazyPage>} />
                             <Route path="/account" element={<LazyPage><AccountCenter /></LazyPage>} />
