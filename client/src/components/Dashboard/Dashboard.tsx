@@ -25,9 +25,9 @@ import { useI18n } from '../../contexts/LanguageContext';
 import EmptyState from '../UI/EmptyState';
 import SectionHeader from '../UI/SectionHeader';
 import useMediaQuery from '../../hooks/useMediaQuery';
-import { readSessionSnapshot, SESSION_SNAPSHOT_EVENT, writeSessionSnapshot } from '../../utils/sessionSnapshot';
+import { lazyWithRetry } from '../../utils/lazyWithRetry';
 
-const CpuHistoryChart = lazy(() => import('./CpuHistoryChart'));
+const CpuHistoryChart = lazyWithRetry(() => import('./CpuHistoryChart'), 'CpuHistoryChart');
 
 const AUTO_REFRESH_INTERVAL = 30_000;
 const GLOBAL_WS_GRACE_MS = 150;

@@ -16,28 +16,29 @@ import CommandPalette from './components/UI/CommandPalette';
 import api from './api/client';
 import useWebSocket from './hooks/useWebSocket';
 import { applyAppBootstrapSnapshots } from './utils/appBootstrap';
+import { lazyWithRetry } from './utils/lazyWithRetry';
 
-const Login = lazy(() => import('./components/Login/Login'));
-const Sidebar = lazy(() => import('./components/Layout/Sidebar'));
+const Login = lazyWithRetry(() => import('./components/Login/Login'), 'Login');
+const Sidebar = lazyWithRetry(() => import('./components/Layout/Sidebar'), 'Sidebar');
 const loadDashboardPage = () => import('./components/Dashboard/Dashboard');
 const loadInboundsPage = () => import('./components/Inbounds/Inbounds');
 const loadUsersHubPage = () => import('./components/Users/UsersHub');
 
-const Dashboard = lazy(loadDashboardPage);
-const Inbounds = lazy(loadInboundsPage);
-const UsersHub = lazy(loadUsersHubPage);
-const UserDetail = lazy(() => import('./components/Users/UserDetail'));
-const Subscriptions = lazy(() => import('./components/Subscriptions/Subscriptions'));
-const DownloadsCenter = lazy(() => import('./components/Subscriptions/DownloadsCenter'));
-const AccountCenter = lazy(() => import('./components/Account/AccountCenter'));
-const Logs = lazy(() => import('./components/Logs/Logs'));
-const Tools = lazy(() => import('./components/Tools/Tools'));
-const Servers = lazy(() => import('./components/Servers/Servers'));
-const ServerDetail = lazy(() => import('./components/Servers/ServerDetail'));
-const Capabilities = lazy(() => import('./components/Capabilities/Capabilities'));
-const AuditCenter = lazy(() => import('./components/Audit/AuditCenter'));
-const SystemSettings = lazy(() => import('./components/System/SystemSettings'));
-const XrayConsole = lazy(() => import('./components/Xray/XrayConsole'));
+const Dashboard = lazyWithRetry(loadDashboardPage, 'Dashboard');
+const Inbounds = lazyWithRetry(loadInboundsPage, 'Inbounds');
+const UsersHub = lazyWithRetry(loadUsersHubPage, 'UsersHub');
+const UserDetail = lazyWithRetry(() => import('./components/Users/UserDetail'), 'UserDetail');
+const Subscriptions = lazyWithRetry(() => import('./components/Subscriptions/Subscriptions'), 'Subscriptions');
+const DownloadsCenter = lazyWithRetry(() => import('./components/Subscriptions/DownloadsCenter'), 'DownloadsCenter');
+const AccountCenter = lazyWithRetry(() => import('./components/Account/AccountCenter'), 'AccountCenter');
+const Logs = lazyWithRetry(() => import('./components/Logs/Logs'), 'Logs');
+const Tools = lazyWithRetry(() => import('./components/Tools/Tools'), 'Tools');
+const Servers = lazyWithRetry(() => import('./components/Servers/Servers'), 'Servers');
+const ServerDetail = lazyWithRetry(() => import('./components/Servers/ServerDetail'), 'ServerDetail');
+const Capabilities = lazyWithRetry(() => import('./components/Capabilities/Capabilities'), 'Capabilities');
+const AuditCenter = lazyWithRetry(() => import('./components/Audit/AuditCenter'), 'AuditCenter');
+const SystemSettings = lazyWithRetry(() => import('./components/System/SystemSettings'), 'SystemSettings');
+const XrayConsole = lazyWithRetry(() => import('./components/Xray/XrayConsole'), 'XrayConsole');
 
 interface ErrorBoundaryProps {
     children: ReactNode;
@@ -62,6 +63,21 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
     componentDidCatch(error: Error, info: React.ErrorInfo) {
         console.error('[ErrorBoundary]', error, info?.componentStack);
+        const message = String(error?.message || '');
+        const isChunkError = (
+            message.includes('Failed to fetch dynamically imported module')
+            || message.includes('Loading chunk')
+            || message.includes('dynamically imported module')
+            || error?.name === 'ChunkLoadError'
+        );
+        if (isChunkError) {
+            const reloadKey = 'nms_auto_reload_chunk_error';
+            const lastAttempt = Number(sessionStorage.getItem(reloadKey) || 0);
+            if (Date.now() - lastAttempt > 10_000) {
+                sessionStorage.setItem(reloadKey, String(Date.now()));
+                window.location.reload();
+            }
+        }
     }
 
     handleReload = () => {
@@ -90,6 +106,17 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
             const locale = typeof document !== 'undefined' && document.documentElement.lang === 'en' ? 'en-US' : 'zh-CN';
             const isEn = locale === 'en-US';
             const errorMessage = this.state.error?.message || '';
+            const isChunkError = (
+                errorMessage.includes('Failed to fetch dynamically imported module')
+                || errorMessage.includes('Loading chunk')
+                || errorMessage.includes('dynamically imported module')
+            );
+            const resolvedTitle = isChunkError
+                ? (isEn ? 'New Version Available' : '发现系统新版本')
+                : (this.props.fallbackTitle || getLocaleMessage(locale, 'comp.common.errorBoundaryTitle'));
+            const resolvedSubtitle = isChunkError
+                ? (isEn ? 'A new version has been deployed. Please refresh to load the latest application.' : '系统已部署最新版本，请刷新页面加载最新资源。')
+                : getLocaleMessage(locale, 'comp.common.errorBoundarySubtitle');
 
             if (this.props.inline) {
                 return (
@@ -99,10 +126,10 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
                                 <HiOutlineExclamationTriangle />
                             </div>
                             <div className="app-error-boundary-title">
-                                {this.props.fallbackTitle || getLocaleMessage(locale, 'comp.common.errorBoundaryTitle')}
+                                {resolvedTitle}
                             </div>
                             <div className="app-error-boundary-subtitle">
-                                {getLocaleMessage(locale, 'comp.common.errorBoundarySubtitle')}
+                                {resolvedSubtitle}
                             </div>
                             {errorMessage ? (
                                 <div className="app-error-boundary-detail">
@@ -113,17 +140,19 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
                                 <button
                                     type="button"
                                     className="btn btn-primary btn-sm"
-                                    onClick={this.handleRetry}
-                                >
-                                    {isEn ? 'Try Again' : '重试'}
-                                </button>
-                                <button
-                                    type="button"
-                                    className="btn btn-secondary btn-sm"
                                     onClick={this.handleReload}
                                 >
                                     {getLocaleMessage(locale, 'comp.common.errorBoundaryAction')}
                                 </button>
+                                {!isChunkError && (
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={this.handleRetry}
+                                    >
+                                        {isEn ? 'Try Again' : '重试'}
+                                    </button>
+                                )}
                                 <button
                                     type="button"
                                     className="btn btn-secondary btn-sm"
@@ -144,10 +173,10 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
                             <HiOutlineExclamationTriangle />
                         </div>
                         <div className="app-error-boundary-title">
-                            {getLocaleMessage(locale, 'comp.common.errorBoundaryTitle')}
+                            {resolvedTitle}
                         </div>
                         <div className="app-error-boundary-subtitle">
-                            {getLocaleMessage(locale, 'comp.common.errorBoundarySubtitle')}
+                            {resolvedSubtitle}
                         </div>
                         {errorMessage ? (
                             <div className="app-error-boundary-detail">

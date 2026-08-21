@@ -16,6 +16,18 @@ import './styles/overlay-restore.css';
 import './styles/flagship-console.css';
 import { resolveSiteBasePath } from './utils/sitePath';
 
+// Gracefully handle dynamic import chunk failures after new deployments
+if (typeof window !== 'undefined') {
+    window.addEventListener('vite:preloadError', (event) => {
+        const key = 'nms_vite_preload_reload_attempt';
+        const lastReload = Number(sessionStorage.getItem(key) || 0);
+        if (Date.now() - lastReload > 10_000) {
+            sessionStorage.setItem(key, String(Date.now()));
+            window.location.reload();
+        }
+    });
+}
+
 const siteBasePath = resolveSiteBasePath();
 
 const rootElement = document.getElementById('root');

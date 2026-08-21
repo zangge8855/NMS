@@ -30,11 +30,11 @@ import { resolveAccessGeoDisplay } from '../../utils/accessGeo';
 import useMediaQuery from '../../hooks/useMediaQuery';
 import MiniSparkline from '../UI/MiniSparkline';
 import useTrafficLeaderboardTrends from '../../hooks/useTrafficLeaderboardTrends';
-import { readSessionSnapshot, SESSION_SNAPSHOT_EVENT, writeSessionSnapshot } from '../../utils/sessionSnapshot';
+import { lazyWithRetry } from '../../utils/lazyWithRetry';
 
-const Logs = lazy(() => import('../Logs/Logs'));
-const TrafficLineChart = lazy(() => import('./TrafficLineChart'));
-const ProtocolPieChart = lazy(() => import('./ProtocolPieChart'));
+const Logs = lazyWithRetry(() => import('../Logs/Logs'), 'AuditLogs');
+const TrafficLineChart = lazyWithRetry(() => import('./TrafficLineChart'), 'TrafficLineChart');
+const ProtocolPieChart = lazyWithRetry(() => import('./ProtocolPieChart'), 'ProtocolPieChart');
 import ClientGeoDistributionCard from './ClientGeoDistributionCard';
 
 const AUDIT_TRAFFIC_TOP_LIMIT = 10;
