@@ -107,12 +107,12 @@ export default function Servers() {
     const handlePingAll = async () => {
         setPingingAll(true);
         try {
-            const res = await api.post('/api/servers/ping-all');
+            const res = await api.post('/servers/ping-all');
             if (res?.data?.success) {
                 setPingResults(res.data.results || {});
             }
         } catch (err) {
-            toast.error('Ping all failed');
+            toast.error(getErrorMessage(err, 'Ping all failed'));
         } finally {
             setPingingAll(false);
         }
@@ -334,7 +334,7 @@ export default function Servers() {
                 continue;
             }
 
-            throw new Error(`第 ${i + 1} 行格式错误，请使用 1~3 列（逗号或 TAB 分隔）`);
+            throw new Error(locale === 'en-US' ? `Line ${i + 1}: Invalid format (expected 1-3 comma or tab separated columns)` : `第 ${i + 1} 行格式错误，请使用 1~3 列（逗号或 TAB 分隔）`);
         }
 
         return items;
@@ -941,7 +941,7 @@ export default function Servers() {
                     {serverEnvironment ? <span className="badge badge-info">{serverEnvironment}</span> : null}
                     <span className={`badge ${liveStatusBadge.cls}`}>{liveStatusBadge.text}</span>
                     {pingResults[server.id] && (
-                        pingResults[server.id].online ? (
+                        pingResults[server.id].online && Number(pingResults[server.id].latencyMs) > 0 ? (
                             pingResults[server.id].latencyMs < 100 ? (
                                 <span className="badge badge-success">🟢 {pingResults[server.id].latencyMs}ms</span>
                             ) : pingResults[server.id].latencyMs <= 300 ? (
@@ -950,7 +950,7 @@ export default function Servers() {
                                 <span className="badge badge-danger">🔴 {pingResults[server.id].latencyMs}ms</span>
                             )
                         ) : (
-                            <span className="badge badge-danger">🔴 Timeout</span>
+                            <span className="badge badge-danger">🔴 {locale === 'en-US' ? 'Timeout' : '超时'}</span>
                         )
                     )}
                     <span className={`badge ${testStateBadge}`}>{testStateText}</span>
@@ -1078,19 +1078,21 @@ export default function Servers() {
                     actions={selectedIds.size > 0 ? null : (
                         <>
                             <button
+                                type="button"
                                 className="btn btn-secondary btn-sm"
                                 onClick={handlePingAll}
                                 disabled={pingingAll}
                             >
-                                {pingingAll ? <span className="spinner" /> : <HiOutlineSignal />} 一键测速 / Ping All
+                                {pingingAll ? <span className="spinner" /> : <HiOutlineSignal />} {t('pages.servers.toolbar.pingAll') || (locale === 'en-US' ? 'Ping All' : '一键测速')}
                             </button>
                             <button
+                                type="button"
                                 className="btn btn-secondary btn-sm"
                                 onClick={() => { setBatchResult(null); setShowBatchForm(true); }}
                             >
                                 <HiOutlinePlusCircle /> {t('pages.servers.toolbar.bulkAdd')}
                             </button>
-                            <button className="btn btn-primary btn-sm" onClick={openCreateServerModal}>
+                            <button type="button" className="btn btn-primary btn-sm" onClick={openCreateServerModal}>
                                 <HiOutlinePlusCircle /> {t('pages.servers.toolbar.addServer')}
                             </button>
                             <button type="button" className="btn btn-secondary btn-sm servers-select-all-btn" onClick={toggleSelectAll}>
@@ -1242,7 +1244,7 @@ export default function Servers() {
                                                     <span className="server-card-name">{server.name}</span>
                                                 </button>
                                                 {pingResults[server.id] && (
-                                                    pingResults[server.id].online ? (
+                                                    pingResults[server.id].online && Number(pingResults[server.id].latencyMs) > 0 ? (
                                                         pingResults[server.id].latencyMs < 100 ? (
                                                             <span className="badge badge-success">🟢 {pingResults[server.id].latencyMs}ms</span>
                                                         ) : pingResults[server.id].latencyMs <= 300 ? (
@@ -1251,7 +1253,7 @@ export default function Servers() {
                                                             <span className="badge badge-danger">🔴 {pingResults[server.id].latencyMs}ms</span>
                                                         )
                                                     ) : (
-                                                        <span className="badge badge-danger">🔴 Timeout</span>
+                                                        <span className="badge badge-danger">🔴 {locale === 'en-US' ? 'Timeout' : '超时'}</span>
                                                     )
                                                 )}
                                             </div>

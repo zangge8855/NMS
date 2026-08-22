@@ -309,6 +309,7 @@ const messages = {
           cancelSelectAll: '取消全选',
           bulkAdd: '批量添加',
           addServer: '添加服务器',
+          pingAll: '一键测速',
         },
         empty: {
           noServersTitle: '暂无服务器',
@@ -2246,6 +2247,7 @@ const messages = {
           cancelSelectAll: 'Clear selection',
           bulkAdd: 'Bulk add',
           addServer: 'Add server',
+          pingAll: 'Ping All',
         },
         empty: {
           noServersTitle: 'No servers yet',

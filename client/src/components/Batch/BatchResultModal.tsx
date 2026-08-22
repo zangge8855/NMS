@@ -71,7 +71,7 @@ export default function BatchResultModal({ isOpen, onClose, title = null, data =
             <div className="modal modal-lg batch-result-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="modal-header">
                     <h3 className="modal-title">{resolvedTitle}</h3>
-                    <button className="modal-close" onClick={onClose} aria-label={copy.close} title={copy.close}>
+                    <button type="button" className="modal-close" onClick={onClose} aria-label={copy.close} title={copy.close}>
                         <HiOutlineXMark />
                     </button>
                 </div>

@@ -115,12 +115,13 @@ export default function SubscriptionClientLinks({
         [bundle, profileLabelOverrides]
     );
 
+    const isEn = locale === 'en-US';
     const deviceGuides = useMemo(() => ([
         {
             key: 'windows',
             title: 'Windows',
             summary: copy.chooseAny,
-            badge: 'PC / 桌面端',
+            badge: isEn ? 'PC / Desktop' : 'PC / 桌面端',
             appLinks: buildLinks(toolLookup, ['clash-verge', 'mihomo-party', 'flclash', 'v2rayn', 'hiddify', 'singbox']),
             profileRules: [
                 buildRule(toolLookup, profileLookup, ['clash-verge', 'mihomo-party', 'flclash'], 'clash'),
@@ -133,7 +134,7 @@ export default function SubscriptionClientLinks({
             key: 'macos',
             title: 'macOS',
             summary: copy.chooseAny,
-            badge: 'Mac / 桌面端',
+            badge: isEn ? 'Mac / Desktop' : 'Mac / 桌面端',
             appLinks: buildLinks(toolLookup, ['clash-verge', 'mihomo-party', 'flclash', 'surge', 'stash', 'singbox']),
             profileRules: [
                 buildRule(toolLookup, profileLookup, ['clash-verge', 'mihomo-party', 'flclash', 'stash'], 'clash'),
@@ -146,7 +147,7 @@ export default function SubscriptionClientLinks({
             key: 'android',
             title: 'Android',
             summary: copy.chooseAny,
-            badge: '安卓 / 移动端',
+            badge: isEn ? 'Android / Mobile' : '安卓 / 移动端',
             appLinks: buildLinks(toolLookup, ['flclash', 'v2rayng', 'nekobox-android', 'cmfa', 'hiddify', 'singbox']),
             profileRules: [
                 buildRule(toolLookup, profileLookup, ['flclash', 'cmfa'], 'clash'),
@@ -159,7 +160,7 @@ export default function SubscriptionClientLinks({
             key: 'ios',
             title: 'iPhone / iPad',
             summary: copy.chooseAny,
-            badge: 'iOS / 移动端',
+            badge: isEn ? 'iOS / Mobile' : 'iOS / 移动端',
             appLinks: buildLinks(toolLookup, ['shadowrocket', 'stash', 'surge', 'loon', 'egern', 'singbox', 'karing']),
             profileRules: [
                 buildRule(toolLookup, profileLookup, ['stash'], 'clash'),
@@ -173,7 +174,7 @@ export default function SubscriptionClientLinks({
             key: 'linux',
             title: 'Linux',
             summary: copy.chooseAny,
-            badge: 'Linux / 服务器',
+            badge: isEn ? 'Linux / Server' : 'Linux / 服务器',
             appLinks: buildLinks(toolLookup, ['clash-verge', 'flclash', 'nekobox-windows', 'hiddify', 'singbox']),
             profileRules: [
                 buildRule(toolLookup, profileLookup, ['clash-verge', 'flclash'], 'clash'),
@@ -184,9 +185,9 @@ export default function SubscriptionClientLinks({
         },
         {
             key: 'router',
-            title: locale === 'en-US' ? 'Routers & OpenWrt' : '路由器 / 软路由',
-            summary: locale === 'en-US' ? 'OpenWrt, Asus, Xiaomi, Merlin routers.' : '适合 OpenWrt、华硕、小米及软路由网关。',
-            badge: '网关 / 路由器',
+            title: isEn ? 'Routers & OpenWrt' : '路由器 / 软路由',
+            summary: isEn ? 'OpenWrt, Asus, Xiaomi, Merlin routers.' : '适合 OpenWrt、华硕、小米及软路由网关。',
+            badge: isEn ? 'Gateway / Router' : '网关 / 路由器',
             appLinks: buildLinks(toolLookup, ['openclash', 'passwall', 'shellcrash', 'homeproxy']),
             profileRules: [
                 buildRule(toolLookup, profileLookup, ['openclash', 'shellcrash'], 'clash'),
@@ -195,7 +196,7 @@ export default function SubscriptionClientLinks({
             ].filter(Boolean),
             quickKeys: [],
         },
-    ]), [copy.chooseAny, locale, profileLookup, toolLookup]);
+    ]), [copy.chooseAny, isEn, profileLookup, toolLookup]);
 
     if (quickActions.length === 0 && toolSites.length === 0) return null;
 

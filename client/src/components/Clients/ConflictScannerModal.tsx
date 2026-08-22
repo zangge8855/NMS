@@ -238,7 +238,7 @@ export default function ConflictScannerModal({
                             <span className="badge badge-danger">{t('comp.clients.conflictHighBadge', { count: summary.high })}</span>
                             <span className="badge badge-warning">{t('comp.clients.conflictMediumBadge', { count: summary.medium })}</span>
                         </div>
-                        <button className="btn btn-secondary btn-sm" onClick={refreshFromServer} disabled={scanning}>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={refreshFromServer} disabled={scanning}>
                             {scanning ? <span className="spinner" /> : <><HiOutlineArrowPath /> {t('comp.clients.rescan')}</>}
                         </button>
                     </div>
@@ -266,7 +266,7 @@ export default function ConflictScannerModal({
                                 <div key={group.groupKey} className="card p-4">
                                     <div className="flex flex-wrap items-center justify-between gap-3">
                                         <div>
-                                            <div className="font-semibold text-white">{group.displayIdentity}</div>
+                                            <div className="font-semibold text-primary">{group.displayIdentity}</div>
                                             <div className="text-sm text-muted">
                                                 {t('comp.clients.recordsOnNodes', { entries: group.entryCount, servers: group.serverCount })}
                                             </div>
@@ -318,6 +318,7 @@ export default function ConflictScannerModal({
                                                         </select>
 
                                                         <button
+                                                            type="button"
                                                             className="btn btn-primary btn-sm"
                                                             onClick={() => resolveProtocolConflict(group, protocolGroup)}
                                                             disabled={resolving || scanning}
@@ -373,7 +374,7 @@ export default function ConflictScannerModal({
                 </div>
 
                 <div className="modal-footer">
-                    <button className="btn btn-secondary" onClick={onClose}>{t('comp.common.close')}</button>
+                    <button type="button" className="btn btn-secondary" onClick={onClose}>{t('comp.common.close')}</button>
                 </div>
             </div>
         </ModalShell>

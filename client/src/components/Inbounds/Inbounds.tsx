@@ -1038,9 +1038,9 @@ export default function Inbounds() {
         event.preventDefault();
         const inbound = clientAdjustTarget?.inbound;
         const selectedClients = Array.isArray(clientAdjustTarget?.clients) ? clientAdjustTarget.clients : [];
-        const addDays = Number(clientAdjustDays || 0) || 0;
-        const addGb = Number(clientAdjustTrafficGb || 0) || 0;
-        const addBytes = Math.trunc(addGb * 1024 * 1024 * 1024);
+        const addDays = Number.isFinite(Number(clientAdjustDays)) ? Math.trunc(Number(clientAdjustDays)) : 0;
+        const rawGb = Number(clientAdjustTrafficGb);
+        const addBytes = Number.isFinite(rawGb) ? Math.trunc(rawGb * 1024 * 1024 * 1024) : 0;
         if (addDays === 0 && addBytes === 0) {
             toast.error(t('comp.inbounds.adjustNeedValues'));
             return;
@@ -1180,7 +1180,10 @@ export default function Inbounds() {
                 email: entitlementTarget.client?.email || '',
                 clientIdentifier: entitlementTarget.clientIdentifier,
                 mode: 'override',
-                expiryTime: entitlementExpiryDate ? new Date(entitlementExpiryDate).getTime() : 0,
+                expiryTime: (() => {
+                    const parsed = entitlementExpiryDate ? new Date(entitlementExpiryDate).getTime() : 0;
+                    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+                })(),
                 limitIp: normalizeLimitIp(entitlementLimitIp),
                 trafficLimitBytes: gigabytesInputToBytes(entitlementTrafficLimitGb),
                 speedLimitUp: kilobytesInputToBytesPerSecond(entitlementSpeedLimitUp),
@@ -1195,6 +1198,7 @@ export default function Inbounds() {
             fetchAllInbounds();
         } catch (err) {
             toast.error(getErrorMessage(err, t('comp.inbounds.entitlementSaveFailed'), locale));
+        } finally {
             setEntitlementSaving(false);
         }
     };
@@ -1764,7 +1768,7 @@ export default function Inbounds() {
                                                                 </div>
                                                                 {selectedClientCount > 0 && (
                                                                     <div className="inbounds-clients-selection-bar">
-                                                                        <span className="text-xs font-semibold text-primary">已选 {selectedClientCount} 位用户</span>
+                                                                        <span className="text-xs font-semibold text-primary">{deepCopy.selectedUsers ? deepCopy.selectedUsers.replace('{count}', String(selectedClientCount)) : (locale === 'en-US' ? `Selected ${selectedClientCount} users` : `已选 ${selectedClientCount} 位用户`)}</span>
                                                                         <button
                                                                             type="button"
                                                                             className="btn btn-danger btn-sm"
@@ -1773,7 +1777,7 @@ export default function Inbounds() {
                                                                                 handleBulkDeleteInboundClients(ib, clients);
                                                                             }}
                                                                         >
-                                                                            <HiOutlineTrash /> 批量删除
+                                                                            <HiOutlineTrash /> {deepCopy.bulkDelete || (locale === 'en-US' ? 'Batch Delete' : '批量删除')}
                                                                         </button>
                                                                         <button
                                                                             type="button"
@@ -1783,7 +1787,7 @@ export default function Inbounds() {
                                                                                 openClientAdjustModal(ib, clients);
                                                                             }}
                                                                         >
-                                                                            <HiOutlineCalendarDays /> 调整到期/流量
+                                                                            <HiOutlineCalendarDays /> {deepCopy.batchAdjust || (locale === 'en-US' ? 'Adjust Expiry/Traffic' : '调整到期/流量')}
                                                                         </button>
                                                                         <button
                                                                             type="button"
@@ -1793,7 +1797,7 @@ export default function Inbounds() {
                                                                                 clearInboundClientSelection(ib, clients);
                                                                             }}
                                                                         >
-                                                                            取消选择
+                                                                            {t('comp.common.deselectAll')}
                                                                         </button>
                                                                     </div>
                                                                 )}

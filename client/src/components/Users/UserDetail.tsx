@@ -965,9 +965,9 @@ export default function UserDetail() {
 
     const submitClientAdjust = async (event) => {
         event.preventDefault();
-        const addDays = Number(clientAdjustDays || 0) || 0;
-        const addGb = Number(clientAdjustTrafficGb || 0) || 0;
-        const addBytes = Math.trunc(addGb * 1024 * 1024 * 1024);
+        const addDays = Number.isFinite(Number(clientAdjustDays)) ? Math.trunc(Number(clientAdjustDays)) : 0;
+        const rawGb = Number(clientAdjustTrafficGb);
+        const addBytes = Number.isFinite(rawGb) ? Math.trunc(rawGb * 1024 * 1024 * 1024) : 0;
         if (addDays === 0 && addBytes === 0) {
             toast.error(t('comp.users.adjustNeedValues'));
             return;
@@ -1293,7 +1293,7 @@ export default function UserDetail() {
                 fetchDetail(),
             ]);
         } catch (err) {
-            toast.error(err.response?.data?.msg || copy.labels.resetFailed);
+            toast.error(getErrorMessage(err, copy.labels.resetFailed, locale));
         }
         setSubscriptionResetLoading(false);
     };
@@ -1328,7 +1328,7 @@ export default function UserDetail() {
                 await fetchDetail({ preserveCurrent: true });
             }
         } catch (err) {
-            toast.error(err.response?.data?.msg || copy.labels.actionFailed);
+            toast.error(getErrorMessage(err, copy.labels.actionFailed, locale));
         }
     };
 
@@ -2026,7 +2026,7 @@ export default function UserDetail() {
                                 </div>
                             </div>
                             <div className="modal-footer">
-                                <button type="button" className="btn btn-secondary" onClick={() => setClientAdjustOpen(false)}>{t('comp.common.cancel')}</button>
+                                <button type="button" className="btn btn-secondary" onClick={() => setClientAdjustOpen(false)} disabled={clientAdjustSaving}>{t('comp.common.cancel')}</button>
                                 <button type="submit" className="btn btn-primary" disabled={clientAdjustSaving}>
                                     {clientAdjustSaving ? <span className="spinner" /> : t('comp.users.executeAdjust')}
                                 </button>

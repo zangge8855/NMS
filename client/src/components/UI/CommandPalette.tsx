@@ -122,6 +122,8 @@ export default function CommandPalette() {
             }
             if (e.key === 'Escape' && isOpen) {
                 e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation?.();
                 setIsOpen(false);
             }
         };

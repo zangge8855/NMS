@@ -37,10 +37,10 @@ export default function PasswordStrengthMeter({ password = '', locale = 'zh-CN' 
         };
     }, [value, locale]);
 
-    if (!value) return null;
+    const ariaLabel = locale === 'en-US' ? `Password strength: ${label}` : `密码强度: ${label}`;
 
     return (
-        <div className="password-strength-meter" data-tone={tone} aria-label={`Password strength: ${label}`}>
+        <div className="password-strength-meter" data-tone={tone} aria-label={ariaLabel}>
             <div className="password-strength-bars">
                 {[1, 2, 3, 4].map((step) => (
                     <div

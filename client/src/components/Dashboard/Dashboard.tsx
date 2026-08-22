@@ -1205,8 +1205,10 @@ export default function Dashboard() {
                     icon={<HiOutlineCloud />}
                 >
                     <button
+                        type="button"
                         className={`btn btn-sm dashboard-refresh-btn ${autoRefresh ? 'btn-primary' : 'btn-secondary'}`}
                         onClick={toggleAutoRefresh}
+                        aria-label={autoRefresh ? t('pages.dashboardCommon.autoRefreshOn') : t('pages.dashboardCommon.autoRefreshOff')}
                         title={autoRefresh ? t('pages.dashboardCommon.autoRefreshOffTitle') : t('pages.dashboardCommon.autoRefreshOnTitle')}
                     >
                         <HiOutlineArrowPath className={autoRefresh ? 'spinning' : ''} style={{ fontSize: '13px' }} />
@@ -1377,8 +1379,10 @@ export default function Dashboard() {
                 title={activeServer?.name || t('pages.dashboardNode.title')}
             >
                 <button
+                    type="button"
                     className={`btn btn-sm dashboard-refresh-btn ${autoRefresh ? 'btn-primary' : 'btn-secondary'}`}
                     onClick={toggleAutoRefresh}
+                    aria-label={autoRefresh ? t('pages.dashboardCommon.autoRefreshOn') : t('pages.dashboardCommon.autoRefreshOff')}
                     title={autoRefresh ? t('pages.dashboardCommon.autoRefreshOffTitle') : t('pages.dashboardCommon.autoRefreshOnTitle')}
                 >
                     <HiOutlineArrowPath className={autoRefresh ? 'spinning' : ''} style={{ fontSize: '13px' }} />
@@ -1488,7 +1492,7 @@ export default function Dashboard() {
                                 <tbody>
                                     {inbounds.slice(0, 10).map((ib) => (
                                         <tr key={ib.id}>
-                                            <td data-label={t('pages.dashboardNode.tableRemark')} className="font-medium text-white truncate max-w-[200px]">{ib.remark || '-'}</td>
+                                            <td data-label={t('pages.dashboardNode.tableRemark')} className="font-medium text-primary truncate max-w-[200px]">{ib.remark || '-'}</td>
                                             <td data-label={t('pages.dashboardNode.tableProtocol')} className="table-cell-center dashboard-inbound-protocol-cell"><span className="badge badge-info">{ib.protocol}</span></td>
                                             <td data-label={t('pages.dashboardNode.tablePort')} className="table-cell-right font-mono dashboard-inbound-port-cell">{ib.port}</td>
                                             <td data-label={t('pages.dashboardNode.tableStatus')} className="table-cell-center dashboard-inbound-status-cell">

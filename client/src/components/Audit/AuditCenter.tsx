@@ -1384,6 +1384,7 @@ export default function AuditCenter() {
     const [eventFilters, setEventFilters] = useState(() => ({ ...EMPTY_EVENT_FILTERS }));
     const [showAdvancedEventFilters, setShowAdvancedEventFilters] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState(null);
+    const [exportingAuditCsv, setExportingAuditCsv] = useState(false);
 
     const [trafficLoading, setTrafficLoading] = useState(false);
     const [selectedTrafficWindow, setSelectedTrafficWindow] = useState(requestedTrafficWindow);
@@ -1796,6 +1797,8 @@ export default function AuditCenter() {
     ]);
 
     const handleExportAuditCSV = async () => {
+        if (exportingAuditCsv) return;
+        setExportingAuditCsv(true);
         try {
             const params = buildAuditEventExportParams(eventFilters);
             const res = await api.get('/audit/events/export', { params, responseType: 'blob' });
@@ -1808,6 +1811,8 @@ export default function AuditCenter() {
             toast.success(copy.toast.exportDone);
         } catch {
             toast.error(copy.toast.exportFailed);
+        } finally {
+            setExportingAuditCsv(false);
         }
     };
 
@@ -2076,8 +2081,8 @@ export default function AuditCenter() {
                                             )}
                                         </div>
                                         <div className="audit-control-action-group audit-control-action-group--secondary">
-                                            <button className="btn btn-secondary btn-sm" onClick={handleExportAuditCSV} title="CSV">
-                                                <HiOutlineArrowDownTray /> {copy.actions.export}
+                                            <button type="button" className="btn btn-secondary btn-sm" onClick={handleExportAuditCSV} disabled={exportingAuditCsv} title="CSV">
+                                                {exportingAuditCsv ? <span className="spinner" /> : <HiOutlineArrowDownTray />} {copy.actions.export}
                                             </button>
                                             <button className="btn btn-danger btn-sm" onClick={handleClearEvents} title={copy.confirm.clearEventsTitle}>
                                                 <HiOutlineTrash /> {copy.actions.clear}
@@ -3016,7 +3021,7 @@ export default function AuditCenter() {
                         </div>
                         <div className="modal-body">
                             {/* 事件摘要 */}
-                            <div className="grid grid-cols-2 gap-3 text-sm mb-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-4">
                                 <div>
                                     <span className="text-muted">{copy.detail.eventType}: </span>
                                     <span className="font-semibold">{formatAuditEventLabel(selectedEvent, locale)}</span>
@@ -3072,7 +3077,7 @@ export default function AuditCenter() {
                             {(selectedEvent.beforeSnapshot || selectedEvent.afterSnapshot) && (
                                 <div className="mb-4">
                                     <div className="font-semibold text-sm mb-2 text-primary">{copy.detail.diff}</div>
-                                    <div className="grid grid-cols-2 gap-2">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                         {selectedEvent.beforeSnapshot && (
                                             <div>
                                                 <div className="text-xs text-danger mb-1 font-semibold">{copy.detail.before}</div>

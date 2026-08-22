@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { useI18n } from '../../contexts/LanguageContext';
-import { copyToClipboard, formatBytes, formatDateTime as formatDateTimeValue } from '../../utils/format';
+import { copyToClipboard, formatBytes, formatDateTime as formatDateTimeValue, getErrorMessage } from '../../utils/format';
 import {
     HiOutlineArrowDownTray,
     HiOutlineArrowUpTray,
@@ -1198,6 +1198,19 @@ export default function SystemSettings() {
         await performSettingsSave();
     };
 
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                if (hasPendingChanges && !saving && !loading && isAdmin) {
+                    saveSettings();
+                }
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [hasPendingChanges, saving, loading, isAdmin, saveSettings]);
+
     const createInviteCode = async () => {
         if (!isAdmin) return;
         const count = toBoundedInt(inviteGenerationDraft.count, 1, 1, 50);
@@ -1223,11 +1236,13 @@ export default function SystemSettings() {
             toast.success(res.data?.msg || (codes.length > 1 ? t('pages.settings.inviteCodesGenerated', { count: codes.length }) : t('pages.settings.invitationCodeHasBeenCreated')));
             await fetchInviteCodes({ quiet: true });
             if (codes.length > 0) {
-                await copyToClipboard(codes.join('\n'));
-                toast.success(codes.length > 1 ? t('pages.settings.inviteCodesCopied', { count: codes.length }) : t('pages.settings.theInvitationCodeHasBeenCopiedToThe'));
+                const ok = await copyToClipboard(codes.join('\n'));
+                if (ok) {
+                    toast.success(codes.length > 1 ? t('pages.settings.inviteCodesCopied', { count: codes.length }) : t('pages.settings.theInvitationCodeHasBeenCopiedToThe'));
+                }
             }
         } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || t('pages.settings.failedToCreateInvitationCode'));
+            toast.error(getErrorMessage(error, t('pages.settings.failedToCreateInvitationCode'), locale));
         }
         setInviteCodeActionKey('');
     };
@@ -1649,13 +1664,14 @@ export default function SystemSettings() {
     };
 
     const testWebhookNotification = async () => {
+        if (webhookTestLoading) return;
         setWebhookTestLoading(true);
         try {
             const res = await api.post('/system/notifications/test-webhook', {
-                channel: draft.webhook.channel,
-                url: draft.webhook.url,
-                barkKey: draft.webhook.barkKey,
-                secret: draft.webhook.secret,
+                channel: draft.webhook?.channel || 'bark',
+                url: draft.webhook?.url || '',
+                barkKey: draft.webhook?.barkKey || '',
+                secret: draft.webhook?.secret || '',
             });
             if (res.data?.success) {
                 toast.success(res.data?.msg || t('pages.settings.webhookSent', 'Webhook test alert sent successfully!'));
@@ -1663,7 +1679,7 @@ export default function SystemSettings() {
                 throw new Error(res.data?.msg || t('pages.settings.webhookSendFailed', 'Failed to send webhook test alert'));
             }
         } catch (error: any) {
-            toast.error(error.response?.data?.msg || error.message || t('pages.settings.webhookTestFailed', 'Webhook test failed'));
+            toast.error(getErrorMessage(error, t('pages.settings.webhookTestFailed', 'Webhook test failed'), locale));
         } finally {
             setWebhookTestLoading(false);
         }
@@ -2667,9 +2683,10 @@ export default function SystemSettings() {
                         subtitle={t('pages.settings.webhookSectionSubtitle', '节点离线、流量超标、TLS 证书即将过期时自动通过 Webhook 秒级推送到您的手机或聊天群组。')}
                         actions={(
                             <button
+                                type="button"
                                 className="btn btn-secondary btn-sm"
                                 onClick={testWebhookNotification}
-                                disabled={webhookTestLoading || (!webhookUrl && !webhookBarkKey)}
+                                disabled={webhookTestLoading || (!draft.webhook?.url && !draft.webhook?.barkKey)}
                             >
                                 {webhookTestLoading ? <span className="spinner" /> : t('pages.settings.sendTestAlert', '发送测试通知')}
                             </button>

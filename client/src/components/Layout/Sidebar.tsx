@@ -93,6 +93,7 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
 
     const openNavFlyout = (id: string, label: string, target: HTMLElement) => {
         if (!collapsed || isMobile || !target) return;
+        navFlyoutAnchorRef.current = target;
         setNavFlyout({ id, label, anchorEl: target });
     };
 

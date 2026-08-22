@@ -85,12 +85,12 @@ export default function TwoFactorPanel({ locale = 'zh-CN' }: TwoFactorPanelProps
             const res = await api.get('/auth/2fa/status');
             setStatus(res?.data?.obj || { enabled: false });
         } catch (err) {
-            toast.error(getErrorMessage(err) || copy.generic);
+            toast.error(getErrorMessage(err, copy.generic, locale));
             setStatus({ enabled: false });
         } finally {
             setStatusLoading(false);
         }
-    }, [copy.generic]);
+    }, [copy.generic, locale]);
 
     useEffect(() => { loadStatus(); }, [loadStatus]);
 
@@ -102,7 +102,7 @@ export default function TwoFactorPanel({ locale = 'zh-CN' }: TwoFactorPanelProps
             setEnrollment(res?.data?.obj || null);
             setCode('');
         } catch (err) {
-            toast.error(getErrorMessage(err) || copy.generic);
+            toast.error(getErrorMessage(err, copy.generic, locale));
         } finally { setBusy(false); }
     };
 
@@ -126,7 +126,7 @@ export default function TwoFactorPanel({ locale = 'zh-CN' }: TwoFactorPanelProps
             setCode('');
             await loadStatus();
         } catch (err) {
-            toast.error(getErrorMessage(err) || copy.invalidCode);
+            toast.error(getErrorMessage(err, copy.invalidCode, locale));
         } finally { setBusy(false); }
     };
 
@@ -140,7 +140,7 @@ export default function TwoFactorPanel({ locale = 'zh-CN' }: TwoFactorPanelProps
             await loadStatus();
             toast.success(copy.disabledOk);
         } catch (err) {
-            toast.error(getErrorMessage(err) || copy.generic);
+            toast.error(getErrorMessage(err, copy.generic, locale));
         } finally { setBusy(false); }
     };
 
@@ -165,7 +165,7 @@ export default function TwoFactorPanel({ locale = 'zh-CN' }: TwoFactorPanelProps
                     <p className="account-twofactor-subtitle">{copy.subtitle}</p>
                 </div>
                 <span className={`badge ${enabled ? 'badge-success' : 'badge-neutral'}`}>
-                    {statusLoading ? '...' : (enabled ? copy.statusEnabled : copy.statusDisabled)}
+                    {statusLoading ? <span className="spinner spinner-xs" /> : (enabled ? copy.statusEnabled : copy.statusDisabled)}
                 </span>
             </div>
 
@@ -192,16 +192,19 @@ export default function TwoFactorPanel({ locale = 'zh-CN' }: TwoFactorPanelProps
                             type="password"
                             className="form-input"
                             placeholder={copy.currentPassword}
+                            aria-label={copy.currentPassword}
                             value={disablePassword}
                             onChange={(e) => setDisablePassword(e.target.value)}
+                            disabled={busy}
                             autoComplete="current-password"
+                            onKeyDown={(e) => { if (e.key === 'Enter' && disablePassword) confirmDisable(); }}
                         />
                     </div>
                     <div className="account-twofactor-actions">
                         <button type="button" className="btn btn-danger btn-sm" onClick={confirmDisable} disabled={busy || !disablePassword}>
-                            {copy.disable}
+                            {busy ? <span className="spinner" /> : copy.disable}
                         </button>
-                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setDisableMode(false); setDisablePassword(''); }}>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setDisableMode(false); setDisablePassword(''); }} disabled={busy}>
                             {copy.cancel}
                         </button>
                     </div>
@@ -210,8 +213,8 @@ export default function TwoFactorPanel({ locale = 'zh-CN' }: TwoFactorPanelProps
 
             {!enabled && !enrollment ? (
                 <div className="account-twofactor-actions">
-                    <button type="button" className="btn btn-primary btn-sm" onClick={startSetup} disabled={busy}>
-                        <HiOutlineKey /> {copy.enable}
+                    <button type="button" className="btn btn-primary btn-sm" onClick={startSetup} disabled={busy || statusLoading}>
+                        {busy ? <span className="spinner" /> : <><HiOutlineKey /> {copy.enable}</>}
                     </button>
                 </div>
             ) : null}
@@ -234,20 +237,27 @@ export default function TwoFactorPanel({ locale = 'zh-CN' }: TwoFactorPanelProps
                         </button>
                     </div>
                     <div className="form-group mb-0">
-                        <label className="form-label">{copy.verifyCode}</label>
+                        <label className="form-label" htmlFor="account-twofactor-verify-input">{copy.verifyCode}</label>
                         <input
+                            id="account-twofactor-verify-input"
                             className="form-input cell-mono account-twofactor-code-input"
                             inputMode="numeric"
                             maxLength={6}
+                            placeholder="000000"
+                            aria-label={copy.verifyCode}
                             value={code}
+                            disabled={busy}
+                            autoComplete="one-time-code"
+                            autoFocus
                             onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, ''))}
+                            onKeyDown={(e) => { if (e.key === 'Enter' && code.length === 6) confirmEnable(); }}
                         />
                     </div>
                     <div className="account-twofactor-actions">
                         <button type="button" className="btn btn-primary btn-sm" onClick={confirmEnable} disabled={busy || code.length !== 6}>
-                            {copy.verify}
+                            {busy ? <span className="spinner" /> : copy.verify}
                         </button>
-                        <button type="button" className="btn btn-secondary btn-sm" onClick={cancelSetup}>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={cancelSetup} disabled={busy}>
                             {copy.cancel}
                         </button>
                     </div>

@@ -359,7 +359,22 @@ router.all('/:serverId/*', upload.any(), async (req: Request, res: Response) => 
             invalidateServerPanelSnapshotCache(serverId);
         }
 
-        res.status(panelRes.status).json(panelRes.data);
+        let responseData = panelRes.data;
+        if (
+            panelPath.startsWith('/panel/api/inbounds/clientIps/')
+            || panelPath.startsWith('/panel/api/clients/ips/')
+        ) {
+            if (responseData && typeof responseData === 'object' && responseData.obj !== undefined) {
+                responseData = {
+                    ...responseData,
+                    obj: await enrichClientIpPayload(responseData.obj),
+                };
+            } else if (responseData) {
+                responseData = await enrichClientIpPayload(responseData);
+            }
+        }
+
+        res.status(panelRes.status).json(responseData);
     } catch (error: any) {
         if (error?.message === 'Server not found') {
             return res.status(404).json({

@@ -123,27 +123,35 @@ export default function PasskeyPanel({ locale = 'zh-CN' }: PasskeyPanelProps) {
         loadPasskeys();
     }, [loadPasskeys]);
 
-    // Handle adding new Passkey
+    const [savingName, setSavingName] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+
+    // Guess a default device name based on user-agent
+    const getDefaultDeviceName = () => {
+        let defaultName = locale === 'en-US' ? 'Passkey' : '通行密钥';
+        if (typeof navigator !== 'undefined') {
+            const ua = navigator.userAgent || '';
+            if (/iPhone|iPad/i.test(ua)) defaultName = locale === 'en-US' ? 'Apple Device (Face/Touch ID)' : 'Apple 设备 (面容/指纹)';
+            else if (/Macintosh|Mac OS/i.test(ua)) defaultName = locale === 'en-US' ? 'MacBook / Mac Passkey' : 'Mac 设备 (指纹/面容)';
+            else if (/Windows/i.test(ua)) defaultName = 'Windows Hello';
+            else if (/Android/i.test(ua)) defaultName = locale === 'en-US' ? 'Android Passkey' : 'Android 设备';
+            else if (/Linux/i.test(ua)) defaultName = locale === 'en-US' ? 'Security Key' : '安全密钥';
+        }
+        return defaultName;
+    };
+
+    // Handle Add Passkey (Registration)
     const handleAddPasskey = async () => {
         if (registering) return;
         setRegistering(true);
         try {
-            // 1. Get registration options
+            // 1. Get registration options from server
             const optRes = await api.post('/auth/passkey/register-options');
             if (!optRes.data?.success || !optRes.data?.obj) {
                 throw new Error(optRes.data?.msg || copy.registerFailed);
             }
 
-            // Guess a default device name based on user-agent
-            let defaultName = '通行密钥';
-            if (typeof navigator !== 'undefined') {
-                const ua = navigator.userAgent || '';
-                if (/iPhone|iPad/i.test(ua)) defaultName = 'Apple Device (Face/Touch ID)';
-                else if (/Macintosh|Mac OS/i.test(ua)) defaultName = 'MacBook / Mac Passkey';
-                else if (/Windows/i.test(ua)) defaultName = 'Windows Hello';
-                else if (/Android/i.test(ua)) defaultName = 'Android Passkey';
-                else if (/Linux/i.test(ua)) defaultName = 'Security Key';
-            }
+            const defaultName = getDefaultDeviceName();
 
             // 2. Prompt browser WebAuthn registration
             const attResp = await startRegistration({ optionsJSON: optRes.data.obj });
@@ -173,7 +181,8 @@ export default function PasskeyPanel({ locale = 'zh-CN' }: PasskeyPanelProps) {
 
     // Handle Rename
     const handleSaveName = async () => {
-        if (!activePasskey || !editName.trim()) return;
+        if (!activePasskey || !editName.trim() || savingName) return;
+        setSavingName(true);
         try {
             const res = await api.patch(`/auth/passkey/${encodeURIComponent(activePasskey.id)}`, {
                 deviceName: editName.trim(),
@@ -187,12 +196,15 @@ export default function PasskeyPanel({ locale = 'zh-CN' }: PasskeyPanelProps) {
             }
         } catch (err) {
             toast.error(getErrorMessage(err, copy.updateFailed, locale));
+        } finally {
+            setSavingName(false);
         }
     };
 
     // Handle Delete
     const handleConfirmDelete = async () => {
-        if (!deletingPasskey) return;
+        if (!deletingPasskey || deleting) return;
+        setDeleting(true);
         try {
             const res = await api.delete(`/auth/passkey/${encodeURIComponent(deletingPasskey.id)}`);
             if (res.data?.success) {
@@ -204,6 +216,8 @@ export default function PasskeyPanel({ locale = 'zh-CN' }: PasskeyPanelProps) {
             }
         } catch (err) {
             toast.error(getErrorMessage(err, copy.deleteFailed, locale));
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -222,7 +236,7 @@ export default function PasskeyPanel({ locale = 'zh-CN' }: PasskeyPanelProps) {
         <div className="card p-6 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stroke-soft pb-4">
                 <div>
-                    <h2 className="text-lg font-bold flex items-center gap-2 text-text-primary">
+                    <h2 className="text-lg font-bold flex items-center gap-2 text-primary">
                         <HiOutlineKey className="text-primary w-5 h-5" />
                         {copy.title}
                     </h2>
@@ -244,12 +258,12 @@ export default function PasskeyPanel({ locale = 'zh-CN' }: PasskeyPanelProps) {
             {loading ? (
                 <div className="py-8 text-center text-muted text-sm">
                     <span className="spinner mr-2" />
-                    Loading...
+                    {locale === 'en-US' ? 'Loading...' : '正在加载...'}
                 </div>
             ) : passkeys.length === 0 ? (
                 <div className="py-8 text-center border border-dashed border-stroke-soft rounded-xl bg-surface-panel/40">
                     <HiOutlineFingerPrint className="w-10 h-10 text-muted mx-auto mb-2 opacity-60" />
-                    <div className="text-sm font-semibold text-text-primary">{copy.noPasskeysTitle}</div>
+                    <div className="text-sm font-semibold text-primary">{copy.noPasskeysTitle}</div>
                     <div className="text-xs text-muted mt-1 max-w-md mx-auto">{copy.noPasskeysSubtitle}</div>
                 </div>
             ) : (
@@ -264,7 +278,7 @@ export default function PasskeyPanel({ locale = 'zh-CN' }: PasskeyPanelProps) {
                                     {getDeviceIcon(pk.deviceName)}
                                 </div>
                                 <div className="min-w-0 space-y-1">
-                                    <div className="text-sm font-bold text-text-primary truncate" title={pk.deviceName}>
+                                    <div className="text-sm font-bold text-primary truncate" title={pk.deviceName}>
                                         {pk.deviceName || 'Passkey'}
                                     </div>
                                     <div className="text-xs text-muted flex items-center gap-1.5">
@@ -279,8 +293,9 @@ export default function PasskeyPanel({ locale = 'zh-CN' }: PasskeyPanelProps) {
                             <div className="flex items-center gap-1 opacity-90 group-hover:opacity-100 shrink-0">
                                 <button
                                     type="button"
-                                    className="p-1.5 rounded-lg hover:bg-surface-input text-muted hover:text-text-primary transition-colors"
+                                    className="p-1.5 rounded-lg hover:bg-surface-input text-muted hover:text-primary transition-colors"
                                     title={copy.rename}
+                                    aria-label={copy.rename}
                                     onClick={() => {
                                         setActivePasskey(pk);
                                         setEditName(pk.deviceName || '');
@@ -293,6 +308,7 @@ export default function PasskeyPanel({ locale = 'zh-CN' }: PasskeyPanelProps) {
                                     type="button"
                                     className="p-1.5 rounded-lg hover:bg-danger/10 text-muted hover:text-danger transition-colors"
                                     title={copy.delete}
+                                    aria-label={copy.delete}
                                     onClick={() => {
                                         setDeletingPasskey(pk);
                                         setDeleteModalOpen(true);
@@ -310,7 +326,8 @@ export default function PasskeyPanel({ locale = 'zh-CN' }: PasskeyPanelProps) {
             {nameModalOpen && (
                 <ModalShell
                     isOpen={nameModalOpen}
-                    onClose={() => setNameModalOpen(false)}
+                    onClose={() => !savingName && setNameModalOpen(false)}
+                    ariaLabel={copy.renameTitle}
                 >
                     <div className="modal modal-md" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
@@ -321,35 +338,44 @@ export default function PasskeyPanel({ locale = 'zh-CN' }: PasskeyPanelProps) {
                             <button
                                 type="button"
                                 className="modal-close"
-                                onClick={() => setNameModalOpen(false)}
+                                onClick={() => !savingName && setNameModalOpen(false)}
                                 aria-label={copy.cancel}
                                 title={copy.cancel}
+                                disabled={savingName}
                             >
                                 <HiOutlineXMark />
                             </button>
                         </div>
-                        <div className="modal-body space-y-4 pt-2">
-                            <div className="form-group">
-                                <label className="form-label">{copy.deviceNameLabel}</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    value={editName}
-                                    placeholder={copy.deviceNamePlaceholder}
-                                    onChange={(e) => setEditName(e.target.value)}
-                                    maxLength={50}
-                                    autoFocus
-                                />
+                        <form onSubmit={(e) => {
+                            e.preventDefault();
+                            if (editName.trim() && !savingName) handleSaveName();
+                        }}>
+                            <div className="modal-body space-y-4 pt-2">
+                                <div className="form-group">
+                                    <label className="form-label" htmlFor="passkey-rename-input">{copy.deviceNameLabel}</label>
+                                    <input
+                                        id="passkey-rename-input"
+                                        type="text"
+                                        className="form-input"
+                                        value={editName}
+                                        placeholder={copy.deviceNamePlaceholder}
+                                        aria-label={copy.deviceNameLabel}
+                                        onChange={(e) => setEditName(e.target.value)}
+                                        maxLength={50}
+                                        disabled={savingName}
+                                        autoFocus
+                                    />
+                                </div>
                             </div>
-                        </div>
-                        <div className="modal-footer">
-                            <button type="button" className="btn btn-secondary" onClick={() => setNameModalOpen(false)}>
-                                {copy.cancel}
-                            </button>
-                            <button type="button" className="btn btn-primary" onClick={handleSaveName} disabled={!editName.trim()}>
-                                {copy.save}
-                            </button>
-                        </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-secondary" onClick={() => setNameModalOpen(false)} disabled={savingName}>
+                                    {copy.cancel}
+                                </button>
+                                <button type="submit" className="btn btn-primary" disabled={!editName.trim() || savingName}>
+                                    {savingName ? <span className="spinner" /> : copy.save}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </ModalShell>
             )}
@@ -358,7 +384,8 @@ export default function PasskeyPanel({ locale = 'zh-CN' }: PasskeyPanelProps) {
             {deleteModalOpen && (
                 <ModalShell
                     isOpen={deleteModalOpen}
-                    onClose={() => setDeleteModalOpen(false)}
+                    onClose={() => !deleting && setDeleteModalOpen(false)}
+                    ariaLabel={copy.deleteTitle}
                 >
                     <div className="modal modal-md" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
@@ -369,22 +396,23 @@ export default function PasskeyPanel({ locale = 'zh-CN' }: PasskeyPanelProps) {
                             <button
                                 type="button"
                                 className="modal-close"
-                                onClick={() => setDeleteModalOpen(false)}
+                                onClick={() => !deleting && setDeleteModalOpen(false)}
                                 aria-label={copy.cancel}
                                 title={copy.cancel}
+                                disabled={deleting}
                             >
                                 <HiOutlineXMark />
                             </button>
                         </div>
-                        <div className="modal-body py-2 text-sm text-text-secondary leading-relaxed">
+                        <div className="modal-body py-2 text-sm text-secondary leading-relaxed">
                             {copy.deleteConfirm}
                         </div>
                         <div className="modal-footer">
-                            <button type="button" className="btn btn-secondary" onClick={() => setDeleteModalOpen(false)}>
+                            <button type="button" className="btn btn-secondary" onClick={() => setDeleteModalOpen(false)} disabled={deleting}>
                                 {copy.cancel}
                             </button>
-                            <button type="button" className="btn btn-danger" onClick={handleConfirmDelete}>
-                                {copy.confirmDelete}
+                            <button type="button" className="btn btn-danger" onClick={handleConfirmDelete} disabled={deleting}>
+                                {deleting ? <span className="spinner" /> : copy.confirmDelete}
                             </button>
                         </div>
                     </div>

@@ -824,6 +824,7 @@ export default function Subscriptions() {
                                     className="form-input font-mono text-xs subscription-url-input"
                                     value={activeProfileUrlDisplay}
                                     readOnly
+                                    aria-label={activeProfileLabel || activeProfile?.label || ui.copyAddress}
                                     aria-disabled={!result.subscriptionActive}
                                     title={activeProfile?.url || ''}
                                     dir="ltr"
@@ -1095,11 +1096,20 @@ export default function Subscriptions() {
                                             </div>
 
                                             <div className="subscription-routing-policy" style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>
-                                                <span className="text-sm" style={{ marginRight: '0.5rem' }}>路由策略 / Policy:</span>
-                                                <select className="form-select form-select-sm" style={{ width: 'auto', display: 'inline-block' }} value={routingPolicy} onChange={e => setRoutingPolicy(e.target.value)}>
-                                                    <option value="rules">🚀 规则策略 (Rules)</option>
-                                                    <option value="global">🎯 全局代理 (Global)</option>
-                                                    <option value="auto">⚡ 自动优选 (Auto)</option>
+                                                <label htmlFor="subscription-routing-policy-select" className="text-sm font-medium" style={{ marginRight: '0.5rem' }}>
+                                                    {locale === 'en-US' ? 'Routing Policy:' : '路由策略:'}
+                                                </label>
+                                                <select
+                                                    id="subscription-routing-policy-select"
+                                                    className="form-select form-select-sm"
+                                                    style={{ width: 'auto', display: 'inline-block' }}
+                                                    aria-label={locale === 'en-US' ? 'Routing Policy' : '路由策略'}
+                                                    value={routingPolicy}
+                                                    onChange={e => setRoutingPolicy(e.target.value)}
+                                                >
+                                                    <option value="rules">{locale === 'en-US' ? '🚀 Rules' : '🚀 规则策略'}</option>
+                                                    <option value="global">{locale === 'en-US' ? '🎯 Global' : '🎯 全局代理'}</option>
+                                                    <option value="auto">{locale === 'en-US' ? '⚡ Auto Select' : '⚡ 自动优选'}</option>
                                                 </select>
                                             </div>
 
@@ -1154,6 +1164,7 @@ export default function Subscriptions() {
                                                             className="form-input font-mono text-xs subscription-url-input"
                                                             value={activeProfileUrlDisplay}
                                                             readOnly
+                                                            aria-label={activeProfileLabel || activeProfile?.label || ui.copyAddress}
                                                             title={activeProfile?.url || ''}
                                                             dir="ltr"
                                                             spellCheck={false}
@@ -1287,9 +1298,11 @@ export default function Subscriptions() {
                                             <div className="subscription-summary-item">
                                                 <div className="subscription-summary-label">{ui.summaryUser}</div>
                                             {isAdmin ? (
-                                                <Link className="subscription-email-link" to={linkedUserHref}>
-                                                    {result.email}
-                                                </Link>
+                                                <div className="subscription-summary-value subscription-summary-value--email">
+                                                    <Link className="subscription-email-link" to={linkedUserHref}>
+                                                        {result.email}
+                                                    </Link>
+                                                </div>
                                             ) : (
                                                 <div className="subscription-summary-value subscription-summary-value--email">{result.email}</div>
                                             )}

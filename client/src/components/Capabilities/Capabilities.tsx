@@ -509,7 +509,7 @@ export default function Capabilities({ serverId = '', embedded = false }: Capabi
                     className="card mb-6 capabilities-toolbar"
                     compact
                     actions={(
-                        <button className="btn btn-secondary btn-sm" onClick={() => fetchCapabilities()} disabled={loading}>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchCapabilities()} disabled={loading}>
                             <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> {copy.refresh}
                         </button>
                     )}
@@ -690,10 +690,12 @@ export default function Capabilities({ serverId = '', embedded = false }: Capabi
                                                 {getModuleIcon(module.key)}
                                                 <div className="flex flex-col gap-1">
                                                     <span className="font-semibold text-sm">{module.label}</span>
-                                                    <a href={module.docs} target="_blank" rel="noreferrer" className="text-xs text-info hover:underline inline-flex items-center gap-0.5">
-                                                        {copy.docsLink}
-                                                        <HiOutlineArrowUpRight className="flex-shrink-0" style={{ fontSize: '11px' }} />
-                                                    </a>
+                                                    {module.docs ? (
+                                                        <a href={module.docs} target="_blank" rel="noreferrer" className="text-xs text-info hover:underline inline-flex items-center gap-0.5">
+                                                            {copy.docsLink}
+                                                            <HiOutlineArrowUpRight className="flex-shrink-0" style={{ fontSize: '11px' }} />
+                                                        </a>
+                                                    ) : null}
                                                 </div>
                                             </div>
                                         </td>

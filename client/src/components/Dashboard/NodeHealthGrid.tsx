@@ -7,10 +7,11 @@
 
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { formatBytes } from '../../utils/format';
+import { formatBytes, getErrorMessage } from '../../utils/format';
 import { useI18n } from '../../contexts/LanguageContext';
 import EmptyState from '../UI/EmptyState';
 import api from '../../api/client';
+import toast from 'react-hot-toast';
 import {
     HiOutlineServerStack,
     HiOutlineSignal,
@@ -239,7 +240,7 @@ function NodeTile({ server, serverData, trend = [], showSparkline = false, ping 
                         <span
                             className={`badge ${ping.latencyMs > 0 && ping.latencyMs < 150 ? 'badge-success' : (ping.latencyMs > 0 && ping.latencyMs < 350 ? 'badge-warning' : 'badge-danger')}`}
                             style={{ fontSize: '10px', padding: '2px 5px', height: 'auto', display: 'inline-flex', alignItems: 'center', gap: '2px' }}
-                            title={locale === 'en-US' ? `RTT Latency: ${ping.latencyMs}ms` : `实时探测延迟: ${ping.latencyMs}ms`}
+                            title={ping.latencyMs > 0 ? (locale === 'en-US' ? `RTT Latency: ${ping.latencyMs}ms` : `实时探测延迟: ${ping.latencyMs}ms`) : (locale === 'en-US' ? 'Probe Timeout' : '探测超时')}
                         >
                             <HiOutlineBolt style={{ fontSize: '11px' }} />
                             {ping.latencyMs > 0 ? `${ping.latencyMs}ms` : (locale === 'en-US' ? 'Timeout' : '超时')}
@@ -355,8 +356,8 @@ export default function NodeHealthGrid({ servers, serverStatuses, trendHistory =
             if (res.data?.success && res.data?.results) {
                 setPingResults(res.data.results);
             }
-        } catch {
-            // ignore
+        } catch (err) {
+            toast.error(getErrorMessage(err, locale === 'en-US' ? 'Failed to ping nodes' : '节点测速失败', locale));
         } finally {
             setPinging(false);
         }

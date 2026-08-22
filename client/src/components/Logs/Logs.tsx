@@ -597,6 +597,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                         <>
                             <div className="logs-toolbar-toggle-group" role="group" aria-label={locale === 'en-US' ? 'Viewer controls' : '查看控制'}>
                                 <button
+                                    type="button"
                                     className="btn btn-ghost btn-sm"
                                     onClick={() => setAutoScrollEnabled((value) => !value)}
                                     title={autoScrollEnabled ? t('pages.logs.pauseScrollTitle') : t('pages.logs.resumeScrollTitle')}
@@ -605,6 +606,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                     {autoScrollEnabled ? t('pages.logs.pauseScroll') : t('pages.logs.resumeScroll')}
                                 </button>
                                 <button
+                                    type="button"
                                     className={`btn btn-sm ${wrapLines ? 'btn-secondary' : 'btn-ghost'}`}
                                     onClick={() => setWrapLines((value) => !value)}
                                     title={wrapLines ? t('pages.logs.wrapDisableTitle') : t('pages.logs.wrapEnableTitle')}
@@ -612,6 +614,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                     {wrapLines ? t('pages.logs.wrapEnabled') : t('pages.logs.wrapDisabled')}
                                 </button>
                                 <button
+                                    type="button"
                                     className={`btn btn-sm ${immersiveMode ? 'btn-secondary' : 'btn-ghost'}`}
                                     onClick={() => setImmersiveMode((value) => !value)}
                                     title={immersiveMode ? t('pages.logs.immersiveExitTitle') : t('pages.logs.immersiveEnterTitle')}
@@ -621,7 +624,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                 </button>
                             </div>
                             <div className="logs-toolbar-primary-group">
-                                <button className="btn btn-ghost btn-sm" onClick={clearViewer} title={t('pages.logs.clearViewTitle')}>
+                                <button type="button" className="btn btn-ghost btn-sm" onClick={clearViewer} title={t('pages.logs.clearViewTitle')}>
                                     <HiOutlineTrash /> {t('pages.logs.clearView')}
                                 </button>
                                 <CopyFeedbackButton
@@ -633,7 +636,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                 >
                                     {t('pages.logs.copy')}
                                 </CopyFeedbackButton>
-                                <button className="btn btn-primary btn-sm" onClick={() => fetchLogs()} disabled={logRequestPending}>
+                                <button type="button" className="btn btn-primary btn-sm" onClick={() => fetchLogs()} disabled={logRequestPending}>
                                     <HiOutlineArrowPath className={logRequestPending ? 'spinning' : ''} />
                                     {logRequestPending ? t('pages.logs.loading') : t('pages.logs.refresh')}
                                 </button>

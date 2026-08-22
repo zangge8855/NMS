@@ -2,6 +2,9 @@ import { Router, type Request, type Response } from 'express';
 import { authMiddleware, adminOnly } from '../middleware/auth.js';
 import auditStore from '../store/auditStore.js';
 import { enrichAuditEvent, enrichAuditEvents } from '../lib/auditEventEnrichment.js';
+import ipGeoResolver from '../lib/ipGeoResolver.js';
+import ipIspResolver from '../lib/ipIspResolver.js';
+import systemSettingsStore from '../store/systemSettingsStore.js';
 
 const router = Router();
 
@@ -79,6 +82,29 @@ router.get('/events/:id', async (req: Request, res: Response) => {
     return res.json({
         success: true,
         obj: await enrichAuditEvent(item),
+    });
+});
+
+router.post('/ip-lookup', async (req: Request, res: Response) => {
+    const ip = String(req.body?.ip || req.query?.ip || '').trim();
+    if (!ip) {
+        return res.status(400).json({ success: false, msg: 'Missing IP' });
+    }
+    ipGeoResolver.configure(systemSettingsStore.getAuditIpGeo());
+    if (typeof ipIspResolver.configure === 'function') {
+        ipIspResolver.configure(systemSettingsStore.getAuditIpGeo());
+    }
+    const [ipLocation, ipCarrier] = await Promise.all([
+        ipGeoResolver.lookup(ip).catch(() => ''),
+        ipIspResolver.lookup(ip).catch(() => ''),
+    ]);
+    return res.json({
+        success: true,
+        obj: {
+            ip,
+            ipLocation: ipLocation || '',
+            ipCarrier: ipCarrier || '',
+        },
     });
 });
 

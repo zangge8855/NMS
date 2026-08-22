@@ -1685,6 +1685,8 @@ select {
 }
 
 .mini-sparkline-end { fill: currentColor; }
+.mini-sparkline--primary { color: var(--accent-primary); }
+.mini-sparkline--success { color: var(--accent-success); }
 .mini-sparkline--danger { color: var(--accent-danger); }
 .mini-sparkline--warning { color: var(--accent-warning); }
 .mini-sparkline--info { color: var(--accent-primary); }
@@ -1984,6 +1986,7 @@ select {
   border: 1px solid var(--border-color);
   border-radius: 8px;
   box-shadow: var(--shadow-lg);
+  z-index: var(--z-popover, 500);
 }
 
 .actions-dropdown-item {

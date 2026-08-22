@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import Header from '../Layout/Header';
 import SectionHeader from '../UI/SectionHeader';
 import api from '../../api/client';
+import { getErrorMessage } from '../../utils/format';
 import { useAuth } from '../../contexts/AuthContext';
 import { useI18n } from '../../contexts/LanguageContext';
 import { getPasswordPolicyError, getPasswordPolicyHint } from '../../utils/passwordPolicy';
@@ -186,7 +187,7 @@ export default function AccountCenter() {
             setProfileCodeSentDraftKey(draft.draftKey);
             toast.success(res.data?.msg || copy.profileVerifySent.replace('{email}', sentTo));
         } catch (error: any) {
-            toast.error(error.response?.data?.msg || error.message || copy.profileVerifySendFailed);
+            toast.error(getErrorMessage(error, copy.profileVerifySendFailed, locale));
         }
         setProfileCodeSending(false);
     };
@@ -217,7 +218,7 @@ export default function AccountCenter() {
             setProfileCodeSentDraftKey('');
             toast.success(res.data?.msg || copy.profileSaved);
         } catch (error: any) {
-            toast.error(error.response?.data?.msg || error.message || copy.profileSaveFailed);
+            toast.error(getErrorMessage(error, copy.profileSaveFailed, locale));
         }
         setProfileSaving(false);
     };
@@ -253,7 +254,7 @@ export default function AccountCenter() {
             setConfirmPassword('');
             toast.success(copy.passwordChanged);
         } catch (error: any) {
-            toast.error(error.response?.data?.msg || error.message || copy.passwordChangeFailed);
+            toast.error(getErrorMessage(error, copy.passwordChangeFailed, locale));
         }
         setPasswordSaving(false);
     };
@@ -353,6 +354,7 @@ export default function AccountCenter() {
                         </div>
                         <div className="account-actions">
                             <button
+                                type="button"
                                 className="btn btn-primary btn-sm"
                                 onClick={handleSaveProfile}
                                 disabled={profileSaving || !profileChanged || !/^\d{6}$/.test(String(profileCode || '').trim())}
@@ -407,6 +409,7 @@ export default function AccountCenter() {
                             </div>
                             <div className="account-password-submit">
                                 <button
+                                    type="button"
                                     className="btn btn-primary btn-sm"
                                     onClick={handleChangePassword}
                                     disabled={passwordSaving || !oldPassword || !newPassword || !confirmPassword}

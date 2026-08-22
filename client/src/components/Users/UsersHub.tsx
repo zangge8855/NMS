@@ -1800,10 +1800,10 @@ export default function UsersHub() {
                 toast.success(locale === 'en-US' ? 'Guest pass created!' : '临时访客试用码创建成功！');
                 fetchData({ forceUsers: true });
             } else {
-                throw new Error(res.data?.msg || '创建失败');
+                throw new Error(res.data?.msg || (locale === 'en-US' ? 'Failed to create guest pass' : '创建失败'));
             }
         } catch (err: any) {
-            toast.error(err.response?.data?.msg || err.message || '创建访客试用码失败');
+            toast.error(getErrorMessage(err, locale === 'en-US' ? 'Failed to create guest pass' : '创建访客试用码失败', locale));
         } finally {
             setGuestCreating(false);
         }
@@ -1941,9 +1941,9 @@ export default function UsersHub() {
                     <div className="bulk-toolbar mb-4 users-bulk-toolbar">
                         <span className="bulk-toolbar-count">{t('pages.usersHub.toolbar.selected', { count: selectedIds.size })}</span>
                         <button className={bulkToggleClassName} onClick={() => handleBulkSetEnabled(bulkToggleEnable)} disabled={bulkLoading}>
-                            {bulkToggleIcon} {bulkToggleLabel}
+                            {bulkLoading ? <span className="spinner" /> : bulkToggleIcon} {bulkToggleLabel}
                         </button>
-                        <button className="btn btn-secondary btn-sm" onClick={() => setSelectedIds(new Set())}>
+                        <button className="btn btn-secondary btn-sm" onClick={() => setSelectedIds(new Set())} disabled={bulkLoading}>
                             {t('pages.usersHub.toolbar.deselect')}
                         </button>
                     </div>
@@ -2380,7 +2380,7 @@ export default function UsersHub() {
                                 </div>
                             </div>
                             <div className="modal-footer">
-                                <button type="button" className="btn btn-secondary" onClick={closeGroupModal}>{t('pages.usersHub.groups.modal.cancel')}</button>
+                                <button type="button" className="btn btn-secondary" onClick={closeGroupModal} disabled={groupSaving}>{t('pages.usersHub.groups.modal.cancel')}</button>
                                 <button type="submit" className="btn btn-primary" disabled={groupSaving}>
                                     {groupSaving ? <span className="spinner" /> : <><HiOutlineCheck /> {t('pages.usersHub.groups.modal.saveAndSync')}</>}
                                 </button>
@@ -2396,7 +2396,7 @@ export default function UsersHub() {
                     <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title">{t('pages.usersHub.createModal.title')}</h3>
-                            <button type="button" className="modal-close" onClick={closeCreateModal} aria-label={t('pages.usersHub.groups.modal.close')} title={t('pages.usersHub.groups.modal.close')}><HiOutlineXMark /></button>
+                            <button type="button" className="modal-close" onClick={closeCreateModal} disabled={createSaving} aria-label={t('pages.usersHub.groups.modal.close')} title={t('pages.usersHub.groups.modal.close')}><HiOutlineXMark /></button>
                         </div>
                         <form onSubmit={submitCreate}>
                             <div className="modal-body">
@@ -2488,7 +2488,7 @@ export default function UsersHub() {
                                 </div>
                             </div>
                             <div className="modal-footer">
-                                <button type="button" className="btn btn-secondary" onClick={closeCreateModal}>{t('pages.usersHub.groups.modal.cancel')}</button>
+                                <button type="button" className="btn btn-secondary" onClick={closeCreateModal} disabled={createSaving}>{t('pages.usersHub.groups.modal.cancel')}</button>
                                 <button type="submit" className="btn btn-primary" disabled={createSaving}>
                                     {createSaving ? <span className="spinner" /> : <><HiOutlineCheck /> {t('comp.users.createAccountBtn')}</>}
                                 </button>
@@ -2498,13 +2498,13 @@ export default function UsersHub() {
                 </ModalShell>
             )}
 
-                                {/* Edit User Modal */}
+            {/* Edit User Modal */}
             {editOpen && editUser && (
                 <ModalShell isOpen={editOpen} onClose={closeEditModal}>
                     <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title">{t('comp.users.editTitle', { username: editUser.username })}</h3>
-                            <button type="button" className="modal-close" onClick={closeEditModal} aria-label={t('comp.users.close')} title={t('comp.users.close')}><HiOutlineXMark /></button>
+                            <button type="button" className="modal-close" onClick={closeEditModal} disabled={editSaving} aria-label={t('comp.users.close')} title={t('comp.users.close')}><HiOutlineXMark /></button>
                         </div>
                         <form onSubmit={submitEdit}>
                             <div className="modal-body">
@@ -2817,7 +2817,7 @@ export default function UsersHub() {
                                 </div>
                             </div>
                             <div className="modal-footer">
-                                <button type="button" className="btn btn-secondary" onClick={closeEditModal}>{t('comp.users.cancel')}</button>
+                                <button type="button" className="btn btn-secondary" onClick={closeEditModal} disabled={editSaving}>{t('comp.users.cancel')}</button>
                                 <button type="submit" className="btn btn-primary" disabled={editSaving}>
                                     {editSaving ? <span className="spinner" /> : <><HiOutlineCheck /> {t('comp.users.save')}</>}
                                 </button>
@@ -3071,7 +3071,10 @@ export default function UsersHub() {
                                                     <button
                                                         type="button"
                                                         className="btn btn-secondary btn-sm"
-                                                        onClick={async () => { await copyToClipboard(item.url); toast.success(t('comp.users.linkCopied', { label: item.label })); }}
+                                                        onClick={async () => {
+                                                            const ok = await copyToClipboard(item.url);
+                                                            if (ok) toast.success(t('comp.users.linkCopied', { label: item.label }));
+                                                        }}
                                                     >
                                                         <HiOutlineClipboard /> {t('comp.users.copyLink', { label: item.label })}
                                                     </button>
@@ -3083,7 +3086,7 @@ export default function UsersHub() {
                                 )}
                             </div>
                             <div className="modal-footer">
-                                <button type="button" className="btn btn-secondary" onClick={closeProvisionModal}>{t('comp.users.close')}</button>
+                                <button type="button" className="btn btn-secondary" onClick={closeProvisionModal} disabled={provisionSaving}>{t('comp.users.close')}</button>
                                 <button type="submit" className="btn btn-primary" disabled={provisionSaving || provisionInitLoading}>
                                     {provisionSaving ? <span className="spinner" /> : <><HiOutlineCheck /> {t('comp.users.confirmProvision')}</>}
                                 </button>
@@ -3223,11 +3226,11 @@ export default function UsersHub() {
 
                                     <div className="flex justify-between py-1.5 border-t border-b border-stroke-soft">
                                         <span className="text-muted">{locale === 'en-US' ? 'Username' : '临时用户识别码'}</span>
-                                        <span className="font-mono font-bold text-text-primary">{guestResult.username}</span>
+                                        <span className="font-mono font-bold text-primary">{guestResult.username}</span>
                                     </div>
                                     <div className="flex justify-between py-1 border-b border-stroke-soft">
                                         <span className="text-muted">{locale === 'en-US' ? 'Traffic Quota' : '流量限额'}</span>
-                                        <span className="font-bold text-text-primary">{guestResult.trafficLimitGb} GB</span>
+                                        <span className="font-bold text-primary">{guestResult.trafficLimitGb} GB</span>
                                     </div>
                                     <div className="flex justify-between py-1">
                                         <span className="text-muted">{locale === 'en-US' ? 'Expires At' : '有效期至'}</span>
@@ -3240,9 +3243,13 @@ export default function UsersHub() {
                                         type="button"
                                         className="btn btn-secondary"
                                         onClick={async () => {
-                                            const copyText = `【NMS 临时访客测速节点】\n订阅链接: ${guestResult.subscriptionUrl || '见管理面板'}\n识别码: ${guestResult.username}\n流量上限: ${guestResult.trafficLimitGb}GB\n有效期至: ${guestResult.expiresAt}\n(注: 此凭证仅供客户端导入节点测试，禁止登录后台)`;
-                                            await copyToClipboard(copyText);
-                                            toast.success(locale === 'en-US' ? 'Trial credentials copied!' : '访客体验信息已复制到剪贴板！');
+                                            const copyText = locale === 'en-US'
+                                                ? `[NMS Temporary Guest Pass]\nSubscription URL: ${guestResult.subscriptionUrl || 'See panel'}\nID: ${guestResult.username}\nTraffic Limit: ${guestResult.trafficLimitGb}GB\nExpires At: ${guestResult.expiresAt}\n(Note: Proxy subscription only. Web management login is prohibited.)`
+                                                : `【NMS 临时访客测速节点】\n订阅链接: ${guestResult.subscriptionUrl || '见管理面板'}\n识别码: ${guestResult.username}\n流量上限: ${guestResult.trafficLimitGb}GB\n有效期至: ${guestResult.expiresAt}\n(注: 此凭证仅供客户端导入节点测试，禁止登录后台)`;
+                                            const ok = await copyToClipboard(copyText);
+                                            if (ok) {
+                                                toast.success(locale === 'en-US' ? 'Trial credentials copied!' : '访客体验信息已复制到剪贴板！');
+                                            }
                                         }}
                                     >
                                         <HiOutlineClipboard /> {locale === 'en-US' ? 'Copy All Info' : '复制完整信息'}

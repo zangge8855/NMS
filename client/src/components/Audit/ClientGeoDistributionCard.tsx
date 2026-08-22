@@ -58,7 +58,7 @@ export default function ClientGeoDistributionCard({ items = [], locale = 'zh-CN'
                         <HiOutlineGlobeAlt className="w-5 h-5" />
                     </div>
                     <div>
-                        <h3 className="text-base font-bold text-text-primary tracking-tight">
+                        <h3 className="text-base font-bold text-primary tracking-tight">
                             {isEn ? 'Client Geographic & Access Distribution' : '客户端活跃 IP 地理与运营商分布'}
                         </h3>
                         <p className="text-xs text-muted">
@@ -83,7 +83,7 @@ export default function ClientGeoDistributionCard({ items = [], locale = 'zh-CN'
                             className="p-2.5 rounded-xl border border-stroke-soft/60 bg-surface-input/30 hover:border-primary/30 hover:bg-surface-input/60 transition-all duration-200 space-y-2"
                         >
                             <div className="flex items-center justify-between text-xs">
-                                <div className="flex items-center gap-2 font-semibold text-text-primary">
+                                <div className="flex items-center gap-2 font-semibold text-primary">
                                     <span className="text-base leading-none drop-shadow-sm">{geo.flag}</span>
                                     <span>{geo.country}</span>
                                     {geo.ispSummary && (
@@ -93,7 +93,7 @@ export default function ClientGeoDistributionCard({ items = [], locale = 'zh-CN'
                                     )}
                                 </div>
                                 <div className="flex items-center gap-2 font-mono">
-                                    <span className="font-bold text-text-primary">{geo.count}</span>
+                                    <span className="font-bold text-primary">{geo.count}</span>
                                     <span className="text-muted text-[11px] w-9 text-right font-medium">{geo.percentage}%</span>
                                 </div>
                             </div>

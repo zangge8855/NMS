@@ -107,10 +107,38 @@ export function parseIpApiResponse(value: unknown): string {
     const text = String(value || '').trim();
     if (!text) return '';
     try {
-        const data = JSON.parse(text);
-        if (data.status !== 'success') return '';
-        const parts = [data.country, data.regionName, data.city].filter(Boolean);
-        return sanitizeLocation(parts.join(' '));
+        const data = typeof value === 'object' && value !== null ? value : JSON.parse(text);
+        if (!data || typeof data !== 'object') return '';
+        if (data.status && data.status !== 'success' && data.status !== 'ok') return '';
+        if (data.success === false) return '';
+
+        const root = (typeof data.data === 'object' && data.data !== null)
+            ? data.data
+            : ((typeof data.result === 'object' && data.result !== null) ? data.result : data);
+
+        const country = String(root.country || root.country_name || root.countryName || root.nation || '').trim();
+        const region = String(root.regionName || root.region || root.province || root.prov || root.state || '').trim();
+        const city = String(root.city || root.cityName || '').trim();
+        const district = String(root.district || root.dist || '').trim();
+
+        const rawParts = [country, region, city, district].filter(Boolean);
+        const parts: string[] = [];
+        for (const p of rawParts) {
+            if (!parts.includes(p)) {
+                parts.push(p);
+            }
+        }
+
+        if (parts.length > 0) {
+            return sanitizeLocation(parts.join(' '));
+        }
+
+        const fallbackLocation = String(root.location || root.addr || root.address || root.text || root.isp_location || '').trim();
+        if (fallbackLocation) {
+            return sanitizeLocation(fallbackLocation);
+        }
+
+        return '';
     } catch {
         return '';
     }
@@ -118,32 +146,34 @@ export function parseIpApiResponse(value: unknown): string {
 
 function buildProviderUrl(provider: string, endpointTemplate: string, ip: string): string {
     const normalizedProvider = String(provider || DEFAULT_PROVIDER).trim().toLowerCase();
+    const template = String(endpointTemplate || DEFAULT_ENDPOINT).trim() || DEFAULT_ENDPOINT;
 
-    if (normalizedProvider === 'ip_api') {
-        const template = String(endpointTemplate || DEFAULT_ENDPOINT).trim() || DEFAULT_ENDPOINT;
-        if (template.includes('{ip}')) {
-            return template.replaceAll('{ip}', encodeURIComponent(ip));
-        }
-        return `http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,country,regionName,city&lang=zh-CN`;
+    if (template.includes('{ip}')) {
+        return template.replaceAll('{ip}', encodeURIComponent(ip));
     }
 
     if (normalizedProvider === 'ipip_myip') {
-        const template = String(endpointTemplate || DEFAULT_ENDPOINT).trim() || DEFAULT_ENDPOINT;
-        if (template.includes('{ip}')) {
-            return template.replaceAll('{ip}', encodeURIComponent(ip));
-        }
         if (/[\?&]ip=/.test(template)) return template;
         return `${template}${template.includes('?') ? '&' : '?'}ip=${encodeURIComponent(ip)}`;
     }
 
-    return '';
+    if (normalizedProvider === 'ip_api') {
+        return `http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,country,regionName,city&lang=zh-CN`;
+    }
+
+    if (/[\?&]ip=/.test(template)) return template;
+    return `${template}${template.includes('?') ? '&' : '?'}ip=${encodeURIComponent(ip)}`;
 }
 
 function parseProviderResult(provider: string, payload: unknown): string {
     const normalizedProvider = String(provider || DEFAULT_PROVIDER).trim().toLowerCase();
-    if (normalizedProvider === 'ip_api') return parseIpApiResponse(payload);
-    if (normalizedProvider === 'ipip_myip') return parseIpipMyIpResponse(payload);
-    return '';
+    if (normalizedProvider === 'ipip_myip') {
+        const myip = parseIpipMyIpResponse(payload);
+        if (myip) return myip;
+    }
+    const json = parseIpApiResponse(payload);
+    if (json) return json;
+    return parseIpipMyIpResponse(payload);
 }
 
 function createDefaultFetcher() {

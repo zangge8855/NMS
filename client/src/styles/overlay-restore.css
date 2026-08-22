@@ -615,6 +615,10 @@
   transition: stroke-dashoffset 0.6s cubic-bezier(0.16, 1, 0.3, 1), stroke 180ms ease;
 }
 
+.circular-meter--primary .circular-meter-value-ring {
+  stroke: var(--accent-primary);
+}
+
 .circular-meter--success .circular-meter-value-ring {
   stroke: var(--accent-success);
 }

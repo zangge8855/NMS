@@ -71,7 +71,7 @@ function getTaskProgressCopy(locale = 'zh-CN') {
 
 function ProgressBar({ percent, color }) {
     return (
-        <div className="w-full h-2 bg-tertiary rounded overflow-hidden">
+        <div className="w-full h-2 rounded overflow-hidden" style={{ background: 'var(--bg-tertiary)' }}>
             <div
                 className="h-full rounded transition-all duration-300 ease-out"
                 style={{

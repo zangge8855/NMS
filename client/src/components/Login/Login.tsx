@@ -325,7 +325,10 @@ export default function Login() {
 
         setLoading(true);
         try {
-            const result = await register(regUsername, regEmail, regPassword, inviteCode);
+            const trimmedUsername = regUsername.trim();
+            const trimmedEmail = regEmail.trim();
+            const trimmedInviteCode = inviteCode.trim();
+            const result = await register(trimmedUsername, trimmedEmail, regPassword, trimmedInviteCode);
             if (result.success) {
                 setRegUsername('');
                 setRegEmail('');
@@ -339,7 +342,7 @@ export default function Login() {
                     setMode(MODE_LOGIN);
                     setSuccess(result.msg || copy.registerSuccessPending);
                 } else {
-                    setVerifyEmailAddr(result.email || regEmail);
+                    setVerifyEmailAddr(result.email || trimmedEmail);
                     setMode(MODE_VERIFY);
                     setSuccess(result.msg || copy.registerSuccessVerify);
                 }
@@ -360,7 +363,7 @@ export default function Login() {
         setSuccess('');
         setLoading(true);
         try {
-            const result = await verifyEmailFn(verifyEmail, verifyCode);
+            const result = await verifyEmailFn(verifyEmail.trim(), verifyCode.trim());
             if (result.success) {
                 setSuccess(copy.verifySuccess);
                 scheduleDeferredAction(() => {
@@ -379,11 +382,11 @@ export default function Login() {
 
     // ── Resend Code ─────────────────────────────────────────
     const handleResend = async () => {
-        if (resendCooldown > 0) return;
+        if (resendCooldown > 0 || loading) return;
         setError('');
         setSuccess('');
         try {
-            const result = await resendCode(verifyEmail);
+            const result = await resendCode(verifyEmail.trim());
             if (result.success) {
                 setSuccess(copy.resendDone);
                 startCooldown(setResendCooldown, 60);
@@ -397,8 +400,7 @@ export default function Login() {
 
     // ── Forgot Password ───────────────────────────────────
     const handleSendResetCode = async () => {
-        if (!passwordResetEnabled) return;
-        if (resetCooldown > 0) return;
+        if (!passwordResetEnabled || resetCooldown > 0 || loading) return;
         setError('');
         setSuccess('');
         if (!resetEmail.trim()) {
@@ -551,8 +553,8 @@ export default function Login() {
                             </div>
                         )}
 
-                        {success && <div className="success-alert">{success}</div>}
-                        {error && <div className="error-alert">{error}</div>}
+                        {success && <div className="success-alert" role="status" aria-live="polite">{success}</div>}
+                        {error && <div className="error-alert" role="alert" aria-live="assertive">{error}</div>}
                         {!registrationStatus.loading && !registrationEnabled && mode === MODE_LOGIN && (
                             <div className="text-xs text-muted mb-3">{t('pages.login.registrationClosed')}</div>
                         )}
@@ -570,6 +572,7 @@ export default function Login() {
                                             value={loginIdentifier}
                                             onChange={(e) => setLoginIdentifier(e.target.value)}
                                             autoFocus
+                                            disabled={loading}
                                             autoComplete="username"
                                             autoCapitalize="none"
                                             autoCorrect="off"
@@ -587,6 +590,7 @@ export default function Login() {
                                             placeholder={t('pages.login.passwordPlaceholder')}
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
+                                            disabled={loading}
                                             autoComplete="current-password"
                                         />
                                     </div>
@@ -642,6 +646,7 @@ export default function Login() {
                                             value={regUsername}
                                             onChange={(e) => setRegUsername(e.target.value)}
                                             autoFocus
+                                            disabled={loading}
                                             autoComplete="username"
                                             autoCapitalize="none"
                                             autoCorrect="off"
@@ -659,6 +664,7 @@ export default function Login() {
                                             placeholder={t('pages.login.registerEmailPlaceholder')}
                                             value={regEmail}
                                             onChange={(e) => setRegEmail(e.target.value)}
+                                            disabled={loading}
                                             autoComplete="email"
                                             autoCapitalize="none"
                                             autoCorrect="off"
@@ -676,6 +682,7 @@ export default function Login() {
                                             placeholder={t('pages.login.registerPasswordPlaceholder')}
                                             value={regPassword}
                                             onChange={(e) => setRegPassword(e.target.value)}
+                                            disabled={loading}
                                             autoComplete="new-password"
                                         />
                                     </div>
@@ -692,6 +699,7 @@ export default function Login() {
                                             placeholder={t('pages.login.confirmPasswordPlaceholder')}
                                             value={regConfirm}
                                             onChange={(e) => setRegConfirm(e.target.value)}
+                                            disabled={loading}
                                             autoComplete="new-password"
                                         />
                                     </div>
@@ -710,6 +718,7 @@ export default function Login() {
                                                 placeholder={t('pages.login.inviteCodePlaceholder')}
                                                 value={inviteCode}
                                                 onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                                                disabled={loading}
                                                 autoComplete="off"
                                                 autoCapitalize="characters"
                                                 autoCorrect="off"
@@ -722,7 +731,7 @@ export default function Login() {
                                 <button
                                     type="submit"
                                     className="btn btn-primary w-full h-11 text-sm font-bold tracking-wide"
-                                    disabled={loading || !regUsername || !regEmail || !regPassword || !regConfirm || regPassword !== regConfirm || (inviteOnlyEnabled && !inviteCode.trim())}
+                                    disabled={loading || !regUsername.trim() || !regEmail.trim() || !regPassword || !regConfirm || regPassword !== regConfirm || (inviteOnlyEnabled && !inviteCode.trim())}
                                 >
                                     {loading ? <span className="spinner" /> : t('pages.login.registerButton')}
                                 </button>
@@ -748,6 +757,7 @@ export default function Login() {
                                         onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                                         maxLength={6}
                                         autoFocus
+                                        disabled={loading}
                                         autoComplete="one-time-code"
                                         inputMode="numeric"
                                     />
@@ -803,6 +813,7 @@ export default function Login() {
                                             placeholder={t('pages.login.resetEmailPlaceholder')}
                                             value={resetEmail}
                                             onChange={(e) => setResetEmail(e.target.value)}
+                                            disabled={loading}
                                             autoComplete="email"
                                             autoCapitalize="none"
                                             autoCorrect="off"
@@ -821,13 +832,15 @@ export default function Login() {
                                             value={resetCode}
                                             onChange={(e) => setResetCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                                             maxLength={6}
+                                            disabled={loading}
+                                            autoComplete="one-time-code"
                                             inputMode="numeric"
                                         />
                                         <button
                                             type="button"
                                             className="btn btn-secondary btn-sm verify-code-send-btn"
                                             onClick={handleSendResetCode}
-                                            disabled={loading || !resetEmail || resetCooldown > 0}
+                                            disabled={loading || !resetEmail.trim() || resetCooldown > 0}
                                         >
                                             <HiOutlineArrowPath className={resetCooldown > 0 ? '' : 'spin-on-hover'} />
                                             {resetCooldown > 0 ? `${resetCooldown}s` : t('pages.login.sendCode')}
@@ -845,6 +858,7 @@ export default function Login() {
                                             placeholder={t('pages.login.resetPasswordPlaceholder')}
                                             value={resetPassword}
                                             onChange={(e) => setResetPassword(e.target.value)}
+                                            disabled={loading}
                                             autoComplete="new-password"
                                         />
                                     </div>
@@ -862,6 +876,7 @@ export default function Login() {
                                             placeholder={t('pages.login.resetConfirmPlaceholder')}
                                             value={resetConfirm}
                                             onChange={(e) => setResetConfirm(e.target.value)}
+                                            disabled={loading}
                                             autoComplete="new-password"
                                         />
                                     </div>
@@ -873,7 +888,7 @@ export default function Login() {
                                 <button
                                     type="submit"
                                     className="btn btn-primary w-full h-11 text-sm font-bold tracking-wide"
-                                    disabled={loading || !resetEmail || resetCode.length !== 6 || !resetPassword || !resetConfirm || resetPassword !== resetConfirm}
+                                    disabled={loading || !resetEmail.trim() || resetCode.length !== 6 || !resetPassword || !resetConfirm || resetPassword !== resetConfirm}
                                 >
                                     {loading ? <span className="spinner" /> : t('pages.login.resetButton')}
                                 </button>
@@ -911,6 +926,7 @@ export default function Login() {
                                             onChange={(e) => handleTwoFactorCodeChange(e.target.value)}
                                             maxLength={6}
                                             autoFocus
+                                            disabled={loading}
                                             autoComplete="one-time-code"
                                             inputMode="numeric"
                                         />
@@ -927,6 +943,7 @@ export default function Login() {
                                                 value={twoFactorBackupCode}
                                                 onChange={(e) => setTwoFactorBackupCode(e.target.value)}
                                                 autoFocus
+                                                disabled={loading}
                                                 autoComplete="off"
                                                 spellCheck={false}
                                             />

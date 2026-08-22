@@ -545,7 +545,7 @@ export default function ServerDetail() {
                                 {status && (
                                     <>
                                         <div className="user-profile-meta-item"><HiOutlineCpuChip /> {t('pages.serverDetail.xrayLabels.cpu')} {status.cpu?.toFixed(1)}%</div>
-                                        <div className="user-profile-meta-item"><HiOutlineCircleStack /> {t('pages.serverDetail.xrayLabels.memory')} {status.mem ? `${((status.mem.current / status.mem.total) * 100).toFixed(1)}%` : '-'}</div>
+                                        <div className="user-profile-meta-item"><HiOutlineCircleStack /> {t('pages.serverDetail.xrayLabels.memory')} {status.mem && Number(status.mem.total) > 0 ? `${((Number(status.mem.current || 0) / Number(status.mem.total)) * 100).toFixed(1)}%` : '-'}</div>
                                         <div className="user-profile-meta-item"><HiOutlineClock /> {t('pages.serverDetail.xrayLabels.uptime')} {status.uptime ? formatUptime(status.uptime, locale) : '-'}</div>
                                     </>
                                 )}

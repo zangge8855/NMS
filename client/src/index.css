@@ -376,10 +376,11 @@ a:hover {
 .account-twofactor-qr {
   align-self: flex-start;
   padding: 12px;
-  background: var(--surface-soft);
+  background: #ffffff;
   border: 1px solid var(--stroke-soft);
   border-radius: var(--radius-md);
   line-height: 0;
+  display: inline-flex;
 }
 
 .account-twofactor-secret {
@@ -18410,7 +18411,7 @@ textarea {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-xl, 16px);
-  box-shadow: var(--shadow-xl);
+  box-shadow: var(--shadow-lg);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -18421,8 +18422,8 @@ textarea {
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--danger, #ef4444) 12%, transparent);
-  color: var(--danger, #ef4444);
+  background: color-mix(in srgb, var(--accent-danger, #ef4444) 12%, transparent);
+  color: var(--accent-danger, #ef4444);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -18454,7 +18455,7 @@ textarea {
   font-family: var(--font-mono, monospace);
   font-size: 12px;
   line-height: 1.5;
-  color: var(--danger, #ef4444);
+  color: var(--accent-danger, #ef4444);
   word-break: break-all;
   max-height: 140px;
   overflow-y: auto;

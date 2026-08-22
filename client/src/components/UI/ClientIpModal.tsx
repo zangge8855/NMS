@@ -4,6 +4,7 @@ import ModalShell from './ModalShell';
 import Table from './Table';
 import { useI18n } from '../../contexts/LanguageContext';
 import { formatDateTime } from '../../utils/format';
+import { resolveAccessGeoDisplay } from '../../utils/accessGeo';
 
 export interface ClientIpItem {
     ip: string;
@@ -141,20 +142,23 @@ export default function ClientIpModal({
                             <th key="note">{copy.note}</th>
                         ]}
                     >
-                        {items.map((item) => (
-                            <tr key={item.ip}>
-                                <td data-label={copy.ip} className="font-mono client-ip-address-cell">{item.ip}</td>
-                                <td data-label={copy.location} className="text-xs client-ip-location-cell">
-                                    <div>{item.ipLocation || (item.ipCarrier ? '-' : copy.unresolved)}</div>
-                                    {item.ipCarrier ? <div className="text-muted">{item.ipCarrier}</div> : null}
-                                </td>
-                                <td data-label={copy.count} className="table-cell-center client-ip-count-cell">{item.count > 0 ? item.count : '-'}</td>
-                                <td data-label={copy.lastSeen} className="table-cell-center client-ip-last-seen-cell">{formatDateTime(item.lastSeen, locale)}</td>
-                                <td data-label={copy.note} className="text-xs text-muted client-ip-note-cell">
-                                    {[item.source, item.note].filter(Boolean).join(' / ') || '-'}
-                                </td>
-                            </tr>
-                        ))}
+                        {items.map((item) => {
+                            const geo = resolveAccessGeoDisplay(item);
+                            return (
+                                <tr key={item.ip}>
+                                    <td data-label={copy.ip} className="font-mono client-ip-address-cell">{item.ip}</td>
+                                    <td data-label={copy.location} className="text-xs client-ip-location-cell">
+                                        <div>{geo.location && geo.location !== '-' ? geo.location : copy.unresolved}</div>
+                                        {geo.carrier ? <div className="text-muted">{geo.carrier}</div> : null}
+                                    </td>
+                                    <td data-label={copy.count} className="table-cell-center client-ip-count-cell">{item.count > 0 ? item.count : '-'}</td>
+                                    <td data-label={copy.lastSeen} className="table-cell-center client-ip-last-seen-cell">{formatDateTime(item.lastSeen, locale)}</td>
+                                    <td data-label={copy.note} className="text-xs text-muted client-ip-note-cell">
+                                        {[item.source, item.note].filter(Boolean).join(' / ') || '-'}
+                                    </td>
+                                </tr>
+                            );
+                        })}
                     </Table>
                 </div>
                 <div className="modal-footer">

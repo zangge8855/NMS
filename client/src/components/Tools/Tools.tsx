@@ -354,31 +354,59 @@ ${cfEmail.trim() ? `export CF_Email="${cfEmail.trim()}"` : ''}
         if (!target) return;
         setIpLoading(true);
         try {
-            const res = await fetch(`https://ipwho.is/${encodeURIComponent(target)}`).then((r) => r.json());
+            let res: any = null;
+            try {
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), 4000);
+                res = await fetch(`https://ipwho.is/${encodeURIComponent(target)}`, { signal: controller.signal })
+                    .then((r) => r.json())
+                    .finally(() => clearTimeout(timer));
+            } catch {
+                res = null;
+            }
+
             if (res && res.success !== false) {
                 setIpResult({
-                    ip: res.ip,
-                    country: res.country,
+                    ip: res.ip || target,
+                    country: res.country || '-',
                     countryCode: res.country_code,
                     flag: res.flag?.emoji || '🌐',
-                    region: res.region,
-                    city: res.city,
-                    isp: res.connection?.isp || res.connection?.org,
+                    region: res.region || '-',
+                    city: res.city || '-',
+                    isp: res.connection?.isp || res.connection?.org || '-',
                     asn: res.connection?.asn ? `AS${res.connection.asn} (${res.connection.org || ''})` : '-',
                     isBogon: res.is_bogon === true,
                 });
-            } else {
+                return;
+            }
+
+            // Fallback to backend NMS resolver
+            const backendRes = await api.post('/audit/ip-lookup', { ip: target }).catch(() => null);
+            if (backendRes?.data?.success && backendRes.data?.obj) {
+                const obj = backendRes.data.obj;
                 setIpResult({
-                    ip: target,
-                    country: copy.ip.unknownCountry || '未知',
+                    ip: obj.ip || target,
+                    country: obj.ipLocation || copy.ip.unknownCountry || '未知',
                     flag: '🌐',
                     region: '-',
                     city: '-',
-                    isp: '-',
+                    isp: obj.ipCarrier || '-',
                     asn: '-',
                     isBogon: false,
                 });
+                return;
             }
+
+            setIpResult({
+                ip: target,
+                country: copy.ip.unknownCountry || '未知',
+                flag: '🌐',
+                region: '-',
+                city: '-',
+                isp: '-',
+                asn: '-',
+                isBogon: false,
+            });
         } catch {
             setIpResult({
                 ip: target,
@@ -519,6 +547,7 @@ ${cfEmail.trim() ? `export CF_Email="${cfEmail.trim()}"` : ''}
 
                                                 <div className="tool-card-actions">
                                                     <button
+                                                        type="button"
                                                         className="btn btn-primary btn-sm"
                                                         onClick={() => handleGenerate(tool)}
                                                         disabled={loading[tool.key] || tool.available === false}
@@ -527,7 +556,11 @@ ${cfEmail.trim() ? `export CF_Email="${cfEmail.trim()}"` : ''}
                                                         {copy.generate}
                                                     </button>
                                                     {results[tool.key] && (
-                                                        <button className="btn btn-secondary btn-sm" onClick={() => handleCopy(results[tool.key])}>
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-secondary btn-sm"
+                                                            onClick={() => handleCopy(results[tool.key])}
+                                                        >
                                                             <HiOutlineClipboard /> {copy.copy}
                                                         </button>
                                                     )}
@@ -611,7 +644,7 @@ ${cfEmail.trim() ? `export CF_Email="${cfEmail.trim()}"` : ''}
                                     <HiOutlineClipboard /> {copy.ssl.copyScript}
                                 </button>
                             </div>
-                            <pre className="p-4 rounded-xl bg-surface-panel border border-stroke-soft font-mono text-xs overflow-x-auto text-text-primary leading-relaxed">
+                            <pre className="p-4 rounded-xl bg-surface-panel border border-stroke-soft font-mono text-xs overflow-x-auto text-primary leading-relaxed">
                                 {generatedAcmeScript}
                             </pre>
                             <p className="text-xs text-muted">💡 {copy.ssl.pathTip}</p>

@@ -93,20 +93,25 @@ const VirtualList = forwardRef<HTMLDivElement, VirtualListProps>(function Virtua
         <div
             ref={containerRef}
             className={`virtual-list ${className}`.trim()}
-            style={style}
+            style={{ overflowY: 'auto', position: 'relative', ...style }}
             role={role}
             aria-label={ariaLabel}
             onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
         >
             <div
                 className={`virtual-list-inner ${innerClassName}`.trim()}
-                style={{ height: `${totalHeight}px` }}
+                style={{ height: `${totalHeight}px`, position: 'relative', width: '100%' }}
             >
                 {visibleItems.map(({ item, index, top }) => (
                     <div
                         key={resolveItemKey(item, index, getKey)}
                         className="virtual-list-item"
                         style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            width: '100%',
                             height: `${safeItemSize}px`,
                             transform: `translateY(${top}px)`,
                         }}

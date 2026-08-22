@@ -98,7 +98,7 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
     return (
         <div className="xray-routing-editor">
             <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-white">{locale === 'en-US' ? 'Routing Rules' : '路由规则'}</h3>
+                <h3 className="text-lg font-medium text-primary">{locale === 'en-US' ? 'Routing Rules' : '路由规则'}</h3>
                 <div className="btn-group">
                     <button
                         className={`btn btn-sm ${mode === 'visual' ? 'btn-primary' : 'btn-secondary'}`}

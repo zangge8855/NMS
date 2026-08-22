@@ -3,6 +3,8 @@ import toast from 'react-hot-toast';
 import api, { setStoredToken } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import { useI18n } from '../../contexts/LanguageContext';
+import { getPasswordPolicyError } from '../../utils/passwordPolicy';
+import { getErrorMessage } from '../../utils/format';
 
 const SECURITY_BOOTSTRAP_COPY = {
     'zh-CN': {
@@ -149,19 +151,28 @@ export default function SecurityBootstrapWizard() {
         && draft.credentialsSecret.trim()
     );
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        if (!canSubmit || saving) return;
+
         if (draft.adminPassword !== draft.confirmPassword) {
             toast.error(copy.confirmMismatch);
+            return;
+        }
+
+        const policyError = getPasswordPolicyError(draft.adminPassword, locale);
+        if (policyError) {
+            toast.error(policyError);
             return;
         }
 
         setSaving(true);
         try {
             const res = await api.post('/system/security/bootstrap', {
-                adminUsername: draft.adminUsername,
+                adminUsername: draft.adminUsername.trim(),
                 adminPassword: draft.adminPassword,
-                jwtSecret: draft.jwtSecret,
-                credentialsSecret: draft.credentialsSecret,
+                jwtSecret: draft.jwtSecret.trim(),
+                credentialsSecret: draft.credentialsSecret.trim(),
             });
             const payload = res.data?.obj || {};
             if (payload.token) {
@@ -175,7 +186,7 @@ export default function SecurityBootstrapWizard() {
             }));
             toast.success(copy.applySuccess);
         } catch (error) {
-            toast.error(error.response?.data?.msg || error.message || copy.applyFailed);
+            toast.error(getErrorMessage(error, copy.applyFailed, locale));
         }
         setSaving(false);
     };
@@ -215,13 +226,14 @@ export default function SecurityBootstrapWizard() {
                     </div>
                     <div className="security-bootstrap-note">{copy.rotateHint}</div>
                 </div>
-                <div className="security-bootstrap-form">
+                <form className="security-bootstrap-form" onSubmit={handleSubmit}>
                     <label className="security-bootstrap-field">
                         <span className="security-bootstrap-label">{copy.adminUsername}</span>
                         <input
                             className="form-input"
                             value={draft.adminUsername}
                             onChange={(event) => setDraft((current) => ({ ...current, adminUsername: event.target.value }))}
+                            disabled={saving}
                             autoComplete="username"
                         />
                     </label>
@@ -232,6 +244,7 @@ export default function SecurityBootstrapWizard() {
                             type="password"
                             value={draft.adminPassword}
                             onChange={(event) => setDraft((current) => ({ ...current, adminPassword: event.target.value }))}
+                            disabled={saving}
                             autoComplete="new-password"
                         />
                     </label>
@@ -242,6 +255,7 @@ export default function SecurityBootstrapWizard() {
                             type="password"
                             value={draft.confirmPassword}
                             onChange={(event) => setDraft((current) => ({ ...current, confirmPassword: event.target.value }))}
+                            disabled={saving}
                             autoComplete="new-password"
                         />
                     </label>
@@ -252,12 +266,14 @@ export default function SecurityBootstrapWizard() {
                                 className="form-input font-mono"
                                 value={draft.jwtSecret}
                                 onChange={(event) => setDraft((current) => ({ ...current, jwtSecret: event.target.value }))}
+                                disabled={saving}
                                 spellCheck={false}
                             />
                             <button
                                 type="button"
                                 className="btn btn-secondary btn-sm"
                                 onClick={() => setDraft((current) => ({ ...current, jwtSecret: generateSecret(24) }))}
+                                disabled={saving}
                             >
                                 {copy.autoGenerate}
                             </button>
@@ -270,12 +286,14 @@ export default function SecurityBootstrapWizard() {
                                 className="form-input font-mono"
                                 value={draft.credentialsSecret}
                                 onChange={(event) => setDraft((current) => ({ ...current, credentialsSecret: event.target.value }))}
+                                disabled={saving}
                                 spellCheck={false}
                             />
                             <button
                                 type="button"
                                 className="btn btn-secondary btn-sm"
                                 onClick={() => setDraft((current) => ({ ...current, credentialsSecret: generateSecret(24) }))}
+                                disabled={saving}
                             >
                                 {copy.autoGenerate}
                             </button>
@@ -291,15 +309,14 @@ export default function SecurityBootstrapWizard() {
                             {copy.retry}
                         </button>
                         <button
-                            type="button"
+                            type="submit"
                             className="btn btn-danger"
-                            onClick={handleSubmit}
                             disabled={!canSubmit || saving}
                         >
                             {saving ? copy.applying : copy.apply}
                         </button>
                     </div>
-                </div>
+                </form>
             </div>
         </div>
     );
