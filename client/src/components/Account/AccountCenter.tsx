@@ -10,6 +10,7 @@ import { getPasswordPolicyError, getPasswordPolicyHint } from '../../utils/passw
 import TwoFactorPanel from './TwoFactorPanel';
 import PasskeyPanel from './PasskeyPanel';
 import PasswordStrengthMeter from '../UI/PasswordStrengthMeter';
+import { HiOutlineEye, HiOutlineEyeSlash } from 'react-icons/hi2';
 
 function getAccountCopy(locale = 'zh-CN') {
     if (locale === 'en-US') {
@@ -121,6 +122,9 @@ export default function AccountCenter() {
     const [oldPassword, setOldPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [showOldPassword, setShowOldPassword] = useState(false);
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [passwordSaving, setPasswordSaving] = useState(false);
 
     const loginEmail = normalizeEmail(user?.email);
@@ -372,40 +376,73 @@ export default function AccountCenter() {
                         <div className="account-password-grid">
                             <div className="form-group mb-0">
                                 <label className="form-label" htmlFor="account-current-password">{copy.currentPassword}</label>
-                                <input
-                                    id="account-current-password"
-                                    type="password"
-                                    className="form-input"
-                                    aria-label={copy.currentPassword}
-                                    value={oldPassword}
-                                    onChange={(event) => setOldPassword(event.target.value)}
-                                    autoComplete="current-password"
-                                />
+                                <div className="input-icon-wrapper">
+                                    <input
+                                        id="account-current-password"
+                                        type={showOldPassword ? 'text' : 'password'}
+                                        className="form-input input-with-trailing-action"
+                                        aria-label={copy.currentPassword}
+                                        value={oldPassword}
+                                        onChange={(event) => setOldPassword(event.target.value)}
+                                        autoComplete="current-password"
+                                    />
+                                    <button
+                                        type="button"
+                                        className="input-trailing-action-btn"
+                                        onClick={() => setShowOldPassword((prev) => !prev)}
+                                        tabIndex={-1}
+                                        aria-label={showOldPassword ? 'Hide password' : 'Show password'}
+                                    >
+                                        {showOldPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                    </button>
+                                </div>
                             </div>
                             <div className="form-group mb-0">
                                 <label className="form-label" htmlFor="account-new-password">{copy.newPassword}</label>
-                                <input
-                                    id="account-new-password"
-                                    type="password"
-                                    className="form-input"
-                                    aria-label={copy.newPassword}
-                                    value={newPassword}
-                                    onChange={(event) => setNewPassword(event.target.value)}
-                                    autoComplete="new-password"
-                                />
+                                <div className="input-icon-wrapper">
+                                    <input
+                                        id="account-new-password"
+                                        type={showNewPassword ? 'text' : 'password'}
+                                        className="form-input input-with-trailing-action"
+                                        aria-label={copy.newPassword}
+                                        value={newPassword}
+                                        onChange={(event) => setNewPassword(event.target.value)}
+                                        autoComplete="new-password"
+                                    />
+                                    <button
+                                        type="button"
+                                        className="input-trailing-action-btn"
+                                        onClick={() => setShowNewPassword((prev) => !prev)}
+                                        tabIndex={-1}
+                                        aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                                    >
+                                        {showNewPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                    </button>
+                                </div>
                                 <PasswordStrengthMeter password={newPassword} locale={locale} />
                             </div>
                             <div className="form-group mb-0">
                                 <label className="form-label" htmlFor="account-confirm-password">{copy.confirmPassword}</label>
-                                <input
-                                    id="account-confirm-password"
-                                    type="password"
-                                    className="form-input"
-                                    aria-label={copy.confirmPassword}
-                                    value={confirmPassword}
-                                    onChange={(event) => setConfirmPassword(event.target.value)}
-                                    autoComplete="new-password"
-                                />
+                                <div className="input-icon-wrapper">
+                                    <input
+                                        id="account-confirm-password"
+                                        type={showConfirmPassword ? 'text' : 'password'}
+                                        className="form-input input-with-trailing-action"
+                                        aria-label={copy.confirmPassword}
+                                        value={confirmPassword}
+                                        onChange={(event) => setConfirmPassword(event.target.value)}
+                                        autoComplete="new-password"
+                                    />
+                                    <button
+                                        type="button"
+                                        className="input-trailing-action-btn"
+                                        onClick={() => setShowConfirmPassword((prev) => !prev)}
+                                        tabIndex={-1}
+                                        aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                                    >
+                                        {showConfirmPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                    </button>
+                                </div>
                             </div>
                             <div className="account-password-submit">
                                 <button

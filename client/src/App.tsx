@@ -9,7 +9,7 @@ import useMediaQuery from './hooks/useMediaQuery';
 import { getLocaleMessage } from './i18n/messages';
 import { clearStoredToken } from './api/client';
 import { clearAppSessionState } from './utils/appBootstrap';
-import { HiOutlineBars3, HiOutlineExclamationTriangle } from 'react-icons/hi2';
+import { HiOutlineExclamationTriangle } from 'react-icons/hi2';
 import MobileBottomNav from './components/Layout/MobileBottomNav';
 import SecurityBootstrapWizard from './components/System/SecurityBootstrapWizard';
 import CommandPalette from './components/UI/CommandPalette';
@@ -356,16 +356,6 @@ function ProtectedLayout() {
         <ServerProvider enabled={isAdmin}>
         <NotificationProvider enabled={isAdmin} wsLastMessage={isAdmin ? rootWsLastMessage : null}>
             <div className="app-layout">
-                {isMobile && !sidebarOpen && (
-                    <button
-                        type="button"
-                        className="mobile-menu-btn"
-                        onClick={() => setSidebarOpen(true)}
-                        aria-label="Open menu"
-                    >
-                        <HiOutlineBars3 style={{ width: '22px', height: '22px' }} />
-                    </button>
-                )}
                 <div
                     className={`sidebar-backdrop ${sidebarOpen ? 'show' : ''}`}
                     onClick={handleCloseSidebar}

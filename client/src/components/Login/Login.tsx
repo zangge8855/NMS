@@ -12,6 +12,8 @@ import {
     HiOutlineShieldCheck,
     HiOutlineKey,
     HiOutlineFingerPrint,
+    HiOutlineEye,
+    HiOutlineEyeSlash,
 } from 'react-icons/hi2';
 import { getPasswordPolicyError, getPasswordPolicyHint } from '../../utils/passwordPolicy';
 import { buildSiteAssetPath } from '../../utils/sitePath';
@@ -65,6 +67,7 @@ export default function Login() {
     // Login fields
     const [loginIdentifier, setLoginIdentifier] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
 
     // 2FA fields
     const [twoFactorChallengeToken, setTwoFactorChallengeToken] = useState('');
@@ -77,6 +80,8 @@ export default function Login() {
     const [regEmail, setRegEmail] = useState('');
     const [regPassword, setRegPassword] = useState('');
     const [regConfirm, setRegConfirm] = useState('');
+    const [showRegPassword, setShowRegPassword] = useState(false);
+    const [showRegConfirm, setShowRegConfirm] = useState(false);
     const [inviteCode, setInviteCode] = useState('');
 
     // Verify fields
@@ -86,6 +91,8 @@ export default function Login() {
     const [resetCode, setResetCode] = useState('');
     const [resetPassword, setResetPassword] = useState('');
     const [resetConfirm, setResetConfirm] = useState('');
+    const [showResetPassword, setShowResetPassword] = useState(false);
+    const [showResetConfirm, setShowResetConfirm] = useState(false);
 
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
@@ -585,14 +592,23 @@ export default function Login() {
                                     <div className="input-icon-wrapper">
                                         <HiOutlineLockClosed className="input-icon" />
                                         <input
-                                            type="password"
-                                            className="form-input input-with-icon"
+                                            type={showPassword ? 'text' : 'password'}
+                                            className="form-input input-with-icon input-with-trailing-action"
                                             placeholder={t('pages.login.passwordPlaceholder')}
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
                                             disabled={loading}
                                             autoComplete="current-password"
                                         />
+                                        <button
+                                            type="button"
+                                            className="input-trailing-action-btn"
+                                            onClick={() => setShowPassword((prev) => !prev)}
+                                            tabIndex={-1}
+                                            aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                        >
+                                            {showPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                        </button>
                                     </div>
                                 </div>
                                 <button
@@ -635,78 +651,100 @@ export default function Login() {
 
                         {mode === MODE_REGISTER && (
                             <form onSubmit={handleRegister} className="auth-form">
-                                <div className="form-group">
-                                    <label className="form-label">{t('pages.login.username')}</label>
-                                    <div className="input-icon-wrapper">
-                                        <HiOutlineUser className="input-icon" />
-                                        <input
-                                            type="text"
-                                            className="form-input input-with-icon"
-                                            placeholder={t('pages.login.registerUsernamePlaceholder')}
-                                            value={regUsername}
-                                            onChange={(e) => setRegUsername(e.target.value)}
-                                            autoFocus
-                                            disabled={loading}
-                                            autoComplete="username"
-                                            autoCapitalize="none"
-                                            autoCorrect="off"
-                                            spellCheck={false}
-                                        />
+                                <div className="login-form-grid">
+                                    <div className="form-group">
+                                        <label className="form-label">{t('pages.login.username')}</label>
+                                        <div className="input-icon-wrapper">
+                                            <HiOutlineUser className="input-icon" />
+                                            <input
+                                                type="text"
+                                                className="form-input input-with-icon"
+                                                placeholder={t('pages.login.registerUsernamePlaceholder')}
+                                                value={regUsername}
+                                                onChange={(e) => setRegUsername(e.target.value)}
+                                                autoFocus
+                                                disabled={loading}
+                                                autoComplete="username"
+                                                autoCapitalize="none"
+                                                autoCorrect="off"
+                                                spellCheck={false}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">{t('pages.login.email')}</label>
+                                        <div className="input-icon-wrapper">
+                                            <HiOutlineEnvelope className="input-icon" />
+                                            <input
+                                                type="email"
+                                                className="form-input input-with-icon"
+                                                placeholder={t('pages.login.registerEmailPlaceholder')}
+                                                value={regEmail}
+                                                onChange={(e) => setRegEmail(e.target.value)}
+                                                disabled={loading}
+                                                autoComplete="email"
+                                                autoCapitalize="none"
+                                                autoCorrect="off"
+                                                spellCheck={false}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="form-group">
-                                    <label className="form-label">{t('pages.login.email')}</label>
-                                    <div className="input-icon-wrapper">
-                                        <HiOutlineEnvelope className="input-icon" />
-                                        <input
-                                            type="email"
-                                            className="form-input input-with-icon"
-                                            placeholder={t('pages.login.registerEmailPlaceholder')}
-                                            value={regEmail}
-                                            onChange={(e) => setRegEmail(e.target.value)}
-                                            disabled={loading}
-                                            autoComplete="email"
-                                            autoCapitalize="none"
-                                            autoCorrect="off"
-                                            spellCheck={false}
-                                        />
+                                <div className="login-form-grid">
+                                    <div className="form-group">
+                                        <label className="form-label">{t('pages.login.password')}</label>
+                                        <div className="input-icon-wrapper">
+                                            <HiOutlineLockClosed className="input-icon" />
+                                            <input
+                                                type={showRegPassword ? 'text' : 'password'}
+                                                className="form-input input-with-icon input-with-trailing-action"
+                                                placeholder={t('pages.login.registerPasswordPlaceholder')}
+                                                value={regPassword}
+                                                onChange={(e) => setRegPassword(e.target.value)}
+                                                disabled={loading}
+                                                autoComplete="new-password"
+                                            />
+                                            <button
+                                                type="button"
+                                                className="input-trailing-action-btn"
+                                                onClick={() => setShowRegPassword((prev) => !prev)}
+                                                tabIndex={-1}
+                                                aria-label={showRegPassword ? 'Hide password' : 'Show password'}
+                                            >
+                                                {showRegPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                            </button>
+                                        </div>
+                                        <PasswordStrengthMeter password={regPassword} locale={locale} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">{t('pages.login.confirmPassword')}</label>
+                                        <div className="input-icon-wrapper">
+                                            <HiOutlineLockClosed className="input-icon" />
+                                            <input
+                                                type={showRegConfirm ? 'text' : 'password'}
+                                                className="form-input input-with-icon input-with-trailing-action"
+                                                placeholder={t('pages.login.confirmPasswordPlaceholder')}
+                                                value={regConfirm}
+                                                onChange={(e) => setRegConfirm(e.target.value)}
+                                                disabled={loading}
+                                                autoComplete="new-password"
+                                            />
+                                            <button
+                                                type="button"
+                                                className="input-trailing-action-btn"
+                                                onClick={() => setShowRegConfirm((prev) => !prev)}
+                                                tabIndex={-1}
+                                                aria-label={showRegConfirm ? 'Hide password' : 'Show password'}
+                                            >
+                                                {showRegConfirm ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                            </button>
+                                        </div>
+                                        {regConfirm && regPassword !== regConfirm && (
+                                            <p className="field-error">{t('pages.login.passwordMismatch')}</p>
+                                        )}
                                     </div>
                                 </div>
-                                <div className="form-group">
-                                    <label className="form-label">{t('pages.login.password')}</label>
-                                    <div className="input-icon-wrapper">
-                                        <HiOutlineLockClosed className="input-icon" />
-                                        <input
-                                            type="password"
-                                            className="form-input input-with-icon"
-                                            placeholder={t('pages.login.registerPasswordPlaceholder')}
-                                            value={regPassword}
-                                            onChange={(e) => setRegPassword(e.target.value)}
-                                            disabled={loading}
-                                            autoComplete="new-password"
-                                        />
-                                    </div>
-                                    <PasswordStrengthMeter password={regPassword} locale={locale} />
-                                    <p className="text-muted text-sm mt-1">{passwordPolicyHint}</p>
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">{t('pages.login.confirmPassword')}</label>
-                                    <div className="input-icon-wrapper">
-                                        <HiOutlineLockClosed className="input-icon" />
-                                        <input
-                                            type="password"
-                                            className="form-input input-with-icon"
-                                            placeholder={t('pages.login.confirmPasswordPlaceholder')}
-                                            value={regConfirm}
-                                            onChange={(e) => setRegConfirm(e.target.value)}
-                                            disabled={loading}
-                                            autoComplete="new-password"
-                                        />
-                                    </div>
-                                    {regConfirm && regPassword !== regConfirm && (
-                                        <p className="field-error">{t('pages.login.passwordMismatch')}</p>
-                                    )}
-                                </div>
+                                <p className="text-muted text-xs -mt-1 mb-3">{passwordPolicyHint}</p>
                                 {inviteOnlyEnabled && (
                                     <div className="form-group">
                                         <label className="form-label">{t('pages.login.inviteCode')}</label>
@@ -725,7 +763,7 @@ export default function Login() {
                                                 spellCheck={false}
                                             />
                                         </div>
-                                        <p className="text-muted text-sm mt-1">{t('pages.login.inviteOnlyHint')}</p>
+                                        <p className="text-muted text-xs mt-1">{t('pages.login.inviteOnlyHint')}</p>
                                     </div>
                                 )}
                                 <button
@@ -848,42 +886,61 @@ export default function Login() {
                                     </div>
                                 </div>
 
-                                <div className="form-group">
-                                    <label className="form-label">{t('pages.login.newPassword')}</label>
-                                    <div className="input-icon-wrapper">
-                                        <HiOutlineLockClosed className="input-icon" />
-                                        <input
-                                            type="password"
-                                            className="form-input input-with-icon"
-                                            placeholder={t('pages.login.resetPasswordPlaceholder')}
-                                            value={resetPassword}
-                                            onChange={(e) => setResetPassword(e.target.value)}
-                                            disabled={loading}
-                                            autoComplete="new-password"
-                                        />
+                                <div className="login-form-grid">
+                                    <div className="form-group">
+                                        <label className="form-label">{t('pages.login.newPassword')}</label>
+                                        <div className="input-icon-wrapper">
+                                            <HiOutlineLockClosed className="input-icon" />
+                                            <input
+                                                type={showResetPassword ? 'text' : 'password'}
+                                                className="form-input input-with-icon input-with-trailing-action"
+                                                placeholder={t('pages.login.resetPasswordPlaceholder')}
+                                                value={resetPassword}
+                                                onChange={(e) => setResetPassword(e.target.value)}
+                                                disabled={loading}
+                                                autoComplete="new-password"
+                                            />
+                                            <button
+                                                type="button"
+                                                className="input-trailing-action-btn"
+                                                onClick={() => setShowResetPassword((prev) => !prev)}
+                                                tabIndex={-1}
+                                                aria-label={showResetPassword ? 'Hide password' : 'Show password'}
+                                            >
+                                                {showResetPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                            </button>
+                                        </div>
+                                        <PasswordStrengthMeter password={resetPassword} locale={locale} />
                                     </div>
-                                    <PasswordStrengthMeter password={resetPassword} locale={locale} />
-                                    <p className="text-muted text-sm mt-1">{passwordPolicyHint}</p>
-                                </div>
-
-                                <div className="form-group">
-                                    <label className="form-label">{t('pages.login.confirmPassword')}</label>
-                                    <div className="input-icon-wrapper">
-                                        <HiOutlineLockClosed className="input-icon" />
-                                        <input
-                                            type="password"
-                                            className="form-input input-with-icon"
-                                            placeholder={t('pages.login.resetConfirmPlaceholder')}
-                                            value={resetConfirm}
-                                            onChange={(e) => setResetConfirm(e.target.value)}
-                                            disabled={loading}
-                                            autoComplete="new-password"
-                                        />
+                                    <div className="form-group">
+                                        <label className="form-label">{t('pages.login.confirmPassword')}</label>
+                                        <div className="input-icon-wrapper">
+                                            <HiOutlineLockClosed className="input-icon" />
+                                            <input
+                                                type={showResetConfirm ? 'text' : 'password'}
+                                                className="form-input input-with-icon input-with-trailing-action"
+                                                placeholder={t('pages.login.resetConfirmPlaceholder')}
+                                                value={resetConfirm}
+                                                onChange={(e) => setResetConfirm(e.target.value)}
+                                                disabled={loading}
+                                                autoComplete="new-password"
+                                            />
+                                            <button
+                                                type="button"
+                                                className="input-trailing-action-btn"
+                                                onClick={() => setShowResetConfirm((prev) => !prev)}
+                                                tabIndex={-1}
+                                                aria-label={showResetConfirm ? 'Hide password' : 'Show password'}
+                                            >
+                                                {showResetConfirm ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                            </button>
+                                        </div>
+                                        {resetConfirm && resetPassword !== resetConfirm && (
+                                            <p className="field-error">{t('pages.login.passwordMismatch')}</p>
+                                        )}
                                     </div>
-                                    {resetConfirm && resetPassword !== resetConfirm && (
-                                        <p className="field-error">{t('pages.login.passwordMismatch')}</p>
-                                    )}
                                 </div>
+                                <p className="text-muted text-xs -mt-1 mb-3">{passwordPolicyHint}</p>
 
                                 <button
                                     type="submit"
