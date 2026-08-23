@@ -17,6 +17,10 @@ import {
     postTelegramBackupCompat,
     getExportDBCompat,
     getTlsCertPathsCompat,
+    postAddInboundCompat,
+    postUpdateInboundCompat,
+    postDeleteInboundCompat,
+    getNewX25519CertCompat,
 } from '../lib/panelApiCompat.js';
 
 function notFound(message = '404 page not found') {
@@ -581,3 +585,117 @@ test('getTlsCertPathsCompat prefers getWebCertFiles then falls back to legacy tl
     assert.deepEqual(calls, ['/panel/api/server/getWebCertFiles', '/panel/api/server/tlsCertPaths']);
     assert.equal(res.status, 200);
 });
+
+test('postAddInboundCompat prefers /panel/api/inbounds/add and falls back to legacy routes', async () => {
+    let calls = [];
+    const client = {
+        async post(path, data, config) {
+            calls.push({ path, data, contentType: config?.headers?.['Content-Type'] });
+            return { data: { success: true, obj: { id: 10, port: 12345 } } };
+        },
+    };
+
+    let res = await postAddInboundCompat(client, { protocol: 'vless', port: 12345, remark: 'test' });
+    assert.equal(res.data.success, true);
+    assert.equal(calls[0].path, '/panel/api/inbounds/add');
+    assert.equal(calls[0].contentType, 'application/x-www-form-urlencoded');
+
+    calls = [];
+    const legacyClient = {
+        async post(path, data, config) {
+            calls.push({ path, data, contentType: config?.headers?.['Content-Type'] });
+            if (path === '/panel/api/inbounds/add') throw notFound();
+            return { data: { success: true, obj: { id: 10, port: 12345 } } };
+        },
+    };
+    res = await postAddInboundCompat(legacyClient, { protocol: 'vless', port: 12345, remark: 'test' });
+    assert.equal(res.data.success, true);
+    assert.deepEqual(calls.map(c => c.path), ['/panel/api/inbounds/add', '/panel/inbound/add']);
+});
+
+test('postUpdateInboundCompat prefers /panel/api/inbounds/update/:id and falls back to legacy routes', async () => {
+    let calls = [];
+    const client = {
+        async post(path, data, config) {
+            calls.push({ path, data, contentType: config?.headers?.['Content-Type'] });
+            return { data: { success: true } };
+        },
+    };
+
+    let res = await postUpdateInboundCompat(client, 10, { protocol: 'vless', port: 12345 });
+    assert.equal(res.data.success, true);
+    assert.equal(calls[0].path, '/panel/api/inbounds/update/10');
+    assert.equal(calls[0].contentType, 'application/x-www-form-urlencoded');
+
+    calls = [];
+    const legacyClient = {
+        async post(path, data, config) {
+            calls.push({ path, data, contentType: config?.headers?.['Content-Type'] });
+            if (path === '/panel/api/inbounds/update/10') throw notFound();
+            return { data: { success: true } };
+        },
+    };
+    res = await postUpdateInboundCompat(legacyClient, 10, { protocol: 'vless', port: 12345 });
+    assert.equal(res.data.success, true);
+    assert.deepEqual(calls.map(c => c.path), ['/panel/api/inbounds/update/10', '/panel/inbound/update/10']);
+});
+
+test('postDeleteInboundCompat prefers /panel/api/inbounds/del/:id and falls back to legacy routes', async () => {
+    let calls = [];
+    const client = {
+        async post(path) {
+            calls.push(path);
+            return { data: { success: true } };
+        },
+    };
+
+    let res = await postDeleteInboundCompat(client, 10);
+    assert.equal(res.data.success, true);
+    assert.deepEqual(calls, ['/panel/api/inbounds/del/10']);
+
+    calls = [];
+    const legacyClient = {
+        async post(path) {
+            calls.push(path);
+            if (path === '/panel/api/inbounds/del/10') throw notFound();
+            return { data: { success: true } };
+        },
+    };
+    res = await postDeleteInboundCompat(legacyClient, 10);
+    assert.equal(res.data.success, true);
+    assert.deepEqual(calls, ['/panel/api/inbounds/del/10', '/panel/inbound/del/10']);
+});
+
+test('getNewX25519CertCompat tries candidate endpoints for Reality keypair generation', async () => {
+    let calls = [];
+    const client = {
+        async get(path) {
+            calls.push(path);
+            if (path === '/panel/api/server/getNewX25519Cert') {
+                return { data: { success: true, obj: { privateKey: 'priv', publicKey: 'pub' } } };
+            }
+            throw notFound();
+        },
+    };
+
+    let res = await getNewX25519CertCompat(client);
+    assert.equal(res.data.obj.publicKey, 'pub');
+    assert.deepEqual(calls, ['/panel/api/server/getNewX25519Cert']);
+
+    calls = [];
+    const fallbackClient = {
+        async get(path) {
+            calls.push(path);
+            if (path === '/panel/api/server/getNewX25519Cert') throw notFound();
+            if (path === '/panel/api/inbounds/getNewX25519Cert') {
+                return { data: { success: true, obj: { privateKey: 'priv2', publicKey: 'pub2' } } };
+            }
+            throw notFound();
+        },
+    };
+    res = await getNewX25519CertCompat(fallbackClient);
+    assert.equal(res.data.obj.publicKey, 'pub2');
+    assert.deepEqual(calls, ['/panel/api/server/getNewX25519Cert', '/panel/api/inbounds/getNewX25519Cert']);
+});
+
+

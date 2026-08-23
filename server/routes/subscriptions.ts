@@ -80,7 +80,9 @@ function buildSubscriptionClientKeys(client: any = {}) {
 
 function mergeInboundClientEntries(inbound: any = {}) {
     const settings = parseJsonObjectLike(inbound.settings, {});
-    const clients = Array.isArray(settings.clients) ? settings.clients : [];
+    const clients = Array.isArray(settings.clients)
+        ? settings.clients
+        : (Array.isArray(settings.users) ? settings.users : (Array.isArray(settings.accounts) ? settings.accounts : []));
     const stats = Array.isArray(inbound.clientStats) ? inbound.clientStats : [];
     const statIndex = new Map();
 
@@ -2075,23 +2077,14 @@ function buildMihomoConfigObject(links: any[] = [], routingPolicy: string = 'rul
         rules = ['MATCH,AUTO'];
     } else {
         proxyGroups = [
-            { name: '🚀 节点选择', type: 'select', proxies: ['⚡ 自动优选', ...proxyNames, '🎯 全球直连'] },
-            { name: '⚡ 自动优选', type: 'url-test', proxies: proxyNames, url: 'https://www.gstatic.com/generate_204', interval: 300, tolerance: 50 },
-            { name: '🤖 AI 服务', type: 'select', proxies: ['🚀 节点选择', ...proxyNames] },
-            { name: '🎬 国际流媒体', type: 'select', proxies: ['🚀 节点选择', ...proxyNames] },
-            { name: '🛑 广告拦截', type: 'select', proxies: ['REJECT', 'DIRECT'] },
-            { name: '🎯 全球直连', type: 'select', proxies: ['DIRECT', '🚀 节点选择'] }
+            { name: 'PROXY', type: 'select', proxies: ['AUTO', ...proxyNames, 'DIRECT'] },
+            { name: 'AUTO', type: 'url-test', proxies: proxyNames, url: 'https://www.gstatic.com/generate_204', interval: 300, tolerance: 50 }
         ];
         rules = [
             ...LOCAL_DIRECT_RULES,
-            'GEOSITE,category-ads-all,🛑 广告拦截',
-            'GEOSITE,openai,🤖 AI 服务',
-            'GEOSITE,netflix,🎬 国际流媒体',
-            'GEOSITE,youtube,🎬 国际流媒体',
-            'GEOSITE,disney,🎬 国际流媒体',
-            'DOMAIN-SUFFIX,cn,🎯 全球直连',
-            'GEOIP,CN,🎯 全球直连',
-            'MATCH,🚀 节点选择'
+            'DOMAIN-SUFFIX,cn,DIRECT',
+            'GEOIP,CN,DIRECT',
+            'MATCH,PROXY'
         ];
     }
 
@@ -2256,23 +2249,19 @@ function buildSurgeConfigObject(links: any[] = [], routingPolicy = "rules") {
                 if (routingPolicy === 'auto') return { groups: [`AUTO = url-test, ${proxyNames.join(', ')}, url=http://cp.cloudflare.com/generate_204, interval=300`], rules: ['FINAL,AUTO'] };
                 return {
                     groups: [
-                        `🚀 节点选择 = select, ⚡ 自动优选, ${proxyNames.join(', ')}, 🎯 全球直连`,
-                        `⚡ 自动优选 = url-test, ${proxyNames.join(', ')}, url=http://cp.cloudflare.com/generate_204, interval=300`,
-                        `🤖 AI 服务 = select, 🚀 节点选择, ${proxyNames.join(', ')}`,
-                        `🎬 国际流媒体 = select, 🚀 节点选择, ${proxyNames.join(', ')}`,
-                        `🛑 广告拦截 = select, REJECT, DIRECT`,
-                        `🎯 全球直连 = select, DIRECT, 🚀 节点选择`
+                        `PROXY = select, AUTO, ${proxyNames.join(', ')}, DIRECT`,
+                        `AUTO = url-test, ${proxyNames.join(', ')}, url=http://cp.cloudflare.com/generate_204, interval=300`,
                     ],
                     rules: [
                         ...LOCAL_DIRECT_RULES,
-                        'DOMAIN-SET,geosite:category-ads-all,🛑 广告拦截',
-                        'DOMAIN-SET,geosite:openai,🤖 AI 服务',
-                        'DOMAIN-SET,geosite:netflix,🎬 国际流媒体',
-                        'DOMAIN-SET,geosite:youtube,🎬 国际流媒体',
-                        'DOMAIN-SET,geosite:disney,🎬 国际流媒体',
-                        'DOMAIN-SUFFIX,cn,🎯 全球直连',
-                        'GEOIP,CN,🎯 全球直连',
-                        'FINAL,🚀 节点选择'
+                        'DOMAIN-SET,geosite:category-ads-all,REJECT',
+                        'DOMAIN-SET,geosite:openai,PROXY',
+                        'DOMAIN-SET,geosite:netflix,PROXY',
+                        'DOMAIN-SET,geosite:youtube,PROXY',
+                        'DOMAIN-SET,geosite:disney,PROXY',
+                        'DOMAIN-SUFFIX,cn,DIRECT',
+                        'GEOIP,CN,DIRECT',
+                        'FINAL,PROXY'
                     ]
                 };
             })(),
@@ -2886,12 +2875,8 @@ function buildSingboxConfigObject(links: any[] = [], options: any = {}) {
                         { type: 'block', tag: 'REJECT' },
                         { type: 'direct', tag: 'DIRECT' },
                         ...proxies,
-                        { type: 'urltest', tag: '⚡ 自动优选', outbounds: proxyTags, url: 'https://www.gstatic.com/generate_204', interval: '10m', tolerance: 50 },
-                        { type: 'selector', tag: '🚀 节点选择', outbounds: ['⚡ 自动优选', ...proxyTags, '🎯 全球直连'] },
-                        { type: 'selector', tag: '🤖 AI 服务', outbounds: ['🚀 节点选择', ...proxyTags] },
-                        { type: 'selector', tag: '🎬 国际流媒体', outbounds: ['🚀 节点选择', ...proxyTags] },
-                        { type: 'selector', tag: '🛑 广告拦截', outbounds: ['REJECT', 'DIRECT'] },
-                        { type: 'selector', tag: '🎯 全球直连', outbounds: ['DIRECT', '🚀 节点选择'] }
+                        { type: 'urltest', tag: 'AUTO', outbounds: proxyTags, url: 'https://www.gstatic.com/generate_204', interval: '10m', tolerance: 50 },
+                        { type: 'selector', tag: 'PROXY', outbounds: ['AUTO', ...proxyTags, 'DIRECT'] },
                     ]
                 };
             })(),
@@ -2912,16 +2897,16 @@ function buildSingboxConfigObject(links: any[] = [], options: any = {}) {
                 if (routingPolicy === 'auto') return { rules: [{action:'sniff',timeout:'1s'},{protocol:'dns',action:'hijack-dns'},{ip_is_private:true,action:'route',outbound:'DIRECT'}], final: 'AUTO' };
                 return {
                     rules: [
-                        {action:'sniff',timeout:'1s'},
-                        {protocol:'dns',action:'hijack-dns'},
-                        {ip_is_private:true,action:'route',outbound:'🎯 全球直连'},
-                        {rule_set:['geosite-category-ads-all'],action:'route',outbound:'🛑 广告拦截'},
-                        {rule_set:['geosite-openai'],action:'route',outbound:'🤖 AI 服务'},
-                        {rule_set:['geosite-netflix','geosite-youtube','geosite-disney'],action:'route',outbound:'🎬 国际流媒体'},
-                        {domain_suffix:['.cn'],action:'route',outbound:'🎯 全球直连'},
-                        {rule_set:['geoip-cn'],action:'route',outbound:'🎯 全球直连'}
+                        { action: 'sniff', timeout: '1s' },
+                        { protocol: 'dns', action: 'hijack-dns' },
+                        { ip_is_private: true, action: 'route', outbound: 'DIRECT' },
+                        { rule_set: ['geosite-category-ads-all'], action: 'route', outbound: 'REJECT' },
+                        { rule_set: ['geosite-openai'], action: 'route', outbound: 'PROXY' },
+                        { rule_set: ['geosite-netflix', 'geosite-youtube', 'geosite-disney'], action: 'route', outbound: 'PROXY' },
+                        { domain_suffix: ['.cn'], action: 'route', outbound: 'DIRECT' },
+                        { rule_set: ['geoip-cn'], action: 'route', outbound: 'DIRECT' }
                     ],
-                    final: '🚀 节点选择'
+                    final: 'PROXY'
                 };
             })(),
             auto_detect_interface: true,

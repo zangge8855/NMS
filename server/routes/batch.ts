@@ -20,8 +20,11 @@ import {
     fetchPanelInboundByIdCompat,
     parseInboundClients,
     postAddClientCompat,
+    postAddInboundCompat,
     postDeleteClientFromInboundCompat,
+    postDeleteInboundCompat,
     postUpdateClientCompat,
+    postUpdateInboundCompat,
     resolveClientIdentifier,
     resetInboundTrafficCompat as resetPanelInboundTrafficCompat,
 } from '../lib/panelApiCompat.js';
@@ -228,8 +231,12 @@ function normalizeInboundSnapshot(input: any = {}, enableOverride = null) {
         listen: toStringValue(input.listen),
         total: toNumberValue(input.total, 0),
         expiryTime: toNumberValue(input.expiryTime, 0),
+        trafficReset: toStringValue(input.trafficReset) || 'never',
+        tag: toStringValue(input.tag) || (input.port ? `inbound-${input.port}` : ''),
         settings: normalizeJson(input.settings, '{}'),
-        streamSettings: hasStreamSettings ? normalizeJson(input.streamSettings, '{}') : undefined,
+        streamSettings: hasStreamSettings && input.streamSettings !== undefined
+            ? normalizeJson(input.streamSettings, '{}')
+            : '{}',
         sniffing: normalizeJson(
             input.sniffing,
             JSON.stringify({ enabled: false, destOverride: ['http', 'tls', 'quic', 'fakedns'], metadataOnly: false, routeOnly: false })
@@ -640,10 +647,7 @@ async function executeInboundAction({ action, target, payload, targetIndex }) {
             if (!inboundData.protocol) throw new Error('Missing protocol');
             if (!inboundData.port) throw new Error('Missing port');
 
-            const response = await postForm(client, '/panel/api/inbounds/add', {
-                ...inboundData,
-                id: undefined,
-            });
+            const response = await postAddInboundCompat(client, inboundData);
             const createdInbound = response?.data?.obj && typeof response.data.obj === 'object'
                 ? response.data.obj
                 : {};
@@ -663,7 +667,7 @@ async function executeInboundAction({ action, target, payload, targetIndex }) {
         if (!inboundId) throw new Error('Missing inbound id');
 
         if (action === 'delete') {
-            await assertSuccess(await client.post(`/panel/api/inbounds/del/${inboundId}`), 'Delete inbound failed');
+            await postDeleteInboundCompat(client, inboundId);
             return {
                 ...baseResult,
                 success: true,
@@ -697,7 +701,7 @@ async function executeInboundAction({ action, target, payload, targetIndex }) {
         if (action === 'enable' || action === 'disable') {
             await setInboundEnableCompat(client, inboundId, enableOverride, inboundData);
         } else {
-            await postForm(client, `/panel/api/inbounds/update/${inboundId}`, inboundData);
+            await postUpdateInboundCompat(client, inboundId, inboundData);
         }
 
         return {

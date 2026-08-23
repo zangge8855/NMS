@@ -19,7 +19,11 @@ function cleanupChallenges() {
         }
     }
 }
-setInterval(cleanupChallenges, 60000); // Cleanup every minute
+
+const challengeCleanupTimer = setInterval(cleanupChallenges, 60000);
+if (typeof challengeCleanupTimer?.unref === 'function') {
+    challengeCleanupTimer.unref();
+}
 
 function saveChallenge(id: string, challenge: string, userId?: string) {
     challenges.set(id, { challenge, userId, expiresAt: Date.now() + 5 * 60 * 1000 }); // 5 minutes TTL

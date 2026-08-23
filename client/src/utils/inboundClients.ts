@@ -23,8 +23,11 @@ export function parseJsonObjectLike<T = Record<string, any>>(value: any, fallbac
 }
 
 export function extractInboundClients(inbound?: any): any[] {
-    const settings = parseJsonObjectLike<{ clients?: any[] }>(inbound?.settings, {});
-    return Array.isArray(settings.clients) ? settings.clients : [];
+    const settings = parseJsonObjectLike<{ clients?: any[]; users?: any[]; accounts?: any[] }>(inbound?.settings, {});
+    if (Array.isArray(settings.clients)) return settings.clients;
+    if (Array.isArray(settings.users)) return settings.users;
+    if (Array.isArray(settings.accounts)) return settings.accounts;
+    return [];
 }
 
 function resolveClientKeys(client: Record<string, any> = {}, protocol: string = ''): string[] {

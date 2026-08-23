@@ -26,6 +26,10 @@ import {
     postTelegramBackupCompat,
     getExportDBCompat,
     getTlsCertPathsCompat,
+    postAddInboundCompat,
+    postUpdateInboundCompat,
+    postDeleteInboundCompat,
+    getNewX25519CertCompat,
 } from '../lib/panelApiCompat.js';
 import { invalidateServerPanelSnapshotCache } from '../lib/serverPanelSnapshotService.js';
 import { enrichClientIpPayload } from '../lib/clientIpEnrichment.js';
@@ -246,6 +250,24 @@ async function tryCompatPanelRequest(client: any, method: string, panelPath: str
         return cleanupDepletedClientsCompat(client, safeDecodePathSegment(match[1]));
     }
 
+    if (panelPath === '/panel/api/inbounds/add' || panelPath === '/panel/inbounds/add' || panelPath === '/panel/inbound/add' || panelPath === '/panel/api/inbound/add') {
+        return postAddInboundCompat(client, body || {});
+    }
+
+    match = panelPath.match(/^\/panel\/(?:api\/)?inbounds?\/update\/([^/]+)$/);
+    if (match) {
+        return postUpdateInboundCompat(client, safeDecodePathSegment(match[1]), body || {});
+    }
+
+    match = panelPath.match(/^\/panel\/(?:api\/)?inbounds?\/del\/([^/]+)$/);
+    if (match) {
+        return postDeleteInboundCompat(client, safeDecodePathSegment(match[1]));
+    }
+
+    if (panelPath === '/panel/api/server/getNewX25519Cert' || panelPath === '/panel/api/inbounds/getNewX25519Cert' || panelPath === '/server/getNewX25519Cert') {
+        return getNewX25519CertCompat(client);
+    }
+
     return null;
 }
 
@@ -256,6 +278,10 @@ async function tryCompatPanelGetRequest(client: any, panelPath: string): Promise
 
     if (panelPath === '/panel/api/server/tlsCertPaths' || panelPath === '/panel/api/server/getWebCertFiles') {
         return getTlsCertPathsCompat(client);
+    }
+
+    if (panelPath === '/panel/api/server/getNewX25519Cert' || panelPath === '/panel/api/inbounds/getNewX25519Cert' || panelPath === '/server/getNewX25519Cert') {
+        return getNewX25519CertCompat(client);
     }
 
     let match = panelPath.match(/^\/panel\/api\/clients\/get\/([^/]+)$/);

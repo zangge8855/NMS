@@ -16,11 +16,12 @@ const PROTOCOL_SCHEMA_FALLBACK = [
     { key: 'http', label: 'HTTP', legacyKeys: [], supports: { transports: ['tcp'], securities: ['none'] } },
     { key: 'tunnel', label: 'Tunnel', legacyKeys: ['dokodemo-door'], supports: { transports: [], securities: [] } },
     { key: 'mixed', label: 'Mixed', legacyKeys: ['socks'], supports: { transports: [], securities: [] } },
-    { key: 'wireguard', label: 'WireGuard', legacyKeys: [], supports: { transports: [], securities: [] } },
+    { key: 'wireguard', label: 'WireGuard', legacyKeys: [], supports: { transports: ['udp'], securities: [] } },
     { key: 'tun', label: 'TUN', legacyKeys: [], supports: { transports: [], securities: [] } },
-    { key: 'mtproto', label: 'MTProto', legacyKeys: [], supports: { transports: [], securities: [] } },
-    { key: 'hysteria', label: 'Hysteria', legacyKeys: [], supports: { transports: [], securities: ['tls'] } },
-    { key: 'hysteria2', label: 'Hysteria2', legacyKeys: ['hy2'], supports: { transports: [], securities: ['tls'] } },
+    { key: 'mtproto', label: 'MTProto', legacyKeys: [], supports: { transports: ['tcp'], securities: [] } },
+    { key: 'hysteria', label: 'Hysteria', legacyKeys: [], supports: { transports: ['udp'], securities: ['tls', 'none'] } },
+    { key: 'hysteria2', label: 'Hysteria2', legacyKeys: ['hy2'], supports: { transports: ['udp'], securities: ['tls', 'none'] } },
+    { key: 'tuic', label: 'TUIC', legacyKeys: [], supports: { transports: ['udp'], securities: ['tls'] } },
 ];
 const _PROTOCOL_FALLBACK = PROTOCOL_SCHEMA_FALLBACK.map((item) => item.key);
 
@@ -93,7 +94,7 @@ const XHTTP_SESSION_SEQ_PLACEMENT_OPTIONS = ['', 'path', 'header', 'cookie', 'qu
 const XHTTP_UPLINK_DATA_PLACEMENT_OPTIONS = ['', 'body', 'header', 'query'];
 const DEFAULT_MTPROTO_FAKE_TLS_DOMAIN = 'www.cloudflare.com';
 
-const STREAM_PROTOCOLS = new Set(['vmess', 'vless', 'trojan', 'shadowsocks']);
+const STREAM_PROTOCOLS = new Set(['vmess', 'vless', 'trojan', 'shadowsocks', 'hysteria', 'hysteria2', 'tuic']);
 const LOWER_NUM_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
 const ALPHA_NUM_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 const HEX_CHARS = '0123456789abcdef';
@@ -110,6 +111,22 @@ function randomString(length, charset) {
     return result;
 }
 
+function randomBase64(byteLength = 32) {
+    const bytes = new Uint8Array(byteLength);
+    if (typeof globalThis !== 'undefined' && globalThis.crypto?.getRandomValues) {
+        globalThis.crypto.getRandomValues(bytes);
+    } else {
+        for (let i = 0; i < byteLength; i += 1) {
+            bytes[i] = Math.floor(Math.random() * 256);
+        }
+    }
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += 1) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+}
+
 function randomUuid() {
     if (typeof globalThis !== 'undefined' && globalThis.crypto?.randomUUID) {
         return globalThis.crypto.randomUUID();
@@ -120,7 +137,14 @@ function randomUuid() {
     return `${raw.slice(0, 8).join('')}-${raw.slice(8, 12).join('')}-${raw.slice(12, 16).join('')}-${raw.slice(16, 20).join('')}-${raw.slice(20, 32).join('')}`;
 }
 
-function randomShadowsocksPassword() {
+function randomShadowsocksPassword(method = '2022-blake3-aes-256-gcm') {
+    const normalizedMethod = String(method || '').toLowerCase();
+    if (normalizedMethod.includes('128-gcm')) {
+        return randomBase64(16);
+    }
+    if (normalizedMethod.includes('2022-blake3') || normalizedMethod.includes('2022')) {
+        return randomBase64(32);
+    }
     return randomString(32, `${ALPHA_NUM_CHARS}_-`);
 }
 
@@ -251,14 +275,16 @@ function createDefaultSettings(protocolKey = 'vmess') {
     }
 
     if (protocol === 'shadowsocks') {
+        const method = '2022-blake3-aes-256-gcm';
+        const password = randomShadowsocksPassword(method);
         return {
-            method: '2022-blake3-aes-256-gcm',
-            password: randomShadowsocksPassword(),
+            method,
+            password,
             network: 'tcp,udp',
             clients: [
                 {
-                    method: '',
-                    password: randomShadowsocksPassword(),
+                    method,
+                    password,
                     ...createBaseClient(),
                 },
             ],
@@ -303,7 +329,6 @@ function createDefaultSettings(protocolKey = 'vmess') {
             mtu: 1420,
             secretKey: '',
             peers: [{
-                privateKey: '',
                 publicKey: '',
                 allowedIPs: ['10.0.0.2/32'],
                 keepAlive: 0,
@@ -352,6 +377,20 @@ function createDefaultSettings(protocolKey = 'vmess') {
         };
     }
 
+    if (protocol === 'tuic') {
+        return {
+            users: [{
+                uuid: randomUuid(),
+                password: randomString(16, ALPHA_NUM_CHARS),
+                ...createBaseClient(),
+            }],
+            congestion_control: 'bbr',
+            auth_timeout: '3s',
+            zero_rtt_handshake: false,
+            heartbeat: '10s',
+        };
+    }
+
     return {};
 }
 
@@ -389,19 +428,20 @@ function createDefaultRealitySettings() {
 }
 
 function createDefaultTransportSettings(network = 'tcp') {
-    if (network === 'kcp') {
+    const norm = String(network || 'tcp').toLowerCase();
+    if (norm === 'kcp') {
         return { kcpSettings: { mtu: 1350, tti: 20, uplinkCapacity: 5, downlinkCapacity: 20, congestion: false, readBufferSize: 1, writeBufferSize: 1 } };
     }
-    if (network === 'ws') {
+    if (norm === 'ws') {
         return { wsSettings: { acceptProxyProtocol: false, path: '/', host: '', headers: {}, heartbeatPeriod: 0 } };
     }
-    if (network === 'grpc') {
+    if (norm === 'grpc') {
         return { grpcSettings: { serviceName: '', authority: '', multiMode: false } };
     }
-    if (network === 'httpupgrade') {
+    if (norm === 'httpupgrade') {
         return { httpupgradeSettings: { acceptProxyProtocol: false, path: '/', host: '', headers: {} } };
     }
-    if (network === 'xhttp') {
+    if (norm === 'xhttp') {
         return {
             xhttpSettings: {
                 path: '/',
@@ -428,6 +468,9 @@ function createDefaultTransportSettings(network = 'tcp') {
                 uplinkChunkSize: 0,
             },
         };
+    }
+    if (norm === 'udp') {
+        return {};
     }
     return { tcpSettings: { acceptProxyProtocol: false, header: { type: 'none' } } };
 }
@@ -498,6 +541,9 @@ function normalizeStreamForSubmission(rawStream, protocolKey) {
     if (hasKeys(source.finalmask) && Array.isArray(source.finalmask.udp) && source.finalmask.udp.length > 0) {
         normalized.finalmask = source.finalmask;
     }
+    if (hasKeys(source.hysteriaSettings)) {
+        normalized.hysteriaSettings = source.hysteriaSettings;
+    }
     if (hasKeys(source.sockopt)) {
         normalized.sockopt = source.sockopt;
     }
@@ -550,7 +596,9 @@ export function validateInboundPayload(protocol, port, stream, protocolSchema = 
 
     if (security === 'tls') {
         const serverName = String(stream?.tlsSettings?.serverName || '').trim();
-        if (!serverName) {
+        const hasCertFiles = Array.isArray(stream?.tlsSettings?.certificates) && stream.tlsSettings.certificates.some((c) => c?.certificateFile || c?.keyFile);
+        const normProto = String(protocol || '').toLowerCase();
+        if (!serverName && !hasCertFiles && normProto !== 'hysteria' && normProto !== 'hysteria2' && normProto !== 'hy2' && normProto !== 'tuic') {
             return { ok: false, msg: t('comp.inbounds.validationTlsSniRequired') };
         }
     }
@@ -1173,9 +1221,20 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
         Array.from({ length: 8 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
 
     const fetchRealityKeyPair = async (serverId) => {
-        const res = await callPanelTool(serverId, 'get', '/panel/api/server/getNewX25519Cert');
-        if (res.data?.obj?.privateKey && res.data?.obj?.publicKey) {
-            return res.data.obj;
+        const endpoints = [
+            '/panel/api/server/getNewX25519Cert',
+            '/panel/api/inbounds/getNewX25519Cert',
+            '/server/getNewX25519Cert',
+        ];
+        for (const ep of endpoints) {
+            try {
+                const res = await callPanelTool(serverId, 'get', ep);
+                if (res.data?.obj?.privateKey && res.data?.obj?.publicKey) {
+                    return res.data.obj;
+                }
+            } catch {
+                // fallback to next endpoint
+            }
         }
         throw new Error('Reality key pair generation failed');
     };
@@ -1477,6 +1536,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                     });
                 }
                 toast.success(t('comp.inbounds.inboundUpdated'));
+                onSuccess();
+                onClose();
             } else {
                 if (selectedServerIds.length === 0) {
                     toast.error(t('comp.inbounds.selectTargetServer'));
@@ -1541,21 +1602,32 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                     } else {
                         toast.success(t('comp.inbounds.deploySuccess', { success: summary.success }));
                     }
-                } else if (syncSummary && syncExistingSubscriptions) {
-                    toast.error(t('comp.inbounds.deployPartialWithSync', {
-                        success: summary.success,
-                        failed: summary.failed,
-                        synced: syncSummary.syncedUsers || 0,
-                    }));
+                    onSuccess();
+                    onClose();
+                } else if (summary.success > 0) {
+                    if (syncSummary && syncExistingSubscriptions) {
+                        toast.error(t('comp.inbounds.deployPartialWithSync', {
+                            success: summary.success,
+                            failed: summary.failed,
+                            synced: syncSummary.syncedUsers || 0,
+                        }));
+                    } else {
+                        toast.error(t('comp.inbounds.deployPartial', {
+                            success: summary.success,
+                            failed: summary.failed,
+                        }));
+                    }
+                    onSuccess();
+                    onClose();
                 } else {
-                    toast.error(t('comp.inbounds.deployPartial', {
+                    const firstFailure = Array.isArray(output?.results) ? output.results.find((r) => !r?.success) : null;
+                    const failureMsg = firstFailure?.msg || t('comp.inbounds.deployPartial', {
                         success: summary.success,
                         failed: summary.failed,
-                    }));
+                    });
+                    toast.error(t('comp.inbounds.addFailedWithMsg', { msg: failureMsg }));
                 }
             }
-            onSuccess();
-            onClose();
         } catch (err) {
             console.error(err);
             const msg = getErrorMessage(err, t('comp.common.unknownError'), locale);

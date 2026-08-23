@@ -2,8 +2,8 @@
  * Shared protocol-related constants and helpers used across multiple components.
  */
 
-export const UUID_PROTOCOLS: Set<string> = new Set(['vmess', 'vless']);
-export const PASSWORD_PROTOCOLS: Set<string> = new Set(['trojan', 'shadowsocks']);
+export const UUID_PROTOCOLS: Set<string> = new Set(['vmess', 'vless', 'tuic']);
+export const PASSWORD_PROTOCOLS: Set<string> = new Set(['trojan', 'shadowsocks', 'hysteria', 'hysteria2', 'hy2']);
 
 export interface ProtocolOption {
     key: string;
@@ -15,6 +15,10 @@ export const PROTOCOL_OPTIONS: ProtocolOption[] = [
     { key: 'vmess', label: 'VMess' },
     { key: 'trojan', label: 'Trojan' },
     { key: 'shadowsocks', label: 'Shadowsocks' },
+    { key: 'hysteria', label: 'Hysteria' },
+    { key: 'hysteria2', label: 'Hysteria2' },
+    { key: 'tuic', label: 'TUIC' },
+    { key: 'wireguard', label: 'WireGuard' },
 ];
 export const PROTOCOL_KEY_SET: Set<string> = new Set(PROTOCOL_OPTIONS.map((item) => item.key));
 

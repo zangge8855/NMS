@@ -17,7 +17,7 @@ import {
     kilobytesInputToBytesPerSecond,
 } from '../../utils/entitlements';
 
-const BATCH_CLIENT_PROTOCOLS = new Set(['vmess', 'vless', 'trojan', 'shadowsocks']);
+const BATCH_CLIENT_PROTOCOLS = new Set(['vmess', 'vless', 'trojan', 'shadowsocks', 'hysteria', 'hysteria2', 'hy2', 'tuic']);
 
 function resolveResponseMsg(data, fallback = '') {
     if (!data || typeof data !== 'object') return fallback;

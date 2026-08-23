@@ -78,7 +78,10 @@ function parseMaybeJson(value: unknown, fallback: any = null): any {
 
 export function parseInboundClients(inbound: any = {}): any[] {
     const settings = parseMaybeJson(inbound?.settings, {});
-    return Array.isArray(settings?.clients) ? settings.clients : [];
+    if (Array.isArray(settings?.clients)) return settings.clients;
+    if (Array.isArray(settings?.users)) return settings.users;
+    if (Array.isArray(settings?.accounts)) return settings.accounts;
+    return [];
 }
 
 export function resolveClientIdentifier(client: any = {}, protocol: string = ''): string {
@@ -855,3 +858,144 @@ export async function getTlsCertPathsCompat(panelClient: any): Promise<any> {
         return { status: res.status, data: res.data };
     }
 }
+
+export async function postAddInboundCompat(panelClient: any, inboundData: any): Promise<any> {
+    const payload = { ...inboundData, id: undefined };
+    try {
+        return assertPanelResponseSuccess(
+            await postForm(panelClient, '/panel/api/inbounds/add', payload),
+            'add inbound failed'
+        );
+    } catch (error) {
+        if (!isUnsupportedPanelEndpointError(error)) {
+            throw error;
+        }
+    }
+
+    try {
+        return assertPanelResponseSuccess(
+            await postForm(panelClient, '/panel/inbound/add', payload),
+            'legacy inbound/add failed'
+        );
+    } catch (error) {
+        if (!isUnsupportedPanelEndpointError(error)) {
+            throw error;
+        }
+    }
+
+    try {
+        return assertPanelResponseSuccess(
+            await postForm(panelClient, '/panel/api/inbound/add', payload),
+            'api/inbound/add failed'
+        );
+    } catch (error) {
+        if (!isUnsupportedPanelEndpointError(error)) {
+            throw error;
+        }
+    }
+
+    return assertPanelResponseSuccess(
+        await postJson(panelClient, '/panel/api/inbounds/add', payload),
+        'json inbounds/add failed'
+    );
+}
+
+export async function postUpdateInboundCompat(panelClient: any, inboundId: any, inboundData: any): Promise<any> {
+    const encodedId = encodePathSegment(inboundId);
+    try {
+        return assertPanelResponseSuccess(
+            await postForm(panelClient, `/panel/api/inbounds/update/${encodedId}`, inboundData),
+            'update inbound failed'
+        );
+    } catch (error) {
+        if (!isUnsupportedPanelEndpointError(error)) {
+            throw error;
+        }
+    }
+
+    try {
+        return assertPanelResponseSuccess(
+            await postForm(panelClient, `/panel/inbound/update/${encodedId}`, inboundData),
+            'legacy inbound/update failed'
+        );
+    } catch (error) {
+        if (!isUnsupportedPanelEndpointError(error)) {
+            throw error;
+        }
+    }
+
+    return assertPanelResponseSuccess(
+        await postForm(panelClient, `/panel/api/inbound/update/${encodedId}`, inboundData),
+        'api/inbound/update failed'
+    );
+}
+
+export async function postDeleteInboundCompat(panelClient: any, inboundId: any): Promise<any> {
+    const encodedId = encodePathSegment(inboundId);
+    try {
+        return assertPanelResponseSuccess(
+            await panelClient.post(`/panel/api/inbounds/del/${encodedId}`),
+            'delete inbound failed'
+        );
+    } catch (error) {
+        if (!isUnsupportedPanelEndpointError(error)) {
+            throw error;
+        }
+    }
+
+    try {
+        return assertPanelResponseSuccess(
+            await panelClient.post(`/panel/inbound/del/${encodedId}`),
+            'legacy inbound/del failed'
+        );
+    } catch (error) {
+        if (!isUnsupportedPanelEndpointError(error)) {
+            throw error;
+        }
+    }
+
+    return assertPanelResponseSuccess(
+        await panelClient.post(`/panel/api/inbound/del/${encodedId}`),
+        'api/inbound/del failed'
+    );
+}
+
+export async function getNewX25519CertCompat(panelClient: any): Promise<any> {
+    const endpoints = [
+        '/panel/api/server/getNewX25519Cert',
+        '/panel/api/inbounds/getNewX25519Cert',
+        '/server/getNewX25519Cert',
+        '/panel/server/getNewX25519Cert',
+    ];
+    let lastError: any = null;
+    for (const ep of endpoints) {
+        try {
+            const res = await panelClient.get(ep);
+            if (res.data?.success && res.data?.obj) {
+                return res;
+            }
+        } catch (err) {
+            lastError = err;
+            if (!isUnsupportedPanelEndpointError(err)) {
+                throw err;
+            }
+        }
+    }
+    for (const ep of endpoints) {
+        try {
+            const res = await panelClient.post(ep);
+            if (res.data?.success && res.data?.obj) {
+                return res;
+            }
+        } catch (err) {
+            lastError = err;
+            if (!isUnsupportedPanelEndpointError(err)) {
+                throw err;
+            }
+        }
+    }
+    if (lastError) throw lastError;
+    throw new Error('getNewX25519Cert failed');
+}
+
+
