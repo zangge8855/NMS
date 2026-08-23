@@ -23,6 +23,8 @@ import {
     HiOutlinePaperAirplane,
     HiOutlineCircleStack,
     HiOutlineArrowPath,
+    HiOutlineEye,
+    HiOutlineEyeSlash,
 } from 'react-icons/hi2';
 import TaskProgressModal from '../Tasks/TaskProgressModal';
 import ModalShell from '../UI/ModalShell';
@@ -518,6 +520,8 @@ export default function SystemSettings() {
         email: '',
         subscriptionDays: '30',
     });
+    const [showTelegramToken, setShowTelegramToken] = useState(false);
+    const [showWebhookSecret, setShowWebhookSecret] = useState(false);
     const [latestInviteCodes, setLatestInviteCodes] = useState([]);
     const [latestInviteBatch, setLatestInviteBatch] = useState({
         count: 0,
@@ -2542,18 +2546,29 @@ export default function SystemSettings() {
                         </div>
                         <div className="form-group">
                             <label className="form-label" htmlFor="telegram-bot-token">Bot Token</label>
-                            <input
-                                id="telegram-bot-token"
-                                className="form-input"
-                                aria-label="Bot Token"
-                                type="password"
-                                value={draft.telegram.botToken}
-                                onChange={(event) => patchTelegramToken(event.target.value)}
-                                placeholder={settings?.telegram?.botTokenConfigured
-                                    ? t('pages.settings.telegramTokenSaved', { preview: settings.telegram.botTokenPreview })
-                                    : '123456:ABCDEF...'}
-                                autoComplete="new-password"
-                            />
+                            <div className="input-icon-wrapper">
+                                <input
+                                    id="telegram-bot-token"
+                                    className="form-input input-with-trailing-action"
+                                    aria-label="Bot Token"
+                                    type={showTelegramToken ? 'text' : 'password'}
+                                    value={draft.telegram.botToken}
+                                    onChange={(event) => patchTelegramToken(event.target.value)}
+                                    placeholder={settings?.telegram?.botTokenConfigured
+                                        ? t('pages.settings.telegramTokenSaved', { preview: settings.telegram.botTokenPreview })
+                                        : '123456:ABCDEF...'}
+                                    autoComplete="new-password"
+                                />
+                                <button
+                                    type="button"
+                                    className="input-trailing-action-btn"
+                                    onClick={() => setShowTelegramToken((prev) => !prev)}
+                                    tabIndex={-1}
+                                    aria-label={showTelegramToken ? 'Hide token' : 'Show token'}
+                                >
+                                    {showTelegramToken ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                </button>
+                            </div>
                             <div className="flex items-center gap-2 flex-wrap mt-1">
                                 <div className="text-xs text-muted">
                                     {draft.telegram.clearBotToken
@@ -2738,13 +2753,24 @@ export default function SystemSettings() {
                     {draft.webhook.channel === 'custom' && (
                         <div className="form-group mt-2">
                             <label className="form-label font-semibold">{t('pages.settings.webhookSecret')}</label>
-                            <input
-                                type="password"
-                                className="form-input font-mono"
-                                value={draft.webhook.secret}
-                                onChange={(e) => patchField('webhook', 'secret', e.target.value)}
-                                placeholder="X-NMS-Signature token"
-                            />
+                            <div className="input-icon-wrapper">
+                                <input
+                                    type={showWebhookSecret ? 'text' : 'password'}
+                                    className="form-input font-mono input-with-trailing-action"
+                                    value={draft.webhook.secret}
+                                    onChange={(e) => patchField('webhook', 'secret', e.target.value)}
+                                    placeholder="X-NMS-Signature token"
+                                />
+                                <button
+                                    type="button"
+                                    className="input-trailing-action-btn"
+                                    onClick={() => setShowWebhookSecret((prev) => !prev)}
+                                    tabIndex={-1}
+                                    aria-label={showWebhookSecret ? 'Hide secret' : 'Show secret'}
+                                >
+                                    {showWebhookSecret ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                </button>
+                            </div>
                         </div>
                     )}
 

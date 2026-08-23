@@ -1,7 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { QRCodeSVG } from 'qrcode.react';
-import { HiOutlineShieldCheck, HiOutlineLockClosed, HiOutlineKey, HiOutlineClipboard } from 'react-icons/hi2';
+import {
+    HiOutlineShieldCheck,
+    HiOutlineLockClosed,
+    HiOutlineKey,
+    HiOutlineClipboard,
+    HiOutlineEye,
+    HiOutlineEyeSlash,
+} from 'react-icons/hi2';
 import api from '../../api/client';
 import { getErrorMessage } from '../../utils/format';
 
@@ -77,6 +84,7 @@ export default function TwoFactorPanel({ locale = 'zh-CN' }: TwoFactorPanelProps
     const [busy, setBusy] = useState(false);
     const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
     const [disablePassword, setDisablePassword] = useState('');
+    const [showDisablePassword, setShowDisablePassword] = useState(false);
     const [disableMode, setDisableMode] = useState(false);
 
     const loadStatus = useCallback(async () => {
@@ -188,17 +196,28 @@ export default function TwoFactorPanel({ locale = 'zh-CN' }: TwoFactorPanelProps
                 <div className="account-twofactor-section">
                     <div className="account-twofactor-warn">{copy.disableConfirm}</div>
                     <div className="form-group mb-0">
-                        <input
-                            type="password"
-                            className="form-input"
-                            placeholder={copy.currentPassword}
-                            aria-label={copy.currentPassword}
-                            value={disablePassword}
-                            onChange={(e) => setDisablePassword(e.target.value)}
-                            disabled={busy}
-                            autoComplete="current-password"
-                            onKeyDown={(e) => { if (e.key === 'Enter' && disablePassword) confirmDisable(); }}
-                        />
+                        <div className="input-icon-wrapper">
+                            <input
+                                type={showDisablePassword ? 'text' : 'password'}
+                                className="form-input input-with-trailing-action"
+                                placeholder={copy.currentPassword}
+                                aria-label={copy.currentPassword}
+                                value={disablePassword}
+                                onChange={(e) => setDisablePassword(e.target.value)}
+                                disabled={busy}
+                                autoComplete="current-password"
+                                onKeyDown={(e) => { if (e.key === 'Enter' && disablePassword) confirmDisable(); }}
+                            />
+                            <button
+                                type="button"
+                                className="input-trailing-action-btn"
+                                onClick={() => setShowDisablePassword((prev) => !prev)}
+                                tabIndex={-1}
+                                aria-label={showDisablePassword ? 'Hide password' : 'Show password'}
+                            >
+                                {showDisablePassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                            </button>
+                        </div>
                     </div>
                     <div className="account-twofactor-actions">
                         <button type="button" className="btn btn-danger btn-sm" onClick={confirmDisable} disabled={busy || !disablePassword}>

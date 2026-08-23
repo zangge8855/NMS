@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useI18n } from '../../contexts/LanguageContext';
 import { getPasswordPolicyError } from '../../utils/passwordPolicy';
 import { getErrorMessage } from '../../utils/format';
+import { HiOutlineEye, HiOutlineEyeSlash } from 'react-icons/hi2';
 
 const SECURITY_BOOTSTRAP_COPY = {
     'zh-CN': {
@@ -82,6 +83,8 @@ export default function SecurityBootstrapWizard() {
     const copy = useMemo(() => getCopy(locale), [locale]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [showAdminPassword, setShowAdminPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [status, setStatus] = useState({
         required: false,
         issues: [],
@@ -239,25 +242,47 @@ export default function SecurityBootstrapWizard() {
                     </label>
                     <label className="security-bootstrap-field">
                         <span className="security-bootstrap-label">{copy.adminPassword}</span>
-                        <input
-                            className="form-input"
-                            type="password"
-                            value={draft.adminPassword}
-                            onChange={(event) => setDraft((current) => ({ ...current, adminPassword: event.target.value }))}
-                            disabled={saving}
-                            autoComplete="new-password"
-                        />
+                        <div className="input-icon-wrapper">
+                            <input
+                                className="form-input input-with-trailing-action"
+                                type={showAdminPassword ? 'text' : 'password'}
+                                value={draft.adminPassword}
+                                onChange={(event) => setDraft((current) => ({ ...current, adminPassword: event.target.value }))}
+                                disabled={saving}
+                                autoComplete="new-password"
+                            />
+                            <button
+                                type="button"
+                                className="input-trailing-action-btn"
+                                onClick={() => setShowAdminPassword((prev) => !prev)}
+                                tabIndex={-1}
+                                aria-label={showAdminPassword ? 'Hide password' : 'Show password'}
+                            >
+                                {showAdminPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                            </button>
+                        </div>
                     </label>
                     <label className="security-bootstrap-field">
                         <span className="security-bootstrap-label">{copy.confirmPassword}</span>
-                        <input
-                            className="form-input"
-                            type="password"
-                            value={draft.confirmPassword}
-                            onChange={(event) => setDraft((current) => ({ ...current, confirmPassword: event.target.value }))}
-                            disabled={saving}
-                            autoComplete="new-password"
-                        />
+                        <div className="input-icon-wrapper">
+                            <input
+                                className="form-input input-with-trailing-action"
+                                type={showConfirmPassword ? 'text' : 'password'}
+                                value={draft.confirmPassword}
+                                onChange={(event) => setDraft((current) => ({ ...current, confirmPassword: event.target.value }))}
+                                disabled={saving}
+                                autoComplete="new-password"
+                            />
+                            <button
+                                type="button"
+                                className="input-trailing-action-btn"
+                                onClick={() => setShowConfirmPassword((prev) => !prev)}
+                                tabIndex={-1}
+                                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                            >
+                                {showConfirmPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                            </button>
+                        </div>
                     </label>
                     <label className="security-bootstrap-field">
                         <span className="security-bootstrap-label">{copy.jwtSecret}</span>

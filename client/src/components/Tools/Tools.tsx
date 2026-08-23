@@ -10,6 +10,8 @@ import {
     HiOutlineClipboard,
     HiOutlineArrowPath,
     HiOutlineWrench,
+    HiOutlineEye,
+    HiOutlineEyeSlash,
 } from 'react-icons/hi2';
 import EmptyState from '../UI/EmptyState';
 import PageToolbar from '../UI/PageToolbar';
@@ -88,6 +90,7 @@ export default function Tools() {
     const [sslDomain, setSslDomain] = useState('');
     const [cfEmail, setCfEmail] = useState('');
     const [cfToken, setCfToken] = useState('');
+    const [showCfToken, setShowCfToken] = useState(false);
     const [sslCertPath, setSslCertPath] = useState('/root/cert/cert.crt');
     const [sslKeyPath, setSslKeyPath] = useState('/root/cert/private.key');
 
@@ -595,13 +598,24 @@ ${cfEmail.trim() ? `export CF_Email="${cfEmail.trim()}"` : ''}
                             </div>
                             <div className="form-group">
                                 <label className="form-label font-semibold">{copy.ssl.tokenLabel}</label>
-                                <input
-                                    type="password"
-                                    className="form-input"
-                                    placeholder={copy.ssl.tokenPlaceholder}
-                                    value={cfToken}
-                                    onChange={(e) => setCfToken(e.target.value)}
-                                />
+                                <div className="input-icon-wrapper">
+                                    <input
+                                        type={showCfToken ? 'text' : 'password'}
+                                        className="form-input input-with-trailing-action"
+                                        placeholder={copy.ssl.tokenPlaceholder}
+                                        value={cfToken}
+                                        onChange={(e) => setCfToken(e.target.value)}
+                                    />
+                                    <button
+                                        type="button"
+                                        className="input-trailing-action-btn"
+                                        onClick={() => setShowCfToken((prev) => !prev)}
+                                        tabIndex={-1}
+                                        aria-label={showCfToken ? 'Hide token' : 'Show token'}
+                                    >
+                                        {showCfToken ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                    </button>
+                                </div>
                             </div>
                             <div className="form-group">
                                 <label className="form-label font-semibold">{copy.ssl.emailLabel}</label>

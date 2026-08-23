@@ -22,6 +22,7 @@ import {
     HiOutlineSignal,
     HiOutlineServerStack,
     HiOutlineEye,
+    HiOutlineEyeSlash,
     HiOutlineXMark,
 } from 'react-icons/hi2';
 import useMediaQuery from '../../hooks/useMediaQuery';
@@ -146,6 +147,12 @@ export default function Servers() {
     const [testResults, setTestResults] = useState({});
     const [loading, setLoading] = useState({});
     const [serverOrder, setServerOrder] = useState([]);
+    const [showFormPassword, setShowFormPassword] = useState(false);
+    const [showFormApiToken, setShowFormApiToken] = useState(false);
+    const [showBatchFormPassword, setShowBatchFormPassword] = useState(false);
+    const [showBatchFormApiToken, setShowBatchFormApiToken] = useState(false);
+    const [showRepairPassword, setShowRepairPassword] = useState(false);
+    const [showRepairApiToken, setShowRepairApiToken] = useState(false);
     const [credentialRepair, setCredentialRepair] = useState({
         open: false,
         serverId: '',
@@ -1410,19 +1417,46 @@ export default function Servers() {
                                         </div>
                                         <div className="form-group">
                                             <label className="form-label">{t('comp.servers.password')}</label>
-                                            <input className="form-input" type="password" placeholder={t('comp.servers.password')}
-                                                value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+                                            <div className="input-icon-wrapper">
+                                                <input
+                                                    className="form-input input-with-trailing-action"
+                                                    type={showFormPassword ? 'text' : 'password'}
+                                                    placeholder={t('comp.servers.password')}
+                                                    value={form.password}
+                                                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    className="input-trailing-action-btn"
+                                                    onClick={() => setShowFormPassword((prev) => !prev)}
+                                                    tabIndex={-1}
+                                                    aria-label={showFormPassword ? 'Hide password' : 'Show password'}
+                                                >
+                                                    {showFormPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="form-group">
                                         <label className="form-label">API Token</label>
-                                        <input
-                                            className="form-input"
-                                            type="password"
-                                            placeholder={editingId ? t('comp.servers.tokenKeepPlaceholder') : t('comp.servers.tokenPlaceholder')}
-                                            value={form.apiToken}
-                                            onChange={(e) => setForm({ ...form, apiToken: e.target.value })}
-                                        />
+                                        <div className="input-icon-wrapper">
+                                            <input
+                                                className="form-input input-with-trailing-action"
+                                                type={showFormApiToken ? 'text' : 'password'}
+                                                placeholder={editingId ? t('comp.servers.tokenKeepPlaceholder') : t('comp.servers.tokenPlaceholder')}
+                                                value={form.apiToken}
+                                                onChange={(e) => setForm({ ...form, apiToken: e.target.value })}
+                                            />
+                                            <button
+                                                type="button"
+                                                className="input-trailing-action-btn"
+                                                onClick={() => setShowFormApiToken((prev) => !prev)}
+                                                tabIndex={-1}
+                                                aria-label={showFormApiToken ? 'Hide token' : 'Show token'}
+                                            >
+                                                {showFormApiToken ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                            </button>
+                                        </div>
                                         <div className="text-xs text-muted mt-1">{t('comp.servers.credentialModeHint')}</div>
                                     </div>
                                 </div>
@@ -1460,24 +1494,46 @@ export default function Servers() {
                                             </div>
                                             <div className="form-group">
                                                 <label className="form-label">{t('comp.servers.sharedPassword')}</label>
-                                                <input
-                                                    className="form-input"
-                                                    type="password"
-                                                    placeholder={t('comp.servers.password')}
-                                                    value={batchForm.password}
-                                                    onChange={(e) => setBatchForm((prev) => ({ ...prev, password: e.target.value }))}
-                                                />
+                                                <div className="input-icon-wrapper">
+                                                    <input
+                                                        className="form-input input-with-trailing-action"
+                                                        type={showBatchFormPassword ? 'text' : 'password'}
+                                                        placeholder={t('comp.servers.password')}
+                                                        value={batchForm.password}
+                                                        onChange={(e) => setBatchForm((prev) => ({ ...prev, password: e.target.value }))}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        className="input-trailing-action-btn"
+                                                        onClick={() => setShowBatchFormPassword((prev) => !prev)}
+                                                        tabIndex={-1}
+                                                        aria-label={showBatchFormPassword ? 'Hide password' : 'Show password'}
+                                                    >
+                                                        {showBatchFormPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                         <div className="form-group">
                                             <label className="form-label">{t('comp.servers.sharedApiToken')}</label>
-                                            <input
-                                                className="form-input"
-                                                type="password"
-                                                placeholder={t('comp.servers.sharedTokenPlaceholder')}
-                                                value={batchForm.apiToken}
-                                                onChange={(e) => setBatchForm((prev) => ({ ...prev, apiToken: e.target.value }))}
-                                            />
+                                            <div className="input-icon-wrapper">
+                                                <input
+                                                    className="form-input input-with-trailing-action"
+                                                    type={showBatchFormApiToken ? 'text' : 'password'}
+                                                    placeholder={t('comp.servers.sharedTokenPlaceholder')}
+                                                    value={batchForm.apiToken}
+                                                    onChange={(e) => setBatchForm((prev) => ({ ...prev, apiToken: e.target.value }))}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    className="input-trailing-action-btn"
+                                                    onClick={() => setShowBatchFormApiToken((prev) => !prev)}
+                                                    tabIndex={-1}
+                                                    aria-label={showBatchFormApiToken ? 'Hide token' : 'Show token'}
+                                                >
+                                                    {showBatchFormApiToken ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                                </button>
+                                            </div>
                                             <div className="text-xs text-muted mt-1">{t('comp.servers.batchCredentialHint')}</div>
                                         </div>
                                         <div className="form-group">
@@ -1595,23 +1651,45 @@ export default function Servers() {
                                     </div>
                                     <div className="form-group">
                                         <label className="form-label">{t('comp.servers.xuiPassword')}</label>
-                                        <input
-                                            className="form-input"
-                                            type="password"
-                                            value={credentialRepair.password}
-                                            onChange={(e) => setCredentialRepair((prev) => ({ ...prev, password: e.target.value }))}
-                                            placeholder={t('comp.servers.passwordRepairPlaceholder')}
-                                        />
+                                        <div className="input-icon-wrapper">
+                                            <input
+                                                className="form-input input-with-trailing-action"
+                                                type={showRepairPassword ? 'text' : 'password'}
+                                                value={credentialRepair.password}
+                                                onChange={(e) => setCredentialRepair((prev) => ({ ...prev, password: e.target.value }))}
+                                                placeholder={t('comp.servers.passwordRepairPlaceholder')}
+                                            />
+                                            <button
+                                                type="button"
+                                                className="input-trailing-action-btn"
+                                                onClick={() => setShowRepairPassword((prev) => !prev)}
+                                                tabIndex={-1}
+                                                aria-label={showRepairPassword ? 'Hide password' : 'Show password'}
+                                            >
+                                                {showRepairPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                            </button>
+                                        </div>
                                     </div>
                                     <div className="form-group">
                                         <label className="form-label">API Token</label>
-                                        <input
-                                            className="form-input"
-                                            type="password"
-                                            value={credentialRepair.apiToken}
-                                            onChange={(e) => setCredentialRepair((prev) => ({ ...prev, apiToken: e.target.value }))}
-                                            placeholder={t('comp.servers.tokenRepairPlaceholder')}
-                                        />
+                                        <div className="input-icon-wrapper">
+                                            <input
+                                                className="form-input input-with-trailing-action"
+                                                type={showRepairApiToken ? 'text' : 'password'}
+                                                value={credentialRepair.apiToken}
+                                                onChange={(e) => setCredentialRepair((prev) => ({ ...prev, apiToken: e.target.value }))}
+                                                placeholder={t('comp.servers.tokenRepairPlaceholder')}
+                                            />
+                                            <button
+                                                type="button"
+                                                className="input-trailing-action-btn"
+                                                onClick={() => setShowRepairApiToken((prev) => !prev)}
+                                                tabIndex={-1}
+                                                aria-label={showRepairApiToken ? 'Hide token' : 'Show token'}
+                                            >
+                                                {showRepairApiToken ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                            </button>
+                                        </div>
                                         <div className="text-xs text-muted mt-1">{t('comp.servers.tokenRepairHint')}</div>
                                     </div>
                                     {selectedIds.size > 1 && (

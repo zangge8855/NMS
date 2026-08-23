@@ -721,7 +721,7 @@ export default function ClientModal({
                                         <span>{t('comp.clients.selectAllInboundsOnNode')}</span>
                                     </label>
                                 </div>
-                                <div className="max-h-48 overflow-y-auto border border-white/10 rounded p-2">
+                                <div className="max-h-48 overflow-y-auto border border-border-color rounded-xl p-2.5 bg-surface-subtle">
                                     {visibleTargets.length === 0 ? (
                                         <div className="text-muted">{t('comp.clients.selectNodeFirst')}</div>
                                     ) : (
