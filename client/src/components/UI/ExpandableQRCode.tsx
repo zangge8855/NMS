@@ -153,7 +153,17 @@ export default function ExpandableQRCode({
                             />
                         </div>
                         <div className="expandable-qr-foot">
-                            <span className="text-xs text-muted break-all">{value}</span>
+                            <span className="text-xs text-muted break-all select-all">{value}</span>
+                            <div className="mt-3 flex justify-center">
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={copyLink}
+                                >
+                                    <HiOutlineClipboard />
+                                    <span>{copied ? t('comp.common.copied') : t('comp.common.copyLink')}</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>,

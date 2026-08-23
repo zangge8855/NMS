@@ -1760,11 +1760,11 @@ export default function Inbounds() {
                                             </tr>
                                             {isExpanded && clients.length > 0 && (
                                                 <tr>
-                                                    <td colSpan={tableColSpan} className="p-0 bg-black/20 inbounds-clients-cell">
+                                                    <td colSpan={tableColSpan} className="p-0 bg-surface-subtle inbounds-clients-cell">
                                                         <div className="p-4 inbounds-clients-panel">
                                                             <div className="inbounds-clients-toolbar">
                                                                 <div className="text-xs font-bold text-muted uppercase tracking-wider inbounds-clients-label">
-                                                                    用户列表 ({clients.length})
+                                                                    {locale === 'en-US' ? `Users (${clients.length})` : `用户列表 (${clients.length})`}
                                                                 </div>
                                                                 {selectedClientCount > 0 && (
                                                                     <div className="inbounds-clients-selection-bar">
