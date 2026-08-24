@@ -173,11 +173,33 @@ function deepClone(value) {
 }
 
 function parseJsonObject(text, fallbackValue = {}) {
+    if (text && typeof text === 'object') return text;
     try {
-        const parsed = JSON.parse(text);
-        if (parsed && typeof parsed === 'object') return parsed;
+        if (typeof text === 'string' && text.trim()) {
+            const parsed = JSON.parse(text);
+            if (parsed && typeof parsed === 'object') return parsed;
+        }
     } catch { }
     return deepClone(fallbackValue);
+}
+
+function ensureJsonString(value, fallbackValue = {}) {
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!trimmed) {
+            return JSON.stringify(fallbackValue, null, 2);
+        }
+        try {
+            const parsed = JSON.parse(trimmed);
+            return JSON.stringify(parsed, null, 2);
+        } catch {
+            return trimmed;
+        }
+    }
+    if (value && typeof value === 'object') {
+        return JSON.stringify(value, null, 2);
+    }
+    return JSON.stringify(fallbackValue, null, 2);
 }
 
 function normalizeHeadersObject(input) {
@@ -776,6 +798,24 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
         });
     };
 
+    const sniffingDefault = useMemo(
+        () => ({ enabled: false, destOverride: ['http', 'tls', 'quic', 'fakedns'], metadataOnly: false, routeOnly: false }),
+        []
+    );
+
+    const sniffingObj = useMemo(
+        () => parseJsonObject(sniffing, sniffingDefault),
+        [sniffing, sniffingDefault]
+    );
+
+    const updateSniffingJson = (updater) => {
+        setSniffing((prev) => {
+            const draft = parseJsonObject(prev, sniffingDefault);
+            updater(draft);
+            return JSON.stringify(draft, null, 2);
+        });
+    };
+
     const ensurePrimaryClient = (draft) => {
         if (!Array.isArray(draft.clients) || draft.clients.length === 0) {
             const seeded = protocolDefaultSettings?.clients?.[0] || createBaseClient();
@@ -863,10 +903,11 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
     // Initialize form
     useEffect(() => {
         if (editingInbound) {
-            setRemark(editingInbound.remark);
-                setProtocol(normalizeProtocolName(editingInbound.protocol, protocolSchemas));
+            setRemark(editingInbound.remark || '');
+            const resolvedProto = normalizeProtocolName(editingInbound.protocol, protocolSchemas) || defaultProtocol;
+            setProtocol(resolvedProto);
             setPort(editingInbound.port);
-            setListen(editingInbound.listen);
+            setListen(editingInbound.listen || '');
             setInboundEnabled(editingInbound.enable !== false);
             setTrafficReset(String(editingInbound.trafficReset || 'never'));
             setTotalGB(editingInbound.total ? editingInbound.total / (1024 * 1024 * 1024) : 0);
@@ -882,14 +923,27 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                 }
                 setExpiryAfterDays('');
             }
-            setSettings(editingInbound.settings);
-            setStreamSettings(editingInbound.streamSettings || JSON.stringify(createDefaultStream('tcp', 'none'), null, 2));
-            setSniffing(editingInbound.sniffing || JSON.stringify({ enabled: false, destOverride: ['http', 'tls', 'quic', 'fakedns'], metadataOnly: false, routeOnly: false }, null, 2));
+            const initialSettings = ensureJsonString(
+                editingInbound.settings,
+                createDefaultSettings(resolvedProto)
+            );
+            const initialStream = ensureJsonString(
+                editingInbound.streamSettings,
+                createDefaultStream('tcp', 'none')
+            );
+            const initialSniffing = ensureJsonString(
+                editingInbound.sniffing,
+                { enabled: false, destOverride: ['http', 'tls', 'quic', 'fakedns'], metadataOnly: false, routeOnly: false }
+            );
+
+            setSettings(initialSettings);
+            setStreamSettings(initialStream);
+            setSniffing(initialSniffing);
             setSyncExistingSubscriptions(false);
 
             // Try to parse simplified state
             try {
-                const stream = JSON.parse(editingInbound.streamSettings);
+                const stream = parseJsonObject(initialStream, createDefaultStream('tcp', 'none'));
                 const realityServerNames = stream.realitySettings?.serverNames;
                 const realitySNI = typeof realityServerNames === 'string'
                     ? realityServerNames.split(',')[0]
@@ -1071,12 +1125,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
     // Simple Mode -> Update JSON
     useEffect(() => {
         if (!isAdvanced && isOpen) {
-            let stream;
-            try {
-                stream = JSON.parse(streamSettings);
-            } catch {
-                stream = createDefaultStream(simpleStream.network, simpleStream.security);
-            }
+            const stream = parseJsonObject(streamSettings, createDefaultStream(simpleStream.network, simpleStream.security));
 
             stream.network = simpleStream.network;
             stream.security = simpleStream.security;
@@ -1463,9 +1512,15 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
             let parsedSettings;
             let parsedSniffing;
             try {
-                parsedSettings = JSON.parse(settings);
-                parsedStreamSettings = JSON.parse(streamSettings);
-                parsedSniffing = JSON.parse(sniffing);
+                parsedSettings = typeof settings === 'string'
+                    ? (settings.trim() ? JSON.parse(settings) : {})
+                    : (settings || {});
+                parsedStreamSettings = typeof streamSettings === 'string'
+                    ? (streamSettings.trim() ? JSON.parse(streamSettings) : {})
+                    : (streamSettings || {});
+                parsedSniffing = typeof sniffing === 'string'
+                    ? (sniffing.trim() ? JSON.parse(sniffing) : {})
+                    : (sniffing || {});
             } catch {
                 toast.error(t('comp.inbounds.invalidJsonAdvanced'));
                 setLoading(false);
@@ -2445,14 +2500,10 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         <label className="flex items-center gap-2 cursor-pointer text-sm">
                                             <input
                                                 type="checkbox"
-                                                checked={(() => { try { return JSON.parse(sniffing).enabled; } catch { return true; } })()}
-                                                onChange={(e) => {
-                                                    try {
-                                                        const s = JSON.parse(sniffing);
-                                                        s.enabled = e.target.checked;
-                                                        setSniffing(JSON.stringify(s, null, 2));
-                                                    } catch { }
-                                                }}
+                                                checked={!!sniffingObj.enabled}
+                                                onChange={(e) => updateSniffingJson((s) => {
+                                                    s.enabled = e.target.checked;
+                                                })}
                                             />
                                             启用
                                         </label>
@@ -2465,24 +2516,15 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     <label key={p} className="badge badge-neutral flex items-center gap-1 cursor-pointer">
                                                         <input
                                                             type="checkbox"
-                                                            checked={(() => {
-                                                                try {
-                                                                    const s = JSON.parse(sniffing);
-                                                                    return Array.isArray(s.destOverride) && s.destOverride.includes(p);
-                                                                } catch { return false; }
-                                                            })()}
-                                                            onChange={(e) => {
-                                                                try {
-                                                                    const s = JSON.parse(sniffing);
-                                                                    const current = Array.isArray(s.destOverride) ? s.destOverride : [];
-                                                                    if (e.target.checked) {
-                                                                        s.destOverride = [...new Set([...current, p])];
-                                                                    } else {
-                                                                        s.destOverride = current.filter(x => x !== p);
-                                                                    }
-                                                                    setSniffing(JSON.stringify(s, null, 2));
-                                                                } catch { }
-                                                            }}
+                                                            checked={Array.isArray(sniffingObj.destOverride) && sniffingObj.destOverride.includes(p)}
+                                                            onChange={(e) => updateSniffingJson((s) => {
+                                                                const current = Array.isArray(s.destOverride) ? s.destOverride : [];
+                                                                if (e.target.checked) {
+                                                                    s.destOverride = [...new Set([...current, p])];
+                                                                } else {
+                                                                    s.destOverride = current.filter(x => x !== p);
+                                                                }
+                                                            })}
                                                         />
                                                         {p}
                                                     </label>
@@ -2493,28 +2535,20 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             <label className="flex items-center gap-2 cursor-pointer text-sm mt-6">
                                                 <input
                                                     type="checkbox"
-                                                    checked={(() => { try { return !!JSON.parse(sniffing).routeOnly; } catch { return false; } })()}
-                                                    onChange={(e) => {
-                                                        try {
-                                                            const s = JSON.parse(sniffing);
-                                                            s.routeOnly = e.target.checked;
-                                                            setSniffing(JSON.stringify(s, null, 2));
-                                                        } catch { }
-                                                    }}
+                                                    checked={!!sniffingObj.routeOnly}
+                                                    onChange={(e) => updateSniffingJson((s) => {
+                                                        s.routeOnly = e.target.checked;
+                                                    })}
                                                 />
                                                 仅路由 (Route Only)
                                             </label>
                                             <label className="flex items-center gap-2 cursor-pointer text-sm">
                                                 <input
                                                     type="checkbox"
-                                                    checked={(() => { try { return !!JSON.parse(sniffing).metadataOnly; } catch { return false; } })()}
-                                                    onChange={(e) => {
-                                                        try {
-                                                            const s = JSON.parse(sniffing);
-                                                            s.metadataOnly = e.target.checked;
-                                                            setSniffing(JSON.stringify(s, null, 2));
-                                                        } catch { }
-                                                    }}
+                                                    checked={!!sniffingObj.metadataOnly}
+                                                    onChange={(e) => updateSniffingJson((s) => {
+                                                        s.metadataOnly = e.target.checked;
+                                                    })}
                                                 />
                                                 仅元数据 (Metadata Only)
                                             </label>
