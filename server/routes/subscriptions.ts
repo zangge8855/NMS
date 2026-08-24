@@ -3422,6 +3422,19 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
         return res.status(401).send('invalid subscription token');
     }
 
+    const user = userStore.getBySubscriptionEmail(email) || userStore.getByEmail(email) || null;
+    if (user) {
+        if (user.enabled === false) {
+            return res.status(403).send('user is disabled');
+        }
+        if (user.isGuest === true && user.guestExpiresAt && new Date(user.guestExpiresAt).getTime() < Date.now()) {
+            return res.status(410).send('guest pass expired');
+        }
+        if (user.expiresAt && new Date(user.expiresAt).getTime() < Date.now()) {
+            return res.status(410).send('user subscription expired');
+        }
+    }
+
     const ua = String(req.headers['user-agent'] || '').slice(0, 50);
     const cacheKey = `${email}:${tokenId}:${format}:${mode}:${serverId || 'all'}:${routingPolicy}:${ua}`;
     const cached = PUBLIC_SUB_CACHE.get(cacheKey);
@@ -3434,19 +3447,6 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
         }
         res.setHeader('X-NMS-Cache', 'HIT');
         return res.status(cached.status).send(cached.body);
-    }
-
-    const user = userStore.getBySubscriptionEmail(email) || userStore.getByEmail(email) || null;
-    if (user) {
-        if (user.enabled === false) {
-            return res.status(403).send('user is disabled');
-        }
-        if (user.isGuest === true && user.guestExpiresAt && new Date(user.guestExpiresAt).getTime() < Date.now()) {
-            return res.status(410).send('guest pass expired');
-        }
-        if (user.expiresAt && new Date(user.expiresAt).getTime() < Date.now()) {
-            return res.status(410).send('user subscription expired');
-        }
     }
 
     const {

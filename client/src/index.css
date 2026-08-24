@@ -4061,16 +4061,7 @@ input[type="radio"]:focus-visible {
 }
 
 .login-card-border {
-  position: absolute;
-  inset: 0;
-  border-radius: var(--radius-xl);
-  padding: 1px;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 30%, transparent), transparent 40%, transparent 60%, rgba(16, 185, 129, 0.2));
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
+  display: none !important;
 }
 
 /* Utilities for Login (and others) */
@@ -6480,12 +6471,7 @@ body::before {
 }
 
 .server-card::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 1px;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--accent-primary) 25%, transparent), transparent 60%);
-  opacity: 0.8;
+  display: none !important;
 }
 
 .server-card.active {
@@ -7609,12 +7595,7 @@ body::before {
 .audit-filter-card::before,
 .audit-traffic-toolbar::before,
 .settings-toolbar::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 1px;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--accent-primary) 20%, transparent), transparent 62%);
-  pointer-events: none;
+  display: none !important;
 }
 
 .users-toolbar-main,

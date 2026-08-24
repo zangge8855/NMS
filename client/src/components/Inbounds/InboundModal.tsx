@@ -1244,12 +1244,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                 realityPublicKey: keys.publicKey
             }));
 
-            let stream;
-            try {
-                stream = JSON.parse(streamSettings);
-            } catch {
-                stream = createDefaultStream('tcp', 'none');
-            }
+            const stream = parseJsonObject(streamSettings, createDefaultStream('tcp', 'none'));
 
             stream.realitySettings = stream.realitySettings || {};
             stream.realitySettings.settings = stream.realitySettings.settings || {};
