@@ -127,6 +127,10 @@ export function sanitizeSettingsForPanel(settings: any): any {
             sanitized.clients = parsed.clients.map((c: any) => sanitizeClientPayloadForPanel(c));
             changed = true;
         }
+        if (Array.isArray(parsed.users)) {
+            sanitized.users = parsed.users.map((c: any) => sanitizeClientPayloadForPanel(c));
+            changed = true;
+        }
         if (changed) {
             return isString ? JSON.stringify(sanitized) : sanitized;
         }

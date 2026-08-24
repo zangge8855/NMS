@@ -1472,8 +1472,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                 return;
             }
 
-            if (parsedSettings && typeof parsedSettings === 'object' && Array.isArray(parsedSettings.clients)) {
-                parsedSettings.clients = parsedSettings.clients.map((client) => {
+            if (parsedSettings && typeof parsedSettings === 'object') {
+                const sanitizeClient = (client) => {
                     if (!client || typeof client !== 'object') return client;
                     return {
                         ...client,
@@ -1485,7 +1485,13 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                         expiryTime: Number(client.expiryTime) || 0,
                         reset: Number(client.reset) || 0,
                     };
-                });
+                };
+                if (Array.isArray(parsedSettings.clients)) {
+                    parsedSettings.clients = parsedSettings.clients.map(sanitizeClient);
+                }
+                if (Array.isArray(parsedSettings.users)) {
+                    parsedSettings.users = parsedSettings.users.map(sanitizeClient);
+                }
             }
 
             const normalizedProtocol = String(protocol || '').toLowerCase();
