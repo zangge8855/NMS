@@ -647,9 +647,7 @@ select {
 
 .audit-control-card {
   padding: 14px;
-}
-
-/* Login: Pure Minimalist Centered Console Design */
+/* Login: High-End Glassmorphism Console Design */
 .login-page,
 [data-theme="light"] .login-page {
   min-height: 100vh;
@@ -658,11 +656,11 @@ select {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: clamp(16px, 3vh, 32px) 16px;
+  padding: clamp(20px, 4vh, 40px) 16px;
   background:
-    radial-gradient(circle at 50% 12%, rgba(47, 125, 246, 0.12), transparent 48%),
-    radial-gradient(circle at 50% 88%, rgba(139, 92, 246, 0.08), transparent 42%),
-    #070e1b;
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(47, 125, 246, 0.18), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 85% 90%, rgba(139, 92, 246, 0.12), transparent 60%),
+    #070d19;
   overflow-y: auto;
   overflow-x: hidden;
   position: relative;
@@ -670,12 +668,42 @@ select {
 
 [data-theme="light"] .login-page {
   background:
-    radial-gradient(circle at 50% 12%, rgba(37, 105, 219, 0.08), transparent 48%),
-    #f1f5f9;
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(47, 125, 246, 0.10), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 85% 90%, rgba(139, 92, 246, 0.06), transparent 60%),
+    #f4f7fb;
 }
 
 .login-bg-glow {
-  display: none;
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.6;
+}
+
+.login-bg-glow.one {
+  width: 320px;
+  height: 320px;
+  background: rgba(47, 125, 246, 0.2);
+  top: 10%;
+  left: 15%;
+}
+
+.login-bg-glow.two {
+  width: 380px;
+  height: 380px;
+  background: rgba(139, 92, 246, 0.15);
+  bottom: 10%;
+  right: 12%;
+}
+
+.login-bg-glow.three {
+  width: 240px;
+  height: 240px;
+  background: rgba(16, 185, 129, 0.1);
+  top: 50%;
+  left: 65%;
 }
 
 .login-top-actions {
@@ -696,12 +724,12 @@ select {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-radius: 8px;
-  padding: 6px 12px;
-  font-size: 12px;
+  padding: 5px 12px;
+  font-size: 11.5px;
   font-weight: 600;
   min-width: auto;
-  min-height: 32px;
-  height: 32px;
+  min-height: 30px;
+  height: 30px;
   cursor: pointer;
   transition: all 160ms ease;
 }
@@ -723,11 +751,7 @@ select {
   background: #ffffff;
 }
 
-.login-shell,
-.login-shell--login,
-.login-shell--register,
-.login-shell--verify,
-.login-shell--forgot {
+.login-shell {
   width: 100%;
   max-width: 400px;
   margin: auto;
@@ -737,6 +761,17 @@ select {
   justify-content: center;
   position: relative;
   z-index: 2;
+  transition: max-width 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.login-shell--register,
+.login-shell--forgot {
+  max-width: 470px;
+}
+
+.login-shell--verify,
+.login-shell--two_factor {
+  max-width: 410px;
 }
 
 .login-card-column {
@@ -750,24 +785,24 @@ select {
 .login-card,
 [data-theme="light"] .login-card {
   width: 100%;
-  max-width: 400px;
-  padding: 30px 26px 26px;
-  background: rgba(13, 22, 37, 0.92);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  padding: 28px 24px 24px;
+  background: rgba(13, 22, 38, 0.88);
+  border: 1px solid rgba(148, 163, 184, 0.16);
   border-radius: 16px;
   box-shadow:
     0 24px 48px -12px rgba(0, 0, 0, 0.75),
-    0 0 0 1px rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  transition: padding 200ms ease;
 }
 
 [data-theme="light"] .login-card {
-  background: rgba(255, 255, 255, 0.95);
-  border-color: rgba(203, 213, 225, 0.8);
+  background: rgba(255, 255, 255, 0.94);
+  border-color: rgba(203, 213, 225, 0.85);
   box-shadow:
-    0 20px 40px -12px rgba(15, 23, 42, 0.12),
-    0 0 0 1px rgba(0, 0, 0, 0.04);
+    0 20px 40px -12px rgba(15, 23, 42, 0.10),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
 }
 
 .login-card-border {
@@ -780,16 +815,16 @@ select {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--stroke-soft);
   text-align: left;
 }
 
 .login-brand-mark {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
   box-shadow: 0 4px 14px rgba(47, 125, 246, 0.3);
 }
 
@@ -799,7 +834,7 @@ select {
 }
 
 .login-brand-name {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 750;
   letter-spacing: 0.04em;
   color: var(--text-primary);
@@ -825,13 +860,13 @@ select {
   background: var(--surface-panel-soft);
   border: 1px solid var(--stroke-soft);
   border-radius: 9px;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 
 .auth-tab {
-  min-height: 34px;
-  height: 34px;
-  font-size: 13px;
+  min-height: 32px;
+  height: 32px;
+  font-size: 12.5px;
   font-weight: 600;
   border-radius: 6px;
   color: var(--text-secondary);
@@ -860,11 +895,11 @@ select {
 }
 
 .login-card .form-group {
-  margin-bottom: 13px;
+  margin-bottom: 12px;
 }
 
 .login-card .form-label {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
   margin-bottom: 5px;
   color: var(--text-secondary);
@@ -879,23 +914,23 @@ select {
 
 .login-card .input-icon {
   position: absolute;
-  left: 12px;
-  width: 16px;
-  height: 16px;
+  left: 11px;
+  width: 15px;
+  height: 15px;
   color: var(--text-muted);
   pointer-events: none;
   transition: color 150ms ease;
 }
 
 .login-card .input-with-icon {
-  padding-left: 36px;
+  padding-left: 34px !important;
 }
 
 .login-card .form-input,
 .login-card .verify-code-input {
-  min-height: 40px;
-  height: 40px;
-  font-size: 13px;
+  min-height: 38px;
+  height: 38px;
+  font-size: 12.5px;
   border-radius: 8px;
   background: var(--bg-input);
   border: 1px solid var(--border-color);
@@ -914,14 +949,14 @@ select {
 }
 
 .login-card .btn-primary {
-  min-height: 42px;
-  height: 42px;
-  margin-top: 14px;
-  font-size: 13px;
+  min-height: 40px;
+  height: 40px;
+  margin-top: 10px;
+  font-size: 12.5px;
   font-weight: 700;
   border-radius: 8px;
   background: var(--gradient-primary);
-  box-shadow: 0 6px 18px -4px rgba(47, 125, 246, 0.5);
+  box-shadow: 0 4px 14px -2px rgba(47, 125, 246, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -937,7 +972,7 @@ select {
 }
 
 .login-card .btn-link {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--text-muted);
   background: none;
   border: none;
@@ -948,24 +983,48 @@ select {
 
 .login-card .btn-link:hover {
   color: var(--accent-primary);
-  text-decoration: underline;
 }
 
 .login-card .verify-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--stroke-soft);
 }
 
 .login-card .verify-icon {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   color: var(--accent-primary);
-  margin-inline: auto;
   margin-bottom: 8px;
 }
 
+.login-card .verify-code-input {
+  font-family: var(--font-mono, monospace);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  text-align: center;
+}
+
+.login-form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+
+@media (min-width: 480px) {
+  .login-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 12px;
+  }
+}
+
 .login-card .verify-header h2 {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text-primary);
   margin-bottom: 4px;
