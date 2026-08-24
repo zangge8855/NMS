@@ -153,6 +153,21 @@ function getUserStatus(user, clientCount, t) {
     return { key: 'enabled', label: t('comp.users.statusEnabled'), badge: 'badge-info' };
 }
 
+function getEffectiveUserExpiry(user: any): number {
+    if (user?.expiresAt) {
+        const t = new Date(user.expiresAt).getTime();
+        if (t > 0) return t;
+    }
+    if (user?.expiryTime && Number(user.expiryTime) > 0) {
+        return Number(user.expiryTime);
+    }
+    if (Array.isArray(user?.clientData?.expiryValues) && user.clientData.expiryValues.length > 0) {
+        const valid = user.clientData.expiryValues.map((v: any) => Number(v || 0)).filter((v: number) => v > 0);
+        if (valid.length > 0) return Math.min(...valid);
+    }
+    return 0;
+}
+
 function formatExpiryLabel(expiryValues, t) {
     if (!expiryValues || expiryValues.length === 0) return t('comp.common.permanent');
     const earliest = Math.min(...expiryValues);
@@ -312,7 +327,21 @@ export default function UsersHub() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const [statusFilter, setStatusFilter] = useState('all');
-    const [sequenceDirection, setSequenceDirection] = useState('asc');
+    const [sortBy, setSortBy] = useState<'sequence' | 'account' | 'traffic' | 'expiry'>('sequence');
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+    const [sequenceDirection, setSequenceDirection] = useState<'asc' | 'desc'>('asc');
+
+    const handleSort = (field: 'sequence' | 'account' | 'traffic' | 'expiry') => {
+        if (field === 'sequence') {
+            setSortBy('sequence');
+            setSequenceDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+        } else if (sortBy === field) {
+            setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+        } else {
+            setSortBy(field);
+            setSortDirection(field === 'traffic' || field === 'expiry' ? 'desc' : 'asc');
+        }
+    };
     const [selectedIds, setSelectedIds] = useState(new Set());
     const [bulkLoading, setBulkLoading] = useState(false);
     const [activeDirectoryView, setActiveDirectoryView] = useState('users');
@@ -713,6 +742,7 @@ export default function UsersHub() {
         let active = 0;
         let warningTraffic = 0;
         let expiring = 0;
+        let expired = 0;
         let disabled = 0;
 
         const now = Date.now();
@@ -726,13 +756,16 @@ export default function UsersHub() {
             if (trafficLimit > 0 && (trafficUsed / trafficLimit) >= 0.8) {
                 warningTraffic++;
             }
-            const exp = Number(user.expiryTime || 0);
+            const exp = getEffectiveUserExpiry(user);
             if (exp > now && exp <= now + sevenDays) {
                 expiring++;
             }
+            if (exp > 0 && exp <= now) {
+                expired++;
+            }
         }
 
-        return { total, active, warningTraffic, expiring, disabled };
+        return { total, active, warningTraffic, expiring, expired, disabled };
     }, [allOrderedUsers]);
 
     const filteredUsers = useMemo(() => {
@@ -751,8 +784,11 @@ export default function UsersHub() {
                     const trafficUsed = resolveClientUsed(user.clientData);
                     if (!(trafficLimit > 0 && (trafficUsed / trafficLimit) >= 0.8)) return false;
                 } else if (statusFilter === 'expiring') {
-                    const exp = Number(user.expiryTime || 0);
+                    const exp = getEffectiveUserExpiry(user);
                     if (!(exp > now && exp <= now + sevenDays)) return false;
+                } else if (statusFilter === 'expired') {
+                    const exp = getEffectiveUserExpiry(user);
+                    if (!(exp > 0 && exp <= now)) return false;
                 } else if (statusFilter !== 'all' && user.status.key !== statusFilter) {
                     return false;
                 }
@@ -762,9 +798,32 @@ export default function UsersHub() {
                     .some((v) => String(v || '').toLowerCase().includes(search));
             });
     }, [allOrderedUsers, deferredSearchTerm, statusFilter]);
-    const enrichedUsers = useMemo(() => (
-        sequenceDirection === 'desc' ? [...filteredUsers].reverse() : filteredUsers
-    ), [filteredUsers, sequenceDirection]);
+
+    const enrichedUsers = useMemo(() => {
+        const list = [...filteredUsers];
+        if (sortBy === 'sequence') {
+            return sequenceDirection === 'desc' ? list.reverse() : list;
+        }
+        return list.sort((a, b) => {
+            let res = 0;
+            if (sortBy === 'account') {
+                const nameA = String(a.username || a.email || '').toLowerCase();
+                const nameB = String(b.username || b.email || '').toLowerCase();
+                res = nameA.localeCompare(nameB);
+            } else if (sortBy === 'traffic') {
+                const usedA = resolveClientUsed(a.clientData);
+                const usedB = resolveClientUsed(b.clientData);
+                res = usedA - usedB;
+            } else if (sortBy === 'expiry') {
+                const expA = getEffectiveUserExpiry(a);
+                const expB = getEffectiveUserExpiry(b);
+                const valA = expA === 0 ? Number.MAX_SAFE_INTEGER : expA;
+                const valB = expB === 0 ? Number.MAX_SAFE_INTEGER : expB;
+                res = valA - valB;
+            }
+            return sortDirection === 'desc' ? -res : res;
+        });
+    }, [filteredUsers, sequenceDirection, sortBy, sortDirection]);
     const selectedUsers = useMemo(
         () => enrichedUsers.filter((user) => selectedIds.has(user.id)),
         [enrichedUsers, selectedIds]
@@ -1889,6 +1948,15 @@ export default function UsersHub() {
                                 </button>
                                 <button
                                     type="button"
+                                    className={`filter-chip ${statusFilter === 'expired' ? 'active' : ''} ${statusCounts.expired === 0 ? 'opacity-50' : ''}`}
+                                    onClick={() => setStatusFilter('expired')}
+                                >
+                                    <span className="filter-chip-dot dot-danger" />
+                                    <span>{locale === 'en-US' ? 'Expired' : '已过期'}</span>
+                                    <span className="filter-chip-count count-danger">{statusCounts.expired}</span>
+                                </button>
+                                <button
+                                    type="button"
                                     className={`filter-chip ${statusFilter === 'disabled' ? 'active' : ''}`}
                                     onClick={() => setStatusFilter('disabled')}
                                 >
@@ -2036,7 +2104,7 @@ export default function UsersHub() {
                                         <button
                                             type="button"
                                             className="table-sort-button users-sequence-sort-button"
-                                            onClick={() => setSequenceDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+                                            onClick={() => handleSort('sequence')}
                                             aria-label={sequenceDirection === 'asc' ? t('pages.usersHub.sortDesc') : t('pages.usersHub.sortAsc')}
                                         >
                                             <span>{t('pages.usersHub.cols.sequence')}</span>
@@ -2045,12 +2113,51 @@ export default function UsersHub() {
                                             </span>
                                         </button>
                                     </th>
-                                    <th className="users-identity-column">{t('pages.usersHub.cols.account')}</th>
+                                    <th className="users-identity-column">
+                                        <button
+                                            type="button"
+                                            className="table-sort-button"
+                                            onClick={() => handleSort('account')}
+                                        >
+                                            <span>{t('pages.usersHub.cols.account')}</span>
+                                            {sortBy === 'account' && (
+                                                <span className="table-sort-button-icon" aria-hidden="true">
+                                                    {sortDirection === 'asc' ? <HiOutlineChevronUp /> : <HiOutlineChevronDown />}
+                                                </span>
+                                            )}
+                                        </button>
+                                    </th>
                                     <th className="table-cell-center users-status-column">{t('pages.usersHub.cols.status')}</th>
                                     <th className="table-cell-center users-online-column">{t('pages.usersHub.cols.online')}</th>
                                     <th className="table-cell-center users-node-count-column">{t('pages.usersHub.cols.nodeCount')}</th>
-                                    <th className="table-cell-right users-traffic-column">{t('pages.usersHub.cols.traffic')}</th>
-                                    <th className="table-cell-center users-expiry-column">{t('pages.usersHub.cols.expiry')}</th>
+                                    <th className="table-cell-right users-traffic-column">
+                                        <button
+                                            type="button"
+                                            className="table-sort-button ml-auto"
+                                            onClick={() => handleSort('traffic')}
+                                        >
+                                            <span>{t('pages.usersHub.cols.traffic')}</span>
+                                            {sortBy === 'traffic' && (
+                                                <span className="table-sort-button-icon" aria-hidden="true">
+                                                    {sortDirection === 'asc' ? <HiOutlineChevronUp /> : <HiOutlineChevronDown />}
+                                                </span>
+                                            )}
+                                        </button>
+                                    </th>
+                                    <th className="table-cell-center users-expiry-column">
+                                        <button
+                                            type="button"
+                                            className="table-sort-button mx-auto"
+                                            onClick={() => handleSort('expiry')}
+                                        >
+                                            <span>{t('pages.usersHub.cols.expiry')}</span>
+                                            {sortBy === 'expiry' && (
+                                                <span className="table-sort-button-icon" aria-hidden="true">
+                                                    {sortDirection === 'asc' ? <HiOutlineChevronUp /> : <HiOutlineChevronDown />}
+                                                </span>
+                                            )}
+                                        </button>
+                                    </th>
                                     <th className="table-cell-actions users-actions-column">{t('pages.usersHub.cols.actions')}</th>
                                 </tr>
                             </thead>
@@ -2627,7 +2734,39 @@ export default function UsersHub() {
                                     <p className="text-muted text-sm mt-1">{getPasswordPolicyHint(locale)}</p>
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">{t('comp.users.provisionExpiryLabel')}</label>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <label className="form-label mb-0">{t('comp.users.provisionExpiryLabel')}</label>
+                                        <div className="flex items-center gap-1 flex-wrap">
+                                            {[
+                                                { label: '+1天', days: 1 },
+                                                { label: '+7天', days: 7 },
+                                                { label: '+30天', days: 30 },
+                                                { label: '+90天', days: 90 },
+                                                { label: '+1年', days: 365 },
+                                            ].map((preset) => (
+                                                <button
+                                                    key={preset.days}
+                                                    type="button"
+                                                    className="btn btn-ghost btn-xs text-xs px-1.5 py-0.5"
+                                                    onClick={() => {
+                                                        const base = editExpiryDate ? new Date(editExpiryDate).getTime() : Date.now();
+                                                        const start = base > Date.now() ? base : Date.now();
+                                                        setEditExpiryDate(toLocalDateTimeString(start + preset.days * 86400000));
+                                                    }}
+                                                >
+                                                    {preset.label}
+                                                </button>
+                                            ))}
+                                            <button
+                                                type="button"
+                                                className="btn btn-ghost btn-xs text-xs px-1.5 py-0.5 text-danger"
+                                                onClick={() => setEditExpiryDate('')}
+                                                title={locale === 'en-US' ? 'Clear (Permanent)' : '清除到期时间（设为永久）'}
+                                            >
+                                                {locale === 'en-US' ? 'Clear' : '永久'}
+                                            </button>
+                                        </div>
+                                    </div>
                                     <input
                                         type="datetime-local"
                                         className="form-input"
@@ -2857,7 +2996,39 @@ export default function UsersHub() {
                                             <div className="text-xs text-muted mb-3">{t('comp.users.provisionLimitDesc')}</div>
                                             <div className="grid-auto-280-tight">
                                                 <div className="form-group mb-0">
-                                                    <label className="form-label">{t('comp.users.provisionExpiryLabel')}</label>
+                                                    <div className="flex items-center justify-between mb-1">
+                                                        <label className="form-label mb-0">{t('comp.users.provisionExpiryLabel')}</label>
+                                                        <div className="flex items-center gap-1 flex-wrap">
+                                                            {[
+                                                                { label: '+1天', days: 1 },
+                                                                { label: '+7天', days: 7 },
+                                                                { label: '+30天', days: 30 },
+                                                                { label: '+90天', days: 90 },
+                                                                { label: '+1年', days: 365 },
+                                                            ].map((preset) => (
+                                                                <button
+                                                                    key={preset.days}
+                                                                    type="button"
+                                                                    className="btn btn-ghost btn-xs text-xs px-1.5 py-0.5"
+                                                                    onClick={() => {
+                                                                        const base = provisionExpiryDate ? new Date(provisionExpiryDate).getTime() : Date.now();
+                                                                        const start = base > Date.now() ? base : Date.now();
+                                                                        setProvisionExpiryDate(toLocalDateTimeString(start + preset.days * 86400000));
+                                                                    }}
+                                                                >
+                                                                    {preset.label}
+                                                                </button>
+                                                            ))}
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-ghost btn-xs text-xs px-1.5 py-0.5 text-danger"
+                                                                onClick={() => setProvisionExpiryDate('')}
+                                                                title={locale === 'en-US' ? 'Clear (Permanent)' : '清除到期时间（设为永久）'}
+                                                            >
+                                                                {locale === 'en-US' ? 'Clear' : '永久'}
+                                                            </button>
+                                                        </div>
+                                                    </div>
                                                     <input
                                                         type="datetime-local"
                                                         className="form-input"

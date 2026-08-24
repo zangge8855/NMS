@@ -2000,7 +2000,34 @@ export default function UserDetail() {
                                     {t('comp.users.batchAdjustDescription', { count: clientData.length })}
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">{t('comp.users.expiryDaysDelta')}</label>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <label className="form-label mb-0">{t('comp.users.expiryDaysDelta')}</label>
+                                        <div className="flex items-center gap-1 flex-wrap">
+                                            {[
+                                                { label: '+7天', days: '7' },
+                                                { label: '+30天', days: '30' },
+                                                { label: '+90天', days: '90' },
+                                                { label: '+180天', days: '180' },
+                                                { label: '+365天', days: '365' },
+                                            ].map((preset) => (
+                                                <button
+                                                    key={preset.days}
+                                                    type="button"
+                                                    className="btn btn-ghost btn-xs text-xs px-1.5 py-0.5"
+                                                    onClick={() => setClientAdjustDays(preset.days)}
+                                                >
+                                                    {preset.label}
+                                                </button>
+                                            ))}
+                                            <button
+                                                type="button"
+                                                className="btn btn-ghost btn-xs text-xs px-1.5 py-0.5 text-danger"
+                                                onClick={() => setClientAdjustDays('0')}
+                                            >
+                                                {locale === 'en-US' ? 'Clear' : '清空'}
+                                            </button>
+                                        </div>
+                                    </div>
                                     <input
                                         type="number"
                                         className="form-input"
