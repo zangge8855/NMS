@@ -10,6 +10,18 @@ export const DEFAULT_MISSING_CLIENT_BUILD_MESSAGE = 'Client build not found. Run
 export const SITE_BASE_PATH_SCRIPT = 'window.__NMS_SITE_BASE_PATH__';
 export const CLIENT_STATIC_OPTIONS = {
     index: false,
+    maxAge: '1y',
+    immutable: true,
+    setHeaders: (res: any, filePath: string) => {
+        if (typeof res?.setHeader !== 'function') return;
+        if (filePath.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
+        } else if (filePath.includes('/assets/')) {
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+    },
 };
 
 export function resolveClientBuildPaths(rootDir: string = resolve(__dirname, '..', '..')): { clientBuild: string; clientIndexFile: string } {
@@ -157,6 +169,11 @@ export function createClientBuildFallbackHandler({
         }
         try {
             const html = readClientIndexFile(clientIndexFile);
+            if (typeof res.setHeader === 'function') {
+                res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+                res.setHeader('Pragma', 'no-cache');
+                res.setHeader('Expires', '0');
+            }
             return res.type('html').send(injectClientBasePath(html, siteAccessPath));
         } catch (error) {
             return next(error);

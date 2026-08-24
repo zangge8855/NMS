@@ -1,5 +1,21 @@
+import http from 'http';
+import https from 'https';
 import axios, { type AxiosInstance } from 'axios';
 import serverStore from '../store/serverStore.js';
+
+const sharedHttpAgent = new http.Agent({
+    keepAlive: true,
+    maxSockets: 50,
+    maxFreeSockets: 10,
+    timeout: 60000,
+});
+
+const sharedHttpsAgent = new https.Agent({
+    keepAlive: true,
+    maxSockets: 50,
+    maxFreeSockets: 10,
+    timeout: 60000,
+});
 
 const CSRF_HEADER_NAME = 'X-CSRF-Token';
 const AUTH_HEADER_NAME = 'Authorization';
@@ -321,6 +337,8 @@ export async function createPanelClient(serverId: string, options: any = {}): Pr
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
         },
+        httpAgent: sharedHttpAgent,
+        httpsAgent: sharedHttpsAgent,
     });
 
     // Attach session cookie if available
