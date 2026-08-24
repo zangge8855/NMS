@@ -4576,10 +4576,6 @@ input[type="radio"]:focus-visible {
   background: color-mix(in srgb, var(--accent-primary) 8%, transparent) !important;
 }
 
-.table-row-selected td:first-child {
-  border-left: 2px solid var(--accent-primary);
-}
-
 /* --- Tab content fade-in --- */
 .tab-content-enter {
   animation: fadeIn 0.25s ease;
@@ -5136,11 +5132,7 @@ body::before {
 }
 
 .table tr:hover td {
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.table tr:hover td:first-child {
-  border-left: 2px solid var(--accent-primary);
+  background: var(--surface-table-row-hover);
 }
 
 .table-note,
@@ -13493,19 +13485,19 @@ input[type="radio"]:focus-visible {
 }
 
 .subscription-user-meter-pill--info {
-  border-left: 3px solid var(--accent-primary);
+  border-color: var(--border-color);
 }
 
 .subscription-user-meter-pill--success {
-  border-left: 3px solid var(--accent-success);
+  border-color: var(--border-color);
 }
 
 .subscription-user-meter-pill--warning {
-  border-left: 3px solid var(--accent-warning);
+  border-color: var(--border-color);
 }
 
 .subscription-user-meter-pill--danger {
-  border-left: 3px solid var(--accent-danger);
+  border-color: var(--border-color);
 }
 
 .subscription-user-meter-header {

@@ -446,7 +446,8 @@ select {
   align-items: center;
   gap: 3px 16px;
   padding: 12px 15px !important;
-  border-left: 3px solid var(--accent-warning);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
 }
 
 .users-degraded-title {
@@ -475,19 +476,12 @@ select {
   position: relative;
   overflow: hidden;
   grid-template-columns: minmax(1.35fr, 1.5fr) repeat(2, minmax(0, 1fr));
-  background:
-    linear-gradient(110deg, color-mix(in srgb, var(--accent-primary) 7%, var(--surface-panel)), var(--surface-panel) 38%),
-    var(--surface-panel);
+  background: var(--surface-panel);
+  border: 1px solid var(--border-color);
 }
 
 .dashboard-hero-kpis::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto;
-  z-index: 2;
-  height: 2px;
-  background: linear-gradient(90deg, #2f7df6, #63a4ff 48%, transparent 92%);
-  pointer-events: none;
+  display: none;
 }
 
 .dashboard-hero-kpi {
@@ -545,21 +539,14 @@ select {
   position: relative;
   min-height: 148px;
   overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
   transition: transform var(--transition-base), border-color var(--transition-base), box-shadow var(--transition-base);
 }
 
 .node-health-tile::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 2px;
-  background: var(--text-muted);
-  opacity: 0.55;
+  display: none;
 }
-
-.node-health-tile[data-tone="success"]::before { background: var(--accent-success); }
-.node-health-tile[data-tone="warning"]::before { background: var(--accent-warning); }
-.node-health-tile[data-tone="danger"]::before { background: var(--accent-danger); }
 
 .node-health-tile:hover {
   transform: translateY(-1px);
@@ -1693,15 +1680,7 @@ main .servers-mobile-tags .badge-info {
 /* is-inactive stays neutral: "not configured / optional" is not an alarm. */
 
 .settings-status-grid .settings-kpi-card::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 10px;
-  bottom: 10px;
-  width: 2px;
-  border-radius: 0 2px 2px 0;
-  background: var(--kpi-state);
-  opacity: 0.8;
+  display: none;
 }
 
 /* Unwrap the header/body wrappers so their leaf children join the card grid,
@@ -2638,20 +2617,7 @@ body {
 
 .kpi-card::before,
 .stat-card::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--accent-primary), transparent);
-  opacity: 0;
-  transition: opacity 0.22s ease;
-}
-
-.kpi-card:hover::before,
-.stat-card:hover::before {
-  opacity: 1;
+  display: none;
 }
 
 .kpi-card-header {
