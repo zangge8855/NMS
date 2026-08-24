@@ -366,21 +366,26 @@ body {
   font-weight: 700;
 }
 
-.section-header-subtitle {
+.btn {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 7px;
   font-size: 12px;
+  font-weight: 600;
+  gap: 6px;
 }
 
-.btn {
-  min-height: 38px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 650;
+.btn-sm {
+  min-height: 28px !important;
+  padding: 0 10px !important;
+  font-size: 11.5px !important;
+  border-radius: 6px !important;
 }
 
 .btn-primary {
   background: var(--gradient-primary);
   border-color: #2569db;
-  box-shadow: 0 10px 24px -18px rgba(37, 105, 219, 0.88);
+  box-shadow: 0 4px 12px -2px rgba(37, 105, 219, 0.4);
 }
 
 .btn-primary:hover {
@@ -395,30 +400,40 @@ input[type="password"],
 input[type="number"],
 input[type="date"],
 select {
-  min-height: 42px;
-  border-radius: 8px;
+  min-height: 34px;
+  height: 34px;
+  font-size: 12.5px;
+  border-radius: 7px;
+  padding: 4px 10px;
 }
 
 .badge {
-  min-height: 23px;
-  font-weight: 680;
+  min-height: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 9999px;
 }
 
 .page-toolbar,
 .list-toolbar {
-  padding: 11px 13px;
+  padding: 8px 12px;
+  min-height: 50px;
 }
 
 .table thead th {
-  height: 46px;
+  height: 38px;
   color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.055em;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 .table tbody td {
-  height: 60px;
+  height: 48px;
+  font-size: 12.5px;
+  padding: 8px 12px;
 }
 
 .table tbody tr:hover td {
