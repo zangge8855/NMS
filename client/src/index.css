@@ -13456,7 +13456,6 @@ input[type="radio"]:focus-visible {
 .subscription-user-meter-pill {
   display: flex;
   flex-direction: column;
-  gap: 8px;
   padding: 18px 22px;
   border-radius: 18px;
   background: var(--bg-card);
@@ -13489,6 +13488,13 @@ input[type="radio"]:focus-visible {
   border-left: 3px solid var(--accent-danger);
 }
 
+.subscription-user-meter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .subscription-user-meter-label {
   font-size: 12px;
   font-weight: 600;
@@ -13497,18 +13503,54 @@ input[type="radio"]:focus-visible {
   letter-spacing: 0.05em;
 }
 
+.subscription-user-meter-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-family: var(--font-mono, monospace);
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
 .subscription-user-meter-value {
   font-size: 22px;
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.02em;
   line-height: 1.2;
+  margin: 8px 0 10px 0;
+  font-family: var(--font-mono, monospace);
 }
 
-.subscription-user-meter-meta {
-  font-size: 12px;
-  color: var(--text-secondary);
-  font-weight: 500;
+.subscription-user-meter-track {
+  width: 100%;
+  height: 4px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.subscription-user-meter-bar {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.subscription-user-meter-bar--info {
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+}
+
+.subscription-user-meter-bar--success {
+  background: linear-gradient(90deg, #10b981, #34d399);
+}
+
+.subscription-user-meter-bar--warning {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.subscription-user-meter-bar--danger {
+  background: linear-gradient(90deg, #ef4444, #f87171);
 }
 
 /* 3. Core Import Console Stage */
@@ -13551,12 +13593,12 @@ input[type="radio"]:focus-visible {
 .subscription-profile-switches--user-stage {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin: 18px 0 22px 0;
-  padding: 6px;
+  gap: 6px;
+  margin: 16px 0 20px 0;
+  padding: 5px;
   background: rgba(0, 0, 0, 0.4);
   border: 1px solid var(--stroke-soft);
-  border-radius: 14px;
+  border-radius: 12px;
 }
 
 .subscription-profile-switches--user-stage .btn {
@@ -13564,7 +13606,7 @@ input[type="radio"]:focus-visible {
   min-height: 38px;
   font-size: 13px;
   font-weight: 600;
-  border-radius: 10px;
+  border-radius: 9px;
   transition: all 0.2s ease;
 }
 
@@ -13666,6 +13708,18 @@ input[type="radio"]:focus-visible {
   gap: 14px;
 }
 
+.subscription-url-dock {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+@media (max-width: 640px) {
+  .subscription-url-dock {
+    flex-direction: column;
+  }
+}
+
 .subscription-url-input {
   width: 100%;
   height: 44px;
@@ -13677,6 +13731,7 @@ input[type="radio"]:focus-visible {
   font-size: 12px;
   font-family: var(--font-mono, monospace);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  flex: 1;
 }
 
 .subscription-url-input:focus {
@@ -13693,11 +13748,16 @@ input[type="radio"]:focus-visible {
 }
 
 .subscription-user-copy-btn {
-  min-height: 40px;
+  min-height: 42px;
   padding: 0 22px;
   font-weight: 700;
   font-size: 13px;
   border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .subscription-user-import-btn {

@@ -1,6 +1,6 @@
 import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { HiOutlineArrowPath, HiOutlineExclamationTriangle, HiOutlineLink, HiOutlineQrCode, HiOutlineXMark } from 'react-icons/hi2';
+import { HiOutlineArrowPath, HiOutlineBolt, HiOutlineExclamationTriangle, HiOutlineLink, HiOutlineQrCode, HiOutlineXMark } from 'react-icons/hi2';
 import ExpandableQRCode from '../UI/ExpandableQRCode';
 import toast from 'react-hot-toast';
 import api from '../../api/client';
@@ -751,6 +751,7 @@ export default function Subscriptions() {
                 </div>
                 <div className="subscription-user-status-pills">
                     <span className={`badge ${result.subscriptionActive ? 'badge-success' : 'badge-warning'}`}>
+                        <span className="subscription-status-pulse-dot" aria-hidden="true" />
                         {result.subscriptionActive ? ui.available : ui.unavailable}
                     </span>
                     <span className="badge badge-neutral">
@@ -763,9 +764,17 @@ export default function Subscriptions() {
             <div className="subscription-user-meter-strip" aria-label={ui.summaryTitle}>
                 {statusCards.map((item) => (
                     <div key={item.key} className={`subscription-user-meter-pill subscription-user-meter-pill--${item.tone}`}>
-                        <span className="subscription-user-meter-label">{item.label}</span>
+                        <div className="subscription-user-meter-header">
+                            <span className="subscription-user-meter-label">{item.label}</span>
+                            <span className="subscription-user-meter-meta">{item.meta}</span>
+                        </div>
                         <span className="subscription-user-meter-value">{item.value}</span>
-                        <span className="subscription-user-meter-meta">{item.meta}</span>
+                        <div className="subscription-user-meter-track" aria-hidden="true">
+                            <div
+                                className={`subscription-user-meter-bar subscription-user-meter-bar--${item.tone}`}
+                                style={{ width: `${Math.max(4, Math.min(100, item.progress))}%` }}
+                            />
+                        </div>
                     </div>
                 ))}
             </div>
@@ -820,17 +829,17 @@ export default function Subscriptions() {
                                 </div>
                             )}
                             <div className="subscription-user-address-main">
-                                <input
-                                    className="form-input font-mono text-xs subscription-url-input"
-                                    value={activeProfileUrlDisplay}
-                                    readOnly
-                                    aria-label={activeProfileLabel || activeProfile?.label || ui.copyAddress}
-                                    aria-disabled={!result.subscriptionActive}
-                                    title={activeProfile?.url || ''}
-                                    dir="ltr"
-                                    spellCheck={false}
-                                />
-                                <div className="subscription-user-address-actions">
+                                <div className="subscription-url-dock">
+                                    <input
+                                        className="form-input font-mono text-xs subscription-url-input"
+                                        value={activeProfileUrlDisplay}
+                                        readOnly
+                                        aria-label={activeProfileLabel || activeProfile?.label || ui.copyAddress}
+                                        aria-disabled={!result.subscriptionActive}
+                                        title={activeProfile?.url || ''}
+                                        dir="ltr"
+                                        spellCheck={false}
+                                    />
                                     <CopyFeedbackButton
                                         className="btn btn-primary btn-sm subscription-user-copy-btn"
                                         text={activeProfile?.url || ''}
@@ -838,8 +847,10 @@ export default function Subscriptions() {
                                         errorText={t('comp.common.noCopyableUrl')}
                                         disabled={!activeProfile?.url || !result.subscriptionActive}
                                     >
-                                        {ui.copyAddress}
+                                        <HiOutlineLink className="subscription-btn-icon" /> {ui.copyAddress}
                                     </CopyFeedbackButton>
+                                </div>
+                                <div className="subscription-user-address-actions">
                                     {result.subscriptionActive ? (
                                         <>
                                             {isCompactViewport && canShowQr ? (
@@ -853,7 +864,7 @@ export default function Subscriptions() {
                                             ) : null}
                                             {primaryImportActions.map((item) => (
                                                 <a key={item.label} href={item.href} className="btn btn-secondary btn-sm subscription-user-import-btn">
-                                                    {item.label}
+                                                    <HiOutlineBolt className="subscription-btn-icon-accent" /> {item.label}
                                                 </a>
                                             ))}
                                         </>
@@ -871,7 +882,7 @@ export default function Subscriptions() {
                                         <div className="subscription-import-disclosure-actions">
                                             {secondaryImportActions.map((item) => (
                                                 <a key={item.label} href={item.href} className="btn btn-secondary btn-sm subscription-user-import-btn">
-                                                    {item.label}
+                                                    <HiOutlineBolt className="subscription-btn-icon-accent" /> {item.label}
                                                 </a>
                                             ))}
                                         </div>
