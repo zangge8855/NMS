@@ -21,6 +21,9 @@ import {
     postUpdateInboundCompat,
     postDeleteInboundCompat,
     getNewX25519CertCompat,
+    sanitizeClientPayloadForPanel,
+    sanitizeSettingsForPanel,
+    sanitizeInboundPayloadForPanel,
 } from '../lib/panelApiCompat.js';
 
 function notFound(message = '404 page not found') {
@@ -698,4 +701,63 @@ test('getNewX25519CertCompat tries candidate endpoints for Reality keypair gener
     assert.deepEqual(calls, ['/panel/api/server/getNewX25519Cert', '/panel/api/inbounds/getNewX25519Cert']);
 });
 
+test('sanitizeClientPayloadForPanel coerces tgId, numbers, and boolean enable', () => {
+    assert.deepEqual(
+        sanitizeClientPayloadForPanel({
+            email: 'user1',
+            tgId: '',
+            limitIp: '2',
+            totalGB: '1073741824',
+            expiryTime: '1700000000000',
+            reset: '1',
+            enable: 'true',
+        }),
+        {
+            email: 'user1',
+            tgId: 0,
+            limitIp: 2,
+            totalGB: 1073741824,
+            expiryTime: 1700000000000,
+            reset: 1,
+            enable: true,
+        }
+    );
 
+    assert.equal(sanitizeClientPayloadForPanel({ tgId: '123456789' }).tgId, 123456789);
+    assert.equal(sanitizeClientPayloadForPanel({ tgId: -100123456789 }).tgId, -100123456789);
+    assert.equal(sanitizeClientPayloadForPanel({ tgId: 0 }).tgId, 0);
+    assert.equal(sanitizeClientPayloadForPanel({ tgId: undefined }).tgId, 0);
+});
+
+test('sanitizeSettingsForPanel sanitizes client objects in JSON string or object', () => {
+    const rawJson = JSON.stringify({
+        clients: [{ id: 'uuid-1', email: 'test@example.com', tgId: '', limitIp: '0' }],
+    });
+    const sanitizedJson = sanitizeSettingsForPanel(rawJson);
+    const parsed = JSON.parse(sanitizedJson);
+    assert.equal(parsed.clients[0].tgId, 0);
+    assert.equal(parsed.clients[0].limitIp, 0);
+});
+
+test('postAddInboundCompat sanitizes string tgId in inbound settings before sending', async () => {
+    let capturedBody = null;
+    const client = {
+        async post(path, data) {
+            capturedBody = data;
+            return { data: { success: true, obj: { id: 1 } } };
+        },
+    };
+
+    await postAddInboundCompat(client, {
+        protocol: 'vless',
+        port: 443,
+        settings: JSON.stringify({
+            clients: [{ id: 'uuid', email: 'vless@test', tgId: '' }],
+        }),
+    });
+
+    assert.ok(capturedBody);
+    const parsedParams = new URLSearchParams(capturedBody);
+    const settings = JSON.parse(parsedParams.get('settings'));
+    assert.equal(settings.clients[0].tgId, 0);
+});

@@ -427,7 +427,7 @@ export default function ClientModal({
                 totalGB: gigabytesInputToBytes(totalGB),
                 expiryTime: Math.max(0, Number(resolvedExpiryTime || 0)),
                 enable,
-                tgId: String(tgId || '').trim(),
+                tgId: Number(tgId) || 0,
                 subId: derivedSubId,
                 comment: String(comment || '').trim(),
                 reset: Math.max(0, Number(reset || 0)),
@@ -443,7 +443,7 @@ export default function ClientModal({
                         const isTotalGBChanged = gigabytesInputToBytes(totalGB) !== Number(editingClient.totalGB || 0);
                         const isExpiryTimeChanged = Math.max(0, Number(resolvedExpiryTime || 0)) !== Number(editingClient.expiryTime || 0);
                         const isEnableChanged = enable !== (editingClient.enable !== false);
-                        const isTgIdChanged = String(tgId || '').trim() !== String(editingClient.tgId || '').trim();
+                        const isTgIdChanged = Number(tgId || 0) !== Number(editingClient.tgId || 0);
                         const isSubIdChanged = derivedSubId !== String(editingClient.subId || '').trim();
                         const isCommentChanged = String(comment || '').trim() !== String(editingClient.comment || '').trim();
                         const isResetChanged = Number(reset || 0) !== Number(editingClient.reset || 0);
@@ -460,7 +460,7 @@ export default function ClientModal({
                             totalGB: isTotalGBChanged ? gigabytesInputToBytes(totalGB) : (item.totalGB || 0),
                             expiryTime: isExpiryTimeChanged ? Math.max(0, Number(resolvedExpiryTime || 0)) : (item.expiryTime || 0),
                             enable: isEnableChanged ? enable : (item.enable !== false),
-                            tgId: isTgIdChanged ? String(tgId || '').trim() : String(item.tgId || '').trim(),
+                            tgId: isTgIdChanged ? (Number(tgId) || 0) : (Number(item.tgId) || 0),
                             subId: isSubIdChanged ? derivedSubId : String(item.subId || '').trim(),
                             comment: isCommentChanged ? String(comment || '').trim() : String(item.comment || '').trim(),
                             reset: isResetChanged ? Number(reset || 0) : Number(item.reset || 0),

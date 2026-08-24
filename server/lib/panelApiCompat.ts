@@ -76,6 +76,73 @@ function parseMaybeJson(value: unknown, fallback: any = null): any {
     }
 }
 
+export function sanitizeClientPayloadForPanel(client: any = {}): any {
+    if (!client || typeof client !== 'object') return client;
+    const sanitized = { ...client };
+    if ('tgId' in sanitized) {
+        sanitized.tgId = sanitized.tgId !== undefined && sanitized.tgId !== null && sanitized.tgId !== ''
+            ? (Number(sanitized.tgId) || 0)
+            : 0;
+    }
+    if ('limitIp' in sanitized) {
+        sanitized.limitIp = Number(sanitized.limitIp) || 0;
+    }
+    if ('totalGB' in sanitized) {
+        sanitized.totalGB = Number(sanitized.totalGB) || 0;
+    }
+    if ('expiryTime' in sanitized) {
+        sanitized.expiryTime = Number(sanitized.expiryTime) || 0;
+    }
+    if ('reset' in sanitized) {
+        sanitized.reset = Number(sanitized.reset) || 0;
+    }
+    if ('speedLimitUp' in sanitized) {
+        sanitized.speedLimitUp = Number(sanitized.speedLimitUp) || 0;
+    }
+    if ('speedLimitDown' in sanitized) {
+        sanitized.speedLimitDown = Number(sanitized.speedLimitDown) || 0;
+    }
+    if ('enable' in sanitized && typeof sanitized.enable !== 'boolean') {
+        sanitized.enable = sanitized.enable !== 'false' && sanitized.enable !== false && sanitized.enable !== 0 && sanitized.enable !== '0';
+    }
+    return sanitized;
+}
+
+export function sanitizeSettingsForPanel(settings: any): any {
+    if (!settings) return settings;
+    let parsed = settings;
+    let isString = false;
+    if (typeof settings === 'string') {
+        try {
+            parsed = JSON.parse(settings);
+            isString = true;
+        } catch {
+            return settings;
+        }
+    }
+    if (parsed && typeof parsed === 'object') {
+        let changed = false;
+        let sanitized = { ...parsed };
+        if (Array.isArray(parsed.clients)) {
+            sanitized.clients = parsed.clients.map((c: any) => sanitizeClientPayloadForPanel(c));
+            changed = true;
+        }
+        if (changed) {
+            return isString ? JSON.stringify(sanitized) : sanitized;
+        }
+    }
+    return settings;
+}
+
+export function sanitizeInboundPayloadForPanel(inboundData: any = {}): any {
+    if (!inboundData || typeof inboundData !== 'object') return inboundData;
+    const payload = { ...inboundData };
+    if ('settings' in payload && payload.settings !== undefined) {
+        payload.settings = sanitizeSettingsForPanel(payload.settings);
+    }
+    return payload;
+}
+
 export function parseInboundClients(inbound: any = {}): any[] {
     const settings = parseMaybeJson(inbound?.settings, {});
     if (Array.isArray(settings?.clients)) return settings.clients;
@@ -330,9 +397,10 @@ export async function clearClientIpsCompat(panelClient: any, email: string): Pro
 }
 
 export async function postAddClientCompat(panelClient: any, inboundId: any, clientData: any): Promise<any> {
+    const sanitizedClient = sanitizeClientPayloadForPanel(clientData);
     try {
         return assertPanelResponseSuccess(await postJson(panelClient, '/panel/api/clients/add', {
-            client: clientData,
+            client: sanitizedClient,
             inboundIds: normalizeInboundIds([inboundId]),
         }), 'add client failed');
     } catch (error) {
@@ -341,21 +409,22 @@ export async function postAddClientCompat(panelClient: any, inboundId: any, clie
         }
         return assertPanelResponseSuccess(await postForm(panelClient, '/panel/api/inbounds/addClient', {
             id: inboundId,
-            settings: { clients: [clientData] },
+            settings: { clients: [sanitizedClient] },
         }), 'add client failed');
     }
 }
 
 export async function postUpdateClientCompat(panelClient: any, inboundId: any, clientIdentifier: string, clientData: any, options: any = {}): Promise<any> {
+    const sanitizedClient = sanitizeClientPayloadForPanel(clientData);
     const encodedIdentifier = encodePathSegment(clientIdentifier);
     let legacyError: any = null;
 
     try {
         const response = assertPanelResponseSuccess(await postForm(panelClient, `/panel/api/inbounds/updateClient/${encodedIdentifier}`, {
             id: inboundId,
-            settings: { clients: [clientData] },
+            settings: { clients: [sanitizedClient] },
         }), 'legacy updateClient failed');
-        if (await legacyUpdateAppearsApplied(panelClient, inboundId, clientIdentifier, clientData, options)) {
+        if (await legacyUpdateAppearsApplied(panelClient, inboundId, clientIdentifier, sanitizedClient, options)) {
             return response;
         }
     } catch (formError) {
@@ -364,10 +433,10 @@ export async function postUpdateClientCompat(panelClient: any, inboundId: any, c
 
     try {
         const response = assertPanelResponseSuccess(
-            await panelClient.post(`/panel/api/inbounds/updateClient/${encodedIdentifier}`, clientData),
+            await panelClient.post(`/panel/api/inbounds/updateClient/${encodedIdentifier}`, sanitizedClient),
             'legacy updateClient JSON failed'
         );
-        if (await legacyUpdateAppearsApplied(panelClient, inboundId, clientIdentifier, clientData, options)) {
+        if (await legacyUpdateAppearsApplied(panelClient, inboundId, clientIdentifier, sanitizedClient, options)) {
             return response;
         }
     } catch (jsonError) {
@@ -376,13 +445,13 @@ export async function postUpdateClientCompat(panelClient: any, inboundId: any, c
 
     const currentEmail = await resolveClientEmailForInbound(panelClient, inboundId, clientIdentifier, {
         ...options,
-        clientData,
+        clientData: sanitizedClient,
     });
     if (!currentEmail) {
         throw legacyError || new Error('Unable to resolve client email for latest 3x-ui update API');
     }
     return assertPanelResponseSuccess(
-        await postJson(panelClient, `/panel/api/clients/update/${encodePathSegment(currentEmail)}`, clientData),
+        await postJson(panelClient, `/panel/api/clients/update/${encodePathSegment(currentEmail)}`, sanitizedClient),
         'latest updateClient failed'
     );
 }
@@ -860,7 +929,7 @@ export async function getTlsCertPathsCompat(panelClient: any): Promise<any> {
 }
 
 export async function postAddInboundCompat(panelClient: any, inboundData: any): Promise<any> {
-    const payload = { ...inboundData, id: undefined };
+    const payload = sanitizeInboundPayloadForPanel({ ...inboundData, id: undefined });
     try {
         return assertPanelResponseSuccess(
             await postForm(panelClient, '/panel/api/inbounds/add', payload),
@@ -901,10 +970,11 @@ export async function postAddInboundCompat(panelClient: any, inboundData: any): 
 }
 
 export async function postUpdateInboundCompat(panelClient: any, inboundId: any, inboundData: any): Promise<any> {
+    const payload = sanitizeInboundPayloadForPanel(inboundData);
     const encodedId = encodePathSegment(inboundId);
     try {
         return assertPanelResponseSuccess(
-            await postForm(panelClient, `/panel/api/inbounds/update/${encodedId}`, inboundData),
+            await postForm(panelClient, `/panel/api/inbounds/update/${encodedId}`, payload),
             'update inbound failed'
         );
     } catch (error) {
@@ -915,7 +985,7 @@ export async function postUpdateInboundCompat(panelClient: any, inboundId: any, 
 
     try {
         return assertPanelResponseSuccess(
-            await postForm(panelClient, `/panel/inbound/update/${encodedId}`, inboundData),
+            await postForm(panelClient, `/panel/inbound/update/${encodedId}`, payload),
             'legacy inbound/update failed'
         );
     } catch (error) {
@@ -925,7 +995,7 @@ export async function postUpdateInboundCompat(panelClient: any, inboundId: any, 
     }
 
     return assertPanelResponseSuccess(
-        await postForm(panelClient, `/panel/api/inbound/update/${encodedId}`, inboundData),
+        await postForm(panelClient, `/panel/api/inbound/update/${encodedId}`, payload),
         'api/inbound/update failed'
     );
 }

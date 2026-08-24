@@ -120,4 +120,42 @@ describe('InboundModal', () => {
             syncExistingSubscriptions: true,
         }));
     }, 30000);
+
+    it('ensures client tgId is sent as a number in settings when adding an inbound', async () => {
+        api.post.mockResolvedValue({
+            data: {
+                obj: {
+                    summary: {
+                        total: 1,
+                        success: 1,
+                        failed: 0,
+                    },
+                    results: [],
+                },
+            },
+        });
+
+        renderWithRouter(<InboundModalHarness />);
+
+        fireEvent.click(screen.getByRole('button', { name: '添加入站' }));
+        fireEvent.click(screen.getByRole('button', { name: '保存配置' }));
+
+        await screen.findByText('添加入站');
+        expect(api.post).toHaveBeenCalledWith('/batch/inbounds', expect.objectContaining({
+            action: 'add',
+            targets: expect.arrayContaining([
+                expect.objectContaining({
+                    payload: expect.objectContaining({
+                        settings: expect.objectContaining({
+                            clients: expect.arrayContaining([
+                                expect.objectContaining({
+                                    tgId: 0,
+                                }),
+                            ]),
+                        }),
+                    }),
+                }),
+            ]),
+        }));
+    }, 30000);
 });

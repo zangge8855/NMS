@@ -52,7 +52,7 @@ function buildClientPayload(entry: any = {}) {
         totalGB: toNumber(entry.totalGB, 0),
         expiryTime: toNumber(entry.expiryTime, 0),
         enable: entry.enable !== false,
-        tgId: entry.tgId || '',
+        tgId: toNumber(entry.tgId, 0),
         subId: entry.subId || '',
         limitIp: toNumber(entry.limitIp, 0),
         flow: entry.flow || '',

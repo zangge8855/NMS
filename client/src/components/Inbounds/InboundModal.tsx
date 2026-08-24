@@ -224,7 +224,7 @@ function createBaseClient() {
         totalGB: 0,
         expiryTime: 0,
         enable: true,
-        tgId: '',
+        tgId: 0,
         subId: randomString(16, LOWER_NUM_CHARS),
         comment: '',
         reset: 0,
@@ -1470,6 +1470,22 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                 toast.error(t('comp.inbounds.invalidJsonAdvanced'));
                 setLoading(false);
                 return;
+            }
+
+            if (parsedSettings && typeof parsedSettings === 'object' && Array.isArray(parsedSettings.clients)) {
+                parsedSettings.clients = parsedSettings.clients.map((client) => {
+                    if (!client || typeof client !== 'object') return client;
+                    return {
+                        ...client,
+                        tgId: client.tgId !== undefined && client.tgId !== null && client.tgId !== ''
+                            ? (Number(client.tgId) || 0)
+                            : 0,
+                        limitIp: Number(client.limitIp) || 0,
+                        totalGB: Number(client.totalGB) || 0,
+                        expiryTime: Number(client.expiryTime) || 0,
+                        reset: Number(client.reset) || 0,
+                    };
+                });
             }
 
             const normalizedProtocol = String(protocol || '').toLowerCase();

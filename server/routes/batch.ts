@@ -27,6 +27,7 @@ import {
     postUpdateInboundCompat,
     resolveClientIdentifier,
     resetInboundTrafficCompat as resetPanelInboundTrafficCompat,
+    sanitizeSettingsForPanel,
 } from '../lib/panelApiCompat.js';
 import { invalidateServerPanelSnapshotCache } from '../lib/serverPanelSnapshotService.js';
 
@@ -134,7 +135,7 @@ function normalizeClientData(input: any = {}, fallbackIdentifier = '', options: 
         totalGB: toNumberValue(input.totalGB, 0),
         expiryTime: toNumberValue(input.expiryTime, 0),
         enable: normalizeBoolean(input.enable, true),
-        tgId: toStringValue(input.tgId),
+        tgId: toNumberValue(input.tgId, 0),
         subId: toStringValue(input.subId),
         limitIp: toNumberValue(input.limitIp, 0),
         flow: allowFlow ? toStringValue(input.flow) : '',
@@ -233,7 +234,7 @@ function normalizeInboundSnapshot(input: any = {}, enableOverride = null) {
         expiryTime: toNumberValue(input.expiryTime, 0),
         trafficReset: toStringValue(input.trafficReset) || 'never',
         tag: toStringValue(input.tag) || (input.port ? `inbound-${input.port}` : ''),
-        settings: normalizeJson(input.settings, '{}'),
+        settings: normalizeJson(sanitizeSettingsForPanel(input.settings), '{}'),
         streamSettings: hasStreamSettings && input.streamSettings !== undefined
             ? normalizeJson(input.streamSettings, '{}')
             : '{}',
