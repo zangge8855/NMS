@@ -3637,22 +3637,56 @@ input:focus {
 
 .audit-stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)) !important;
-  gap: 10px !important;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)) !important;
+  gap: 8px !important;
+  margin-bottom: 12px !important;
 }
 
 .audit-stat-card {
-  min-height: 78px !important;
-  padding: 10px 12px !important;
-  border-radius: 10px !important;
+  min-height: unset !important;
+  height: auto !important;
+  padding: 8px 10px !important;
+  border-radius: 8px !important;
   background: var(--surface-panel) !important;
   border: 1px solid var(--border-color) !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  gap: 2px !important;
+}
+
+.audit-stat-card .card-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin-bottom: 0 !important;
+  padding: 0 !important;
+}
+
+.audit-stat-card .card-title {
+  font-size: 10.5px !important;
+  font-weight: 500 !important;
+  color: var(--text-muted) !important;
+  letter-spacing: 0 !important;
+}
+
+.audit-stat-card .card-header svg {
+  display: none !important;
 }
 
 .audit-stat-card .card-value {
-  font-size: 18px !important;
+  font-size: 15px !important;
   font-weight: 700 !important;
+  color: var(--text-primary) !important;
+  font-variant-numeric: tabular-nums !important;
+  line-height: 1.2 !important;
+}
+
+.audit-stat-card .text-muted {
+  font-size: 9.5px !important;
+  line-height: 1.1 !important;
+  margin-top: 1px !important;
 }
 
 .audit-traffic-overview {
