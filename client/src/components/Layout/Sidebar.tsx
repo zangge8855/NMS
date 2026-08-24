@@ -193,21 +193,32 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
                 })}
             </nav>
             <div className="sidebar-utility">
-                {!collapsed && user ? (
-                    <div className="sidebar-identity" aria-label={user.username || user.email || user.role}>
-                        <span className="sidebar-identity-avatar">
+                {user ? (
+                    <NavLink
+                        to="/account"
+                        onClick={() => {
+                            closeNavFlyout('/account');
+                            onClose?.();
+                        }}
+                        {...getNavFlyoutProps('/account', user.username || user.email || (locale === 'en-US' ? 'Account' : '账户'))}
+                        className={({ isActive }) => `sidebar-user-card ${isActive ? 'active' : ''}`}
+                        aria-label={user.username || user.email || user.role}
+                    >
+                        <span className="sidebar-user-avatar">
                             {String(user.username || user.email || 'N').trim().charAt(0).toUpperCase()}
                         </span>
-                        <span className="sidebar-identity-copy">
-                            <strong>{user.username || user.email || 'NMS'}</strong>
-                            <span>
-                                <i className="sidebar-identity-status" aria-hidden="true" />
-                                {locale === 'en-US'
-                                    ? (isGlobalView ? 'Global control plane' : 'Node workspace')
-                                    : (isGlobalView ? '全局控制平面' : '节点工作区')}
+                        {!collapsed && (
+                            <span className="sidebar-user-copy">
+                                <strong className="sidebar-user-name">{user.username || user.email || 'NMS'}</strong>
+                                <span className="sidebar-user-role">
+                                    <i className="sidebar-identity-status" aria-hidden="true" />
+                                    {isAdmin
+                                        ? (locale === 'en-US' ? 'Administrator' : '管理员')
+                                        : (locale === 'en-US' ? 'Standard User' : '普通用户')}
+                                </span>
                             </span>
-                        </span>
-                    </div>
+                        )}
+                    </NavLink>
                 ) : null}
                 {visibleFooterItems.map((item) => (
                     <NavLink

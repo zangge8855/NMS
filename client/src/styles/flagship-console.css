@@ -1527,52 +1527,78 @@ main .downloads-center {
   text-transform: uppercase;
 }
 
-.sidebar-identity {
-  display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
-  gap: 10px;
-  align-items: center;
-  margin: 0 10px 8px;
-  padding: 10px;
-  border-top: 1px solid var(--stroke-soft);
-  border-bottom: 1px solid var(--stroke-soft);
+.sidebar-utility {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--border-color);
+  background: var(--surface-panel);
 }
 
-.sidebar-identity-avatar {
+.sidebar-user-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--text-primary);
+  background: transparent;
+  border: 1px solid transparent;
+  transition: all 150ms ease;
+  cursor: pointer;
+}
+
+.sidebar-user-card:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-color);
+}
+
+.sidebar-user-card.active {
+  background: var(--surface-panel-soft);
+  border-color: var(--accent-primary-border);
+}
+
+.sidebar-user-avatar {
   display: grid;
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
   place-items: center;
   border: 1px solid var(--accent-primary-border);
-  border-radius: 10px;
-  color: var(--accent-primary);
-  background: var(--accent-primary-bg);
-  font-family: var(--font-mono);
+  border-radius: 8px;
+  color: #fff;
+  background: var(--gradient-primary);
+  font-family: var(--font-display, sans-serif);
   font-size: 13px;
   font-weight: 700;
+  box-shadow: 0 2px 6px rgba(47, 125, 246, 0.25);
 }
 
-.sidebar-identity-copy {
+.sidebar-user-copy {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
-.sidebar-identity-copy strong {
+.sidebar-user-name {
   overflow: hidden;
   color: var(--text-primary);
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.sidebar-identity-copy > span {
+.sidebar-user-role {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10.5px;
+  font-weight: 500;
 }
 
 .sidebar-identity-status {
@@ -1580,7 +1606,7 @@ main .downloads-center {
   height: 6px;
   border-radius: 999px;
   background: var(--accent-success);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-success) 12%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-success) 20%, transparent);
 }
 
 .header-title-group::before {
