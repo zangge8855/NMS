@@ -201,22 +201,26 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
                             onClose?.();
                         }}
                         {...getNavFlyoutProps('/account', user.username || user.email || (locale === 'en-US' ? 'Account' : '账户'))}
-                        className={({ isActive }) => `sidebar-user-card ${isActive ? 'active' : ''}`}
+                        className={({ isActive }) => `nav-item sidebar-user-item ${isActive ? 'active' : ''}`}
                         aria-label={user.username || user.email || user.role}
                     >
-                        <span className="sidebar-user-avatar">
-                            {String(user.username || user.email || 'N').trim().charAt(0).toUpperCase()}
-                        </span>
-                        {!collapsed && (
-                            <span className="sidebar-user-copy">
-                                <strong className="sidebar-user-name">{user.username || user.email || 'NMS'}</strong>
-                                <span className="sidebar-user-role">
-                                    <i className="sidebar-identity-status" aria-hidden="true" />
-                                    {isAdmin
-                                        ? (locale === 'en-US' ? 'Administrator' : '管理员')
-                                        : (locale === 'en-US' ? 'Standard User' : '普通用户')}
+                        {({ isActive }) => (
+                            <>
+                                {isActive && <div className="active-glow" />}
+                                <span className="sidebar-user-avatar">
+                                    {String(user.username || user.email || 'N').trim().charAt(0).toUpperCase()}
                                 </span>
-                            </span>
+                                {!collapsed && (
+                                    <span className="nav-label sidebar-user-info">
+                                        <span className="sidebar-user-name">{user.username || user.email || 'NMS'}</span>
+                                        <span className="sidebar-user-badge">
+                                            {isAdmin
+                                                ? (locale === 'en-US' ? 'Admin' : '管理员')
+                                                : (locale === 'en-US' ? 'User' : '用户')}
+                                        </span>
+                                    </span>
+                                )}
+                            </>
                         )}
                     </NavLink>
                 ) : null}
