@@ -3442,3 +3442,155 @@ input:focus {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.45);
 }
+
+/* --- Flagship Refined Audit & Management Console Polish --- */
+.audit-nav {
+  padding: 10px 14px !important;
+  border-radius: 12px !important;
+  background: var(--surface-panel) !important;
+}
+
+.audit-nav-topbar {
+  margin-bottom: 6px;
+}
+
+.audit-nav-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.audit-nav-status-chip {
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: 999px;
+}
+
+.audit-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-color);
+}
+
+[data-theme="light"] .audit-tabs {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.audit-tabs .tab {
+  min-height: 32px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 7px;
+  gap: 6px;
+}
+
+.audit-tab-icon svg {
+  font-size: 15px;
+}
+
+.audit-control-card {
+  padding: 12px 14px !important;
+  border-radius: 12px !important;
+}
+
+.audit-control-title {
+  font-size: 13.5px !important;
+  font-weight: 650 !important;
+}
+
+.audit-control-text {
+  font-size: 11.5px !important;
+  color: var(--text-secondary) !important;
+}
+
+.audit-control-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.audit-control-action-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.audit-control-action-group .btn,
+.audit-control-actions .btn {
+  min-height: 30px !important;
+  padding: 4px 10px !important;
+  font-size: 11.5px !important;
+  gap: 5px !important;
+}
+
+.audit-control-pill {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.audit-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)) !important;
+  gap: 10px !important;
+}
+
+.audit-stat-card {
+  min-height: 78px !important;
+  padding: 10px 12px !important;
+  border-radius: 10px !important;
+  background: var(--surface-panel) !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.audit-stat-card .card-value {
+  font-size: 18px !important;
+  font-weight: 700 !important;
+}
+
+.audit-traffic-overview {
+  padding: 14px 16px !important;
+  border-radius: 14px !important;
+  gap: 12px !important;
+}
+
+.audit-traffic-overview-title {
+  font-size: 18px !important;
+}
+
+.audit-traffic-total-card {
+  padding: 14px !important;
+  border-radius: 12px !important;
+}
+
+.audit-traffic-total-value {
+  font-size: clamp(1.5rem, 2.4vw, 2.1rem) !important;
+}
+
+.audit-traffic-split-card {
+  min-height: 68px !important;
+  padding: 8px 10px !important;
+  border-radius: 10px !important;
+}
+
+.audit-traffic-split-value {
+  font-size: 15px !important;
+}
+
+.audit-traffic-mini-card {
+  min-height: 68px !important;
+  padding: 8px 10px !important;
+  border-radius: 10px !important;
+}
+
+.audit-traffic-mini-value {
+  font-size: 14px !important;
+}
+
