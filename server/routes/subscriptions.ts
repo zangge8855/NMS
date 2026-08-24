@@ -3338,6 +3338,31 @@ function verifyPublicTokenRequest(hintedEmail, tokenId, tokenSecret, store = sub
     return store.verifyByTokenId(tokenId, cleanSecret);
 }
 
+interface PublicSubCacheEntry {
+    body: string;
+    contentType: string;
+    userInfo: string;
+    tokenId: string;
+    status: number;
+    timestamp: number;
+}
+
+const PUBLIC_SUB_CACHE = new Map<string, PublicSubCacheEntry>();
+const PUBLIC_SUB_CACHE_TTL = 30_000;
+
+export function invalidatePublicSubCache(email: string = ''): void {
+    if (!email) {
+        PUBLIC_SUB_CACHE.clear();
+        return;
+    }
+    const norm = normalizeEmail(email);
+    for (const key of Array.from(PUBLIC_SUB_CACHE.keys())) {
+        if (key.startsWith(`${norm}:`)) {
+            PUBLIC_SUB_CACHE.delete(key);
+        }
+    }
+}
+
 async function handlePublicTokenRequest(req, res, emailFromPath = '') {
     const hintedEmail = normalizeEmail(emailFromPath || req.params.email);
     const tokenId = String(req.params.tokenId || '').trim();
@@ -3397,6 +3422,20 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
         return res.status(401).send('invalid subscription token');
     }
 
+    const ua = String(req.headers['user-agent'] || '').slice(0, 50);
+    const cacheKey = `${email}:${tokenId}:${format}:${mode}:${serverId || 'all'}:${routingPolicy}:${ua}`;
+    const cached = PUBLIC_SUB_CACHE.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < PUBLIC_SUB_CACHE_TTL) {
+        subscriptionTokenStore.touchLastUsedByTokenId(tokenId);
+        res.setHeader('Content-Type', cached.contentType);
+        res.setHeader('X-Subscription-Token-Id', cached.tokenId);
+        if (cached.userInfo) {
+            res.setHeader('Subscription-Userinfo', cached.userInfo);
+        }
+        res.setHeader('X-NMS-Cache', 'HIT');
+        return res.status(cached.status).send(cached.body);
+    }
+
     const user = userStore.getBySubscriptionEmail(email) || userStore.getByEmail(email) || null;
     if (user) {
         if (user.enabled === false) {
@@ -3446,16 +3485,26 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
                 serverId,
                 format,
             });
-            res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-            res.setHeader('X-Subscription-Token-Id', tokenId);
-            res.setHeader('Subscription-Userinfo', buildSubscriptionUserInfoHeader({
+            const userInfo = buildSubscriptionUserInfoHeader({
                 uploadTrafficBytes,
                 downloadTrafficBytes,
                 trafficLimitBytes,
                 expiryTime,
-            }));
+            });
+            res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+            res.setHeader('X-Subscription-Token-Id', tokenId);
+            res.setHeader('Subscription-Userinfo', userInfo);
             const emptyPayload = buildSubscriptionPayload([]);
-            return res.send(format === 'raw' ? emptyPayload.raw : emptyPayload.encoded);
+            const body = format === 'raw' ? emptyPayload.raw : emptyPayload.encoded;
+            PUBLIC_SUB_CACHE.set(cacheKey, {
+                body,
+                contentType: 'text/plain; charset=utf-8',
+                userInfo,
+                tokenId,
+                status: 200,
+                timestamp: Date.now(),
+            });
+            return res.send(body);
         }
         appendSubscriptionAccessAudit(req, {
             email,
@@ -3481,20 +3530,29 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
     });
     const { raw, encoded } = buildSubscriptionPayload(links);
     const scopedUrls = buildRequestScopedSubscriptionUrls(req, mode, serverId);
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.setHeader('X-Subscription-Token-Id', tokenId);
-    res.setHeader('Subscription-Userinfo', buildSubscriptionUserInfoHeader({
+    const userInfo = buildSubscriptionUserInfoHeader({
         uploadTrafficBytes,
         downloadTrafficBytes,
         trafficLimitBytes,
         expiryTime,
-    }));
+    });
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('X-Subscription-Token-Id', tokenId);
+    res.setHeader('Subscription-Userinfo', userInfo);
     if (format === 'clash') {
         const yaml = buildMihomoConfigFromLinks(links, scopedUrls.subscriptionUrlClash, routingPolicy);
         if (!yaml) {
             return res.status(410).send('no clash-compatible links found');
         }
         res.setHeader('Content-Type', 'text/yaml; charset=utf-8');
+        PUBLIC_SUB_CACHE.set(cacheKey, {
+            body: yaml,
+            contentType: 'text/yaml; charset=utf-8',
+            userInfo,
+            tokenId,
+            status: 200,
+            timestamp: Date.now(),
+        });
         return res.send(yaml);
     }
     if (format === 'singbox') {
@@ -3503,6 +3561,14 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
             return res.status(410).send('no sing-box-compatible links found');
         }
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        PUBLIC_SUB_CACHE.set(cacheKey, {
+            body: profile,
+            contentType: 'application/json; charset=utf-8',
+            userInfo,
+            tokenId,
+            status: 200,
+            timestamp: Date.now(),
+        });
         return res.send(profile);
     }
     if (format === 'surge') {
@@ -3511,9 +3577,26 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
             return res.status(410).send('no surge-compatible links found');
         }
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        PUBLIC_SUB_CACHE.set(cacheKey, {
+            body: profile,
+            contentType: 'text/plain; charset=utf-8',
+            userInfo,
+            tokenId,
+            status: 200,
+            timestamp: Date.now(),
+        });
         return res.send(profile);
     }
-    return res.send(format === 'raw' ? raw : encoded);
+    const finalBody = format === 'raw' ? raw : encoded;
+    PUBLIC_SUB_CACHE.set(cacheKey, {
+        body: finalBody,
+        contentType: 'text/plain; charset=utf-8',
+        userInfo,
+        tokenId,
+        status: 200,
+        timestamp: Date.now(),
+    });
+    return res.send(finalBody);
 }
 
 router.get('/public/t/:tokenId/:token', async (req, res) => {
@@ -3839,6 +3922,7 @@ router.post('/:email/revoke', authMiddleware, adminOnly, (req, res) => {
                 revoked: result.revoked,
                 reason: result.reason,
             }, { outcome: 'success' });
+            invalidatePublicSubCache(result.email);
             return res.json({
                 success: true,
                 obj: { email: result.email, revoked: result.revoked },
@@ -3850,6 +3934,7 @@ router.post('/:email/revoke', authMiddleware, adminOnly, (req, res) => {
             tokenId: result.tokenId,
             reason: result.reason,
         }, { outcome: 'success' });
+        invalidatePublicSubCache(result.email);
         return res.json({
             success: true,
             obj: result.revoked,
@@ -3872,6 +3957,7 @@ router.post('/:email/reset-link', authMiddleware, ensureEmailAccess, async (req,
                 return buildSubscriptionUrls(publicBase, 'auto', serverId);
             },
         });
+        invalidatePublicSubCache(issued.email);
         const basePolicy = userPolicyStore.get(issued.email);
         const rotationPolicy = serverId
             ? {
