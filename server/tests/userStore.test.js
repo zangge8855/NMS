@@ -281,10 +281,12 @@ describe('Role Definitions', () => {
         ROLES = module.ROLES;
     });
 
-    it('should have 2 roles', () => {
+    it('should have 4 roles', () => {
         const roles = Object.values(ROLES);
-        assert.equal(roles.length, 2);
+        assert.equal(roles.length, 4);
         assert.ok(roles.includes('admin'));
+        assert.ok(roles.includes('operator'));
+        assert.ok(roles.includes('auditor'));
         assert.ok(roles.includes('user'));
     });
 });

@@ -6,7 +6,7 @@ import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import config from './config.js';
 import { initWebSocket } from './wsServer.js';
-import { authMiddleware, adminOnly } from './middleware/auth.js';
+import { authMiddleware, adminOnly, operatorOrAbove, auditorOrAbove } from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
 import serverRoutes from './routes/servers.js';
 import proxyRoutes from './routes/proxy.js';
@@ -22,6 +22,7 @@ import wsAuthRoutes from './routes/wsAuth.js';
 import systemRoutes from './routes/system.js';
 import usersRoutes from './routes/users.js';
 import clientsRoutes from './routes/clients.js';
+import certificatesRoutes from './routes/certificates.js';
 import xrayConfigRoutes from './routes/xrayConfig.js';
 import { bootstrapDatabase } from './db/bootstrap.js';
 import { flushSnapshotQueue } from './db/snapshots.js';
@@ -129,23 +130,24 @@ export function createApp(options: { serveClientBuild?: boolean } = {}): Express
 
     // ── API Routes ─────────────────────────────────────────────
     app.use('/api/auth', authRoutes);
-    app.use('/api/ws', authMiddleware, adminOnly, wsAuthRoutes);
+    app.use('/api/ws', authMiddleware, auditorOrAbove, wsAuthRoutes);
 
-    // Admin routes
-    app.use('/api/capabilities', authMiddleware, adminOnly, capabilitiesRoutes);
-    app.use('/api/protocol-schemas', authMiddleware, adminOnly, protocolSchemasRoutes);
-    app.use('/api/audit', authMiddleware, adminOnly, auditRoutes);
-    app.use('/api/traffic', authMiddleware, adminOnly, trafficRoutes);
+    // Management & Operations routes
+    app.use('/api/capabilities', authMiddleware, auditorOrAbove, capabilitiesRoutes);
+    app.use('/api/protocol-schemas', authMiddleware, auditorOrAbove, protocolSchemasRoutes);
+    app.use('/api/audit', authMiddleware, auditorOrAbove, auditRoutes);
+    app.use('/api/traffic', authMiddleware, auditorOrAbove, trafficRoutes);
 
-    app.use('/api/servers', authMiddleware, adminOnly, serverRoutes);
-    app.use('/api/panel', authMiddleware, adminOnly, proxyRoutes);
-    app.use('/api/batch', authMiddleware, adminOnly, batchRoutes);
-    app.use('/api/jobs', authMiddleware, adminOnly, batchRoutes);
-    app.use('/api/user-policy', authMiddleware, adminOnly, userPolicyRoutes);
-    app.use('/api/user-groups', authMiddleware, adminOnly, userGroupRoutes);
-    app.use('/api/users', authMiddleware, adminOnly, usersRoutes);
-    app.use('/api/clients', authMiddleware, adminOnly, clientsRoutes);
-    app.use('/api/system', authMiddleware, adminOnly, systemRoutes);
+    app.use('/api/servers', authMiddleware, auditorOrAbove, serverRoutes);
+    app.use('/api/panel', authMiddleware, auditorOrAbove, proxyRoutes);
+    app.use('/api/batch', authMiddleware, operatorOrAbove, batchRoutes);
+    app.use('/api/jobs', authMiddleware, operatorOrAbove, batchRoutes);
+    app.use('/api/user-policy', authMiddleware, operatorOrAbove, userPolicyRoutes);
+    app.use('/api/user-groups', authMiddleware, operatorOrAbove, userGroupRoutes);
+    app.use('/api/users', authMiddleware, operatorOrAbove, usersRoutes);
+    app.use('/api/clients', authMiddleware, operatorOrAbove, clientsRoutes);
+    app.use('/api/certificates', authMiddleware, auditorOrAbove, certificatesRoutes);
+    app.use('/api/system', authMiddleware, auditorOrAbove, systemRoutes);
     app.use('/api/xray', authMiddleware, adminOnly, xrayConfigRoutes);
 
     // Subscriptions

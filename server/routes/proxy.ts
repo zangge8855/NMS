@@ -1,6 +1,7 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import { ensureAuthenticated } from '../lib/panelClient.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { ROLES } from '../store/userStore.js';
 import multer from 'multer';
 import {
     cleanupDepletedClientsCompat,
@@ -315,6 +316,21 @@ router.all('/:serverId/*', upload.any(), async (req: Request, res: Response) => 
         return res.status(405).json({
             success: false,
             msg: `Method not allowed: ${method}`,
+        });
+    }
+
+    const userRole = (req as any).user?.role;
+    if (userRole === ROLES.user) {
+        return res.status(403).json({
+            success: false,
+            msg: '权限不足: 普通用户无法访问节点控制代理',
+        });
+    }
+
+    if (userRole === ROLES.auditor && method !== 'GET') {
+        return res.status(403).json({
+            success: false,
+            msg: '权限不足: 审计员角色仅限只读查询',
         });
     }
 

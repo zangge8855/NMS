@@ -114,27 +114,32 @@ export function getNavItemForPath(pathname?: string | null): NavItem | null {
         .find((item) => currentPath.startsWith(`${item.path}/`)) || null;
 }
 
-function shouldIncludeNavItem(item: NavItem, { isAdmin, isGlobalView }: { isAdmin?: boolean; isGlobalView?: boolean }): boolean {
-    if (!isAdmin) return item.userOnly === true || item.path === '/subscriptions';
-    if (item.userOnly && isAdmin) return false;
-    if (item.adminOnly && !isAdmin) return false;
+function shouldIncludeNavItem(item: NavItem, { isAdmin, role, isGlobalView }: { isAdmin?: boolean; role?: string; isGlobalView?: boolean }): boolean {
+    const effectiveRole = role || (isAdmin ? 'admin' : 'user');
+    const isStaff = isAdmin || effectiveRole === 'admin' || effectiveRole === 'operator' || effectiveRole === 'auditor';
+    if (!isStaff) return item.userOnly === true || item.path === '/subscriptions';
+    if (item.userOnly && isStaff) return false;
+    if (effectiveRole === 'auditor' && (item.path === '/settings' || item.path === '/xray')) return false;
+    if (effectiveRole === 'operator' && item.path === '/xray') return false;
+    if (item.adminOnly && !isAdmin && effectiveRole !== 'admin' && effectiveRole !== 'operator' && effectiveRole !== 'auditor') return false;
     if (isGlobalView && item.supportsGlobal === false) return false;
     return true;
 }
 
 export interface NavFilterOptions {
     isAdmin?: boolean;
+    role?: string;
     isGlobalView?: boolean;
     locale?: string;
 }
 
-export function getVisibleNavSections({ isAdmin, isGlobalView, locale = 'zh-CN' }: NavFilterOptions) {
+export function getVisibleNavSections({ isAdmin, role, isGlobalView, locale = 'zh-CN' }: NavFilterOptions) {
     return navSections
         .map((section) => ({
             ...section,
             title: localize(section.title, locale),
             items: section.items
-                .filter((item) => shouldIncludeNavItem(item, { isAdmin, isGlobalView }))
+                .filter((item) => shouldIncludeNavItem(item, { isAdmin, role, isGlobalView }))
                 .map((item) => ({
                     ...item,
                     label: localize(item.label, locale),
@@ -149,9 +154,9 @@ export function getVisibleNavSections({ isAdmin, isGlobalView, locale = 'zh-CN' 
         .filter((section) => section.items.length > 0);
 }
 
-export function getVisibleFooterNavItems({ isAdmin, isGlobalView, locale = 'zh-CN' }: NavFilterOptions) {
+export function getVisibleFooterNavItems({ isAdmin, role, isGlobalView, locale = 'zh-CN' }: NavFilterOptions) {
     return footerNavItems
-        .filter((item) => shouldIncludeNavItem(item, { isAdmin, isGlobalView }))
+        .filter((item) => shouldIncludeNavItem(item, { isAdmin, role, isGlobalView }))
         .map((item) => ({
             ...item,
             label: localize(item.label, locale),
@@ -159,24 +164,25 @@ export function getVisibleFooterNavItems({ isAdmin, isGlobalView, locale = 'zh-C
         }));
 }
 
-export function getVisibleMobileNavItems({ isAdmin, isGlobalView, locale = 'zh-CN' }: NavFilterOptions) {
-    const preset = isAdmin ? mobileNavPresets.admin : mobileNavPresets.user;
+export function getVisibleMobileNavItems({ isAdmin, role, isGlobalView, locale = 'zh-CN' }: NavFilterOptions) {
+    const isStaff = isAdmin || role === 'admin' || role === 'operator' || role === 'auditor';
+    const preset = isStaff ? mobileNavPresets.admin : mobileNavPresets.user;
 
     return preset
         .map((path) => navItems.find((item) => item.path === path))
         .filter((item): item is NavItem => Boolean(item))
-        .filter((item) => shouldIncludeNavItem(item, { isAdmin, isGlobalView }))
+        .filter((item) => shouldIncludeNavItem(item, { isAdmin, role, isGlobalView }))
         .map((item) => ({
             ...item,
             label: localize(item.label, locale),
         }));
 }
 
-export function getSearchableNavItems({ isAdmin, isGlobalView, locale = 'zh-CN' }: NavFilterOptions) {
-    const sectionItems = getVisibleNavSections({ isAdmin, isGlobalView, locale }).flatMap((section) =>
+export function getSearchableNavItems({ isAdmin, role, isGlobalView, locale = 'zh-CN' }: NavFilterOptions) {
+    const sectionItems = getVisibleNavSections({ isAdmin, role, isGlobalView, locale }).flatMap((section) =>
         section.items.map((item) => ({ ...item, section: section.title }))
     );
-    const footerItems = getVisibleFooterNavItems({ isAdmin, isGlobalView, locale }).map((item) => ({
+    const footerItems = getVisibleFooterNavItems({ isAdmin, role, isGlobalView, locale }).map((item) => ({
         ...item,
         section: item.section || localize({ 'zh-CN': '系统', 'en-US': 'System' }, locale),
     }));

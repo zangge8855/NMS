@@ -179,6 +179,7 @@ export function registerOpsCommands(registry: CommandRegistry, ctx: any): void {
 
     registry.register({
         name: '/alert_mute',
+        aliases: ['/silence', '/mute'],
         level: 'write',
         summary: '静音 Telegram 告警 N 分钟',
         handler: async ({ args, ctx: invokeCtx }: { args: any; ctx: any }) => {

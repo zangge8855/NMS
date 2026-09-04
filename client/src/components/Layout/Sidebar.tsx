@@ -45,8 +45,9 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
     const navFlyoutAnchorRef = useRef<HTMLElement | null>(null);
     const isGlobalView = activeServerId === 'global';
     const isAdmin = user?.role === 'admin';
-    const visibleSections = getVisibleNavSections({ isAdmin, isGlobalView, locale });
-    const visibleFooterItems = getVisibleFooterNavItems({ isAdmin, isGlobalView, locale });
+    const role = user?.role || (isAdmin ? 'admin' : 'user');
+    const visibleSections = getVisibleNavSections({ isAdmin, role, isGlobalView, locale });
+    const visibleFooterItems = getVisibleFooterNavItems({ isAdmin, role, isGlobalView, locale });
 
     const onCloseRef = useRef(onClose);
     onCloseRef.current = onClose;
@@ -214,8 +215,12 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
                                     <span className="nav-label sidebar-user-info">
                                         <span className="sidebar-user-name">{user.username || user.email || 'NMS'}</span>
                                         <span className="sidebar-user-badge">
-                                            {isAdmin
+                                            {role === 'admin'
                                                 ? (locale === 'en-US' ? 'Admin' : '管理员')
+                                                : role === 'operator'
+                                                ? (locale === 'en-US' ? 'Operator' : '运维员')
+                                                : role === 'auditor'
+                                                ? (locale === 'en-US' ? 'Auditor' : '审计员')
                                                 : (locale === 'en-US' ? 'User' : '用户')}
                                         </span>
                                     </span>

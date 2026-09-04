@@ -12,11 +12,15 @@ const USERS_FILE = path.join(config.dataDir, 'users.json');
 
 /**
  * 用户角色定义
- *   admin    — 全部权限
- *   user     — 普通用户, 仅可查看自己的订阅连接
+ *   admin    — 全部权限（超级管理员）
+ *   operator — 运维管理员（管理节点、入站、客户端、策略）
+ *   auditor  — 安全审计员（只读查看节点、入站、日志、审计流）
+ *   user     — 普通用户（仅可查看个人订阅及账户资料）
  */
 export const ROLES = {
     admin: 'admin',
+    operator: 'operator',
+    auditor: 'auditor',
     user: 'user',
 } as const;
 
@@ -27,7 +31,9 @@ function normalizeRole(role: unknown, options: { strict?: boolean } = {}): strin
     const strict = options.strict === true;
     const text = String(role || '').trim().toLowerCase();
     if (text === ROLES.admin) return ROLES.admin;
-    if (text === 'operator' || text === 'viewer' || text === ROLES.user) return ROLES.user;
+    if (text === ROLES.operator) return ROLES.operator;
+    if (text === ROLES.auditor || text === 'viewer') return ROLES.auditor;
+    if (text === ROLES.user) return ROLES.user;
     return strict ? '' : ROLES.user;
 }
 

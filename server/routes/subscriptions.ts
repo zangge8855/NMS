@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import crypto from 'crypto';
-import { authMiddleware, adminOnly } from '../middleware/auth.js';
+import { authMiddleware, adminOnly, operatorOrAbove, auditorOrAbove } from '../middleware/auth.js';
 import { ensureAuthenticated } from '../lib/panelClient.js';
 import serverStore from '../store/serverStore.js';
 import subscriptionTokenStore from '../store/subscriptionTokenStore.js';
@@ -4175,6 +4175,54 @@ router.get('/:email', authMiddleware, ensureEmailAccess, async (req, res) => {
             },
         },
     });
+});
+
+/**
+ * GET /api/subscriptions/concurrency-sentinel — 获取集群并发监控报告
+ */
+router.get('/concurrency-sentinel', authMiddleware, auditorOrAbove, async (req: any, res: any) => {
+    try {
+        const { sweepClusterConcurrency } = await import('../services/concurrencySentinel.js');
+        const force = req.query.force === 'true' || req.query.force === '1';
+        const targetEmail = typeof req.query.email === 'string' ? req.query.email : undefined;
+        const report = await sweepClusterConcurrency({ force, targetEmail });
+        return res.json({ success: true, obj: report });
+    } catch (error: any) {
+        return res.status(500).json({ success: false, msg: error.message || 'Failed to sweep concurrency' });
+    }
+});
+
+/**
+ * POST /api/subscriptions/concurrency-sentinel/sweep — 手动触发全局并发扫描
+ */
+router.post('/concurrency-sentinel/sweep', authMiddleware, operatorOrAbove, async (req: any, res: any) => {
+    try {
+        const { sweepClusterConcurrency } = await import('../services/concurrencySentinel.js');
+        const autoKick = req.body?.autoKick === true;
+        const targetEmail = typeof req.body?.email === 'string' ? req.body.email : undefined;
+        const report = await sweepClusterConcurrency({ force: true, targetEmail, autoKick });
+        return res.json({ success: true, obj: report });
+    } catch (error: any) {
+        return res.status(500).json({ success: false, msg: error.message || 'Failed to execute concurrency sweep' });
+    }
+});
+
+/**
+ * POST /api/subscriptions/concurrency-sentinel/kick — 强制踢出用户在线连接
+ */
+router.post('/concurrency-sentinel/kick', authMiddleware, operatorOrAbove, async (req: any, res: any) => {
+    try {
+        const email = String(req.body?.email || '').trim();
+        if (!email) {
+            return res.status(400).json({ success: false, msg: 'Email is required' });
+        }
+        const { kickUserSessions } = await import('../services/concurrencySentinel.js');
+        const serverIds = Array.isArray(req.body?.serverIds) ? req.body.serverIds : undefined;
+        const result = await kickUserSessions(email, serverIds);
+        return res.json({ success: true, obj: result });
+    } catch (error: any) {
+        return res.status(500).json({ success: false, msg: error.message || 'Failed to kick user sessions' });
+    }
 });
 
 export default router;

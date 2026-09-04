@@ -2,7 +2,7 @@
  * Core Domain Models and Type Definitions for NMS
  */
 
-export type UserRole = 'admin' | 'user';
+export type UserRole = 'admin' | 'operator' | 'auditor' | 'user';
 
 export interface PasswordHashInfo {
     hash: string;

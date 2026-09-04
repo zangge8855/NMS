@@ -43,7 +43,9 @@ function normalizeManagedRole(value: unknown): string {
     const text = String(value || '').trim().toLowerCase();
     if (!text) return '';
     if (text === 'admin') return 'admin';
-    if (text === 'user' || text === 'operator' || text === 'viewer') return 'user';
+    if (text === 'operator') return 'operator';
+    if (text === 'auditor' || text === 'viewer') return 'auditor';
+    if (text === 'user') return 'user';
     return '';
 }
 

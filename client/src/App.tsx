@@ -239,15 +239,17 @@ function getWsUrl(ticket: string | null): string | null {
 
 function ProtectedLayout() {
     const { user, token } = useAuth();
-    const isAdmin = user?.role === 'admin';
+    const role = user?.role || 'user';
+    const isAdmin = role === 'admin';
+    const isStaff = isAdmin || role === 'operator' || role === 'auditor';
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [rootWsTicket, setRootWsTicket] = useState('');
     const lastWsTicketFetchAtRef = useRef(0);
     const isMobile = useMediaQuery('(max-width: 768px)');
     const rootWsUrl = useMemo(
-        () => (isAdmin ? getWsUrl(rootWsTicket) : null),
-        [isAdmin, rootWsTicket]
+        () => (isStaff ? getWsUrl(rootWsTicket) : null),
+        [isStaff, rootWsTicket]
     );
     const { status: rootWsStatus, lastMessage: rootWsLastMessage } = useWebSocket(rootWsUrl);
 
@@ -305,10 +307,10 @@ function ProtectedLayout() {
         }
         const timer = window.setTimeout(preloadAdminWorkspaces, 1200);
         return () => window.clearTimeout(timer);
-    }, [isAdmin, token]);
+    }, [isStaff, token]);
 
     const fetchRootWsTicket = useCallback(async ({ force = false } = {}) => {
-        if (!isAdmin || !token) {
+        if (!isStaff || !token) {
             setRootWsTicket('');
             return;
         }
@@ -323,24 +325,24 @@ function ProtectedLayout() {
         } catch (error: any) {
             console.error('Failed to fetch root websocket ticket:', error?.response?.data || error?.message || error);
         }
-    }, [isAdmin, token]);
+    }, [isStaff, token]);
 
     useEffect(() => {
-        if (!isAdmin || !token) {
+        if (!isStaff || !token) {
             setRootWsTicket('');
             return undefined;
         }
         fetchRootWsTicket({ force: true });
         const interval = setInterval(() => fetchRootWsTicket({ force: true }), 5 * 60 * 1000);
         return () => clearInterval(interval);
-    }, [fetchRootWsTicket, isAdmin, token]);
+    }, [fetchRootWsTicket, isStaff, token]);
 
     useEffect(() => {
-        if (!isAdmin || !token) return;
+        if (!isStaff || !token) return;
         if (rootWsStatus === 'reconnecting' || rootWsStatus === 'disconnected') {
             fetchRootWsTicket();
         }
-    }, [fetchRootWsTicket, isAdmin, rootWsStatus, token]);
+    }, [fetchRootWsTicket, isStaff, rootWsStatus, token]);
 
     const effectiveCollapsed = isMobile ? false : sidebarCollapsed;
     const handleCloseSidebar = useCallback(() => setSidebarOpen(false), []);
@@ -353,8 +355,8 @@ function ProtectedLayout() {
     }, [isMobile]);
 
     return (
-        <ServerProvider enabled={isAdmin}>
-        <NotificationProvider enabled={isAdmin} wsLastMessage={isAdmin ? rootWsLastMessage : null}>
+        <ServerProvider enabled={isStaff}>
+        <NotificationProvider enabled={isStaff} wsLastMessage={isStaff ? rootWsLastMessage : null}>
             <div className="app-layout">
                 <div
                     className={`sidebar-backdrop ${sidebarOpen ? 'show' : ''}`}
@@ -373,27 +375,27 @@ function ProtectedLayout() {
                 <main className={`main-content ${effectiveCollapsed ? 'collapsed' : ''}`}>
                     <div className="main-scroll-region">
                         <Routes>
-                            <Route path="/" element={isAdmin ? <LazyPage><Dashboard /></LazyPage> : <Navigate to="/subscriptions" replace />} />
-                            <Route path="/inbounds" element={isAdmin ? <LazyPage><Inbounds /></LazyPage> : <Navigate to="/subscriptions" replace />} />
-                            <Route path="/clients" element={isAdmin ? <LazyPage><UsersHub /></LazyPage> : <Navigate to="/subscriptions" replace />} />
-                            <Route path="/clients/:userId" element={isAdmin ? <LazyPage><UserDetail /></LazyPage> : <Navigate to="/subscriptions" replace />} />
-                            <Route path="/users" element={isAdmin ? <Navigate to="/clients" replace /> : <Navigate to="/subscriptions" replace />} />
-                            <Route path="/users/:userId" element={isAdmin ? <Navigate to="/clients" replace /> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/" element={isStaff ? <LazyPage><Dashboard /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/inbounds" element={isStaff ? <LazyPage><Inbounds /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/clients" element={isStaff ? <LazyPage><UsersHub /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/clients/:userId" element={isStaff ? <LazyPage><UserDetail /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/users" element={isStaff ? <Navigate to="/clients" replace /> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/users/:userId" element={isStaff ? <Navigate to="/clients" replace /> : <Navigate to="/subscriptions" replace />} />
                             <Route path="/subscriptions" element={<LazyPage><Subscriptions /></LazyPage>} />
-                            <Route path="/downloads" element={isAdmin ? <Navigate to="/subscriptions" replace /> : <LazyPage><DownloadsCenter /></LazyPage>} />
+                            <Route path="/downloads" element={isStaff ? <Navigate to="/subscriptions" replace /> : <LazyPage><DownloadsCenter /></LazyPage>} />
                             <Route path="/account" element={<LazyPage><AccountCenter /></LazyPage>} />
-                            <Route path="/logs" element={isAdmin ? <LazyPage><Logs /></LazyPage> : <Navigate to="/subscriptions" replace />} />
-                            <Route path="/server" element={isAdmin ? <Navigate to="/settings?tab=console" replace /> : <Navigate to="/subscriptions" replace />} />
-                            <Route path="/tools" element={isAdmin ? <LazyPage><Tools /></LazyPage> : <Navigate to="/subscriptions" replace />} />
-                            <Route path="/capabilities" element={isAdmin ? <LazyPage><Capabilities /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/logs" element={isStaff ? <LazyPage><Logs /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/server" element={isStaff ? <Navigate to="/settings?tab=console" replace /> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/tools" element={isStaff ? <LazyPage><Tools /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/capabilities" element={isStaff ? <LazyPage><Capabilities /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                             <Route path="/xray" element={isAdmin ? <LazyPage><XrayConsole /></LazyPage> : <Navigate to="/subscriptions" replace />} />
-                            <Route path="/tasks" element={isAdmin ? <Navigate to="/audit" replace /> : <Navigate to="/subscriptions" replace />} />
-                            <Route path="/audit" element={isAdmin ? <LazyPage><AuditCenter /></LazyPage> : <Navigate to="/subscriptions" replace />} />
-                            <Route path="/servers" element={isAdmin ? <LazyPage><Servers /></LazyPage> : <Navigate to="/subscriptions" replace />} />
-                            <Route path="/servers/:serverId" element={isAdmin ? <LazyPage><ServerDetail /></LazyPage> : <Navigate to="/subscriptions" replace />} />
-                            <Route path="/accounts" element={isAdmin ? <Navigate to="/clients" replace /> : <Navigate to="/account" replace />} />
-                            <Route path="/settings" element={isAdmin ? <LazyPage><SystemSettings /></LazyPage> : <Navigate to="/subscriptions" replace />} />
-                            <Route path="*" element={<Navigate to={isAdmin ? '/' : '/subscriptions'} replace />} />
+                            <Route path="/tasks" element={isStaff ? <Navigate to="/audit" replace /> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/audit" element={isStaff ? <LazyPage><AuditCenter /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/servers" element={isStaff ? <LazyPage><Servers /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/servers/:serverId" element={isStaff ? <LazyPage><ServerDetail /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/accounts" element={isStaff ? <Navigate to="/clients" replace /> : <Navigate to="/account" replace />} />
+                            <Route path="/settings" element={(isAdmin || role === 'operator') ? <LazyPage><SystemSettings /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="*" element={<Navigate to={isStaff ? '/' : '/subscriptions'} replace />} />
                         </Routes>
                     </div>
                     {isMobile ? <MobileBottomNav onOpenMenu={() => setSidebarOpen(true)} /> : null}

@@ -153,6 +153,15 @@ class UserPolicyStore {
         mirrorStoreSnapshot('user_policies', this.exportState());
     }
 
+    getAll(): any[] {
+        return Object.entries(this.policies).map(([email, record]) => ({
+            email,
+            ...sanitizePolicy(record),
+            updatedAt: record.updatedAt || null,
+            updatedBy: record.updatedBy || '',
+        }));
+    }
+
     get(email: string): any {
         const normalizedEmail = normalizeEmail(email);
         if (!normalizedEmail) {

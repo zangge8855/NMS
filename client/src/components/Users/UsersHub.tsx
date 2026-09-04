@@ -429,6 +429,7 @@ export default function UsersHub() {
     const [createEmail, setCreateEmail] = useState('');
     const [createPassword, setCreatePassword] = useState('');
     const [createGroupId, setCreateGroupId] = useState('');
+    const [createRole, setCreateRole] = useState<'admin' | 'operator' | 'auditor' | 'user'>('user');
     const [showCreatePassword, setShowCreatePassword] = useState(true);
     const [createProvisionAfterCreate, setCreateProvisionAfterCreate] = useState(true);
 
@@ -1027,6 +1028,25 @@ export default function UsersHub() {
                 label: t('comp.users.editOrStatus'),
                 icon: HiOutlinePencilSquare,
                 onClick: () => openEditModal(user),
+            });
+            dropdownActions.push({
+                label: locale === 'en-US' ? 'Kick Online Sessions' : '强制断开在线连接',
+                icon: HiOutlineArrowPath,
+                onClick: async () => {
+                    const targetEmail = user.subscriptionEmail || user.email;
+                    if (!targetEmail) return;
+                    try {
+                        const res = await api.post('/subscriptions/concurrency-sentinel/kick', { email: targetEmail });
+                        if (res.data?.success) {
+                            toast.success(locale === 'en-US' ? 'Online sessions kicked' : '已断开用户在线连接');
+                            await fetchData({ forceStats: true });
+                        } else {
+                            toast.error(res.data?.msg || (locale === 'en-US' ? 'Action failed' : '操作失败'));
+                        }
+                    } catch (err: any) {
+                        toast.error(err.response?.data?.msg || err.message || (locale === 'en-US' ? 'Action failed' : '操作失败'));
+                    }
+                },
             });
             dropdownActions.push({
                 label: t('comp.common.delete'),
@@ -1763,6 +1783,7 @@ export default function UsersHub() {
         setCreateEmail('');
         setCreatePassword(generateSecurePassword());
         setCreateGroupId('');
+        setCreateRole('user');
         setCreateProvisionAfterCreate(true);
         setCreateSaving(false);
         setCreateOpen(true);
@@ -1801,7 +1822,7 @@ export default function UsersHub() {
             const res = await api.post('/auth/users', {
                 username,
                 password,
-                role: 'user',
+                role: createRole,
                 email,
                 subscriptionEmail: email,
                 groupId: createGroupId,
@@ -2544,6 +2565,19 @@ export default function UsersHub() {
                                         {userGroups.map((group) => (
                                             <option key={group.id} value={group.id}>{group.name}</option>
                                         ))}
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">{locale === 'en-US' ? 'Account Role' : '账号角色'}</label>
+                                    <select
+                                        className="form-select"
+                                        value={createRole}
+                                        onChange={(e) => setCreateRole(e.target.value as any)}
+                                    >
+                                        <option value="user">{t('shell.roleUser')}</option>
+                                        <option value="operator">{t('shell.roleOperator')}</option>
+                                        <option value="auditor">{t('shell.roleAuditor')}</option>
+                                        <option value="admin">{t('shell.roleAdmin')}</option>
                                     </select>
                                 </div>
                                 <div className="form-group">

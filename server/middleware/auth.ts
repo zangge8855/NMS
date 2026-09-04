@@ -65,11 +65,16 @@ export function requireRole(...allowedRoles: string[]) {
 export const adminOnly = requireRole(ROLES.admin);
 
 /**
- * 便捷中间件: 历史命名兼容（当前仅 admin）
+ * 便捷中间件: 运维管理员及以上 (admin, operator)
  */
-export const operatorOrAbove = requireRole(ROLES.admin);
+export const operatorOrAbove = requireRole(ROLES.admin, ROLES.operator);
 
 /**
- * 便捷中间件: 所有已认证角色可访问 (admin / user)
+ * 便捷中间件: 安全审计员及以上 (admin, operator, auditor)
  */
-export const anyRole = requireRole(ROLES.admin, ROLES.user);
+export const auditorOrAbove = requireRole(ROLES.admin, ROLES.operator, ROLES.auditor);
+
+/**
+ * 便捷中间件: 所有已认证角色可访问 (admin, operator, auditor, user)
+ */
+export const anyRole = requireRole(ROLES.admin, ROLES.operator, ROLES.auditor, ROLES.user);

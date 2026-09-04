@@ -113,19 +113,70 @@ export function registerClientCommands(registry: CommandRegistry, ctx: any): voi
     });
 
     registry.register({
+        name: '/myinfo',
+        level: 'query',
+        summary: '查询个人账户与订阅信息',
+        handler: async ({ args, ctx: invokeCtx }: { args: any; ctx: any }) => {
+            const fromId = invokeCtx?.from?.id;
+            const target = args?.positional?.[0];
+            const userAdmin = await services.userAdmin();
+            const users = userAdmin.listUsers();
+            
+            const user = target
+                ? findUserByIdOrEmail(users, target)
+                : (fromId ? users.find((u: any) => String(u.tgId || u.telegramId || '').trim() === String(fromId)) : null);
+
+            if (!user) {
+                if (!target && !fromId) {
+                    return { text: missingArgs(helpers, '/myinfo <邮箱或用户名>'), kind: 'myinfo_missing_args' };
+                }
+                return {
+                    text: helpers.joinHtmlMessage('账户未绑定', [
+                        `${helpers.sectionHeader('提示')}\n• 未找到绑定到此 Telegram 账号的用户记录。\n• 请在管理后台绑定 Telegram ID，或使用 <code>/myinfo &lt;邮箱&gt;</code> 查询。`,
+                    ], { subtitle: '用户自助服务' }),
+                    kind: 'myinfo_not_found',
+                };
+            }
+
+            const rows = [
+                helpers.formatHtmlKeyValueRow('用户名', user.username || '-'),
+                helpers.formatHtmlKeyValueRow('邮箱', user.email || user.subscriptionEmail || '-'),
+                helpers.formatHtmlKeyValueRow('状态', user.enabled === false ? '🚫 停用' : '✅ 正常'),
+                helpers.formatHtmlKeyValueRow('套餐到期', user.expiryTime ? compactDate(user.expiryTime) : '永久有效'),
+                helpers.formatHtmlKeyValueRow('流量用量', formatTrafficUsage(helpers, user)),
+                helpers.formatHtmlKeyValueRow('IP 限制', user.limitIp ? `${user.limitIp} 台设备` : '不限并发'),
+            ];
+
+            return {
+                text: helpers.joinHtmlMessage('个人账户信息', [
+                    `${helpers.sectionHeader('订阅状态')}\n${helpers.trimLines(rows)}`,
+                    `${helpers.sectionHeader('快捷操作')}\n• 发送 <code>/sub</code> 提取最新订阅配置`,
+                ], { subtitle: user.email || user.username }),
+                kind: 'myinfo_detail',
+            };
+        },
+    });
+
+    registry.register({
         name: '/sub',
         level: 'query',
         summary: '取订阅链接',
-        handler: async ({ args }: { args: any }) => {
+        handler: async ({ args, ctx: invokeCtx }: { args: any; ctx: any }) => {
+            const fromId = invokeCtx?.from?.id;
             const target = args?.positional?.[0];
-            if (!target) {
-                return { text: missingArgs(helpers, '/sub <id 或 email>'), kind: 'sub_missing_args' };
-            }
             const userAdmin = await services.userAdmin();
             const users = userAdmin.listUsers();
-            const user = findUserByIdOrEmail(users, target);
+            const user = target
+                ? findUserByIdOrEmail(users, target)
+                : (fromId ? users.find((u: any) => String(u.tgId || u.telegramId || '').trim() === String(fromId)) : null);
+
             if (!user) {
-                return { text: notFound(helpers, '客户'), kind: 'sub_not_found' };
+                return {
+                    text: target
+                        ? notFound(helpers, '客户')
+                        : missingArgs(helpers, '/sub <邮箱或用户名>（或在后台绑定 Telegram ID）'),
+                    kind: 'sub_not_found',
+                };
             }
 
             // Show whatever profile / token info is already on the user

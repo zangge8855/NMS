@@ -196,6 +196,8 @@ function getUserDetailCopy(locale = 'zh-CN') {
                 clearClientIpDone: 'Node access IPs cleared',
                 clearClientIpFailed: 'Failed to clear node access IPs',
                 roleAdmin: 'Admin',
+                roleOperator: 'Operator',
+                roleAuditor: 'Auditor',
                 roleUser: 'User',
                 enabled: 'Enabled',
                 disabled: 'Disabled',
@@ -360,6 +362,8 @@ function getUserDetailCopy(locale = 'zh-CN') {
             clearClientIpDone: '节点访问 IP 记录已清空',
             clearClientIpFailed: '清空节点访问 IP 失败',
             roleAdmin: '管理员',
+            roleOperator: '运维员',
+            roleAuditor: '审计员',
             roleUser: '用户',
             enabled: '已启用',
             disabled: '已停用',
@@ -1541,7 +1545,9 @@ export default function UserDetail() {
                             <div className="user-profile-name">{user.username}</div>
                             <div className="user-profile-email">{user.email || user.subscriptionEmail || copy.unsetEmail}</div>
                             <div className="user-profile-badges">
-                                <span className={`badge ${user.role === 'admin' ? 'badge-info' : 'badge-neutral'}`}>{user.role === 'admin' ? copy.labels.roleAdmin : copy.labels.roleUser}</span>
+                                <span className={`badge ${user.role === 'admin' ? 'badge-info' : user.role === 'operator' ? 'badge-warning' : user.role === 'auditor' ? 'badge-accent' : 'badge-neutral'}`}>
+                                    {user.role === 'admin' ? copy.labels.roleAdmin : user.role === 'operator' ? copy.labels.roleOperator : user.role === 'auditor' ? copy.labels.roleAuditor : copy.labels.roleUser}
+                                </span>
                                 <span className={`badge ${user.enabled ? 'badge-success' : 'badge-danger'}`}>{user.enabled ? copy.labels.enabled : copy.labels.disabled}</span>
                                 {user.emailVerified && <span className="badge badge-success">{copy.labels.emailVerified}</span>}
                             </div>
