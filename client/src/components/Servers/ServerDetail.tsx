@@ -544,7 +544,7 @@ export default function ServerDetail() {
                             <div className="user-profile-meta">
                                 {status && (
                                     <>
-                                        <div className="user-profile-meta-item"><HiOutlineCpuChip /> {t('pages.serverDetail.xrayLabels.cpu')} {status.cpu?.toFixed(1)}%</div>
+                                        <div className="user-profile-meta-item"><HiOutlineCpuChip /> {t('pages.serverDetail.xrayLabels.cpu')} {Number.isFinite(status?.cpu) ? `${status.cpu.toFixed(1)}%` : '-'}</div>
                                         <div className="user-profile-meta-item"><HiOutlineCircleStack /> {t('pages.serverDetail.xrayLabels.memory')} {status.mem && Number(status.mem.total) > 0 ? `${((Number(status.mem.current || 0) / Number(status.mem.total)) * 100).toFixed(1)}%` : '-'}</div>
                                         <div className="user-profile-meta-item"><HiOutlineClock /> {t('pages.serverDetail.xrayLabels.uptime')} {status.uptime ? formatUptime(status.uptime, locale) : '-'}</div>
                                     </>
@@ -608,9 +608,9 @@ export default function ServerDetail() {
                                         <div className="grid grid-cols-2 gap-4 text-sm server-detail-overview-grid">
                                             <div><span className="text-muted">{t('pages.serverDetail.xrayLabels.version')}</span> {status.xray?.version || '-'}</div>
                                             <div><span className="text-muted">{t('pages.serverDetail.xrayLabels.uptime')}</span> {formatUptime(status.uptime, locale)}</div>
-                                            <div><span className="text-muted">{t('pages.serverDetail.xrayLabels.cpu')}</span> {status.cpu?.toFixed(1)}%</div>
-                                            <div><span className="text-muted">{t('pages.serverDetail.xrayLabels.memory')}</span> {status.mem ? `${formatBytes(status.mem.current)} / ${formatBytes(status.mem.total)}` : '-'}</div>
-                                            <div><span className="text-muted">{t('pages.serverDetail.xrayLabels.disk')}</span> {status.disk ? `${formatBytes(status.disk.current)} / ${formatBytes(status.disk.total)}` : '-'}</div>
+                                            <div><span className="text-muted">{t('pages.serverDetail.xrayLabels.cpu')}</span> {Number.isFinite(status?.cpu) ? `${status.cpu.toFixed(1)}%` : '-'}</div>
+                                            <div><span className="text-muted">{t('pages.serverDetail.xrayLabels.memory')}</span> {status.mem && Number(status.mem.total) > 0 ? `${formatBytes(status.mem.current)} / ${formatBytes(status.mem.total)}` : '-'}</div>
+                                            <div><span className="text-muted">{t('pages.serverDetail.xrayLabels.disk')}</span> {status.disk && Number(status.disk.total) > 0 ? `${formatBytes(status.disk.current)} / ${formatBytes(status.disk.total)}` : '-'}</div>
                                             <div><span className="text-muted">{t('pages.serverDetail.xrayLabels.tcpCount')}</span> {status.tcpCount || '-'}</div>
                                         </div>
                                     </div>

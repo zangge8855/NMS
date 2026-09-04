@@ -1592,18 +1592,18 @@ export default function Servers() {
                                                     <tbody>
                                                         {(batchResult.results || []).map((item) => (
                                                             <tr key={`batch-add-${item.line}-${item.url || item.name || ''}`}>
-                                                                <td data-label="行号" className="table-cell-right cell-mono-right servers-batch-line-cell">{item.line || '-'}</td>
-                                                                <td data-label="名称">{item.name || '-'}</td>
-                                                                <td data-label="地址" className="table-word-220 cell-mono">
+                                                                <td data-label={t('comp.servers.lineNumber')} className="table-cell-right cell-mono-right servers-batch-line-cell">{item.line || '-'}</td>
+                                                                <td data-label={t('comp.servers.name')}>{item.name || '-'}</td>
+                                                                <td data-label={t('comp.servers.address')} className="table-word-220 cell-mono">
                                                                     {item.url || '-'}
                                                                 </td>
                                                                 <td data-label="Path" className="cell-mono">{item.basePath || '-'}</td>
-                                                                <td data-label="状态" className="table-cell-center servers-batch-status-cell">
+                                                                <td data-label={t('comp.servers.status')} className="table-cell-center servers-batch-status-cell">
                                                                     <span className={`badge ${item.success ? 'badge-success' : 'badge-danger'}`}>
                                                                         {item.success ? t('comp.common.success') : t('comp.common.failed')}
                                                                     </span>
                                                                 </td>
-                                                                <td data-label="结果" className="table-word-280">
+                                                                <td data-label={t('comp.servers.result')} className="table-word-280">
                                                                     {item.msg || '-'}
                                                                 </td>
                                                             </tr>

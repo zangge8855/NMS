@@ -356,6 +356,16 @@ function createDefaultSettings(protocolKey = 'vmess') {
                 keepAlive: 0,
             }],
             noKernelTun: false,
+            reserved: [0, 0, 0],
+            jc: 4,
+            jmin: 40,
+            jmax: 70,
+            s1: 0,
+            s2: 0,
+            h1: 1,
+            h2: 2,
+            h3: 3,
+            h4: 4,
         };
     }
 
@@ -683,6 +693,12 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
         encipherment: 'encipherment (encryption)', verify: 'verify (client verification)', issue: 'issue (sub-certificate issuance)', generateKeys: 'Generate keys', targetWebsite: 'Target website',
         optionalBlank: 'Optional; usually left blank', mldsaActions: 'mldsa65 actions', noExternalProxy: 'No external proxy configured', trustedXff: 'Trusted XFF (comma-separated)',
         noUdpMask: 'No UDP mask configured', cancel: 'Cancel', saveConfig: 'Save configuration',
+        awgParams: 'AmneziaWG (AWG) Obfuscation', awgHelp: 'Custom packet headers to bypass DPI WireGuard protocol fingerprinting',
+        randomizeAwg: 'Generate Random AWG Params', mtprotoParams: 'MTProto (FakeTLS) Protocol Settings',
+        fakeTlsDomain: 'FakeTLS Domain (fakeTlsDomain)', mtprotoSecret: 'MTProto Secret (secret)',
+        generateSecret: 'Generate FakeTLS Secret', mtprotoPreview: 'Telegram Proxy Connect Link',
+        noKernelTun: 'Disable Kernel TUN (noKernelTun)', addPeer: '+ Add Peer', delete: 'Delete',
+        addMask: '+ Add Mask', genMlkemCert: 'Generate ML-KEM-768',
     } : {
         vlessParams: 'VLESS 协议参数', defaultX25519: '默认（X25519）', authKey: 'Authentication 密钥', noFallback: '未配置 fallback',
         hysteria2Params: 'Hysteria2 协议参数', uploadBandwidth: '上行带宽 (up_mbps)', downloadBandwidth: '下行带宽 (down_mbps)', unlimitedRecommended: '0 = 不限速（建议）',
@@ -697,6 +713,12 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
         encipherment: 'encipherment（加密）', verify: 'verify（验证客户端）', issue: 'issue（签发子证书）', generateKeys: '生成密钥', targetWebsite: '目标网站 (Target)',
         optionalBlank: '可选，通常留空', mldsaActions: 'mldsa65 操作', noExternalProxy: '未配置 external proxy', trustedXff: 'Trusted XFF（逗号分隔）',
         noUdpMask: '未配置 UDP mask', cancel: '取消', saveConfig: '保存配置',
+        awgParams: 'AmneziaWG (AWG) 混淆参数', awgHelp: '自定义数据包头以规避 WireGuard DPI 协议特征检测',
+        randomizeAwg: '随机生成 AWG 混淆参数', mtprotoParams: 'MTProto (FakeTLS) 协议参数',
+        fakeTlsDomain: 'FakeTLS 伪装域名 (fakeTlsDomain)', mtprotoSecret: 'MTProto 密钥 (secret)',
+        generateSecret: '生成随机 FakeTLS 密钥', mtprotoPreview: 'Telegram 代理连接链接',
+        noKernelTun: '不使用内核 TUN (noKernelTun)', addPeer: '+ 添加对端', delete: '删除',
+        addMask: '+ 新增 Mask', genMlkemCert: '生成 ML-KEM-768',
     }, [locale]);
     const { panelApi } = useServer();
     const defaultProtocol = 'vless';
@@ -1281,6 +1303,53 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
             }
         }
         throw new Error('Reality key pair generation failed');
+    };
+
+    const fetchMlkemKeyPair = async (serverId) => {
+        const endpoints = [
+            '/panel/api/server/getNewmlkem768',
+            '/panel/api/inbounds/getNewmlkem768',
+            '/server/getNewmlkem768',
+        ];
+        for (const ep of endpoints) {
+            try {
+                const res = await callPanelTool(serverId, 'get', ep);
+                if (res.data?.obj?.privateKey && res.data?.obj?.publicKey) {
+                    return res.data.obj;
+                }
+            } catch {
+                // fallback to next endpoint
+            }
+        }
+        throw new Error('ML-KEM-768 key pair generation failed');
+    };
+
+    const generateMlkemKeys = async () => {
+        try {
+            const preferredServerId = resolveToolServerId();
+            if (!preferredServerId) {
+                toast.error(t('comp.inbounds.selectServerFirst'));
+                return;
+            }
+            const keys = await fetchMlkemKeyPair(preferredServerId);
+            if (!keys?.privateKey || !keys?.publicKey) return;
+
+            setSimpleStream(prev => ({
+                ...prev,
+                realityPrivateKey: keys.privateKey,
+                realityPublicKey: keys.publicKey
+            }));
+
+            const stream = parseJsonObject(streamSettings, createDefaultStream('tcp', 'none'));
+            stream.realitySettings = stream.realitySettings || {};
+            stream.realitySettings.settings = stream.realitySettings.settings || {};
+            stream.realitySettings.privateKey = keys.privateKey;
+            stream.realitySettings.settings.publicKey = keys.publicKey;
+            setStreamSettings(JSON.stringify(stream, null, 2));
+            toast.success(locale === 'en-US' ? 'ML-KEM-768 keys generated' : 'ML-KEM-768 密钥已生成');
+        } catch (error) {
+            toast.error(error?.response?.data?.msg || error?.message || (locale === 'en-US' ? 'Failed to generate ML-KEM-768 keys' : '生成 ML-KEM-768 密钥失败'));
+        }
     };
 
     const fetchVlessEncOptions = async (serverId) => {
@@ -2270,7 +2339,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                             draft.noKernelTun = e.target.checked;
                                                         })}
                                                     />
-                                                    不使用内核 TUN (noKernelTun)
+                                                    {deepCopy.noKernelTun}
                                                 </label>
                                             </div>
                                         </div>
@@ -2287,6 +2356,151 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </div>
                                             <div className="text-xs text-muted mt-1">{deepCopy.x25519PrivateKey}</div>
                                         </div>
+
+                                        {/* AmneziaWG (AWG) Obfuscation Settings */}
+                                        <div className="border border-stroke-soft rounded-lg p-3 mb-3 bg-surface-subtle">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div>
+                                                    <span className="text-secondary text-xs font-bold uppercase tracking-wider">{deepCopy.awgParams}</span>
+                                                    <p className="text-xs text-muted mt-0.5">{deepCopy.awgHelp}</p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-secondary btn-xs"
+                                                    onClick={() => updateSettingsJson((draft) => {
+                                                        draft.jc = Math.floor(Math.random() * 8) + 3;
+                                                        draft.jmin = Math.floor(Math.random() * 30) + 20;
+                                                        draft.jmax = Math.floor(Math.random() * 50) + 60;
+                                                        draft.s1 = Math.floor(Math.random() * 25) + 15;
+                                                        draft.s2 = Math.floor(Math.random() * 25) + 20;
+                                                        draft.h1 = Math.floor(Math.random() * 2000000000) + 1;
+                                                        draft.h2 = Math.floor(Math.random() * 2000000000) + 1;
+                                                        draft.h3 = Math.floor(Math.random() * 2000000000) + 1;
+                                                        draft.h4 = Math.floor(Math.random() * 2000000000) + 1;
+                                                        draft.reserved = [
+                                                            Math.floor(Math.random() * 256),
+                                                            Math.floor(Math.random() * 256),
+                                                            Math.floor(Math.random() * 256),
+                                                        ];
+                                                    })}
+                                                >
+                                                    {deepCopy.randomizeAwg}
+                                                </button>
+                                            </div>
+                                            <div className="grid grid-cols-3 gap-3 mb-2">
+                                                <div className="form-group">
+                                                    <label className="form-label text-xs">Jc (Junk Count)</label>
+                                                    <input
+                                                        className="form-input text-xs"
+                                                        type="number"
+                                                        min={0}
+                                                        max={128}
+                                                        value={Number(settingsObj?.jc ?? 4)}
+                                                        onChange={(e) => updateSettingsJson((draft) => { draft.jc = Number(e.target.value || 0); })}
+                                                    />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label text-xs">Jmin (Min Bytes)</label>
+                                                    <input
+                                                        className="form-input text-xs"
+                                                        type="number"
+                                                        min={0}
+                                                        max={1500}
+                                                        value={Number(settingsObj?.jmin ?? 40)}
+                                                        onChange={(e) => updateSettingsJson((draft) => { draft.jmin = Number(e.target.value || 0); })}
+                                                    />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label text-xs">Jmax (Max Bytes)</label>
+                                                    <input
+                                                        className="form-input text-xs"
+                                                        type="number"
+                                                        min={0}
+                                                        max={1500}
+                                                        value={Number(settingsObj?.jmax ?? 70)}
+                                                        onChange={(e) => updateSettingsJson((draft) => { draft.jmax = Number(e.target.value || 0); })}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3 mb-2">
+                                                <div className="form-group">
+                                                    <label className="form-label text-xs">S1 (Init Response Junk)</label>
+                                                    <input
+                                                        className="form-input text-xs"
+                                                        type="number"
+                                                        min={0}
+                                                        max={1500}
+                                                        value={Number(settingsObj?.s1 ?? 0)}
+                                                        onChange={(e) => updateSettingsJson((draft) => { draft.s1 = Number(e.target.value || 0); })}
+                                                    />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label text-xs">S2 (Cookie Junk)</label>
+                                                    <input
+                                                        className="form-input text-xs"
+                                                        type="number"
+                                                        min={0}
+                                                        max={1500}
+                                                        value={Number(settingsObj?.s2 ?? 0)}
+                                                        onChange={(e) => updateSettingsJson((draft) => { draft.s2 = Number(e.target.value || 0); })}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-4 gap-2 mb-2">
+                                                <div className="form-group">
+                                                    <label className="form-label text-xs">H1</label>
+                                                    <input
+                                                        className="form-input text-xs font-mono"
+                                                        type="number"
+                                                        value={Number(settingsObj?.h1 ?? 1)}
+                                                        onChange={(e) => updateSettingsJson((draft) => { draft.h1 = Number(e.target.value || 0); })}
+                                                    />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label text-xs">H2</label>
+                                                    <input
+                                                        className="form-input text-xs font-mono"
+                                                        type="number"
+                                                        value={Number(settingsObj?.h2 ?? 2)}
+                                                        onChange={(e) => updateSettingsJson((draft) => { draft.h2 = Number(e.target.value || 0); })}
+                                                    />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label text-xs">H3</label>
+                                                    <input
+                                                        className="form-input text-xs font-mono"
+                                                        type="number"
+                                                        value={Number(settingsObj?.h3 ?? 3)}
+                                                        onChange={(e) => updateSettingsJson((draft) => { draft.h3 = Number(e.target.value || 0); })}
+                                                    />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label text-xs">H4</label>
+                                                    <input
+                                                        className="form-input text-xs font-mono"
+                                                        type="number"
+                                                        value={Number(settingsObj?.h4 ?? 4)}
+                                                        onChange={(e) => updateSettingsJson((draft) => { draft.h4 = Number(e.target.value || 0); })}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label text-xs">Reserved [b0, b1, b2]</label>
+                                                <input
+                                                    className="form-input text-xs font-mono"
+                                                    value={(Array.isArray(settingsObj?.reserved) ? settingsObj.reserved : [0, 0, 0]).join(', ')}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        draft.reserved = e.target.value
+                                                            .split(',')
+                                                            .map((n) => Math.max(0, Math.min(255, Number(n.trim()) || 0)))
+                                                            .slice(0, 3);
+                                                        while (draft.reserved.length < 3) draft.reserved.push(0);
+                                                    })}
+                                                    placeholder="0, 0, 0"
+                                                />
+                                            </div>
+                                        </div>
+
                                         <div className="form-group">
                                             <div className="flex items-center justify-between mb-2">
                                                 <label className="form-label">{deepCopy.peers}</label>
@@ -2299,10 +2513,11 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                             publicKey: '',
                                                             allowedIPs: ['0.0.0.0/0'],
                                                             keepAlive: 0,
+                                                            reserved: [0, 0, 0],
                                                         });
                                                     })}
                                                 >
-                                                    + 添加对端
+                                                    {deepCopy.addPeer}
                                                 </button>
                                             </div>
                                             {(Array.isArray(settingsObj?.peers) ? settingsObj.peers : []).map((peer, peerIdx) => (
@@ -2318,7 +2533,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                                 }
                                                             })}
                                                         >
-                                                            删除
+                                                            {deepCopy.delete}
                                                         </button>
                                                     </div>
                                                     <div className="grid grid-cols-1 gap-2">
@@ -2359,15 +2574,32 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                                 />
                                                             </div>
                                                         </div>
-                                                        <div className="form-group">
-                                                            <label className="form-label text-xs">{deepCopy.preSharedKey}</label>
-                                                            <input
-                                                                className="form-input font-mono"
-                                                                value={String(peer?.preSharedKey || '')}
-                                                                onChange={(e) => updateSettingsJson((draft) => {
-                                                                    draft.peers[peerIdx].preSharedKey = e.target.value;
-                                                                })}
-                                                            />
+                                                        <div className="grid grid-cols-2 gap-2">
+                                                            <div className="form-group">
+                                                                <label className="form-label text-xs">{deepCopy.preSharedKey}</label>
+                                                                <input
+                                                                    className="form-input font-mono"
+                                                                    value={String(peer?.preSharedKey || '')}
+                                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                                        draft.peers[peerIdx].preSharedKey = e.target.value;
+                                                                    })}
+                                                                />
+                                                            </div>
+                                                            <div className="form-group">
+                                                                <label className="form-label text-xs">Reserved (peer.reserved)</label>
+                                                                <input
+                                                                    className="form-input font-mono text-xs"
+                                                                    value={(Array.isArray(peer?.reserved) ? peer.reserved : [0, 0, 0]).join(', ')}
+                                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                                        draft.peers[peerIdx].reserved = e.target.value
+                                                                            .split(',')
+                                                                            .map((n) => Math.max(0, Math.min(255, Number(n.trim()) || 0)))
+                                                                            .slice(0, 3);
+                                                                        while (draft.peers[peerIdx].reserved.length < 3) draft.peers[peerIdx].reserved.push(0);
+                                                                    })}
+                                                                    placeholder="0, 0, 0"
+                                                                />
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -2376,6 +2608,66 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 <div className="text-xs text-muted">{deepCopy.noPeers}</div>
                                             )}
                                         </div>
+                                    </div>
+                                )}
+
+                                {normalizedProtocol === 'mtproto' && (
+                                    <div className="border border-stroke-soft rounded-lg p-4 mb-4">
+                                        <h4 className="text-secondary text-sm font-bold mb-3 uppercase tracking-wider">{deepCopy.mtprotoParams}</h4>
+                                        <div className="form-group mb-3">
+                                            <label className="form-label">{deepCopy.fakeTlsDomain}</label>
+                                            <input
+                                                className="form-input font-mono"
+                                                value={String(settingsObj?.fakeTlsDomain || DEFAULT_MTPROTO_FAKE_TLS_DOMAIN)}
+                                                onChange={(e) => updateSettingsJson((draft) => {
+                                                    draft.fakeTlsDomain = e.target.value;
+                                                })}
+                                                placeholder={DEFAULT_MTPROTO_FAKE_TLS_DOMAIN}
+                                            />
+                                        </div>
+                                        <div className="form-group mb-3">
+                                            <label className="form-label">{deepCopy.mtprotoSecret}</label>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    className="form-input font-mono text-xs"
+                                                    value={String(settingsObj?.secret || '')}
+                                                    onChange={(e) => updateSettingsJson((draft) => {
+                                                        draft.secret = e.target.value;
+                                                    })}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-secondary btn-sm whitespace-nowrap"
+                                                    onClick={() => updateSettingsJson((draft) => {
+                                                        draft.secret = randomMtprotoSecret(draft.fakeTlsDomain || DEFAULT_MTPROTO_FAKE_TLS_DOMAIN);
+                                                    })}
+                                                >
+                                                    {deepCopy.generateSecret}
+                                                </button>
+                                            </div>
+                                        </div>
+                                        {settingsObj?.secret && (
+                                            <div className="form-group p-3 rounded-md bg-surface-subtle border border-stroke-soft">
+                                                <label className="form-label text-xs font-semibold mb-1">{deepCopy.mtprotoPreview}</label>
+                                                <div className="flex items-center gap-2">
+                                                    <code className="text-xs font-mono break-all flex-1 select-all">
+                                                        {`tg://proxy?server=${listen || 'YOUR_SERVER_IP'}&port=${port || 'PORT'}&secret=${settingsObj.secret}`}
+                                                    </code>
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-ghost btn-xs btn-icon"
+                                                        title={deepCopy.copyLink || 'Copy'}
+                                                        onClick={async () => {
+                                                            const link = `tg://proxy?server=${listen || 'YOUR_SERVER_IP'}&port=${port || 'PORT'}&secret=${settingsObj.secret}`;
+                                                            await copyToClipboard(link);
+                                                            toast.success(deepCopy.linkCopied || t('comp.inbounds.idCopied'));
+                                                        }}
+                                                    >
+                                                        <HiOutlineClipboard />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 
@@ -3450,7 +3742,10 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     <div className="border-t border-stroke-soft pt-4 mt-2">
                                         <div className="flex justify-between items-center mb-2">
                                             <label className="form-label">Reality Settings</label>
-                                            <button type="button" className="btn btn-primary btn-sm" onClick={generateRealityKeys}>{deepCopy.generateKeys}</button>
+                                            <div className="flex gap-2">
+                                                <button type="button" className="btn btn-secondary btn-sm" onClick={generateMlkemKeys} title="ML-KEM-768 Post-Quantum Key">{deepCopy.genMlkemCert}</button>
+                                                <button type="button" className="btn btn-primary btn-sm" onClick={generateRealityKeys}>{deepCopy.generateKeys}</button>
+                                            </div>
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-4">
@@ -3462,7 +3757,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         checked={!!simpleStream.realityShow}
                                                         onChange={e => setSimpleStream({ ...simpleStream, realityShow: e.target.checked })}
                                                     />
-                                                    启用
+                                                    {t('comp.common.enable')}
                                                 </label>
                                             </div>
                                             <div className="form-group">
@@ -3841,7 +4136,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     });
                                                 })}
                                             >
-                                                新增 Mask
+                                                {deepCopy.addMask}
                                             </button>
                                         </div>
                                         {(Array.isArray(streamObj?.finalmask?.udp) ? streamObj.finalmask.udp : []).length === 0 && (
@@ -3886,7 +4181,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         current.settings.id = Number(e.target.value || 0);
                                                         draft.finalmask.udp[index] = current;
                                                     })}
-                                                    placeholder="id (仅 xicmp)"
+                                                    placeholder={locale === 'en-US' ? 'id (xicmp only)' : 'id (仅 xicmp)'}
                                                 />
                                                 <button
                                                     type="button"
@@ -3897,7 +4192,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         draft.finalmask.udp.splice(index, 1);
                                                     })}
                                                 >
-                                                    删除
+                                                    {deepCopy.delete}
                                                 </button>
                                             </div>
                                         ))}

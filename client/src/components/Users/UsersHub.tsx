@@ -2235,8 +2235,13 @@ export default function UsersHub() {
                                                         <span className="text-xs text-muted">{syncingCopy.detail}</span>
                                                     ) : user.clientData.totalUsed ? (
                                                         <div className="users-traffic-stack">
-                                                            <span className="text-success">↑{formatBytes(user.clientData.totalUp)}</span>
-                                                            <span className="text-info">↓{formatBytes(user.clientData.totalDown)}</span>
+                                                            <div className="users-traffic-total font-mono font-semibold text-xs leading-tight">
+                                                                {formatBytes(user.clientData.totalUsed)}
+                                                            </div>
+                                                            <div className="users-traffic-split flex items-center justify-end gap-1.5 text-[11px] opacity-85 leading-tight">
+                                                                <span className="text-success">↑{formatBytes(user.clientData.totalUp)}</span>
+                                                                <span className="text-info">↓{formatBytes(user.clientData.totalDown)}</span>
+                                                            </div>
                                                         </div>
                                                     ) : '-'}
                                                 </td>

@@ -52,7 +52,7 @@ export default function CpuHistoryChart({ cpuHistory, endTick, t }: CpuHistoryCh
                     content={(
                         <ChartTooltip
                             labelFormatter={(value: any) => `${t('pages.dashboardNode.cpuTooltipLabel')} · ${value}`}
-                            valueFormatter={(value: any) => `${Number(value).toFixed(1)}%`}
+                            valueFormatter={(value: any) => Number.isFinite(Number(value)) ? `${Number(value).toFixed(1)}%` : '--'}
                         />
                     )}
                     cursor={{ stroke: 'var(--chart-grid-color)', strokeDasharray: '3 3', strokeWidth: 1.5 }}

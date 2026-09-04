@@ -1857,7 +1857,7 @@ export default function Inbounds() {
                                                                                     className="cursor-pointer"
                                                                                 />
                                                                             </td>
-                                                                            <td data-label="用户" className="inbounds-clients-col-email">
+                                                                            <td data-label={deepCopy.user} className="inbounds-clients-col-email">
                                                                                 <div className="inbounds-client-email-row">
                                                                                     <span>{cl.email || '-'}</span>
                                                                                     {hasOverride && (
@@ -1865,7 +1865,7 @@ export default function Inbounds() {
                                                                                     )}
                                                                                 </div>
                                                                             </td>
-                                                                            <td data-label="ID / 密码" className="cell-mono inbounds-clients-col-id">
+                                                                            <td data-label={deepCopy.maskedCredential} className="cell-mono inbounds-clients-col-id">
                                                                                 <div className="inbounds-client-id-row">
                                                                                     <span className="inbounds-client-id-text">
                                                                                         {maskedCredential}
@@ -1887,7 +1887,7 @@ export default function Inbounds() {
                                                                                     )}
                                                                                 </div>
                                                                             </td>
-                                                                            <td data-label="已用流量" className="inbounds-clients-col-usage">
+                                                                            <td data-label={deepCopy.usedTraffic} className="inbounds-clients-col-usage">
                                                                                 <div className="inbound-client-usage">
                                                                                     <div className="inbound-client-usage-head">
                                                                                         <span className="font-medium">{formatBytes(usedBytes)}</span>
@@ -1906,38 +1906,38 @@ export default function Inbounds() {
                                                                                     </div>
                                                                                 </div>
                                                                             </td>
-                                                                            <td data-label="总量" className="table-cell-right cell-mono-right inbounds-clients-col-total">{totalBytes > 0 ? formatBytes(totalBytes) : '∞'}</td>
-                                                                            <td data-label="IP 限制" className="table-cell-right cell-mono-right inbounds-clients-col-ip">{Number(cl.limitIp || 0) > 0 ? cl.limitIp : '∞'}</td>
-                                                                            <td data-label="上 / 下行" className="table-cell-right inbounds-clients-col-traffic">
+                                                                            <td data-label={deepCopy.total} className="table-cell-right cell-mono-right inbounds-clients-col-total">{totalBytes > 0 ? formatBytes(totalBytes) : '∞'}</td>
+                                                                            <td data-label={deepCopy.ipLimit} className="table-cell-right cell-mono-right inbounds-clients-col-ip">{Number(cl.limitIp || 0) > 0 ? cl.limitIp : '∞'}</td>
+                                                                            <td data-label={deepCopy.traffic} className="table-cell-right inbounds-clients-col-traffic">
                                                                                 <div className="inbounds-client-traffic-stack">
                                                                                     <span className="text-success">↑{formatBytes(safeNumber(cl.up))}</span>
                                                                                     <span className="text-info">↓{formatBytes(safeNumber(cl.down))}</span>
                                                                                 </div>
                                                                             </td>
-                                                                            <td data-label="到期时间" className="table-cell-center cell-mono inbounds-clients-col-expiry">{cl.expiryTime ? new Date(cl.expiryTime).toLocaleDateString() : t('comp.common.permanent')}</td>
-                                                                            <td data-label="状态" className="table-cell-center inbounds-clients-col-status">
+                                                                            <td data-label={deepCopy.expiry} className="table-cell-center cell-mono inbounds-clients-col-expiry">{cl.expiryTime ? new Date(cl.expiryTime).toLocaleDateString() : t('comp.common.permanent')}</td>
+                                                                            <td data-label={deepCopy.status} className="table-cell-center inbounds-clients-col-status">
                                                                                 <div className="inbounds-client-status-stack">
                                                                                     <span className={`badge ${cl.enable !== false ? 'badge-success' : 'badge-danger'}`}>
-                                                                                        {cl.enable !== false ? '启用' : '禁用'}
+                                                                                        {cl.enable !== false ? t('comp.common.enable') : t('comp.common.disable')}
                                                                                     </span>
                                                                                     <span
                                                                                         className={`inbounds-client-online-status ${cl.isOnline ? 'is-online' : 'is-offline'}`}
-                                                                                        title={cl.isOnline ? `当前 ${cl.onlineSessionCount || 0} 个会话在线` : '当前无在线会话'}
+                                                                                        title={cl.isOnline ? (locale === 'en-US' ? `${cl.onlineSessionCount || 0} active session(s)` : `当前 ${cl.onlineSessionCount || 0} 个会话在线`) : (locale === 'en-US' ? 'No active sessions' : '当前无在线会话')}
                                                                                     >
                                                                                         <span className="inbounds-client-online-dot-shell" aria-hidden="true">
                                                                                             <span className="inbounds-client-online-dot-ping" />
                                                                                             <span className="inbounds-client-online-dot" />
                                                                                         </span>
-                                                                                        {cl.isOnline ? '在线' : '离线'}
+                                                                                        {cl.isOnline ? t('comp.common.online') : t('comp.common.offline')}
                                                                                     </span>
                                                                                 </div>
                                                                             </td>
-                                                                            <td data-label="操作" className="table-cell-actions inbounds-clients-col-actions">
+                                                                            <td data-label={deepCopy.actions} className="table-cell-actions inbounds-clients-col-actions">
                                                                                 <div className="inbounds-client-actions flex items-center gap-2">
                                                                                     <button
                                                                                         type="button"
                                                                                         className={`btn btn-secondary btn-sm inbounds-client-action-btn inbounds-client-limit-btn ${hasOverride ? 'is-active' : ''}`}
-                                                                                        title={hasOverride ? '已设置单独限制，点击修改' : '设置单独限制'}
+                                                                                        title={hasOverride ? deepCopy.limitSetTitle : deepCopy.limitUnsetTitle}
                                                                                         disabled={isActioning}
                                                                                         onClick={(e) => {
                                                                                             e.stopPropagation();

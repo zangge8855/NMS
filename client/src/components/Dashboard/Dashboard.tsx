@@ -1344,13 +1344,24 @@ export default function Dashboard() {
         {
             icon: HiOutlineCpuChip,
             label: t('pages.dashboardNode.cards.cpuUsage'),
-            value: status ? `${status.cpu.toFixed(1)}%` : '--',
+            value: Number.isFinite(status?.cpu) ? `${status.cpu.toFixed(1)}%` : '--',
             ...DASHBOARD_ACCENT.primary,
             skeletonWidth: '5.5rem',
             sparkline: singleServerCpuSparkline,
             sparklineDomain: [0, 100],
         },
-        { icon: HiOutlineCircleStack, label: t('pages.dashboardNode.cards.memoryUsage'), value: status ? `${((status.mem.current / status.mem.total) * 100).toFixed(1)}%` : '--', sub: status ? `${formatBytes(status.mem.current)} / ${formatBytes(status.mem.total)}` : '', ...DASHBOARD_ACCENT.primary, skeletonWidth: '7rem' },
+        {
+            icon: HiOutlineCircleStack,
+            label: t('pages.dashboardNode.cards.memoryUsage'),
+            value: status?.mem && Number(status.mem.total) > 0
+                ? `${((Number(status.mem.current || 0) / Number(status.mem.total)) * 100).toFixed(1)}%`
+                : '--',
+            sub: status?.mem && Number(status.mem.total) > 0
+                ? `${formatBytes(status.mem.current)} / ${formatBytes(status.mem.total)}`
+                : '',
+            ...DASHBOARD_ACCENT.primary,
+            skeletonWidth: '7rem',
+        },
         { icon: HiOutlineClock, label: t('pages.dashboardNode.cards.runtime'), value: status ? formatUptime(status.uptime, locale) : '--', ...DASHBOARD_ACCENT.success, skeletonWidth: '8rem' },
         {
             icon: HiOutlineArrowsUpDown,

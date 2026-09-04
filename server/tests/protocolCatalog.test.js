@@ -59,4 +59,16 @@ describe('protocol catalog canonicalization', () => {
         assert.equal(mtproto.defaultSettings.fakeTlsDomain, 'www.cloudflare.com');
         assert.equal(mtproto.defaultSettings.secret, '');
     });
+
+    it('exposes the 3x-ui v3.3.0 WireGuard AmneziaWG obfuscation defaults', () => {
+        const wg = getProtocolSchema('wireguard');
+        assert.ok(wg, 'wireguard schema should exist');
+        assert.equal(wg.label, 'WireGuard');
+        assert.deepEqual(wg.defaultSettings.reserved, [0, 0, 0]);
+        assert.equal(wg.defaultSettings.jc, 4);
+        assert.equal(wg.defaultSettings.jmin, 40);
+        assert.equal(wg.defaultSettings.jmax, 70);
+        assert.equal(wg.defaultSettings.h1, 1);
+        assert.equal(wg.defaultSettings.h4, 4);
+    });
 });

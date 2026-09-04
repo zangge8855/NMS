@@ -2716,11 +2716,11 @@ export default function SystemSettings() {
                                 value={draft.webhook.channel}
                                 onChange={(e) => patchField('webhook', 'channel', e.target.value)}
                             >
-                                <option value="bark">Bark (iOS 极速纯推送)</option>
-                                <option value="discord">Discord Webhook</option>
-                                <option value="feishu">飞书机器人 (Lark Robot)</option>
-                                <option value="wechat">企业微信群机器人 (WeChat Work)</option>
-                                <option value="custom">自定义通用 Webhook (POST JSON)</option>
+                                <option value="bark">{t('pages.settings.webhookChannelBark')}</option>
+                                <option value="discord">{t('pages.settings.webhookChannelDiscord')}</option>
+                                <option value="feishu">{t('pages.settings.webhookChannelFeishu')}</option>
+                                <option value="wechat">{t('pages.settings.webhookChannelWechat')}</option>
+                                <option value="custom">{t('pages.settings.webhookChannelCustom')}</option>
                             </select>
                         </div>
 
@@ -2730,7 +2730,7 @@ export default function SystemSettings() {
                                 <input
                                     type="text"
                                     className="form-input font-mono"
-                                    placeholder="例如: AbCdEfGhIjKlMnOp"
+                                    placeholder={t('pages.settings.barkKeyPlaceholder')}
                                     value={draft.webhook.barkKey}
                                     onChange={(e) => patchField('webhook', 'barkKey', e.target.value)}
                                 />
