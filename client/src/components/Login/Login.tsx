@@ -521,7 +521,6 @@ export default function Login() {
             <div className={`login-shell login-shell--${mode}`}>
                 <div className="login-card-column">
                         <div className={`login-card login-card--${mode}`}>
-                            <div className="login-card-border" />
                         <div className="login-brand-row">
                             <img src={logoSrc} alt="NMS" className="login-brand-mark" />
                             <div className="login-brand-copy">

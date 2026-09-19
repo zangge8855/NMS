@@ -4,12 +4,15 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useServer } from '../../contexts/ServerContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useI18n } from '../../contexts/LanguageContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import {
     HiOutlineMagnifyingGlass,
     HiOutlineArrowPath,
     HiOutlinePlusCircle,
     HiOutlineServerStack,
     HiOutlineUsers,
+    HiOutlineSun,
+    HiOutlineMoon,
 } from 'react-icons/hi2';
 import NotificationBell from './NotificationBell';
 import { getNavItemForPath, getSearchableNavItems } from './navConfig';
@@ -117,6 +120,7 @@ export default function Header({
     const { activeServerId, servers = [] } = useServer();
     const { user } = useAuth();
     const { locale, toggleLocale, t } = useI18n();
+    const { mode, resolvedTheme, cycleTheme } = useTheme();
     const navigate = useNavigate();
     const location = useLocation();
     const [searchTerm, setSearchTerm] = useState('');
@@ -486,7 +490,16 @@ export default function Header({
                     <div className="header-controls">
                         <button
                             type="button"
-                            className="theme-toggle-btn language-toggle-btn"
+                            className="theme-toggle-btn header-theme-toggle"
+                            onClick={cycleTheme}
+                            title={locale === 'en-US' ? `Theme: ${mode} (click to switch)` : `外观：${mode === 'auto' ? '跟随系统' : mode === 'dark' ? '深色' : '浅色'}（点击切换）`}
+                            aria-label={locale === 'en-US' ? 'Toggle theme' : '切换外观主题'}
+                        >
+                            {resolvedTheme === 'dark' ? <HiOutlineSun className="theme-toggle-icon" /> : <HiOutlineMoon className="theme-toggle-icon" />}
+                        </button>
+                        <button
+                            type="button"
+                            className="language-toggle-btn"
                             onClick={toggleLocale}
                             title={t('shell.switchLanguage')}
                             aria-label={t('shell.switchLanguage')}

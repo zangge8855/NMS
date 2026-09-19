@@ -187,7 +187,7 @@ export default function Inbounds() {
         limitSetTitle: '已设置单独限制，点击修改', limitUnsetTitle: '设置单独限制',
     }, [locale]);
     const isCompactLayout = useMediaQuery('(max-width: 1100px), (max-width: 768px)');
-    const isCondensedLayout = useMediaQuery('(min-width: 769px) and (max-width: 1580px)');
+    const isCondensedLayout = useMediaQuery('(min-width: 769px) and (max-width: 1100px)');
     const navigate = useNavigate();
     const confirmAction = useConfirm();
     const bootstrapRef = useRef(readInboundsSnapshot());

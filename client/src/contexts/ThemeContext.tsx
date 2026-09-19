@@ -3,27 +3,39 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 export interface ThemeContextType {
     mode: 'auto' | 'light' | 'dark';
     resolvedTheme: 'light' | 'dark';
-    setMode: () => void;
+    setMode: (mode?: 'auto' | 'light' | 'dark') => void;
     cycleTheme: () => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | null>(null);
 
 const STORAGE_KEY = 'nms_theme';
-const LEGACY_STORAGE_KEY = 'xui_theme';
 const THEME_TRANSITION_CLASS = 'theme-transition';
 const THEME_TRANSITION_MS = 320;
 
 function getSystemTheme(): 'light' | 'dark' {
     if (typeof window === 'undefined') return 'dark';
-    return window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    try {
+        return window.matchMedia?.('(prefers-color-scheme: light)')?.matches ? 'light' : 'dark';
+    } catch {
+        return 'dark';
+    }
+}
+
+function getInitialMode(): 'auto' | 'light' | 'dark' {
+    if (typeof window === 'undefined') return 'auto';
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (stored === 'light' || stored === 'dark' || stored === 'auto') return stored;
+    return 'auto';
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-    const mode = 'auto';
-    const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>(getSystemTheme);
+    const [mode, setModeState] = useState<'auto' | 'light' | 'dark'>(getInitialMode);
+    const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>(getSystemTheme);
     const hasMountedRef = useRef(false);
     const transitionTimeoutRef = useRef<number | null>(null);
+
+    const resolvedTheme: 'light' | 'dark' = mode === 'auto' ? systemTheme : mode;
 
     // Apply theme to <html> element
     useEffect(() => {
@@ -33,8 +45,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         root.setAttribute('data-theme', resolvedTheme);
         root.setAttribute('data-theme-mode', mode);
         root.style.colorScheme = resolvedTheme;
-        window.localStorage.removeItem(STORAGE_KEY);
-        window.localStorage.removeItem(LEGACY_STORAGE_KEY);
 
         if (!body) return undefined;
         if (!hasMountedRef.current) {
@@ -57,29 +67,55 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
                 window.clearTimeout(transitionTimeoutRef.current);
             }
         };
-    }, [resolvedTheme]);
+    }, [resolvedTheme, mode]);
 
-    // Listen for system theme changes. Manual theme switching is intentionally disabled.
+    // Listen for system theme changes
     useEffect(() => {
-        const mql = window.matchMedia('(prefers-color-scheme: light)');
-        const handler = () => {
-            setResolvedTheme(getSystemTheme());
-        };
-        if (typeof mql.addEventListener === 'function') {
-            mql.addEventListener('change', handler);
-            return () => mql.removeEventListener('change', handler);
+        if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
+        try {
+            const mql = window.matchMedia('(prefers-color-scheme: light)');
+            if (!mql) return undefined;
+            const handler = () => {
+                setSystemTheme(getSystemTheme());
+            };
+            if (typeof mql.addEventListener === 'function') {
+                mql.addEventListener('change', handler);
+                return () => mql.removeEventListener('change', handler);
+            }
+            mql.addListener?.(handler);
+            return () => mql.removeListener?.(handler);
+        } catch {
+            return undefined;
         }
-        mql.addListener?.(handler);
-        return () => mql.removeListener?.(handler);
     }, []);
 
-    const setMode = useCallback(() => {
-        setResolvedTheme(getSystemTheme());
-        window.localStorage.removeItem(STORAGE_KEY);
-        window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+    const setMode = useCallback((targetMode?: 'auto' | 'light' | 'dark') => {
+        setModeState((current) => {
+            const next = targetMode || (current === 'dark' ? 'light' : 'dark');
+            try {
+                if (next === 'auto') {
+                    window.localStorage.removeItem(STORAGE_KEY);
+                } else {
+                    window.localStorage.setItem(STORAGE_KEY, next);
+                }
+            } catch {}
+            return next;
+        });
     }, []);
 
-    const cycleTheme = setMode;
+    const cycleTheme = useCallback(() => {
+        setModeState((current) => {
+            const next: 'auto' | 'light' | 'dark' = current === 'dark' ? 'light' : current === 'light' ? 'auto' : 'dark';
+            try {
+                if (next === 'auto') {
+                    window.localStorage.removeItem(STORAGE_KEY);
+                } else {
+                    window.localStorage.setItem(STORAGE_KEY, next);
+                }
+            } catch {}
+            return next;
+        });
+    }, []);
 
     useEffect(() => () => {
         if (transitionTimeoutRef.current) {
@@ -96,8 +132,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     );
 }
 
+const DEFAULT_THEME_CTX: ThemeContextType = {
+    mode: 'auto',
+    resolvedTheme: 'dark',
+    setMode: () => {},
+    cycleTheme: () => {},
+};
+
 export function useTheme(): ThemeContextType {
     const ctx = useContext(ThemeContext);
-    if (!ctx) throw new Error('useTheme must be used within ThemeProvider');
-    return ctx;
+    return ctx || DEFAULT_THEME_CTX;
 }

@@ -95,7 +95,7 @@ function getLiveStatusBadge(status: any, copy: any = {}) {
 export default function Servers() {
     const { locale, t } = useI18n();
     const isCompactLayout = useMediaQuery('(max-width: 1100px)');
-    const isCondensedLayout = useMediaQuery('(max-width: 1580px)');
+    const isCondensedLayout = useMediaQuery('(min-width: 769px) and (max-width: 1320px)');
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const {

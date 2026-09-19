@@ -2,6 +2,7 @@ import React, { type ReactElement } from 'react';
 import { render, type RenderOptions, type RenderResult } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '../contexts/LanguageContext';
+import { ThemeProvider } from '../contexts/ThemeContext';
 
 export interface RenderWithRouterOptions extends Omit<RenderOptions, 'wrapper'> {
     route?: string;
@@ -17,7 +18,9 @@ export function renderWithRouter(ui: ReactElement, options: RenderWithRouterOpti
             }}
             initialEntries={[route]}
         >
-            <LanguageProvider>{ui}</LanguageProvider>
+            <ThemeProvider>
+                <LanguageProvider>{ui}</LanguageProvider>
+            </ThemeProvider>
         </MemoryRouter>,
         rest
     );

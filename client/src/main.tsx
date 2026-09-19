@@ -14,6 +14,7 @@ import './index.css';
 import './styles/restrained-ui.css';
 import './styles/overlay-restore.css';
 import './styles/flagship-console.css';
+import './styles/tokens.css';
 import { resolveSiteBasePath } from './utils/sitePath';
 
 // Gracefully handle dynamic import chunk failures after new deployments

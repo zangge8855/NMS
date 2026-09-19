@@ -1951,7 +1951,7 @@ export default function UsersHub() {
                                 </button>
                                 <button
                                     type="button"
-                                    className={`filter-chip ${statusFilter === 'warning_traffic' ? 'active' : ''} ${statusCounts.warningTraffic === 0 ? 'opacity-50' : ''}`}
+                                    className={`filter-chip ${statusFilter === 'warning_traffic' ? 'active' : ''} ${statusCounts.warningTraffic === 0 ? 'is-empty' : ''}`}
                                     onClick={() => setStatusFilter('warning_traffic')}
                                 >
                                     <span className="filter-chip-dot dot-warning" />
@@ -1960,7 +1960,7 @@ export default function UsersHub() {
                                 </button>
                                 <button
                                     type="button"
-                                    className={`filter-chip ${statusFilter === 'expiring' ? 'active' : ''} ${statusCounts.expiring === 0 ? 'opacity-50' : ''}`}
+                                    className={`filter-chip ${statusFilter === 'expiring' ? 'active' : ''} ${statusCounts.expiring === 0 ? 'is-empty' : ''}`}
                                     onClick={() => setStatusFilter('expiring')}
                                 >
                                     <span className="filter-chip-dot dot-warning" />
@@ -1969,7 +1969,7 @@ export default function UsersHub() {
                                 </button>
                                 <button
                                     type="button"
-                                    className={`filter-chip ${statusFilter === 'expired' ? 'active' : ''} ${statusCounts.expired === 0 ? 'opacity-50' : ''}`}
+                                    className={`filter-chip ${statusFilter === 'expired' ? 'active' : ''} ${statusCounts.expired === 0 ? 'is-empty' : ''}`}
                                     onClick={() => setStatusFilter('expired')}
                                 >
                                     <span className="filter-chip-dot dot-danger" />
