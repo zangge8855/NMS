@@ -19,6 +19,8 @@ after(() => {
 
 const {
     buildClientLink,
+    buildHysteria2Link,
+    buildTuicLink,
     buildSubscriptionUserInfoHeader,
     buildMihomoConfigFromLinks,
     buildSurgeConfigFromLinks,
@@ -362,6 +364,87 @@ describe('subscription xhttp share links', () => {
         assert.deepEqual(buildXhttpExtra({ headers: { Host: 'ignored', 'X-Test': 'ok' } }), {
             headers: { 'X-Test': 'ok' },
         });
+    });
+});
+
+describe('subscription hysteria2 share links', () => {
+    it('generates hysteria2 link from inbound client data', () => {
+        const diagnostics = [];
+        const link = buildClientLink({
+            server: { url: 'https://hy2.example.com' },
+            inbound: {
+                protocol: 'hysteria2',
+                port: 8443,
+                remark: 'HY2-NODE',
+            },
+            client: {
+                password: 'secret-password',
+                email: 'user@example.com',
+            },
+            settings: {
+                obfs: {
+                    type: 'salamander',
+                    password: 'obfs-password',
+                },
+            },
+            stream: {
+                tlsSettings: {
+                    serverName: 'sni.example.com',
+                    alpn: ['h3'],
+                    allowInsecure: true,
+                },
+            },
+            diagnostics,
+        });
+
+        assert.equal(diagnostics.length, 0);
+        assert.ok(link.startsWith('hysteria2://secret-password@hy2.example.com:8443'));
+        const parsed = new URL(link);
+        assert.equal(parsed.searchParams.get('sni'), 'sni.example.com');
+        assert.equal(parsed.searchParams.get('alpn'), 'h3');
+        assert.equal(parsed.searchParams.get('insecure'), '1');
+        assert.equal(parsed.searchParams.get('obfs'), 'salamander');
+        assert.equal(parsed.searchParams.get('obfs-password'), 'obfs-password');
+        assert.ok(decodeURIComponent(parsed.hash).includes('HY2-NODE'));
+    });
+});
+
+describe('subscription tuic share links', () => {
+    it('generates tuic link from inbound client data', () => {
+        const diagnostics = [];
+        const link = buildClientLink({
+            server: { url: 'https://tuic.example.com' },
+            inbound: {
+                protocol: 'tuic',
+                port: 9443,
+                remark: 'TUIC-NODE',
+            },
+            client: {
+                uuid: '550e8400-e29b-41d4-a716-446655440000',
+                password: 'tuic-password',
+                email: 'user@example.com',
+            },
+            settings: {
+                congestion_control: 'bbr',
+            },
+            stream: {
+                tlsSettings: {
+                    serverName: 'sni.tuic.example.com',
+                    alpn: ['h3'],
+                    allowInsecure: true,
+                },
+            },
+            diagnostics,
+        });
+
+        assert.equal(diagnostics.length, 0);
+        assert.ok(link.startsWith('tuic://550e8400-e29b-41d4-a716-446655440000:tuic-password@tuic.example.com:9443'));
+        const parsed = new URL(link);
+        assert.equal(parsed.searchParams.get('sni'), 'sni.tuic.example.com');
+        assert.equal(parsed.searchParams.get('alpn'), 'h3');
+        assert.equal(parsed.searchParams.get('allow_insecure'), '1');
+        assert.equal(parsed.searchParams.get('congestion_control'), 'bbr');
+        assert.ok(decodeURIComponent(parsed.hash).includes('TUIC-NODE'));
     });
 });
 

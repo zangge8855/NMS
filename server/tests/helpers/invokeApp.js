@@ -1,4 +1,5 @@
 import http from 'http';
+import { EventEmitter } from 'events';
 import { Readable } from 'stream';
 
 function normalizeHeaders(headers = {}) {
@@ -37,7 +38,8 @@ export async function invokeApp(app, options = {}) {
     }
 
     return new Promise((resolve, reject) => {
-        const socket = {
+        const socket = new EventEmitter();
+        Object.assign(socket, {
             remoteAddress: '127.0.0.1',
             encrypted: false,
             writable: true,
@@ -48,10 +50,6 @@ export async function invokeApp(app, options = {}) {
             setTimeout() {},
             setNoDelay() {},
             setKeepAlive() {},
-            on() {},
-            once() {},
-            emit() {},
-            removeListener() {},
             destroy() {
                 this.destroyed = true;
             },
@@ -63,13 +61,11 @@ export async function invokeApp(app, options = {}) {
             write() {
                 return true;
             },
-        };
-        const req = new Readable({
-            read() {},
         });
+        const req = new http.IncomingMessage(socket);
         req.url = url;
         req.method = method;
-        req.headers = headers;
+        Object.assign(req.headers, headers);
         req.connection = socket;
         req.socket = socket;
         req.httpVersion = '1.1';

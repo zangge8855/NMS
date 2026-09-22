@@ -1,5 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import jwt from 'jsonwebtoken';
+import config from '../config.js';
+import app from '../index.js';
+import { invokeApp } from './helpers/invokeApp.js';
 import certificateStore from '../store/certificateStore.js';
 import { generateSelfSignedCert, issueOrRenewCertificate, dispatchCertificateToServers } from '../services/acmeService.js';
 
@@ -49,5 +53,70 @@ test('issueOrRenewCertificate generates certificate for pending record', async (
     assert.ok(issued.expiresAt);
 
     // Clean up
+    certificateStore.delete(record.id);
+});
+
+test('GET /api/certificates/:id redacts secrets for auditor role even if requested', async () => {
+    const record = certificateStore.create({
+        domain: 'secret.example.com',
+        provider: 'cloudflare',
+        challengeType: 'dns',
+        cfApiToken: 'real-cf-token-12345',
+    });
+    certificateStore.update(record.id, {
+        privateKey: '-----BEGIN PRIVATE KEY-----\nMOCK\n-----END PRIVATE KEY-----',
+    });
+
+    const auditorToken = jwt.sign(
+        { userId: 'auditor-1', role: 'auditor', username: 'auditor' },
+        config.jwt.secret,
+        { expiresIn: '1h' }
+    );
+
+    const res = await invokeApp(app, {
+        method: 'GET',
+        url: `/api/certificates/${record.id}?includeSecrets=true`,
+        headers: {
+            Authorization: `Bearer ${auditorToken}`,
+        },
+    });
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.json.obj.cfApiToken, '********');
+    assert.equal(res.json.obj.privateKey, undefined);
+    assert.equal(res.json.obj.hasPrivateKey, true);
+
+    certificateStore.delete(record.id);
+});
+
+test('GET /api/certificates/:id exposes secrets for admin role when requested', async () => {
+    const record = certificateStore.create({
+        domain: 'secret.example.com',
+        provider: 'cloudflare',
+        challengeType: 'dns',
+        cfApiToken: 'real-cf-token-12345',
+    });
+    certificateStore.update(record.id, {
+        privateKey: '-----BEGIN PRIVATE KEY-----\nMOCK\n-----END PRIVATE KEY-----',
+    });
+
+    const adminToken = jwt.sign(
+        { userId: 'admin-1', role: 'admin', username: 'admin' },
+        config.jwt.secret,
+        { expiresIn: '1h' }
+    );
+
+    const res = await invokeApp(app, {
+        method: 'GET',
+        url: `/api/certificates/${record.id}?includeSecrets=true`,
+        headers: {
+            Authorization: `Bearer ${adminToken}`,
+        },
+    });
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.json.obj.cfApiToken, 'real-cf-token-12345');
+    assert.ok(res.json.obj.privateKey.includes('BEGIN PRIVATE KEY'));
+
     certificateStore.delete(record.id);
 });

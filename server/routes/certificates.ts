@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import certificateStore from '../store/certificateStore.js';
 import { issueOrRenewCertificate, dispatchCertificateToServers } from '../services/acmeService.js';
 import { authMiddleware, operatorOrAbove, auditorOrAbove } from '../middleware/auth.js';
+import { ROLES } from '../store/userStore.js';
 
 const router = Router();
 
@@ -34,7 +35,9 @@ router.get('/:id', auditorOrAbove, (req: Request, res: Response) => {
     if (!cert) {
         return res.status(404).json({ success: false, msg: 'Certificate not found' });
     }
-    const includeSecrets = req.query.includeSecrets === 'true';
+    const userRole = (req as any).user?.role;
+    const canAccessSecrets = userRole === ROLES.admin || userRole === ROLES.operator;
+    const includeSecrets = req.query.includeSecrets === 'true' && canAccessSecrets;
     return res.json({ success: true, obj: sanitizeCert(cert, includeSecrets) });
 });
 

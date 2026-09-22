@@ -5,7 +5,7 @@ import os from 'os';
 import path from 'path';
 import { runScenario } from './helpers/runScenario.js';
 
-const SERVER_ROOT = path.resolve(process.cwd());
+const SERVER_ROOT = path.resolve(import.meta.dirname, '..');
 const JWT_SECRET = 'test-secret-key-for-batch-routes';
 
 function writeJson(filePath, value) {
@@ -136,7 +136,7 @@ test('POST /api/jobs/:id/retry retries only failed user sync targets and writes 
         fs.rmSync(dataDir, { recursive: true, force: true });
     });
 
-    const result = await runScenario('tests/helpers/batchRoutesUserSyncScenario.js', {
+    const result = await runScenario(path.resolve(import.meta.dirname, 'helpers/batchRoutesUserSyncScenario.js'), {
         cwd: SERVER_ROOT,
         timeoutMs: 30_000,
         env: {

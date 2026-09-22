@@ -5,7 +5,7 @@ import { useConfirm } from '../../contexts/ConfirmContext';
 import api from '../../api/client';
 import Header from '../Layout/Header';
 import { useI18n } from '../../contexts/LanguageContext';
-import { copyToClipboard, formatBytes, formatDateOnly } from '../../utils/format';
+import { copyToClipboard, formatBytes, formatDateOnly, getErrorMessage } from '../../utils/format';
 import { getPasswordPolicyError, getPasswordPolicyHint } from '../../utils/passwordPolicy';
 import PasswordStrengthMeter from '../UI/PasswordStrengthMeter';
 import { buildSubscriptionProfileBundle } from '../../utils/subscriptionProfiles';

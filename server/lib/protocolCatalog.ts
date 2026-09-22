@@ -282,6 +282,34 @@ const PROTOCOL_SCHEMAS: ProtocolSchema[] = [
             securities: ['tls'],
         },
     },
+    {
+        key: 'tuic',
+        label: 'TUIC',
+        legacyKeys: [],
+        defaultSettings: {
+            users: [{
+                uuid: '',
+                password: '',
+                email: '',
+                limitIp: 0,
+                totalGB: 0,
+                expiryTime: 0,
+                enable: true,
+                tgId: 0,
+                subId: '',
+                comment: '',
+                reset: 0,
+            }],
+            congestion_control: 'bbr',
+            auth_timeout: '3s',
+            zero_rtt_handshake: false,
+            heartbeat: '10s',
+        },
+        supports: {
+            transports: ['udp'],
+            securities: ['tls'],
+        },
+    },
 ];
 
 const PROTOCOL_SCHEMA_MAP = new Map(PROTOCOL_SCHEMAS.map((item) => [item.key, item]));

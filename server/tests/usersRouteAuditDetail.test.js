@@ -5,7 +5,7 @@ import os from 'os';
 import path from 'path';
 import { runScenario } from './helpers/runScenario.js';
 
-const SERVER_ROOT = path.resolve(process.cwd());
+const SERVER_ROOT = path.resolve(import.meta.dirname, '..');
 const JWT_SECRET = 'test-secret-key-for-users-detail-audit';
 
 function writeJson(filePath, value) {
@@ -33,7 +33,7 @@ test('user detail activity includes audits produced by bulk enable/disable actio
         fs.rmSync(dataDir, { recursive: true, force: true });
     });
 
-    const result = await runScenario('tests/helpers/usersRouteAuditDetailScenario.js', {
+    const result = await runScenario(path.resolve(import.meta.dirname, 'helpers/usersRouteAuditDetailScenario.js'), {
         cwd: SERVER_ROOT,
         env: {
             NODE_ENV: 'test',
@@ -131,7 +131,7 @@ test('user detail sanitizes masked audit IPs and enriches real audit IP metadata
         fs.rmSync(dataDir, { recursive: true, force: true });
     });
 
-    const result = await runScenario('tests/helpers/usersRouteAuditEnrichmentScenario.js', {
+    const result = await runScenario(path.resolve(import.meta.dirname, 'helpers/usersRouteAuditEnrichmentScenario.js'), {
         cwd: SERVER_ROOT,
         env: {
             NODE_ENV: 'test',

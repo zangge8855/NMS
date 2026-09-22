@@ -1,6 +1,6 @@
 import { normalizePanelErrorMessage } from './panelClient.js';
 
-const UUID_PROTOCOLS = new Set<string>(['vmess', 'vless']);
+const UUID_PROTOCOLS = new Set<string>(['vmess', 'vless', 'tuic']);
 const PASSWORD_PROTOCOLS = new Set<string>(['trojan', 'shadowsocks']);
 
 function normalizeText(value: unknown): string {
@@ -158,12 +158,12 @@ export function parseInboundClients(inbound: any = {}): any[] {
 export function resolveClientIdentifier(client: any = {}, protocol: string = ''): string {
     const normalizedProtocol = normalizeProtocol(protocol || client.protocol);
     if (PASSWORD_PROTOCOLS.has(normalizedProtocol)) {
-        return normalizeText(client.password || client.id || client.email);
+        return normalizeText(client.password || client.id || client.uuid || client.email);
     }
     if (UUID_PROTOCOLS.has(normalizedProtocol)) {
-        return normalizeText(client.id || client.password || client.email);
+        return normalizeText(client.uuid || client.id || client.password || client.email);
     }
-    return normalizeText(client.id || client.password || client.auth || client.email);
+    return normalizeText(client.id || client.uuid || client.password || client.auth || client.email);
 }
 
 function clientMatchesIdentifier(client: any = {}, identifier: string = '', protocol: string = ''): boolean {
@@ -172,6 +172,7 @@ function clientMatchesIdentifier(client: any = {}, identifier: string = '', prot
     const candidates = [
         resolveClientIdentifier(client, protocol),
         client.id,
+        client.uuid,
         client.password,
         client.auth,
         client.email,
@@ -212,7 +213,7 @@ function valuesEqual(field: string, left: any, right: any): boolean {
 }
 
 function clientUpdateMatches(actual: any = {}, expected: any = {}): boolean {
-    const fields = ['email', 'id', 'password', 'subId', 'flow', 'expiryTime', 'limitIp', 'totalGB', 'enable'];
+    const fields = ['email', 'id', 'uuid', 'password', 'subId', 'flow', 'expiryTime', 'limitIp', 'totalGB', 'enable'];
     return fields.every((field) => {
         if (!Object.prototype.hasOwnProperty.call(expected || {}, field)) return true;
         return valuesEqual(field, actual?.[field], expected?.[field]);

@@ -1491,7 +1491,7 @@ export default function UserDetail() {
                 />
                 <div className="page-content page-content--wide page-enter user-detail-page">
                     <EmptyState title={copy.userMissingTitle} subtitle={copy.userMissingSubtitle} action={
-                        <button className="btn btn-secondary" onClick={() => navigate('/clients')}>
+                        <button type="button" className="btn btn-secondary" onClick={() => navigate('/clients')}>
                             <HiOutlineArrowLeft /> {copy.backToUsers}
                         </button>
                     } />
@@ -1534,7 +1534,7 @@ export default function UserDetail() {
                 allowTitleWrap
             />
             <div className="page-content page-content--wide page-enter user-detail-page">
-                <button className="btn btn-secondary btn-sm mb-4 page-back-link" onClick={() => navigate('/clients')}>
+                <button type="button" className="btn btn-secondary btn-sm mb-4 page-back-link" onClick={() => navigate('/clients')}>
                     <HiOutlineArrowLeft /> {copy.backToUsers}
                 </button>
 
@@ -1549,7 +1549,7 @@ export default function UserDetail() {
                                     {user.role === 'admin' ? copy.labels.roleAdmin : user.role === 'operator' ? copy.labels.roleOperator : user.role === 'auditor' ? copy.labels.roleAuditor : copy.labels.roleUser}
                                 </span>
                                 <span className={`badge ${user.enabled ? 'badge-success' : 'badge-danger'}`}>{user.enabled ? copy.labels.enabled : copy.labels.disabled}</span>
-                                {user.emailVerified && <span className="badge badge-success">{copy.labels.emailVerified}</span>}
+                                <span className={`badge ${user.emailVerified ? 'badge-success' : 'badge-warning'}`}>{user.emailVerified ? copy.labels.emailVerified : copy.labels.emailUnverified}</span>
                             </div>
                             <div className="user-profile-meta">
                                 <div className="user-profile-meta-item">
@@ -1576,15 +1576,16 @@ export default function UserDetail() {
                         </div>
                         <div className="user-profile-actions">
                             <button
+                                type="button"
                                 className={`btn btn-sm ${user.enabled ? 'btn-danger' : 'btn-success'}`}
                                 onClick={handleToggleEnabled}
                             >
                                 {user.enabled ? <><HiOutlineNoSymbol /> {copy.labels.disableUser}</> : <><HiOutlinePlayCircle /> {copy.labels.enableUser}</>}
                             </button>
-                            <button className="btn btn-secondary btn-sm" onClick={() => navigate(`/clients?edit=${user.id}`)}>
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => navigate(`/clients?edit=${user.id}`)}>
                                 <HiOutlinePencilSquare /> {t('comp.common.edit')}
                             </button>
-                            <button className="btn btn-secondary btn-sm" onClick={fetchDetail}>
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={fetchDetail}>
                                 <HiOutlineArrowPath /> {copy.labels.refresh}
                             </button>
                         </div>
@@ -1596,6 +1597,7 @@ export default function UserDetail() {
                         {tabs.map(t => (
                             <button
                                 key={t.key}
+                                type="button"
                                 className={`tab ${activeTab === t.key ? 'active' : ''}`}
                                 onClick={() => applyTab(t.key)}
                             >
@@ -1659,7 +1661,7 @@ export default function UserDetail() {
                                     )}
                                     actions={(
                                         <div className="flex gap-2 flex-wrap">
-                                            <button className="btn btn-secondary btn-sm" onClick={() => loadSubscription()} disabled={subscriptionLoading}>
+                                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => loadSubscription()} disabled={subscriptionLoading}>
                                                 {subscriptionLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {copy.labels.refresh}</>}
                                             </button>
                                         </div>
@@ -1756,6 +1758,7 @@ export default function UserDetail() {
 
                                                 <div className="subscription-user-address-foot">
                                                     <button
+                                                        type="button"
                                                         className="btn btn-secondary subscription-user-reset-inline-btn"
                                                         onClick={handleResetSubscription}
                                                         disabled={subscriptionResetLoading || !subscriptionResult.email}

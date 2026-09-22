@@ -725,6 +725,73 @@ function buildShadowsocksLink({ server, inbound, client, settings, diagnostics }
     return `ss://${userInfo}@${getServerHost(server.url)}:${inbound.port}#${tag}`;
 }
 
+function buildHysteria2Link({ server, inbound, client, settings, stream, diagnostics }) {
+    const password = client.password || client.auth;
+    if (!password) {
+        diagnostics.push('missing hysteria2 password');
+        return null;
+    }
+
+    const host = getServerHost(server.url);
+    const params = new URLSearchParams();
+
+    const sni = stream?.tlsSettings?.serverName || stream?.externalProxy?.[0]?.dest || '';
+    if (sni) {
+        params.set('sni', sni);
+    }
+    const alpn = joinCsv(stream?.tlsSettings?.alpn);
+    if (alpn) {
+        params.set('alpn', alpn);
+    }
+    if (stream?.tlsSettings?.allowInsecure === true) {
+        params.set('insecure', '1');
+    }
+
+    const obfsType = settings?.obfs?.type;
+    const obfsPassword = settings?.obfs?.password;
+    if (obfsType) {
+        params.set('obfs', obfsType);
+        if (obfsPassword) {
+            params.set('obfs-password', obfsPassword);
+        }
+    }
+
+    const queryStr = params.toString();
+    const tag = encodeURIComponent(getTag(server, inbound, client.email || ''));
+    return `hysteria2://${encodeURIComponent(password)}@${host}:${inbound.port}${queryStr ? `?${queryStr}` : ''}#${tag}`;
+}
+
+function buildTuicLink({ server, inbound, client, settings, stream, diagnostics }) {
+    const uuid = client.uuid || client.id;
+    const password = client.password;
+    if (!uuid || !password) {
+        diagnostics.push('missing tuic uuid or password');
+        return null;
+    }
+
+    const host = getServerHost(server.url);
+    const params = new URLSearchParams();
+
+    const sni = stream?.tlsSettings?.serverName || stream?.externalProxy?.[0]?.dest || '';
+    if (sni) {
+        params.set('sni', sni);
+    }
+    const alpn = joinCsv(stream?.tlsSettings?.alpn || ['h3']);
+    if (alpn) {
+        params.set('alpn', alpn);
+    }
+    if (stream?.tlsSettings?.allowInsecure === true) {
+        params.set('allow_insecure', '1');
+    }
+    if (settings?.congestion_control) {
+        params.set('congestion_control', settings.congestion_control);
+    }
+
+    const queryStr = params.toString();
+    const tag = encodeURIComponent(getTag(server, inbound, client.email || ''));
+    return `tuic://${encodeURIComponent(uuid)}:${encodeURIComponent(password)}@${host}:${inbound.port}${queryStr ? `?${queryStr}` : ''}#${tag}`;
+}
+
 function buildClientLink({ server, inbound, client, settings, stream, diagnostics }) {
     switch ((inbound.protocol || '').toLowerCase()) {
         case 'vmess':
@@ -735,6 +802,11 @@ function buildClientLink({ server, inbound, client, settings, stream, diagnostic
             return buildTrojanLink({ server, inbound, client, stream, diagnostics });
         case 'shadowsocks':
             return buildShadowsocksLink({ server, inbound, client, settings, diagnostics });
+        case 'hysteria2':
+        case 'hy2':
+            return buildHysteria2Link({ server, inbound, client, settings, stream, diagnostics });
+        case 'tuic':
+            return buildTuicLink({ server, inbound, client, settings, stream, diagnostics });
         default:
             return null;
     }
@@ -4230,6 +4302,8 @@ export {
     buildSubscriptionUserInfoHeader,
     buildMihomoConfigFromLinks,
     buildClientLink,
+    buildHysteria2Link,
+    buildTuicLink,
     buildSurgeConfigFromLinks,
     buildSingboxConfigFromLinks,
     buildSubscriptionUrls,

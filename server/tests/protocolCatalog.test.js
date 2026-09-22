@@ -71,4 +71,12 @@ describe('protocol catalog canonicalization', () => {
         assert.equal(wg.defaultSettings.h1, 1);
         assert.equal(wg.defaultSettings.h4, 4);
     });
+
+    it('exposes the 3x-ui v3.8 TUIC protocol defaults', () => {
+        const tuic = getProtocolSchema('tuic');
+        assert.ok(tuic, 'tuic schema should exist');
+        assert.equal(tuic.label, 'TUIC');
+        assert.equal(tuic.defaultSettings.congestion_control, 'bbr');
+        assert.ok(Array.isArray(tuic.defaultSettings.users));
+    });
 });
