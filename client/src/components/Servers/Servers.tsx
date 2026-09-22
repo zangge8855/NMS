@@ -809,7 +809,7 @@ export default function Servers() {
                 toastClose: 'Close',
             }
     ), [filteredServers.length, locale, servers.length]);
-    const activeScopeLabel = uiText.global;
+    const activeScopeLabel = filterGroup !== 'all' ? filterGroup : uiText.global;
     const orderedServerIds = useMemo(
         () => orderedServers.map((item) => String(item?.id || '').trim()).filter(Boolean),
         [orderedServers]
@@ -960,8 +960,9 @@ export default function Servers() {
                             <span className="badge badge-danger">🔴 {locale === 'en-US' ? 'Timeout' : '超时'}</span>
                         )
                     )}
-                    <span className={`badge ${testStateBadge}`}>{testStateText}</span>
-                    <span className={`badge ${credentialBadge.cls}`}>{credentialBadge.text}</span>
+                    {(server.credentialStatus === 'missing' || server.credentialStatus === 'broken') && (
+                        <span className={`badge ${credentialBadge.cls}`}>{credentialBadge.text}</span>
+                    )}
                 </div>
 
                 <div className="servers-mobile-meta">
@@ -1075,11 +1076,13 @@ export default function Servers() {
                                 <span className="servers-summary-label">{uiText.groups}</span>
                                 <span className="servers-summary-value">{groupOptions.length}</span>
                             </div>
-                            <div className="servers-summary-pill servers-summary-pill--wide">
+                            <div className="servers-summary-pill">
                                 <span className="servers-summary-label">{uiText.current}</span>
                                 <span className="servers-summary-value" title={activeScopeLabel}>{activeScopeLabel}</span>
                             </div>
-                            <span className="text-sm text-muted servers-filter-summary">{uiText.filterSummary}</span>
+                            {filteredServers.length !== servers.length ? (
+                                <span className="text-sm text-muted servers-filter-summary">{uiText.filterSummary}</span>
+                            ) : null}
                         </div>
                     )}
                     actions={selectedIds.size > 0 ? null : (

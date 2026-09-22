@@ -1853,12 +1853,20 @@ select {
 .tab,
 .audit-tab,
 .users-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   min-height: 34px;
+  padding: 0 14px;
   border-radius: 5px;
   color: var(--text-muted);
   background: transparent;
   border: 0;
   box-shadow: none;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all var(--transition-fast, 150ms ease);
 }
 
 .tab.active,

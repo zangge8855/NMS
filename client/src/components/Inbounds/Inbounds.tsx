@@ -1431,7 +1431,7 @@ export default function Inbounds() {
                     )}
                     summary={<span className="text-sm text-muted inbounds-toolbar-summary">{t('pages.inbounds.toolbar.summary', { count: filteredInbounds.length })}</span>}
                     actions={selectedVisibleCount > 0 ? (
-                        <div className="flex gap-2 items-center animate-fade-in inbounds-selection-bar">
+                        <div className="flex flex-wrap gap-2 items-center animate-fade-in inbounds-selection-bar">
                             <span className="text-sm font-bold px-2 text-primary">{t('pages.inbounds.toolbar.selected', { count: selectedVisibleCount })}</span>
                             <button className={bulkToggleClassName} onClick={() => handleBulkSetEnable(bulkToggleEnable)}>
                                 {bulkToggleIcon}
@@ -1445,6 +1445,9 @@ export default function Inbounds() {
                             </button>
                             <button className="btn btn-secondary btn-sm" onClick={handleBulkSyncExistingUsers}>
                                 <HiOutlineArrowPath /> {t('comp.inbounds.syncExistingUsersButton')}
+                            </button>
+                            <button className="btn btn-secondary btn-sm" onClick={() => setSelectedKeys(new Set())}>
+                                {t('comp.common.cancel')}
                             </button>
                         </div>
                     ) : (

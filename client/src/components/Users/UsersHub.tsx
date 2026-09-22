@@ -1895,12 +1895,12 @@ export default function UsersHub() {
                 title={t('pages.usersHub.title')}
             />
             <div className="page-content page-enter page-content--wide users-page">
-                <div className="flex gap-2 mb-4 flex-wrap" role="tablist" aria-label={t('pages.usersHub.tabs.ariaLabel')}>
+                <div className="tabs users-tabs mb-6" role="tablist" aria-label={t('pages.usersHub.tabs.ariaLabel')}>
                     <button
                         type="button"
                         role="tab"
                         aria-selected={activeDirectoryView === 'users'}
-                        className={`btn btn-sm ${activeDirectoryView === 'users' ? 'btn-primary' : 'btn-secondary'}`}
+                        className={`tab users-tab ${activeDirectoryView === 'users' ? 'active' : ''}`}
                         onClick={() => setActiveDirectoryView('users')}
                     >
                         <HiOutlineUsers /> {t('pages.usersHub.tabs.users')}
@@ -1909,7 +1909,7 @@ export default function UsersHub() {
                         type="button"
                         role="tab"
                         aria-selected={activeDirectoryView === 'groups'}
-                        className={`btn btn-sm ${activeDirectoryView === 'groups' ? 'btn-primary' : 'btn-secondary'}`}
+                        className={`tab users-tab ${activeDirectoryView === 'groups' ? 'active' : ''}`}
                         onClick={() => setActiveDirectoryView('groups')}
                     >
                         <HiOutlineUserGroup /> {t('pages.usersHub.tabs.groups')}
