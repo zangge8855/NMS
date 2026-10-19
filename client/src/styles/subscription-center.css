@@ -1,0 +1,729 @@
+/* ==========================================================================
+   End-user Subscription Center
+   A dedicated layer for the self-service subscription page (and the admin
+   "User Detail -> Subscription" view that mirrors it). Every rule is scoped
+   to .subscription-user-workbench so the admin workbench is unaffected.
+   ========================================================================== */
+
+/* Outer card becomes a plain container; each section is its own surface. */
+:root .subscription-primary-card--user {
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root .subscription-user-workbench {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1120px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+:root .subscription-user-workbench > * {
+  margin: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Hero
+   -------------------------------------------------------------------------- */
+:root .subscription-user-workbench .subscription-user-hero-strip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 26px 28px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  background:
+    radial-gradient(90% 140% at 100% 0%, color-mix(in srgb, var(--accent-primary) 10%, transparent) 0%, transparent 60%),
+    var(--bg-card);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+:root .subscription-user-workbench .subscription-user-kicker {
+  margin-bottom: 6px;
+  font-family: var(--font-figure);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-primary);
+}
+
+:root .subscription-user-workbench .subscription-user-title {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--text-primary);
+}
+
+:root .subscription-user-workbench .subscription-user-subtitle {
+  margin-top: 6px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+:root .subscription-user-workbench .subscription-user-status-pills {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+:root .subscription-user-workbench .subscription-user-status-pills .badge {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  box-shadow: none;
+}
+
+:root .subscription-user-workbench .subscription-user-status-pills .badge-neutral,
+:root .subscription-user-workbench .subscription-user-status-pills .badge-info {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+:root .subscription-user-workbench .subscription-status-pulse-dot {
+  width: 7px;
+  height: 7px;
+  margin-right: 7px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 18%, transparent);
+}
+
+/* --------------------------------------------------------------------------
+   Usage meters: one band with three columns
+   -------------------------------------------------------------------------- */
+:root .subscription-user-workbench .subscription-user-meter-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+:root .subscription-user-workbench .subscription-user-meter-pill {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px 24px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  min-height: 0;
+}
+
+:root .subscription-user-workbench .subscription-user-meter-pill + .subscription-user-meter-pill {
+  border-left: 1px solid var(--border-color);
+}
+
+:root .subscription-user-workbench .subscription-user-meter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+:root .subscription-user-workbench .subscription-user-meter-label {
+  font-size: 12.5px;
+  font-weight: 550;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-muted);
+}
+
+:root .subscription-user-workbench .subscription-user-meter-meta {
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+:root .subscription-user-workbench .subscription-user-meter-value {
+  font-family: var(--font-figure);
+  font-size: 28px;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+:root .subscription-user-workbench .subscription-user-meter-track {
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+
+:root .subscription-user-workbench .subscription-user-meter-bar {
+  height: 100%;
+  border-radius: inherit;
+  box-shadow: none;
+}
+
+:root .subscription-user-workbench .subscription-user-meter-bar--primary { background: var(--accent-primary); }
+:root .subscription-user-workbench .subscription-user-meter-bar--success { background: var(--accent-success); }
+:root .subscription-user-workbench .subscription-user-meter-bar--warning { background: var(--accent-warning); }
+:root .subscription-user-workbench .subscription-user-meter-bar--danger { background: var(--accent-danger); }
+
+/* --------------------------------------------------------------------------
+   Import stage
+   -------------------------------------------------------------------------- */
+:root .subscription-user-workbench .subscription-user-import-stage {
+  margin: 0;
+  padding: 24px 28px 28px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-card);
+  transform: none;
+}
+
+:root .subscription-user-workbench .subscription-user-import-main {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root .subscription-user-workbench .subscription-user-section-head {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+:root .subscription-user-workbench .subscription-user-section-label {
+  font-size: 16px;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+:root .subscription-user-workbench .subscription-user-section-text {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Profile picker: a row of pill tabs */
+:root .subscription-user-workbench .subscription-profile-switches {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root .subscription-user-workbench .subscription-profile-switches .btn {
+  flex: 0 0 auto;
+  width: auto;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+:root .subscription-user-workbench .subscription-profile-switches .btn-secondary {
+  background: var(--bg-surface) !important;
+  border: 1px solid transparent !important;
+  color: var(--text-secondary) !important;
+}
+
+:root .subscription-user-workbench .subscription-profile-switches .btn-secondary:hover {
+  color: var(--text-primary) !important;
+  border-color: var(--border-color-hover) !important;
+}
+
+:root .subscription-user-workbench .subscription-profile-switches .btn-primary {
+  background: var(--accent-primary) !important;
+  border: 1px solid transparent !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px -4px var(--accent-primary-glow) !important;
+}
+
+/* Address + QR layout */
+:root .subscription-user-workbench .subscription-user-address-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  align-items: stretch;
+}
+
+:root .subscription-user-workbench .subscription-user-address-layout--with-qr {
+  grid-template-columns: minmax(0, 1fr) 248px;
+}
+
+:root .subscription-user-workbench .subscription-user-address-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0;
+  padding: 20px;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--bg-surface) 45%, var(--bg-card));
+  box-shadow: none;
+}
+
+:root .subscription-user-workbench .subscription-user-address-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+:root .subscription-user-workbench .subscription-user-address-label {
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+:root .subscription-user-workbench .subscription-user-address-helper {
+  margin-top: 3px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+:root .subscription-user-workbench .subscription-user-address-head .badge {
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  padding: 3px 10px;
+}
+
+/* Supported clients: an inline label + chips row instead of a nested box */
+:root .subscription-user-workbench .subscription-link-card-meta {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+:root .subscription-user-workbench .subscription-current-profile-tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root .subscription-user-workbench .subscription-current-profile-tools-label {
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 550;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-muted);
+}
+
+:root .subscription-user-workbench .subscription-current-profile-tools-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+:root .subscription-user-workbench .subscription-current-profile-tools-list .badge {
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 550;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+:root .subscription-user-workbench .subscription-user-address-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+:root .subscription-user-workbench .subscription-url-dock {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+:root .subscription-user-workbench .subscription-url-input {
+  flex: 1;
+  min-width: 0;
+  height: 42px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+}
+
+:root .subscription-user-workbench .subscription-user-copy-btn {
+  flex-shrink: 0;
+  height: 42px;
+  padding: 0 18px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+:root .subscription-user-workbench .subscription-user-address-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+:root .subscription-user-workbench .subscription-user-import-btn {
+  flex: 0 0 auto;
+  width: auto;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+:root .subscription-user-workbench .subscription-btn-icon-accent {
+  color: var(--accent-warning);
+}
+
+:root .subscription-user-workbench .subscription-user-import-disabled {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--accent-warning-border);
+  background: var(--accent-warning-soft);
+  color: var(--accent-warning);
+  font-size: 12.5px;
+  font-weight: 550;
+}
+
+:root .subscription-user-workbench .subscription-import-disclosure-toggle {
+  font-size: 12.5px;
+  font-weight: 550;
+  color: var(--accent-primary);
+  cursor: pointer;
+}
+
+:root .subscription-user-workbench .subscription-import-disclosure-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+:root .subscription-user-workbench .subscription-user-address-note {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+/* QR panel */
+:root .subscription-user-workbench .subscription-user-qr-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin: 0;
+  padding: 20px;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--bg-surface) 45%, var(--bg-card));
+  box-shadow: none;
+  text-align: center;
+}
+
+:root .subscription-user-workbench .subscription-inline-qr-title {
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+:root .subscription-user-workbench .subscription-inline-qr-surface {
+  display: grid;
+  place-items: center;
+  width: auto;
+  height: auto;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(16, 24, 40, 0.06);
+  background: #ffffff;
+  box-shadow: 0 6px 20px -10px rgba(16, 24, 40, 0.25);
+}
+
+:root .subscription-user-workbench .subscription-inline-qr-text {
+  max-width: 190px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+:root .subscription-user-workbench .subscription-inline-qr-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+:root .subscription-user-workbench .subscription-inline-qr-empty-icon {
+  font-size: 28px;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+:root .subscription-user-workbench .subscription-inline-qr-empty-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+:root .subscription-user-workbench .subscription-inline-qr-empty-text {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   Reset link: a quiet row, not a red alarm box
+   -------------------------------------------------------------------------- */
+:root .subscription-user-workbench .subscription-user-danger-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-direction: row-reverse;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 16px 24px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  box-shadow: none;
+}
+
+:root .subscription-user-workbench .subscription-user-reset-inline-copy {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+:root .subscription-user-workbench .subscription-user-reset-inline-icon {
+  flex-shrink: 0;
+  font-size: 18px;
+  color: var(--accent-warning);
+}
+
+:root .subscription-user-workbench .subscription-user-reset-inline-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+:root .subscription-user-workbench .subscription-user-reset-inline-text,
+:root .subscription-user-workbench .subscription-user-reset-inline-divider {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+:root .subscription-user-workbench .subscription-user-reset-inline-btn {
+  flex-shrink: 0;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid var(--accent-danger-border) !important;
+  background: transparent !important;
+  color: var(--accent-danger) !important;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: none !important;
+}
+
+:root .subscription-user-workbench .subscription-user-reset-inline-btn:hover:not(:disabled) {
+  background: var(--accent-danger-soft) !important;
+}
+
+:root .subscription-user-workbench .subscription-user-reset-inline-btn:disabled {
+  opacity: 0.45;
+}
+
+/* --------------------------------------------------------------------------
+   Responsive
+   -------------------------------------------------------------------------- */
+@media (max-width: 900px) {
+  :root .subscription-user-workbench .subscription-user-address-layout--with-qr {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  :root .subscription-user-workbench {
+    gap: 12px;
+  }
+
+  :root .subscription-user-workbench .subscription-user-hero-strip {
+    padding: 20px;
+    gap: 14px;
+  }
+
+  :root .subscription-user-workbench .subscription-user-title {
+    font-size: 20px;
+  }
+
+  :root .subscription-user-workbench .subscription-user-meter-strip {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :root .subscription-user-workbench .subscription-user-meter-pill {
+    padding: 14px 18px;
+    gap: 8px;
+  }
+
+  :root .subscription-user-workbench .subscription-user-meter-pill + .subscription-user-meter-pill {
+    border-left: none;
+    border-top: 1px solid var(--border-color);
+  }
+
+  :root .subscription-user-workbench .subscription-user-meter-value {
+    font-size: 22px;
+  }
+
+  :root .subscription-user-workbench .subscription-user-import-stage {
+    padding: 18px;
+  }
+
+  /* Profile pills scroll horizontally instead of stacking */
+  :root .subscription-user-workbench .subscription-profile-switches {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin: 0 -18px;
+    padding: 0 18px 2px;
+    scrollbar-width: none;
+  }
+
+  :root .subscription-user-workbench .subscription-profile-switches::-webkit-scrollbar {
+    display: none;
+  }
+
+  :root .subscription-user-workbench .subscription-user-address-card {
+    padding: 16px;
+  }
+
+  :root .subscription-user-workbench .subscription-url-dock {
+    flex-direction: column;
+  }
+
+  :root .subscription-user-workbench .subscription-user-copy-btn {
+    width: 100%;
+  }
+
+  :root .subscription-user-workbench .subscription-user-address-actions .btn {
+    flex: 1 1 100%;
+  }
+
+  :root .subscription-user-workbench .subscription-user-danger-row {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    padding: 16px;
+  }
+
+  :root .subscription-user-workbench .subscription-user-reset-inline-btn {
+    width: 100%;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Size overrides
+   A global `.btn-sm { height: 28px !important }` rule (flagship-console.css)
+   pins every small button; the controls on this page are larger on purpose.
+   -------------------------------------------------------------------------- */
+:root .subscription-user-workbench .subscription-profile-switches .btn {
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 16px !important;
+  border-radius: var(--radius-full) !important;
+}
+
+:root .subscription-user-workbench .subscription-user-copy-btn {
+  height: 42px !important;
+  min-height: 42px !important;
+  padding: 0 18px !important;
+  border-radius: 10px !important;
+}
+
+:root .subscription-user-workbench .subscription-user-import-btn {
+  height: 38px !important;
+  min-height: 38px !important;
+  padding: 0 16px !important;
+  border-radius: 10px !important;
+}
+
+:root .subscription-user-workbench .subscription-user-reset-inline-btn {
+  height: 34px !important;
+  min-height: 34px !important;
+  padding: 0 14px !important;
+}
+
+:root .subscription-user-workbench .subscription-current-profile-tools,
+:root .subscription-user-workbench .subscription-current-profile-tools--embedded {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+:root .subscription-user-workbench .subscription-user-address-foot.subscription-user-danger-row {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+:root .subscription-user-workbench .subscription-url-input {
+  color: var(--text-secondary);
+}

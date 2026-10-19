@@ -202,6 +202,7 @@ function getUserDetailCopy(locale = 'zh-CN') {
                 enabled: 'Enabled',
                 disabled: 'Disabled',
                 emailVerified: 'Email Verified',
+                emailUnverified: 'Email Unverified',
                 totalTraffic: 'Total Traffic',
                 usedTraffic: 'Used Traffic',
                 availableTraffic: 'Available Traffic',
@@ -368,6 +369,7 @@ function getUserDetailCopy(locale = 'zh-CN') {
             enabled: '已启用',
             disabled: '已停用',
             emailVerified: '邮箱已验证',
+            emailUnverified: '邮箱未验证',
             totalTraffic: '总流量',
             usedTraffic: '已用流量',
             availableTraffic: '可用流量',
@@ -1617,9 +1619,6 @@ export default function UserDetail() {
                                 </div>
                                 {clientSummaryLoading && (
                                     <p className="text-muted text-sm mb-4">{copy.labels.clientSummaryLoading}</p>
-                                )}
-                                {!clientSummaryLoading && (
-                                    <p className="text-muted text-sm mb-4">{copy.labels.totalTraffic}: {formatBytes(totalTraffic)}</p>
                                 )}
                                 {!clientSummaryLoading && (
                                     <p className="text-muted text-sm mb-4">

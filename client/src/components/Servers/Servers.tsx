@@ -1029,24 +1029,24 @@ export default function Servers() {
                                 value={searchKeyword}
                                 onChange={(e) => setSearchKeyword(e.target.value)}
                             />
-                            <select className="form-select servers-filter-select" value={filterGroup} onChange={(e) => setFilterGroup(e.target.value)}>
+                            <select className="form-select servers-filter-select" aria-label={uiText.allGroups} value={filterGroup} onChange={(e) => setFilterGroup(e.target.value)}>
                                 <option value="all">{uiText.allGroups}</option>
                                 {groupOptions.map((group) => <option key={group} value={group}>{group}</option>)}
                             </select>
-                            <select className="form-select servers-filter-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                            <select className="form-select servers-filter-select" aria-label={uiText.allStatus} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
                                 <option value="all">{uiText.allStatus}</option>
                                 <option value="online">{uiText.statusOnline}</option>
                                 <option value="offline">{uiText.statusOffline}</option>
                                 <option value="maintenance">{uiText.statusMaintenance}</option>
                                 <option value="unknown">{uiText.statusUnknown}</option>
                             </select>
-                            <select className="form-select servers-filter-select" value={credentialFilter} onChange={(e) => setCredentialFilter(e.target.value)}>
+                            <select className="form-select servers-filter-select" aria-label={uiText.allCredentials} value={credentialFilter} onChange={(e) => setCredentialFilter(e.target.value)}>
                                 <option value="all">{uiText.allCredentials}</option>
                                 <option value="configured">{uiText.credentialReady}</option>
                                 <option value="missing">{uiText.credentialMissing}</option>
                                 <option value="unreadable">{uiText.credentialBroken}</option>
                             </select>
-                            <select className="form-select servers-filter-select" value={latencyFilter} onChange={(e) => setLatencyFilter(e.target.value)}>
+                            <select className="form-select servers-filter-select" aria-label={uiText.allLatency} value={latencyFilter} onChange={(e) => setLatencyFilter(e.target.value)}>
                                 <option value="all">{uiText.allLatency}</option>
                                 <option value="slow">{uiText.latencySlow}</option>
                                 <option value="critical">{uiText.latencyCritical}</option>

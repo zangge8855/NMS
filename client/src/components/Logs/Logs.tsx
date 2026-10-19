@@ -555,6 +555,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                             <HiOutlineFunnel className="text-muted" />
                             <select
                                 className={`${filterSelectClassName} w-120`}
+                                aria-label={locale === 'en-US' ? 'Log level' : '日志级别'}
                                 value={levelFilter}
                                 onChange={(e) => setLevelFilter(e.target.value)}
                             >
@@ -563,6 +564,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
 
                             <select
                                 className={`${filterSelectClassName} w-100`}
+                                aria-label={locale === 'en-US' ? 'Line count' : '显示行数'}
                                 value={count}
                                 onChange={(e) => setCount(Number(e.target.value))}
                             >
@@ -575,6 +577,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                             {lockedSourceMode === 'auto' && (
                                 <select
                                     className={`${filterSelectClassName} w-140`}
+                                    aria-label={locale === 'en-US' ? 'Log source' : '日志来源'}
                                     value={selectedSource}
                                     onChange={(e) => setSelectedSource(e.target.value)}
                                 >

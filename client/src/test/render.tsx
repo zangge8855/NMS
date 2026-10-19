@@ -12,10 +12,6 @@ export function renderWithRouter(ui: ReactElement, options: RenderWithRouterOpti
     const { route = '/', ...rest } = options;
     return render(
         <MemoryRouter
-            future={{
-                v7_relativeSplatPath: true,
-                v7_startTransition: true,
-            }}
             initialEntries={[route]}
         >
             <ThemeProvider>

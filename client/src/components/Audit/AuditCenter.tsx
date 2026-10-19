@@ -248,6 +248,8 @@ const AUDIT_COPY = {
             topServers: '流量 Top 节点',
             topProtocols: '协议流量占比',
             topServersPendingTitle: '节点排行样本不足',
+            emptyAllTitle: '当前时间窗口暂无流量数据',
+            emptyAllSubtitle: '节点完成流量采样后，这里会显示趋势、排行和协议占比。',
             topServersPendingSubtitle: '当前窗口内缺少足够的节点快照增量，先刷新采样后再查看 Top 节点和节点趋势。',
             topProtocolsScope: '{window} · 按协议聚合',
             pv: '访问次数 (PV)',
@@ -453,6 +455,8 @@ const AUDIT_COPY = {
             topServers: 'Top Nodes by Traffic',
             topProtocols: 'Protocol Share',
             topServersPendingTitle: 'Node ranking is still sampling',
+            emptyAllTitle: 'No traffic in this window yet',
+            emptyAllSubtitle: 'Trends, rankings and protocol share appear here once nodes report traffic samples.',
             topServersPendingSubtitle: 'The current window does not have enough node snapshot deltas yet. Refresh sampling before checking top nodes and node trends.',
             topProtocolsScope: '{window} · grouped by protocol',
             pv: 'Page Views (PV)',
@@ -1929,6 +1933,13 @@ export default function AuditCenter() {
         : trafficWindowCopy.label;
     const trafficActiveUsers = Number(trafficOverview?.activeUsers || 0);
     const topServersPending = topServers.length === 0 && trafficOverview?.topServersReady === false;
+    // With no samples at all, one notice replaces six empty chart cards.
+    const trafficHasAnyData = trafficLoading
+        || trafficTotals.totalBytes > 0
+        || topUsers.length > 0
+        || topServers.length > 0
+        || Boolean(selectedUser)
+        || Boolean(selectedServerId);
     const activeEventFilterCount = useMemo(() => countActiveFilters(eventFilters), [eventFilters]);
     const activeAccessFilterCount = useMemo(() => countActiveFilters(accessFilters), [accessFilters]);
     const selectedTrafficUser = useMemo(
@@ -2111,6 +2122,7 @@ export default function AuditCenter() {
                                         />
                                         <select
                                             className="form-select"
+                                            aria-label={copy.filters.allResults}
                                             value={eventFilters.outcome}
                                             onChange={(e) => setEventFilters((prev) => ({ ...prev, outcome: e.target.value }))}
                                         >
@@ -2340,6 +2352,7 @@ export default function AuditCenter() {
                                     </div>
                                     <select
                                         className="form-select w-130"
+                                        aria-label={copy.filters.autoGranularity}
                                         value={trafficGranularity}
                                         onChange={(e) => setTrafficGranularity(e.target.value)}
                                     >
@@ -2411,6 +2424,8 @@ export default function AuditCenter() {
                             </div>
                         </div>
 
+                        {trafficHasAnyData ? (
+                        <>
                         <div className="grid-auto-280-tight audit-chart-grid mb-6">
                             <div className="card audit-chart-card">
                                 <SectionHeader
@@ -2420,6 +2435,7 @@ export default function AuditCenter() {
                                     actions={(
                                         <select
                                             className="form-select w-220"
+                                            aria-label={copy.traffic.selectUser}
                                             value={selectedUser}
                                             onChange={(e) => setSelectedUser(e.target.value)}
                                         >
@@ -2469,6 +2485,7 @@ export default function AuditCenter() {
                                     actions={(
                                         <select
                                             className="form-select w-220"
+                                            aria-label={copy.traffic.selectServer}
                                             value={selectedServerId}
                                             onChange={(e) => setSelectedServerId(e.target.value)}
                                         >
@@ -2762,6 +2779,17 @@ export default function AuditCenter() {
                                 </Suspense>
                             </div>
                         </div>
+                        </>
+                        ) : (
+                            <div className="card audit-chart-card audit-traffic-empty-card">
+                                <EmptyState
+                                    title={copy.traffic.emptyAllTitle}
+                                    subtitle={copy.traffic.emptyAllSubtitle}
+                                    size="compact"
+                                    action={<button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchTrafficOverview(true)}><HiOutlineArrowPath /> {copy.actions.refreshSample}</button>}
+                                />
+                            </div>
+                        )}
                     </>
                 )}
 
@@ -2832,6 +2860,7 @@ export default function AuditCenter() {
                                 />
                                 <select
                                     className="form-select"
+                                    aria-label={copy.filters.allStatus}
                                     value={accessFilters.status}
                                     onChange={(e) => setAccessFilters((prev) => ({ ...prev, status: e.target.value }))}
                                 >

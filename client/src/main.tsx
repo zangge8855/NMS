@@ -17,6 +17,7 @@ import './styles/flagship-console.css';
 import './styles/tokens.css';
 import './styles/utilities.css';
 import './styles/polish.css';
+import './styles/subscription-center.css';
 import { resolveSiteBasePath } from './utils/sitePath';
 
 // Gracefully handle dynamic import chunk failures after new deployments
@@ -43,10 +44,7 @@ const rootElement = document.getElementById('root');
 if (rootElement) {
     ReactDOM.createRoot(rootElement).render(
         <React.StrictMode>
-            <BrowserRouter
-                basename={siteBasePath}
-                future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
-            >
+            <BrowserRouter basename={siteBasePath}>
                 <LanguageProvider>
                     <AuthProvider>
                         <ConfirmProvider>

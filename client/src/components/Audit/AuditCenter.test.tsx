@@ -209,7 +209,7 @@ describe('AuditCenter localization', () => {
 
         expect(await screen.findByText('暂无审计记录')).toBeInTheDocument();
         await user.type(screen.getByPlaceholderText('关键词'), 'login');
-        await user.selectOptions(screen.getByRole('combobox', { name: '' }), 'failed');
+        await user.selectOptions(screen.getByRole('combobox', { name: '全部结果' }), 'failed');
         await user.type(screen.getByLabelText('开始日期'), '2026-03-01');
         await user.type(screen.getByLabelText('结束日期'), '2026-03-31');
         await user.click(screen.getByRole('button', { name: '更多筛选' }));

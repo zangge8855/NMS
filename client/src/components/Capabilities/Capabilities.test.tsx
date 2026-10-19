@@ -31,10 +31,6 @@ vi.mock('react-hot-toast', () => ({
 function renderCapabilities() {
     return render(
         <MemoryRouter
-            future={{
-                v7_relativeSplatPath: true,
-                v7_startTransition: true,
-            }}
             initialEntries={['/']}
         >
             <LanguageProvider>
@@ -249,10 +245,6 @@ describe('Capabilities', () => {
         serverState.activeServerId = 'server-b';
         view.rerender(
             <MemoryRouter
-                future={{
-                    v7_relativeSplatPath: true,
-                    v7_startTransition: true,
-                }}
                 initialEntries={['/']}
             >
                 <LanguageProvider>

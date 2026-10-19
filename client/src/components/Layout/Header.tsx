@@ -465,7 +465,7 @@ export default function Header({
                         role="combobox"
                         aria-expanded={searchOpen}
                         aria-haspopup="listbox"
-                        aria-controls={searchResultsId}
+                        aria-controls={searchOpen ? searchResultsId : undefined}
                     >
                         <HiOutlineMagnifyingGlass className="header-search-icon" aria-hidden="true" />
                         <input
@@ -481,7 +481,7 @@ export default function Header({
                             onKeyDown={handleSearchKeyDown}
                             aria-label={t('shell.searchAriaLabel')}
                             aria-autocomplete="list"
-                            aria-controls={searchResultsId}
+                            aria-controls={searchOpen ? searchResultsId : undefined}
                             aria-activedescendant={searchOpen && filteredItems[highlightedIndex] ? `${searchResultsId}-${highlightedIndex}` : undefined}
                         />
                         <kbd className="header-search-kbd">{shortcutLabel}</kbd>

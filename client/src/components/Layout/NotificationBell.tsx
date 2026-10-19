@@ -8,6 +8,7 @@ import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { HiOutlineBell, HiOutlineCheckCircle } from 'react-icons/hi2';
 import { useNotifications, type NotificationItem } from '../../contexts/NotificationContext';
+import { useOptionalServer } from '../../contexts/ServerContext';
 import { useI18n } from '../../contexts/LanguageContext';
 import useFloatingPanel, { type ComputePositionParams } from '../../hooks/useFloatingPanel';
 import { formatRelativeTime } from '../../utils/format';
@@ -23,13 +24,24 @@ function clamp(value: number, min: number, max: number): number {
     return Math.min(Math.max(value, min), max);
 }
 
-function buildNotificationMetaRows(notification: NotificationItem = { id: '', title: '' }, copy: Record<string, any> = {}) {
+function buildNotificationMetaRows(
+    notification: NotificationItem = { id: '', title: '' },
+    copy: Record<string, any> = {},
+    serverNames: Map<string, string> = new Map(),
+) {
     const labels = copy.labels || {};
+    const reasons = copy.reasons || {};
     const meta = notification.meta || {};
     const rows: Array<{ label: string; value: string }> = [];
+    const mentioned = `${notification.title || ''} ${notification.body || ''}`;
 
     if (meta.serverId) {
-        rows.push({ label: labels.node, value: String(meta.serverId) });
+        const serverId = String(meta.serverId);
+        const serverName = serverNames.get(serverId) || serverId;
+        // Skip the node row when the title/body already names the node.
+        if (!mentioned.includes(serverName)) {
+            rows.push({ label: labels.node, value: serverName });
+        }
     }
     if (meta.ip) {
         rows.push({ label: labels.sourceIp, value: String(meta.ip) });
@@ -47,7 +59,8 @@ function buildNotificationMetaRows(notification: NotificationItem = { id: '', ti
         });
     }
     if (meta.reasonCode) {
-        rows.push({ label: labels.reason, value: String(meta.reasonCode) });
+        const reasonCode = String(meta.reasonCode);
+        rows.push({ label: labels.reason, value: reasons[reasonCode] || reasonCode });
     }
     if (meta.event) {
         rows.push({ label: labels.event, value: String(meta.event) });
@@ -59,6 +72,28 @@ function buildNotificationMetaRows(notification: NotificationItem = { id: '', ti
             value: truncateLine(item.value, 180),
         }))
         .filter((item) => item.value);
+}
+
+/**
+ * Collapse repeats of the same alert (same title, body and meta) into one entry,
+ * keeping the newest occurrence and remembering every id so all can be marked read.
+ */
+function groupNotifications(items: NotificationItem[] = []) {
+    const groups: Array<{ item: NotificationItem; ids: string[]; unreadIds: string[] }> = [];
+    const index = new Map<string, number>();
+    for (const item of items) {
+        const meta = item.meta || {};
+        const key = [item.title, item.body, meta.serverId, meta.reasonCode, meta.event].map((v) => String(v || '')).join('|');
+        const existing = index.get(key);
+        if (existing === undefined) {
+            index.set(key, groups.length);
+            groups.push({ item, ids: [item.id], unreadIds: item.readAt ? [] : [item.id] });
+        } else {
+            groups[existing].ids.push(item.id);
+            if (!item.readAt) groups[existing].unreadIds.push(item.id);
+        }
+    }
+    return groups;
 }
 
 function truncateLine(value: any, limit = 180): string {
@@ -76,6 +111,15 @@ export default function NotificationBell() {
     const { locale, tm } = useI18n();
     const copy = tm('comp.notifications');
     const dropdownId = useId();
+    const serverContext = useOptionalServer();
+    const serverNames = React.useMemo(() => {
+        const map = new Map<string, string>();
+        for (const server of serverContext?.servers || []) {
+            if (server?.id) map.set(String(server.id), String(server.name || server.id));
+        }
+        return map;
+    }, [serverContext?.servers]);
+    const notificationGroups = React.useMemo(() => groupNotifications(notifications.slice(0, 60)).slice(0, 30), [notifications]);
 
     useEffect(() => {
         if (!open) return;
@@ -133,10 +177,8 @@ export default function NotificationBell() {
         deps: [notifications.length, unreadCount],
     });
 
-    const activateNotification = (notification: NotificationItem) => {
-        if (!notification?.readAt) {
-            markRead(notification.id);
-        }
+    const activateNotification = (unreadIds: string[] = []) => {
+        unreadIds.forEach((id) => markRead(id));
     };
 
     const dropdown = open && typeof document !== 'undefined'
@@ -178,27 +220,33 @@ export default function NotificationBell() {
                             {copy.empty}
                         </div>
                     ) : (
-                        notifications.slice(0, 30).map((n) => {
-                            const metaRows = buildNotificationMetaRows(n, copy);
+                        notificationGroups.map(({ item: n, ids, unreadIds }) => {
+                            const metaRows = buildNotificationMetaRows(n, copy, serverNames);
+                            const isUnread = unreadIds.length > 0;
                             return (
                             <div
                                 key={n.id}
-                                onClick={() => activateNotification(n)}
+                                onClick={() => activateNotification(unreadIds)}
                                 onKeyDown={(event) => {
                                     if (event.key === 'Enter' || event.key === ' ') {
                                         event.preventDefault();
-                                        activateNotification(n);
+                                        activateNotification(unreadIds);
                                     }
                                 }}
-                                className={`notification-item${n.readAt ? '' : ' is-unread'}`}
+                                className={`notification-item${isUnread ? ' is-unread' : ''}`}
                                 data-severity={severityTone(n.severity)}
                                 role="button"
                                 tabIndex={0}
                                 aria-label={`${copy.openItem || copy.title}: ${n.title}`}
                             >
                                 <div className="notification-item-head">
-                                    <span className={`notification-item-title${n.readAt ? '' : ' is-unread'}`}>
+                                    <span className={`notification-item-title${isUnread ? ' is-unread' : ''}`}>
                                         {n.title}
+                                        {ids.length > 1 && (
+                                            <span className="notification-item-repeat">
+                                                {String(copy.repeatCount || '×{count}').replace('{count}', String(ids.length))}
+                                            </span>
+                                        )}
                                     </span>
                                     <span className="notification-item-time">
                                         {formatRelativeTime(n.createdAt, locale)}

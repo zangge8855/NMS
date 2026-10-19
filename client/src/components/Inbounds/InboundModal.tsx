@@ -72,6 +72,10 @@ const _SS_METHOD_OPTIONS = [
 ];
 const VLESS_FLOW_OPTIONS = ['', 'xtls-rprx-vision', 'xtls-rprx-vision-udp443'];
 const TRAFFIC_RESET_OPTIONS = ['never', 'daily', 'weekly', 'monthly'];
+const TRAFFIC_RESET_LABELS: Record<string, Record<string, string>> = {
+    'zh-CN': { never: '不重置', daily: '每天', weekly: '每周', monthly: '每月' },
+    'en-US': { never: 'Never', daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' },
+};
 const SOCKOPT_DOMAIN_STRATEGY_OPTIONS = [
     'AsIs',
     'UseIP',
@@ -1877,7 +1881,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                 <label className="form-label">{t('comp.inbounds.labelTrafficReset')}</label>
                                 <select className="form-select" value={trafficReset} onChange={(e) => setTrafficReset(e.target.value)}>
                                     {TRAFFIC_RESET_OPTIONS.map((item) => (
-                                        <option key={item} value={item}>{item}</option>
+                                        <option key={item} value={item}>{(TRAFFIC_RESET_LABELS[locale] || TRAFFIC_RESET_LABELS['en-US'])[item] || item}</option>
                                     ))}
                                 </select>
                             </div>

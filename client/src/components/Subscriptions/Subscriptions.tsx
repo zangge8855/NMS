@@ -847,7 +847,7 @@ export default function Subscriptions() {
                                         errorText={t('comp.common.noCopyableUrl')}
                                         disabled={!activeProfile?.url || !result.subscriptionActive}
                                     >
-                                        <HiOutlineLink className="subscription-btn-icon" /> {ui.copyAddress}
+                                        {ui.copyAddress}
                                     </CopyFeedbackButton>
                                 </div>
                                 <div className="subscription-user-address-actions">
@@ -978,6 +978,7 @@ export default function Subscriptions() {
                                     <label className="form-label">{ui.scope}</label>
                                     <select
                                         className="form-select"
+                                        aria-label={ui.scope}
                                         value={selectedServerId}
                                         onChange={(e) => setSelectedServerId(e.target.value)}
                                     >

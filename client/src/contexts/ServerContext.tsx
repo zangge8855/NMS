@@ -289,6 +289,11 @@ export function ServerProvider({ children, enabled = true }: ServerProviderProps
     );
 }
 
+/** Like useServer, but returns null outside a ServerProvider instead of throwing. */
+export function useOptionalServer(): ServerContextType | null {
+    return useContext(ServerContext);
+}
+
 export function useServer(): ServerContextType {
     const ctx = useContext(ServerContext);
     if (!ctx) throw new Error('useServer must be used within ServerProvider');

@@ -1418,6 +1418,7 @@ export default function Inbounds() {
                         <>
                         <select
                             className="form-select inbounds-filter-select"
+                            aria-label={locale === 'en-US' ? 'Filter by server' : '按节点筛选'}
                             value={filterServerId}
                             onChange={(e) => setFilterServerId(e.target.value)}
                             disabled={isServerFilterLocked}

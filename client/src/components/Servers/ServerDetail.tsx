@@ -58,6 +58,7 @@ function readServerDetailSnapshot(serverId) {
     return {
         server: snapshot?.server || null,
         status: snapshot?.status || null,
+        statusMeta: snapshot?.statusMeta && typeof snapshot.statusMeta === 'object' ? snapshot.statusMeta : null,
         inbounds: Array.isArray(snapshot?.inbounds) ? snapshot.inbounds : [],
         onlines: Array.isArray(snapshot?.onlines) ? snapshot.onlines : [],
         lastOnline: snapshot?.lastOnline && typeof snapshot.lastOnline === 'object' && !Array.isArray(snapshot.lastOnline) ? snapshot.lastOnline : {},
@@ -194,6 +195,7 @@ export default function ServerDetail() {
     const [loading, setLoading] = useState(() => detailBootstrapRef.current?.server == null);
     const [server, setServer] = useState(() => detailBootstrapRef.current?.server || null);
     const [status, setStatus] = useState(() => detailBootstrapRef.current?.status || null);
+    const [statusMeta, setStatusMeta] = useState(() => detailBootstrapRef.current?.statusMeta || null);
     const [inbounds, setInbounds] = useState(() => detailBootstrapRef.current?.inbounds || []);
     const [onlines, setOnlines] = useState(() => detailBootstrapRef.current?.onlines || []);
     const [lastOnline, setLastOnline] = useState(() => detailBootstrapRef.current?.lastOnline || {});
@@ -230,6 +232,7 @@ export default function ServerDetail() {
                 const payload = res.data?.obj || {};
                 setServer(payload.server || null);
                 setStatus(payload.status || null);
+                setStatusMeta(payload.statusMeta && typeof payload.statusMeta === 'object' ? payload.statusMeta : null);
                 setInbounds(Array.isArray(payload.inbounds) ? payload.inbounds : []);
                 setOnlines(Array.isArray(payload.onlines) ? payload.onlines : []);
                 setLastOnline(payload.lastOnline && typeof payload.lastOnline === 'object' && !Array.isArray(payload.lastOnline) ? payload.lastOnline : {});
@@ -242,6 +245,7 @@ export default function ServerDetail() {
                 toast.error(getErrorMessage(err, t('pages.serverDetail.errors.loadSnapshotFailed'), locale));
                 setServer(null);
                 setStatus(null);
+                setStatusMeta(null);
                 setInbounds([]);
                 setOnlines([]);
             }
@@ -272,6 +276,7 @@ export default function ServerDetail() {
         setLoading(snapshot?.server == null);
         setServer(snapshot?.server || null);
         setStatus(snapshot?.status || null);
+        setStatusMeta(snapshot?.statusMeta || null);
         setInbounds(snapshot?.inbounds || []);
         setOnlines(snapshot?.onlines || []);
         setLastOnline(snapshot?.lastOnline || {});
@@ -298,12 +303,13 @@ export default function ServerDetail() {
         writeSessionSnapshot(buildServerDetailSnapshotKey(serverId), {
             server,
             status,
+            statusMeta,
             inbounds,
             onlines,
             lastOnline,
             auditEvents,
         });
-    }, [auditEvents, inbounds, lastOnline, onlines, server, serverId, status]);
+    }, [auditEvents, inbounds, lastOnline, onlines, server, serverId, status, statusMeta]);
 
     const totalTraffic = useMemo(() => {
         return inbounds.reduce((sum, ib) => sum + (ib.up || 0) + (ib.down || 0), 0);
@@ -508,6 +514,17 @@ export default function ServerDetail() {
         maintenance: t('pages.serverDetail.healthStatus.maintenance'),
     };
     const healthBadge = { healthy: 'badge-success', degraded: 'badge-warning', unreachable: 'badge-danger', maintenance: 'badge-info' };
+    const healthAvatarGradient = {
+        healthy: 'var(--gradient-success)',
+        degraded: 'linear-gradient(135deg, var(--accent-warning), color-mix(in srgb, var(--accent-warning) 70%, #000))',
+        unreachable: 'linear-gradient(135deg, var(--accent-danger), color-mix(in srgb, var(--accent-danger) 70%, #000))',
+        maintenance: 'var(--gradient-primary)',
+    };
+    // Maintenance is an operator-set flag; otherwise prefer the live probe result so the
+    // detail page agrees with the server list and dashboard.
+    const effectiveHealth = server.health === 'maintenance'
+        ? 'maintenance'
+        : String(statusMeta?.health || server.health || '').trim();
     const showInboundStats = !inboundsLoading || inbounds.length > 0;
     const showOnlineStats = !onlinesLoading || onlineUsers.length > 0 || onlines.length > 0;
     const hasEnvironment = String(server.environment || '').trim() && String(server.environment || '').trim() !== 'unknown';
@@ -526,15 +543,15 @@ export default function ServerDetail() {
                 {/* Server Profile Card */}
                 <div className="glass-panel mb-6 detail-hero-panel detail-hero-panel--server">
                     <div className="user-profile-card detail-hero-card detail-hero-card--server">
-                        <div className="user-avatar user-avatar-lg" style={{ background: 'var(--gradient-success)' }}>
+                        <div className="user-avatar user-avatar-lg" style={{ background: healthAvatarGradient[effectiveHealth] || 'var(--gradient-primary)' }}>
                             <HiOutlineServerStack />
                         </div>
                         <div className="user-profile-info">
                             <div className="user-profile-name">{server.name}</div>
                             <div className="user-profile-email font-mono">{server.url}</div>
                             <div className="user-profile-badges">
-                                <span className={`badge ${healthBadge[server.health] || 'badge-neutral'}`}>
-                                    {healthLabel[server.health] || t('comp.common.unknown')}
+                                <span className={`badge ${healthBadge[effectiveHealth] || 'badge-neutral'}`}>
+                                    {healthLabel[effectiveHealth] || t('comp.common.unknown')}
                                 </span>
                                 {hasEnvironment && (
                                     <span className="badge badge-neutral">{envLabel[server.environment] || server.environment}</span>
@@ -593,7 +610,7 @@ export default function ServerDetail() {
                                         <div><span className="text-muted">{t('pages.serverDetail.infoLabels.username')}</span> {server.username}</div>
                                         {hasEnvironment && <div><span className="text-muted">{t('pages.serverDetail.infoLabels.environment')}</span> {envLabel[server.environment] || server.environment}</div>}
                                         <div><span className="text-muted">{t('pages.serverDetail.infoLabels.group')}</span> {server.group || t('pages.serverDetail.infoLabels.noGroup')}</div>
-                                        <div><span className="text-muted">{t('pages.serverDetail.infoLabels.health')}</span> {healthLabel[server.health] || t('comp.common.unknown')}</div>
+                                        <div><span className="text-muted">{t('pages.serverDetail.infoLabels.health')}</span> {healthLabel[effectiveHealth] || t('comp.common.unknown')}</div>
                                         {server.basePath && <div><span className="text-muted">{t('pages.serverDetail.infoLabels.basePath')}</span> <span className="font-mono">{server.basePath}</span></div>}
                                     </div>
                                     {Array.isArray(server.tags) && server.tags.length > 0 && (

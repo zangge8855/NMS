@@ -10,9 +10,10 @@ describe('navConfig', () => {
             locale: 'zh-CN',
         });
 
-        expect(sections.map((section) => section.title)).toEqual(['管理', '系统']);
+        expect(sections.map((section) => section.title)).toEqual(['管理', '运维', '系统']);
         expect(sections[0].items.map((item) => item.path)).toEqual(['/', '/inbounds', '/clients', '/audit']);
-        expect(sections[1].items.map((item) => item.path)).toEqual(['/settings', '/servers']);
+        expect(sections[1].items.map((item) => item.path)).toEqual(['/logs', '/tools', '/xray']);
+        expect(sections[2].items.map((item) => item.path)).toEqual(['/settings', '/servers']);
     });
 
     it('shows subscriptions, downloads, and account for regular users in the expected order', () => {
@@ -22,7 +23,7 @@ describe('navConfig', () => {
             locale: 'zh-CN',
         });
 
-        expect(sections.map((section) => section.title)).toEqual(['管理']);
+        expect(sections.map((section) => section.title)).toEqual(['我的服务']);
         expect(sections[0].items.map((item) => item.path)).toEqual(['/subscriptions', '/downloads', '/account']);
     });
 

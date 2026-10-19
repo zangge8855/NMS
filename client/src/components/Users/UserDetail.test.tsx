@@ -463,7 +463,7 @@ describe('UserDetail', () => {
         renderWithRouter(<UserDetail />);
 
         await screen.findByText('用户详情 · alice');
-        await screen.findByText('总流量: 3 KB');
+        await screen.findByText('3 KB');
         expect(screen.getByText('实时速度: 计算中')).toBeInTheDocument();
         await waitFor(() => {
             expect(intervalRegistrations.some((item) => item.delay === 15000)).toBe(true);

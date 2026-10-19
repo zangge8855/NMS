@@ -919,3 +919,230 @@ body {
 :root .servers-mobile-actions .btn {
   height: var(--control-h);
 }
+
+/* ==========================================================================
+   21. Round-two fixes: contrast, focus, overlays, form details
+   ========================================================================== */
+
+/* Muted text that clears WCAG AA (4.5:1) on both white and surface grey */
+[data-theme="light"] {
+  --text-muted: #5b6474;
+}
+
+/* Status badges: the legacy layer pins dark-theme hues with !important, which
+   fall below AA on light backgrounds. Light theme gets deeper ink. */
+:root[data-theme="light"] .badge-success {
+  color: #047857 !important;
+  background: rgba(5, 150, 105, 0.1) !important;
+  border-color: rgba(5, 150, 105, 0.26) !important;
+}
+
+:root[data-theme="light"] .badge-warning {
+  color: #a24a06 !important;
+  background: rgba(217, 119, 6, 0.1) !important;
+  border-color: rgba(217, 119, 6, 0.28) !important;
+}
+
+:root[data-theme="light"] .badge-danger {
+  color: #b91c1c !important;
+  background: rgba(220, 38, 38, 0.08) !important;
+  border-color: rgba(220, 38, 38, 0.24) !important;
+}
+
+:root[data-theme="light"] :is(.badge-info, .badge-primary) {
+  color: #1d4ed8 !important;
+}
+
+/* Sidebar: section titles were 9px at 2.9:1 contrast */
+:root .nav-section-title,
+:root[data-theme="light"] .nav-section-title {
+  font-family: var(--font-figure);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+:root[data-theme="light"] .nav-badge {
+  color: #b91c1c;
+  background: rgba(220, 38, 38, 0.08);
+}
+
+:root[data-theme="light"] .sidebar-user-badge {
+  color: #1d4ed8;
+}
+
+:root .header-search-kbd {
+  color: var(--text-secondary);
+}
+
+/* Header search: the field itself carries no ring; the container does */
+:root .header-search .header-search-input,
+:root .header-search .header-search-input:focus,
+:root .header-search .header-search-input:focus-visible {
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  background: transparent !important;
+}
+
+:root .header-search:focus-within {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--accent-primary-soft);
+}
+
+/* Log viewer stays dark in both themes; its empty state must be light ink */
+:root .log-pane .empty-state-title {
+  color: #e2e8f0;
+}
+
+:root .log-pane :is(.empty-state-sub, .empty-state-text) {
+  color: #94a3b8;
+}
+
+:root .log-pane .empty-state-icon {
+  color: #64748b;
+}
+
+/* Modal footer: follow the dialog's rounded corners instead of poking out */
+:root .modal-footer {
+  border-bottom-left-radius: inherit;
+  border-bottom-right-radius: inherit;
+}
+
+:root .modal > :last-child,
+:root .modal > * > .modal-footer {
+  border-bottom-left-radius: 19px;
+  border-bottom-right-radius: 19px;
+}
+
+/* One custom select chevron for both themes (dark used the native arrow) */
+:root[data-theme] :is(select.form-select, select.form-input, .inbounds-filter-select) {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background-color: var(--bg-input) !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+  background-position: right 12px center !important;
+  background-repeat: no-repeat !important;
+  background-size: 12px 12px !important;
+  padding-right: 34px !important;
+  color: var(--text-primary) !important;
+}
+
+:root[data-theme="dark"] :is(select.form-select, select.form-input, .inbounds-filter-select) {
+  color-scheme: dark;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+}
+
+:root[data-theme] :is(select.form-select, select.form-input, .inbounds-filter-select):is(:hover, :focus, :focus-visible, :active) {
+  background-color: var(--bg-input) !important;
+}
+
+/* Form labels: no wide tracking on CJK text */
+:root .form-label {
+  letter-spacing: 0;
+  font-weight: 600;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+/* Server / user detail: keep breathing room between hero and stats */
+:root .detail-hero-panel {
+  margin-bottom: 0;
+}
+
+:root .server-detail-page > .detail-hero-panel + * ,
+:root .user-detail-page > .detail-hero-panel + * {
+  margin-top: 0;
+}
+
+/* Notification list */
+:root .notification-item-meta {
+  display: grid;
+  gap: 2px;
+  margin-top: 6px;
+}
+
+:root .notification-item-meta-row {
+  display: flex;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+:root .notification-item-meta-label {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+:root .notification-item-meta-label::after {
+  content: ':';
+}
+
+:root .notification-item-meta-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+:root .notification-item-repeat {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  vertical-align: 1px;
+}
+
+@media (max-width: 768px) {
+  /* Mobile drawer collapse button was oversized */
+  :root .sidebar.open .sidebar-toggle,
+  :root .sidebar .sidebar-toggle {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    border-radius: 8px;
+  }
+
+  /* Modal forms: even field rhythm */
+  :root .modal .form-group {
+    margin-bottom: 14px;
+  }
+
+  :root .modal .form-row,
+  :root .modal .grid-2 {
+    gap: 0 12px;
+  }
+}
+
+/* Small status pills and active nav labels: AA contrast on tinted fills */
+:root .node-health-tone-pill {
+  font-size: 11px;
+}
+
+:root[data-theme="light"] .node-health-tile[data-tone="success"] .node-health-tone-pill { color: #047857; }
+:root[data-theme="light"] .node-health-tile[data-tone="warning"] .node-health-tone-pill { color: #a24a06; }
+:root[data-theme="light"] .node-health-tile[data-tone="danger"] .node-health-tone-pill { color: #b91c1c; }
+
+:root[data-theme="light"] .settings-nav-item.is-active,
+:root[data-theme="light"] .settings-nav-item.is-active .settings-nav-item-label {
+  color: #1d4ed8;
+}
+
+/* Dark theme: lift red / blue ink slightly so small badges clear 4.5:1 */
+:root[data-theme="dark"] .badge-danger { color: #f87171 !important; }
+:root[data-theme="dark"] .nav-badge { color: #f87171; }
+:root[data-theme="dark"] .sidebar-user-badge { color: #60a5fa; }
+
+:root[data-theme="light"] .logs-scroll-chip { color: #047857; }
+
+:root[data-theme="dark"] :is(.tab.active, .filter-chip.active, .settings-nav-item.is-active, .users-tab.active),
+:root[data-theme="dark"] :is(.tab.active, .filter-chip.active, .settings-nav-item.is-active) > span:first-child {
+  color: #7cb3fb;
+}

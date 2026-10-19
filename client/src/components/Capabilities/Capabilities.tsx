@@ -479,7 +479,7 @@ export default function Capabilities({ serverId = '', embedded = false }: Capabi
 
         return (
             <>
-                <Header title={t('pages.capabilities.title')} />
+                <Header title={t('pages.capabilities.title')} icon={<HiOutlineCube />} />
                 <div className="page-content page-content--wide page-enter capabilities-page">
                     {children}
                 </div>

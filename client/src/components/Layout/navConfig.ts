@@ -11,6 +11,7 @@ import {
     HiOutlineShieldCheck,
     HiOutlineUserCircle,
     HiOutlineCommandLine,
+    HiOutlineDocumentText,
 } from 'react-icons/hi2';
 
 export interface LocalizedString {
@@ -42,6 +43,8 @@ export interface NavItem {
 
 export interface NavSection {
     title: LocalizedText;
+    /** Title shown to regular (non-staff) users, when it should differ. */
+    userTitle?: LocalizedText;
     items: NavItem[];
 }
 
@@ -54,6 +57,7 @@ function localize(copy: LocalizedText | undefined, locale = 'zh-CN'): string {
 export const navSections: NavSection[] = [
     {
         title: { 'zh-CN': '管理', 'en-US': 'Manage' },
+        userTitle: { 'zh-CN': '我的服务', 'en-US': 'My Service' },
         items: [
             { path: '/', icon: HiOutlineChartBarSquare, label: { 'zh-CN': '仪表盘', 'en-US': 'Dashboard' }, supportsGlobal: true, adminOnly: true, keywords: ['首页', '概览', 'dashboard'] },
             { path: '/inbounds', icon: HiOutlineSignal, label: { 'zh-CN': '入站管理', 'en-US': 'Inbounds' }, supportsGlobal: true, keywords: ['协议', '端口', '流量', 'inbound'] },
@@ -62,8 +66,16 @@ export const navSections: NavSection[] = [
             { path: '/subscriptions', icon: HiOutlineRss, label: { 'zh-CN': '订阅中心', 'en-US': 'Subscriptions' }, supportsGlobal: true, userOnly: true, keywords: ['订阅', 'subscription', '账户', '密码', 'profile'] },
             { path: '/downloads', icon: HiOutlineArrowDownTray, label: { 'zh-CN': '软件下载', 'en-US': 'Downloads' }, supportsGlobal: true, userOnly: true, keywords: ['下载', '软件', '客户端', 'downloads', 'clients', 'apps'] },
             { path: '/account', icon: HiOutlineUserCircle, label: { 'zh-CN': '账户', 'en-US': 'Account' }, supportsGlobal: true, userOnly: true, keywords: ['账号', '账户', '邮箱', '密码', 'account', 'email', 'password', 'profile'] },
-            { path: '/xray', icon: HiOutlineCommandLine, label: { 'zh-CN': 'Xray 设置', 'en-US': 'Xray Settings' }, supportsGlobal: false, adminOnly: true, keywords: ['路由', '出站', 'routing', 'outbounds', 'dns', 'balancer', 'xray'] },
-            { path: '/tools', icon: HiOutlineWrenchScrewdriver, label: { 'zh-CN': '节点工具', 'en-US': 'Node Tools' }, supportsGlobal: false, keywords: ['工具', 'tools'] },
+        ],
+    },
+    {
+        // Node-scoped pages. They ask for a target node themselves, so they stay
+        // visible in the global view instead of disappearing from the sidebar.
+        title: { 'zh-CN': '运维', 'en-US': 'Operations' },
+        items: [
+            { path: '/logs', icon: HiOutlineDocumentText, label: { 'zh-CN': '集群日志', 'en-US': 'Logs' }, supportsGlobal: true, keywords: ['日志', 'logs', 'panel', 'xray'] },
+            { path: '/tools', icon: HiOutlineWrenchScrewdriver, label: { 'zh-CN': '节点工具', 'en-US': 'Node Tools' }, supportsGlobal: true, keywords: ['工具', 'tools', 'ssl', 'acme', 'ip'] },
+            { path: '/xray', icon: HiOutlineCommandLine, label: { 'zh-CN': 'Xray 设置', 'en-US': 'Xray Settings' }, supportsGlobal: true, adminOnly: true, keywords: ['路由', '出站', 'routing', 'outbounds', 'dns', 'balancer', 'xray'] },
         ],
     },
     {
@@ -77,11 +89,11 @@ export const navSections: NavSection[] = [
                 adminOnly: true,
                 keywords: ['设置', 'system', 'settings', '节点', '控制台', 'console', 'backup', 'monitor', 'database'],
                 children: [
-                    { path: '/settings?tab=status', tabId: 'status', label: { 'zh-CN': '运行状态', 'en-US': 'Status' } },
-                    { path: '/settings?tab=access', tabId: 'access', label: { 'zh-CN': '接入与混淆', 'en-US': 'Access' } },
-                    { path: '/settings?tab=policy', tabId: 'policy', label: { 'zh-CN': '策略配置', 'en-US': 'Policy' } },
-                    { path: '/settings?tab=monitor', tabId: 'monitor', label: { 'zh-CN': '通知与推送', 'en-US': 'Notifications' } },
-                    { path: '/settings?tab=backup', tabId: 'backup', label: { 'zh-CN': '数据备份', 'en-US': 'Backup' } },
+                    { path: '/settings?tab=status', tabId: 'status', label: { 'zh-CN': '系统状态', 'en-US': 'System Status' } },
+                    { path: '/settings?tab=access', tabId: 'access', label: { 'zh-CN': '入口与订阅', 'en-US': 'Access & Subscription' } },
+                    { path: '/settings?tab=policy', tabId: 'policy', label: { 'zh-CN': '策略与审计', 'en-US': 'Policy & Audit' } },
+                    { path: '/settings?tab=monitor', tabId: 'monitor', label: { 'zh-CN': '通知与告警', 'en-US': 'Notifications' } },
+                    { path: '/settings?tab=backup', tabId: 'backup', label: { 'zh-CN': '数据与备份', 'en-US': 'Data & Backup' } },
                 ]
             },
             { path: '/servers', icon: HiOutlineServerStack, label: { 'zh-CN': '服务器管理', 'en-US': 'Servers' }, supportsGlobal: true, adminOnly: true, keywords: ['服务器', '节点', '能力', '探测', 'capabilities', 'server', 'registry'] },
@@ -134,10 +146,12 @@ export interface NavFilterOptions {
 }
 
 export function getVisibleNavSections({ isAdmin, role, isGlobalView, locale = 'zh-CN' }: NavFilterOptions) {
+    const effectiveRole = role || (isAdmin ? 'admin' : 'user');
+    const isStaff = isAdmin || ['admin', 'operator', 'auditor'].includes(effectiveRole);
     return navSections
         .map((section) => ({
             ...section,
-            title: localize(section.title, locale),
+            title: localize(!isStaff && section.userTitle ? section.userTitle : section.title, locale),
             items: section.items
                 .filter((item) => shouldIncludeNavItem(item, { isAdmin, role, isGlobalView }))
                 .map((item) => ({
