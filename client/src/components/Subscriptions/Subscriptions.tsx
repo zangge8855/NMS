@@ -538,7 +538,7 @@ export default function Subscriptions() {
             if (warningCount > 0) {
                 toast.error(locale === 'en-US'
                     ? `${warningCount} node user lists failed to load`
-                    : `有 ${warningCount} 个节点用户列表拉取失败`);
+                    : `有 ${warningCount} 个节点用户列表拉取失败`, { id: 'subscriptions-users-warning' });
             }
         } catch (error) {
             if (error.response?.status === 403) {
@@ -546,7 +546,7 @@ export default function Subscriptions() {
                 setUsersAccessDenied(true);
             } else {
                 const msg = getErrorMessage(error, t('comp.subscriptions.userListFailed'), locale);
-                toast.error(msg);
+                toast.error(msg, { id: 'subscriptions-users-error' });
                 if (!preserveCurrent) {
                     setUsers([]);
                 }
@@ -1118,9 +1118,9 @@ export default function Subscriptions() {
                                                     value={routingPolicy}
                                                     onChange={e => setRoutingPolicy(e.target.value)}
                                                 >
-                                                    <option value="rules">{locale === 'en-US' ? '🚀 Rules' : '🚀 规则策略'}</option>
-                                                    <option value="global">{locale === 'en-US' ? '🎯 Global' : '🎯 全局代理'}</option>
-                                                    <option value="auto">{locale === 'en-US' ? '⚡ Auto Select' : '⚡ 自动优选'}</option>
+                                                    <option value="rules">{locale === 'en-US' ? 'Rules' : '规则策略'}</option>
+                                                    <option value="global">{locale === 'en-US' ? 'Global' : '全局代理'}</option>
+                                                    <option value="auto">{locale === 'en-US' ? 'Auto Select' : '自动优选'}</option>
                                                 </select>
                                             </div>
 

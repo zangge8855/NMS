@@ -10,6 +10,8 @@ import {
     HiOutlineClipboard,
     HiOutlineArrowPath,
     HiOutlineWrench,
+    HiOutlineLockClosed,
+    HiOutlineGlobeAlt,
     HiOutlineEye,
     HiOutlineEyeSlash,
 } from 'react-icons/hi2';
@@ -444,14 +446,14 @@ ${cfEmail.trim() ? `export CF_Email="${cfEmail.trim()}"` : ''}
                         className={`btn btn-sm ${activeTab === 'ssl' ? 'btn-primary' : 'btn-secondary'}`}
                         onClick={() => setActiveTab('ssl')}
                     >
-                        🔒 {copy.tabs.sslAssistant}
+                        <HiOutlineLockClosed /> {copy.tabs.sslAssistant}
                     </button>
                     <button
                         type="button"
                         className={`btn btn-sm ${activeTab === 'ip' ? 'btn-primary' : 'btn-secondary'}`}
                         onClick={() => setActiveTab('ip')}
                     >
-                        🌐 {copy.tabs.ipDiagnostics}
+                        <HiOutlineGlobeAlt /> {copy.tabs.ipDiagnostics}
                     </button>
                 </div>
 
@@ -661,7 +663,7 @@ ${cfEmail.trim() ? `export CF_Email="${cfEmail.trim()}"` : ''}
                             <pre className="p-4 rounded-xl bg-surface-panel border border-stroke-soft font-mono text-xs overflow-x-auto text-primary leading-relaxed">
                                 {generatedAcmeScript}
                             </pre>
-                            <p className="text-xs text-muted">💡 {copy.ssl.pathTip}</p>
+                            <p className="text-xs text-muted">{copy.ssl.pathTip}</p>
                         </div>
                     </div>
                 )}

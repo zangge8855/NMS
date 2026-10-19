@@ -423,8 +423,8 @@ describe('Dashboard', () => {
             expect(onlineKpi).toHaveTextContent('1');
         });
 
-        fireEvent.click(screen.getByRole('button', { name: /自动 ON/ }));
-        fireEvent.click(screen.getByRole('button', { name: /自动 OFF/ }));
+        fireEvent.click(screen.getByRole('button', { name: /自动刷新/ }));
+        fireEvent.click(screen.getByRole('button', { name: /已暂停/ }));
 
         const totalTrafficKpi = getDashboardKpi('总流量');
         await waitFor(() => {

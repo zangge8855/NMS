@@ -950,14 +950,14 @@ export default function Servers() {
                     {pingResults[server.id] && (
                         pingResults[server.id].online && Number(pingResults[server.id].latencyMs) > 0 ? (
                             pingResults[server.id].latencyMs < 100 ? (
-                                <span className="badge badge-success">🟢 {pingResults[server.id].latencyMs}ms</span>
+                                <span className="badge badge-success">{pingResults[server.id].latencyMs}ms</span>
                             ) : pingResults[server.id].latencyMs <= 300 ? (
-                                <span className="badge badge-warning">🟡 {pingResults[server.id].latencyMs}ms</span>
+                                <span className="badge badge-warning">{pingResults[server.id].latencyMs}ms</span>
                             ) : (
-                                <span className="badge badge-danger">🔴 {pingResults[server.id].latencyMs}ms</span>
+                                <span className="badge badge-danger">{pingResults[server.id].latencyMs}ms</span>
                             )
                         ) : (
-                            <span className="badge badge-danger">🔴 {locale === 'en-US' ? 'Timeout' : '超时'}</span>
+                            <span className="badge badge-danger">{locale === 'en-US' ? 'Timeout' : '超时'}</span>
                         )
                     )}
                     {(server.credentialStatus === 'missing' || server.credentialStatus === 'broken') && (
@@ -1256,14 +1256,14 @@ export default function Servers() {
                                                 {pingResults[server.id] && (
                                                     pingResults[server.id].online && Number(pingResults[server.id].latencyMs) > 0 ? (
                                                         pingResults[server.id].latencyMs < 100 ? (
-                                                            <span className="badge badge-success">🟢 {pingResults[server.id].latencyMs}ms</span>
+                                                            <span className="badge badge-success">{pingResults[server.id].latencyMs}ms</span>
                                                         ) : pingResults[server.id].latencyMs <= 300 ? (
-                                                            <span className="badge badge-warning">🟡 {pingResults[server.id].latencyMs}ms</span>
+                                                            <span className="badge badge-warning">{pingResults[server.id].latencyMs}ms</span>
                                                         ) : (
-                                                            <span className="badge badge-danger">🔴 {pingResults[server.id].latencyMs}ms</span>
+                                                            <span className="badge badge-danger">{pingResults[server.id].latencyMs}ms</span>
                                                         )
                                                     ) : (
-                                                        <span className="badge badge-danger">🔴 {locale === 'en-US' ? 'Timeout' : '超时'}</span>
+                                                        <span className="badge badge-danger">{locale === 'en-US' ? 'Timeout' : '超时'}</span>
                                                     )
                                                 )}
                                             </div>

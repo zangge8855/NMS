@@ -1,0 +1,921 @@
+/* ==========================================================================
+   NMS Polish Layer
+   Loaded last. Resolves cascade conflicts between the legacy stylesheets
+   (index.css / restrained-ui.css / flagship-console.css) and refines the
+   visual system: calmer surfaces, consistent control heights, aligned
+   typography and spacing rhythm.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Refined tokens
+   -------------------------------------------------------------------------- */
+:root {
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --control-h: 36px;
+  --control-h-sm: 30px;
+  --page-gap: 20px;
+  --font-figure: 'Schibsted Grotesk Variable', var(--font-sans);
+  /* Figures use the display face with tabular digits; mono stays for code. */
+  --font-numeric: var(--font-figure);
+}
+
+:root,
+[data-theme="dark"] {
+  --bg-canvas: #0a0e15;
+  --bg-card: #10151f;
+  --bg-card-hover: #151c29;
+  --bg-surface: #141a26;
+  --bg-input: #0c1119;
+  --border-color: rgba(148, 163, 184, 0.13);
+  --border-color-hover: rgba(148, 163, 184, 0.26);
+  --surface-table-header: #0d121b;
+  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+}
+
+[data-theme="light"] {
+  --bg-canvas: #f5f7fa;
+  --bg-card: #ffffff;
+  --bg-surface: #f3f5f8;
+  --bg-card-hover: #f6f8fb;
+  --border-color: #e3e7ee;
+  --border-color-hover: #cbd2dc;
+  --stroke-soft: #eceff4;
+  --surface-table-header: #f8f9fb;
+  --surface-table-row-hover: #f7f9fc;
+  --text-secondary: #4b5565;
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 16px -8px rgba(16, 24, 40, 0.08);
+}
+
+body {
+  background: var(--bg-canvas);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* --------------------------------------------------------------------------
+   2. Page rhythm
+   Page containers are flex columns with a gap; legacy margin utilities on
+   their direct children doubled the spacing (20px gap + 24px margin).
+   -------------------------------------------------------------------------- */
+:root .page-content {
+  gap: var(--page-gap);
+}
+
+:root .page-content > :is(.mb-2, .mb-3, .mb-4, .mb-6, .mb-8),
+:root .page-content > .page-toolbar,
+:root .page-content > .tabs {
+  margin-bottom: 0;
+}
+
+/* --------------------------------------------------------------------------
+   3. Cards & panels
+   -------------------------------------------------------------------------- */
+:root :is(.card, .glass-panel, .table-container, .settings-panel) {
+  border-radius: var(--radius-md);
+  border-color: var(--border-color);
+  box-shadow: var(--shadow-card);
+}
+
+/* --------------------------------------------------------------------------
+   4. Form controls: one height, centered text, no clipped selects
+   -------------------------------------------------------------------------- */
+:root select.form-select,
+:root select.form-input {
+  height: var(--control-h);
+  min-height: var(--control-h);
+  padding-top: 0;
+  padding-bottom: 0;
+  line-height: calc(var(--control-h) - 2px);
+  box-sizing: border-box;
+}
+
+:root input.form-input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
+  min-height: var(--control-h);
+  box-sizing: border-box;
+}
+
+:root .form-input,
+:root .form-select,
+:root .form-textarea {
+  border-radius: 8px;
+}
+
+/* Node selector + action button used on Tools / Xray / Logs */
+.page-server-selection-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.page-server-selector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: min(320px, 100%);
+}
+
+.page-server-selector .page-server-selector-control {
+  width: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   5. Buttons
+   -------------------------------------------------------------------------- */
+:root .btn {
+  border-radius: 8px;
+  font-weight: 550;
+  letter-spacing: 0.005em;
+}
+
+:root .btn-primary {
+  background: var(--accent-primary);
+  border-color: transparent;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+:root .btn-primary:hover:not(:disabled) {
+  background: var(--accent-primary-hover);
+}
+
+:root .btn-primary:disabled {
+  opacity: 0.5;
+  box-shadow: none;
+}
+
+:root .btn-secondary {
+  background: var(--bg-card);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .btn-secondary {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+:root .btn-secondary:hover:not(:disabled) {
+  background: var(--bg-card-hover);
+  border-color: var(--border-color-hover);
+}
+
+/* Auto-refresh indicator: slow, calm rotation instead of a constant spinner */
+.dashboard-refresh-btn .spinning {
+  animation-duration: 3.2s;
+}
+
+/* --------------------------------------------------------------------------
+   6. Header
+   -------------------------------------------------------------------------- */
+:root .header {
+  background: color-mix(in srgb, var(--bg-canvas) 82%, transparent);
+  backdrop-filter: saturate(160%) blur(14px);
+  -webkit-backdrop-filter: saturate(160%) blur(14px);
+  border-bottom: 1px solid var(--border-color);
+}
+
+:root .header-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Theme, language and notification buttons share one quiet icon-button look */
+:root .header-controls :is(.theme-toggle-btn, .language-toggle-btn, .notification-trigger) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--control-h);
+  min-width: var(--control-h);
+  min-height: var(--control-h);
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: background var(--duration-fast) ease, border-color var(--duration-fast) ease, color var(--duration-fast) ease;
+}
+
+:root .header-controls :is(.theme-toggle-btn, .language-toggle-btn, .notification-trigger):hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-color-hover);
+  color: var(--text-primary);
+}
+
+:root .header-controls .theme-toggle-btn,
+:root .header-controls .notification-trigger {
+  width: var(--control-h);
+  padding: 0;
+}
+
+:root .header-controls .language-toggle-label {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  color: inherit;
+}
+
+:root .header-search {
+  height: var(--control-h);
+  border-radius: 8px;
+  background: var(--bg-card);
+  border-color: var(--border-color);
+  box-shadow: var(--shadow-sm);
+}
+
+:root .header-primary-actions .btn {
+  height: var(--control-h);
+  padding: 0 12px;
+}
+
+/* --------------------------------------------------------------------------
+   7. Sidebar
+   -------------------------------------------------------------------------- */
+:root .sidebar-user-item {
+  height: auto;
+  min-height: 48px;
+  padding: 8px 10px;
+  gap: 10px;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+:root .sidebar-user-avatar {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+:root .sidebar-user-info.nav-label {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+:root .sidebar-user-name {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  max-width: 100%;
+}
+
+:root .sidebar.collapsed .sidebar-user-item {
+  justify-content: center;
+  padding: 8px 0;
+}
+
+/* --------------------------------------------------------------------------
+   8. Dashboard KPIs: one consistent figure style for both rows
+   -------------------------------------------------------------------------- */
+:root .dashboard-hero-kpi,
+:root .dashboard-hero-kpi:first-child {
+  min-height: 112px;
+  padding: 18px 22px;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+:root .dashboard-hero-kpi-label,
+:root .dashboard-stat-card-label {
+  font-size: 12px;
+  font-weight: 550;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+}
+
+:root .dashboard-hero-kpi-value,
+:root .dashboard-hero-kpi:first-child .dashboard-hero-kpi-value,
+:root .dashboard-hero-kpi:not(:first-child) .dashboard-hero-kpi-value,
+:root .dashboard-stat-card-value,
+:root .dashboard-stat-card-value-text {
+  font-family: var(--font-figure);
+  font-size: clamp(1.6rem, 2.2vw, 2rem);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  color: var(--text-primary);
+}
+
+:root .dashboard-hero-kpi-meta,
+:root .dashboard-stat-card-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+:root .dashboard-stat-card {
+  min-height: 112px;
+  padding: 18px 22px;
+}
+
+/* --------------------------------------------------------------------------
+   9. Tables
+   -------------------------------------------------------------------------- */
+:root .table thead th {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  background: var(--surface-table-header);
+}
+
+:root .table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Users table: avatar beside the name, not stacked above it */
+:root .users-identity-link {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  width: auto;
+  max-width: 100%;
+  text-align: left;
+}
+
+:root .users-identity-link .user-avatar-badge {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+:root .users-identity-copy {
+  align-items: flex-start;
+  gap: 2px;
+}
+
+:root .users-identity-copy .badge {
+  margin-top: 4px;
+}
+
+/* --------------------------------------------------------------------------
+   10. Badges: slightly calmer, no shouty uppercase tracking
+   -------------------------------------------------------------------------- */
+:root .badge {
+  border-radius: 6px;
+  font-weight: 550;
+}
+
+:root .users-identity-copy .badge {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* --------------------------------------------------------------------------
+   11. Login
+   -------------------------------------------------------------------------- */
+:root .login-page {
+  box-sizing: border-box;
+}
+
+:root .login-shell {
+  min-height: 0;
+  height: auto;
+}
+
+:root .login-card {
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 24px 64px -24px rgba(16, 24, 40, 0.25), 0 1px 2px rgba(16, 24, 40, 0.05);
+}
+
+:root .auth-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+}
+
+:root .auth-tab {
+  flex: 1;
+  height: 34px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+:root .auth-tab::after {
+  display: none;
+}
+
+:root .auth-tab:hover:not(.active) {
+  color: var(--text-primary);
+}
+
+:root .auth-tab.active {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08), 0 0 0 1px var(--border-color);
+}
+
+[data-theme="dark"] .auth-tab.active {
+  background: var(--bg-surface-hover);
+}
+
+:root .auth-form > .btn.w-full {
+  height: 42px;
+}
+
+/* --------------------------------------------------------------------------
+   12. Mobile
+   -------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  /* Keep the page title visible; the search collapses to an icon field
+     and expands over the header when focused. */
+  :root .header-shell {
+    justify-content: space-between;
+    position: relative;
+  }
+
+  :root .header-left {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    flex: 1;
+  }
+
+  :root .header-left .header-icon,
+  :root .header-left .header-eyebrow {
+    display: none;
+  }
+
+  :root .header-title {
+    font-size: 18px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  :root .header-actions {
+    flex: 0 0 auto;
+    gap: 6px;
+  }
+
+  :root .header-search {
+    width: var(--control-h);
+    min-width: var(--control-h);
+    padding: 0;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  :root .header-search .header-search-input::placeholder {
+    color: transparent;
+  }
+
+  :root .header-search .header-search-kbd {
+    display: none;
+  }
+
+  :root .header-search:focus-within,
+  :root .header-search[data-open="true"] {
+    position: absolute;
+    left: 0;
+    right: 0;
+    width: auto;
+    z-index: 5;
+    padding: 0 12px;
+    justify-content: flex-start;
+  }
+
+  :root .header-search:focus-within .header-search-input::placeholder,
+  :root .header-search[data-open="true"] .header-search-input::placeholder {
+    color: var(--text-muted);
+  }
+
+  :root .header-primary-actions .btn span {
+    display: none;
+  }
+
+  :root .header-primary-actions .btn {
+    width: var(--control-h);
+    padding: 0;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   13. Segmented tabs (login / register)
+   Legacy light-theme rules force these with !important, so the overrides
+   below have to match that weight.
+   -------------------------------------------------------------------------- */
+:root .auth-tabs .auth-tab {
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--text-muted) !important;
+}
+
+:root .auth-tabs .auth-tab:hover:not(.active) {
+  color: var(--text-primary) !important;
+}
+
+:root .auth-tabs .auth-tab.active {
+  background: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.1), 0 0 0 1px var(--border-color) !important;
+}
+
+[data-theme="dark"] .auth-tabs .auth-tab.active {
+  background: var(--bg-surface-hover) !important;
+}
+
+/* --------------------------------------------------------------------------
+   14. Account page
+   -------------------------------------------------------------------------- */
+:root .account-identity-hero {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 18px;
+  text-align: left;
+}
+
+:root .account-identity-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+:root .account-identity-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+:root .account-identity-name {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+:root .account-identity-email {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+:root .account-role-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+:root .account-shell .section-header {
+  margin-bottom: 18px;
+}
+
+:root .account-password-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+:root .account-password-submit {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+}
+
+:root .account-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+:root .account-shell :is(.account-actions, .account-password-submit) .btn {
+  height: var(--control-h);
+  padding: 0 16px;
+}
+
+:root .account-card-note,
+:root .account-profile-verify-note {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+:root .account-profile-verify-row {
+  display: flex;
+  gap: 8px;
+}
+
+:root .account-profile-verify-row .btn {
+  height: var(--control-h);
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  :root .account-password-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   15. Dashboard traffic row rendered as one band, matching the KPI band
+   -------------------------------------------------------------------------- */
+:root .dashboard-traffic-window-grid {
+  gap: 0;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+:root .dashboard-traffic-window-grid > .dashboard-stat-card {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+:root .dashboard-traffic-window-grid > .dashboard-stat-card + .dashboard-stat-card {
+  border-left: 1px solid var(--border-color);
+}
+
+/* Users table: long group badges ellipsize instead of spilling over */
+:root .users-identity-copy {
+  min-width: 0;
+  max-width: 100%;
+}
+
+:root .users-identity-copy .badge {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+/* --------------------------------------------------------------------------
+   16. Mobile refinements
+   -------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  :root .header-left .header-title-group {
+    display: flex;
+    min-width: 0;
+  }
+
+  :root .header-actions {
+    width: auto;
+  }
+
+  :root .dashboard-hero-kpi,
+  :root .dashboard-hero-kpi:first-child,
+  :root .dashboard-stat-card {
+    min-height: 0;
+    padding: 14px 12px;
+  }
+
+  :root .dashboard-hero-kpi-value,
+  :root .dashboard-hero-kpi:first-child .dashboard-hero-kpi-value,
+  :root .dashboard-hero-kpi:not(:first-child) .dashboard-hero-kpi-value,
+  :root .dashboard-stat-card-value,
+  :root .dashboard-stat-card-value-text {
+    font-size: 1.35rem;
+  }
+
+  :root .dashboard-hero-kpi-meta,
+  :root .dashboard-stat-card-subtitle {
+    font-size: 11px;
+    line-height: 1.45;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   17. Toolbars & filter grids: controls sit on one baseline
+   -------------------------------------------------------------------------- */
+:root .subscriptions-toolbar .page-toolbar-actions {
+  align-self: flex-end;
+}
+
+:root .subscriptions-toolbar .page-toolbar-actions .btn {
+  height: var(--control-h);
+}
+
+:root .audit-filter-grid {
+  align-items: end;
+}
+
+:root .audit-filter-grid input[type="date"].form-input {
+  height: var(--control-h);
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+:root .audit-filter-field-label {
+  font-size: 11.5px;
+  font-weight: 550;
+  color: var(--text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   18. Server list telemetry cell
+   -------------------------------------------------------------------------- */
+:root .servers-telemetry-cell {
+  display: grid;
+  gap: 6px;
+  min-width: 170px;
+  max-width: 220px;
+}
+
+:root .servers-telemetry-meta {
+  display: flex;
+  gap: 22px;
+}
+
+:root .servers-telemetry-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+:root .servers-telemetry-label {
+  font-size: 10.5px;
+  font-weight: 550;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+:root .servers-telemetry-value {
+  font-family: var(--font-figure);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+:root .servers-telemetry-sparkline {
+  height: 18px;
+  opacity: 0.85;
+}
+
+:root .servers-telemetry-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+:root .servers-telemetry-checked-at {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   19. Typography: labels and figures use the display face; monospace is
+   reserved for code, logs, URLs and verification codes.
+   -------------------------------------------------------------------------- */
+:root :is(
+  .table thead th,
+  .nav-section-title,
+  .kpi-card-title,
+  .node-health-metric-label,
+  .node-health-metric-val,
+  .node-health-tile-value,
+  .node-health-sparkline-copy strong,
+  .filter-chip-count,
+  .logs-level-chip-count,
+  .status-pill,
+  .floating-bulk-dock-badge,
+  .password-strength-label,
+  .settings-status-grid .settings-kpi-card-title,
+  .subscription-user-kicker,
+  .subscription-user-meter-label,
+  .subscription-user-meter-meta,
+  .subscription-user-meter-value,
+  .subscription-device-compact-label,
+  .audit-event-node-cell,
+  .table .cell-mono-right,
+  .sidebar-logo-subtitle
+) {
+  font-family: var(--font-figure);
+  font-variant-numeric: tabular-nums;
+}
+
+:root .header-title-group::before {
+  font-family: var(--font-figure);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+}
+
+:root .table thead th {
+  text-transform: none;
+}
+
+/* --------------------------------------------------------------------------
+   20. Mobile user cards: compact 2x2 metric grid
+   -------------------------------------------------------------------------- */
+:root .users-mobile-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--radius-md);
+}
+
+:root .users-mobile-identity {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+}
+
+:root .users-mobile-name {
+  font-size: 16px;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+:root .users-mobile-email {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+:root .users-mobile-identity .badge {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+:root .users-mobile-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+:root .users-mobile-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  min-height: 0;
+}
+
+:root .users-mobile-metric:nth-child(even) {
+  border-left: 1px solid var(--border-color);
+}
+
+:root .users-mobile-metric:nth-child(n + 3) {
+  border-top: 1px solid var(--border-color);
+}
+
+:root .users-mobile-metric-label {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+:root .users-mobile-metric-value {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Mobile server cards: actions as a 2-column grid instead of four stacked rows */
+:root .servers-mobile-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+:root .servers-mobile-actions .btn {
+  height: var(--control-h);
+}
