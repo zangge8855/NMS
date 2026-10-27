@@ -65,4 +65,38 @@ describe('ip isp resolver', () => {
         assert.equal(await resolver.lookup('8.8.8.8'), '中国联通');
         assert.equal(await resolver.lookup('1.1.1.1'), '中国电信');
     });
+
+    it('does not download provider lists when only private addresses are looked up', async () => {
+        let calls = 0;
+        const resolver = createIpIspResolver({
+            enabled: true,
+            sources: [{ label: '中国电信', urls: ['https://example.com/ct.txt'] }],
+            fetcher: async () => {
+                calls += 1;
+                return '1.1.1.0/24\n';
+            },
+        });
+
+        const map = await resolver.lookupMany(['127.0.0.1', '::1', '10.0.0.8', '']);
+        assert.equal(resolver.pickFromMap(map, '127.0.0.1'), '');
+        assert.equal(await resolver.lookup('192.168.1.10'), '');
+        assert.equal(calls, 0);
+    });
+
+    it('waits for the failure TTL before retrying unreachable sources', async () => {
+        let calls = 0;
+        const resolver = createIpIspResolver({
+            enabled: true,
+            sources: [{ label: '中国电信', urls: ['https://example.com/ct.txt'] }],
+            fetcher: async () => {
+                calls += 1;
+                throw new Error('upstream unreachable');
+            },
+        });
+
+        assert.equal(await resolver.lookup('1.1.1.1'), '');
+        await resolver.lookupMany(['1.1.1.1', '8.8.8.8']);
+        assert.equal(await resolver.lookup('8.8.8.8'), '');
+        assert.equal(calls, 1);
+    });
 });
