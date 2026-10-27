@@ -1,5 +1,7 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import { ensureAuthenticated } from '../lib/panelClient.js';
+import { isSuiPanelServer } from '../lib/panelType.js';
+import serverStore from '../store/serverStore.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { ROLES } from '../store/userStore.js';
 import multer from 'multer';
@@ -45,7 +47,9 @@ const upload = multer({
     },
 });
 const ALLOWED_METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
-const ALLOWED_PREFIXES = ['/panel/api/', '/server/api/', '/sub/'];
+const ALLOWED_PREFIXES = ['/panel/api/', '/server/api/', '/sub/', '/sui/'];
+// Native s-ui actions, answered by the s-ui adapter (never forwarded to a 3x-ui panel).
+const SUI_NATIVE_PREFIX = '/sui/';
 
 function isAllowedPanelPath(path: unknown): boolean {
     if (!path || typeof path !== 'string') return false;
@@ -341,6 +345,16 @@ router.all('/:serverId/*', upload.any(), async (req: Request, res: Response) => 
         });
     }
 
+    const serverRecord = serverStore.getById(serverId);
+    const isSuiServer = Boolean(serverRecord && isSuiPanelServer(serverRecord));
+    const panelLabel = isSuiServer ? 's-ui' : '3x-ui';
+    if (panelPath.startsWith(SUI_NATIVE_PREFIX) && serverRecord && !isSuiServer) {
+        return res.status(400).json({
+            success: false,
+            msg: '该接口仅适用于 s-ui 节点',
+        });
+    }
+
     try {
         const client = await ensureAuthenticated(serverId);
 
@@ -429,14 +443,14 @@ router.all('/:serverId/*', upload.any(), async (req: Request, res: Response) => 
             return res.status(400).json({
                 success: false,
                 code: error.code,
-                msg: '节点凭据不可用，请在“服务器管理”中重新输入并保存 3x-ui 凭据',
+                msg: `节点凭据不可用，请在“服务器管理”中重新输入并保存 ${panelLabel} 凭据`,
             });
         }
         if (error?.code === 'PANEL_LOGIN_FAILED') {
             return res.status(401).json({
                 success: false,
                 code: error.code,
-                msg: `3x-ui 认证失败: ${error.message || '用户名或密码错误'}`,
+                msg: `${panelLabel} 认证失败: ${error.message || '用户名或密码错误'}`,
             });
         }
 

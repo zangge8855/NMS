@@ -9,7 +9,7 @@ import { copyToClipboard, formatBytes, formatDateOnly, getErrorMessage } from '.
 import { getPasswordPolicyError, getPasswordPolicyHint } from '../../utils/passwordPolicy';
 import PasswordStrengthMeter from '../UI/PasswordStrengthMeter';
 import { buildSubscriptionProfileBundle } from '../../utils/subscriptionProfiles';
-import { normalizeEmail } from '../../utils/protocol';
+import { POLICY_PROTOCOL_OPTIONS, normalizeEmail } from '../../utils/protocol';
 import {
     bytesPerSecondToKilobytesInput,
     bytesToGigabytesInput,
@@ -59,12 +59,7 @@ import ListToolbar from '../UI/ListToolbar';
 import Table from '../UI/Table';
 import useMediaQuery from '../../hooks/useMediaQuery';
 
-const PROTOCOL_OPTIONS = [
-    { key: 'vless', label: 'VLESS' },
-    { key: 'vmess', label: 'VMess' },
-    { key: 'trojan', label: 'Trojan' },
-    { key: 'shadowsocks', label: 'Shadowsocks' },
-];
+const PROTOCOL_OPTIONS = POLICY_PROTOCOL_OPTIONS;
 const USERS_STATS_SNAPSHOT_TTL_MS = 2 * 60_000;
 
 function buildUsersStatsSnapshotKey(serverInventoryKey = '') {
@@ -2121,7 +2116,7 @@ export default function UsersHub() {
                                             onChange={toggleSelectAll}
                                         />
                                     </th>
-                                    <th>
+                                    <th className="users-sequence-column">
                                         <button
                                             type="button"
                                             className="table-sort-button users-sequence-sort-button"
@@ -2424,17 +2419,17 @@ export default function UsersHub() {
                                             <EmptyState title={t('pages.usersHub.groups.modal.noAvailableInbounds')} size="compact" />
                                         ) : allInbounds.map((inbound) => (
                                             <label key={inbound.key} className="list-selection-item">
-                                                <span className="font-medium text-sm">{inbound.serverName}</span>
-                                                <span className="text-sm">{inbound.remark || inbound.protocol}</span>
-                                                <span className="badge badge-neutral text-xs">{inbound.protocol}:{inbound.port}</span>
-                                                <span className="ml-auto flex items-center gap-2 text-xs">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={groupAllowedInboundKeys.includes(inbound.key)}
-                                                        onChange={(e) => toggleGroupAllowedInbound(inbound.key, e.target.checked)}
-                                                    />
-                                                    {t('pages.usersHub.groups.modal.assignAction')}
+                                                <input
+                                                    type="checkbox"
+                                                    checked={groupAllowedInboundKeys.includes(inbound.key)}
+                                                    onChange={(e) => toggleGroupAllowedInbound(inbound.key, e.target.checked)}
+                                                    aria-label={`${t('pages.usersHub.groups.modal.assignAction')} ${inbound.remark || inbound.protocol}`}
+                                                />
+                                                <span className="list-selection-text">
+                                                    <span className="font-medium text-sm">{inbound.remark || inbound.protocol}</span>
+                                                    <span className="text-xs text-muted">{inbound.serverName}</span>
                                                 </span>
+                                                <span className="badge badge-neutral text-xs ml-auto">{inbound.protocol}:{inbound.port}</span>
                                             </label>
                                         ))}
                                     </div>
@@ -2482,8 +2477,10 @@ export default function UsersHub() {
                                                         checked={groupMemberIds.includes(user.id)}
                                                         onChange={(e) => toggleGroupMember(user.id, e.target.checked)}
                                                     />
-                                                    <span className="font-medium text-sm">{user.username}</span>
-                                                    <span className="text-xs text-muted">{user.subscriptionEmail || user.email || t('pages.usersHub.groups.modal.noSubEmail')}</span>
+                                                    <span className="list-selection-text">
+                                                        <span className="font-medium text-sm">{user.username}</span>
+                                                        <span className="text-xs text-muted">{user.subscriptionEmail || user.email || t('pages.usersHub.groups.modal.noSubEmail')}</span>
+                                                    </span>
                                                     {currentGroupName ? (
                                                         <span className={`badge ${movingFromOtherGroup ? 'badge-warning' : 'badge-neutral'} text-xs ml-auto`}>
                                                             {movingFromOtherGroup ? t('pages.usersHub.groups.modal.moveFromGroup', { name: currentGroupName }) : currentGroupName}

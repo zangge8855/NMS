@@ -77,12 +77,20 @@ function getSummaryToneMeta(tone?: string) {
     };
 }
 
+// sing-box (s-ui) prints bare upper-case levels: "2026-03-10 07:04:45 WARN [tag] ..."
+const BARE_LEVEL_PATTERN = /(?:^|\s)(FATAL|PANIC|ERROR|WARN|WARNING|INFO|DEBUG|TRACE)(?=\s|:|$)/;
+
 function detectLogLevel(line: string) {
     const lower = line.toLowerCase();
     if (lower.includes('[error]') || lower.includes('error:') || lower.includes('level=error')) return 'error';
-    if (lower.includes('[warning]') || lower.includes('warn:') || lower.includes('level=warning')) return 'warning';
+    if (lower.includes('[warning]') || lower.includes('[warn]') || lower.includes('warn:') || lower.includes('level=warning')) return 'warning';
     if (lower.includes('[info]') || lower.includes('level=info')) return 'info';
     if (lower.includes('[debug]') || lower.includes('level=debug')) return 'debug';
+    const bare = BARE_LEVEL_PATTERN.exec(line)?.[1];
+    if (bare === 'FATAL' || bare === 'PANIC' || bare === 'ERROR') return 'error';
+    if (bare === 'WARN' || bare === 'WARNING') return 'warning';
+    if (bare === 'INFO') return 'info';
+    if (bare === 'DEBUG' || bare === 'TRACE') return 'debug';
     return 'none';
 }
 

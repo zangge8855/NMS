@@ -8,6 +8,7 @@ import userGroupStore from '../store/userGroupStore.js';
 import serverTelemetryStore from '../store/serverTelemetryStore.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
 import { derivePanelHealthFromStatus, ensureAuthenticated, fetchPanelServerStatus } from '../lib/panelClient.js';
+import { normalizePanelType } from '../lib/panelType.js';
 import { authMiddleware, adminOnly } from '../middleware/auth.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import config from '../config.js';
@@ -156,6 +157,7 @@ function applyServerFilters(servers, query: any = {}) {
                 server.name,
                 server.url,
                 server.basePath,
+                server.panelType,
                 server.username,
                 server.group,
                 server.environment,
@@ -277,7 +279,7 @@ function sendPanelTokenRouteError(res, error, fallbackMessage) {
     if (isUnsupportedPanelSettingEndpoint(error)) {
         return res.status(501).json({
             success: false,
-            msg: '当前 3x-ui 面板版本不支持 API Token 管理接口',
+            msg: '当前节点面板不支持通过 NMS 管理 API Token',
         });
     }
     if (error?.response) {
@@ -585,10 +587,10 @@ router.get('/:id', (req, res) => {
 
 /**
  * POST /api/servers
- * Register a new 3x-ui panel server.
+ * Register a new 3x-ui or s-ui panel server.
  */
 router.post('/', async (req, res) => {
-    const { name, url, basePath, username, password, apiToken, group, tags, environment, health } = req.body;
+    const { name, url, basePath, panelType, username, password, apiToken, group, tags, environment, health } = req.body;
     const hasPasswordAuth = String(username || '').trim() && String(password || '');
     const hasApiTokenAuth = String(apiToken || '').trim();
     if (!url || (!hasPasswordAuth && !hasApiTokenAuth)) {
@@ -607,6 +609,7 @@ router.post('/', async (req, res) => {
         name,
         url: splitTarget.url,
         basePath: splitTarget.basePath,
+        panelType,
         username,
         password,
         apiToken,
@@ -619,6 +622,7 @@ router.post('/', async (req, res) => {
         serverId: server.id,
         name: server.name,
         url: server.url,
+        panelType: server.panelType,
     });
 
     // Test connection
@@ -637,8 +641,8 @@ router.post('/', async (req, res) => {
  *
  * body:
  * {
- *   common: { username, password, apiToken, basePath },
- *   items: [{ name, url, basePath, username, password, apiToken, line }],
+ *   common: { username, password, apiToken, basePath, panelType },
+ *   items: [{ name, url, basePath, panelType, username, password, apiToken, line }],
  *   testConnection: true|false
  * }
  */
@@ -658,6 +662,7 @@ router.post('/batch', async (req, res) => {
     const commonPassword = String(common.password || '').trim();
     const commonApiToken = String(common.apiToken || '').trim();
     const commonBasePath = common.basePath;
+    const commonPanelType = common.panelType;
     const commonGroup = common.group;
     const commonTags = common.tags;
     const commonEnvironment = common.environment;
@@ -678,6 +683,7 @@ router.post('/batch', async (req, res) => {
         const password = String(item.password || commonPassword || '').trim();
         const apiToken = String(item.apiToken || commonApiToken || '').trim();
         const requestedBasePath = item.basePath !== undefined ? item.basePath : commonBasePath;
+        const panelType = normalizePanelType(item.panelType !== undefined ? item.panelType : commonPanelType);
         const group = item.group !== undefined ? item.group : commonGroup;
         const tags = item.tags !== undefined ? item.tags : commonTags;
         const environment = item.environment !== undefined ? item.environment : commonEnvironment;
@@ -741,6 +747,7 @@ router.post('/batch', async (req, res) => {
                 name: normalizedName,
                 url: normalizedUrl,
                 basePath: normalizedBasePath,
+                panelType,
                 username,
                 password,
                 apiToken,
@@ -779,6 +786,7 @@ router.post('/batch', async (req, res) => {
                 name: server.name,
                 url: server.url,
                 basePath: server.basePath,
+                panelType: server.panelType,
                 group: server.group || '',
                 tags: Array.isArray(server.tags) ? server.tags : [],
                 environment: server.environment || 'unknown',
@@ -850,6 +858,14 @@ router.put('/:id', async (req, res) => {
     }
 
     const updated = serverStore.update(req.params.id, req.body);
+    if (normalizePanelType(current.panelType) !== updated.panelType
+        || current.url !== updated.url
+        || current.basePath !== updated.basePath) {
+        // Cached inbounds/status belong to the previous panel.
+        invalidateServerPanelSnapshotCache(updated.id);
+        evictServerDashboardCaches(updated.id);
+        evictServerStatusCaches(updated.id);
+    }
     appendSecurityAudit('server_updated', req, {
         serverId: updated.id,
         changedKeys: Object.keys(req.body || {}),
@@ -956,7 +972,7 @@ router.post('/:id/test', async (req, res) => {
             return res.status(400).json({
                 success: false,
                 code: e.code,
-                msg: '节点凭据不可用，请重新输入并保存 3x-ui 管理用户名/密码',
+                msg: '节点凭据不可用，请重新输入并保存面板管理用户名/密码或 API Token',
             });
         }
         if (e?.code === 'PANEL_LOGIN_FAILED') {
@@ -988,7 +1004,7 @@ router.patch('/batch', (req, res) => {
         return res.status(400).json({ success: false, msg: 'updates is required' });
     }
 
-    const allowed = ['name', 'group', 'tags', 'environment', 'health'];
+    const allowed = ['name', 'group', 'tags', 'environment', 'health', 'panelType'];
     const filteredUpdates = {};
     for (const key of allowed) {
         if (updates[key] !== undefined) filteredUpdates[key] = updates[key];

@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import config from '../config.js';
 import { mirrorStoreSnapshot } from './dbMirror.js';
 import { saveObjectAtomic } from './fileUtils.js';
+import { normalizePanelType } from '../lib/panelType.js';
 
 const SERVERS_FILE = path.join(config.dataDir, 'servers.json');
 const PASSWORD_ENC_PREFIX = 'enc:v1';
@@ -336,6 +337,7 @@ class ServerStore {
             name: server.name,
             url: server.url,
             basePath: server.basePath,
+            panelType: normalizePanelType(server.panelType),
             username: server.username,
             sshPort: this._normalizeSshPort(server.sshPort, 22),
             sshUsername: this._normalizeSshUsername(server.sshUsername),
@@ -364,6 +366,7 @@ class ServerStore {
         const credentialStatus = this._resolveCredentialStatus(server.password, server.apiToken);
         return {
             ...server,
+            panelType: normalizePanelType(server.panelType),
             group: this._normalizeGovernanceGroup(server.group),
             tags: this._normalizeGovernanceTags(server.tags),
             environment: this._normalizeGovernanceEnvironment(server.environment),
@@ -396,6 +399,7 @@ class ServerStore {
         name,
         url,
         basePath,
+        panelType,
         username,
         password,
         apiToken,
@@ -420,6 +424,7 @@ class ServerStore {
             name: name || 'Unnamed Server',
             url: url.replace(/\/+$/, ''),   // trim trailing slash
             basePath: this._normalizeBasePath(basePath),
+            panelType: normalizePanelType(panelType),
             username,
             ...governance,
             password: this._encryptPassword(password),
@@ -444,6 +449,7 @@ class ServerStore {
             'name',
             'url',
             'basePath',
+            'panelType',
             'username',
             'apiToken',
             'group',
@@ -492,6 +498,10 @@ class ServerStore {
                 }
                 if (key === 'health') {
                     this.servers[idx][key] = this._normalizeGovernanceHealth(data[key]);
+                    continue;
+                }
+                if (key === 'panelType') {
+                    this.servers[idx][key] = normalizePanelType(data[key]);
                     continue;
                 }
                 this.servers[idx][key] = data[key];

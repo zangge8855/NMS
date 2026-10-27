@@ -21,15 +21,20 @@ describe('review harness fixtures', () => {
                 healthy: REVIEW_PANEL_PORTS.healthy,
                 legacy: REVIEW_PANEL_PORTS.legacy,
                 down: REVIEW_PANEL_PORTS.down,
+                sui: REVIEW_PANEL_PORTS.sui,
             },
         });
 
-        assert.equal(defs.length, 2);
+        assert.equal(defs.length, 3);
         assert.equal(defs[0].key, 'healthy');
         assert.equal(defs[0].url, `http://127.0.0.1:${REVIEW_PANEL_PORTS.healthy}`);
         assert.equal(defs[0].credentials.username, REVIEW_CREDENTIALS.panels.healthy.username);
         assert.equal(defs[1].key, 'legacy');
         assert.equal(defs[1].url, `http://127.0.0.1:${REVIEW_PANEL_PORTS.legacy}`);
+        assert.equal(defs[2].key, 'sui');
+        assert.equal(defs[2].panelType, 's-ui');
+        assert.equal(defs[2].url, `http://127.0.0.1:${REVIEW_PANEL_PORTS.sui}`);
+        assert.equal(defs[2].seed.username, REVIEW_CREDENTIALS.panels.sui.username);
     });
 
     it('builds the review snapshot with mixed servers and seeded data', () => {
@@ -45,15 +50,19 @@ describe('review harness fixtures', () => {
         const policies = snapshot.files['user_policies.json'];
 
         assert.equal(users.length, 4);
-        assert.equal(servers.length, 4);
+        assert.equal(servers.length, 5);
         assert.equal(tokens.length, 3);
         assert.ok(Object.keys(policies).includes(REVIEW_CREDENTIALS.user.subscriptionEmail));
         assert.deepEqual(snapshot.summary.serverIds, [
             REVIEW_SERVER_IDS.healthy,
             REVIEW_SERVER_IDS.legacy,
+            REVIEW_SERVER_IDS.sui,
             REVIEW_SERVER_IDS.authFail,
             REVIEW_SERVER_IDS.down,
         ]);
+        const suiServer = servers.find((item) => item.id === REVIEW_SERVER_IDS.sui);
+        assert.equal(suiServer.panelType, 's-ui');
+        assert.equal(suiServer.basePath, '/app');
         assert.equal(snapshot.summary.adminLogin.username, REVIEW_CREDENTIALS.admin.username);
     });
 

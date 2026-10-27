@@ -3,9 +3,10 @@ import path from 'path';
 import config from '../config.js';
 import { mirrorStoreSnapshot } from './dbMirror.js';
 import { saveObjectAtomic } from './fileUtils.js';
+import { ALL_CLIENT_PROTOCOLS } from '../lib/clientProtocols.js';
 
 const USER_POLICY_FILE = path.join(config.dataDir, 'user_policies.json');
-const ALLOWED_PROTOCOLS = new Set<string>(['vmess', 'vless', 'trojan', 'shadowsocks']);
+const ALLOWED_PROTOCOLS = ALL_CLIENT_PROTOCOLS;
 const POLICY_SCOPE_MODES = new Set<string>(['all', 'selected', 'none']);
 const TRAFFIC_RESET_CYCLES = new Set<string>(['none', 'hourly', 'daily', 'weekly', 'monthly']);
 const IP_LIMIT_POLICIES = new Set<string>(['first-wins', 'last-wins']);

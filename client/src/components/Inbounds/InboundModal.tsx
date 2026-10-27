@@ -1945,7 +1945,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                             <div className="bg-surface-soft p-4 rounded-lg border border-stroke-soft">
                                 {normalizedProtocol === 'vless' && (
                                     <div className="border border-stroke-soft rounded-lg p-4 mb-4">
-                                        <h4 className="text-secondary text-sm font-bold mb-3 uppercase tracking-wider">{deepCopy.vlessParams}</h4>
+                                        <h4 className="text-secondary text-sm font-bold mb-3">{deepCopy.vlessParams}</h4>
                                         <div className="grid grid-cols-2 gap-4 mb-3">
                                             <div className="form-group">
                                                 <label className="form-label">Authentication</label>
@@ -2217,7 +2217,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
 
                                 {(normalizedProtocol === 'hysteria2' || normalizedProtocol === 'hy2') && (
                                     <div className="border border-stroke-soft rounded-lg p-4 mb-4">
-                                        <h4 className="text-secondary text-sm font-bold mb-3 uppercase tracking-wider">{deepCopy.hysteria2Params}</h4>
+                                        <h4 className="text-secondary text-sm font-bold mb-3">{deepCopy.hysteria2Params}</h4>
                                         <div className="grid grid-cols-2 gap-4 mb-3">
                                             <div className="form-group">
                                                 <label className="form-label">{deepCopy.uploadBandwidth}</label>
@@ -2319,7 +2319,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
 
                                 {normalizedProtocol === 'wireguard' && (
                                     <div className="border border-stroke-soft rounded-lg p-4 mb-4">
-                                        <h4 className="text-secondary text-sm font-bold mb-3 uppercase tracking-wider">{deepCopy.wireguardParams}</h4>
+                                        <h4 className="text-secondary text-sm font-bold mb-3">{deepCopy.wireguardParams}</h4>
                                         <div className="grid grid-cols-2 gap-4 mb-3">
                                             <div className="form-group">
                                                 <label className="form-label">MTU</label>
@@ -2365,7 +2365,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         <div className="border border-stroke-soft rounded-lg p-3 mb-3 bg-surface-subtle">
                                             <div className="flex items-center justify-between mb-2">
                                                 <div>
-                                                    <span className="text-secondary text-xs font-bold uppercase tracking-wider">{deepCopy.awgParams}</span>
+                                                    <span className="text-secondary text-xs font-bold">{deepCopy.awgParams}</span>
                                                     <p className="text-xs text-muted mt-0.5">{deepCopy.awgHelp}</p>
                                                 </div>
                                                 <button
@@ -2617,7 +2617,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
 
                                 {normalizedProtocol === 'mtproto' && (
                                     <div className="border border-stroke-soft rounded-lg p-4 mb-4">
-                                        <h4 className="text-secondary text-sm font-bold mb-3 uppercase tracking-wider">{deepCopy.mtprotoParams}</h4>
+                                        <h4 className="text-secondary text-sm font-bold mb-3">{deepCopy.mtprotoParams}</h4>
                                         <div className="form-group mb-3">
                                             <label className="form-label">{deepCopy.fakeTlsDomain}</label>
                                             <input
@@ -2677,7 +2677,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
 
                                 {(normalizedProtocol === 'tunnel' || normalizedProtocol === 'dokodemo-door') && (
                                     <div className="border border-stroke-soft rounded-lg p-4 mb-4">
-                                        <h4 className="text-secondary text-sm font-bold mb-3 uppercase tracking-wider">{deepCopy.tunnelParams}</h4>
+                                        <h4 className="text-secondary text-sm font-bold mb-3">{deepCopy.tunnelParams}</h4>
                                         <div className="grid grid-cols-2 gap-4 mb-3">
                                             <div className="form-group">
                                                 <label className="form-label">{deepCopy.targetAddress}</label>
@@ -2761,7 +2761,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     </div>
                                 )}
 
-                                <h4 className="text-secondary text-sm font-bold mb-4 uppercase tracking-wider">{deepCopy.transport}</h4>
+                                <h4 className="text-secondary text-sm font-bold mb-4">{deepCopy.transport}</h4>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="form-group">
                                         <label className="form-label">{t('comp.inbounds.labelNetwork')}</label>
@@ -2787,7 +2787,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
 
                                 <div className="border-t border-stroke-soft pt-4 mt-4">
                                     <div className="flex items-center justify-between mb-2">
-                                        <h4 className="text-secondary text-sm font-bold uppercase tracking-wider">{deepCopy.sniffing}</h4>
+                                        <h4 className="text-secondary text-sm font-bold">{deepCopy.sniffing}</h4>
                                         <label className="flex items-center gap-2 cursor-pointer text-sm">
                                             <input
                                                 type="checkbox"
@@ -3899,7 +3899,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                 {STREAM_PROTOCOLS.has(normalizedProtocol) && (
                                     <div className="border-t border-stroke-soft pt-4 mt-4">
                                         <div className="flex items-center justify-between mb-2">
-                                            <h4 className="text-secondary text-sm font-bold uppercase tracking-wider">External Proxy</h4>
+                                            <h4 className="text-secondary text-sm font-bold">External Proxy</h4>
                                             <div className="flex gap-2">
                                                 <button
                                                     type="button"
@@ -3990,7 +3990,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
 
                                 {STREAM_PROTOCOLS.has(normalizedProtocol) && (
                                     <div className="border-t border-stroke-soft pt-4 mt-4">
-                                        <h4 className="text-secondary text-sm font-bold uppercase tracking-wider mb-2">Sockopt</h4>
+                                        <h4 className="text-secondary text-sm font-bold mb-2">Sockopt</h4>
                                         <label className="badge badge-neutral flex items-center gap-2 cursor-pointer mb-3 w-fit">
                                             <input
                                                 type="checkbox"
@@ -4127,7 +4127,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                 {STREAM_PROTOCOLS.has(normalizedProtocol) && ['tcp', 'ws', 'httpupgrade', 'xhttp', 'kcp'].includes(simpleStream.network) && (
                                     <div className="border-t border-stroke-soft pt-4 mt-4">
                                         <div className="flex items-center justify-between mb-2">
-                                            <h4 className="text-secondary text-sm font-bold uppercase tracking-wider">UDP Masks (FinalMask)</h4>
+                                            <h4 className="text-secondary text-sm font-bold">UDP Masks (FinalMask)</h4>
                                             <button
                                                 type="button"
                                                 className="btn btn-secondary btn-xs"

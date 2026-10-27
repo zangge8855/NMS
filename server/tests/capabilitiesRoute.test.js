@@ -61,6 +61,23 @@ describe('capabilities payload alignment', () => {
         );
     });
 
+    it('probes the s-ui tool catalog instead of 3x-ui only endpoints for s-ui nodes', async () => {
+        const calls = [];
+        const tools = await detectToolCapabilities(async (request) => {
+            calls.push([request.method, request.url]);
+            if (request.url === '/sui/endpoints') throw new Error('not found');
+            return { data: { success: true } };
+        }, { panelType: 's-ui' });
+
+        assert.equal(tools.mldsa65, undefined);
+        assert.equal(tools.xrayLogs, undefined);
+        assert.equal(tools.tlsProfiles.available, true);
+        assert.equal(tools.endpoints.available, false);
+        assert.equal(tools.coreControl.available, null);
+        assert.equal(calls.some(([, url]) => url === '/panel/api/server/restartXrayService'), false);
+        assert.equal(calls.some(([, url]) => url.startsWith('/panel/api/xray')), false);
+    });
+
     it('marks custom geo resources as removed in latest 3x-ui without probing old routes', async () => {
         const calls = [];
         const tools = await detectToolCapabilities(async (request) => {

@@ -45,6 +45,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         root.setAttribute('data-theme', resolvedTheme);
         root.setAttribute('data-theme-mode', mode);
         root.style.colorScheme = resolvedTheme;
+        // index.html paints an inline background before CSS loads; drop it so
+        // the stylesheet's --bg-primary follows later theme switches.
+        root.style.removeProperty('background-color');
 
         if (!body) return undefined;
         if (!hasMountedRef.current) {

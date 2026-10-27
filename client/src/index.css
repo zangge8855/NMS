@@ -763,8 +763,8 @@ a:hover {
   font-size: 10px;
   font-weight: 600;
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  text-transform: none;
+  letter-spacing: 0;
   margin-bottom: 6px;
   white-space: nowrap;
 }
@@ -1174,8 +1174,8 @@ a:hover {
   font-size: 12px;
   font-weight: 500;
   color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .form-input,
@@ -1292,8 +1292,8 @@ input[type="radio"]:focus {
   font-size: 12px;
   color: var(--text-secondary);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  text-transform: none;
+  letter-spacing: 0;
   border-bottom: 1px solid var(--border-color);
   background: rgba(255, 255, 255, 0.015);
   white-space: nowrap;
@@ -1335,9 +1335,9 @@ input[type="radio"]:focus {
   font-weight: 600;
   line-height: 1.4;
   white-space: nowrap;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
   backdrop-filter: blur(4px);
-  text-transform: uppercase;
+  text-transform: none;
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 
@@ -1677,8 +1677,8 @@ input[type="radio"]:focus {
   font-size: 10px;
   font-weight: 600;
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  text-transform: none;
+  letter-spacing: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2733,8 +2733,8 @@ input[type="radio"]:focus {
     font-size: 11px;
     font-weight: 600;
     color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    text-transform: none;
+    letter-spacing: 0;
     margin-right: 12px;
     flex-shrink: 0;
     width: min(35%, 100px);
@@ -4586,7 +4586,7 @@ input[type="radio"]:focus-visible {
   background: var(--accent-primary-bg);
   border: 1px solid var(--accent-primary-border);
   flex-shrink: 0;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .user-avatar-sm {
@@ -4826,8 +4826,8 @@ input[type="radio"]:focus-visible {
 .timeline-fact-label {
   font-size: 11px;
   line-height: 1.2;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   font-weight: 700;
   color: var(--text-muted);
 }
@@ -5641,8 +5641,8 @@ body::before {
 .header-context-label {
   font-size: 10px;
   color: var(--text-muted);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .header-context strong {
@@ -6128,9 +6128,9 @@ body::before {
 .dashboard-stat-card-label {
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.14em;
+  letter-spacing: 0;
   color: var(--text-muted);
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .dashboard-stat-card-icon {
@@ -7200,8 +7200,8 @@ body::before {
 .inbounds-client-mobile-label {
   font-size: 10px;
   line-height: 1.4;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-muted);
 }
 
@@ -7404,8 +7404,8 @@ body::before {
 .servers-mobile-meta-label {
   font-size: 10px;
   line-height: 1.4;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-muted);
 }
 
@@ -7475,8 +7475,8 @@ body::before {
 .server-console-scope-label {
   font-size: 10px;
   line-height: 1.4;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-muted);
 }
 
@@ -8023,8 +8023,8 @@ body::before {
 .users-mobile-metric-label {
   font-size: 11px;
   line-height: 1.2;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-muted);
   font-weight: 700;
 }
@@ -8094,8 +8094,8 @@ body::before {
 .audit-nav-label {
   font-size: 11px;
   line-height: 1.2;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-muted);
   font-weight: 700;
 }
@@ -8114,8 +8114,8 @@ body::before {
   min-height: 34px;
   padding: 0 12px;
   border-radius: 999px;
-  border: 1px solid rgba(59, 130, 246, 0.18);
-  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 18%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
   color: var(--accent-primary);
   font-size: 12px;
   font-weight: 700;
@@ -8148,11 +8148,11 @@ body::before {
   gap: 14px;
   padding: 18px;
   border-radius: 22px;
-  border: 1px solid rgba(59, 130, 246, 0.16);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 16%, transparent);
   background:
-    radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 32%),
-    linear-gradient(180deg, rgba(59, 130, 246, 0.08), rgba(15, 23, 42, 0.04));
-  box-shadow: 0 18px 42px -32px rgba(59, 130, 246, 0.42);
+    radial-gradient(circle at top right, color-mix(in srgb, var(--accent-primary) 12%, transparent), transparent 32%),
+    linear-gradient(180deg, color-mix(in srgb, var(--accent-primary) 8%, transparent), rgba(15, 23, 42, 0.04));
+  box-shadow: 0 18px 42px -32px color-mix(in srgb, var(--accent-primary) 42%, transparent);
 }
 
 .audit-tab-hero-copy {
@@ -8165,8 +8165,8 @@ body::before {
 .audit-tab-hero-eyebrow {
   font-size: 11px;
   line-height: 1.2;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--accent-primary);
   font-weight: 700;
 }
@@ -8210,8 +8210,8 @@ body::before {
   width: 100%;
   font-size: 11px;
   line-height: 1.2;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-muted);
   font-weight: 700;
   text-align: center;
@@ -8257,8 +8257,8 @@ body::before {
 }
 
 .audit-tabs .tab.active {
-  background: rgba(59, 130, 246, 0.12);
-  border-color: rgba(59, 130, 246, 0.18);
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent-primary) 18%, transparent);
   box-shadow: none;
 }
 
@@ -8359,8 +8359,8 @@ body::before {
 }
 
 .audit-control-pill.is-active {
-  border-color: rgba(59, 130, 246, 0.2);
-  background: rgba(59, 130, 246, 0.1);
+  border-color: color-mix(in srgb, var(--accent-primary) 20%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
   color: var(--text-primary);
 }
 
@@ -8564,8 +8564,8 @@ body::before {
 .audit-traffic-overview-eyebrow {
   font-size: 11px;
   line-height: 1.2;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--accent-success);
   font-weight: 700;
 }
@@ -8603,8 +8603,8 @@ body::before {
 .audit-traffic-window-label {
   font-size: 11px;
   line-height: 1.2;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-muted);
   font-weight: 700;
 }
@@ -8649,8 +8649,8 @@ body::before {
 .audit-traffic-sample-label {
   font-size: 11px;
   line-height: 1.2;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-muted);
   font-weight: 700;
 }
@@ -8741,7 +8741,7 @@ body::before {
 }
 
 .audit-traffic-split-card--up {
-  border-color: rgba(59, 130, 246, 0.16);
+  border-color: color-mix(in srgb, var(--accent-primary) 16%, transparent);
 }
 
 .audit-traffic-split-card--down {
@@ -8752,8 +8752,8 @@ body::before {
   width: 100%;
   font-size: 11px;
   line-height: 1.2;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-muted);
   font-weight: 700;
   text-align: center;
@@ -8903,8 +8903,8 @@ body::before {
 .audit-chart-selection-label {
   font-size: 11px;
   line-height: 1.2;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-muted);
   font-weight: 700;
 }
@@ -8992,8 +8992,8 @@ body::before {
 .audit-mobile-card-label {
   font-size: 11px;
   line-height: 1.2;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-muted);
   font-weight: 700;
 }
@@ -9186,9 +9186,9 @@ body::before {
 
 .settings-nav-item.is-active {
   background: var(--accent-primary-bg);
-  border-color: rgba(59, 130, 246, 0.3);
+  border-color: color-mix(in srgb, var(--accent-primary) 30%, transparent);
   color: #ffffff;
-  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.15);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--accent-primary) 15%, transparent);
 }
 
 .settings-nav-item-icon {
@@ -9253,7 +9253,7 @@ body::before {
   margin-top: 16px;
   padding: 12px 20px;
   border-radius: 18px;
-  border: 1px solid rgba(59, 130, 246, 0.3);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent);
   background: rgba(15, 23, 42, 0.9);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -9295,9 +9295,9 @@ body::before {
   gap: 16px;
   padding: 20px;
   border-radius: 24px;
-  border: 1px solid rgba(59, 130, 246, 0.14);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 14%, transparent);
   background:
-    radial-gradient(circle at top right, rgba(59, 130, 246, 0.14), transparent 34%),
+    radial-gradient(circle at top right, color-mix(in srgb, var(--accent-primary) 14%, transparent), transparent 34%),
     linear-gradient(180deg, rgba(15, 23, 42, 0.78), rgba(15, 23, 42, 0.54));
 }
 
@@ -9321,8 +9321,8 @@ body::before {
 .settings-summary-label {
   font-size: 10px;
   line-height: 1.2;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   font-weight: 700;
 }
 
@@ -9539,9 +9539,9 @@ body::before {
 }
 
 .settings-panel--entry {
-  border-color: rgba(59, 130, 246, 0.16);
+  border-color: color-mix(in srgb, var(--accent-primary) 16%, transparent);
   background:
-    radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 36%),
+    radial-gradient(circle at top right, color-mix(in srgb, var(--accent-primary) 12%, transparent), transparent 36%),
     var(--surface-panel);
 }
 
@@ -9678,7 +9678,7 @@ body::before {
 
 .settings-disclosure-summary:hover,
 .settings-disclosure-summary:focus-visible {
-  background: rgba(59, 130, 246, 0.06);
+  background: color-mix(in srgb, var(--accent-primary) 6%, transparent);
 }
 
 .settings-disclosure-copy {
@@ -9768,14 +9768,14 @@ body::before {
 
 .settings-toggle-card:hover,
 .settings-toggle-card:focus-within {
-  border-color: rgba(59, 130, 246, 0.18);
-  background: rgba(59, 130, 246, 0.08);
+  border-color: color-mix(in srgb, var(--accent-primary) 18%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
   transform: translateY(-1px);
 }
 
 .settings-toggle-card.is-active {
-  border-color: rgba(59, 130, 246, 0.2);
-  background: rgba(59, 130, 246, 0.1);
+  border-color: color-mix(in srgb, var(--accent-primary) 20%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
 }
 
 .settings-toggle-card.is-disabled {
@@ -9865,8 +9865,8 @@ body::before {
 }
 
 .settings-toggle-card.is-active .settings-toggle-switch {
-  border-color: rgba(59, 130, 246, 0.24);
-  background: rgba(59, 130, 246, 0.18);
+  border-color: color-mix(in srgb, var(--accent-primary) 24%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 18%, transparent);
 }
 
 .settings-toggle-card.is-active .settings-toggle-thumb {
@@ -10245,8 +10245,8 @@ body::before {
 }
 
 .settings-restore-dropzone.is-dragover {
-  border-color: rgba(59, 130, 246, 0.24);
-  background: rgba(59, 130, 246, 0.08);
+  border-color: color-mix(in srgb, var(--accent-primary) 24%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
 }
 
 .settings-restore-dropzone-title {
@@ -10269,8 +10269,8 @@ body::before {
   gap: 8px;
   padding: 14px 16px;
   border-radius: 16px;
-  border: 1px solid rgba(59, 130, 246, 0.16);
-  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 16%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
 }
 
 .settings-restore-progress-head {
@@ -10294,7 +10294,7 @@ body::before {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--accent-primary), rgba(59, 130, 246, 0.7));
+  background: linear-gradient(90deg, var(--accent-primary), color-mix(in srgb, var(--accent-primary) 70%, transparent));
 }
 
 .settings-console-host,
@@ -10304,7 +10304,7 @@ body::before {
 
 [data-theme="light"] .settings-nav {
   background:
-    radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 30%),
+    radial-gradient(circle at top right, color-mix(in srgb, var(--accent-primary) 12%, transparent), transparent 30%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
   border-color: rgba(15, 23, 42, 0.08);
 }
@@ -10345,16 +10345,16 @@ body::before {
 
 [data-theme="light"] .settings-tab-hero {
   background:
-    radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 34%),
+    radial-gradient(circle at top right, color-mix(in srgb, var(--accent-primary) 12%, transparent), transparent 34%),
     linear-gradient(180deg, rgba(239, 246, 255, 0.98), rgba(248, 250, 252, 0.98));
-  border-color: rgba(59, 130, 246, 0.14);
+  border-color: color-mix(in srgb, var(--accent-primary) 14%, transparent);
 }
 
 [data-theme="light"] .settings-panel--entry {
   background:
-    radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), transparent 34%),
+    radial-gradient(circle at top right, color-mix(in srgb, var(--accent-primary) 10%, transparent), transparent 34%),
     rgba(255, 255, 255, 0.96);
-  border-color: rgba(59, 130, 246, 0.14);
+  border-color: color-mix(in srgb, var(--accent-primary) 14%, transparent);
 }
 
 [data-theme="light"] .settings-summary-card[data-tone="success"] {
@@ -11672,9 +11672,9 @@ body::before {
 }
 
 .badge-info {
-  background: rgba(59, 130, 246, 0.12);
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
   color: var(--accent-info);
-  border-color: rgba(59, 130, 246, 0.22);
+  border-color: color-mix(in srgb, var(--accent-primary) 22%, transparent);
 }
 
 [data-theme="light"] .badge-success {
@@ -13384,8 +13384,8 @@ input[type="radio"]:focus-visible {
   gap: 20px;
   padding: 22px 28px;
   border-radius: var(--radius-xl, 20px);
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(18, 18, 20, 0.75) 100%);
-  border: 1px solid rgba(59, 130, 246, 0.2);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 8%, transparent) 0%, rgba(18, 18, 20, 0.75) 100%);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -13408,8 +13408,8 @@ input[type="radio"]:focus-visible {
 .subscription-user-kicker {
   font-size: 11px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+  text-transform: none;
+  letter-spacing: 0;
   color: var(--accent-primary);
 }
 
@@ -13492,8 +13492,8 @@ input[type="radio"]:focus-visible {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .subscription-user-meter-meta {
@@ -13531,7 +13531,7 @@ input[type="radio"]:focus-visible {
 }
 
 .subscription-user-meter-bar--info {
-  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-primary-hover));
 }
 
 .subscription-user-meter-bar--success {
@@ -13606,7 +13606,7 @@ input[type="radio"]:focus-visible {
 .subscription-profile-switches--user-stage .btn-primary {
   background: var(--accent-primary);
   color: #ffffff;
-  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent-primary) 35%, transparent);
   border-color: transparent;
 }
 
@@ -13677,8 +13677,8 @@ input[type="radio"]:focus-visible {
 .subscription-current-profile-tools-label {
   font-size: 11px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  text-transform: none;
+  letter-spacing: 0;
   color: var(--text-muted);
 }
 
@@ -13720,7 +13720,7 @@ input[type="radio"]:focus-visible {
   border-radius: 12px;
   background: rgba(0, 0, 0, 0.45);
   border: 1px solid var(--border-color);
-  color: #60a5fa;
+  color: var(--accent-primary-hover);
   font-size: 12px;
   font-family: var(--font-mono, monospace);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -13729,7 +13729,7 @@ input[type="radio"]:focus-visible {
 
 .subscription-url-input:focus {
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 20%, transparent);
   outline: none;
 }
 
@@ -13967,8 +13967,8 @@ input[type="radio"]:focus-visible {
 .subscription-admin-focus-label {
   font-size: 11px;
   line-height: 1.2;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-muted);
   font-weight: 700;
 }
@@ -14147,8 +14147,8 @@ input[type="radio"]:focus-visible {
 .subscription-current-profile-tools-label {
   font-size: 11px;
   line-height: 1.2;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-muted);
 }
 
@@ -14512,8 +14512,8 @@ input[type="radio"]:focus-visible {
   padding-top: 8px;
   font-size: 10px;
   line-height: 1.2;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-muted);
 }
 
@@ -14562,8 +14562,8 @@ input[type="radio"]:focus-visible {
 .subscription-device-block-label {
   font-size: 11px;
   line-height: 1.2;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-muted);
 }
 
@@ -14719,8 +14719,8 @@ input[type="radio"]:focus-visible {
 .user-detail-client-metric-label {
   font-size: 11px;
   line-height: 1.2;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-muted);
   font-weight: 700;
 }
@@ -14815,8 +14815,8 @@ input[type="radio"]:focus-visible {
 .server-detail-mobile-card-label {
   font-size: 11px;
   line-height: 1.2;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-muted);
   font-weight: 700;
 }
@@ -16685,7 +16685,7 @@ input[type="radio"]:focus-visible {
   background:
     radial-gradient(circle at 18% 18%, rgba(70, 126, 255, 0.08), transparent 36%),
     radial-gradient(circle at 82% 14%, rgba(45, 212, 191, 0.06), transparent 30%),
-    linear-gradient(180deg, #07111f 0%, #081425 52%, #0a1322 100%);
+    linear-gradient(180deg, var(--rail-bg) 0%, var(--rail-bg) 52%, #0a1322 100%);
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -17548,8 +17548,8 @@ input[type="radio"]:focus-visible {
 .dashboard-inbound-mobile-label {
   font-size: 11px;
   line-height: 1.2;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-muted);
   font-weight: 700;
 }

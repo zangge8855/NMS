@@ -32,6 +32,8 @@ import MiniSparkline from '../UI/MiniSparkline';
 import useTrafficLeaderboardTrends from '../../hooks/useTrafficLeaderboardTrends';
 import { readSessionSnapshot, SESSION_SNAPSHOT_EVENT, writeSessionSnapshot } from '../../utils/sessionSnapshot';
 import { lazyWithRetry } from '../../utils/lazyWithRetry';
+import { AUDIT_EVENT_LABELS } from '../../utils/auditEventLabels';
+import { useOptionalServer } from '../../contexts/ServerContext';
 
 const Logs = lazyWithRetry(() => import('../Logs/Logs'), 'AuditLogs');
 const TrafficLineChart = lazyWithRetry(() => import('./TrafficLineChart'), 'TrafficLineChart');
@@ -108,7 +110,7 @@ const AUDIT_COPY = {
             tasks: '批量任务',
             traffic: '流量统计',
             subscriptions: '订阅访问',
-            logs: '3x-ui 日志',
+            logs: '面板日志',
         },
         actions: {
             query: '查询',
@@ -160,7 +162,7 @@ const AUDIT_COPY = {
             subscriptionsEyebrow: 'Access',
             subscriptionsSummary: '筛选订阅访问、真实 IP、归属地和状态分布，快速定位异常访问。',
             logsEyebrow: 'Panel Logs',
-            logsSummary: '在当前工作台里直接查看 3x-ui 节点日志，不用来回切页。',
+            logsSummary: '在当前工作台里直接查看 3x-ui / s-ui 节点的面板日志，不用来回切页。',
             eventsFiltersTitle: '筛选操作记录',
             eventsFiltersSubtitle: '按关键词、事件类型、结果、目标用户和节点缩小范围。',
             subscriptionsFiltersTitle: '筛选订阅访问',
@@ -315,7 +317,7 @@ const AUDIT_COPY = {
             tasks: 'Tasks',
             traffic: 'Traffic',
             subscriptions: 'Subscription Access',
-            logs: '3x-ui Logs',
+            logs: 'Panel Logs',
         },
         actions: {
             query: 'Query',
@@ -367,7 +369,7 @@ const AUDIT_COPY = {
             subscriptionsEyebrow: 'Access',
             subscriptionsSummary: 'Filter subscription access, real IP, geo, and status distribution to find abnormal requests quickly.',
             logsEyebrow: 'Panel Logs',
-            logsSummary: 'Inspect 3x-ui logs directly inside the audit workspace without switching pages.',
+            logsSummary: 'Inspect 3x-ui / s-ui panel logs directly inside the audit workspace without switching pages.',
             eventsFiltersTitle: 'Filter Events',
             eventsFiltersSubtitle: 'Narrow the result by keyword, event type, outcome, target user, and node.',
             subscriptionsFiltersTitle: 'Filter Subscription Access',
@@ -954,159 +956,6 @@ function formatAccessUserMeta(item, copy) {
     return candidates.find((candidate) => candidate && !isMaskedAccessEmail(candidate) && candidate !== primaryLabel) || '';
 }
 
-const AUDIT_EVENT_LABELS = {
-    'zh-CN': {
-        login_success: '登录成功',
-        login_failed: '登录失败',
-        login_denied_email_unverified: '登录拒绝 · 邮箱未验证',
-        login_denied_user_disabled: '登录拒绝 · 账号已停用',
-        login_rate_limited: '登录频率限制',
-        register_rate_limited: '注册频率限制',
-        user_registered: '用户注册',
-        user_created: '创建用户',
-        user_updated: '更新用户资料',
-        user_enabled: '启用用户',
-        user_disabled: '停用用户',
-        user_deleted: '删除用户',
-        user_expiry_updated: '更新到期时间',
-        user_subscription_binding_updated: '更新订阅绑定',
-        user_subscription_provisioned: '开通订阅',
-        user_password_reset_by_admin: '管理员重置密码',
-        user_policy_updated: '更新用户策略',
-        verification_email_sent: '发送验证邮件',
-        verification_email_failed: '验证邮件发送失败',
-        email_verified: '邮箱验证成功',
-        password_reset_request_rate_limited: '重置请求频率限制',
-        password_reset_email_sent: '发送密码重置邮件',
-        password_reset_code_sent: '发送密码重置验证码',
-        password_reset_email_failed: '密码重置邮件发送失败',
-        password_reset_completed: '完成密码重置',
-        password_changed: '修改密码',
-        account_email_updated: '更新账号信息',
-        invite_code_created: '创建邀请码',
-        invite_code_email_sent: '发送邀请码邮件',
-        invite_code_revoked: '撤销邀请码',
-        smtp_connection_verified: '验证 SMTP 连接',
-        registered_user_notice: '发送注册用户变更通知',
-        system_backup_exported: '导出系统备份',
-        system_backup_saved_local: '保存本机备份',
-        system_backup_downloaded_local: '下载本机备份',
-        system_backup_restored_local: '恢复本机备份',
-        system_backup_deleted_local: '删除本机备份',
-        system_backup_restored: '恢复系统备份',
-        system_settings_updated: '更新系统设置',
-        security_bootstrap_completed: '完成安全启动向导',
-        server_health_monitor_run: '执行节点健康检查',
-        server_order_updated: '更新节点顺序',
-        inbound_order_updated: '更新入站顺序',
-        user_order_updated: '更新用户顺序',
-        batch_risk_token_issued: '签发高风险确认令牌',
-        credentials_rotation: '轮换系统凭据',
-        db_backfill: '数据库回填',
-        db_mode_switched: '切换数据库模式',
-        server_added: '添加节点',
-        server_batch_added: '批量添加节点',
-        server_updated: '更新节点',
-        server_deleted: '删除节点',
-        server_credentials_updated_via_test: '更新节点凭据',
-        server_test_success: '节点连接测试成功',
-        server_test_failed: '节点连接测试失败',
-        servers_batch_update: '批量更新节点',
-        subscription_token_issued: '签发订阅链接',
-        subscription_token_auto_issued: '自动签发订阅链接',
-        subscription_token_revoked: '撤销订阅链接',
-        subscription_token_revoke_all: '撤销全部订阅链接',
-        subscription_link_reset: '重置订阅链接',
-        subscription_public_denied: '订阅访问被拒绝',
-        subscription_public_denied_legacy: '旧版订阅访问被拒绝',
-        client_entitlement_overridden: '覆盖客户端权限',
-        client_entitlement_follow_policy: '客户端跟随策略',
-        batch_history_cleared: '清空批量任务历史',
-        batch_history_canceled: '取消批量任务',
-        batch_clients_sensitive_action: '执行批量客户端敏感操作',
-        batch_clients_high_risk_action: '执行批量客户端高风险操作',
-        batch_inbounds_sensitive_action: '执行批量入站敏感操作',
-        batch_inbounds_high_risk_action: '执行批量入站高风险操作',
-        batch_sensitive_retry: '重试批量敏感任务',
-        batch_high_risk_retry: '重试批量高风险任务',
-    },
-    'en-US': {
-        login_success: 'Login Succeeded',
-        login_failed: 'Login Failed',
-        login_denied_email_unverified: 'Login Denied · Email Unverified',
-        login_denied_user_disabled: 'Login Denied · User Disabled',
-        login_rate_limited: 'Login Rate Limited',
-        register_rate_limited: 'Registration Rate Limited',
-        user_registered: 'User Registered',
-        user_created: 'User Created',
-        user_updated: 'User Updated',
-        user_enabled: 'User Enabled',
-        user_disabled: 'User Disabled',
-        user_deleted: 'User Deleted',
-        user_expiry_updated: 'Expiry Updated',
-        user_subscription_binding_updated: 'Subscription Binding Updated',
-        user_subscription_provisioned: 'Subscription Provisioned',
-        user_password_reset_by_admin: 'Password Reset by Admin',
-        user_policy_updated: 'User Policy Updated',
-        verification_email_sent: 'Verification Email Sent',
-        verification_email_failed: 'Verification Email Failed',
-        email_verified: 'Email Verified',
-        password_reset_request_rate_limited: 'Password Reset Rate Limited',
-        password_reset_email_sent: 'Password Reset Email Sent',
-        password_reset_code_sent: 'Password Reset Code Sent',
-        password_reset_email_failed: 'Password Reset Email Failed',
-        password_reset_completed: 'Password Reset Completed',
-        password_changed: 'Password Changed',
-        account_email_updated: 'Account Updated',
-        invite_code_created: 'Invite Code Created',
-        invite_code_email_sent: 'Invite Email Sent',
-        invite_code_revoked: 'Invite Code Revoked',
-        smtp_connection_verified: 'SMTP Connection Verified',
-        registered_user_notice: 'Registered User Notice Sent',
-        system_backup_exported: 'System Backup Exported',
-        system_backup_saved_local: 'Local Backup Saved',
-        system_backup_downloaded_local: 'Local Backup Downloaded',
-        system_backup_restored_local: 'Local Backup Restored',
-        system_backup_deleted_local: 'Local Backup Deleted',
-        system_backup_restored: 'System Backup Restored',
-        system_settings_updated: 'System Settings Updated',
-        security_bootstrap_completed: 'Security Bootstrap Completed',
-        server_health_monitor_run: 'Server Health Check Ran',
-        server_order_updated: 'Server Order Updated',
-        inbound_order_updated: 'Inbound Order Updated',
-        user_order_updated: 'User Order Updated',
-        batch_risk_token_issued: 'Risk Token Issued',
-        credentials_rotation: 'Credentials Rotated',
-        db_backfill: 'Database Backfill',
-        db_mode_switched: 'Database Mode Switched',
-        server_added: 'Server Added',
-        server_batch_added: 'Servers Added in Batch',
-        server_updated: 'Server Updated',
-        server_deleted: 'Server Deleted',
-        server_credentials_updated_via_test: 'Server Credentials Updated',
-        server_test_success: 'Server Test Succeeded',
-        server_test_failed: 'Server Test Failed',
-        servers_batch_update: 'Servers Updated in Batch',
-        subscription_token_issued: 'Subscription Link Issued',
-        subscription_token_auto_issued: 'Subscription Link Auto-Issued',
-        subscription_token_revoked: 'Subscription Link Revoked',
-        subscription_token_revoke_all: 'All Subscription Links Revoked',
-        subscription_link_reset: 'Subscription Link Reset',
-        subscription_public_denied: 'Subscription Access Denied',
-        subscription_public_denied_legacy: 'Legacy Subscription Access Denied',
-        client_entitlement_overridden: 'Client Entitlement Overridden',
-        client_entitlement_follow_policy: 'Client Follows Policy',
-        batch_history_cleared: 'Batch History Cleared',
-        batch_history_canceled: 'Batch Task Canceled',
-        batch_clients_sensitive_action: 'Sensitive Client Batch Action',
-        batch_clients_high_risk_action: 'High-Risk Client Batch Action',
-        batch_inbounds_sensitive_action: 'Sensitive Inbound Batch Action',
-        batch_inbounds_high_risk_action: 'High-Risk Inbound Batch Action',
-        batch_sensitive_retry: 'Sensitive Batch Retry',
-        batch_high_risk_retry: 'High-Risk Batch Retry',
-    },
-};
-
 function formatAuditEventLabel(item, locale = 'zh-CN') {
     const normalizedLocale = locale === 'en-US' ? 'en-US' : 'zh-CN';
     const eventType = String(item?.eventType || '').trim();
@@ -1220,7 +1069,7 @@ function countActiveFilters(filters: any = {}) {
     }, 0);
 }
 
-function AuditEventsMobileList({ items = [], copy, locale, onSelect }) {
+function AuditEventsMobileList({ items = [], copy, locale, onSelect, resolveServerName }) {
     return (
         <div className="audit-mobile-list">
             {items.map((item) => (
@@ -1241,7 +1090,7 @@ function AuditEventsMobileList({ items = [], copy, locale, onSelect }) {
                             </div>
                         <div className="audit-mobile-card-item">
                             <span className="audit-mobile-card-label">{copy.tables.node}</span>
-                            <span className="audit-mobile-card-value">{item.serverId || '-'}</span>
+                            <span className="audit-mobile-card-value">{resolveServerName(item.serverId) || '-'}</span>
                         </div>
                             <div className="audit-mobile-card-item audit-mobile-card-item--full">
                                 <span className="audit-mobile-card-label">{copy.tables.user}</span>
@@ -1324,6 +1173,12 @@ export default function AuditCenter() {
     const { locale, t } = useI18n();
     const isCompactLayout = useMediaQuery('(max-width: 1100px)');
     const copy = getAuditCopy(locale);
+    const serverContext = useOptionalServer();
+    const serverNameById = useMemo(
+        () => new Map((serverContext?.servers || []).map((server) => [String(server.id), server.name])),
+        [serverContext?.servers]
+    );
+    const resolveServerName = (serverId) => (serverId ? serverNameById.get(String(serverId)) || serverId : '');
     const [searchParams, setSearchParams] = useSearchParams();
     const confirm = useConfirm();
     const validTabs = new Set(['events', 'tasks', 'traffic', 'subscriptions', 'logs']);
@@ -2220,6 +2075,7 @@ export default function AuditCenter() {
                                     copy={copy}
                                     locale={locale}
                                     onSelect={setSelectedEvent}
+                                    resolveServerName={resolveServerName}
                                 />
                             ) : (
                                 <div className="table-container">
@@ -2247,7 +2103,7 @@ export default function AuditCenter() {
                                                         className="table-cell-center audit-event-node-cell"
                                                         title={item.serverId || '-'}
                                                     >
-                                                        {item.serverId || '-'}
+                                                        {resolveServerName(item.serverId) || '-'}
                                                     </td>
                                                     <td data-label={copy.tables.user}>
                                                         <div className="audit-event-target">

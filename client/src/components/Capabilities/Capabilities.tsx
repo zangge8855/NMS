@@ -28,6 +28,7 @@ import PageToolbar from '../UI/PageToolbar';
 import SectionHeader from '../UI/SectionHeader';
 import { getErrorMessage } from '../../utils/format';
 import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot';
+import { getPanelTypeLabel } from '../../utils/panelType';
 
 const CAPABILITIES_SNAPSHOT_TTL_MS = 2 * 60_000;
 
@@ -459,7 +460,7 @@ export default function Capabilities({ serverId = '', embedded = false }: Capabi
     );
 
     const activeProbedTools = useMemo(() => toolEntries.filter((t) => t.available === true).length, [toolEntries]);
-    const totalProbedTools = useMemo(() => toolEntries.filter((t) => t.supportedBy3xui !== false).length, [toolEntries]);
+    const totalProbedTools = useMemo(() => toolEntries.filter((t) => t.source === 'probed').length, [toolEntries]);
     const toolsPercentage = useMemo(() => totalProbedTools > 0 ? Math.round((activeProbedTools / totalProbedTools) * 100) : 0, [activeProbedTools, totalProbedTools]);
 
     const integratedModules = useMemo(() => systemModules.filter((m) => m.supportedByNms === true).length, [systemModules]);
@@ -467,6 +468,7 @@ export default function Capabilities({ serverId = '', embedded = false }: Capabi
     const modulesPercentage = useMemo(() => totalModules > 0 ? Math.round((integratedModules / totalModules) * 100) : 0, [integratedModules, totalModules]);
 
     const complianceScore = useMemo(() => Math.round((modulesPercentage + toolsPercentage) / 2), [modulesPercentage, toolsPercentage]);
+    const supportColumnLabel = getPanelTypeLabel(data?.panelType);
 
     const renderFrame = (children: ReactNode) => {
         if (embedded) {
@@ -533,47 +535,28 @@ export default function Capabilities({ serverId = '', embedded = false }: Capabi
                             {/* Card 1: API Compliance */}
                             <div className="capabilities-dashboard-card">
                                 <div className="capabilities-dashboard-radial">
-                                    <svg width="80" height="80" viewBox="0 0 80 80">
-                                        <defs>
-                                            <linearGradient id="aurora-radial-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                                <stop offset="0%" stopColor="var(--accent-primary, #6366F1)" />
-                                                <stop offset="50%" stopColor="var(--accent-secondary, #8B5CF6)" />
-                                                <stop offset="100%" stopColor="var(--accent-tertiary, #22D3EE)" />
-                                            </linearGradient>
-                                        </defs>
+                                    <svg width="56" height="56" viewBox="0 0 80 80" aria-hidden="true">
                                         <circle
                                             cx="40"
                                             cy="40"
                                             r="34"
                                             fill="transparent"
-                                            stroke="var(--border-neutral, rgba(0,0,0,0.06))"
-                                            strokeWidth="6"
+                                            stroke="var(--border-color)"
+                                            strokeWidth="8"
                                         />
                                         <circle
                                             cx="40"
                                             cy="40"
                                             r="34"
                                             fill="transparent"
-                                            stroke="url(#aurora-radial-gradient)"
-                                            strokeWidth="6"
+                                            stroke="var(--accent-primary)"
+                                            strokeWidth="8"
                                             strokeDasharray={2 * Math.PI * 34}
                                             strokeDashoffset={2 * Math.PI * 34 * (1 - complianceScore / 100)}
                                             strokeLinecap="round"
                                             transform="rotate(-90 40 40)"
                                             style={{ transition: 'stroke-dashoffset 0.8s ease-in-out' }}
                                         />
-                                        <text
-                                            x="40"
-                                            y="40"
-                                            textAnchor="middle"
-                                            dominantBaseline="central"
-                                            fontSize="15"
-                                            fontWeight="700"
-                                            fill="var(--text-primary)"
-                                            fontFamily="var(--font-numeric)"
-                                        >
-                                            {complianceScore}%
-                                        </text>
                                     </svg>
                                 </div>
                                 <div className="capabilities-dashboard-info">
@@ -651,8 +634,10 @@ export default function Capabilities({ serverId = '', embedded = false }: Capabi
                                 {protocolList.map((item) => (
                                     <div key={item.key} className="card capability-protocol-card">
                                         <div className="capability-card-head">
-                                            <strong>{item.label}</strong>
-                                            <span className="badge badge-info">{item.key}</span>
+                                            <strong title={item.label}>{item.label}</strong>
+                                            {String(item.key).toLowerCase() !== String(item.label).toLowerCase() ? (
+                                                <span className="badge badge-info">{item.key}</span>
+                                            ) : null}
                                         </div>
                                         <div className="text-xs text-muted">
                                             {Array.isArray(item.legacyKeys) && item.legacyKeys.length > 0
@@ -677,7 +662,7 @@ export default function Capabilities({ serverId = '', embedded = false }: Capabi
                                 tableClassName="capability-matrix-table"
                                 headers={[
                                     <th key="cap">{copy.matrixColumns.capability}</th>,
-                                    <th key="support" className="table-cell-center capability-support-column">{copy.matrixColumns.support}</th>,
+                                    <th key="support" className="table-cell-center capability-support-column">{supportColumnLabel}</th>,
                                     <th key="status" className="table-cell-center capability-status-column">{copy.matrixColumns.status}</th>,
                                     <th key="entry" className="table-cell-center capability-entry-column">{copy.matrixColumns.entry}</th>,
                                     <th key="note">{copy.matrixColumns.note}</th>
@@ -699,7 +684,7 @@ export default function Capabilities({ serverId = '', embedded = false }: Capabi
                                                 </div>
                                             </div>
                                         </td>
-                                        <td data-label={copy.matrixColumns.support} className="table-cell-center capability-support-cell">{renderBooleanSupport(module.supportedBy3xui === true, copy)}</td>
+                                        <td data-label={supportColumnLabel} className="table-cell-center capability-support-cell">{renderBooleanSupport(module.supportedBy3xui === true, copy)}</td>
                                         <td data-label={copy.matrixColumns.status} className="table-cell-center capability-status-cell">{renderAlignmentStatus(module.status, copy)}</td>
                                         <td data-label={copy.matrixColumns.entry} className="table-cell-center capability-entry-cell">
                                             <span className="badge badge-neutral">{module.uiActionLabel || '-'}</span>

@@ -1,8 +1,8 @@
-import nodemailer from 'nodemailer';
+import nodemailer, { type Transporter } from 'nodemailer';
 import { randomInt } from 'crypto';
 import config from '../config.js';
 
-let transporter: nodemailer.Transporter | null = null;
+let transporter: Transporter | null = null;
 let transporterCacheKey = '';
 
 export interface DeliveryStatus {
@@ -277,7 +277,7 @@ function renderParagraphs(value: unknown): string {
         .join('');
 }
 
-function getTransporter(): nodemailer.Transporter | null {
+function getTransporter(): Transporter | null {
     const smtp = resolveSmtpConfig();
     if (!isSmtpConfigured(smtp)) {
         console.warn('  ⚠️  SMTP not configured — email verification will not work');

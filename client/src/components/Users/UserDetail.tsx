@@ -29,6 +29,7 @@ import useMediaQuery from '../../hooks/useMediaQuery';
 import { fetchServerPanelData, invalidateServerPanelDataCache } from '../../utils/serverPanelDataCache';
 import { invalidateManagedUsersCache } from '../../utils/managedUsersCache';
 import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot';
+import { getAuditEventLabel } from '../../utils/auditEventLabels';
 import {
     HiOutlineArrowLeft,
     HiOutlineNoSymbol,
@@ -486,9 +487,12 @@ function normalizeAccessOutcome(status) {
     return 'failed';
 }
 
-function formatTimelineTitle(item, copy) {
+function formatTimelineTitle(item, copy, locale) {
     if (item.type === 'access') return copy.labels.subscriptionAccess;
-    return copy.auditLabels[item.eventKey] || item.eventKey || copy.labels.auditEvent;
+    return copy.auditLabels[item.eventKey]
+        || getAuditEventLabel(item.eventKey, locale)
+        || item.eventKey
+        || copy.labels.auditEvent;
 }
 
 function formatOutcomeLabel(item, copy) {
@@ -694,7 +698,7 @@ function TimelineEntry({ item, index, copy, locale }) {
             <div className={`timeline-dot ${timelineOutcomeClass(item.outcome)}`} />
             <div className="timeline-content">
                 <div className="timeline-head">
-                    <span className="font-medium">{formatTimelineTitle(item, copy)}</span>
+                    <span className="font-medium">{formatTimelineTitle(item, copy, locale)}</span>
                     <span className="timeline-time">{formatTime(item.ts, locale)}</span>
                 </div>
                 <div className="flex gap-2 flex-wrap mt-2">
@@ -1627,15 +1631,11 @@ export default function UserDetail() {
                                     </p>
                                 )}
                                 {detail?.policy && (
-                                    <div className="card mb-4">
-                                        <div className="card-header border-none pb-0 mb-2">
-                                            <span className="card-title flex items-center"><HiOutlineShieldCheck className="mr-2" /> {copy.labels.accessPolicy}</span>
-                                        </div>
-                                        <div className="p-3">
-                                            <div className="flex gap-4 text-sm">
-                                                <span>{copy.labels.server}: <strong>{detail.policy.serverScopeMode === 'all' ? copy.labels.unlimited : detail.policy.serverScopeMode === 'none' ? copy.labels.blocked : `${(detail.policy.allowedServerIds || []).length}`}</strong></span>
-                                                <span>{copy.labels.protocol}: <strong>{detail.policy.protocolScopeMode === 'all' ? copy.labels.unlimited : detail.policy.protocolScopeMode === 'none' ? copy.labels.blocked : (detail.policy.allowedProtocols || []).join(', ')}</strong></span>
-                                            </div>
+                                    <div className="card user-detail-policy-card">
+                                        <div className="user-detail-policy-title"><HiOutlineShieldCheck /> {copy.labels.accessPolicy}</div>
+                                        <div className="user-detail-policy-items">
+                                            <span>{copy.labels.server}: <strong>{detail.policy.serverScopeMode === 'all' ? copy.labels.unlimited : detail.policy.serverScopeMode === 'none' ? copy.labels.blocked : `${(detail.policy.allowedServerIds || []).length}`}</strong></span>
+                                            <span>{copy.labels.protocol}: <strong>{detail.policy.protocolScopeMode === 'all' ? copy.labels.unlimited : detail.policy.protocolScopeMode === 'none' ? copy.labels.blocked : (detail.policy.allowedProtocols || []).join(', ')}</strong></span>
                                         </div>
                                     </div>
                                 )}
@@ -1707,16 +1707,6 @@ export default function UserDetail() {
                                                     ) : null}
                                                 </div>
 
-                                                <div className="subscription-user-address-head">
-                                                    <div className="subscription-user-address-copy">
-                                                        <div className="subscription-user-address-label">{copy.labels.subscriptionInfo}</div>
-                                                        <div className="subscription-user-address-kicker">{activeSubscriptionProfile?.label || copy.labels.copyAddress}</div>
-                                                    </div>
-                                                    <span className={`badge ${subscriptionResult.subscriptionActive ? 'badge-success' : 'badge-warning'}`}>
-                                                        {subscriptionResult.subscriptionActive ? copy.labels.available : copy.labels.unavailable}
-                                                    </span>
-                                                </div>
-
                                                 <div className="subscription-link-grid subscription-link-grid--compact">
                                                     <input
                                                         className="form-input font-mono subscription-url-input"
@@ -1765,28 +1755,8 @@ export default function UserDetail() {
                                                         {subscriptionResetLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {copy.labels.resetLink}</>}
                                                     </button>
                                                     <div className="subscription-user-reset-inline-copy">
-                                                        <div className="subscription-user-reset-inline-title">
-                                                            <HiOutlineArrowPath />
-                                                            {copy.labels.resetTitle}
-                                                        </div>
                                                         <div className="subscription-user-reset-inline-text">{copy.labels.resetMessage}</div>
                                                     </div>
-                                                </div>
-
-                                                <div className="user-detail-subscription-guides">
-                                                    <div className="subscription-user-address-copy">
-                                                        <div className="subscription-user-address-label">{copy.labels.stepImportClientTitle}</div>
-                                                        <div className="subscription-user-address-note">
-                                                            {copy.labels.matchedNodes
-                                                                .replace('{active}', String(subscriptionResult.matchedClientsActive || 0))
-                                                                .replace('{raw}', String(subscriptionResult.matchedClientsRaw || 0))}
-                                                        </div>
-                                                    </div>
-                                                    <SubscriptionClientLinks
-                                                        bundle={subscriptionResult.bundle}
-                                                        compact
-                                                        showHeading={false}
-                                                    />
                                                 </div>
                                             </div>
 
@@ -1810,6 +1780,22 @@ export default function UserDetail() {
                                                     <div className="subscription-inline-qr-text">{copy.labels.qrUnavailable}</div>
                                                 )}
                                             </div>
+                                        </div>
+
+                                        <div className="user-detail-subscription-guides">
+                                            <div className="subscription-user-address-copy">
+                                                <div className="subscription-user-address-label">{copy.labels.stepImportClientTitle}</div>
+                                                <div className="subscription-user-address-note">
+                                                    {copy.labels.matchedNodes
+                                                        .replace('{active}', String(subscriptionResult.matchedClientsActive || 0))
+                                                        .replace('{raw}', String(subscriptionResult.matchedClientsRaw || 0))}
+                                                </div>
+                                            </div>
+                                            <SubscriptionClientLinks
+                                                bundle={subscriptionResult.bundle}
+                                                compact
+                                                showHeading={false}
+                                            />
                                         </div>
                                     </div>
                                 )}

@@ -17,7 +17,11 @@ import {
     kilobytesInputToBytesPerSecond,
 } from '../../utils/entitlements';
 
-const BATCH_CLIENT_PROTOCOLS = new Set(['vmess', 'vless', 'trojan', 'shadowsocks', 'hysteria', 'hysteria2', 'hy2', 'tuic']);
+const BATCH_CLIENT_PROTOCOLS = new Set([
+    'vmess', 'vless', 'trojan', 'shadowsocks', 'hysteria', 'hysteria2', 'hy2', 'tuic',
+    // s-ui inbound types
+    'naive', 'anytls', 'shadowtls', 'snell', 'mixed', 'socks', 'http',
+]);
 
 function resolveResponseMsg(data, fallback = '') {
     if (!data || typeof data !== 'object') return fallback;

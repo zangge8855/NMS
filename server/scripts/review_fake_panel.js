@@ -6,6 +6,7 @@ import {
     REVIEW_PANEL_PORTS,
     buildReviewPanelDefinitions,
 } from './reviewHarnessFixtures.js';
+import { createFakeSuiPanelApp, createFakeSuiState } from './fakeSuiPanel.js';
 
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -1063,12 +1064,15 @@ async function main() {
             healthy: toPort(args['healthy-port'] || process.env.REVIEW_PANEL_PORT_HEALTHY, REVIEW_PANEL_PORTS.healthy),
             legacy: toPort(args['legacy-port'] || process.env.REVIEW_PANEL_PORT_LEGACY, REVIEW_PANEL_PORTS.legacy),
             down: toPort(args['down-port'] || process.env.REVIEW_PANEL_PORT_DOWN, REVIEW_PANEL_PORTS.down),
+            sui: toPort(args['sui-port'] || process.env.REVIEW_PANEL_PORT_SUI, REVIEW_PANEL_PORTS.sui),
         },
     });
 
     const servers = [];
     for (const definition of definitions) {
-        const app = createPanelApp(definition);
+        const app = definition.panelType === 's-ui'
+            ? createFakeSuiPanelApp(createFakeSuiState(definition.seed), { basePath: definition.basePath })
+            : createPanelApp(definition);
         const server = await new Promise((resolve, reject) => {
             const instance = app.listen(definition.port, host, () => resolve(instance));
             instance.on('error', reject);
@@ -1081,7 +1085,9 @@ async function main() {
         host,
         panels: definitions.map((item) => ({
             key: item.key,
+            panelType: item.panelType || '3x-ui',
             url: item.url,
+            basePath: item.basePath || '/',
             username: item.credentials.username,
             password: item.credentials.password,
         })),

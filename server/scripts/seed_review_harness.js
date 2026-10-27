@@ -89,6 +89,7 @@ function main() {
             healthy: toPort(args['healthy-port'] || process.env.REVIEW_PANEL_PORT_HEALTHY, REVIEW_PANEL_PORTS.healthy),
             legacy: toPort(args['legacy-port'] || process.env.REVIEW_PANEL_PORT_LEGACY, REVIEW_PANEL_PORTS.legacy),
             down: toPort(args['down-port'] || process.env.REVIEW_PANEL_PORT_DOWN, REVIEW_PANEL_PORTS.down),
+            sui: toPort(args['sui-port'] || process.env.REVIEW_PANEL_PORT_SUI, REVIEW_PANEL_PORTS.sui),
         },
     });
 

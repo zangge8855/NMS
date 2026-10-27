@@ -8,8 +8,11 @@ export const REVIEW_SCENARIOS = Object.freeze(['empty', 'review', 'edge']);
 export const REVIEW_PANEL_PORTS = Object.freeze({
     healthy: 20530,
     legacy: 20531,
+    sui: 20532,
     down: 20539,
 });
+
+export const REVIEW_SUI_BASE_PATH = '/app';
 
 function getDefaultReviewCredentialSeed() {
     const machineScopedSeed = [
@@ -83,6 +86,10 @@ export const REVIEW_CREDENTIALS = Object.freeze({
             username: 'nmsadmin',
             password: deriveFixturePassword('review-panel-legacy-password', 'REVIEW_PANEL_LEGACY_PASSWORD'),
         },
+        sui: {
+            username: 'nmsadmin',
+            password: deriveFixturePassword('review-panel-sui-password', 'REVIEW_PANEL_SUI_PASSWORD'),
+        },
     },
 });
 
@@ -95,6 +102,8 @@ const REVIEW_FIXTURE_VALUES = Object.freeze({
     trojanClientPassword: deriveFixturePassword('review-trojan-client-password', 'REVIEW_TROJAN_CLIENT_PASSWORD'),
     shadowsocksClientPassword: deriveFixturePassword('review-shadowsocks-client-password', 'REVIEW_SHADOWSOCKS_CLIENT_PASSWORD'),
     invalidPanelPassword: deriveFixturePassword('review-invalid-panel-password', 'REVIEW_PANEL_INVALID_PASSWORD'),
+    suiClientPassword: deriveFixturePassword('review-sui-client-password', 'REVIEW_SUI_CLIENT_PASSWORD'),
+    suiShadowsocksKey: Buffer.from(deriveFixtureHex('review-sui-ss-key', 32), 'hex').toString('base64'),
 });
 
 function reviewExpiry(daysFromNow) {
@@ -106,6 +115,7 @@ export const REVIEW_SERVER_IDS = Object.freeze({
     legacy: '10000000-0000-4000-8000-000000000002',
     authFail: '10000000-0000-4000-8000-000000000003',
     down: '10000000-0000-4000-8000-000000000004',
+    sui: '10000000-0000-4000-8000-000000000005',
 });
 
 const USER_IDS = Object.freeze({
@@ -577,12 +587,131 @@ function buildLegacyPanelState() {
     };
 }
 
+// Seed for the fake s-ui panel: one inbound per sing-box protocol family NMS
+// manages, and s-ui clients named after the review subscription emails.
+function buildSuiPanelSeed(host) {
+    const credentials = REVIEW_CREDENTIALS.panels.sui;
+    const password = REVIEW_FIXTURE_VALUES.suiClientPassword;
+    const ssKey = REVIEW_FIXTURE_VALUES.suiShadowsocksKey;
+    const clientConfig = (name, uuid) => ({
+        vless: { name, uuid, flow: 'xtls-rprx-vision' },
+        vmess: { name, uuid, alterId: 0 },
+        trojan: { name, password },
+        tuic: { name, uuid, password },
+        hysteria2: { name, password },
+        anytls: { name, password },
+        shadowsocks16: { name, password: ssKey },
+        socks: { username: name, password },
+        http: { username: name, password },
+    });
+    const baseClient = {
+        enable: true,
+        links: [],
+        desc: '',
+        group: '',
+        remark: '',
+        createdAt: 1772697600,
+        delayStart: false,
+        autoReset: false,
+        resetDays: 0,
+        nextReset: 0,
+        totalUp: 0,
+        totalDown: 0,
+    };
+
+    return {
+        username: credentials.username,
+        password: credentials.password,
+        version: '1.3.7',
+        hostName: 'review-sui',
+        linkHost: host,
+        tls: [
+            {
+                id: 1,
+                name: 'reality-main',
+                server: { enabled: true, server_name: 'www.cloudflare.com', reality: { enabled: true } },
+                client: { reality: { public_key: REVIEW_FIXTURE_VALUES.realityPublicKey } },
+            },
+            {
+                id: 2,
+                name: 'acme-review',
+                server: { enabled: true, server_name: 'sui.review.invalid', alpn: ['h3'] },
+                client: {},
+            },
+        ],
+        inbounds: [
+            { id: 1, type: 'vless', tag: 'sui-vless-reality', tls_id: 1, listen: '::', listen_port: 24430, addrs: [], out_json: {} },
+            { id: 2, type: 'hysteria2', tag: 'sui-hy2', tls_id: 2, listen: '::', listen_port: 24431, up_mbps: 200, down_mbps: 500, addrs: [], out_json: {} },
+            { id: 3, type: 'tuic', tag: 'sui-tuic', tls_id: 2, listen: '::', listen_port: 24432, congestion_control: 'bbr', addrs: [], out_json: {} },
+            { id: 4, type: 'anytls', tag: 'sui-anytls', tls_id: 2, listen: '::', listen_port: 24433, addrs: [], out_json: {} },
+            { id: 5, type: 'shadowsocks', tag: 'sui-ss2022', tls_id: 0, listen: '::', listen_port: 24434, method: '2022-blake3-aes-128-gcm', password: ssKey, addrs: [], out_json: {} },
+            { id: 6, type: 'mixed', tag: 'sui-mixed', tls_id: 0, listen: '::', listen_port: 24435, addrs: [], out_json: {} },
+        ],
+        clients: [
+            {
+                ...baseClient,
+                id: 1,
+                name: REVIEW_CREDENTIALS.user.subscriptionEmail,
+                config: clientConfig(REVIEW_CREDENTIALS.user.subscriptionEmail, '30000000-0000-4000-8000-0000000000a1'),
+                inbounds: [1, 2, 3, 4],
+                volume: 50 * 1024 ** 3,
+                expiry: Math.floor(reviewExpiry(30) / 1000),
+                up: 1288490188,
+                down: 5153960755,
+                desc: 'review subscriber',
+                group: 'review',
+                onlineAt: Math.floor(Date.now() / 1000),
+            },
+            {
+                ...baseClient,
+                id: 2,
+                name: REVIEW_CREDENTIALS.admin.subscriptionEmail,
+                config: clientConfig(REVIEW_CREDENTIALS.admin.subscriptionEmail, '30000000-0000-4000-8000-0000000000a2'),
+                inbounds: [1, 2, 3, 4, 5, 6],
+                volume: 0,
+                expiry: 0,
+                up: 73400320,
+                down: 524288000,
+                onlineAt: 0,
+            },
+            {
+                ...baseClient,
+                id: 3,
+                enable: false,
+                name: REVIEW_CREDENTIALS.suspended.subscriptionEmail,
+                config: clientConfig(REVIEW_CREDENTIALS.suspended.subscriptionEmail, '30000000-0000-4000-8000-0000000000a4'),
+                inbounds: [2],
+                volume: 10 * 1024 ** 3,
+                expiry: Math.floor(reviewExpiry(-2) / 1000),
+                up: 5368709120,
+                down: 5368709120,
+                onlineAt: 0,
+            },
+        ],
+        onlines: {
+            inbound: ['sui-vless-reality', 'sui-hy2'],
+            user: [REVIEW_CREDENTIALS.user.subscriptionEmail],
+            outbound: ['direct'],
+        },
+        sessions: [
+            { id: 1, inbound: 'sui-vless-reality', user: REVIEW_CREDENTIALS.user.subscriptionEmail, source: '198.51.100.10:51022' },
+            { id: 2, inbound: 'sui-hy2', user: REVIEW_CREDENTIALS.user.subscriptionEmail, source: '198.51.100.11:443' },
+        ],
+        logs: [
+            '2026-03-10 07:00:00 INFO sing-box started (1.12.4)',
+            '2026-03-10 07:02:11 INFO [sui-vless-reality] inbound connection from 198.51.100.10',
+            '2026-03-10 07:04:45 WARN [sui-hy2] udp relay buffer is full',
+        ],
+    };
+}
+
 export function buildReviewPanelDefinitions(options = {}) {
     const host = String(options.host || '127.0.0.1').trim() || '127.0.0.1';
     const ports = {
         healthy: Number(options.ports?.healthy || REVIEW_PANEL_PORTS.healthy),
         legacy: Number(options.ports?.legacy || REVIEW_PANEL_PORTS.legacy),
         down: Number(options.ports?.down || REVIEW_PANEL_PORTS.down),
+        sui: Number(options.ports?.sui || REVIEW_PANEL_PORTS.sui),
     };
 
     return [
@@ -606,6 +735,18 @@ export function buildReviewPanelDefinitions(options = {}) {
             credentials: deepClone(REVIEW_CREDENTIALS.panels.legacy),
             state: buildLegacyPanelState(),
         },
+        {
+            key: 'sui',
+            name: 'review-sui-panel',
+            profile: 'sui',
+            panelType: 's-ui',
+            host,
+            port: ports.sui,
+            basePath: REVIEW_SUI_BASE_PATH,
+            url: `http://${host}:${ports.sui}`,
+            credentials: deepClone(REVIEW_CREDENTIALS.panels.sui),
+            seed: buildSuiPanelSeed(host),
+        },
     ];
 }
 
@@ -615,6 +756,7 @@ function buildServerRecords(options = {}) {
         healthy: Number(options.ports?.healthy || REVIEW_PANEL_PORTS.healthy),
         legacy: Number(options.ports?.legacy || REVIEW_PANEL_PORTS.legacy),
         down: Number(options.ports?.down || REVIEW_PANEL_PORTS.down),
+        sui: Number(options.ports?.sui || REVIEW_PANEL_PORTS.sui),
     };
 
     return {
@@ -644,6 +786,20 @@ function buildServerRecords(options = {}) {
                 environment: 'testing',
                 health: 'degraded',
                 createdAt: '2026-03-05T09:00:00.000Z',
+            },
+            {
+                id: REVIEW_SERVER_IDS.sui,
+                name: 'Review s-ui Node',
+                url: `http://${host}:${ports.sui}`,
+                basePath: REVIEW_SUI_BASE_PATH,
+                panelType: 's-ui',
+                username: REVIEW_CREDENTIALS.panels.sui.username,
+                password: REVIEW_CREDENTIALS.panels.sui.password,
+                group: 'edge',
+                tags: ['review', 's-ui'],
+                environment: 'staging',
+                health: 'healthy',
+                createdAt: '2026-03-05T12:00:00.000Z',
             },
             {
                 id: REVIEW_SERVER_IDS.authFail,
@@ -961,6 +1117,7 @@ function buildReviewTraffic() {
                 serverName: 'Review Healthy Node',
                 inboundId: '101',
                 inboundRemark: 'review-vless-main',
+                protocol: 'vless',
                 email: REVIEW_CREDENTIALS.user.subscriptionEmail,
                 upBytes: 32 * mib,
                 downBytes: 64 * mib,
@@ -972,6 +1129,7 @@ function buildReviewTraffic() {
                 serverName: 'Review Healthy Node',
                 inboundId: '101',
                 inboundRemark: 'review-vless-main',
+                protocol: 'vless',
                 email: REVIEW_CREDENTIALS.user.subscriptionEmail,
                 upBytes: 64 * mib,
                 downBytes: 96 * mib,
@@ -983,6 +1141,7 @@ function buildReviewTraffic() {
                 serverName: 'Review Healthy Node',
                 inboundId: '102',
                 inboundRemark: 'review-trojan-edge',
+                protocol: 'trojan',
                 email: REVIEW_CREDENTIALS.operator.subscriptionEmail,
                 upBytes: 16 * mib,
                 downBytes: 32 * mib,
@@ -994,6 +1153,7 @@ function buildReviewTraffic() {
                 serverName: 'Review Legacy Node',
                 inboundId: '201',
                 inboundRemark: 'legacy-vmess',
+                protocol: 'vmess',
                 email: REVIEW_CREDENTIALS.user.subscriptionEmail,
                 upBytes: 8 * mib,
                 downBytes: 12 * mib,

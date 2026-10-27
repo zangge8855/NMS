@@ -1,4 +1,6 @@
-const ALLOWED_PROTOCOLS = new Set<string>(['vmess', 'vless', 'trojan', 'shadowsocks']);
+import { ALL_CLIENT_PROTOCOLS } from './clientProtocols.js';
+
+const ALLOWED_PROTOCOLS = ALL_CLIENT_PROTOCOLS;
 const POLICY_SCOPE_MODES = new Set<string>(['all', 'selected', 'none']);
 const TRAFFIC_RESET_CYCLES = new Set<string>(['none', 'hourly', 'daily', 'weekly', 'monthly']);
 const IP_LIMIT_POLICIES = new Set<string>(['first-wins', 'last-wins']);

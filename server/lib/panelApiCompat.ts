@@ -1,4 +1,5 @@
 import { normalizePanelErrorMessage } from './panelClient.js';
+import { normalizePanelType, PANEL_TYPE_SUI } from './panelType.js';
 
 const UUID_PROTOCOLS = new Set<string>(['vmess', 'vless', 'tuic']);
 const PASSWORD_PROTOCOLS = new Set<string>(['trojan', 'shadowsocks']);
@@ -145,6 +146,66 @@ export function sanitizeInboundPayloadForPanel(inboundData: any = {}): any {
         payload.settings = sanitizeSettingsForPanel(payload.settings);
     }
     return payload;
+}
+
+function parseJsonField(value: unknown): { parsed: any; isString: boolean } {
+    if (typeof value === 'string') {
+        try {
+            return { parsed: JSON.parse(value || '{}'), isString: true };
+        } catch {
+            return { parsed: null, isString: true };
+        }
+    }
+    return { parsed: value && typeof value === 'object' ? value : {}, isString: false };
+}
+
+/**
+ * 3x-ui has no `hysteria2` protocol: Hysteria2 is `protocol: "hysteria"` with
+ * `version: 2`, clients keyed by `auth` and a `hysteria` stream network.
+ * s-ui keeps its own `hysteria2` type, so this only runs for 3x-ui panels.
+ */
+export function normalizeHysteriaInboundForXui(inboundData: any = {}): any {
+    if (!inboundData || typeof inboundData !== 'object') return inboundData;
+    const protocol = normalizeProtocol(inboundData.protocol);
+    if (protocol !== 'hysteria2' && protocol !== 'hy2' && protocol !== 'hysteria') return inboundData;
+    if (protocol === 'hysteria' && !parseJsonField(inboundData.settings).parsed) return inboundData;
+
+    const payload = { ...inboundData, protocol: 'hysteria' };
+    const settingsField = parseJsonField(payload.settings);
+    if (settingsField.parsed) {
+        const settings = { ...settingsField.parsed };
+        const isV2 = protocol !== 'hysteria' || Number(settings.version || 2) === 2;
+        if (!isV2) return inboundData;
+        settings.version = 2;
+        if (Array.isArray(settings.clients)) {
+            settings.clients = settings.clients.map((client: any) => {
+                if (!client || typeof client !== 'object') return client;
+                const auth = normalizeText(client.auth) || normalizeText(client.password);
+                const next = { ...client, auth };
+                delete next.password;
+                return next;
+            });
+        }
+        payload.settings = settingsField.isString ? JSON.stringify(settings) : settings;
+    }
+
+    const streamField = parseJsonField(payload.streamSettings);
+    if (streamField.parsed) {
+        const stream = { ...streamField.parsed, network: 'hysteria' };
+        stream.hysteriaSettings = {
+            udpIdleTimeout: 60,
+            ...(stream.hysteriaSettings && typeof stream.hysteriaSettings === 'object' ? stream.hysteriaSettings : {}),
+            version: 2,
+        };
+        if (!stream.security || stream.security === 'none') stream.security = 'tls';
+        payload.streamSettings = streamField.isString ? JSON.stringify(stream) : stream;
+    }
+    return payload;
+}
+
+function prepareInboundPayload(panelClient: any, inboundData: any): any {
+    const payload = sanitizeInboundPayloadForPanel(inboundData);
+    return normalizePanelType(panelClient?.nmsPanelType) === PANEL_TYPE_SUI ? payload : normalizeHysteriaInboundForXui(payload);
 }
 
 export function parseInboundClients(inbound: any = {}): any[] {
@@ -934,7 +995,7 @@ export async function getTlsCertPathsCompat(panelClient: any): Promise<any> {
 }
 
 export async function postAddInboundCompat(panelClient: any, inboundData: any): Promise<any> {
-    const payload = sanitizeInboundPayloadForPanel({ ...inboundData, id: undefined });
+    const payload = prepareInboundPayload(panelClient, { ...inboundData, id: undefined });
     try {
         return assertPanelResponseSuccess(
             await postForm(panelClient, '/panel/api/inbounds/add', payload),
@@ -975,7 +1036,7 @@ export async function postAddInboundCompat(panelClient: any, inboundData: any): 
 }
 
 export async function postUpdateInboundCompat(panelClient: any, inboundId: any, inboundData: any): Promise<any> {
-    const payload = sanitizeInboundPayloadForPanel(inboundData);
+    const payload = prepareInboundPayload(panelClient, inboundData);
     const encodedId = encodePathSegment(inboundId);
     try {
         return assertPanelResponseSuccess(

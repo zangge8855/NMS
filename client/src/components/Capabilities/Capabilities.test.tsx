@@ -55,7 +55,7 @@ describe('Capabilities', () => {
 
         renderWithRouter(<Capabilities />);
 
-        expect(screen.getByRole('heading', { name: '3x-ui 能力' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: '节点能力' })).toBeInTheDocument();
         expect(screen.getByText('请先选择一台服务器')).toBeInTheDocument();
         expect(api.get).not.toHaveBeenCalled();
     });
@@ -130,7 +130,7 @@ describe('Capabilities', () => {
         renderWithRouter(<Capabilities embedded serverId="server-c" />);
 
         expect(await screen.findByText('协议 0 · 工具 0')).toBeInTheDocument();
-        expect(screen.queryByRole('heading', { name: '3x-ui 能力' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: '节点能力' })).not.toBeInTheDocument();
         expect(api.get).toHaveBeenCalledWith('/capabilities/server-c');
     });
 

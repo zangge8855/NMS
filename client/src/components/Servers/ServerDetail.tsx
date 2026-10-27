@@ -14,6 +14,7 @@ import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSn
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { useI18n } from '../../contexts/LanguageContext';
+import { isSuiServer, normalizePanelType } from '../../utils/panelType';
 import SectionHeader from '../UI/SectionHeader';
 import InboundRemarkPill from '../UI/InboundRemarkPill';
 import {
@@ -311,6 +312,8 @@ export default function ServerDetail() {
         });
     }, [auditEvents, inbounds, lastOnline, onlines, server, serverId, status, statusMeta]);
 
+    const isSui = isSuiServer(server);
+
     const totalTraffic = useMemo(() => {
         return inbounds.reduce((sum, ib) => sum + (ib.up || 0) + (ib.down || 0), 0);
     }, [inbounds]);
@@ -514,11 +517,11 @@ export default function ServerDetail() {
         maintenance: t('pages.serverDetail.healthStatus.maintenance'),
     };
     const healthBadge = { healthy: 'badge-success', degraded: 'badge-warning', unreachable: 'badge-danger', maintenance: 'badge-info' };
-    const healthAvatarGradient = {
-        healthy: 'var(--gradient-success)',
-        degraded: 'linear-gradient(135deg, var(--accent-warning), color-mix(in srgb, var(--accent-warning) 70%, #000))',
-        unreachable: 'linear-gradient(135deg, var(--accent-danger), color-mix(in srgb, var(--accent-danger) 70%, #000))',
-        maintenance: 'var(--gradient-primary)',
+    const healthAccent = {
+        healthy: 'var(--accent-success)',
+        degraded: 'var(--accent-warning)',
+        unreachable: 'var(--accent-danger)',
+        maintenance: 'var(--accent-primary)',
     };
     // Maintenance is an operator-set flag; otherwise prefer the live probe result so the
     // detail page agrees with the server list and dashboard.
@@ -543,7 +546,10 @@ export default function ServerDetail() {
                 {/* Server Profile Card */}
                 <div className="glass-panel mb-6 detail-hero-panel detail-hero-panel--server">
                     <div className="user-profile-card detail-hero-card detail-hero-card--server">
-                        <div className="user-avatar user-avatar-lg" style={{ background: healthAvatarGradient[effectiveHealth] || 'var(--gradient-primary)' }}>
+                        <div
+                            className="user-avatar user-avatar-lg detail-hero-health-avatar"
+                            style={{ '--health-accent': healthAccent[effectiveHealth] || 'var(--accent-primary)' } as React.CSSProperties}
+                        >
                             <HiOutlineServerStack />
                         </div>
                         <div className="user-profile-info">
@@ -552,6 +558,9 @@ export default function ServerDetail() {
                             <div className="user-profile-badges">
                                 <span className={`badge ${healthBadge[effectiveHealth] || 'badge-neutral'}`}>
                                     {healthLabel[effectiveHealth] || t('comp.common.unknown')}
+                                </span>
+                                <span className={`badge servers-panel-badge ${isSui ? 'badge-info' : 'badge-neutral'}`}>
+                                    {normalizePanelType(server.panelType)}
                                 </span>
                                 {hasEnvironment && (
                                     <span className="badge badge-neutral">{envLabel[server.environment] || server.environment}</span>
@@ -621,9 +630,9 @@ export default function ServerDetail() {
                                 </div>
                                 {status && (
                                     <div className="card">
-                                        <h4 className="card-title mb-3">{t('pages.serverDetail.xrayStatus')}</h4>
+                                        <h4 className="card-title mb-3">{t(isSui ? 'pages.serverDetail.singboxStatus' : 'pages.serverDetail.xrayStatus')}</h4>
                                         <div className="grid grid-cols-2 gap-4 text-sm server-detail-overview-grid">
-                                            <div><span className="text-muted">{t('pages.serverDetail.xrayLabels.version')}</span> {status.xray?.version || '-'}</div>
+                                            <div><span className="text-muted">{t(isSui ? 'pages.serverDetail.panelVersion' : 'pages.serverDetail.xrayLabels.version')}</span> {status.xray?.version || '-'}</div>
                                             <div><span className="text-muted">{t('pages.serverDetail.xrayLabels.uptime')}</span> {formatUptime(status.uptime, locale)}</div>
                                             <div><span className="text-muted">{t('pages.serverDetail.xrayLabels.cpu')}</span> {Number.isFinite(status?.cpu) ? `${status.cpu.toFixed(1)}%` : '-'}</div>
                                             <div><span className="text-muted">{t('pages.serverDetail.xrayLabels.memory')}</span> {status.mem && Number(status.mem.total) > 0 ? `${formatBytes(status.mem.current)} / ${formatBytes(status.mem.total)}` : '-'}</div>

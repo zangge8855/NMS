@@ -233,20 +233,20 @@ export default function PasskeyPanel({ locale = 'zh-CN' }: PasskeyPanelProps) {
     };
 
     return (
-        <div className="card p-6 space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stroke-soft pb-4">
-                <div>
-                    <h2 className="text-lg font-bold flex items-center gap-2 text-primary">
-                        <HiOutlineKey className="text-primary w-5 h-5" />
+        <div className="card account-twofactor-card">
+            <div className="account-twofactor-head">
+                <div className="account-twofactor-copy">
+                    <h3 className="account-twofactor-title">
+                        <HiOutlineKey />
                         {copy.title}
-                    </h2>
-                    <p className="text-xs text-muted mt-1 max-w-xl">
+                    </h3>
+                    <p className="account-twofactor-subtitle">
                         {copy.subtitle}
                     </p>
                 </div>
                 <button
                     type="button"
-                    className="btn btn-primary btn-sm flex items-center gap-1.5 self-start sm:self-auto"
+                    className="btn btn-primary btn-sm"
                     onClick={handleAddPasskey}
                     disabled={registering}
                 >

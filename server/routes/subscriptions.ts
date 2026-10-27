@@ -52,7 +52,7 @@ function ensureEmailAccess(req, res, next) {
 }
 
 const RECONSTRUCTED_PROTOCOLS = new Set(['vmess', 'vless', 'trojan', 'shadowsocks']);
-const LINK_PATTERN = /^(vmess|vless|trojan|ss|hy2|hysteria2|tuic|socks|http):\/\//i;
+const LINK_PATTERN = /^(vmess|vless|trojan|ss|hy2|hysteria2?|tuic|anytls|socks5?|https?|http2|naive\+https|naive\+quic):\/\//i;
 const MODE_SET = new Set(['auto', 'native', 'reconstructed']);
 const POLICY_SCOPE_SET = new Set(['all', 'selected', 'none']);
 
@@ -725,8 +725,14 @@ function buildShadowsocksLink({ server, inbound, client, settings, diagnostics }
     return `ss://${userInfo}@${getServerHost(server.url)}:${inbound.port}#${tag}`;
 }
 
+/** First finalmask UDP mask of a type (3x-ui v3 keeps salamander obfs and udphop there). */
+function findUdpMask(stream, type) {
+    const masks = Array.isArray(stream?.finalmask?.udp) ? stream.finalmask.udp : [];
+    return masks.find((mask) => mask && mask.type === type) || null;
+}
+
 function buildHysteria2Link({ server, inbound, client, settings, stream, diagnostics }) {
-    const password = client.password || client.auth;
+    const password = client.auth || client.password;
     if (!password) {
         diagnostics.push('missing hysteria2 password');
         return null;
@@ -734,26 +740,42 @@ function buildHysteria2Link({ server, inbound, client, settings, stream, diagnos
 
     const host = getServerHost(server.url);
     const params = new URLSearchParams();
+    const tlsSettings = stream?.tlsSettings || {};
 
-    const sni = stream?.tlsSettings?.serverName || stream?.externalProxy?.[0]?.dest || '';
+    const sni = tlsSettings.serverName || stream?.externalProxy?.[0]?.dest || '';
     if (sni) {
         params.set('sni', sni);
     }
-    const alpn = joinCsv(stream?.tlsSettings?.alpn);
+    const alpn = joinCsv(tlsSettings.alpn);
     if (alpn) {
         params.set('alpn', alpn);
     }
-    if (stream?.tlsSettings?.allowInsecure === true) {
+    const fingerprint = tlsSettings.settings?.fingerprint || tlsSettings.fingerprint;
+    if (fingerprint) {
+        params.set('fp', fingerprint);
+    }
+    if (tlsSettings.allowInsecure === true || tlsSettings.settings?.allowInsecure === true) {
         params.set('insecure', '1');
     }
 
-    const obfsType = settings?.obfs?.type;
-    const obfsPassword = settings?.obfs?.password;
+    // Legacy catalog rows keep obfs in settings; 3x-ui v3 moved it to a salamander finalmask.
+    const salamanderPassword = findUdpMask(stream, 'salamander')?.settings?.password;
+    const obfsType = settings?.obfs?.type || (salamanderPassword ? 'salamander' : '');
+    const obfsPassword = settings?.obfs?.password || salamanderPassword;
     if (obfsType) {
         params.set('obfs', obfsType);
         if (obfsPassword) {
             params.set('obfs-password', obfsPassword);
         }
+    }
+
+    const hopPorts = String(
+        findUdpMask(stream, 'udphop')?.settings?.remotePorts
+        || stream?.finalmask?.quicParams?.udpHop?.ports
+        || ''
+    ).trim();
+    if (hopPorts) {
+        params.set('mport', hopPorts);
     }
 
     const queryStr = params.toString();
@@ -772,19 +794,26 @@ function buildTuicLink({ server, inbound, client, settings, stream, diagnostics 
     const host = getServerHost(server.url);
     const params = new URLSearchParams();
 
-    const sni = stream?.tlsSettings?.serverName || stream?.externalProxy?.[0]?.dest || '';
+    // 3x-ui v3.8+ runs a native TUIC server configured under settings.server.
+    const tuicServer = settings?.server || {};
+    const sni = tuicServer.sni || stream?.tlsSettings?.serverName || stream?.externalProxy?.[0]?.dest || '';
     if (sni) {
         params.set('sni', sni);
     }
-    const alpn = joinCsv(stream?.tlsSettings?.alpn || ['h3']);
+    const alpn = joinCsv(tuicServer.alpn || settings?.alpn || stream?.tlsSettings?.alpn || ['h3']);
     if (alpn) {
         params.set('alpn', alpn);
     }
     if (stream?.tlsSettings?.allowInsecure === true) {
         params.set('allow_insecure', '1');
     }
-    if (settings?.congestion_control) {
-        params.set('congestion_control', settings.congestion_control);
+    const congestionControl = tuicServer.congestion_control || settings?.congestion_control;
+    if (congestionControl) {
+        params.set('congestion_control', congestionControl);
+    }
+    const udpRelayMode = tuicServer.udp_relay_mode || settings?.udp_relay_mode;
+    if (udpRelayMode) {
+        params.set('udp_relay_mode', udpRelayMode);
     }
 
     const queryStr = params.toString();
@@ -802,6 +831,8 @@ function buildClientLink({ server, inbound, client, settings, stream, diagnostic
             return buildTrojanLink({ server, inbound, client, stream, diagnostics });
         case 'shadowsocks':
             return buildShadowsocksLink({ server, inbound, client, settings, diagnostics });
+        // 3x-ui v3 stores Hysteria2 as `hysteria`; xray-core only runs version 2.
+        case 'hysteria':
         case 'hysteria2':
         case 'hy2':
             return buildHysteria2Link({ server, inbound, client, settings, stream, diagnostics });
@@ -888,6 +919,19 @@ async function collectNativeLinks({
         }
     }
     return Array.from(links);
+}
+
+// s-ui generates every link itself (including addresses, TLS and transports NMS
+// cannot rebuild), so those panels hand them over on each client entry.
+function extractPanelShareLinks(entry) {
+    return (Array.isArray(entry?.shareLinks) ? entry.shareLinks : [])
+        .map((link) => String(link || '').trim())
+        .filter((link) => link && LINK_PATTERN.test(link));
+}
+
+function labelPanelShareLinks(inbound, shareLinks: string[] = []) {
+    const base = getTag(null, inbound, '');
+    return shareLinks.map((link, index) => rewriteNativeLinkLabel(link, index === 0 ? base : `${base}-${index + 1}`));
 }
 
 function isClientEnabled(entry) {
@@ -991,6 +1035,7 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options: any =
         });
         const inbounds = sortInboundsForServer(serverMeta.id, panelSnapshot?.inbounds || []);
         const matchedEntries = [];
+        const panelLinks = [];
         const subIds = new Set();
         const fallbackSubIds = new Set();
 
@@ -1025,14 +1070,23 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options: any =
                     continue;
                 }
 
+                const shareLinks = extractPanelShareLinks(entry);
                 matchedEntries.push({
                     inbound,
                     protocol,
                     entry,
                     settings,
                     stream,
+                    shareLinks,
                     subId: entry.subId ? String(entry.subId).trim() : '',
                 });
+                if (shareLinks.length > 0) {
+                    labelPanelShareLinks(inbound, shareLinks).forEach((link) => {
+                        panelLinks.push(link);
+                        links.add(link);
+                    });
+                    continue;
+                }
                 if (entry.subId) subIds.add(String(entry.subId).trim());
             }
         }
@@ -1044,6 +1098,7 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options: any =
 
         if (shouldReconstruct) {
             for (const item of matchedEntries) {
+                if (item.shareLinks.length > 0) continue;
                 if (!RECONSTRUCTED_PROTOCOLS.has(item.protocol)) {
                     const reason = `unsupported protocol for reconstruction: ${item.protocol}`;
                     const detail = {
@@ -1101,8 +1156,8 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options: any =
                 warnings,
             });
             nativeLinks.forEach((link) => links.add(link));
-            perServer.nativeLinks = nativeLinks.length;
         }
+        perServer.nativeLinks = nativeLinks.length + panelLinks.length;
 
         perServer.reconstructedLinks = reconstructedLinks.length;
         return {
@@ -1979,7 +2034,7 @@ function parseHysteria2Outbound(link, usedNames, index) {
     }
 
     const auth = pickQueryText(query, 'auth');
-    const serverPorts = pickQueryText(query, 'ports');
+    const serverPorts = pickQueryText(query, 'ports', 'mport');
     const recvWindowConn = parseNumericParam(query.get('recv_window_conn'));
     const hopInterval = parseHysteriaHopInterval(query.get('hop-interval'));
     const up = parseNumericParam(pickQueryText(query, 'up', 'upmbps'));
@@ -1992,8 +2047,8 @@ function parseHysteria2Outbound(link, usedNames, index) {
     if (up !== undefined) outbound.up_mbps = up;
     if (down !== undefined) outbound.down_mbps = down;
 
-    const fastOpen = query.get('fast-open');
-    if (fastOpen !== null && fastOpen !== '') {
+    const fastOpen = pickQueryText(query, 'fast-open', 'fastopen');
+    if (fastOpen) {
         outbound.fast_open = normalizeBoolean(fastOpen, false);
     }
 
@@ -2061,6 +2116,168 @@ function parseTuicOutbound(link, usedNames, index) {
     return outbound;
 }
 
+function parseLinkEndpoint(link) {
+    let parsed;
+    try {
+        parsed = new URL(link);
+    } catch {
+        return null;
+    }
+    const server = parsed.hostname.replace(/^\[(.*)\]$/, '$1');
+    const serverPort = Number(parsed.port);
+    if (!server || !Number.isFinite(serverPort) || serverPort <= 0) return null;
+    return { parsed, server, serverPort, query: parsed.searchParams };
+}
+
+function applyLinkTls(outbound, query, options: any = {}) {
+    const security = pickQueryText(query, 'security').toLowerCase();
+    if (!options.forceTls && security !== 'tls' && security !== 'reality') return;
+    outbound.tls = {
+        enabled: true,
+        insecure: pickQueryBoolean(query, false, 'insecure', 'allowInsecure', 'allow_insecure', 'skip-cert-verify'),
+    };
+    const serverName = pickQueryText(query, 'sni', 'peer');
+    const alpn = splitCommaValues(query.get('alpn'));
+    const fingerprint = pickQueryText(query, 'fp');
+    if (serverName) outbound.tls.server_name = serverName;
+    if (alpn.length > 0) outbound.tls.alpn = alpn;
+    if (fingerprint) outbound.tls.utls = { enabled: true, fingerprint };
+}
+
+// hysteria://host:port?auth=...&upmbps=..&downmbps=..&obfsParam=.. (Hysteria v1, as written by s-ui).
+function parseHysteriaOutbound(link, usedNames, index) {
+    const endpoint = parseLinkEndpoint(link);
+    if (!endpoint) return null;
+    const { parsed, server, serverPort, query } = endpoint;
+
+    const outbound: any = {
+        type: 'hysteria',
+        tag: makeUniqueName(extractLinkLabel(link, `NODE-${index}`), usedNames),
+        server,
+        server_port: serverPort,
+        up_mbps: parseNumericParam(pickQueryText(query, 'upmbps', 'up'), 10),
+        down_mbps: parseNumericParam(pickQueryText(query, 'downmbps', 'down'), 50),
+    };
+    applyLinkTls(outbound, query, { forceTls: true });
+
+    const authStr = pickQueryText(query, 'auth', 'auth_str') || decodeMaybeEncoded(parsed.username);
+    if (authStr) outbound.auth_str = authStr;
+    // The URI scheme names the method in `obfs` and the key in `obfsParam`; s-ui writes the key itself to `obfs`.
+    const obfsParam = pickQueryText(query, 'obfsParam', 'obfs-password');
+    const obfs = pickQueryText(query, 'obfs');
+    if (obfsParam) {
+        outbound.obfs = obfsParam;
+    } else if (obfs && obfs.toLowerCase() !== 'xplus' && obfs.toLowerCase() !== 'none') {
+        outbound.obfs = obfs;
+    }
+    const serverPorts = pickQueryText(query, 'mport', 'ports');
+    if (serverPorts) outbound.server_ports = serverPorts;
+    const fastOpen = pickQueryText(query, 'fastopen', 'fast-open');
+    if (fastOpen) outbound.fast_open = normalizeBoolean(fastOpen, false);
+    return outbound;
+}
+
+// anytls://password@host:port?security=tls&sni=..&insecure=1
+function parseAnytlsOutbound(link, usedNames, index) {
+    const endpoint = parseLinkEndpoint(link);
+    if (!endpoint) return null;
+    const { parsed, server, serverPort, query } = endpoint;
+    const password = decodeMaybeEncoded(parsed.username) || pickQueryText(query, 'password');
+    if (!password) return null;
+
+    const outbound: any = {
+        type: 'anytls',
+        tag: makeUniqueName(extractLinkLabel(link, `NODE-${index}`), usedNames),
+        server,
+        server_port: serverPort,
+        password,
+    };
+    applyLinkTls(outbound, query, { forceTls: true });
+    return outbound;
+}
+
+// socks5://user:pass@host:port and http(s)://user:pass@host:port
+function parseSocksOrHttpOutbound(link, usedNames, index) {
+    const endpoint = parseLinkEndpoint(link);
+    if (!endpoint) return null;
+    const { parsed, server, serverPort } = endpoint;
+    const scheme = parsed.protocol.replace(/:$/, '').toLowerCase();
+    const isHttp = scheme === 'http' || scheme === 'https';
+
+    const outbound: any = {
+        type: isHttp ? 'http' : 'socks',
+        tag: makeUniqueName(extractLinkLabel(link, `NODE-${index}`), usedNames),
+        server,
+        server_port: serverPort,
+    };
+    if (!isHttp) outbound.version = '5';
+    const username = decodeMaybeEncoded(parsed.username);
+    const password = decodeMaybeEncoded(parsed.password);
+    if (username) outbound.username = username;
+    if (password) outbound.password = password;
+    if (scheme === 'https') {
+        outbound.tls = { enabled: true, insecure: false, server_name: server };
+    }
+    return outbound;
+}
+
+function toMihomoHysteriaProxy(outbound: any) {
+    if (!outbound) return null;
+    const proxy: any = {
+        name: outbound.tag,
+        type: 'hysteria',
+        server: outbound.server,
+        port: outbound.server_port,
+        up: outbound.up_mbps,
+        down: outbound.down_mbps,
+        sni: outbound.tls?.server_name || '',
+        'skip-cert-verify': !!outbound.tls?.insecure,
+    };
+    if (outbound.auth_str) proxy['auth-str'] = outbound.auth_str;
+    if (outbound.obfs) proxy.obfs = outbound.obfs;
+    if (outbound.server_ports) proxy.ports = outbound.server_ports;
+    if (Array.isArray(outbound.tls?.alpn) && outbound.tls.alpn.length > 0) proxy.alpn = outbound.tls.alpn;
+    if (outbound.fast_open !== undefined) proxy['fast-open'] = outbound.fast_open;
+    return proxy;
+}
+
+function toMihomoAnytlsProxy(outbound: any) {
+    if (!outbound) return null;
+    const proxy: any = {
+        name: outbound.tag,
+        type: 'anytls',
+        server: outbound.server,
+        port: outbound.server_port,
+        password: outbound.password,
+        udp: true,
+        sni: outbound.tls?.server_name || '',
+        'skip-cert-verify': !!outbound.tls?.insecure,
+    };
+    if (Array.isArray(outbound.tls?.alpn) && outbound.tls.alpn.length > 0) proxy.alpn = outbound.tls.alpn;
+    if (outbound.tls?.utls?.fingerprint) proxy['client-fingerprint'] = outbound.tls.utls.fingerprint;
+    return proxy;
+}
+
+function toMihomoSocksOrHttpProxy(outbound: any) {
+    if (!outbound) return null;
+    const proxy: any = {
+        name: outbound.tag,
+        type: outbound.type === 'http' ? 'http' : 'socks5',
+        server: outbound.server,
+        port: outbound.server_port,
+    };
+    if (outbound.username) proxy.username = outbound.username;
+    if (outbound.password) proxy.password = outbound.password;
+    if (outbound.type === 'socks') proxy.udp = true;
+    if (outbound.tls?.enabled) {
+        proxy.tls = true;
+        if (outbound.tls.server_name) proxy.sni = outbound.tls.server_name;
+    }
+    return proxy;
+}
+
+const SOCKS_OR_HTTP_LINK = /^(socks5?|https?):\/\//i;
+
 function toMihomoHysteria2Proxy(outbound: any) {
     if (!outbound) return null;
     const proxy: any = {
@@ -2119,6 +2336,15 @@ function parseMihomoProxyFromLink(link, usedNames, index) {
     }
     if (normalized.startsWith('tuic://')) {
         return toMihomoTuicProxy(parseTuicOutbound(normalized, usedNames, index));
+    }
+    if (normalized.startsWith('hysteria://')) {
+        return toMihomoHysteriaProxy(parseHysteriaOutbound(normalized, usedNames, index));
+    }
+    if (normalized.startsWith('anytls://')) {
+        return toMihomoAnytlsProxy(parseAnytlsOutbound(normalized, usedNames, index));
+    }
+    if (SOCKS_OR_HTTP_LINK.test(normalized)) {
+        return toMihomoSocksOrHttpProxy(parseSocksOrHttpOutbound(normalized, usedNames, index));
     }
     return null;
 }
@@ -2289,6 +2515,16 @@ function buildSurgeProxyLine(proxy) {
         if (proxy['udp-relay-mode']) {
             line += `, udp-relay-mode=${proxy['udp-relay-mode']}`;
         }
+        return line;
+    }
+
+    if (proxy.type === 'socks5' || proxy.type === 'http') {
+        const kind = proxy.type === 'http' ? (proxy.tls ? 'https' : 'http') : (proxy.tls ? 'socks5-tls' : 'socks5');
+        let line = `${proxy.name} = ${kind}, ${proxy.server}, ${proxy.port}`;
+        if (proxy.username) line += `, ${proxy.username}`;
+        if (proxy.password) line += `, ${proxy.password}`;
+        if (proxy.tls && proxy.sni) line += `, sni=${proxy.sni}`;
+        if (proxy.type === 'socks5' && proxy.udp) line += ', udp-relay=true';
         return line;
     }
 
@@ -2733,6 +2969,9 @@ function parseSingboxOutboundFromLink(link, usedNames, index) {
     if (normalized.startsWith('ss://')) return parseSingboxShadowsocksOutbound(normalized, usedNames, index);
     if (/^(hy2|hysteria2):\/\//i.test(normalized)) return parseSingboxHysteria2Outbound(normalized, usedNames, index);
     if (normalized.startsWith('tuic://')) return parseSingboxTuicOutbound(normalized, usedNames, index);
+    if (normalized.startsWith('hysteria://')) return parseHysteriaOutbound(normalized, usedNames, index);
+    if (normalized.startsWith('anytls://')) return parseAnytlsOutbound(normalized, usedNames, index);
+    if (SOCKS_OR_HTTP_LINK.test(normalized)) return parseSocksOrHttpOutbound(normalized, usedNames, index);
     return null;
 }
 
@@ -4300,6 +4539,7 @@ router.post('/concurrency-sentinel/kick', authMiddleware, operatorOrAbove, async
 export default router;
 export {
     buildSubscriptionUserInfoHeader,
+    collectByServer,
     buildMihomoConfigFromLinks,
     buildClientLink,
     buildHysteria2Link,

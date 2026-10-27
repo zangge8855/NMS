@@ -137,7 +137,7 @@ body {
 .sidebar,
 [data-theme="light"] .sidebar {
   color-scheme: dark;
-  background: #081425;
+  background: var(--rail-bg);
   border-right-color: rgba(148, 163, 184, 0.13);
 }
 
@@ -145,7 +145,7 @@ body {
 [data-theme="light"] .sidebar-logo {
   height: var(--header-height);
   padding-inline: 18px;
-  background: #081425;
+  background: var(--rail-bg);
   border-bottom-color: rgba(148, 163, 184, 0.13);
 }
 
@@ -205,9 +205,9 @@ body {
 .sidebar .nav-item.active,
 [data-theme="light"] .sidebar .nav-item.active {
   color: #ffffff;
-  background: linear-gradient(90deg, rgba(47, 125, 246, 0.24), rgba(47, 125, 246, 0.09));
-  border-color: rgba(76, 145, 255, 0.24);
-  box-shadow: inset 3px 0 0 #4c91ff;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent-primary) 24%, transparent), color-mix(in srgb, var(--accent-primary) 9%, transparent));
+  border-color: color-mix(in srgb, var(--accent-primary) 24%, transparent);
+  box-shadow: inset 3px 0 0 var(--accent-primary-hover);
 }
 
 .sidebar .nav-item.active .nav-item-icon,
@@ -218,7 +218,7 @@ body {
 .sidebar-utility,
 [data-theme="light"] .sidebar-utility {
   padding: 10px 10px 14px;
-  background: #081425;
+  background: var(--rail-bg);
   border-top-color: rgba(148, 163, 184, 0.12);
 }
 
@@ -273,13 +273,13 @@ body {
 
 [data-theme="light"] .sidebar .nav-item.active {
   color: #164f9f;
-  background: linear-gradient(90deg, rgba(37, 105, 219, 0.13), rgba(37, 105, 219, 0.055));
-  border-color: rgba(37, 105, 219, 0.2);
-  box-shadow: inset 3px 0 0 #2f7df6;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent-primary) 13%, transparent), color-mix(in srgb, var(--accent-primary) 5.5%, transparent));
+  border-color: color-mix(in srgb, var(--accent-primary) 20%, transparent);
+  box-shadow: inset 3px 0 0 var(--accent-primary);
 }
 
 [data-theme="light"] .sidebar .nav-item.active .nav-item-icon {
-  color: #2569db;
+  color: var(--accent-primary);
 }
 
 [data-theme="light"] .sidebar-logout:hover,
@@ -389,12 +389,12 @@ body {
 
 .btn-primary {
   background: var(--gradient-primary);
-  border-color: #2569db;
-  box-shadow: 0 4px 12px -2px rgba(37, 105, 219, 0.4);
+  border-color: var(--accent-primary);
+  box-shadow: 0 4px 12px -2px color-mix(in srgb, var(--accent-primary) 40%, transparent);
 }
 
 .btn-primary:hover {
-  background: #1f5fc9;
+  background: var(--accent-primary-hover);
 }
 
 .form-input,
@@ -431,8 +431,8 @@ select {
   color: var(--text-secondary);
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .table tbody td {
@@ -667,7 +667,7 @@ select {
   justify-content: center;
   padding: clamp(20px, 4vh, 40px) 16px;
   background:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(47, 125, 246, 0.18), transparent 70%),
+    radial-gradient(ellipse 80% 50% at 50% -10%, color-mix(in srgb, var(--accent-primary) 18%, transparent), transparent 70%),
     radial-gradient(ellipse 60% 40% at 85% 90%, rgba(139, 92, 246, 0.12), transparent 60%),
     #070d19;
   overflow-y: auto;
@@ -677,7 +677,7 @@ select {
 
 [data-theme="light"] .login-page {
   background:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(47, 125, 246, 0.10), transparent 70%),
+    radial-gradient(ellipse 80% 50% at 50% -10%, color-mix(in srgb, var(--accent-primary) 10%, transparent), transparent 70%),
     radial-gradient(ellipse 60% 40% at 85% 90%, rgba(139, 92, 246, 0.06), transparent 60%),
     #f4f7fb;
 }
@@ -694,7 +694,7 @@ select {
 .login-bg-glow.one {
   width: 320px;
   height: 320px;
-  background: rgba(47, 125, 246, 0.2);
+  background: color-mix(in srgb, var(--accent-primary) 20%, transparent);
   top: 10%;
   left: 15%;
 }
@@ -745,7 +745,7 @@ select {
 
 .login-top-actions .language-toggle-btn:hover {
   color: #fff;
-  border-color: rgba(76, 145, 255, 0.4);
+  border-color: color-mix(in srgb, var(--accent-primary) 40%, transparent);
   background: rgba(20, 36, 60, 0.85);
 }
 
@@ -833,7 +833,7 @@ select {
   width: 36px;
   height: 36px;
   border-radius: 9px;
-  box-shadow: 0 4px 14px rgba(47, 125, 246, 0.3);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent-primary) 30%, transparent);
 }
 
 .login-brand-copy {
@@ -894,7 +894,7 @@ select {
 .auth-tab.active {
   color: #ffffff;
   background: var(--accent-primary);
-  box-shadow: 0 2px 8px rgba(47, 125, 246, 0.35);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-primary) 35%, transparent);
 }
 
 .login-card .auth-form {
@@ -964,7 +964,7 @@ select {
   font-weight: 700;
   border-radius: 8px;
   background: var(--gradient-primary);
-  box-shadow: 0 4px 14px -2px rgba(47, 125, 246, 0.45);
+  box-shadow: 0 4px 14px -2px color-mix(in srgb, var(--accent-primary) 45%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1394,7 +1394,7 @@ main .downloads-center {
 
 .login-page::after {
   background:
-    radial-gradient(circle at 20% 10%, rgba(47, 125, 246, 0.16), transparent 32%),
+    radial-gradient(circle at 20% 10%, color-mix(in srgb, var(--accent-primary) 16%, transparent), transparent 32%),
     radial-gradient(circle at 82% 88%, rgba(73, 132, 221, 0.1), transparent 28%);
 }
 
@@ -1406,7 +1406,7 @@ main .downloads-center {
 
 [data-theme="light"] .login-page::after {
   background:
-    radial-gradient(circle at 18% 12%, rgba(37, 105, 219, 0.095), transparent 31%),
+    radial-gradient(circle at 18% 12%, color-mix(in srgb, var(--accent-primary) 9.5%, transparent), transparent 31%),
     radial-gradient(circle at 82% 86%, rgba(92, 130, 181, 0.075), transparent 29%);
 }
 
@@ -1516,8 +1516,8 @@ main .downloads-center {
   font-family: var(--font-mono);
   font-size: 8px;
   font-weight: 650;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .sidebar-utility {
@@ -1555,7 +1555,7 @@ main .downloads-center {
   font-family: var(--font-display, sans-serif);
   font-size: 11px;
   font-weight: 700;
-  box-shadow: 0 1px 4px rgba(47, 125, 246, 0.35);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--accent-primary) 35%, transparent);
   flex-shrink: 0;
 }
 
@@ -1716,8 +1716,8 @@ main .servers-mobile-tags .badge-info {
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-muted);
 }
 
@@ -1814,8 +1814,8 @@ main .servers-mobile-tags .badge-info {
 }
 
 .password-strength-meter[data-tone="info"] .password-strength-bar.active {
-  background: #3b82f6;
-  box-shadow: 0 0 6px rgba(59, 130, 246, 0.4);
+  background: var(--accent-primary);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--accent-primary) 40%, transparent);
 }
 
 .password-strength-meter[data-tone="success"] .password-strength-bar.active {
@@ -1834,7 +1834,7 @@ main .servers-mobile-tags .badge-info {
 
 .password-strength-meter[data-tone="danger"] .password-strength-label { color: #ef4444; }
 .password-strength-meter[data-tone="warning"] .password-strength-label { color: #f59e0b; }
-.password-strength-meter[data-tone="info"] .password-strength-label { color: #3b82f6; }
+.password-strength-meter[data-tone="info"] .password-strength-label { color: var(--accent-primary); }
 .password-strength-meter[data-tone="success"] .password-strength-label { color: #10b981; }
 
 /* --- Protocol Specific Badges --- */
@@ -1842,17 +1842,17 @@ main .servers-mobile-tags .badge-info {
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   padding: 2px 7px;
   border-radius: 6px;
 }
 
 .badge-vless,
 [data-protocol="vless"] {
-  background: rgba(47, 125, 246, 0.14) !important;
-  color: #60a5fa !important;
-  border: 1px solid rgba(96, 165, 250, 0.28) !important;
+  background: color-mix(in srgb, var(--accent-primary) 14%, transparent) !important;
+  color: var(--accent-primary-hover) !important;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 28%, transparent) !important;
 }
 
 .badge-vmess,
@@ -1888,8 +1888,8 @@ main .servers-mobile-tags .badge-info {
   border-radius: 8px;
   font-weight: 700;
   font-size: 11px;
-  text-transform: uppercase;
-  background: linear-gradient(135deg, rgba(47, 125, 246, 0.22), rgba(139, 92, 246, 0.22));
+  text-transform: none;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 22%, transparent), rgba(139, 92, 246, 0.22));
   color: #93c5fd;
   border: 1px solid rgba(147, 197, 253, 0.24);
   box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
@@ -1910,9 +1910,9 @@ main .servers-mobile-tags .badge-info {
   background: color-mix(in srgb, var(--surface-overlay) 88%, #000);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
-  border: 1px solid rgba(76, 145, 255, 0.35);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 35%, transparent);
   border-radius: 9999px;
-  box-shadow: 0 18px 40px -8px rgba(0, 0, 0, 0.8), 0 0 20px rgba(47, 125, 246, 0.18);
+  box-shadow: 0 18px 40px -8px rgba(0, 0, 0, 0.8), 0 0 20px color-mix(in srgb, var(--accent-primary) 18%, transparent);
   animation: dockSlideUp 260ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
@@ -1975,7 +1975,7 @@ main .servers-mobile-tags .badge-info {
   transform: translateY(-2px);
   border-color: var(--border-highlight);
   background: var(--bg-card-hover);
-  box-shadow: 0 8px 20px -8px rgba(47, 125, 246, 0.3);
+  box-shadow: 0 8px 20px -8px color-mix(in srgb, var(--accent-primary) 30%, transparent);
 }
 
 .client-import-card-name {
@@ -2029,7 +2029,7 @@ main .servers-mobile-tags .badge-info {
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 8px 22px -6px rgba(47, 125, 246, 0.55);
+  box-shadow: 0 8px 22px -6px color-mix(in srgb, var(--accent-primary) 55%, transparent);
 }
 
 /* --- Smooth Table Hover Transition --- */
@@ -2248,8 +2248,8 @@ main .servers-mobile-tags .badge-info {
   padding: 6px 12px;
   font-size: 11px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  text-transform: none;
+  letter-spacing: 0;
   color: var(--text-muted);
 }
 
@@ -2480,7 +2480,7 @@ main .servers-mobile-tags .badge-info {
 body {
   background-color: var(--bg-primary);
   background-image: 
-    radial-gradient(1200px circle at 50% 0%, rgba(47, 125, 246, 0.05) 0%, transparent 60%),
+    radial-gradient(1200px circle at 50% 0%, color-mix(in srgb, var(--accent-primary) 5%, transparent) 0%, transparent 60%),
     radial-gradient(800px circle at 85% 20%, rgba(139, 92, 246, 0.03) 0%, transparent 50%);
   background-attachment: fixed;
   letter-spacing: -0.01em;
@@ -2489,7 +2489,7 @@ body {
 [data-theme="light"] body {
   background-color: var(--bg-primary);
   background-image: 
-    radial-gradient(1200px circle at 50% 0%, rgba(37, 105, 219, 0.04) 0%, transparent 60%),
+    radial-gradient(1200px circle at 50% 0%, color-mix(in srgb, var(--accent-primary) 4%, transparent) 0%, transparent 60%),
     radial-gradient(800px circle at 85% 20%, rgba(124, 58, 237, 0.02) 0%, transparent 50%);
 }
 
@@ -2522,7 +2522,7 @@ body {
   padding: 36px 32px;
   box-shadow: 
     0 24px 60px -12px rgba(0, 0, 0, 0.7),
-    0 0 0 1px rgba(76, 145, 255, 0.15),
+    0 0 0 1px color-mix(in srgb, var(--accent-primary) 15%, transparent),
     inset 0 1px 0 rgba(255, 255, 255, 0.15);
   transition: all 0.25s ease;
 }
@@ -2532,7 +2532,7 @@ body {
   border: 1px solid rgba(200, 215, 235, 0.8);
   box-shadow: 
     0 24px 60px -12px rgba(15, 35, 65, 0.15),
-    0 0 0 1px rgba(37, 105, 219, 0.1),
+    0 0 0 1px color-mix(in srgb, var(--accent-primary) 10%, transparent),
     inset 0 1px 0 #ffffff;
 }
 
@@ -2548,7 +2548,7 @@ body {
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  filter: drop-shadow(0 4px 12px rgba(47, 125, 246, 0.4));
+  filter: drop-shadow(0 4px 12px color-mix(in srgb, var(--accent-primary) 40%, transparent));
 }
 
 .login-brand-copy {
@@ -2566,7 +2566,7 @@ body {
 }
 
 [data-theme="light"] .login-brand-name {
-  background: linear-gradient(135deg, #0d1b2f 0%, #2569db 100%);
+  background: linear-gradient(135deg, #0d1b2f 0%, var(--accent-primary) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -2574,8 +2574,8 @@ body {
 .login-brand-subtitle {
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--accent-primary);
 }
 
@@ -2610,7 +2610,7 @@ body {
 .auth-tab.active {
   color: #ffffff;
   background: var(--accent-primary);
-  box-shadow: 0 4px 14px rgba(47, 125, 246, 0.4);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent-primary) 40%, transparent);
 }
 
 [data-theme="light"] .auth-tab.active {
@@ -2635,8 +2635,8 @@ body {
 .stat-card:hover,
 .dashboard-kpi-card:hover {
   transform: translateY(-2px);
-  border-color: rgba(76, 145, 255, 0.35);
-  box-shadow: 0 14px 34px -14px rgba(0, 0, 0, 0.6), 0 0 20px rgba(47, 125, 246, 0.1);
+  border-color: color-mix(in srgb, var(--accent-primary) 35%, transparent);
+  box-shadow: 0 14px 34px -14px rgba(0, 0, 0, 0.6), 0 0 20px color-mix(in srgb, var(--accent-primary) 10%, transparent);
 }
 
 .kpi-card::before,
@@ -2655,8 +2655,8 @@ body {
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-muted);
 }
 
@@ -2698,7 +2698,7 @@ body {
 }
 
 .node-health-card:hover {
-  border-color: rgba(76, 145, 255, 0.35);
+  border-color: color-mix(in srgb, var(--accent-primary) 35%, transparent);
   box-shadow: 0 10px 28px -12px rgba(0, 0, 0, 0.5);
   transform: translateY(-2px);
 }
@@ -2734,8 +2734,8 @@ body {
   font-size: 10px;
   font-family: var(--font-mono);
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .node-health-metric-val {
@@ -2764,8 +2764,8 @@ body {
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  text-transform: none;
+  letter-spacing: 0;
   color: var(--text-muted);
 }
 
@@ -2888,7 +2888,7 @@ body {
   flex-wrap: wrap;
   padding: 20px 24px;
   border-radius: 14px;
-  background: radial-gradient(120% 120% at 0% 0%, rgba(59, 130, 246, 0.08) 0%, rgba(15, 23, 42, 0.5) 100%);
+  background: radial-gradient(120% 120% at 0% 0%, color-mix(in srgb, var(--accent-primary) 8%, transparent) 0%, rgba(15, 23, 42, 0.5) 100%);
   border: 1px solid var(--stroke-soft);
   margin-bottom: 20px;
 }
@@ -2913,8 +2913,8 @@ body {
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  text-transform: none;
+  letter-spacing: 0;
   color: var(--accent-primary);
   margin-bottom: 4px;
 }
@@ -2979,8 +2979,8 @@ body {
 .subscription-user-meter-label {
   font-size: 11px;
   font-family: var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  text-transform: none;
+  letter-spacing: 0;
   font-weight: 700;
   color: var(--text-muted);
 }
@@ -3020,8 +3020,8 @@ body {
 }
 
 .subscription-user-meter-bar--info {
-  background: linear-gradient(90deg, #3b82f6, #60a5fa);
-  box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-primary-hover));
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent-primary) 50%, transparent);
 }
 
 .subscription-user-meter-bar--success {
@@ -3107,7 +3107,7 @@ body {
 
 .subscription-url-input {
   background: var(--bg-input) !important;
-  color: #60a5fa !important;
+  color: var(--accent-primary-hover) !important;
   font-size: 12px !important;
   font-family: var(--font-mono) !important;
   border-radius: 10px;
@@ -3189,7 +3189,7 @@ body {
 
 .subscription-device-card:hover {
   transform: translateY(-2px);
-  border-color: rgba(76, 145, 255, 0.35);
+  border-color: color-mix(in srgb, var(--accent-primary) 35%, transparent);
   box-shadow: var(--shadow-md);
 }
 
@@ -3215,8 +3215,8 @@ body {
 .subscription-device-compact-label {
   font-size: 10px;
   font-family: var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  text-transform: none;
+  letter-spacing: 0;
   color: var(--text-muted);
   margin-bottom: 8px;
 }
@@ -3287,7 +3287,7 @@ body {
 }
 
 .card:hover {
-  border-color: rgba(76, 145, 255, 0.28);
+  border-color: color-mix(in srgb, var(--accent-primary) 28%, transparent);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4), 0 14px 32px -10px rgba(0, 0, 0, 0.6), inset 0 1px 0 0 rgba(255, 255, 255, 0.09);
 }
 
@@ -3348,30 +3348,22 @@ body {
   filter: saturate(0.6);
 }
 
-/* Primary: Apple Blue Vibrant Focal Action */
+/* Primary: the one solid accent fill on a page */
 .btn-primary {
-  background: linear-gradient(180deg, #0a84ff 0%, #0071e3 100%) !important;
-  color: #ffffff !important;
-  border: 1px solid rgba(255, 255, 255, 0.16) !important;
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.28), 0 2px 6px rgba(0, 113, 227, 0.35);
+  background: var(--accent-primary) !important;
+  color: var(--text-on-accent) !important;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 80%, #000) !important;
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.16), 0 1px 2px color-mix(in srgb, var(--accent-primary) 30%, transparent);
   font-weight: 600;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: linear-gradient(180deg, #1f8fff 0%, #0a7aff 100%) !important;
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.36), 0 4px 14px rgba(0, 113, 227, 0.45);
-  transform: translateY(-0.5px);
+  background: var(--accent-primary-hover) !important;
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.2), 0 4px 12px -4px color-mix(in srgb, var(--accent-primary) 50%, transparent);
 }
 
-[data-theme="light"] .btn-primary {
-  background: linear-gradient(180deg, #0077ed 0%, #0066cc 100%) !important;
-  border-color: rgba(0, 102, 204, 0.5) !important;
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.3), 0 2px 6px rgba(0, 119, 237, 0.3);
-}
-
-[data-theme="light"] .btn-primary:hover:not(:disabled) {
-  background: linear-gradient(180deg, #1483f3 0%, #0071e3 100%) !important;
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.4), 0 4px 12px rgba(0, 119, 237, 0.4);
+.btn-primary:active:not(:disabled) {
+  background: var(--accent-primary-active) !important;
 }
 
 /* Secondary: Frosted Translucent Balance */
@@ -3503,9 +3495,9 @@ body {
 
 .badge-info,
 .badge-primary {
-  background: rgba(59, 130, 246, 0.12) !important;
-  color: #3b82f6 !important;
-  border: 1px solid rgba(59, 130, 246, 0.28) !important;
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent) !important;
+  color: var(--accent-primary) !important;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 28%, transparent) !important;
 }
 
 .badge-neutral {
@@ -3555,8 +3547,8 @@ input:focus {
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 650;
-  letter-spacing: 0.075em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   padding: 12px 16px;
   border-bottom: 1px solid var(--border-color);
 }
@@ -3641,8 +3633,8 @@ input:focus {
 .audit-nav-label {
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-muted);
 }
 
