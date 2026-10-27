@@ -220,7 +220,9 @@ export function createIpIspResolver(options: IpIspResolverOptions = {}) {
 
     async function loadRecords(force: boolean = false): Promise<CidrRecord[]> {
         const now = Date.now();
-        if (!force && dataset.records.length > 0 && dataset.expiresAt > now) {
+        // expiresAt is also set after a failed load, so an unreachable source
+        // is retried after FAILURE_CACHE_TTL_SECONDS instead of on every call.
+        if (!force && dataset.expiresAt > now) {
             return dataset.records;
         }
         if (!force && inflight) return inflight;
@@ -301,8 +303,15 @@ export function createIpIspResolver(options: IpIspResolverOptions = {}) {
         return label;
     }
 
+    function isPublicIp(value: unknown): boolean {
+        const normalized = normalizeIpAddress(value);
+        return !!normalized && !isPrivateOrLocalIp(normalized);
+    }
+
     async function lookup(ip: unknown): Promise<string> {
         if (!runtime.enabled) return '';
+        // Local and private addresses never match, so skip the download.
+        if (!isPublicIp(ip)) return '';
         await loadRecords(false);
         return resolveFromRecords(ip);
     }
@@ -311,7 +320,9 @@ export function createIpIspResolver(options: IpIspResolverOptions = {}) {
         const list = Array.isArray(values) ? values : [];
         const map = new Map<string, string>();
         if (!runtime.enabled) return map;
-        await loadRecords(false);
+        if (list.some(isPublicIp)) {
+            await loadRecords(false);
+        }
         list.forEach((value) => {
             const normalized = normalizeIpAddress(value);
             if (!normalized || map.has(normalized)) return;
