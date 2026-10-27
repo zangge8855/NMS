@@ -23,6 +23,10 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      # The e2e tests assert that the server serves the built admin page.
+      - name: Build client
+        run: npm run build --workspace=client
+
       - name: Run server tests
         run: npm test --workspace=server
 
