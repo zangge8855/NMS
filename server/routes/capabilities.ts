@@ -2,6 +2,8 @@ import { Router, type Request, type Response } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
 import { ensureAuthenticated } from '../lib/panelClient.js';
 import { buildProtocolSummary, canonicalizeProtocolList } from '../lib/protocolCatalog.js';
+import { PANEL_TYPE_3XUI, PANEL_TYPE_SUI } from '../lib/panelType.js';
+import { isSuiPanelContext } from '../lib/clientProtocols.js';
 
 const router = Router();
 
@@ -563,8 +565,160 @@ const TOOL_CAPABILITIES = [
     },
 ];
 
-async function detectToolCapabilities(client: any): Promise<any> {
-    const checks = await Promise.all(TOOL_CAPABILITIES.map(async (tool) => {
+const SUI_TOOL_DOCS = 'https://github.com/alireza0/s-ui/wiki';
+
+// Probes for s-ui nodes go through the s-ui facade: 3x-ui style paths it
+// translates, plus `/sui/<action>` for the native s-ui API.
+const SUI_TOOL_CAPABILITIES = [
+    {
+        key: 'serverStatus',
+        label: 'Server Status',
+        description: 'CPU, memory, network and sing-box core state reported by s-ui.',
+        path: '/panel/api/server/status',
+        method: 'get',
+        probe: true,
+        docs: SUI_TOOL_DOCS,
+        uiAction: 'node_console',
+        uiActionLabel: '节点控制台',
+        supportedByNms: true,
+    },
+    {
+        key: 'inboundList',
+        label: 'sing-box Inbounds',
+        description: 'Native sing-box inbounds with their TLS profile and attached clients.',
+        path: '/panel/api/inbounds/list',
+        method: 'get',
+        probe: true,
+        docs: SUI_TOOL_DOCS,
+        uiAction: 'inbounds',
+        uiActionLabel: '入站管理',
+        supportedByNms: true,
+    },
+    {
+        key: 'clientList',
+        label: 'Clients',
+        description: 'Panel-level clients that can be attached to several inbounds at once.',
+        path: '/panel/api/clients/list',
+        method: 'get',
+        probe: true,
+        docs: SUI_TOOL_DOCS,
+        uiAction: 'clients',
+        uiActionLabel: '用户管理',
+        supportedByNms: true,
+    },
+    {
+        key: 'inboundOnlines',
+        label: 'Online Clients',
+        description: 'Clients and inbounds currently carrying traffic.',
+        path: '/panel/api/inbounds/onlines',
+        method: 'post',
+        probe: true,
+        docs: SUI_TOOL_DOCS,
+        uiAction: 'inbounds',
+        uiActionLabel: '入站管理',
+        supportedByNms: true,
+    },
+    {
+        key: 'tlsProfiles',
+        label: 'TLS / REALITY Profiles',
+        description: 'Reusable TLS, ACME and REALITY profiles stored in s-ui.',
+        path: '/sui/tls',
+        method: 'get',
+        probe: true,
+        docs: SUI_TOOL_DOCS,
+        uiAction: 'inbounds',
+        uiActionLabel: '入站管理',
+        supportedByNms: true,
+    },
+    {
+        key: 'realityKeypair',
+        label: 'REALITY Key Pair',
+        description: 'Generate REALITY key pairs through sing-box on the node.',
+        path: '/panel/api/server/getNewX25519Cert',
+        method: 'get',
+        probe: true,
+        docs: SUI_TOOL_DOCS,
+        uiAction: 'node_console',
+        uiActionLabel: '节点控制台',
+        supportedByNms: true,
+    },
+    {
+        key: 'uuid',
+        label: 'UUID',
+        description: 'Generate UUID values for VLESS, VMess and TUIC clients.',
+        path: '/panel/api/server/getNewUUID',
+        method: 'get',
+        probe: true,
+        docs: SUI_TOOL_DOCS,
+        uiAction: 'node_console',
+        uiActionLabel: '节点控制台',
+        supportedByNms: true,
+    },
+    {
+        key: 'coreLogs',
+        label: 'sing-box Logs',
+        description: 'Recent sing-box and panel log lines.',
+        path: '/panel/api/server/logs/20',
+        method: 'post',
+        probe: true,
+        docs: SUI_TOOL_DOCS,
+        uiAction: 'logs',
+        uiActionLabel: '日志中心',
+        supportedByNms: true,
+    },
+    {
+        key: 'coreControl',
+        label: 'sing-box Core Control',
+        description: 'Restart the sing-box core, or stop and start it through maintenance mode.',
+        path: '/panel/api/server/restartXrayService',
+        method: 'post',
+        probe: false,
+        docs: SUI_TOOL_DOCS,
+        uiAction: 'node_console',
+        uiActionLabel: '节点控制台',
+        supportedByNms: true,
+    },
+    {
+        key: 'databaseExport',
+        label: 'Database Export / Import',
+        description: 'Download or restore the s-ui database of a single node.',
+        path: '/panel/api/server/getDb',
+        method: 'get',
+        probe: false,
+        docs: SUI_TOOL_DOCS,
+        uiAction: 'node_console',
+        uiActionLabel: '节点控制台',
+        supportedByNms: true,
+    },
+    {
+        key: 'outbounds',
+        label: 'Outbounds',
+        description: 'sing-box outbounds configured on the node.',
+        path: '/sui/outbounds',
+        method: 'get',
+        probe: true,
+        docs: SUI_TOOL_DOCS,
+        uiAction: 'panel_only',
+        uiActionLabel: 's-ui 面板',
+        supportedByNms: false,
+    },
+    {
+        key: 'endpoints',
+        label: 'Endpoints',
+        description: 'WireGuard / Tailscale endpoints configured on the node.',
+        path: '/sui/endpoints',
+        method: 'get',
+        probe: true,
+        docs: SUI_TOOL_DOCS,
+        uiAction: 'panel_only',
+        uiActionLabel: 's-ui 面板',
+        supportedByNms: false,
+    },
+];
+
+async function detectToolCapabilities(client: any, { panelType = PANEL_TYPE_3XUI }: { panelType?: string } = {}): Promise<any> {
+    const catalog = isSuiPanelContext(panelType) ? SUI_TOOL_CAPABILITIES : TOOL_CAPABILITIES;
+    const checks = await Promise.all(catalog.map(async (tool: any) => {
         if (tool.supportedBy3xui === false) {
             return { ...tool, available: false, source: 'upstream_removed' };
         }
@@ -762,31 +916,165 @@ const SYSTEM_MODULES = [
     },
 ];
 
+const SUI_DOCS = 'https://github.com/alireza0/s-ui/wiki';
+
+// s-ui runs sing-box rather than Xray, so the module matrix describes what NMS
+// reaches through the s-ui API instead of the 3x-ui feature set.
+const SUI_SYSTEM_MODULES = [
+    {
+        key: 'singboxCore',
+        label: 'sing-box Core Control',
+        status: 'integrated',
+        supportedBy3xui: true,
+        supportedByNms: true,
+        uiAction: 'node_console',
+        uiActionLabel: '节点控制台',
+        docs: SUI_DOCS,
+        note: 'Restart, stop and start of the sing-box core map to s-ui restartSb and maintenance mode.',
+    },
+    {
+        key: 'suiInbounds',
+        label: 'sing-box Inbounds',
+        status: 'integrated',
+        supportedBy3xui: true,
+        supportedByNms: true,
+        uiAction: 'inbounds',
+        uiActionLabel: '入站管理',
+        docs: SUI_DOCS,
+        note: 'Inbounds are edited as native sing-box JSON and can reuse the TLS profiles stored in s-ui.',
+    },
+    {
+        key: 'suiClients',
+        label: 'Clients & Share Links',
+        status: 'integrated',
+        supportedBy3xui: true,
+        supportedByNms: true,
+        uiAction: 'users',
+        uiActionLabel: '用户管理',
+        docs: SUI_DOCS,
+        note: 'One s-ui client serves every attached inbound; subscriptions reuse the links s-ui generates.',
+    },
+    {
+        key: 'databaseManagement',
+        label: 'Database Management',
+        status: 'integrated',
+        supportedBy3xui: true,
+        supportedByNms: true,
+        uiAction: 'node_console',
+        uiActionLabel: '节点控制台',
+        docs: SUI_DOCS,
+        note: 'Export and import are supported on single-node scope only.',
+    },
+    {
+        key: 'twoFactor',
+        label: 'Admin 2FA (TOTP)',
+        status: 'integrated',
+        supportedBy3xui: false,
+        supportedByNms: true,
+        uiAction: 'account',
+        uiActionLabel: '账户中心',
+        docs: SUI_DOCS,
+        note: 'Per-admin TOTP with backup codes managed from the NMS account center.',
+    },
+    {
+        key: 'tlsProfiles',
+        label: 'TLS / REALITY Profiles',
+        status: 'guided_only',
+        supportedBy3xui: true,
+        supportedByNms: false,
+        uiAction: 'panel_only',
+        uiActionLabel: 's-ui 面板',
+        docs: SUI_DOCS,
+        note: 'NMS lists and attaches existing profiles; certificates and REALITY keys are edited in s-ui.',
+    },
+    {
+        key: 'suiRouting',
+        label: 'Outbounds / Endpoints / Routing / DNS',
+        status: 'guided_only',
+        supportedBy3xui: true,
+        supportedByNms: false,
+        uiAction: 'panel_only',
+        uiActionLabel: 's-ui 面板',
+        docs: SUI_DOCS,
+        note: 'sing-box routing, outbounds, endpoints and DNS stay in the s-ui panel.',
+    },
+    {
+        key: 'suiSettings',
+        label: 'Panel & Subscription Settings',
+        status: 'guided_only',
+        supportedBy3xui: true,
+        supportedByNms: false,
+        uiAction: 'panel_only',
+        uiActionLabel: 's-ui 面板',
+        docs: SUI_DOCS,
+        note: 'Panel port, base path, subscription service and API tokens are managed in s-ui.',
+    },
+];
+
+const SUI_PROTOCOL_LABELS: Record<string, string> = {
+    direct: 'Direct',
+    mixed: 'Mixed',
+    socks: 'SOCKS',
+    http: 'HTTP',
+    shadowsocks: 'Shadowsocks',
+    snell: 'Snell',
+    vmess: 'VMess',
+    trojan: 'Trojan',
+    naive: 'Naive',
+    hysteria: 'Hysteria',
+    shadowtls: 'ShadowTLS',
+    tuic: 'TUIC',
+    hysteria2: 'Hysteria2',
+    vless: 'VLESS',
+    anytls: 'AnyTLS',
+    tun: 'TUN',
+    redirect: 'Redirect',
+    tproxy: 'TProxy',
+    cloudflared: 'Cloudflared',
+};
+
+function buildSuiProtocolSummary(protocol: string) {
+    return {
+        key: protocol,
+        label: SUI_PROTOCOL_LABELS[protocol] || protocol.toUpperCase(),
+        legacyKeys: [],
+    };
+}
+
 function buildCapabilitiesPayload({
     serverId,
     status,
     inbounds = [],
     xrayVersions = [],
     tools = {},
+    panelType = PANEL_TYPE_3XUI,
 }: any) {
-    const protocols = canonicalizeProtocolList(
-        (Array.isArray(inbounds) ? inbounds : []).map((item: any) => item?.protocol)
+    const isSui = isSuiPanelContext(panelType);
+    const rawProtocols = (Array.isArray(inbounds) ? inbounds : []).map((item: any) => item?.protocol);
+    // s-ui keeps socks and mixed apart, so the 3x-ui alias folding does not apply.
+    const protocols = (isSui
+        ? Array.from(new Set(rawProtocols.map((item: any) => String(item || '').trim().toLowerCase()).filter(Boolean)))
+        : canonicalizeProtocolList(rawProtocols)
     ).sort();
 
     return {
         serverId,
+        panelType: isSui ? PANEL_TYPE_SUI : PANEL_TYPE_3XUI,
         generatedAt: new Date().toISOString(),
         status: status || null,
         protocols,
-        protocolDetails: protocols.map((item: string) => buildProtocolSummary(item)),
+        protocolDetails: protocols.map((item: string) => (isSui ? buildSuiProtocolSummary(item) : buildProtocolSummary(item))),
         versions: {
             xray: Array.isArray(xrayVersions) ? xrayVersions : [],
         },
         tools,
-        systemModules: SYSTEM_MODULES,
+        systemModules: isSui ? SUI_SYSTEM_MODULES : SYSTEM_MODULES,
         batchActions: {
             clients: ['add', 'update', 'enable', 'disable', 'delete'],
-            inbounds: ['add', 'update', 'enable', 'disable', 'delete', 'resetTraffic'],
+            // s-ui inbounds have no enable switch of their own.
+            inbounds: isSui
+                ? ['add', 'update', 'delete', 'resetTraffic']
+                : ['add', 'update', 'enable', 'disable', 'delete', 'resetTraffic'],
         },
         nodeGovernance: {
             fields: ['group', 'tags', 'environment', 'health'],
@@ -804,11 +1092,12 @@ router.get('/:serverId', async (req: Request, res: Response) => {
         const { serverId } = req.params;
         const client = await ensureAuthenticated(serverId);
 
+        const isSui = isSuiPanelContext(client);
         const [statusRes, inboundsRes, xrayVersionRes, tools] = await Promise.all([
             client.get('/panel/api/server/status').catch(() => null),
             client.get('/panel/api/inbounds/list').catch(() => null),
-            client.get('/panel/api/server/getXrayVersion').catch(() => null),
-            detectToolCapabilities(client),
+            isSui ? null : client.get('/panel/api/server/getXrayVersion').catch(() => null),
+            detectToolCapabilities(client, { panelType: isSui ? PANEL_TYPE_SUI : PANEL_TYPE_3XUI }),
         ]);
 
         return res.json({
@@ -819,6 +1108,7 @@ router.get('/:serverId', async (req: Request, res: Response) => {
                 inbounds: inboundsRes?.data?.obj || [],
                 xrayVersions: xrayVersionRes?.data?.obj || [],
                 tools,
+                panelType: isSui ? PANEL_TYPE_SUI : PANEL_TYPE_3XUI,
             }),
         });
     } catch (error: any) {

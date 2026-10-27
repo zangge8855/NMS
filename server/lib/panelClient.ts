@@ -2,6 +2,8 @@ import http from 'http';
 import https from 'https';
 import axios, { type AxiosInstance } from 'axios';
 import serverStore from '../store/serverStore.js';
+import { isSuiPanelServer } from './panelType.js';
+import { ensureSuiPanelClient } from './suiPanelAdapter.js';
 
 const sharedHttpAgent = new http.Agent({
     keepAlive: true,
@@ -400,11 +402,49 @@ async function ensurePanelApiTokenAuthenticated(client: AxiosInstance): Promise<
 }
 
 /**
+ * s-ui nodes get a facade that speaks the 3x-ui API NMS uses (see suiPanelAdapter).
+ */
+async function ensureSuiAuthenticated(serverId: string, storedServer: any, options: any = {}): Promise<AxiosInstance> {
+    const hasManualPasswordCredentials = options.username !== undefined || options.password !== undefined;
+    const server = {
+        ...storedServer,
+        username: options.username !== undefined ? String(options.username || '').trim() : storedServer.username,
+        password: options.password !== undefined ? String(options.password || '') : storedServer.password,
+        apiToken: options.apiToken !== undefined
+            ? String(options.apiToken || '').trim()
+            : (options.forceLogin === true && hasManualPasswordCredentials ? '' : storedServer.apiToken),
+    };
+    // Manual credentials under test must not overwrite the stored session.
+    const useStoredSession = !hasManualPasswordCredentials && options.apiToken === undefined;
+    let transientCookie = '';
+    return ensureSuiPanelClient(server, {
+        forceLogin: options.forceLogin === true,
+        httpAgent: sharedHttpAgent,
+        httpsAgent: sharedHttpsAgent,
+        sessionStore: useStoredSession
+            ? {
+                get: () => serverStore.getSession(serverId),
+                set: (cookie: string) => serverStore.setSession(serverId, cookie),
+                clear: () => serverStore.clearSession(serverId),
+            }
+            : {
+                get: () => transientCookie,
+                set: (cookie: string) => { transientCookie = cookie; },
+                clear: () => { transientCookie = ''; },
+            },
+    });
+}
+
+/**
  * Ensure authenticated session with the panel.
  * Logs in if no session exists.
  */
 export async function ensureAuthenticated(serverId: string, options: any = {}): Promise<AxiosInstance> {
     const forceLogin = options?.forceLogin === true;
+    const storedServer = serverStore.getById(serverId);
+    if (storedServer && isSuiPanelServer(storedServer)) {
+        return ensureSuiAuthenticated(serverId, storedServer, options);
+    }
     const { client, server } = await createPanelClient(serverId, options);
     const hasManualPasswordCredentials = options.username !== undefined || options.password !== undefined;
     const shouldUseApiToken = String(server.apiToken || '').trim()

@@ -448,6 +448,58 @@ describe('subscription tuic share links', () => {
     });
 });
 
+describe('subscription links for 3x-ui v3 hysteria and native tuic', () => {
+    it('builds a hysteria2 link from a protocol "hysteria" version 2 inbound', () => {
+        const diagnostics = [];
+        const link = buildClientLink({
+            server: { url: 'https://hy.example.com' },
+            inbound: { protocol: 'hysteria', port: 443, remark: 'HY-V3' },
+            client: { auth: 'auth-secret', email: 'user@example.com' },
+            settings: { version: 2 },
+            stream: {
+                network: 'hysteria',
+                security: 'tls',
+                tlsSettings: { serverName: 'hy.example.com', alpn: ['h3'], settings: { fingerprint: 'chrome' } },
+                hysteriaSettings: { version: 2, udpIdleTimeout: 60 },
+                finalmask: {
+                    udp: [
+                        { type: 'salamander', settings: { password: 'mask-pass' } },
+                        { type: 'udphop', settings: { remotePorts: '20000-30000' } },
+                    ],
+                },
+            },
+            diagnostics,
+        });
+
+        assert.equal(diagnostics.length, 0);
+        assert.ok(link.startsWith('hysteria2://auth-secret@hy.example.com:443'));
+        const parsed = new URL(link);
+        assert.equal(parsed.searchParams.get('sni'), 'hy.example.com');
+        assert.equal(parsed.searchParams.get('fp'), 'chrome');
+        assert.equal(parsed.searchParams.get('obfs'), 'salamander');
+        assert.equal(parsed.searchParams.get('obfs-password'), 'mask-pass');
+        assert.equal(parsed.searchParams.get('mport'), '20000-30000');
+    });
+
+    it('reads native tuic options from settings.server', () => {
+        const diagnostics = [];
+        const link = buildClientLink({
+            server: { url: 'https://tuic.example.com' },
+            inbound: { protocol: 'tuic', port: 8443, remark: 'TUIC-V3' },
+            client: { uuid: '550e8400-e29b-41d4-a716-446655440000', password: 'pw', email: 'user@example.com' },
+            settings: { server: { sni: 'native.tuic.example.com', alpn: ['h3'], congestion_control: 'cubic', udp_relay_mode: 'quic' } },
+            stream: {},
+            diagnostics,
+        });
+
+        assert.equal(diagnostics.length, 0);
+        const parsed = new URL(link);
+        assert.equal(parsed.searchParams.get('sni'), 'native.tuic.example.com');
+        assert.equal(parsed.searchParams.get('congestion_control'), 'cubic');
+        assert.equal(parsed.searchParams.get('udp_relay_mode'), 'quic');
+    });
+});
+
 describe('subscription url generation', () => {
     it('builds core subscription variants from the token url', () => {
         const urls = buildSubscriptionUrls(
@@ -807,5 +859,58 @@ describe('sing-box config generation', () => {
 
     it('returns an empty payload when no sing-box-compatible links exist', () => {
         assert.equal(buildSingboxConfigFromLinks(['socks://unsupported.example.com']), '');
+    });
+});
+
+describe('s-ui protocol links in client configs', () => {
+    const hysteriaLink = 'hysteria://hy.example.com:9443?downmbps=100&upmbps=50&auth=hy-auth&security=tls&insecure=1&sni=hy.example.com&alpn=h3&obfs=obfs-key&fastopen=0&mport=9443,9444#NODE-HY';
+    const anytlsLink = 'anytls://anytls-pass@any.example.com:443?security=tls&sni=any.example.com&fp=chrome#NODE-ANY';
+    const socksLink = 'socks5://user:pass@socks.example.com:1080#NODE-SOCKS';
+    const httpsLink = 'https://user:pass@proxy.example.com:8443#NODE-HTTPS';
+    const suiHy2Link = 'hysteria2://pw@hy2s.example.com:443?upmbps=10&downmbps=20&security=tls&sni=hy2s.example.com&fastopen=1&mport=20000-30000#NODE-HY2S';
+    const links = [hysteriaLink, anytlsLink, socksLink, httpsLink, suiHy2Link];
+
+    it('converts hysteria, anytls, socks5 and http(s) links for mihomo', () => {
+        const parsed = parseGeneratedYaml(buildMihomoConfigFromLinks(links, 'https://sub.example.com/base?format=clash'));
+        assert.deepEqual(parsed.proxies.map((item) => item.type), ['hysteria', 'anytls', 'socks5', 'http', 'hysteria2']);
+        const hysteria = parsed.proxies.find((item) => item.name === 'NODE-HY');
+        assert.equal(hysteria['auth-str'], 'hy-auth');
+        assert.equal(hysteria.up, 50);
+        assert.equal(hysteria.down, 100);
+        assert.equal(hysteria.obfs, 'obfs-key');
+        assert.equal(hysteria.ports, '9443,9444');
+        assert.equal(hysteria['skip-cert-verify'], true);
+        assert.equal(hysteria.sni, 'hy.example.com');
+        const anytls = parsed.proxies.find((item) => item.name === 'NODE-ANY');
+        assert.equal(anytls.password, 'anytls-pass');
+        assert.equal(anytls['client-fingerprint'], 'chrome');
+        const socks = parsed.proxies.find((item) => item.name === 'NODE-SOCKS');
+        assert.equal(socks.username, 'user');
+        assert.equal(socks.password, 'pass');
+        assert.equal(parsed.proxies.find((item) => item.name === 'NODE-HTTPS').tls, true);
+        const hy2 = parsed.proxies.find((item) => item.name === 'NODE-HY2S');
+        assert.equal(hy2.ports, '20000-30000');
+        assert.equal(hy2['fast-open'], true);
+    });
+
+    it('converts the same links into sing-box outbounds', () => {
+        const parsed = JSON.parse(buildSingboxConfigFromLinks(links));
+        const outbounds = parsed.outbounds.filter((item) => item.server);
+        assert.deepEqual(outbounds.map((item) => item.type), ['hysteria', 'anytls', 'socks', 'http', 'hysteria2']);
+        const hysteria = outbounds.find((item) => item.tag === 'NODE-HY');
+        assert.equal(hysteria.auth_str, 'hy-auth');
+        assert.equal(hysteria.tls.insecure, true);
+        assert.deepEqual(hysteria.tls.alpn, ['h3']);
+        assert.equal(outbounds.find((item) => item.tag === 'NODE-ANY').tls.utls.fingerprint, 'chrome');
+        assert.equal(outbounds.find((item) => item.tag === 'NODE-SOCKS').version, '5');
+        assert.equal(outbounds.find((item) => item.tag === 'NODE-HTTPS').tls.server_name, 'proxy.example.com');
+    });
+
+    it('adds socks5 and https proxies to surge profiles', () => {
+        const profile = buildSurgeConfigFromLinks(links, 'https://sub.example.com/base?format=surge');
+        assert.match(profile, /NODE-SOCKS = socks5, socks\.example\.com, 1080, user, pass, udp-relay=true/);
+        assert.match(profile, /NODE-HTTPS = https, proxy\.example\.com, 8443, user, pass, sni=proxy\.example\.com/);
+        assert.match(profile, /NODE-HY2S = hysteria2,/);
+        assert.doesNotMatch(profile, /NODE-HY = /);
     });
 });

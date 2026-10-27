@@ -368,8 +368,8 @@
 .security-bootstrap-kicker {
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: #fca5a5;
 }
 

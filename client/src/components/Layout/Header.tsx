@@ -71,7 +71,7 @@ function buildCommandCopy(locale = 'zh-CN') {
         createUser: '添加账号',
         createUserMeta: '打开用户创建表单',
         createServer: '添加服务器',
-        createServerMeta: '接入新的 3x-ui 节点',
+        createServerMeta: '接入新的 3x-ui / s-ui 节点',
         serverMeta: '节点详情',
         userMeta: '用户详情',
     };

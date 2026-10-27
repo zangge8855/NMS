@@ -199,6 +199,44 @@ const PROTOCOL_SCHEMAS: ProtocolSchema[] = [
         },
     },
     {
+        key: 'amneziawg',
+        label: 'AmneziaWG',
+        legacyKeys: [],
+        defaultSettings: {
+            server: {
+                privateKey: '',
+                publicKey: '',
+                subnetIp: '10.8.1.0',
+                subnetCidr: 24,
+                primaryDns: '8.8.8.8',
+                secondaryDns: '8.8.4.4',
+                externalInterface: '',
+                kernelMode: false,
+                ipv6Enabled: false,
+                ipv6Subnet: '',
+                ipv6ExternalInterface: '',
+            },
+            clients: [],
+        },
+        supports: {
+            transports: [],
+            securities: [],
+        },
+    },
+    {
+        key: 'masque',
+        label: 'MASQUE',
+        legacyKeys: [],
+        defaultSettings: {
+            clients: [],
+            address: ['10.14.0.1/24', 'fd14::1/64'],
+        },
+        supports: {
+            transports: [],
+            securities: ['tls'],
+        },
+    },
+    {
         key: 'tun',
         label: 'TUN',
         legacyKeys: [],

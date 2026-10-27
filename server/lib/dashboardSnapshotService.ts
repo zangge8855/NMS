@@ -3,6 +3,7 @@ import { normalizeEmail, parseJsonObjectLike } from './normalize.js';
 import { collectClusterStatusSnapshot } from './serverStatusService.js';
 import { getServerPanelSnapshot, getServerPanelSnapshots } from './serverPanelSnapshotService.js';
 import { normalizeOnlineEntries } from './panelOnlinePayload.js';
+import { isManagedClientProtocol } from './clientProtocols.js';
 import serverStore from '../store/serverStore.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
 import trafficStatsStore, {
@@ -235,7 +236,7 @@ function buildManagedOnlineSummary(users: any[], serverPayloads: any[] = [], act
 
         inbounds.forEach((inbound: any) => {
             const protocol = String(inbound?.protocol || '').toLowerCase();
-            if (!['vmess', 'vless', 'trojan', 'shadowsocks'].includes(protocol)) return;
+            if (!isManagedClientProtocol(protocol, inbound)) return;
             if (inbound?.enable === false) return;
 
             const clients = mergeInboundClientStats(inbound);

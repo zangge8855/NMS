@@ -58,7 +58,8 @@ function buildNotificationMetaRows(
             value: `${meta.method || '-'} ${meta.path || '-'}`.trim(),
         });
     }
-    if (meta.reasonCode) {
+    // Recovery events carry reasonCode "none"; there is nothing to explain, so skip the row.
+    if (meta.reasonCode && String(meta.reasonCode) !== 'none') {
         const reasonCode = String(meta.reasonCode);
         rows.push({ label: labels.reason, value: reasons[reasonCode] || reasonCode });
     }

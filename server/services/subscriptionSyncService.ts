@@ -1,9 +1,9 @@
 import crypto from 'crypto';
 import {
-    CLIENT_PROTOCOLS as DEPLOY_CLIENT_PROTOCOLS,
     PASSWORD_PROTOCOLS,
     UUID_PROTOCOLS,
     applyEntitlementToClient,
+    applyExtraProtocolCredentials,
     buildManagedClientData,
     normalizeNonNegativeInt,
     parseInboundClients,
@@ -18,6 +18,7 @@ import userPolicyRepository from '../repositories/userPolicyRepository.js';
 import { invalidateServerPanelSnapshotCache } from '../lib/serverPanelSnapshotService.js';
 import { postDeleteClientFromInboundCompat } from '../lib/panelApiCompat.js';
 import { listPanelInbounds } from './panelGateway.js';
+import { isManagedClientProtocol, isSuiPanelContext } from '../lib/clientProtocols.js';
 import {
     isInboundAllowedByPolicy,
     isProtocolAllowedByPolicy,
@@ -104,8 +105,12 @@ function applyManagedCredentialsToClient(clientRecord: any, {
     if (UUID_PROTOCOLS.has(normalizedProtocol)) {
         payload.flow = resolveFlow(normalizedProtocol, inbound);
     }
-    if (PASSWORD_PROTOCOLS.has(normalizedProtocol)) {
+    // s-ui clients hold one password for every protocol, so keep it in step even on uuid inbounds.
+    if (PASSWORD_PROTOCOLS.has(normalizedProtocol) || isSuiPanelContext(inbound)) {
         payload.password = String(sharedCredentials.password || '').trim() || String(clientRecord?.password || '').trim();
+    }
+    if (!isSuiPanelContext(inbound)) {
+        applyExtraProtocolCredentials(payload, normalizedProtocol, String(sharedCredentials.password || '').trim(), clientRecord || {});
     }
 
     return payload;
@@ -287,7 +292,7 @@ async function migrateManagedSubscriptionEmail(sourceEmail: string, targetEmail:
         const inbounds = panelContext.inbounds;
         for (const inbound of inbounds) {
             const protocol = String(inbound.protocol || '').toLowerCase();
-            if (!DEPLOY_CLIENT_PROTOCOLS.has(protocol)) continue;
+            if (!isManagedClientProtocol(protocol, inbound)) continue;
 
             const existingClients = parseInboundClients(inbound);
             const sourceMatch = existingClients.find((item: any) => normalizeEmailInput(item.email) === fromEmail);
@@ -443,7 +448,7 @@ async function autoDeployClients(subscriptionEmail: string, policy: any, options
 
         for (const inbound of inbounds) {
             const protocol = String(inbound.protocol || '').toLowerCase();
-            if (!DEPLOY_CLIENT_PROTOCOLS.has(protocol)) continue;
+            if (!isManagedClientProtocol(protocol, inbound)) continue;
 
             const isProtocolAllowed = !isGlobalProtocolDenied && isProtocolAllowedByPolicy(policy, protocol);
             const isInboundInDeploymentScope = !allowedInboundKeys || allowedInboundKeys.has(`${server.id}:${inbound.id}`);
@@ -678,7 +683,7 @@ async function autoRemoveClients(subscriptionEmail: string, options: any = {}, d
         const inbounds = panelContext.inbounds;
         for (const inbound of inbounds) {
             const protocol = String(inbound.protocol || '').toLowerCase();
-            if (!DEPLOY_CLIENT_PROTOCOLS.has(protocol)) continue;
+            if (!isManagedClientProtocol(protocol, inbound)) continue;
 
             const existingClients = parseInboundClients(inbound);
             const match = findManagedClientByEmail(existingClients, emailCandidates);
@@ -751,7 +756,7 @@ async function autoSetManagedClientsEnabled(subscriptionEmail: string, enabled: 
         const inbounds = panelContext.inbounds;
         for (const inbound of inbounds) {
             const protocol = String(inbound.protocol || '').toLowerCase();
-            if (!DEPLOY_CLIENT_PROTOCOLS.has(protocol)) continue;
+            if (!isManagedClientProtocol(protocol, inbound)) continue;
             if (enabled && inbound.enable === false) continue;
 
             const existingClients = parseInboundClients(inbound);

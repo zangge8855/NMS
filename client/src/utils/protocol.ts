@@ -3,7 +3,11 @@
  */
 
 export const UUID_PROTOCOLS: Set<string> = new Set(['vmess', 'vless', 'tuic']);
-export const PASSWORD_PROTOCOLS: Set<string> = new Set(['trojan', 'shadowsocks', 'hysteria', 'hysteria2', 'hy2']);
+// naive, anytls, shadowtls, snell and the mixed/socks/http proxies are s-ui inbound types.
+export const PASSWORD_PROTOCOLS: Set<string> = new Set([
+    'trojan', 'shadowsocks', 'hysteria', 'hysteria2', 'hy2',
+    'naive', 'anytls', 'shadowtls', 'snell', 'mixed', 'socks', 'http',
+]);
 
 export interface ProtocolOption {
     key: string;
@@ -20,6 +24,28 @@ export const PROTOCOL_OPTIONS: ProtocolOption[] = [
     { key: 'tuic', label: 'TUIC' },
     { key: 'wireguard', label: 'WireGuard' },
 ];
+
+/**
+ * Protocols a user policy can allow. Mirrors server/lib/clientProtocols.ts:
+ * the 3x-ui client protocols first, then the extra s-ui inbound types.
+ */
+export const POLICY_PROTOCOL_OPTIONS: ProtocolOption[] = [
+    { key: 'vless', label: 'VLESS' },
+    { key: 'vmess', label: 'VMess' },
+    { key: 'trojan', label: 'Trojan' },
+    { key: 'shadowsocks', label: 'Shadowsocks' },
+    { key: 'hysteria', label: 'Hysteria' },
+    { key: 'hysteria2', label: 'Hysteria2' },
+    { key: 'tuic', label: 'TUIC' },
+    { key: 'naive', label: 'Naive' },
+    { key: 'anytls', label: 'AnyTLS' },
+    { key: 'shadowtls', label: 'ShadowTLS' },
+    { key: 'snell', label: 'Snell' },
+    { key: 'mixed', label: 'Mixed' },
+    { key: 'socks', label: 'SOCKS' },
+    { key: 'http', label: 'HTTP' },
+];
+
 export const PROTOCOL_KEY_SET: Set<string> = new Set(PROTOCOL_OPTIONS.map((item) => item.key));
 
 export function normalizeProtocol(value?: string | null): string {

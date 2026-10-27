@@ -38,6 +38,8 @@
   --bg-card: #ffffff;
   --bg-surface: #f3f5f8;
   --bg-card-hover: #f6f8fb;
+  /* :root above sets the dark input fill; light needs its own or selects turn black. */
+  --bg-input: #ffffff;
   --border-color: #e3e7ee;
   --border-color-hover: #cbd2dc;
   --stroke-soft: #eceff4;
@@ -950,7 +952,7 @@ body {
 }
 
 :root[data-theme="light"] :is(.badge-info, .badge-primary) {
-  color: #1d4ed8 !important;
+  color: var(--accent-primary-hover) !important;
 }
 
 /* Sidebar: section titles were 9px at 2.9:1 contrast */
@@ -969,7 +971,7 @@ body {
 }
 
 :root[data-theme="light"] .sidebar-user-badge {
-  color: #1d4ed8;
+  color: var(--accent-primary-hover);
 }
 
 :root .header-search-kbd {
@@ -1132,17 +1134,122 @@ body {
 
 :root[data-theme="light"] .settings-nav-item.is-active,
 :root[data-theme="light"] .settings-nav-item.is-active .settings-nav-item-label {
-  color: #1d4ed8;
+  color: var(--accent-primary-hover);
 }
 
 /* Dark theme: lift red / blue ink slightly so small badges clear 4.5:1 */
 :root[data-theme="dark"] .badge-danger { color: #f87171 !important; }
 :root[data-theme="dark"] .nav-badge { color: #f87171; }
-:root[data-theme="dark"] .sidebar-user-badge { color: #60a5fa; }
+:root[data-theme="dark"] .sidebar-user-badge { color: var(--accent-primary-hover); }
 
 :root[data-theme="light"] .logs-scroll-chip { color: #047857; }
 
 :root[data-theme="dark"] :is(.tab.active, .filter-chip.active, .settings-nav-item.is-active, .users-tab.active),
 :root[data-theme="dark"] :is(.tab.active, .filter-chip.active, .settings-nav-item.is-active) > span:first-child {
   color: #7cb3fb;
+}
+
+/* --------------------------------------------------------------------------
+   Panel type (3x-ui / s-ui)
+   -------------------------------------------------------------------------- */
+:root .panel-type-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+:root .panel-type-option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+:root .panel-type-option:hover {
+  border-color: var(--border-color-hover);
+}
+
+:root .panel-type-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+:root .panel-type-option:has(input:focus-visible) {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 22%, transparent);
+}
+
+:root .panel-type-option.is-active {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 7%, var(--bg-input));
+}
+
+:root .panel-type-option.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+:root .panel-type-option-title {
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+:root .panel-type-option.is-active .panel-type-option-title {
+  color: var(--accent-primary);
+}
+
+:root .panel-type-option-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+:root .servers-panel-badge {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0;
+  text-transform: none;
+  flex-shrink: 0;
+}
+
+:root .servers-table .servers-name-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+:root .servers-table .servers-account-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+:root .servers-table .servers-account-name {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:root .servers-table .servers-account-stack .text-muted {
+  white-space: nowrap;
+}
+
+/* Detail hero badges had no rule at all and rendered glued together */
+:root .user-profile-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 12px;
 }

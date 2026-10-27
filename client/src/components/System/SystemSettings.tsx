@@ -2945,7 +2945,7 @@ export default function SystemSettings() {
                             ? t('pages.settings.lastBackupLabel', { time: formatDateTime(lastTelegramBackup.ts, locale), filename: lastTelegramBackup.filename || t('pages.settings.unrecordedFilename') })
                             : t('pages.settings.thereIsNoRecordOfTelegramBackupYet')}
                     </div>
-                    <div className="text-xs text-muted mt-1">{t("pages.settings.nextAutomaticBackupTelegramnextback")}</div>
+                    <div className="text-xs text-muted mt-1">{t('pages.settings.nextAutomaticBackupTelegramnextback', { time: telegramNextBackupLabel })}</div>
                     {lastTelegramBackup?.error ? (
                         <div className="text-xs text-danger">{lastTelegramBackup.error}</div>
                     ) : null}
@@ -3154,7 +3154,7 @@ export default function SystemSettings() {
                                             placeholder={(dbStatus.storeKeys || []).join(', ')}
                                             disabled={!isAdmin}
                                         />
-                                        <div className="text-xs text-muted mt-1">{t("pages.settings.optionalDbstatusStorekeysJoinNone")}</div>
+                                        <div className="text-xs text-muted mt-1">{t('pages.settings.optionalDbstatusStorekeysJoinNone', { keys: (dbStatus.storeKeys || []).join(', ') || t('pages.settings.na') })}</div>
                                     </div>
                                     <div className="settings-db-inline-options">
                                         <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">

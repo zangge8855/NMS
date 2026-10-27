@@ -1,5 +1,4 @@
 import {
-    CLIENT_PROTOCOLS,
     applyEntitlementToClient,
     normalizeEmail,
     normalizeNonNegativeInt,
@@ -9,6 +8,7 @@ import {
     resolveClientIdentifier,
 } from '../lib/clientEntitlements.js';
 import { createHttpError } from '../lib/httpError.js';
+import { isManagedClientProtocol } from '../lib/clientProtocols.js';
 import clientEntitlementOverrideRepository from '../repositories/clientEntitlementOverrideRepository.js';
 import serverRepository from '../repositories/serverRepository.js';
 import userPolicyRepository from '../repositories/userPolicyRepository.js';
@@ -54,7 +54,7 @@ async function updateClientEntitlement(payload: any = {}, actor: string = 'admin
     }
 
     const protocol = normalizeProtocol(payload.protocol || inbound.protocol);
-    if (!CLIENT_PROTOCOLS.has(protocol)) {
+    if (!isManagedClientProtocol(protocol, inbound)) {
         throw createHttpError(400, '当前入站协议不支持单独限定');
     }
 

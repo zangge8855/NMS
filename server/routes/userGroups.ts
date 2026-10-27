@@ -129,7 +129,7 @@ router.post('/', async (req: Request, res: Response) => {
         return res.json({
             success: true,
             msg: result.sync.failedUsers > 0
-                ? '用户分组已创建，但部分 3x-ui 节点同步失败，可在任务历史中重试'
+                ? '用户分组已创建，但部分节点同步失败，可在任务历史中重试'
                 : '用户分组已创建',
             obj: {
                 ...result,
@@ -159,7 +159,7 @@ router.put('/:id', async (req: Request, res: Response) => {
         return res.json({
             success: true,
             msg: result.sync.failedUsers > 0
-                ? '用户分组已保存，但部分 3x-ui 节点同步失败，可在任务历史中重试'
+                ? '用户分组已保存，但部分节点同步失败，可在任务历史中重试'
                 : '用户分组已保存',
             obj: {
                 ...result,

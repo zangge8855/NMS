@@ -1,0 +1,2370 @@
+/*
+ * Module layouts.
+ * Several components kept class names whose rules were removed together with the
+ * old layout layers (layout-polish / console-redesign). This file gives them a
+ * layout again using the current tokens. Loaded after polish.css.
+ */
+
+/* --------------------------------------------------------------------------
+   Page shells: sections stack in a column. On routed pages the spacing comes
+   from the page gap in polish.css; embedded copies use the gap below.
+   -------------------------------------------------------------------------- */
+:is(.logs-page, .tasks-page, .tools-page, .capabilities-page, .xray-page, .account-page, .user-detail-page, .server-detail-page) {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* A card whose only child is its header has nothing to separate it from. */
+.card > .card-header:only-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+/* --------------------------------------------------------------------------
+   SectionHeader: title on the left, meta/actions on the right
+   -------------------------------------------------------------------------- */
+.section-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px 16px;
+}
+
+.section-header--align-start {
+  justify-content: flex-start;
+}
+
+.section-header-copy {
+  display: flex;
+  flex: 1 1 240px;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.section-header-side {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  min-width: 0;
+  margin-left: auto;
+}
+
+.section-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.section-header-meta {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.section-header--divided {
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.section-header--title-sm .section-header-title {
+  font-size: 14px;
+}
+
+.section-header--title-lg .section-header-title {
+  font-size: 18px;
+}
+
+.spinner-16 {
+  width: 16px;
+  height: 16px;
+}
+
+/* EmptyState */
+.empty-state-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.empty-state--compact {
+  min-height: 0;
+  padding: 24px 16px;
+  gap: 8px;
+}
+
+.empty-state--compact .empty-state-icon {
+  width: 36px;
+  height: 36px;
+  margin-bottom: 0;
+}
+
+.empty-state--compact .empty-state-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.empty-state--compact .empty-state-sub {
+  font-size: 12.5px;
+}
+
+/* --------------------------------------------------------------------------
+   Capabilities (node capability dashboard)
+   -------------------------------------------------------------------------- */
+.capabilities-dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.capabilities-dashboard-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+}
+
+.capabilities-dashboard-radial {
+  flex-shrink: 0;
+  line-height: 0;
+}
+
+.capabilities-dashboard-icon-wrap {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  font-size: 20px;
+}
+
+.cap-icon-wrap--modules {
+  color: var(--accent-primary);
+  background: var(--accent-primary-bg);
+}
+
+.cap-icon-wrap--tools {
+  color: var(--accent-warning);
+  background: var(--accent-warning-bg);
+}
+
+.cap-icon-wrap--protocols {
+  color: var(--accent-success);
+  background: var(--accent-success-bg);
+}
+
+.capabilities-dashboard-info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.capabilities-dashboard-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.capabilities-dashboard-value {
+  font-family: var(--font-numeric);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.capabilities-dashboard-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.capabilities-card-progress-wrapper {
+  height: 4px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--bg-tertiary);
+}
+
+.capabilities-card-progress-bar {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent-primary);
+  transition: width 0.6s var(--ease-smooth, ease);
+}
+
+.capability-protocol-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.capability-protocol-card.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+}
+
+.capability-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.capability-card-head strong {
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capability-batch-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.capability-stack {
+  min-width: 0;
+}
+
+.cap-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.cap-status-pill--success {
+  color: var(--accent-success);
+  background: var(--accent-success-bg);
+  border-color: var(--accent-success-border, transparent);
+}
+
+.cap-status-pill--warning {
+  color: var(--accent-warning);
+  background: var(--accent-warning-bg);
+  border-color: var(--accent-warning-border, transparent);
+}
+
+.cap-status-pill--danger {
+  color: var(--accent-danger);
+  background: var(--accent-danger-bg);
+  border-color: var(--accent-danger-border, transparent);
+}
+
+.cap-status-pill--neutral {
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
+}
+
+.capability-support-column,
+.capability-status-column,
+.capability-availability-column {
+  width: 112px;
+}
+
+.capability-entry-column {
+  width: 120px;
+}
+
+.capability-support-cell,
+.capability-status-cell,
+.capability-availability-cell,
+.capability-entry-cell {
+  white-space: nowrap;
+}
+
+@media (max-width: 1200px) {
+  .capabilities-dashboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .capabilities-dashboard-grid,
+  .capability-batch-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Entry labels are proper names ("s-ui 面板"), not codes. */
+.capability-entry-cell .badge {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.capability-card-head .badge {
+  flex-shrink: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Aggregate toast (batch results, rendered through toast.custom)
+   -------------------------------------------------------------------------- */
+.aggregate-toast {
+  width: min(380px, calc(100vw - 32px));
+  padding: 14px 14px 12px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--floating-panel-bg, var(--bg-card));
+  box-shadow: var(--shadow-lg);
+  color: var(--text-primary);
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.aggregate-toast.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+.aggregate-toast-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.aggregate-toast-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.aggregate-toast-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.aggregate-toast-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.aggregate-toast-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.aggregate-toast-pill.is-success {
+  background: var(--accent-success-bg);
+  color: var(--accent-success);
+}
+
+.aggregate-toast-pill.is-danger {
+  background: var(--accent-danger-bg);
+  color: var(--accent-danger);
+}
+
+.aggregate-toast-close {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.aggregate-toast-close:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.aggregate-toast-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
+}
+
+.aggregate-toast-link,
+.aggregate-toast-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.aggregate-toast-link {
+  margin-left: -8px;
+  color: var(--text-secondary);
+}
+
+.aggregate-toast-retry {
+  color: var(--accent-primary);
+}
+
+.aggregate-toast-link:hover,
+.aggregate-toast-retry:hover {
+  background: var(--bg-tertiary);
+}
+
+.aggregate-toast-detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  margin-top: 8px;
+  overflow-y: auto;
+}
+
+.aggregate-toast-detail-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  font-size: 12px;
+}
+
+.aggregate-toast-detail-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.aggregate-toast-detail-message {
+  color: var(--accent-danger);
+  word-break: break-word;
+}
+
+/* --------------------------------------------------------------------------
+   Shared toolbar copy + inline node selector
+   -------------------------------------------------------------------------- */
+.tools-toolbar-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tools-toolbar-title {
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+.tools-toolbar-note {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+/* In a toolbar the selector sits inline instead of the stacked empty-state form. */
+.page-toolbar-actions .page-server-selector {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+}
+
+.page-toolbar-actions .page-server-selector .page-server-selector-control {
+  width: auto;
+  min-width: 200px;
+  max-width: 280px;
+}
+
+.page-server-selector-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------------
+   Tools
+   -------------------------------------------------------------------------- */
+.tools-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+}
+
+.tool-card.card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+}
+
+.tool-card .section-header {
+  margin-bottom: 0;
+}
+
+.tool-card-result {
+  max-height: 220px;
+  padding: 10px 12px;
+  overflow: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.tool-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+}
+
+@media (max-width: 640px) {
+  .tools-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .page-toolbar-actions .page-server-selector {
+    width: 100%;
+  }
+
+  .page-toolbar-actions .page-server-selector .page-server-selector-control {
+    flex: 1;
+    max-width: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   System settings
+   -------------------------------------------------------------------------- */
+.settings-workspace-section,
+.settings-workspace-section-body {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.settings-workspace-hero-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  min-width: 0;
+}
+
+.settings-workspace-hero-badges,
+.settings-workspace-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-workspace-hero-actions {
+  margin-left: auto;
+}
+
+.settings-workspace-hero-subtitle {
+  max-width: 64ch;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.settings-workspace-highlight-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.settings-nav-item-dirty-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--accent-warning);
+}
+
+.settings-save-dock-summary {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.settings-panel-actions,
+.settings-access-action-row,
+.settings-db-inline-options,
+.settings-checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-checkbox-group {
+  gap: 8px 18px;
+}
+
+/* Clusters laid out by a grid get their spacing from the gap. */
+:is(.settings-access-stack, .settings-ops-grid, .settings-inline-grid, .settings-invite-layout) > .settings-form-cluster {
+  margin: 0;
+}
+
+/* Inline input + button: keep the button beside the field. */
+.settings-inline-action-row .form-input {
+  flex: 1 1 0%;
+  width: auto;
+}
+
+.settings-inline-action-row > .btn {
+  flex: 0 0 auto;
+}
+
+/* Entry and subscription */
+.settings-access-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.settings-access-stack {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.settings-toggle-strip,
+.settings-toggle-collection {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 10px;
+  min-width: 0;
+}
+
+.settings-toggle-strip > .settings-toggle-card {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.settings-toggle-collection > .settings-toggle-card {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.settings-toggle-collection--telegram {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+
+.settings-toggle-copy {
+  flex: 1 1 auto;
+}
+
+/* The global input[type="checkbox"] rule outranks .settings-toggle-input and
+   made the visually hidden checkbox take up room beside the switch. */
+.settings-toggle-side > .settings-toggle-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* Registration and invites */
+.settings-invite-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.settings-invite-workbench-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.settings-invite-workbench-section,
+.settings-invite-workbench-latest {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
+}
+
+.settings-invite-workbench-latest {
+  gap: 0;
+  border-style: dashed;
+}
+
+.settings-invite-workbench-section-head {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-invite-workbench-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text-primary);
+}
+
+.settings-invite-workbench-section-note {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* Inputs share a row; the submit button gets its own row below them. */
+.settings-field-grid--invite-generate,
+.settings-field-grid--invite-email {
+  align-items: end;
+  gap: 10px 12px;
+}
+
+.settings-field-grid--invite-generate {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.settings-field-grid--invite-email {
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+}
+
+:is(.settings-field-grid--invite-generate, .settings-field-grid--invite-email) > .settings-form-actions {
+  grid-column: 1 / -1;
+  align-items: flex-end;
+}
+
+:is(.settings-field-grid--invite-generate, .settings-field-grid--invite-email) > .settings-form-actions .btn {
+  width: auto;
+  min-width: 132px;
+}
+
+.settings-invite-ledger {
+  display: grid;
+  gap: 10px;
+  max-height: 640px;
+  overflow: auto;
+}
+
+.settings-invite-ledger-item {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
+}
+
+.settings-invite-ledger-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.settings-invite-ledger-title-block {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-invite-ledger-title {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.settings-invite-ledger-subtitle {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.settings-invite-ledger-usage {
+  display: grid;
+  gap: 6px;
+}
+
+.settings-invite-ledger-usage-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-invite-ledger-progress {
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--border-color);
+}
+
+.settings-invite-ledger-progress-bar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent-primary);
+}
+
+.settings-invite-ledger-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+}
+
+.settings-invite-ledger-meta-item {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-invite-ledger-meta-label {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.settings-invite-ledger-meta-value {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.settings-invite-ledger-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Policy */
+.settings-inline-grid--policy {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  align-items: stretch;
+}
+
+/* Notifications and alerts */
+.settings-ops-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+
+.settings-ops-card {
+  justify-content: space-between;
+}
+
+.settings-ops-card-main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* Keep the metric rows level across cards whose notes differ in length. */
+.settings-ops-card-main > .settings-ops-meta-grid {
+  margin-top: auto;
+}
+
+.settings-ops-card-kicker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 8px;
+}
+
+.settings-ops-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.settings-ops-meta-grid--triple {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.settings-ops-meta-item {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+}
+
+.settings-ops-meta-label {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.settings-ops-meta-value {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.settings-ops-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.settings-ops-actions .btn {
+  justify-content: center;
+  width: 100%;
+}
+
+/* Data and backup */
+.settings-backup-action-card--danger {
+  border-color: var(--accent-danger-border, var(--border-color));
+}
+
+.settings-runtime-storage-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.settings-runtime-storage-path {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.settings-runtime-storage-issues {
+  display: grid;
+  gap: 6px;
+}
+
+.settings-runtime-storage-issue {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-danger-bg);
+  color: var(--accent-danger);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.settings-runtime-storage-issue > :first-child {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+@media (max-width: 1200px) {
+  .settings-access-grid,
+  .settings-invite-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .settings-field-grid--invite-generate,
+  .settings-field-grid--invite-email,
+  .settings-invite-ledger-meta,
+  .settings-ops-meta-grid--triple {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :is(.settings-field-grid--invite-generate, .settings-field-grid--invite-email) > .settings-form-actions .btn {
+    width: 100%;
+  }
+
+  .settings-invite-ledger {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .settings-workspace-hero-actions {
+    margin-left: 0;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Logs
+   -------------------------------------------------------------------------- */
+.logs-toolbar-toggle-group,
+.logs-toolbar-primary-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.logs-toolbar-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.logs-toolbar-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  background: var(--surface-soft);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.logs-server-card .log-server-chips {
+  padding: 0;
+}
+
+/* Borderless header: the margin alone separates it from the chips. */
+.card-header.card-header-flat-tight {
+  padding-bottom: 0;
+  margin-bottom: 14px;
+}
+
+.logs-summary-card {
+  padding: 12px 18px;
+}
+
+.logs-viewer-card {
+  padding-top: 16px;
+}
+
+@media (max-width: 768px) {
+  .logs-toolbar-toggle-group,
+  .logs-toolbar-primary-group {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .logs-toolbar-toggle-group .btn,
+  .logs-toolbar-primary-group .btn {
+    justify-content: center;
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Audit
+   -------------------------------------------------------------------------- */
+.audit-nav {
+  gap: 10px;
+}
+
+.audit-nav-topbar {
+  margin-bottom: 0;
+}
+
+.audit-nav-status-chip {
+  min-height: 24px;
+}
+
+.audit-nav > .audit-tabs {
+  margin-bottom: 0;
+}
+
+/* Checkbox laid out like a filter control */
+.toolbar-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.toolbar-checkbox input {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+/* Match the height of the selects it sits between. */
+.audit-filter-grid .toolbar-checkbox {
+  min-height: 0;
+  align-self: stretch;
+}
+
+:root .toolbar-checkbox > input[type="checkbox"]:first-child {
+  margin: 0;
+}
+
+/* The tab panel is a flex column; its gap replaces the legacy margins. */
+.audit-tab-panel > :is(.mb-4, .mb-6) {
+  margin-bottom: 0;
+}
+
+.audit-tab-panel > .mt-6 {
+  margin-top: 0;
+}
+
+/* Traffic overview: small stat cards (label + icon row, value, note). */
+.audit-traffic-mini-card {
+  align-items: stretch;
+  gap: 6px;
+}
+
+.audit-traffic-mini-card > .flex:first-child {
+  justify-content: space-between;
+  margin-bottom: 0;
+}
+
+.audit-traffic-mini-value {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+}
+
+.audit-traffic-mini-note {
+  display: block;
+  line-height: 1.45;
+}
+
+/* Inbound breakdown sits directly in its card; no second frame. */
+.audit-chart-card > .audit-inbound-breakdown {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.audit-inbound-breakdown-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.audit-inbound-breakdown-title {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-primary);
+}
+
+.audit-inbound-breakdown-subtitle {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.audit-inbound-breakdown-total {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-primary);
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------------
+   Users table: fixed columns stay narrow, the account column takes the rest.
+   -------------------------------------------------------------------------- */
+.users-table .users-select-column { width: 44px; }
+.users-table .users-sequence-column { width: 76px; }
+.users-table .users-identity-column { width: auto; min-width: 0; }
+.users-table .users-status-column { width: 96px; }
+.users-table .users-online-column { width: 96px; }
+.users-table .users-node-count-column { width: 76px; }
+.users-table .users-traffic-column { width: 156px; }
+.users-table .users-expiry-column { width: 116px; }
+.users-table .users-actions-column { width: 112px; }
+
+.users-traffic-split {
+  white-space: nowrap;
+}
+
+/* Header cells follow their column alignment (generic `.table thead th` sets left). */
+.table thead th.table-cell-right {
+  text-align: right;
+}
+
+.table thead th.table-cell-center {
+  text-align: center;
+}
+
+/* --------------------------------------------------------------------------
+   Detail pages (user / server)
+   -------------------------------------------------------------------------- */
+.page-back-link {
+  align-self: flex-start;
+}
+
+.detail-hero-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 14px 20px;
+}
+
+.detail-hero-panel .user-profile-info {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.detail-hero-panel :is(.user-profile-name, .user-profile-email) {
+  margin-bottom: 0;
+}
+
+.detail-hero-panel .user-profile-meta {
+  gap: 6px 8px;
+  font-size: 12px;
+}
+
+.detail-hero-panel .user-profile-meta-item {
+  min-width: 0;
+  min-height: 28px;
+  padding: 3px 10px;
+}
+
+.detail-hero-panel .user-profile-meta-item .btn-icon {
+  width: 22px;
+  height: 22px;
+  min-height: 0;
+  padding: 0;
+}
+
+.detail-hero-panel .user-profile-actions {
+  justify-content: flex-end;
+}
+
+.user-detail-policy-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px 18px;
+}
+
+.user-detail-policy-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.user-detail-policy-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 24px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.user-detail-policy-items strong {
+  color: var(--text-primary);
+}
+
+/* Subscription tab */
+.user-detail-subscription-main {
+  grid-template-columns: minmax(0, 1fr) 196px;
+  gap: 16px;
+  align-items: start;
+}
+
+.user-detail-subscription-card {
+  padding: 0;
+}
+
+.user-detail-subscription-qr {
+  position: sticky;
+  top: 16px;
+  align-self: start;
+  min-height: 0;
+  justify-content: flex-start;
+}
+
+.subscription-address-status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.subscription-address-status-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
+}
+
+/* Tone shows on the meta figure; the card itself stays neutral. */
+.subscription-address-status-card--success .subscription-address-status-meta {
+  color: var(--accent-success);
+}
+
+.subscription-address-status-card--warning .subscription-address-status-meta {
+  color: var(--accent-warning);
+}
+
+.subscription-address-status-card--danger .subscription-address-status-meta {
+  color: var(--accent-danger);
+}
+
+.subscription-address-status-card--info .subscription-address-status-meta {
+  color: var(--accent-info);
+}
+
+.subscription-address-status-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.subscription-address-status-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.subscription-address-status-meta {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.subscription-address-status-value {
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.user-detail-subscription-card .subscription-user-address-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.user-detail-subscription-card .subscription-user-reset-inline-copy {
+  flex: 1 1 260px;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  min-width: 0;
+}
+
+.user-detail-subscription-card .subscription-user-reset-inline-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.user-detail-subscription-guides .subscription-user-address-copy {
+  gap: 2px;
+}
+
+.user-detail-subscription-guides .subscription-user-address-label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.user-detail-subscription-guides .subscription-user-address-note {
+  font-size: 12px;
+}
+
+.user-detail-subscription-guides .subscription-device-grid {
+  margin-top: 0;
+}
+
+/* Client download links wrap as chips instead of stretching full width. */
+.subscription-device-actions--downloads .subscription-device-download-btn {
+  flex: 0 0 auto;
+  width: auto;
+}
+
+.subscription-client-links--compact .subscription-device-compact-row {
+  grid-template-columns: 76px minmax(0, 1fr);
+}
+
+.subscription-device-compact-label {
+  margin-bottom: 0;
+  padding-top: 6px;
+}
+
+/* The "enlarge" hint floats over the QR instead of reserving a blank row. */
+.expandable-qr-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: rgba(15, 23, 42, 0.78);
+  color: #fff;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.expandable-qr-trigger .expandable-qr-hint svg {
+  width: 12px;
+  height: 12px;
+}
+
+.subscription-device-rule {
+  margin-bottom: 0;
+}
+
+@media (max-width: 960px) {
+  .user-detail-subscription-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .user-detail-subscription-qr {
+    position: static;
+  }
+}
+
+@media (max-width: 768px) {
+  .detail-hero-card {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .detail-hero-panel .user-profile-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .subscription-address-status-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Clients tab: server name with live presence underneath */
+.user-detail-server-stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.user-detail-server-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.user-detail-client-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  min-width: 0;
+}
+
+.user-detail-presence {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  background: var(--surface-soft);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.user-detail-presence.is-online {
+  border-color: var(--accent-success-border);
+  background: var(--accent-success-bg);
+  color: var(--accent-success);
+}
+
+.user-detail-presence-dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: currentColor;
+}
+
+.user-detail-presence-detail {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-mini-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.stat-mini-value {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.stat-mini-value-text {
+  display: block;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stat-mini-value-suffix {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.detail-stats-grid {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.page-content > .detail-stats-grid {
+  margin-bottom: 0;
+}
+
+.page-content > .user-detail-tabs {
+  margin-top: 0;
+}
+
+.server-detail-overview-grid {
+  gap: 10px 24px;
+}
+
+/* --------------------------------------------------------------------------
+   Servers list
+   -------------------------------------------------------------------------- */
+.servers-summary-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.servers-summary-label {
+  color: var(--text-muted);
+}
+
+.servers-summary-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.servers-filter-summary {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+}
+
+.servers-selection-bar-takeover {
+  display: flex;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.servers-selection-bar-takeover .bulk-toolbar-count {
+  margin-right: auto;
+  color: var(--text-primary);
+}
+
+.servers-table .server-card-name {
+  font-size: 14px;
+}
+
+.servers-name-stack,
+.servers-status-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.servers-status-meta {
+  display: inline-flex;
+}
+
+.servers-order-actions {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.servers-order-stack {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.servers-order-number {
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------------------
+   Subscriptions page
+   -------------------------------------------------------------------------- */
+.subscriptions-toolbar-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.subscriptions-toolbar-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  max-width: 100%;
+  padding: 2px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  background: var(--surface-soft);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subscriptions-toolbar-chip.is-active {
+  border-color: var(--accent-primary-border, var(--border-color));
+  background: var(--accent-primary-bg);
+  color: var(--accent-primary);
+}
+
+.subscriptions-toolbar-chip.is-warning {
+  border-color: var(--accent-warning-border, var(--border-color));
+  background: var(--accent-warning-bg);
+  color: var(--accent-warning);
+}
+
+/* Guide steps: title above the text instead of a dangling separator. */
+.subscription-guide-line {
+  display: grid;
+  gap: 2px;
+}
+
+.subscription-guide-separator {
+  display: none;
+}
+
+/* Link card + QR: the QR column keeps its natural height. */
+.subscription-link-with-qr {
+  align-items: start;
+}
+
+/* Supported clients sit directly in the meta box, not a box inside a box. */
+.subscription-link-card-meta .subscription-current-profile-tools--embedded {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.subscription-link-with-qr > .subscription-inline-qr {
+  align-self: start;
+}
+
+/* Three compact meters in one row: ring on top, figures below. */
+.subscription-meter-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.subscription-meter-grid .circular-meter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 8px;
+  text-align: center;
+}
+
+.subscription-meter-grid .circular-meter-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.subscription-meter-grid .circular-meter-value {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.subscription-admin-focus + .subscription-profile-switches {
+  margin-top: 14px;
+}
+
+/* --------------------------------------------------------------------------
+   Inbounds table
+   Node reorder arrows sit beside the chevron as a compact pair instead of
+   stacking under it (rows grew to ~110px); the remark is the inbound's name,
+   so it reads as text rather than another capsule.
+   -------------------------------------------------------------------------- */
+:root .inbounds-table .inbounds-expand-col,
+:root .inbounds-table .inbounds-expand-cell {
+  width: 56px;
+  min-width: 56px;
+}
+
+:root .inbounds-table .inbounds-expand-stack {
+  flex-direction: row;
+  gap: 2px;
+}
+
+:root .inbounds-table .inbounds-sequence-actions.is-vertical {
+  flex-direction: column;
+  gap: 2px;
+}
+
+:root .inbounds-table .inbounds-sequence-actions.is-vertical .inbounds-sequence-btn {
+  width: 20px !important;
+  min-width: 20px !important;
+  height: 15px !important;
+  min-height: 15px !important;
+  padding: 0;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+:root .inbounds-table .badge {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+:root .inbounds-table .inbounds-protocol-cell .badge {
+  text-transform: uppercase;
+  letter-spacing: 0;
+  font-size: 11px;
+  padding: 3px 7px;
+}
+
+:root .inbound-remark-pill {
+  padding: 0;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  max-width: 100%;
+}
+
+:root .inbound-remark-pill-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:root .inbounds-table .inbounds-node-badge {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+:root .inbounds-table .inbounds-traffic-cell {
+  white-space: nowrap;
+}
+
+:root .inbounds-table .inbounds-port-cell {
+  color: var(--text-secondary);
+}
+
+:root .inbounds-table .inbounds-status-col {
+  width: 128px;
+  min-width: 128px;
+}
+
+:root .inbounds-table .inbounds-status-cell {
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+
+:root .inbounds-table .inbounds-actions-col,
+:root .inbounds-table .inbounds-actions-cell {
+  width: 88px;
+  min-width: 88px;
+}
+
+:root .inbounds-table .inbounds-port-cell,
+:root .inbounds-table .inbounds-protocol-cell {
+  padding-left: 6px !important;
+  padding-right: 6px !important;
+}
+
+:root .inbounds-table .inbounds-actions-cell {
+  padding-left: 6px !important;
+  padding-right: 10px !important;
+}
+
+:root .inbounds-table .inbounds-row-actions {
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+:root .inbounds-table .inbounds-expand-cell {
+  padding-left: 4px !important;
+  padding-right: 4px !important;
+}
+
+:root .inbounds-table .inbounds-remark-cell .inbound-remark-pill {
+  display: block;
+  max-width: 156px;
+}
+
+/* Node names identify the row; two short lines beat "Review ···". */
+:root .inbounds-table .inbounds-node-badge {
+  display: inline-flex;
+  align-items: flex-start;
+  width: auto;
+  max-width: 128px;
+  padding: 3px 8px;
+  white-space: normal;
+  line-height: 1.3;
+}
+
+:root .inbounds-table .inbounds-node-badge svg {
+  flex: 0 0 auto;
+  margin-top: 3px;
+}
+
+:root .inbounds-table .inbounds-node-name {
+  white-space: normal;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
+}
+
+/* Expanded client list inside an inbound row */
+:root .inbounds-clients-table .inbounds-client-id-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+:root .inbounds-clients-table .inbounds-client-id-text,
+:root .inbounds-clients-table .inbounds-clients-col-expiry {
+  white-space: nowrap;
+}
+
+:root .inbounds-clients-table .inbounds-client-actions {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  gap: 4px;
+  width: auto;
+}
+
+:root .inbounds-clients-table .inbounds-client-action-btn {
+  width: auto !important;
+  flex: 0 0 auto;
+  padding-inline: 10px;
+}
+
+:root .inbounds-clients-table .inbounds-clients-col-actions {
+  width: 132px;
+}
+
+:root .inbounds-clients-table td.inbounds-clients-col-status > * {
+  flex-wrap: nowrap;
+}
+
+:root .inbounds-table .inbounds-node-badge {
+  max-width: 116px;
+}
+
+:root .inbounds-clients-table .inbounds-clients-col-id {
+  width: 150px;
+}
+
+:root .inbounds-clients-table .inbounds-clients-col-expiry {
+  width: 96px;
+}
+
+:root .inbounds-clients-table .inbounds-clients-col-status {
+  width: 124px;
+}
+
+:root .inbounds-clients-table .inbounds-clients-col-actions {
+  width: 104px;
+}
+
+:root .inbounds-table .inbounds-sequence-cell-td {
+  padding-left: 4px !important;
+  padding-right: 4px !important;
+}
+
+@media (min-width: 1101px) {
+  :root .inbounds-table .inbounds-protocol-col {
+    width: 120px;
+    min-width: 120px;
+  }
+
+  :root .inbounds-table .inbounds-node-col {
+    width: 132px;
+  }
+
+  :root .inbounds-table .inbounds-node-badge {
+    max-width: 128px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Inbound modal
+   -------------------------------------------------------------------------- */
+:root .inbound-inline-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Generic: a checkbox/radio directly inside a label always gets breathing room. */
+:root label > input:is([type="checkbox"], [type="radio"]):first-child {
+  margin-right: 8px;
+}
+
+:root label:is(.flex, .inline-flex) > input:is([type="checkbox"], [type="radio"]):first-child,
+:root .inbound-inline-checkbox-label > input {
+  margin-right: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Users hub toolbar: search and status chips share one line on desktop
+   (the old 2-column grid left a 190px hole and wrapped the chips twice).
+   -------------------------------------------------------------------------- */
+@media (min-width: 1101px) {
+  :root .users-toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "main main"
+      "summary actions";
+    align-items: center;
+    row-gap: 12px;
+  }
+
+  :root .users-toolbar .page-toolbar-main { grid-area: main; }
+  :root .users-toolbar .page-toolbar-summary { grid-area: summary; justify-content: flex-start; }
+  :root .users-toolbar .page-toolbar-actions { grid-area: actions; width: auto; justify-content: flex-end; }
+
+  :root .users-toolbar .list-toolbar-filters,
+  :root .users-toolbar .users-filter-composite {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 12px;
+    width: 100%;
+  }
+
+  :root .users-toolbar .users-filter-composite > :first-child {
+    flex: 0 1 300px;
+    min-width: 220px;
+  }
+
+  :root .users-toolbar .filter-chips-bar {
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    width: auto;
+  }
+}
+
+:root .users-degraded-panel {
+  border-color: color-mix(in srgb, var(--accent-warning) 32%, transparent) !important;
+  background: color-mix(in srgb, var(--accent-warning) 7%, var(--bg-card)) !important;
+}
+
+/* Initial badge: accent-tinted tile with readable accent text in both themes */
+:root .user-avatar-badge {
+  background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-card));
+  color: var(--accent-primary);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 26%, transparent);
+  box-shadow: none;
+}
+
+:root[data-theme="dark"] .user-avatar-badge,
+:root:not([data-theme]) .user-avatar-badge {
+  color: var(--accent-primary-hover);
+}
+
+:root .users-degraded-title {
+  color: var(--accent-warning);
+}
+
+/* --------------------------------------------------------------------------
+   Checkbox selection lists (inbound group modal: inbounds + members)
+   -------------------------------------------------------------------------- */
+:root .list-selection-container {
+  display: flex;
+  flex-direction: column;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md, 10px);
+  background: var(--bg-input, var(--bg-card));
+}
+
+:root .list-selection-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 9px 14px;
+  min-height: 48px;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+:root .list-selection-item:last-child {
+  border-bottom: 0;
+}
+
+:root .list-selection-item:hover {
+  background: color-mix(in srgb, var(--accent-primary) 5%, transparent);
+}
+
+:root .list-selection-item:has(input:checked) {
+  background: color-mix(in srgb, var(--accent-primary) 9%, transparent);
+}
+
+:root .list-selection-item > input[type="checkbox"] {
+  flex-shrink: 0;
+  margin: 0;
+}
+
+:root .list-selection-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+:root .list-selection-text > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:root .list-selection-item > .badge {
+  flex-shrink: 0;
+}
+
+/* User detail › subscription: import guides span below link + QR */
+:root .user-detail-subscription-layout > .user-detail-subscription-guides {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-color);
+}
+
+:root .user-detail-subscription-guides .subscription-device-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
+}
+
+/* Activity timeline facts: size tiles to their content so paths and IDs
+   don't wrap mid-word in narrow equal-width columns. */
+:root .timeline-fact-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+:root .timeline-fact-card {
+  flex: 1 1 auto;
+  min-width: 120px;
+  max-width: 100%;
+}
+
+:root .timeline-fact-value {
+  overflow-wrap: anywhere;
+}
+
+/* Audit events: node column now shows names, not UUIDs */
+:root .audit-event-node-cell {
+  min-width: 150px;
+  max-width: 200px;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+/* Audit KPI cards: top-align so values line up whether or not a hint follows */
+:root .audit-stat-card {
+  justify-content: flex-start !important;
+}
+
+:root .audit-access-user {
+  min-width: 0;
+  max-width: 240px;
+}
+
+:root .audit-access-user-meta {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Multi-node log lines: fixed server column so messages start on one edge */
+:root .log-line.has-server {
+  grid-template-columns: 28px 150px minmax(0, 1fr);
+}
+
+:root .log-line.has-server > .badge {
+  justify-self: start;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Tool cards: keep the availability badge beside the title instead of wrapping under short descriptions */
+:root .tool-card > .section-header {
+    flex-wrap: nowrap;
+    align-items: flex-start;
+}
+
+:root .tool-card > .section-header > .section-header-copy {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+:root .tool-card > .section-header > .section-header-side {
+    flex: 0 0 auto;
+}
+
+:root .tool-card > .section-header .section-header-subtitle {
+    min-height: calc(2 * 1.5em);
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Settings clusters: the eyebrow repeats the cluster title, so let the title carry the heading alone */
+:root .settings-form-cluster-eyebrow {
+    display: none;
+}
+
+/* Settings toggles: a solid accent track so "on" reads at a glance against "off" in both themes */
+:root .settings-toggle-card.is-active .settings-toggle-switch {
+    border-color: var(--accent-primary);
+    background: var(--accent-primary);
+}
+
+:root .settings-toggle-card.is-active .settings-toggle-thumb {
+    background: #ffffff;
+}
+
+:root .settings-toggle-card:not(.is-active) .settings-toggle-switch {
+    border-color: var(--border-color, rgba(148, 163, 184, 0.28));
+    background: color-mix(in srgb, var(--text-muted, #94a3b8) 22%, transparent);
+}
+
+/* Grid-managed fields already get spacing from the grid gap; drop the stacked-form margin */
+:root .settings-field-grid > .form-group {
+    margin-bottom: 0;
+}
+
+/* Servers table between the condensed breakpoint and wide desktops: trim the telemetry and
+   group columns so the table fits instead of sliding the status column under the sticky actions */
+@media (min-width: 1321px) and (max-width: 1520px) {
+    :root .servers-page .servers-table .servers-telemetry-column {
+        min-width: 172px;
+        width: 172px;
+    }
+
+    :root .servers-page .servers-table .servers-group-column {
+        min-width: 130px;
+    }
+}
+
+/* Server detail hero: a quiet health-tinted tile instead of a saturated gradient disc */
+:root .detail-hero-health-avatar {
+    background: color-mix(in srgb, var(--health-accent) 14%, var(--bg-card)) !important;
+    color: var(--health-accent) !important;
+    border: 1px solid color-mix(in srgb, var(--health-accent) 34%, transparent);
+    border-radius: 16px;
+    box-shadow: none !important;
+}
+
+/* Subscription status: the email link should follow its compact summary cell, not the 16px link default */
+:root .subscription-summary-value--email .subscription-email-link {
+    font-size: inherit;
+    line-height: 1.45;
+    word-break: normal;
+    overflow-wrap: anywhere;
+}
+
+/* Node health tiles only need a shared min-height to align rows in multi-column grids */
+@media (max-width: 640px) {
+    :root .node-health-tile {
+        min-height: 0 !important;
+    }
+}
+
+/* Phone toolbars: pair secondary actions two per row and let the primary action span the row */
+@media (max-width: 640px) {
+    :root .page-toolbar-actions > .list-toolbar-actions-inner {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    :root .page-toolbar-actions > .list-toolbar-actions-inner > .btn {
+        width: 100%;
+        min-width: 0;
+    }
+
+    :root .page-toolbar-actions > .list-toolbar-actions-inner > .btn-primary:nth-child(odd) {
+        grid-column: 1 / -1;
+    }
+}
+
+/* Xray tab strip scrolls horizontally instead of pushing the page wider on narrow screens */
+:root .xray-tabs {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+:root .xray-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+:root .xray-tabs > .tab {
+    flex: 0 0 auto;
+}
+
+@media (max-width: 640px) {
+    :root .account-profile-verify-row {
+        flex-wrap: wrap;
+    }
+
+    :root .account-profile-verify-row > .form-input {
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+
+    :root .account-profile-verify-row > .btn {
+        flex: 1 1 100%;
+        margin-left: 0;
+    }
+}

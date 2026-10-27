@@ -8,6 +8,8 @@ import EmptyState from '../UI/EmptyState';
 import ListToolbar from '../UI/ListToolbar';
 import ActionsDropdown from '../UI/ActionsDropdown';
 import ServerTelemetryCell from './ServerTelemetryCell';
+import PanelTypeField from './PanelTypeField';
+import { PANEL_TYPE_3XUI, isSuiServer, normalizePanelType } from '../../utils/panelType';
 import { showAggregateToast } from '../UI/AggregateToast';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../utils/format';
@@ -132,6 +134,7 @@ export default function Servers() {
         tags: '',
         environment: 'unknown',
         health: 'unknown',
+        panelType: PANEL_TYPE_3XUI,
     });
     const [batchForm, setBatchForm] = useState({
         username: '',
@@ -140,6 +143,7 @@ export default function Servers() {
         group: '',
         environment: 'unknown',
         health: 'unknown',
+        panelType: PANEL_TYPE_3XUI,
         entries: '',
         testConnection: true,
     });
@@ -206,6 +210,7 @@ export default function Servers() {
             tags: '',
             environment: 'unknown',
             health: 'unknown',
+            panelType: PANEL_TYPE_3XUI,
         });
         setEditingId(null);
         setShowForm(false);
@@ -222,6 +227,7 @@ export default function Servers() {
             tags: '',
             environment: 'unknown',
             health: 'unknown',
+            panelType: PANEL_TYPE_3XUI,
         });
         setEditingId(null);
         setShowForm(true);
@@ -235,6 +241,7 @@ export default function Servers() {
             group: '',
             environment: 'unknown',
             health: 'unknown',
+            panelType: PANEL_TYPE_3XUI,
             entries: '',
             testConnection: true,
         });
@@ -427,6 +434,7 @@ export default function Servers() {
                     group: String(batchForm.group || '').trim(),
                     environment: batchForm.environment,
                     health: batchForm.health,
+                    panelType: batchForm.panelType,
                 },
                 testConnection: batchForm.testConnection,
                 items,
@@ -450,6 +458,7 @@ export default function Servers() {
             tags: Array.isArray(server.tags) ? server.tags.join(', ') : '',
             environment: server.environment || 'unknown',
             health: server.health || 'unknown',
+            panelType: normalizePanelType(server.panelType),
         });
         setEditingId(server.id);
         setShowForm(true);
@@ -1158,7 +1167,6 @@ export default function Servers() {
                                     <th className="servers-telemetry-column">{t('pages.servers.cols.telemetry')}</th>
                                     <th className="servers-group-column">{t('pages.servers.cols.group')}</th>
                                     <th className="servers-account-column">{t('pages.servers.cols.account')}</th>
-                                    <th className="servers-credential-column">{t('pages.servers.cols.credential')}</th>
                                     <th className="servers-status-column">{t('pages.servers.cols.status')}</th>
                                     <th className="table-cell-actions servers-actions-column">{t('pages.servers.cols.actions')}</th>
                                 </tr>
@@ -1253,6 +1261,12 @@ export default function Servers() {
                                                 >
                                                     <span className="server-card-name">{server.name}</span>
                                                 </button>
+                                                <span
+                                                    className={`badge servers-panel-badge ${isSuiServer(server) ? 'badge-info' : 'badge-neutral'}`}
+                                                    title={t('comp.servers.panelType')}
+                                                >
+                                                    {normalizePanelType(server.panelType)}
+                                                </span>
                                                 {pingResults[server.id] && (
                                                     pingResults[server.id].online && Number(pingResults[server.id].latencyMs) > 0 ? (
                                                         pingResults[server.id].latencyMs < 100 ? (
@@ -1317,12 +1331,10 @@ export default function Servers() {
                                     </td>
                                     <td className="servers-account-cell" data-label={t('pages.servers.cols.account')}>
                                         <div className="servers-account-stack">
-                                            <span className="font-medium text-primary">{authLabel}</span>
+                                            <span className="font-medium text-primary servers-account-name" title={authLabel}>{authLabel}</span>
+                                            <span className={`badge ${credentialBadge.cls}`}>{credentialBadge.text}</span>
                                             {serverEnvironment ? <span className="text-xs text-muted">{t('comp.servers.environmentLabel', { value: serverEnvironment })}</span> : null}
                                         </div>
-                                    </td>
-                                    <td className="servers-credential-cell" data-label={t('pages.servers.cols.credential')}>
-                                        <span className={`badge ${credentialBadge.cls}`}>{credentialBadge.text}</span>
                                     </td>
                                     <td className="servers-status-cell" data-label={t('pages.servers.cols.status')}>
                                         <div className="servers-status-stack">
@@ -1382,6 +1394,11 @@ export default function Servers() {
                             </div>
                             <form onSubmit={handleSubmit}>
                                 <div className="modal-body">
+                                    <PanelTypeField
+                                        name="server-panel-type"
+                                        value={form.panelType}
+                                        onChange={(panelType) => setForm({ ...form, panelType })}
+                                    />
                                     <div className="form-group">
                                         <label className="form-label">{t('comp.servers.serverName')}</label>
                                         <input className="form-input" placeholder={t('comp.servers.serverNamePlaceholder')}
@@ -1389,7 +1406,7 @@ export default function Servers() {
                                     </div>
                                     <div className="form-group">
                                         <label className="form-label">{t('comp.servers.panelUrl')} *</label>
-                                        <input className="form-input" placeholder={t('comp.servers.panelUrlPlaceholder')}
+                                        <input className="form-input" placeholder={t(isSuiServer(form) ? 'comp.servers.panelUrlPlaceholderSui' : 'comp.servers.panelUrlPlaceholder')}
                                             value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} required />
                                     </div>
                                     <div className="grid-auto-220">
@@ -1485,6 +1502,11 @@ export default function Servers() {
                             <form onSubmit={handleBatchSubmit}>
                                 <div className="modal-body">
                                     <div className="server-batch-form-shell">
+                                        <PanelTypeField
+                                            name="batch-panel-type"
+                                            value={batchForm.panelType}
+                                            onChange={(panelType) => setBatchForm((prev) => ({ ...prev, panelType }))}
+                                        />
                                         <div className="grid-auto-220">
                                             <div className="form-group">
                                                 <label className="form-label">{t('comp.servers.sharedUsername')}</label>

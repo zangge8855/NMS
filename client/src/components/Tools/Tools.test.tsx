@@ -141,6 +141,32 @@ describe('Tools', () => {
         expect(await screen.findByText(/message/)).toBeInTheDocument();
     });
 
+    it('keeps unprobed console actions such as core restarts off the tool list', async () => {
+        (useServer as any).mockReturnValue({
+            activeServerId: 'server-a',
+            panelApi: vi.fn(),
+        });
+        const baseTool = { uiAction: 'node_console', supportedByNms: true, method: 'get' };
+        (api.get as any).mockResolvedValue({
+            data: {
+                obj: {
+                    tools: {
+                        uuid: { ...baseTool, key: 'uuid', label: 'UUID', available: true, source: 'probed', path: '/panel/api/server/getNewUUID' },
+                        xrayRestart: { ...baseTool, key: 'xrayRestart', label: 'Restart Xray Service', available: null, source: 'unprobed', method: 'post', path: '/panel/api/server/restartXray' },
+                        xrayInstall: { ...baseTool, key: 'xrayInstall', label: 'Install Xray Core', available: null, path: '/panel/api/server/installXray/:version' },
+                    },
+                },
+            },
+        });
+
+        renderWithRouter(<Tools />);
+
+        expect(await screen.findByText('可执行 1 / 1')).toBeInTheDocument();
+        expect(screen.getByText('UUID')).toBeInTheDocument();
+        expect(screen.queryByText('Restart Xray Service')).not.toBeInTheDocument();
+        expect(screen.queryByText('Install Xray Core')).not.toBeInTheDocument();
+    });
+
     it('renders the cached tool catalog before the live request finishes', async () => {
         (useServer as any).mockReturnValue({
             activeServerId: 'server-a',

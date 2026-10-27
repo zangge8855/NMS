@@ -226,7 +226,7 @@ export function getErrorMessage(err: any, fallback: string = '操作失败', loc
     const messages = language === 'en-US'
         ? {
             dns: 'Node hostname cannot be resolved. Check the node URL or DNS settings.',
-            refused: 'The node refused the connection. Confirm the panel port and 3x-ui service are listening.',
+            refused: 'The node refused the connection. Confirm the panel port and the 3x-ui / s-ui service are listening.',
             timeout: 'Request timed out. Check the network path or node status.',
             network: 'Connection failed. Check the management backend, network path, and node availability.',
             auth: 'Node authentication failed. Re-enter and save the panel username and password.',
@@ -236,7 +236,7 @@ export function getErrorMessage(err: any, fallback: string = '操作失败', loc
         }
         : {
             dns: '节点域名无法解析，请检查节点 URL 或 DNS 配置',
-            refused: '节点拒绝连接，请确认面板端口和 3x-ui 服务正在监听',
+            refused: '节点拒绝连接，请确认面板端口和 3x-ui / s-ui 服务正在监听',
             timeout: '请求超时，请检查网络路径或节点状态',
             network: '连接失败，请检查管理后端、网络路径和节点可用性',
             auth: '节点认证失败，请重新输入并保存面板用户名/密码',

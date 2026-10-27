@@ -102,6 +102,7 @@ describe('Adversarial Challenge: Theme & CSS Custom Properties', () => {
       path.resolve(__dirname, 'styles/flagship-console.css'),
       path.resolve(__dirname, 'styles/overlay-restore.css'),
       path.resolve(__dirname, 'styles/restrained-ui.css'),
+      path.resolve(__dirname, 'styles/theme.css'),
     ].filter(f => fs.existsSync(f));
 
     const definedVars = new Set<string>();

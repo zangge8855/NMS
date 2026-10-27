@@ -30,13 +30,13 @@ import {
     sanitizeSettingsForPanel,
 } from '../lib/panelApiCompat.js';
 import { invalidateServerPanelSnapshotCache } from '../lib/serverPanelSnapshotService.js';
+import { isManagedClientProtocol } from '../lib/clientProtocols.js';
 
 const router = Router();
 
 const CLIENT_ACTIONS = new Set(['add', 'update', 'enable', 'disable', 'delete', 'adjust']);
 const INBOUND_ACTIONS = new Set(['add', 'update', 'enable', 'disable', 'delete', 'resetTraffic', 'syncExistingUsers']);
 const FLOW_PROTOCOLS = new Set(['vless']);
-const CLIENT_PROTOCOLS = new Set(['vmess', 'vless', 'trojan', 'shadowsocks']);
 const UUID_PROTOCOLS = new Set(['vmess', 'vless']);
 const PASSWORD_PROTOCOLS = new Set(['trojan', 'shadowsocks']);
 const SENSITIVE_BATCH_ACTIONS = new Set(['delete', 'disable']);
@@ -494,7 +494,7 @@ async function executeClientAction({ action, target, globalClient, payload, targ
 
         const client = await ensureAuthenticated(target.serverId);
 
-        if (targetProtocol && !CLIENT_PROTOCOLS.has(targetProtocol)) {
+        if (targetProtocol && !isManagedClientProtocol(targetProtocol, client)) {
             throw new Error(`Unsupported client protocol for batch clients action: ${targetProtocol}`);
         }
         const allowFlow = !targetProtocol || FLOW_PROTOCOLS.has(targetProtocol);

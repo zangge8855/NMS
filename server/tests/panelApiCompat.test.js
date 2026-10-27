@@ -24,6 +24,7 @@ import {
     sanitizeClientPayloadForPanel,
     sanitizeSettingsForPanel,
     sanitizeInboundPayloadForPanel,
+    normalizeHysteriaInboundForXui,
 } from '../lib/panelApiCompat.js';
 
 function notFound(message = '404 page not found') {
@@ -760,4 +761,43 @@ test('postAddInboundCompat sanitizes string tgId in inbound settings before send
     const parsedParams = new URLSearchParams(capturedBody);
     const settings = JSON.parse(parsedParams.get('settings'));
     assert.equal(settings.clients[0].tgId, 0);
+});
+
+test('normalizeHysteriaInboundForXui maps hysteria2 to the 3x-ui v3 hysteria shape', () => {
+    const out = normalizeHysteriaInboundForXui({
+        protocol: 'hysteria2',
+        port: 443,
+        settings: JSON.stringify({ clients: [{ email: 'a@x', password: 'secret' }] }),
+        streamSettings: JSON.stringify({ network: 'tcp', security: 'tls', tlsSettings: { serverName: 'h.example' } }),
+    });
+    assert.equal(out.protocol, 'hysteria');
+    const settings = JSON.parse(out.settings);
+    assert.equal(settings.version, 2);
+    assert.equal(settings.clients[0].auth, 'secret');
+    assert.equal('password' in settings.clients[0], false);
+    const stream = JSON.parse(out.streamSettings);
+    assert.equal(stream.network, 'hysteria');
+    assert.deepEqual(stream.hysteriaSettings, { udpIdleTimeout: 60, version: 2 });
+    assert.equal(stream.tlsSettings.serverName, 'h.example');
+
+    const v1 = { protocol: 'hysteria', settings: JSON.stringify({ version: 1, clients: [] }) };
+    assert.equal(normalizeHysteriaInboundForXui(v1), v1);
+    const vless = { protocol: 'vless', settings: '{}' };
+    assert.equal(normalizeHysteriaInboundForXui(vless), vless);
+});
+
+test('postAddInboundCompat keeps hysteria2 for s-ui facades', async () => {
+    const seen = [];
+    const makeClient = (nmsPanelType) => ({
+        nmsPanelType,
+        async post(path, data) {
+            seen.push(String(data));
+            return { data: { success: true, obj: { id: 1 } } };
+        },
+    });
+    const inbound = { protocol: 'hysteria2', port: 443, settings: '{"clients":[]}', streamSettings: '{}' };
+    await postAddInboundCompat(makeClient(undefined), inbound);
+    await postAddInboundCompat(makeClient('s-ui'), inbound);
+    assert.match(seen[0], /protocol=hysteria(&|$)/);
+    assert.match(seen[1], /protocol=hysteria2/);
 });

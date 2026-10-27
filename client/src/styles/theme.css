@@ -1,0 +1,316 @@
+/* ==========================================================================
+   NMS theme
+   Loaded last. The single source of truth for the colour system; the older
+   layers (index / restrained-ui / flagship-console / tokens / polish) each
+   declared their own palette, which left pages mixing four slightly
+   different navies. Every surface alias is pinned here.
+
+   Direction: graphite surfaces with a cool cast, one signal-indigo accent,
+   and status colour used only where it carries state.
+   ========================================================================== */
+
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Surfaces, darkest to most raised */
+  --bg-canvas: #0d1016;
+  --bg-primary: #0d1016;
+  --bg-secondary: #141820;
+  --bg-tertiary: #1a1f29;
+  --bg-card: #141820;
+  --bg-card-hover: #181d26;
+  --bg-surface: #1a1f29;
+  --bg-surface-hover: #212734;
+  --bg-surface-soft: rgba(170, 182, 204, 0.045);
+  --bg-overlay: #171b24;
+  --bg-input: #10141b;
+  --bg-glass: rgba(20, 24, 32, 0.92);
+  --surface-panel: #141820;
+  --surface-panel-hover: #181d26;
+  --surface-panel-soft: #11151c;
+  --surface-overlay: #171b24;
+  --surface-soft: rgba(170, 182, 204, 0.055);
+  --surface-subtle: rgba(170, 182, 204, 0.03);
+  --surface-hover: rgba(170, 182, 204, 0.08);
+  --surface-table-header: #11151c;
+  --surface-table-row-hover: rgba(123, 140, 255, 0.06);
+  --table-container-bg: #141820;
+  --floating-panel-bg: #171b24;
+  --mobile-sheet-bg: #141820;
+  --overlay-backdrop: rgba(5, 7, 11, 0.66);
+
+  /* Lines */
+  --border-color: rgba(170, 182, 204, 0.12);
+  --border-color-hover: rgba(170, 182, 204, 0.24);
+  --border-subtle: rgba(170, 182, 204, 0.08);
+  --border-neutral: rgba(170, 182, 204, 0.12);
+  --stroke-soft: rgba(170, 182, 204, 0.08);
+  --stroke-medium: rgba(170, 182, 204, 0.2);
+  --border-focus: #7b8cff;
+  --border-highlight: rgba(123, 140, 255, 0.42);
+
+  /* Ink */
+  --text-primary: #e7eaf0;
+  --text-secondary: #a8b0bf;
+  --text-muted: #808999;
+  --text-inverse: #0d1016;
+  --text-on-accent: #ffffff;
+
+  /* Signal indigo */
+  --accent-primary: #6d7ff5;
+  --accent-primary-hover: #8291ff;
+  --accent-primary-active: #5a6ce6;
+  --accent-primary-bg: rgba(123, 140, 255, 0.12);
+  --accent-primary-soft: rgba(123, 140, 255, 0.14);
+  --accent-primary-border: rgba(123, 140, 255, 0.34);
+  --accent-primary-glow: rgba(123, 140, 255, 0.22);
+  --gradient-primary: linear-gradient(180deg, #6d7ff5 0%, #5a6ce6 100%);
+  --shadow-glow-primary: 0 0 0 1px rgba(123, 140, 255, 0.3);
+  --focus-ring-border: #8291ff;
+  --focus-ring-shadow: 0 0 0 3px rgba(123, 140, 255, 0.26);
+
+  --accent-secondary: #a48bf0;
+  --accent-secondary-bg: rgba(164, 139, 240, 0.12);
+  --accent-secondary-glow: rgba(164, 139, 240, 0.22);
+  --accent-tertiary: #4fc1d9;
+  --accent-tertiary-bg: rgba(79, 193, 217, 0.12);
+  --accent-tertiary-glow: rgba(79, 193, 217, 0.22);
+
+  /* State */
+  --accent-success: #4cc791;
+  --accent-success-hover: #63d4a2;
+  --accent-success-bg: rgba(76, 199, 145, 0.11);
+  --accent-success-soft: rgba(76, 199, 145, 0.11);
+  --accent-success-border: rgba(76, 199, 145, 0.3);
+  --accent-success-glow: rgba(76, 199, 145, 0.2);
+  --accent-warning: #e6b053;
+  --accent-warning-hover: #efc06c;
+  --accent-warning-bg: rgba(230, 176, 83, 0.11);
+  --accent-warning-soft: rgba(230, 176, 83, 0.11);
+  --accent-warning-border: rgba(230, 176, 83, 0.3);
+  --accent-warning-glow: rgba(230, 176, 83, 0.2);
+  --accent-danger: #ef7581;
+  --accent-danger-hover: #f58c96;
+  --accent-danger-bg: rgba(239, 117, 129, 0.11);
+  --accent-danger-soft: rgba(239, 117, 129, 0.11);
+  --accent-danger-border: rgba(239, 117, 129, 0.3);
+  --accent-danger-glow: rgba(239, 117, 129, 0.2);
+  --accent-info: #63b6e8;
+  --accent-info-hover: #7ec3ee;
+  --accent-info-bg: rgba(99, 182, 232, 0.11);
+  --accent-info-soft: rgba(99, 182, 232, 0.11);
+  --accent-info-border: rgba(99, 182, 232, 0.3);
+  --accent-info-glow: rgba(99, 182, 232, 0.2);
+
+  /* Depth: dark mode separates by tone, shadows stay faint */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 10px 28px -14px rgba(0, 0, 0, 0.7);
+  --shadow-lg: 0 18px 44px -20px rgba(0, 0, 0, 0.78);
+  --shadow-xl: 0 26px 60px -24px rgba(0, 0, 0, 0.82);
+  --shadow-card: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+  --shadow-popover: 0 16px 40px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(170, 182, 204, 0.12);
+  --floating-panel-shadow: var(--shadow-popover);
+
+  --chart-grid-color: rgba(170, 182, 204, 0.1);
+  --log-bg: #0a0c11;
+  --log-text: #c9cfda;
+  --skeleton-from: rgba(170, 182, 204, 0.05);
+  --skeleton-via: rgba(170, 182, 204, 0.1);
+
+  --rail-bg: #0a0c11;
+  --rail-border: rgba(170, 182, 204, 0.08);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg-canvas: #f3f4f7;
+  --bg-primary: #f3f4f7;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f6f7f9;
+  --bg-card: #ffffff;
+  --bg-card-hover: #fafbfc;
+  --bg-surface: #f6f7f9;
+  --bg-surface-hover: #eceef2;
+  --bg-surface-soft: rgba(22, 26, 34, 0.035);
+  --bg-overlay: #ffffff;
+  --bg-input: #ffffff;
+  --bg-glass: rgba(255, 255, 255, 0.94);
+  --surface-panel: #ffffff;
+  --surface-panel-hover: #fafbfc;
+  --surface-panel-soft: #f8f9fb;
+  --surface-overlay: #ffffff;
+  --surface-soft: rgba(22, 26, 34, 0.04);
+  --surface-subtle: rgba(22, 26, 34, 0.022);
+  --surface-hover: rgba(22, 26, 34, 0.055);
+  --surface-table-header: #f8f9fb;
+  --surface-table-row-hover: rgba(59, 79, 209, 0.035);
+  --table-container-bg: #ffffff;
+  --floating-panel-bg: #ffffff;
+  --mobile-sheet-bg: #ffffff;
+  --overlay-backdrop: rgba(22, 26, 34, 0.38);
+
+  --border-color: #e2e5eb;
+  --border-color-hover: #cdd2db;
+  --border-subtle: #eceef2;
+  --border-neutral: rgba(22, 26, 34, 0.1);
+  --stroke-soft: #eceef2;
+  --stroke-medium: #cdd2db;
+  --border-focus: #3b4fd1;
+  --border-highlight: rgba(59, 79, 209, 0.32);
+
+  --text-primary: #161a22;
+  --text-secondary: #4a5162;
+  --text-muted: #687083;
+  --text-inverse: #f6f7f9;
+  --text-on-accent: #ffffff;
+
+  --accent-primary: #3b4fd1;
+  --accent-primary-hover: #3243bb;
+  --accent-primary-active: #2a39a3;
+  --accent-primary-bg: rgba(59, 79, 209, 0.07);
+  --accent-primary-soft: rgba(59, 79, 209, 0.1);
+  --accent-primary-border: rgba(59, 79, 209, 0.24);
+  --accent-primary-glow: rgba(59, 79, 209, 0.16);
+  --gradient-primary: linear-gradient(180deg, #4357d8 0%, #3b4fd1 100%);
+  --shadow-glow-primary: 0 0 0 1px rgba(59, 79, 209, 0.24);
+  --focus-ring-border: #3b4fd1;
+  --focus-ring-shadow: 0 0 0 3px rgba(59, 79, 209, 0.18);
+
+  --accent-secondary: #6d4fd6;
+  --accent-secondary-bg: rgba(109, 79, 214, 0.08);
+  --accent-secondary-glow: rgba(109, 79, 214, 0.16);
+  --accent-tertiary: #13809a;
+  --accent-tertiary-bg: rgba(19, 128, 154, 0.08);
+  --accent-tertiary-glow: rgba(19, 128, 154, 0.16);
+
+  --accent-success: #13845a;
+  --accent-success-hover: #0f744e;
+  --accent-success-bg: rgba(19, 132, 90, 0.08);
+  --accent-success-soft: rgba(19, 132, 90, 0.08);
+  --accent-success-border: rgba(19, 132, 90, 0.24);
+  --accent-success-glow: rgba(19, 132, 90, 0.14);
+  --accent-warning: #a8650f;
+  --accent-warning-hover: #92570c;
+  --accent-warning-bg: rgba(200, 128, 22, 0.09);
+  --accent-warning-soft: rgba(200, 128, 22, 0.09);
+  --accent-warning-border: rgba(200, 128, 22, 0.28);
+  --accent-warning-glow: rgba(200, 128, 22, 0.14);
+  --accent-danger: #c23845;
+  --accent-danger-hover: #a92f3b;
+  --accent-danger-bg: rgba(194, 56, 69, 0.07);
+  --accent-danger-soft: rgba(194, 56, 69, 0.07);
+  --accent-danger-border: rgba(194, 56, 69, 0.24);
+  --accent-danger-glow: rgba(194, 56, 69, 0.14);
+  --accent-info: #1a74b0;
+  --accent-info-hover: #15639a;
+  --accent-info-bg: rgba(26, 116, 176, 0.08);
+  --accent-info-soft: rgba(26, 116, 176, 0.08);
+  --accent-info-border: rgba(26, 116, 176, 0.24);
+  --accent-info-glow: rgba(26, 116, 176, 0.14);
+
+  --shadow-xs: 0 1px 1px rgba(22, 26, 34, 0.04);
+  --shadow-sm: 0 1px 2px rgba(22, 26, 34, 0.05);
+  --shadow-md: 0 8px 24px -14px rgba(22, 26, 34, 0.18);
+  --shadow-lg: 0 18px 40px -22px rgba(22, 26, 34, 0.24);
+  --shadow-xl: 0 26px 56px -26px rgba(22, 26, 34, 0.3);
+  --shadow-card: 0 1px 2px rgba(22, 26, 34, 0.04);
+  --shadow-popover: 0 16px 40px -14px rgba(22, 26, 34, 0.22), 0 0 0 1px rgba(22, 26, 34, 0.06);
+  --floating-panel-shadow: var(--shadow-popover);
+
+  --chart-grid-color: rgba(22, 26, 34, 0.07);
+  --log-bg: #f8f9fb;
+  --log-text: #2b3140;
+  --skeleton-from: rgba(22, 26, 34, 0.04);
+  --skeleton-via: rgba(22, 26, 34, 0.08);
+
+  --rail-bg: #fbfbfc;
+  --rail-border: #e2e5eb;
+}
+
+body {
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+}
+
+::selection {
+  color: var(--text-on-accent);
+  background: var(--accent-primary);
+}
+
+/* --------------------------------------------------------------------------
+   Shell
+   -------------------------------------------------------------------------- */
+:root .sidebar {
+  background: var(--rail-bg);
+  border-right-color: var(--rail-border);
+}
+
+:root .sidebar :is(.sidebar-logo, .sidebar-utility) {
+  background: transparent;
+  border-color: var(--rail-border);
+}
+
+:root .header,
+:root .app-header {
+  background: color-mix(in srgb, var(--bg-canvas) 88%, transparent);
+  border-bottom-color: var(--border-subtle);
+}
+
+/* The all-caps "NMS CONTROL PLANE" eyebrow repeated the brand on every page. */
+:root .header-title-group::before {
+  content: none;
+}
+
+/* --------------------------------------------------------------------------
+   Figures: proportional lining digits read calmer at display sizes;
+   tabular digits stay for tables and dense tiles where columns must align.
+   -------------------------------------------------------------------------- */
+:root .dashboard-stat-card-value-text {
+  font-variant-numeric: lining-nums proportional-nums;
+  letter-spacing: -0.02em;
+}
+
+:root :is(.node-health-tile-value, .table td) {
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------------------
+   Node health: state lives in a slim rail on the leading edge (::after,
+   since a legacy layer pins ::before to display:none), not in a
+   tinted border round the whole card.
+   -------------------------------------------------------------------------- */
+:root .node-health-tile {
+  border-color: var(--border-color);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-card);
+}
+
+:root .node-health-tile::after {
+  content: "";
+  display: block;
+  position: absolute;
+  inset: 12px auto 12px 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--node-color, var(--text-muted));
+  opacity: 0.9;
+}
+
+:root .node-health-tile[data-tone="success"] { --node-color: var(--accent-success); }
+:root .node-health-tile[data-tone="warning"] { --node-color: var(--accent-warning); }
+:root .node-health-tile[data-tone="danger"] { --node-color: var(--accent-danger); }
+
+:root .node-health-tile:hover,
+:root .node-health-tile:focus-visible {
+  transform: none;
+  border-color: var(--border-color-hover);
+  background: var(--surface-panel-hover);
+}
+
+:root .node-health-tile:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring-shadow);
+}

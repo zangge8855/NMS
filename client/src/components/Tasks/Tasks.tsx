@@ -450,7 +450,11 @@ export default function Tasks({ embedded = false }) {
                 <div className={filterCardClassName}>
                     {embedded ? (
                         <>
-                            <div className="audit-control-head audit-control-head--compact">
+                            <div className="audit-control-head">
+                                <div className="audit-control-copy">
+                                    <div className="audit-control-title">{copy.embeddedTitle}</div>
+                                    <div className="audit-control-text">{copy.embeddedSubtitle}</div>
+                                </div>
                                 <div className="audit-control-actions">
                                     <button className="btn btn-secondary btn-sm" onClick={fetchTasks} disabled={loading}>
                                         <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> {copy.refresh}

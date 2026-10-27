@@ -11,6 +11,7 @@ import usePageServerTarget from '../../hooks/usePageServerTarget';
 import api from '../../api/client';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../utils/format';
+import { isSuiServer } from '../../utils/panelType';
 import RoutingRulesEditor from './tabs/RoutingRulesEditor';
 import OutboundsEditor from './tabs/OutboundsEditor';
 import DnsEditor from './tabs/DnsEditor';
@@ -39,7 +40,10 @@ function getCopy(locale = 'zh-CN') {
             loadError: 'Failed to load Xray configuration',
             loadingTitle: 'Loading Xray configuration...',
             unsupported: 'This node did not return a parseable Xray template configuration.',
-            sources: { xrayTemplateConfig: 'Panel template', xrayConfig: 'Wrapped config', inline: 'Inline config', unknown: 'Unknown' },
+            suiActiveTitle: 'This node runs sing-box',
+            suiActiveHint: (name: string) => `"${name}" is an s-ui node. Manage its routing, outbounds and DNS in the s-ui panel, or pick a 3x-ui node below.`,
+            suiOnlyHint: 'Only s-ui nodes are connected. Their routing, outbounds and DNS are managed in the s-ui panel.',
+            sources: { xrayTemplateConfig: 'Panel template', xraySetting: 'Panel template', xrayConfig: 'Wrapped config', inline: 'Inline config', unknown: 'Unknown' },
             sectionLabels: {
                 routing: 'Routing',
                 outbounds: 'Outbounds',
@@ -67,7 +71,10 @@ function getCopy(locale = 'zh-CN') {
         loadError: '读取 Xray 配置失败',
         loadingTitle: '加载 Xray 配置中...',
         unsupported: '当前节点未返回可解析的 Xray 模板配置。',
-        sources: { xrayTemplateConfig: '面板模板', xrayConfig: '包装配置', inline: '内联配置', unknown: '未知' },
+        suiActiveTitle: '当前节点运行 sing-box',
+        suiActiveHint: (name: string) => `「${name}」是 s-ui 节点，路由、出站与 DNS 请在 s-ui 面板中管理；也可以在下方选择一台 3x-ui 节点。`,
+        suiOnlyHint: '当前只接入了 s-ui 节点，它们的路由、出站与 DNS 在 s-ui 面板中管理。',
+        sources: { xrayTemplateConfig: '面板模板', xraySetting: '面板模板', xrayConfig: '包装配置', inline: '内联配置', unknown: '未知' },
         sectionLabels: {
             routing: '路由',
             outbounds: '出站',
@@ -85,6 +92,12 @@ export default function XrayConsole() {
     const { locale } = useI18n();
     const navigate = useNavigate();
     const copy = useMemo(() => getCopy(locale), [locale]);
+    const xrayServers = useMemo(() => servers.filter((server) => !isSuiServer(server)), [servers]);
+    const activeSuiServer = useMemo(
+        () => servers.find((server) => String(server?.id) === String(activeServerId) && isSuiServer(server)) || null,
+        [activeServerId, servers]
+    );
+    const hasOnlySuiServers = servers.length > 0 && xrayServers.length === 0;
     const {
         serverList,
         hasServers,
@@ -95,7 +108,7 @@ export default function XrayConsole() {
         setDraftServerId,
         setPageTargetServerId,
         commitDraftServer,
-    } = usePageServerTarget({ activeServerId, servers });
+    } = usePageServerTarget({ activeServerId: activeSuiServer ? '' : activeServerId, servers: xrayServers });
 
     const [activeTab, setActiveTab] = useState('routing');
     const [loading, setLoading] = useState(false);
@@ -239,10 +252,16 @@ export default function XrayConsole() {
                 {!hasTargetServer ? (
                     <EmptyState
                         icon={<HiOutlineExclamationTriangle />}
-                        title={hasDraftServer ? copy.confirmServerTitle : copy.selectServer}
-                        subtitle={hasServers ? (hasDraftServer ? copy.confirmServerHint : copy.selectServerHint) : copy.noServersHint}
+                        title={activeSuiServer
+                            ? copy.suiActiveTitle
+                            : (hasDraftServer ? copy.confirmServerTitle : copy.selectServer)}
+                        subtitle={activeSuiServer
+                            ? copy.suiActiveHint(activeSuiServer.name || activeSuiServer.url || '')
+                            : hasOnlySuiServers
+                                ? copy.suiOnlyHint
+                                : (hasServers ? (hasDraftServer ? copy.confirmServerHint : copy.selectServerHint) : copy.noServersHint)}
                         surface
-                        action={serverSelectionAction}
+                        action={hasOnlySuiServers ? undefined : serverSelectionAction}
                     />
                 ) : (
                     <div className="card xray-workbench">

@@ -62,6 +62,26 @@ export interface ToolItem {
     [key: string]: any;
 }
 
+// The capability catalog ships English descriptions; localize the node tools shown in zh-CN.
+const TOOL_DESCRIPTIONS_ZH: Record<string, string> = {
+    uuid: '通过节点面板生成 VMess / VLESS 使用的 UUID。',
+    x25519: '生成 REALITY 传输所需的 X25519 密钥对。',
+    mldsa65: '生成 3x-ui 新版节点加密流程使用的 ML-DSA-65 材料。',
+    mlkem768: '通过节点面板生成 ML-KEM-768 密钥材料。',
+    vlessEnc: '生成节点面板支持的 VLESS 加密参数。',
+    echCert: '节点提供辅助接口时生成 ECH 证书。',
+    panelUpdateInfo: '维护前查看面板当前版本与最新版本。',
+    xrayMetricsState: '查看新版 3x-ui 暴露的运行时指标采集状态。',
+    xrayObservatory: '查看新版 3x-ui 暴露的 Observatory 探测结果。',
+    serverStatus: '获取节点实时系统指标（CPU、内存、流量与核心状态）。',
+    xrayVersionGet: '查看当前 Xray 核心版本及可用版本列表。',
+    inboundList: '列出节点的 sing-box 入站及其 TLS 配置与客户端。',
+    clientList: '可同时挂载到多个入站的面板级客户端。',
+    inboundOnlines: '当前正在产生流量的客户端与入站。',
+    tlsProfiles: 's-ui 中保存的可复用 TLS、ACME 与 REALITY 配置。',
+    realityKeypair: '在节点上通过 sing-box 生成 REALITY 密钥对。',
+};
+
 export default function Tools() {
     const { activeServerId, servers = [], panelApi } = useServer();
     const { locale, t } = useI18n();
@@ -242,7 +262,10 @@ export default function Tools() {
             if (requestId !== toolsCatalogRequestIdRef.current) return;
             const entries = Object.values<any>(res.data?.obj?.tools || {})
                 .filter((item) => item.uiAction === 'node_console' || item.uiAction === 'node_tools')
-                .filter((item) => item.supportedByNms === true);
+                .filter((item) => item.supportedByNms === true)
+                // Unprobed entries are console actions (restart core, import DB, install Xray…)
+                // that must not sit behind a one-click "generate" button.
+                .filter((item) => item.source !== 'unprobed' && !String(item.path || '').includes('/:'));
             setTools(entries);
         } catch (error) {
             if (requestId !== toolsCatalogRequestIdRef.current) return;
@@ -433,7 +456,7 @@ ${cfEmail.trim() ? `export CF_Email="${cfEmail.trim()}"` : ''}
             <Header title={t('pages.tools.title')} />
             <div className="page-content page-content--wide page-enter tools-page">
                 {/* Sub-nav Tabs */}
-                <div className="flex gap-2 mb-6 border-b border-stroke-soft pb-3">
+                <div className="flex flex-wrap gap-2 mb-6 border-b border-stroke-soft pb-3">
                     <button
                         type="button"
                         className={`btn btn-sm ${activeTab === 'node' ? 'btn-primary' : 'btn-secondary'}`}
@@ -536,7 +559,7 @@ ${cfEmail.trim() ? `export CF_Email="${cfEmail.trim()}"` : ''}
                                                 <SectionHeader
                                                     compact divider
                                                     title={tool.label || tool.key}
-                                                    subtitle={tool.description || copy.currentTool}
+                                                    subtitle={(locale === 'en-US' ? '' : TOOL_DESCRIPTIONS_ZH[tool.key]) || tool.description || copy.currentTool}
                                                     meta={(
                                                         <span className={`badge ${tool.available === false ? 'badge-danger' : 'badge-success'}`}>
                                                             {tool.available === false ? copy.unavailable : copy.executable}
@@ -594,6 +617,8 @@ ${cfEmail.trim() ? `export CF_Email="${cfEmail.trim()}"` : ''}
                                     type="text"
                                     className="form-input"
                                     placeholder={copy.ssl.domainPlaceholder}
+                                    autoComplete="off"
+                                    spellCheck={false}
                                     value={sslDomain}
                                     onChange={(e) => setSslDomain(e.target.value)}
                                 />
@@ -605,6 +630,8 @@ ${cfEmail.trim() ? `export CF_Email="${cfEmail.trim()}"` : ''}
                                         type={showCfToken ? 'text' : 'password'}
                                         className="form-input input-with-trailing-action"
                                         placeholder={copy.ssl.tokenPlaceholder}
+                                        autoComplete="new-password"
+                                        spellCheck={false}
                                         value={cfToken}
                                         onChange={(e) => setCfToken(e.target.value)}
                                     />
@@ -625,6 +652,7 @@ ${cfEmail.trim() ? `export CF_Email="${cfEmail.trim()}"` : ''}
                                     type="email"
                                     className="form-input"
                                     placeholder={copy.ssl.emailPlaceholder || 'admin@example.com'}
+                                    autoComplete="off"
                                     value={cfEmail}
                                     onChange={(e) => setCfEmail(e.target.value)}
                                 />

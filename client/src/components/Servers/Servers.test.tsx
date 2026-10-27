@@ -417,7 +417,7 @@ describe('Servers', () => {
 
         await user.click(screen.getByRole('button', { name: /添加服务器/ }));
         await user.type(screen.getByPlaceholderText('例如: https://192.168.1.1:2053/Raw1UQnS7B23ivwIKI'), 'https://panel.example.com/raw');
-        await user.type(screen.getByPlaceholderText('可填写 3x-ui 设置页中的 API Token'), 'panel-token-123');
+        await user.type(screen.getByPlaceholderText('可填写面板生成的 API Token'), 'panel-token-123');
         await user.click(screen.getByRole('button', { name: '添加' }));
 
         await waitFor(() => {

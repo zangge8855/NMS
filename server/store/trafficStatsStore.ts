@@ -6,6 +6,7 @@ import serverStore from './serverStore.js';
 import userStore from './userStore.js';
 import { parseJsonObjectLike } from '../lib/normalize.js';
 import { getServerPanelSnapshot } from '../lib/serverPanelSnapshotService.js';
+import { isManagedClientProtocol } from '../lib/clientProtocols.js';
 import { mirrorStoreSnapshot } from './dbMirror.js';
 import { saveObjectAtomic, saveObjectAtomicAsync } from './fileUtils.js';
 
@@ -335,8 +336,6 @@ function shouldUseInboundTotalFallback(hasClientTraffic: boolean, clientTrafficC
 const SAMPLE_KIND_CLIENT_DELTA = 'client_delta';
 const SAMPLE_KIND_SERVER_SNAPSHOT = 'server_snapshot';
 
-const REGISTERED_TRAFFIC_PROTOCOLS = new Set<string>(['vmess', 'vless', 'trojan', 'shadowsocks']);
-
 function createRegisteredTotals(totalUsers: number = 0): any {
     return {
         totalUsers: toNonNegativeInt(totalUsers, 0),
@@ -448,7 +447,7 @@ function summarizeServerTrafficTotals(serverPayloads: any[] = []): any[] {
 
 function shouldTrackRegisteredTrafficInbound(inbound: any): boolean {
     const protocol = String(inbound?.protocol || '').trim().toLowerCase();
-    return REGISTERED_TRAFFIC_PROTOCOLS.has(protocol) && inbound?.enable !== false;
+    return isManagedClientProtocol(protocol, inbound) && inbound?.enable !== false;
 }
 
 function buildTrafficUserDirectory(users: any[] = []): any {

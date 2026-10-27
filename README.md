@@ -2,7 +2,7 @@
 
 ## English
 
-NMS is a bilingual control plane for 3x-ui / Xray operations. It brings server onboarding, inbound changes, user and subscription management, audit trails, backups, and system administration into one dashboard, so teams spend less time jumping between panel tabs, shell scripts, and handwritten runbooks.
+NMS is a bilingual control plane for 3x-ui (Xray) and s-ui (sing-box) operations. It brings server onboarding, inbound changes, user and subscription management, audit trails, backups, and system administration into one dashboard, so teams spend less time jumping between panel tabs, shell scripts, and handwritten runbooks.
 
 It is built for operators who want a practical deployment path: start with file-backed storage, move to PostgreSQL when needed, keep Docker available for packaging, and retain enough auditability to trust day-to-day changes.
 
@@ -16,7 +16,7 @@ It is built for operators who want a practical deployment path: start with file-
 
 ### What You Can Do
 
-- Onboard and monitor multiple 3x-ui nodes from a single dashboard
+- Onboard and monitor multiple 3x-ui and s-ui nodes from a single dashboard (see [s-ui Node Support](docs/SUI_SUPPORT.md))
 - Manage inbounds, client credentials, traffic limits, expiry, and protocol-specific settings
 - Enable invite-only registration, batch-generate invite codes, control per-code usage limits, and define the subscription duration each code grants
 - Keep subscription URLs stable while sharing client-ready links for raw, native, Clash, Mihomo, and sing-box style consumption
@@ -165,6 +165,7 @@ data/     Default file-backed storage (100% backward compatible)
 - [Review Harness](docs/REVIEW_HARNESS.md)
 - [Subscription Converter Notes](docs/SUBSCRIPTION_CONVERTER_NOTES.md)
 - [3x-ui Alignment Matrix](docs/3XUI_ALIGNMENT_MATRIX.md)
+- [s-ui Node Support](docs/SUI_SUPPORT.md)
 - [UI Design System](docs/UI_DESIGN_SYSTEM.md)
 - [UI Audit](docs/NMS_FEATURE_UI_AUDIT.md)
 - [Gap Backlog](docs/NMS_GAP_BACKLOG.md)
@@ -178,13 +179,13 @@ data/     Default file-backed storage (100% backward compatible)
 
 ## 中文
 
-NMS 是一套面向 3x-ui / Xray 运维场景的双语管理后台。它把节点接入、入站维护、用户与订阅管理、审计追踪、备份恢复和系统设置集中到一个界面里，减少在多个面板、脚本和临时文档之间来回切换的成本。
+NMS 是一套面向 3x-ui（Xray）与 s-ui（sing-box）运维场景的双语管理后台。它把节点接入、入站维护、用户与订阅管理、审计追踪、备份恢复和系统设置集中到一个界面里，减少在多个面板、脚本和临时文档之间来回切换的成本。
 
 它的定位很务实: 先用文件存储快速上线，规模上来后再接 PostgreSQL；既能直接源码部署，也能走 Docker；既能覆盖日常运维，也保留足够的审计和恢复能力，方便团队长期使用。
 
 ### 为什么用 NMS
 
-- 多节点统一管理，不用逐台登录 3x-ui 面板处理日常操作
+- 多节点统一管理，不用逐台登录 3x-ui / s-ui 面板处理日常操作
 - 用户、客户端、订阅链接和策略调整放在同一条工作流里
 - 审计日志、流量视图、通知和任务记录帮助团队复盘每次变更
 - 内置备份、SMTP 诊断和运行模式控制，减少依赖外部脚本拼装
@@ -192,7 +193,7 @@ NMS 是一套面向 3x-ui / Xray 运维场景的双语管理后台。它把节�
 
 ### 你可以用它做什么
 
-- 从一个后台接入并监控多个 3x-ui 节点
+- 从一个后台接入并监控多个 3x-ui 和 s-ui 节点（见 [s-ui 节点支持](docs/SUI_SUPPORT.md)）
 - 统一维护入站、客户端凭据、流量额度、到期时间和协议参数
 - 开启邀请制注册，批量生成邀请码，限制每个邀请码可使用次数，并设置每个邀请码自动开通的订阅时长
 - 在登录页通过邮箱验证码找回密码，并且对外统一返回结果，不暴露邮箱是否已注册
@@ -349,6 +350,7 @@ data/     默认文件存储目录 (100% 向下兼容)
 - [Review Harness](docs/REVIEW_HARNESS.md)
 - [订阅转换器说明](docs/SUBSCRIPTION_CONVERTER_NOTES.md)
 - [3x-ui 对齐矩阵](docs/3XUI_ALIGNMENT_MATRIX.md)
+- [s-ui 节点支持](docs/SUI_SUPPORT.md)
 - [UI 设计系统](docs/UI_DESIGN_SYSTEM.md)
 - [UI 审计](docs/NMS_FEATURE_UI_AUDIT.md)
 - [差距与待办](docs/NMS_GAP_BACKLOG.md)

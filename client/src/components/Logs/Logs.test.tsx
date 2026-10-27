@@ -243,7 +243,7 @@ describe('Logs', () => {
 
         renderWithRouter(<Logs embedded />);
 
-        expect(await screen.findByText('Panel 日志 加载失败：节点面板暂时不可达')).toBeInTheDocument();
+        expect(await screen.findByText('面板日志 加载失败：节点面板暂时不可达')).toBeInTheDocument();
         expect(toast.error).not.toHaveBeenCalled();
     });
 

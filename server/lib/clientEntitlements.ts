@@ -2,10 +2,22 @@ import {
     postAddClientCompat,
     postUpdateClientCompat,
 } from './panelApiCompat.js';
+import { isSuiPanelContext } from './clientProtocols.js';
 
 const CLIENT_PROTOCOLS = new Set<string>(['vmess', 'vless', 'trojan', 'shadowsocks']);
 const UUID_PROTOCOLS = new Set<string>(['vmess', 'vless']);
 const PASSWORD_PROTOCOLS = new Set<string>(['trojan', 'shadowsocks']);
+/** 3x-ui Hysteria clients authenticate with `auth` instead of a password. */
+const AUTH_PROTOCOLS = new Set<string>(['hysteria', 'hysteria2', 'hy2']);
+
+/** Fills the protocol-specific credential slots 3x-ui v3 expects beyond id/password. */
+function applyExtraProtocolCredentials(payload: any, protocol: string, password: string, existing: any = {}): void {
+    if (AUTH_PROTOCOLS.has(protocol)) {
+        payload.auth = password || normalizeText(existing.auth);
+    } else if (protocol === 'tuic') {
+        payload.password = password || normalizeText(existing.password);
+    }
+}
 
 function normalizeEmail(value: unknown): string {
     return String(value || '').trim().toLowerCase();
@@ -43,6 +55,9 @@ function resolveClientIdentifier(client: any = {}, protocol: string = ''): strin
     }
     if (UUID_PROTOCOLS.has(normalizedProtocol)) {
         return normalizeText(client.id || client.password || client.email);
+    }
+    if (AUTH_PROTOCOLS.has(normalizedProtocol)) {
+        return normalizeText(client.auth || client.password || client.email);
     }
     return normalizeText(client.id || client.password || client.email);
 }
@@ -100,21 +115,30 @@ function buildManagedClientData({
         limitIp: 0,
     }, entitlement);
 
+    if (isSuiPanelContext(inbound)) {
+        // One s-ui client carries credentials for every protocol, whatever inbound it joins first.
+        payload.password = normalizeText(sharedCredentials.password);
+        payload.flow = resolveFlow('vless', inbound);
+        return payload;
+    }
     if (UUID_PROTOCOLS.has(normalizedProtocol)) {
         payload.flow = resolveFlow(normalizedProtocol, inbound);
     }
     if (PASSWORD_PROTOCOLS.has(normalizedProtocol)) {
         payload.password = normalizeText(sharedCredentials.password);
     }
+    applyExtraProtocolCredentials(payload, normalizedProtocol, normalizeText(sharedCredentials.password));
 
     return payload;
 }
 
 export {
+    AUTH_PROTOCOLS,
     CLIENT_PROTOCOLS,
     PASSWORD_PROTOCOLS,
     UUID_PROTOCOLS,
     applyEntitlementToClient,
+    applyExtraProtocolCredentials,
     buildManagedClientData,
     normalizeEmail,
     normalizeNonNegativeInt,

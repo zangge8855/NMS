@@ -11,14 +11,10 @@ import {
 } from '../../utils/entitlements';
 import { useI18n } from '../../contexts/LanguageContext';
 import ModalShell from '../UI/ModalShell';
+import { POLICY_PROTOCOL_OPTIONS } from '../../utils/protocol';
 import EmptyState from '../UI/EmptyState';
 
-const PROTOCOL_OPTIONS = [
-    { key: 'vless', label: 'VLESS' },
-    { key: 'vmess', label: 'VMess' },
-    { key: 'trojan', label: 'Trojan' },
-    { key: 'shadowsocks', label: 'Shadowsocks' },
-];
+const PROTOCOL_OPTIONS = POLICY_PROTOCOL_OPTIONS;
 const PROTOCOL_KEY_SET = new Set(PROTOCOL_OPTIONS.map((item) => item.key));
 
 function normalizeScopeMode(mode, selectedItems = []) {
