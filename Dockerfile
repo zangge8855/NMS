@@ -13,7 +13,11 @@ FROM node:22-slim AS server-deps
 WORKDIR /app
 COPY package.json ./
 COPY server/package.json ./server/
-RUN npm install --omit=dev --workspace=server
+# Workspace deps are hoisted to /app/node_modules; server/node_modules only
+# exists when npm has to nest a conflicting version, so make sure the COPY
+# in the runtime stage always has a source.
+RUN npm install --omit=dev --workspace=server \
+    && mkdir -p server/node_modules
 
 FROM node:22-slim AS runtime
 ENV NODE_ENV=production
