@@ -327,6 +327,12 @@ class UserStore {
             role: normalizedRole,
             createdAt: new Date().toISOString(),
             passkeys: [],
+            // Guest passes: auth refuses panel login and the public subscription
+            // route stops serving once guestExpiresAt has passed.
+            ...(payload.isGuest === true ? {
+                isGuest: true,
+                guestExpiresAt: String(payload.guestExpiresAt || '').trim(),
+            } : {}),
         };
         this.users.push(user);
         this._save();

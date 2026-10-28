@@ -82,6 +82,22 @@ describe('UserStore', { concurrency: false }, () => {
         assert.equal(user.role, ROLES.user);
     });
 
+    it('should persist guest pass markers so guest restrictions apply', () => {
+        const expiresAt = new Date(Date.now() + 3600 * 1000).toISOString();
+        userStore.add({
+            username: 'guest_test1',
+            password: 'Pass1234!',
+            role: ROLES.user,
+            email: 'guest_test1@guest.local',
+            isGuest: true,
+            guestExpiresAt: expiresAt,
+        });
+        const stored = userStore.getByUsername('guest_test1');
+        assert.equal(stored.isGuest, true);
+        assert.equal(stored.guestExpiresAt, expiresAt);
+        assert.equal(userStore.getByUsername('user1').isGuest, undefined);
+    });
+
     it('should fall back to email when subscription binding is empty', () => {
         const user = userStore.add({
             username: 'user_bind_empty',
