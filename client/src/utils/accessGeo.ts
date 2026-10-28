@@ -60,6 +60,103 @@ export function resolveAccessGeoDisplay(item?: { ipLocation?: string; cfCountry?
     return { location: rawLocation, carrier };
 }
 
+// Server-side label for private/loopback addresses (see server/lib/ipGeoResolver.ts).
+export const LOCAL_IP_LOCATION_LABEL = '内网/本地';
+
+// Provider spellings that Intl.DisplayNames does not produce verbatim.
+const REGION_NAME_ALIASES: Record<string, string> = {
+    '香港': 'HK',
+    '中国香港': 'HK',
+    '澳门': 'MO',
+    '中国澳门': 'MO',
+    '台湾': 'TW',
+    '中国台湾': 'TW',
+    '韩国': 'KR',
+    '朝鲜': 'KP',
+};
+
+let regionNameIndex: Map<string, string> | null = null;
+
+function getRegionNameIndex(): Map<string, string> {
+    if (regionNameIndex) return regionNameIndex;
+    const index = new Map<string, string>();
+    try {
+        const displays = ['zh-CN', 'en'].map((lang) => new Intl.DisplayNames([lang], { type: 'region', fallback: 'none' }));
+        for (let first = 65; first <= 90; first += 1) {
+            for (let second = 65; second <= 90; second += 1) {
+                const code = String.fromCharCode(first, second);
+                // Skip deprecated aliases (DD→DE, SU→RU, UK→GB) so names map to the current code.
+                if (code === 'ZZ' || new Intl.Locale(`und-${code}`).region !== code) continue;
+                for (const display of displays) {
+                    const name = display.of(code);
+                    if (name && name !== code && !index.has(name.toLowerCase())) {
+                        index.set(name.toLowerCase(), code);
+                    }
+                }
+            }
+        }
+    } catch {
+        // Intl.DisplayNames unavailable: only the alias table is used.
+    }
+    regionNameIndex = index;
+    return index;
+}
+
+function normalizeRegionCode(value?: string | null): string {
+    const code = String(value || '').trim().toUpperCase();
+    // Cloudflare uses XX for unknown and T1 for Tor exit nodes; neither is a country.
+    if (!/^[A-Z]{2}$/.test(code) || code === 'XX' || code === 'ZZ') return '';
+    return code;
+}
+
+export function resolveRegionCodeFromName(name?: string | null): string {
+    const text = String(name || '').trim();
+    if (!text) return '';
+    return REGION_NAME_ALIASES[text] || getRegionNameIndex().get(text.toLowerCase()) || '';
+}
+
+export function resolveRegionDisplayName(code: string, locale: string): string {
+    try {
+        return new Intl.DisplayNames([locale], { type: 'region', fallback: 'none' }).of(code) || '';
+    } catch {
+        return '';
+    }
+}
+
+export function regionCodeToFlag(code?: string | null): string {
+    const normalized = normalizeRegionCode(code);
+    if (!normalized) return '🌐';
+    return String.fromCodePoint(...[...normalized].map((char) => 0x1F1E6 + char.charCodeAt(0) - 65));
+}
+
+export interface AccessCountry {
+    name: string;
+    code: string;
+    local: boolean;
+}
+
+/**
+ * Country of an access-log entry. `ipLocation` is a space separated
+ * "country region city" string from the geo provider; `cfCountry` is the
+ * ISO code Cloudflare forwards when the panel sits behind it.
+ */
+export function resolveAccessCountry(item?: { ipLocation?: string; cfCountry?: string } | null): AccessCountry {
+    const location = String(item?.ipLocation || '').trim();
+    const cfCode = normalizeRegionCode(item?.cfCountry);
+
+    if (location === LOCAL_IP_LOCATION_LABEL) {
+        return { name: location, code: '', local: true };
+    }
+    if (location) {
+        const name = location.split(/\s+/)[0];
+        return { name, code: resolveRegionCodeFromName(name) || cfCode, local: false };
+    }
+    if (cfCode) {
+        return { name: resolveRegionDisplayName(cfCode, 'zh-CN') || cfCode, code: cfCode, local: false };
+    }
+    return { name: '', code: '', local: false };
+}
+
 export function resolveNodeCountryEmoji(nameOrLocation: string = ''): string {
     const text = String(nameOrLocation || '').toLowerCase();
     if (!text) return '🌐';

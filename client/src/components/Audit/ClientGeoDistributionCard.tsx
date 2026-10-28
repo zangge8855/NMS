@@ -1,7 +1,14 @@
 import React, { useMemo } from 'react';
-import { HiOutlineGlobeAlt, HiOutlineShieldCheck, HiOutlineSignal } from 'react-icons/hi2';
+import { HiOutlineGlobeAlt } from 'react-icons/hi2';
+import {
+    normalizeCarrierLabel,
+    regionCodeToFlag,
+    resolveAccessCountry,
+    resolveRegionDisplayName,
+} from '../../utils/accessGeo';
 
 export interface GeoItem {
+    key: string;
     country: string;
     countryCode?: string;
     flag?: string;
@@ -11,43 +18,71 @@ export interface GeoItem {
 }
 
 export interface ClientGeoDistributionCardProps {
-    items?: Array<{ ip?: string; country?: string; countryCode?: string; city?: string; isp?: string }>;
+    items?: Array<{
+        id?: string;
+        ip?: string;
+        clientIp?: string;
+        ipLocation?: string;
+        ipCarrier?: string;
+        cfCountry?: string;
+    }>;
     locale?: string;
 }
 
 export default function ClientGeoDistributionCard({ items = [], locale = 'zh-CN' }: ClientGeoDistributionCardProps) {
     const isEn = locale === 'en-US';
 
-    const geoStats = useMemo(() => {
-        if (!items || items.length === 0) return [];
-        const countMap = new Map<string, { count: number; countryCode: string; isp: Set<string> }>();
-        let total = 0;
+    const { geoStats, ipCount } = useMemo(() => {
+        if (!items || items.length === 0) return { geoStats: [], ipCount: 0 };
 
-        for (const item of items) {
-            const country = item?.country || (isEn ? 'Unknown Location' : '未知区域');
-            const code = item?.countryCode || 'UN';
-            const isp = item?.isp || '';
+        // Access-log rows repeat for every subscription pull; aggregate per IP so a
+        // single chatty client does not dominate the distribution.
+        const byIp = new Map<string, (typeof items)[number]>();
+        items.forEach((item, index) => {
+            const ip = String(item?.clientIp || item?.ip || '').trim();
+            const key = ip || `row:${item?.id || index}`;
+            if (!byIp.has(key)) byIp.set(key, item);
+        });
 
-            if (!countMap.has(country)) {
-                countMap.set(country, { count: 0, countryCode: code, isp: new Set() });
+        const countMap = new Map<string, { name: string; code: string; local: boolean; count: number; carriers: Map<string, number> }>();
+        for (const item of byIp.values()) {
+            const country = resolveAccessCountry(item);
+            const key = country.code || country.name || '';
+            if (!countMap.has(key)) {
+                countMap.set(key, { ...country, count: 0, carriers: new Map() });
             }
-            const entry = countMap.get(country)!;
+            const entry = countMap.get(key)!;
             entry.count += 1;
-            if (isp) entry.isp.add(isp);
-            total += 1;
+            const carrier = normalizeCarrierLabel(item?.ipCarrier);
+            if (carrier) entry.carriers.set(carrier, (entry.carriers.get(carrier) || 0) + 1);
         }
 
-        const sorted: GeoItem[] = Array.from(countMap.entries()).map(([country, data]) => ({
-            country,
-            countryCode: data.countryCode,
-            flag: data.countryCode && data.countryCode !== 'UN' ? String.fromCodePoint(...[...data.countryCode.toUpperCase()].map(c => 0x1F1E6 + c.charCodeAt(0) - 65)) : '🌐',
-            count: data.count,
-            percentage: total > 0 ? Math.round((data.count / total) * 100) : 0,
-            ispSummary: Array.from(data.isp).slice(0, 2).join(', '),
-        }));
+        const total = byIp.size;
+        const unknownLabel = isEn ? 'Unknown Location' : '未知区域';
+        const sorted: GeoItem[] = Array.from(countMap.entries()).map(([key, data]) => {
+            let country = data.name || unknownLabel;
+            if (data.local) {
+                country = isEn ? 'Private / Local' : data.name;
+            } else if (isEn && data.code) {
+                country = resolveRegionDisplayName(data.code, 'en') || country;
+            }
+            return {
+                key: key || 'unknown',
+                country,
+                countryCode: data.code,
+                flag: regionCodeToFlag(data.code),
+                count: data.count,
+                percentage: total > 0 ? Math.round((data.count / total) * 100) : 0,
+                ispSummary: Array.from(data.carriers.entries())
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 2)
+                    .map(([carrier]) => carrier)
+                    .join(', '),
+            };
+        });
 
         sorted.sort((a, b) => b.count - a.count);
-        return sorted.slice(0, 8);
+        return { geoStats: sorted.slice(0, 8), ipCount: total };
     }, [items, isEn]);
 
     return (
@@ -67,7 +102,7 @@ export default function ClientGeoDistributionCard({ items = [], locale = 'zh-CN'
                     </div>
                 </div>
                 <span className="badge badge-primary text-xs font-mono px-2.5 py-1">
-                    {items.length} {isEn ? 'Active' : '条活跃连接'}
+                    {ipCount} {isEn ? 'Active IPs' : '个活跃 IP'}
                 </span>
             </div>
 
@@ -79,7 +114,7 @@ export default function ClientGeoDistributionCard({ items = [], locale = 'zh-CN'
                 <div className="space-y-3.5 pt-1">
                     {geoStats.map((geo) => (
                         <div
-                            key={geo.country}
+                            key={geo.key}
                             className="p-2.5 rounded-xl border border-stroke-soft/60 bg-surface-input/30 hover:border-primary/30 hover:bg-surface-input/60 transition-all duration-200 space-y-2"
                         >
                             <div className="flex items-center justify-between text-xs">
