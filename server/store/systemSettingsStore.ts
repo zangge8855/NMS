@@ -63,9 +63,18 @@ const ALLOWED_KEYS: Record<string, Set<string>> = {
         'sendEmergencyAlerts',
         'alertMutedUntil',
     ]),
+    webhook: new Set([
+        'channel',
+        'url',
+        'barkKey',
+        'secret',
+        'events',
+    ]),
 };
 
 const GEO_PROVIDERS = new Set<string>(['ip_api', 'ipip_myip']);
+const WEBHOOK_CHANNELS = new Set<string>(['bark', 'discord', 'feishu', 'lark', 'wechat', 'wechatwork', 'custom']);
+const WEBHOOK_EVENT_KEYS = ['nodeOffline', 'trafficAlert', 'certExpiring'];
 const CAMOUFLAGE_TEMPLATES = new Set<string>(['corporate', 'nginx', 'blog']);
 const RESERVED_SITE_ACCESS_PATHS = ['/api', '/assets', '/ws'];
 const LEGACY_AUDIT_IP_GEO_PROVIDER = 'ipip_myip';
@@ -501,6 +510,17 @@ export class SystemSettingsStore {
                 sendEmergencyAlerts: true,
                 alertMutedUntil: '',
             },
+            webhook: {
+                channel: 'bark',
+                url: '',
+                barkKey: '',
+                secret: '',
+                events: {
+                    nodeOffline: true,
+                    trafficAlert: true,
+                    certExpiring: true,
+                },
+            },
             serverOrder: [],
             inboundOrder: {},
             userOrder: [],
@@ -617,6 +637,23 @@ export class SystemSettingsStore {
         };
     }
 
+    _normalizeWebhook(input: any = {}, fallback: any): any {
+        const channel = String(input.channel || '').trim().toLowerCase();
+        const inputEvents = input.events && typeof input.events === 'object' && !Array.isArray(input.events) ? input.events : {};
+        const fallbackEvents = fallback.events || {};
+        const events: Record<string, boolean> = {};
+        for (const key of WEBHOOK_EVENT_KEYS) {
+            events[key] = normalizeBoolean(inputEvents[key], fallbackEvents[key] !== false);
+        }
+        return {
+            channel: WEBHOOK_CHANNELS.has(channel) ? channel : fallback.channel,
+            url: normalizeHttpUrl(input.url, fallback.url),
+            barkKey: String(input.barkKey ?? fallback.barkKey ?? '').trim().slice(0, 512),
+            secret: String(input.secret ?? fallback.secret ?? '').trim().slice(0, 512),
+            events,
+        };
+    }
+
     _normalizeSettings(input: any = {}, fallbackSettings: any = null): any {
         const defaults = this._defaults();
         const fallbackRoot = fallbackSettings && typeof fallbackSettings === 'object' && !Array.isArray(fallbackSettings)
@@ -630,6 +667,7 @@ export class SystemSettingsStore {
         const subscriptionFallback = mergeSection(defaults.subscription, fallbackRoot.subscription);
         const auditIpGeoFallback = mergeSection(defaults.auditIpGeo, fallbackRoot.auditIpGeo);
         const telegramFallback = mergeSection(defaults.telegram, fallbackRoot.telegram);
+        const webhookFallback = mergeSection(defaults.webhook, fallbackRoot.webhook);
         const geofilesFallback = mergeSection(defaults.geofiles, fallbackRoot.geofiles);
         const serverOrderFallback = normalizeIdList(fallbackRoot.serverOrder);
         const inboundOrderFallback = normalizeInboundOrderMap(fallbackRoot.inboundOrder);
@@ -643,6 +681,7 @@ export class SystemSettingsStore {
         const subscriptionInput = mergeSection(defaults.subscription, input.subscription);
         const auditIpGeoInput = mergeSection(defaults.auditIpGeo, input.auditIpGeo);
         const telegramInput = mergeSection(defaults.telegram, input.telegram);
+        const webhookInput = mergeSection(defaults.webhook, input.webhook);
         const geofilesInput = mergeSection(defaults.geofiles, input.geofiles);
         const serverOrderInput = normalizeIdList(input.serverOrder);
         const inboundOrderInput = normalizeInboundOrderMap(input.inboundOrder);
@@ -657,6 +696,7 @@ export class SystemSettingsStore {
             subscription: this._normalizeSubscription(subscriptionInput, subscriptionFallback),
             auditIpGeo: this._normalizeAuditIpGeo(auditIpGeoInput, auditIpGeoFallback),
             telegram: this._normalizeTelegram(telegramInput, telegramFallback),
+            webhook: this._normalizeWebhook(webhookInput, webhookFallback),
             geofiles: this._normalizeGeofiles(geofilesInput, geofilesFallback),
             serverOrder: serverOrderInput.length > 0 ? serverOrderInput : serverOrderFallback,
             inboundOrder: Object.keys(inboundOrderInput).length > 0 ? inboundOrderInput : inboundOrderFallback,
@@ -786,6 +826,11 @@ export class SystemSettingsStore {
         };
     }
 
+    getWebhook(): any {
+        const webhook = this.settings?.webhook || this._defaults().webhook;
+        return { ...webhook, events: { ...(webhook.events || {}) } };
+    }
+
     getInboundOrder(serverId: string = ''): any {
         const all = this.getAll().inboundOrder || {};
         const normalizedServerId = normalizeId(serverId);
@@ -900,6 +945,7 @@ export class SystemSettingsStore {
             subscription: mergeSection(this.settings.subscription, patch.subscription),
             auditIpGeo: mergeSection(this.settings.auditIpGeo, patch.auditIpGeo),
             telegram: mergeSection(this.settings.telegram, patch.telegram),
+            webhook: mergeSection(this.settings.webhook, patch.webhook),
             serverOrder: this.settings.serverOrder,
             inboundOrder: this.settings.inboundOrder,
             userOrder: this.settings.userOrder,

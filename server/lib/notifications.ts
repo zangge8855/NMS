@@ -159,7 +159,7 @@ class NotificationService extends EventEmitter {
         void (telegramAlertService as any).notifyNotification?.(notification);
 
         try {
-            const webhookConfig = (systemSettingsStore as any)?.getSnapshot?.()?.webhook || (systemSettingsStore as any)?.settings?.webhook;
+            const webhookConfig = systemSettingsStore.getWebhook();
             if (webhookConfig && (webhookConfig.url || webhookConfig.barkKey)) {
                 const isOffline = notification.type.includes('offline') || notification.type.includes('node');
                 const isTraffic = notification.type.includes('traffic');
