@@ -196,6 +196,30 @@ describe('SystemSettingsStore ordering', { concurrency: false }, () => {
         assert.equal(systemSettingsStore.getSite().camouflageTitle, 'City Field Notes');
     });
 
+    it('persists the webhook section sent by the settings page', () => {
+        assert.equal(systemSettingsStore.getWebhook().channel, 'bark');
+
+        const updated = systemSettingsStore.update({
+            webhook: {
+                channel: 'discord',
+                url: 'https://discord.example/api/webhooks/1/abc',
+                barkKey: '',
+                secret: 's3cret',
+                events: { nodeOffline: true, trafficAlert: false, certExpiring: true },
+            },
+        });
+        assert.equal(updated.webhook.channel, 'discord');
+        assert.equal(updated.webhook.url, 'https://discord.example/api/webhooks/1/abc');
+        assert.deepEqual(updated.webhook.events, { nodeOffline: true, trafficAlert: false, certExpiring: true });
+        assert.equal(systemSettingsStore.getWebhook().secret, 's3cret');
+
+        const sanitized = systemSettingsStore.update({
+            webhook: { channel: 'carrier-pigeon', url: 'javascript:alert(1)' },
+        });
+        assert.equal(sanitized.webhook.channel, 'discord');
+        assert.equal(sanitized.webhook.url, 'https://discord.example/api/webhooks/1/abc');
+    });
+
     it('rejects reserved site access paths', () => {
         assert.throws(() => {
             systemSettingsStore.update({

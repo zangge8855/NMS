@@ -733,7 +733,7 @@ ${cfEmail.trim() ? `export CF_Email="${cfEmail.trim()}"` : ''}
                                     <div className="text-xs text-muted mb-1">{copy.ip.locationLabel}</div>
                                     <div className="text-base font-bold flex items-center gap-2">
                                         <span>{ipResult.flag}</span>
-                                        <span>{ipResult.country} {ipResult.city ? `(${ipResult.city})` : ''}</span>
+                                        <span>{ipResult.country} {ipResult.city && ipResult.city !== '-' ? `(${ipResult.city})` : ''}</span>
                                     </div>
                                 </div>
                                 <div className="p-4 rounded-xl bg-surface-panel border border-stroke-soft">
