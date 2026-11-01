@@ -175,7 +175,7 @@ export default function Inbounds() {
         expiryPlaceholder: 'e.g. 30 or -7', expiryHint: 'Positive values extend and negative values subtract. Clients that never expire are skipped.', trafficDelta: 'Traffic change',
         trafficPlaceholder: 'e.g. 100 or -20', trafficHint: 'Positive values add and negative values subtract. Unlimited clients are skipped.', execute: 'Apply adjustment',
         individualLimit: 'Individual limits', user: 'User', saveLimit: 'Save limits', restorePolicy: 'Restore unified policy', limit: 'Limits',
-        limitSetTitle: 'Individual limits are set; click to edit', limitUnsetTitle: 'Set individual limits',
+        limitSetTitle: 'Individual limits are set; click to edit', limitUnsetTitle: 'Set individual limits', bulkDelete: 'Batch Delete',
     } : {
         limited: '已限制', copyCredential: '复制完整 ID / 密码', total: '总量', ipLimit: 'IP 限制', expiry: '到期时间', traffic: '上 / 下行',
         noServersTitle: '请先在「服务器管理」添加节点', noServersSubtitle: '接入至少一台 3x-ui 或 s-ui 节点后，再统一维护入站和客户端。', goServers: '前往服务器管理',
@@ -184,7 +184,7 @@ export default function Inbounds() {
         expiryPlaceholder: '例如：30 或 -7', expiryHint: '正数延长，负数扣减；永不过期用户会跳过到期调整。', trafficDelta: '流量变化',
         trafficPlaceholder: '例如：100 或 -20', trafficHint: '正数增加，负数扣减；不限流量用户会跳过流量调整。', execute: '执行调整',
         individualLimit: '单独限制', user: '用户', saveLimit: '保存限制', restorePolicy: '恢复统一策略', limit: '限制',
-        limitSetTitle: '已设置单独限制，点击修改', limitUnsetTitle: '设置单独限制',
+        limitSetTitle: '已设置单独限制，点击修改', limitUnsetTitle: '设置单独限制', bulkDelete: '批量删除',
     }, [locale]);
     const isCompactLayout = useMediaQuery('(max-width: 1100px), (max-width: 768px)');
     const isCondensedLayout = useMediaQuery('(min-width: 769px) and (max-width: 1100px)');
@@ -328,11 +328,11 @@ export default function Inbounds() {
                     });
 
                     if (Array.isArray(result?.inbounds)) {
-                        serverInbounds = result.inbounds.map((ib) => {
-                            const inboundClients = mergeInboundClientStats(ib).map((client) => {
-                                const matchedSessions = buildClientOnlineKeys(client, ib.protocol).reduce((total, key) => {
-                                    return total + (onlineCounter.get(key) || 0);
-                                }, 0);
+                        serverInbounds = result.inbounds.map((ib: any) => {
+                            const inboundClients = mergeInboundClientStats(ib).map((client: any) => {
+                                const matchedSessions = Number(buildClientOnlineKeys(client, ib.protocol).reduce((total: number, key: string) => {
+                                    return total + Number(onlineCounter.get(key) || 0);
+                                }, 0));
                                 return {
                                     ...client,
                                     onlineSessionCount: matchedSessions,

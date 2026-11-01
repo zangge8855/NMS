@@ -68,10 +68,13 @@ const AUDIT_TRAFFIC_SNAPSHOT_KEY = 'audit_traffic_v2';
 const AUDIT_ACCESS_SNAPSHOT_KEY = 'audit_access_v1';
 const AUDIT_SNAPSHOT_TTL_MS = 90_000;
 const AUDIT_TRAFFIC_AUTO_REFRESH_MS = 60_000;
-const EMPTY_TRAFFIC_STATUS = {
+const EMPTY_TRAFFIC_STATUS: Record<string, any> = {
     lastCollectionAt: '',
+    currentTotalsAt: '',
+    sampledAt: '',
     sampleCount: 0,
     collecting: false,
+    baselineReady: false,
 };
 const EMPTY_TRAFFIC_TOTALS = Object.freeze({
     upBytes: 0,
@@ -124,6 +127,7 @@ const AUDIT_COPY = {
             detail: '详情',
             viewDetail: '查看详情',
             refreshSample: '立即采样',
+            close: '关闭',
         },
         filters: {
             keyword: '关键词',
@@ -331,6 +335,7 @@ const AUDIT_COPY = {
             detail: 'Details',
             viewDetail: 'View Detail',
             refreshSample: 'Collect Now',
+            close: 'Close',
         },
         filters: {
             keyword: 'Keyword',
@@ -1059,8 +1064,8 @@ function buildAuditSourceSummary(item, locale = 'zh-CN') {
     return parts.join(' · ');
 }
 
-function countActiveFilters(filters: any = {}) {
-    return Object.values(filters).reduce((count, value) => {
+function countActiveFilters(filters: any = {}): number {
+    return Object.values(filters).reduce<number>((count, value) => {
         if (value === undefined || value === null) return count;
         if (typeof value === 'string') {
             return String(value).trim() ? count + 1 : count;
@@ -1240,7 +1245,7 @@ export default function AuditCenter() {
         eventsBootstrapRef.current?.eventsData || { items: [], total: 0, page: 1, totalPages: 1 }
     ));
     const [eventsPage, setEventsPage] = useState(() => Number(eventsBootstrapRef.current?.eventsData?.page || 1) || 1);
-    const [eventFilters, setEventFilters] = useState(() => ({ ...EMPTY_EVENT_FILTERS }));
+    const [eventFilters, setEventFilters] = useState<Record<string, any>>(() => ({ ...EMPTY_EVENT_FILTERS }));
     const [showAdvancedEventFilters, setShowAdvancedEventFilters] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState(null);
     const [exportingAuditCsv, setExportingAuditCsv] = useState(false);
@@ -1267,8 +1272,8 @@ export default function AuditCenter() {
     const selectedServerIdRef = useRef(selectedServerId);
     selectedUserRef.current = selectedUser;
     selectedServerIdRef.current = selectedServerId;
-    const [userTrend, setUserTrend] = useState({ points: [], granularity: 'hour' });
-    const [serverTrend, setServerTrend] = useState({ points: [], granularity: 'hour' });
+    const [userTrend, setUserTrend] = useState<Record<string, any>>({ points: [], granularity: 'hour' });
+    const [serverTrend, setServerTrend] = useState<Record<string, any>>({ points: [], granularity: 'hour' });
 
     const formatLocalDate = (date) => {
         const offset = date.getTimezoneOffset();
@@ -1299,7 +1304,7 @@ export default function AuditCenter() {
         }
     ));
     const [accessPage, setAccessPage] = useState(1);
-    const [accessFilters, setAccessFilters] = useState(() => ({ ...EMPTY_ACCESS_FILTERS }));
+    const [accessFilters, setAccessFilters] = useState<Record<string, any>>(() => ({ ...EMPTY_ACCESS_FILTERS }));
 
     useEffect(() => {
         selectedTrafficWindowRef.current = selectedTrafficWindow;
@@ -2777,7 +2782,7 @@ export default function AuditCenter() {
                             {Object.entries(accessData.statusBreakdown || {}).map(([key, value]) => (
                                 <div className="card audit-stat-card" key={key}>
                                     <div className="card-header"><span className="card-title">{formatAuditStatusLabel(key, locale)}</span><HiOutlineDocumentText /></div>
-                                    <div className="card-value">{value}</div>
+                                    <div className="card-value">{String(value)}</div>
                                 </div>
                             ))}
                         </div>

@@ -19,13 +19,18 @@
     <title>NMS</title>
     <script>
       (() => {
-        const light = window.matchMedia('(prefers-color-scheme: light)').matches;
-        const theme = light ? 'light' : 'dark';
+        let stored = 'auto';
+        try {
+          const val = window.localStorage.getItem('nms_theme');
+          if (val === 'light' || val === 'dark' || val === 'auto') stored = val;
+        } catch {}
+        const systemLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+        const theme = stored === 'auto' ? (systemLight ? 'light' : 'dark') : stored;
         const root = document.documentElement;
         root.dataset.theme = theme;
-        root.dataset.themeMode = 'auto';
+        root.dataset.themeMode = stored;
         root.style.colorScheme = theme;
-        root.style.backgroundColor = light ? '#f3f4f7' : '#0d1016';
+        root.style.backgroundColor = theme === 'light' ? '#f3f4f7' : '#0d1016';
       })();
     </script>
   </head>

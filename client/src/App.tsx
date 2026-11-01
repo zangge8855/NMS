@@ -296,7 +296,7 @@ function ProtectedLayout() {
     }, [token]);
 
     useEffect(() => {
-        if (!isAdmin || !token) return undefined;
+        if (!isStaff || !token) return undefined;
         const preloadAdminWorkspaces = () => {
             loadUsersHubPage().catch(() => {});
             loadInboundsPage().catch(() => {});

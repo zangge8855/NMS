@@ -147,10 +147,10 @@ export default function Servers() {
         entries: '',
         testConnection: true,
     });
-    const [batchResult, setBatchResult] = useState(null);
-    const [testResults, setTestResults] = useState({});
-    const [loading, setLoading] = useState({});
-    const [serverOrder, setServerOrder] = useState([]);
+    const [batchResult, setBatchResult] = useState<any>(null);
+    const [testResults, setTestResults] = useState<Record<string, any>>({});
+    const [loading, setLoading] = useState<Record<string, any>>({});
+    const [serverOrder, setServerOrder] = useState<string[]>([]);
     const [showFormPassword, setShowFormPassword] = useState(false);
     const [showFormApiToken, setShowFormApiToken] = useState(false);
     const [showBatchFormPassword, setShowBatchFormPassword] = useState(false);
@@ -168,7 +168,7 @@ export default function Servers() {
     });
 
     // Batch Selection
-    const [selectedIds, setSelectedIds] = useState(new Set());
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [searchKeyword, setSearchKeyword] = useState('');
     const deferredSearchKeyword = useDeferredValue(searchKeyword);
     const [filterGroup, setFilterGroup] = useState('all');
@@ -374,7 +374,7 @@ export default function Servers() {
         }
         setLoading(prev => ({ ...prev, submit: true }));
         try {
-            const payload = {
+            const payload: Record<string, any> = {
                 ...form,
                 tags: String(form.tags || '')
                     .split(',')
@@ -570,7 +570,7 @@ export default function Servers() {
             const res = await testConnection(id);
             const authCode = getAuthRepairCode(res);
             if (!res?.success) {
-                const error = new Error(res?.msg || t('comp.common.connectFailed'));
+                const error: any = new Error(res?.msg || t('comp.common.connectFailed'));
                 error.code = authCode || res?.code || '';
                 error.meta = { authCode };
                 throw error;

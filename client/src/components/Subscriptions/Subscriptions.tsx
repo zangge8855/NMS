@@ -555,7 +555,7 @@ export default function Subscriptions() {
         setUsersLoading(false);
     };
 
-    const loadSubscription = async (targetEmail = normalizedEmail, options = {}) => {
+    const loadSubscription = async (targetEmail = normalizedEmail, options: any = {}) => {
         const resolvedEmail = String(targetEmail || '').trim();
         const requestServerId = isAdmin
             ? String((options.serverId ?? selectedServerId) || '').trim() || 'all'
@@ -693,7 +693,7 @@ export default function Subscriptions() {
         if (!ok) return;
         setResetLoading(true);
         try {
-            const payload = {};
+            const payload: Record<string, any> = {};
             if (isAdmin && selectedServerId && selectedServerId !== 'all') {
                 payload.serverId = selectedServerId;
             }

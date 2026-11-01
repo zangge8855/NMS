@@ -15,8 +15,9 @@ export default function MobileBottomNav({ onOpenMenu }: MobileBottomNavProps) {
     const { locale, t } = useI18n();
     const { activeServerId } = useServer();
     const isAdmin = user?.role === 'admin';
+    const role = user?.role || (isAdmin ? 'admin' : 'user');
     const isGlobalView = activeServerId === 'global';
-    const items = getVisibleMobileNavItems({ isAdmin, isGlobalView, locale });
+    const items = getVisibleMobileNavItems({ isAdmin, role, isGlobalView, locale });
     const menuLabel = t('shell.menu');
 
     if (items.length === 0) return null;

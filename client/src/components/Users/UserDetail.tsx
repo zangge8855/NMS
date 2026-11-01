@@ -759,8 +759,8 @@ export default function UserDetail() {
     const [clientData, setClientData] = useState(() => detailBootstrapRef.current?.clientData || []);
     const [clientsLoading, setClientsLoading] = useState(false);
     const [clientsFetched, setClientsFetched] = useState(() => detailBootstrapRef.current?.clientsFetched === true);
-    const [liveTrafficSummary, setLiveTrafficSummary] = useState(() => ({ ...EMPTY_LIVE_TRAFFIC_SUMMARY }));
-    const [clientIpSupportByServer, setClientIpSupportByServer] = useState({});
+    const [liveTrafficSummary, setLiveTrafficSummary] = useState<{ ready: boolean; upPerSecond: number; downPerSecond: number; totalPerSecond: number }>(() => ({ ...EMPTY_LIVE_TRAFFIC_SUMMARY }));
+    const [clientIpSupportByServer, setClientIpSupportByServer] = useState<Record<string, any>>({});
     const [subscriptionFetched, setSubscriptionFetched] = useState(() => detailBootstrapRef.current?.subscriptionFetched === true);
     const [clientIpModal, setClientIpModal] = useState({
         open: false,
@@ -793,7 +793,7 @@ export default function UserDetail() {
         setSearchParams(nextParams, { replace: true });
     };
 
-    const fetchDetail = async (options = {}) => {
+    const fetchDetail = async (options: any = {}) => {
         const requestId = detailRequestIdRef.current + 1;
         detailRequestIdRef.current = requestId;
         const preserveCurrent = options.preserveCurrent === true || (options.preserveCurrent !== false && detail !== null);
@@ -821,7 +821,7 @@ export default function UserDetail() {
         return null;
     };
 
-    const loadSubscription = async (options = {}) => {
+    const loadSubscription = async (options: any = {}) => {
         const quiet = options.quiet === true;
         const email = String(
             detail?.user?.subscriptionEmail
@@ -872,7 +872,7 @@ export default function UserDetail() {
         setSubscriptionLoading(false);
     };
 
-    const fetchClients = async (options = {}) => {
+    const fetchClients = async (options: any = {}) => {
         const requestId = clientRequestIdRef.current + 1;
         clientRequestIdRef.current = requestId;
         const preserveCurrent = options.preserveCurrent === true;
@@ -1211,7 +1211,7 @@ export default function UserDetail() {
                 format: e.format || '',
             });
         });
-        return items.sort((a, b) => new Date(b.ts) - new Date(a.ts)).slice(0, 50);
+        return items.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime()).slice(0, 50);
     }, [detail, copy, locale, recentAudit, subscriptionAccess]);
     const shouldVirtualizeTimeline = timeline.length > 80;
 
@@ -1357,7 +1357,7 @@ export default function UserDetail() {
         });
     };
 
-    const loadClientIps = async (target, options = {}) => {
+    const loadClientIps = async (target: any, options: any = {}) => {
         if (!target?.serverId || !target?.email) return;
         const supportState = clientIpSupportByServer[target.serverId];
         if (supportState?.supported === false) return;

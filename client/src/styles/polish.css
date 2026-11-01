@@ -1253,3 +1253,171 @@ body {
   gap: 6px;
   margin: 2px 0 12px;
 }
+
+/* ==========================================================================
+   22. Visual Elevation, Micro-Telemetry & Interactive Polish
+   ========================================================================== */
+
+/* Subtle ambient top illumination on main workspace canvas */
+:root[data-theme="dark"] .main-content {
+  background-image: radial-gradient(
+    ellipse 80% 360px at 50% -120px,
+    rgba(109, 127, 245, 0.085),
+    transparent 70%
+  );
+  background-repeat: no-repeat;
+}
+
+:root[data-theme="light"] .main-content {
+  background-image: radial-gradient(
+    ellipse 80% 340px at 50% -140px,
+    rgba(59, 79, 209, 0.045),
+    transparent 70%
+  );
+  background-repeat: no-repeat;
+}
+
+/* Multi-layered card elevation and smooth border transitions */
+:root :is(.card, .glass-panel, .table-container, .settings-panel) {
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+:root .btn {
+  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease, transform 0.12s ease;
+}
+
+:root .btn:active:not(:disabled) {
+  transform: translateY(0.5px);
+}
+
+:root .btn-primary {
+  background: var(--gradient-primary, var(--accent-primary));
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+:root .btn-primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, var(--accent-primary-hover) 0%, var(--accent-primary) 100%);
+  box-shadow: 0 4px 12px -2px var(--accent-primary-glow), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+/* Dashboard Hero KPI band & Traffic band interactive states */
+:root .dashboard-summary-band,
+:root .dashboard-traffic-window-grid {
+  position: relative;
+}
+
+:root .dashboard-hero-kpi--interactive,
+:root .dashboard-stat-card--interactive {
+  cursor: pointer;
+  transition: background-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+:root .dashboard-hero-kpi--interactive:hover,
+:root .dashboard-stat-card--interactive:hover {
+  background-color: var(--surface-hover);
+}
+
+/* NodeHealthGrid micro-progress bars & interactive tile polish */
+:root .node-health-tile {
+  transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+:root .node-health-tile:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md), var(--shadow-card);
+}
+
+:root .node-health-metric-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+:root .node-health-metric-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+:root .node-health-metric-bar {
+  width: 100%;
+  height: 3px;
+  margin-top: 2px;
+  border-radius: 999px;
+  background: var(--surface-soft);
+  overflow: hidden;
+}
+
+:root .node-health-metric-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.25s ease;
+}
+
+/* Sidebar navigation active item & brand icon */
+:root .sidebar-logo-icon {
+  box-shadow: 0 2px 8px -2px var(--accent-primary-glow), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+:root .sidebar .nav-item {
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+:root .sidebar .nav-item.active {
+  background: var(--accent-primary-bg);
+  box-shadow: inset 0 0 0 1px var(--accent-primary-border);
+}
+
+/* Header search keycap badge */
+:root .header-search-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 6px;
+  border-radius: 5px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  box-shadow: inset 0 -1px 0 var(--border-color);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* Table row hover & floating bulk action dock */
+:root .table tbody tr {
+  transition: background-color 0.12s ease;
+}
+
+:root .table tbody tr:hover {
+  background-color: var(--surface-table-row-hover);
+}
+
+:root :is(.batch-action-bar, .floating-bulk-dock) {
+  backdrop-filter: saturate(160%) blur(16px);
+  -webkit-backdrop-filter: saturate(160%) blur(16px);
+  background: color-mix(in srgb, var(--floating-panel-bg) 88%, transparent);
+  box-shadow: var(--shadow-lg), 0 0 0 1px var(--border-color);
+}
+
+/* Login page atmospheric backdrop & elevated card */
+:root[data-theme="dark"] .login-page {
+  background-image:
+    radial-gradient(circle at 50% 0%, rgba(109, 127, 245, 0.14), transparent 55%),
+    radial-gradient(circle at 85% 85%, rgba(79, 193, 217, 0.07), transparent 45%);
+}
+
+:root[data-theme="light"] .login-page {
+  background-image:
+    radial-gradient(circle at 50% 0%, rgba(59, 79, 209, 0.08), transparent 55%),
+    radial-gradient(circle at 85% 85%, rgba(19, 128, 154, 0.05), transparent 45%);
+}
+
+:root .login-card {
+  backdrop-filter: saturate(150%) blur(18px);
+  -webkit-backdrop-filter: saturate(150%) blur(18px);
+  box-shadow: var(--shadow-xl), var(--shadow-card);
+}
+

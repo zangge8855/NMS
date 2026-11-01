@@ -67,7 +67,7 @@ function readServerDetailSnapshot(serverId) {
     };
 }
 
-function StatMini({ label, value, suffix }) {
+function StatMini({ label, value, suffix = '' }: { label: any; value: any; suffix?: any }) {
     const animated = useAnimatedCounter(typeof value === 'number' ? value : 0);
     const pending = value === null || value === undefined;
     const mainValue = pending ? '...' : String(typeof value === 'number' ? animated : value);

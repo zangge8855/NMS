@@ -464,9 +464,9 @@ function InboundSummaryMobileList({ inbounds = [], loading, t }) {
     );
 }
 
-function pushServerTrendSamples(previous, serverMap) {
-    const next = {};
-    for (const [serverId, serverData] of Object.entries(serverMap || {})) {
+function pushServerTrendSamples(previous: Record<string, any>, serverMap: Record<string, any>) {
+    const next: Record<string, any> = {};
+    for (const [serverId, serverData] of Object.entries<any>(serverMap || {})) {
         const current = Array.isArray(previous?.[serverId]) ? previous[serverId] : [];
         const now = Date.now();
         const mem = serverData?.status?.mem;
@@ -516,9 +516,9 @@ function resolveNetTrafficTotals(serverData) {
     };
 }
 
-function summarizeClusterThroughput(historyMap) {
-    const histories = Object.values(historyMap || {}).filter((items) => Array.isArray(items) && items.length > 0);
-    return histories.reduce((summary, items) => {
+function summarizeClusterThroughput(historyMap: Record<string, any>): { up: number; down: number; total: number; ready: boolean } {
+    const histories = Object.values(historyMap || {}).filter((items: any): items is any[] => Array.isArray(items) && items.length > 0);
+    return histories.reduce((summary: { up: number; down: number; total: number; ready: boolean }, items: any[]) => {
         const latest = items[items.length - 1] || null;
         if (!latest) return summary;
         const ready = items.length > 1 || latest.hasThroughputSample === true;
@@ -749,7 +749,7 @@ export default function Dashboard() {
         const statusMap: Record<string, any> = {};
         let derivedTotalInbounds = 0;
         let derivedActiveInbounds = 0;
-        for (const [serverId, sData] of Object.entries(data.servers || {})) {
+        for (const [serverId, sData] of Object.entries<any>(data.servers || {})) {
             statusMap[serverId] = sData;
             if (sData?.online) {
                 derivedTotalInbounds += Number(sData?.inboundCount || 0);
@@ -1223,7 +1223,7 @@ export default function Dashboard() {
                         kpis={globalHeroKpis}
                     />
                     <div className="stats-grid dashboard-stats-grid dashboard-traffic-window-grid mb-8">
-                        {trafficCards.map((card, index) => (
+                        {trafficCards.map((card: any, index: number) => (
                             <StatCard
                                 key={`${card.label || card.kicker || 'global-card'}-${index}`}
                                 card={card}
@@ -1404,7 +1404,7 @@ export default function Dashboard() {
             </Header>
             <div className="page-content page-content--wide page-enter dashboard-page">
                 <div className="stats-grid dashboard-stats-grid">
-                    {statCards.map((card, index) => (
+                    {statCards.map((card: any, index: number) => (
                         <StatCard
                             key={`${card.label || card.kicker || 'node-card'}-${index}`}
                             card={card}

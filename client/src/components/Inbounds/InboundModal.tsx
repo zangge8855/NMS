@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { HiOutlineXMark, HiOutlineCheck } from 'react-icons/hi2';
+import { HiOutlineXMark, HiOutlineCheck, HiOutlineClipboard } from 'react-icons/hi2';
 import { useServer } from '../../contexts/ServerContext';
 import api from '../../api/client';
 import { attachBatchRiskToken } from '../../utils/riskConfirm';
-import { getErrorMessage } from '../../utils/format';
+import { copyToClipboard, getErrorMessage } from '../../utils/format';
 import { useI18n } from '../../contexts/LanguageContext';
 import ModalShell from '../UI/ModalShell';
 import toast from 'react-hot-toast';
@@ -550,7 +550,7 @@ function normalizeStreamForSubmission(rawStream, protocolKey) {
 
     const network = String(source.network || 'tcp').toLowerCase();
     const security = String(source.security || 'none').toLowerCase();
-    const normalized = {
+    const normalized: Record<string, any> = {
         network,
         security,
         externalProxy: Array.isArray(source.externalProxy) ? source.externalProxy : [],
@@ -703,6 +703,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
         generateSecret: 'Generate FakeTLS Secret', mtprotoPreview: 'Telegram Proxy Connect Link',
         noKernelTun: 'Disable Kernel TUN (noKernelTun)', addPeer: '+ Add Peer', delete: 'Delete',
         addMask: '+ Add Mask', genMlkemCert: 'Generate ML-KEM-768',
+        copyLink: 'Copy link', linkCopied: 'Link copied',
     } : {
         vlessParams: 'VLESS 协议参数', defaultX25519: '默认（X25519）', authKey: 'Authentication 密钥', noFallback: '未配置 fallback',
         hysteria2Params: 'Hysteria2 协议参数', uploadBandwidth: '上行带宽 (up_mbps)', downloadBandwidth: '下行带宽 (down_mbps)', unlimitedRecommended: '0 = 不限速（建议）',
@@ -723,26 +724,27 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
         generateSecret: '生成随机 FakeTLS 密钥', mtprotoPreview: 'Telegram 代理连接链接',
         noKernelTun: '不使用内核 TUN (noKernelTun)', addPeer: '+ 添加对端', delete: '删除',
         addMask: '+ 新增 Mask', genMlkemCert: '生成 ML-KEM-768',
+        copyLink: '复制链接', linkCopied: '链接已复制',
     }, [locale]);
     const { panelApi } = useServer();
     const defaultProtocol = 'vless';
     const [loading, setLoading] = useState(false);
     const [isAdvanced, setIsAdvanced] = useState(false);
-    const [schemaProtocols, setSchemaProtocols] = useState(PROTOCOL_SCHEMA_FALLBACK);
+    const [schemaProtocols, setSchemaProtocols] = useState<any[]>(PROTOCOL_SCHEMA_FALLBACK);
 
     // Form State
     const [remark, setRemark] = useState('');
     const [protocol, setProtocol] = useState(defaultProtocol);
-    const [port, setPort] = useState('');
+    const [port, setPort] = useState<string | number>('');
     const [listen, setListen] = useState('');
     const [inboundEnabled, setInboundEnabled] = useState(true);
     const [trafficReset, setTrafficReset] = useState('never');
-    const [totalGB, setTotalGB] = useState(0);
+    const [totalGB, setTotalGB] = useState<string | number>(0);
     const [_expiryTime, setExpiryTime] = useState(0);
     const [expiryMode, setExpiryMode] = useState('never');
     const [expiryDateTime, setExpiryDateTime] = useState('');
     const [expiryAfterDays, setExpiryAfterDays] = useState('');
-    const [selectedServerIds, setSelectedServerIds] = useState([]);
+    const [selectedServerIds, setSelectedServerIds] = useState<string[]>([]);
     const [syncExistingSubscriptions, setSyncExistingSubscriptions] = useState(false);
 
     // Raw JSON State (always the source of truth for submission)
@@ -1548,14 +1550,14 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
         return stream;
     };
 
-    const createInboundParams = ({ settingsValue, streamSettingsValue, sniffingValue, expiryTimeValue }) => {
+    const createInboundParams = ({ settingsValue, streamSettingsValue, sniffingValue, expiryTimeValue }: any) => {
         const params = new URLSearchParams();
         params.append('remark', remark);
         params.append('protocol', protocol);
-        params.append('port', port);
+        params.append('port', String(port));
         params.append('listen', listen);
-        params.append('total', Number(totalGB) * 1024 * 1024 * 1024);
-        params.append('expiryTime', Number(expiryTimeValue || 0));
+        params.append('total', String(Number(totalGB) * 1024 * 1024 * 1024));
+        params.append('expiryTime', String(Number(expiryTimeValue || 0)));
         params.append('trafficReset', trafficReset);
         params.append('settings', typeof settingsValue === 'string' ? settingsValue : JSON.stringify(settingsValue || {}));
         if (streamSettingsValue !== undefined && streamSettingsValue !== null) {
@@ -1702,7 +1704,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                             throw new Error(`[${sid}] ${validation.msg}`);
                         }
                     }
-                    const payload = {
+                    const payload: Record<string, any> = {
                         remark,
                         protocol,
                         port: Number(port),

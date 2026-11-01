@@ -94,14 +94,14 @@ function getTargetKey(target: any = {}) {
 export default function ClientModal({
     isOpen,
     onClose,
-    inboundId,
-    serverId,
+    inboundId = undefined,
+    serverId = undefined,
     inboundProtocol = '',
     targets = [],
     editingClient = null,
     onSuccess,
     onBatchResult,
-}) {
+}: any) {
     const { locale, t } = useI18n();
     const [loading, setLoading] = useState(false);
 
@@ -109,22 +109,22 @@ export default function ClientModal({
     const [uuid, setUuid] = useState('');
     const [password, setPassword] = useState('');
     const [subId, setSubId] = useState('');
-    const [totalGB, setTotalGB] = useState(0);
+    const [totalGB, setTotalGB] = useState<string | number>(0);
     const [_expiryTime, setExpiryTime] = useState(0);
     const [expiryMode, setExpiryMode] = useState('never');
     const [expiryDateTime, setExpiryDateTime] = useState('');
     const [expiryAfterDays, setExpiryAfterDays] = useState('');
     const [enable, setEnable] = useState(true);
-    const [limitIp, setLimitIp] = useState(0);
-    const [speedLimitUp, setSpeedLimitUp] = useState(0);
-    const [speedLimitDown, setSpeedLimitDown] = useState(0);
+    const [limitIp, setLimitIp] = useState<string | number>(0);
+    const [speedLimitUp, setSpeedLimitUp] = useState<string | number>(0);
+    const [speedLimitDown, setSpeedLimitDown] = useState<string | number>(0);
     const [tgId, setTgId] = useState('');
     const [comment, setComment] = useState('');
     const [reset, setReset] = useState(0);
     const [flow, setFlow] = useState('');
-    const [editTargets, setEditTargets] = useState([]);
-    const [selectedServerIds, setSelectedServerIds] = useState([]);
-    const [selectedInboundKeys, setSelectedInboundKeys] = useState([]);
+    const [editTargets, setEditTargets] = useState<any[]>([]);
+    const [selectedServerIds, setSelectedServerIds] = useState<string[]>([]);
+    const [selectedInboundKeys, setSelectedInboundKeys] = useState<string[]>([]);
     const [baseFlowOptions, setBaseFlowOptions] = useState(['', 'xtls-rprx-vision']);
     const [flowProtocols, setFlowProtocols] = useState(['vless']);
     const flowOptions = useMemo(() => {
@@ -140,8 +140,8 @@ export default function ClientModal({
                 const editScopeTargets = Array.isArray(editingClient.editTargets) && editingClient.editTargets.length > 0
                     ? editingClient.editTargets
                     : [editingClient];
-                const protocolSet = new Set(
-                    editScopeTargets.map((item) => normalizeProtocol(item?.protocol)).filter(Boolean)
+                const protocolSet = new Set<string>(
+                    editScopeTargets.map((item: any) => normalizeProtocol(item?.protocol)).filter(Boolean)
                 );
                 const needsUuid = protocolSet.size === 0 || Array.from(protocolSet).some((item) => UUID_PROTOCOLS.has(item));
                 const needsPassword = Array.from(protocolSet).some((item) => PASSWORD_PROTOCOLS.has(item));
@@ -177,13 +177,13 @@ export default function ClientModal({
                 setSelectedServerIds([]);
                 setSelectedInboundKeys([]);
             } else {
-                const addProtocolSet = new Set((targets || []).map((item) => normalizeProtocol(item?.protocol)).filter(Boolean));
+                const addProtocolSet = new Set<string>((targets || []).map((item: any) => normalizeProtocol(item?.protocol)).filter(Boolean));
                 const normalizedInboundProtocol = normalizeProtocol(inboundProtocol);
                 if (addProtocolSet.size === 0 && normalizedInboundProtocol) {
                     addProtocolSet.add(normalizedInboundProtocol);
                 }
-                const needsUuid = addProtocolSet.size === 0 || Array.from(addProtocolSet).some((item) => UUID_PROTOCOLS.has(item));
-                const needsPassword = Array.from(addProtocolSet).some((item) => PASSWORD_PROTOCOLS.has(item));
+                const needsUuid = addProtocolSet.size === 0 || Array.from(addProtocolSet).some((item: string) => UUID_PROTOCOLS.has(item));
+                const needsPassword = Array.from(addProtocolSet).some((item: string) => PASSWORD_PROTOCOLS.has(item));
 
                 setEmail('user_' + Math.random().toString(36).substring(7));
                 setUuid(needsUuid ? generateUuidLocal() : '');
@@ -201,7 +201,7 @@ export default function ClientModal({
                 setReset(0);
                 setFlow('');
                 setEditTargets([]);
-                const uniqueServerIds = Array.from(new Set((targets || []).map((t) => t.serverId).filter(Boolean)));
+                const uniqueServerIds = Array.from(new Set<string>((targets || []).map((t: any) => String(t.serverId || '')).filter(Boolean)));
                 setSelectedServerIds(uniqueServerIds);
                 setSelectedInboundKeys((targets || []).map((item) => getTargetKey(item)).filter(Boolean));
             }

@@ -109,13 +109,24 @@ export default function CommandPalette() {
     const location = useLocation();
 
     const isAdmin = user?.role === 'admin';
+    const role = user?.role || (isAdmin ? 'admin' : 'user');
+    const isStaff = isAdmin || role === 'operator' || role === 'auditor';
     const isGlobalView = activeServerId === 'global';
     const copy = useMemo(() => getCommandCopy(locale), [locale]);
 
     // Open/close listeners
     useEffect(() => {
+        const isEditableTarget = (target: EventTarget | null) => {
+            if (!target || !(target instanceof Element)) return false;
+            if (target.closest('[contenteditable="true"]')) return true;
+            const tagName = String(target.tagName || '').toLowerCase();
+            return tagName === 'input' || tagName === 'textarea' || tagName === 'select' || (target as HTMLElement).isContentEditable === true;
+        };
+
         const handleKeyDown = (e: KeyboardEvent) => {
             if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+                if (e.defaultPrevented && !e.shiftKey) return;
+                if (isEditableTarget(e.target) && !isOpen) return;
                 e.preventDefault();
                 setIsOpen((prev) => !prev);
                 return;
@@ -156,7 +167,7 @@ export default function CommandPalette() {
         const items: CommandItem[] = [];
 
         // 1. Navigation Pages
-        const navPages = getSearchableNavItems({ isAdmin, isGlobalView, locale }).map((nav) => ({
+        const navPages = getSearchableNavItems({ isAdmin, role, isGlobalView, locale }).map((nav) => ({
             id: `page-${nav.path}`,
             kind: 'page' as const,
             label: nav.label,
@@ -310,7 +321,7 @@ export default function CommandPalette() {
         }
 
         return items;
-    }, [copy, isAdmin, isGlobalView, locale, location.pathname, logout, resolvedTheme, servers]);
+    }, [copy, cycleTheme, isAdmin, isGlobalView, locale, location.pathname, logout, resolvedTheme, role, servers, toggleLocale]);
 
     // Filter items according to search input
     const filteredItems = useMemo(() => {

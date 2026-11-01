@@ -303,18 +303,18 @@ export default function Tasks({ embedded = false }) {
         });
     }, [tasks]);
 
-    const typeOptions = useMemo(() => (
-        Array.from(new Set(tasks.map((task) => task.type).filter(Boolean))).sort()
+    const typeOptions = useMemo<string[]>(() => (
+        Array.from(new Set<string>(tasks.map((task: any) => String(task.type || '')).filter(Boolean))).sort()
     ), [tasks]);
 
-    const actionOptions = useMemo(() => (
-        Array.from(new Set(tasks.map((task) => task.action).filter(Boolean))).sort()
+    const actionOptions = useMemo<string[]>(() => (
+        Array.from(new Set<string>(tasks.map((task: any) => String(task.action || '')).filter(Boolean))).sort()
     ), [tasks]);
 
-    const serverOptions = useMemo(() => {
-        const values = new Set();
-        tasks.forEach((task) => {
-            getTaskServers(task).forEach((name) => values.add(name));
+    const serverOptions = useMemo<string[]>(() => {
+        const values = new Set<string>();
+        tasks.forEach((task: any) => {
+            getTaskServers(task).forEach((name: string) => values.add(name));
         });
         return Array.from(values).sort();
     }, [tasks]);

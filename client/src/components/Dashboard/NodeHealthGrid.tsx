@@ -252,26 +252,44 @@ function NodeTile({ server, serverData, trend = [], showSparkline = false, ping 
 
             {isOnline ? (
                 <div className="node-health-tile-meta">
-                    <div>
-                        <div>{t('pages.nodeHealth.cpu')}</div>
-                        <div className="node-health-tile-value" style={{ color: cpu > 70 ? 'var(--accent-warning)' : 'var(--text-primary)' }}>
+                    <div className="node-health-metric-cell">
+                        <div className="node-health-metric-label">{t('pages.nodeHealth.cpu')}</div>
+                        <div className="node-health-tile-value" style={{ color: cpu > 85 ? 'var(--accent-danger)' : cpu > 70 ? 'var(--accent-warning)' : 'var(--text-primary)' }}>
                             {cpu.toFixed(1)}%
                         </div>
-                    </div>
-                    <div>
-                        <div>{t('pages.nodeHealth.memory')}</div>
-                        <div className="node-health-tile-value" style={{ color: memPercent > 80 ? 'var(--accent-warning)' : 'var(--text-primary)' }}>
-                            {memPercent.toFixed(1)}%
+                        <div className="node-health-metric-bar" aria-hidden="true">
+                            <span
+                                className="node-health-metric-bar-fill"
+                                style={{
+                                    width: `${Math.max(3, Math.min(100, cpu))}%`,
+                                    background: cpu > 85 ? 'var(--accent-danger)' : cpu > 70 ? 'var(--accent-warning)' : 'var(--accent-success)',
+                                }}
+                            />
                         </div>
                     </div>
-                    <div>
-                        <div>{t('pages.nodeHealth.onlineUsers')}</div>
+                    <div className="node-health-metric-cell">
+                        <div className="node-health-metric-label">{t('pages.nodeHealth.memory')}</div>
+                        <div className="node-health-tile-value" style={{ color: memPercent > 85 ? 'var(--accent-danger)' : memPercent > 75 ? 'var(--accent-warning)' : 'var(--text-primary)' }}>
+                            {memPercent.toFixed(1)}%
+                        </div>
+                        <div className="node-health-metric-bar" aria-hidden="true">
+                            <span
+                                className="node-health-metric-bar-fill"
+                                style={{
+                                    width: `${Math.max(3, Math.min(100, memPercent))}%`,
+                                    background: memPercent > 85 ? 'var(--accent-danger)' : memPercent > 75 ? 'var(--accent-warning)' : 'var(--accent-primary)',
+                                }}
+                            />
+                        </div>
+                    </div>
+                    <div className="node-health-metric-cell">
+                        <div className="node-health-metric-label">{t('pages.nodeHealth.onlineUsers')}</div>
                         <div className="node-health-tile-value">
                             {serverData?.managedOnlineCount ?? serverData?.onlineCount ?? serverData?.onlineSessionCount ?? 0}
                         </div>
                     </div>
-                    <div>
-                        <div>{t('pages.nodeHealth.traffic')}</div>
+                    <div className="node-health-metric-cell">
+                        <div className="node-health-metric-label">{t('pages.nodeHealth.traffic')}</div>
                         <div className="node-health-tile-value">
                             {trafficReady && traffic !== null ? formatBytes(traffic) : '--'}
                         </div>

@@ -133,6 +133,8 @@ export default function Header({
     const [managedUsers, setManagedUsers] = useState<any[]>(() => getManagedUsersSnapshotMeta().users);
 
     const isAdmin = user?.role === 'admin';
+    const role = user?.role || (isAdmin ? 'admin' : 'user');
+    const isStaff = isAdmin || role === 'operator' || role === 'auditor';
     const isGlobalView = activeServerId === 'global';
     const shortcutLabel = useMemo(() => getShortcutLabel(), []);
     const matchedNavItem = useMemo(() => getNavItemForPath(location.pathname), [location.pathname]);
@@ -141,7 +143,7 @@ export default function Header({
     const searchableItems = useMemo(
         () => {
             const copy = buildCommandCopy(locale);
-            const navItems = getSearchableNavItems({ isAdmin, isGlobalView, locale }).map((item) => ({
+            const navItems = getSearchableNavItems({ isAdmin, role, isGlobalView, locale }).map((item) => ({
                 ...item,
                 kind: 'page',
                 id: item.path,
@@ -149,7 +151,7 @@ export default function Header({
                 description: item.section || copy.pages,
             }));
 
-            if (!isAdmin) {
+            if (!isStaff) {
                 return navItems;
             }
 
@@ -237,7 +239,7 @@ export default function Header({
 
             return [...commandItems, ...navItems, ...serverItems, ...userItems];
         },
-        [isAdmin, isGlobalView, locale, location.pathname, managedUsers, servers]
+        [isAdmin, isStaff, role, isGlobalView, locale, location.pathname, managedUsers, servers]
     );
 
     const filteredItems = useMemo(() => {

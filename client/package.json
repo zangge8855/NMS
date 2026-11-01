@@ -6,7 +6,8 @@
     "scripts": {
         "dev": "vite",
         "clean:dist": "node ./scripts/clean-dist.cjs",
-        "lint": "eslint . --max-warnings=0",
+        "typecheck": "tsc --noEmit",
+        "lint": "eslint . --max-warnings=0 && tsc --noEmit",
         "test": "vitest run",
         "test:run": "vitest run",
         "build": "npm run clean:dist && vite build",

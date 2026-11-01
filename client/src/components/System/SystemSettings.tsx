@@ -271,7 +271,7 @@ function resolveWorkspaceSection(value) {
 
 
 
-function SettingsPanelHeader({ title, subtitle }) {
+function SettingsPanelHeader({ title, subtitle }: { title: any; subtitle?: any }) {
     return (
         <div className="settings-panel-head">
             <div className="settings-panel-title">{title}</div>
@@ -291,6 +291,17 @@ function SettingsWorkspaceSection({
     actions = null,
     heroMode = 'full',
     children,
+}: {
+    workspaceId?: string;
+    eyebrow?: any;
+    title?: any;
+    subtitle?: any;
+    summary?: any;
+    badges?: any;
+    highlights?: any[];
+    actions?: any;
+    heroMode?: string;
+    children?: any;
 }) {
     const showHeroCopy = heroMode === 'full';
     const showHeroStrip = heroMode === 'cards' && Boolean(badges || actions);
@@ -362,6 +373,15 @@ function SettingsToggleCard({
     activeLabel,
     inactiveLabel,
     compact = false,
+}: {
+    checked: boolean;
+    onChange: (e: any) => void;
+    disabled?: boolean;
+    label: any;
+    description?: any;
+    activeLabel?: any;
+    inactiveLabel?: any;
+    compact?: boolean;
 }) {
     const { t } = useI18n();
     const effectiveActiveLabel = activeLabel || t("pages.settings.enabled");
@@ -696,7 +716,7 @@ export default function SystemSettings() {
         return () => window.removeEventListener(SESSION_SNAPSHOT_EVENT, handleSnapshotUpdate);
     }, [hasPendingChanges, isAdmin]);
 
-    const fetchSettings = async (options = {}) => {
+    const fetchSettings = async (options: any = {}) => {
         const preserveCurrent = options.preserveCurrent === true || (options.preserveCurrent !== false && settings !== null);
         if (!preserveCurrent) {
             setLoading(true);
@@ -716,7 +736,7 @@ export default function SystemSettings() {
         });
     };
 
-    const fetchDbStatus = async (options = {}) => {
+    const fetchDbStatus = async (options: any = {}) => {
         const quiet = options.quiet === true;
         setDbLoading(true);
         return runDedupedRequest('dbStatus', async () => {
@@ -744,7 +764,7 @@ export default function SystemSettings() {
         });
     };
 
-    const fetchEmailStatus = async (options = {}) => {
+    const fetchEmailStatus = async (options: any = {}) => {
         const quiet = options.quiet === true;
         setEmailStatusLoading(true);
         return runDedupedRequest('emailStatus', async () => {
@@ -837,7 +857,7 @@ export default function SystemSettings() {
         setNoticePreviewLoading(false);
     };
 
-    const fetchBackupStatus = async (options = {}) => {
+    const fetchBackupStatus = async (options: any = {}) => {
         const quiet = options.quiet === true;
         setBackupStatusLoading(true);
         return runDedupedRequest('backupStatus', async () => {
@@ -854,7 +874,7 @@ export default function SystemSettings() {
         });
     };
 
-    const fetchMonitorStatus = async (options = {}) => {
+    const fetchMonitorStatus = async (options: any = {}) => {
         const quiet = options.quiet === true;
         setMonitorStatusLoading(true);
         return runDedupedRequest('monitorStatus', async () => {
@@ -883,7 +903,7 @@ export default function SystemSettings() {
         });
     };
 
-    const fetchInviteCodes = async (options = {}) => {
+    const fetchInviteCodes = async (options: any = {}) => {
         const quiet = options.quiet === true;
         setInviteCodesLoading(true);
         return runDedupedRequest('inviteCodes', async () => {
@@ -1522,7 +1542,7 @@ export default function SystemSettings() {
         setBackupUploadProgress(0);
     };
 
-    const inspectBackupFile = async (options = {}) => {
+    const inspectBackupFile = async (options: any = {}) => {
         if (!isAdmin || !backupFile) {
             toast.error(t('pages.settings.pleaseSelectTheBackupFileFirst'));
             return null;
@@ -3419,7 +3439,7 @@ export default function SystemSettings() {
         </div>
     );
 
-    const workspaceSections = [
+    const workspaceSections: Array<Record<string, any>> = [
         {
             id: 'status',
             title: t('pages.settings.systemStatusLabel'),
@@ -3472,7 +3492,7 @@ export default function SystemSettings() {
         },
     ];
     const activeWorkspaceSection = workspaceSections.find((item) => item.id === activeWorkspaceSectionId) || workspaceSections[0];
-    const workspaceNavItems = buildSettingsWorkspaceConfig(t).map((item) => ({
+    const workspaceNavItems: Array<Record<string, any>> = buildSettingsWorkspaceConfig(t).map((item) => ({
         ...item,
         ...(workspaceSections.find((section) => section.id === item.id) || {}),
     }));
