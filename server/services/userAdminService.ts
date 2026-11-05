@@ -36,6 +36,15 @@ function resolveUserSubscriptionEmail(user: any): string {
 }
 
 function normalizeExpiryTime(value: unknown): number {
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (trimmed && !/^\d+$/.test(trimmed)) {
+            const parsed = Date.parse(trimmed);
+            if (Number.isFinite(parsed) && parsed > 0) {
+                return Math.floor(parsed);
+            }
+        }
+    }
     return Math.max(0, Math.floor(Number(value) || 0));
 }
 

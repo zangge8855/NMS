@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import config from '../config.js';
+import { mirrorStoreSnapshot } from './dbMirror.js';
 import { saveObjectAtomic } from './fileUtils.js';
 
 export interface CertificateRecord {
@@ -55,6 +56,7 @@ class CertificateStore {
 
     private _save(): void {
         saveObjectAtomic(CERTS_FILE, this.items);
+        mirrorStoreSnapshot('certificates', this.exportState());
     }
 
     getAll(): CertificateRecord[] {
@@ -120,6 +122,20 @@ class CertificateStore {
             return true;
         }
         return false;
+    }
+
+    exportState(): { items: CertificateRecord[] } {
+        return {
+            items: [...this.items],
+        };
+    }
+
+    importState(snapshot: any = {}): void {
+        const list = Array.isArray(snapshot) ? snapshot : snapshot?.items;
+        if (!Array.isArray(list)) {
+            throw new Error('Invalid snapshot format for CertificateStore: items array is missing');
+        }
+        this.items = list.filter((item: any) => item && typeof item === 'object' && item.id && item.domain);
     }
 }
 

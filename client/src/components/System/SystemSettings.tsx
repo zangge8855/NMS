@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../Layout/Header';
 import api from '../../api/client';
 import toast from 'react-hot-toast';
@@ -453,6 +453,7 @@ function areComparableSettingsEqual(left, right) {
 
 export default function SystemSettings() {
     const { locale, t } = useI18n();
+    const navigate = useNavigate();
     const formatDateTime = (value, loc = locale) => {
         if (!value) return loc === 'en-US' ? 'N/A' : t('pages.settings.na');
         return formatDateTimeValue(value, loc);
@@ -521,10 +522,6 @@ export default function SystemSettings() {
     const [monitorStatusLoading, setMonitorStatusLoading] = useState(false);
     const [monitorStatus, setMonitorStatus] = useState(() => settingsBootstrapRef.current?.monitorStatus || null);
     const [telegramTestLoading, setTelegramTestLoading] = useState(false);
-    const [webhookChannel, setWebhookChannel] = useState<'bark' | 'discord' | 'feishu' | 'wechat' | 'custom'>('bark');
-    const [webhookUrl, setWebhookUrl] = useState('');
-    const [webhookBarkKey, setWebhookBarkKey] = useState('');
-    const [webhookSecret, setWebhookSecret] = useState('');
     const [webhookTestLoading, setWebhookTestLoading] = useState(false);
     const [editingTelegramChatId, setEditingTelegramChatId] = useState(false);
     const [registrationRuntime, setRegistrationRuntime] = useState(() => settingsBootstrapRef.current?.registrationRuntime || null);
@@ -612,6 +609,7 @@ export default function SystemSettings() {
                 auditIpGeo: false,
                 subscription: false,
                 telegram: false,
+                webhook: false,
             };
         }
         return {
@@ -2732,7 +2730,7 @@ export default function SystemSettings() {
                         <div className="form-group">
                             <label className="form-label font-semibold">{t('pages.settings.webhookChannel')}</label>
                             <select
-                                className="form-input"
+                                className="form-select"
                                 value={draft.webhook.channel}
                                 onChange={(e) => patchField('webhook', 'channel', e.target.value)}
                             >
@@ -2762,7 +2760,15 @@ export default function SystemSettings() {
                                 <input
                                     type="text"
                                     className="form-input font-mono text-xs"
-                                    placeholder={draft.webhook.channel === 'discord' ? 'https://discord.com/api/webhooks/...' : 'https://open.feishu.cn/open-apis/bot/v2/hook/...'}
+                                    placeholder={
+                                        draft.webhook.channel === 'discord'
+                                            ? 'https://discord.com/api/webhooks/...'
+                                            : draft.webhook.channel === 'wechat'
+                                                ? 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=...'
+                                                : draft.webhook.channel === 'custom'
+                                                    ? 'https://example.com/webhook'
+                                                    : 'https://open.feishu.cn/open-apis/bot/v2/hook/...'
+                                    }
                                     value={draft.webhook.url}
                                     onChange={(e) => patchField('webhook', 'url', e.target.value)}
                                 />
@@ -3519,7 +3525,7 @@ export default function SystemSettings() {
                         icon={<HiOutlineCog6Tooth style={{ fontSize: '48px' }} />}
                         surface
                         action={(
-                            <button type="button" className="btn btn-secondary" onClick={() => { window.location.href = '/account'; }}>
+                            <button type="button" className="btn btn-secondary" onClick={() => navigate('/account')}>
                                 {t('pages.settings.goToAccountCenter')}
                             </button>
                         )}
@@ -3848,7 +3854,7 @@ export default function SystemSettings() {
                                 <div className="settings-backup-inspection-grid">
                                     <div className="settings-backup-inspection-item">
                                         <div className="text-xs text-muted">{t("pages.settings.backupTimeLabel")}</div>
-                                        <div className="text-sm">{backupInspection.createdAt ? new Date(backupInspection.createdAt).toLocaleString('zh-CN') : t('pages.settings.unknownLabel')}</div>
+                                        <div className="text-sm">{backupInspection.createdAt ? formatDateTime(backupInspection.createdAt, locale) : t('pages.settings.unknownLabel')}</div>
                                     </div>
                                     <div className="settings-backup-inspection-item">
                                         <div className="text-xs text-muted">{t("pages.settings.formatVersionLabel")}</div>

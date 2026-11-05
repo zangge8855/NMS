@@ -786,6 +786,7 @@ export function applyXuiCredentials(config: any, input: any, targetKeys: string[
     if (password && !collectPasswordValues(config).has(password)) {
         for (const key of PLAIN_PASSWORD_CONFIG_KEYS) setPlainPassword(config, key, password);
         setPlainPassword(config, 'hysteria', password);
+        setPlainPassword(config, 'snell', password);
         applyKeyedPassword(config, 'shadowsocks', password);
         applyKeyedPassword(config, 'shadowsocks16', password);
         applyKeyedPassword(config, 'shadowtls', password);
@@ -929,6 +930,28 @@ export function suiInboundToXuiInbound(inbound: any, clients: any[] = [], tls: a
     if (type === 'vless') {
         settings.decryption = 'none';
     }
+    if (type === 'hysteria' || type === 'hysteria2') {
+        if (inbound?.up_mbps !== undefined) settings.up_mbps = toNonNegativeInt(inbound.up_mbps);
+        if (inbound?.down_mbps !== undefined) settings.down_mbps = toNonNegativeInt(inbound.down_mbps);
+        if (inbound?.obfs && typeof inbound.obfs === 'object') settings.obfs = inbound.obfs;
+    }
+    if (type === 'tuic') {
+        if (inbound?.congestion_control) settings.congestion_control = inbound.congestion_control;
+        if (inbound?.udp_relay_mode) settings.udp_relay_mode = inbound.udp_relay_mode;
+    }
+    if (type === 'snell') {
+        if (inbound?.version !== undefined) settings.version = inbound.version;
+        if (inbound?.psk) settings.psk = inbound.psk;
+        if (inbound?.obfs_mode) settings.obfs_mode = inbound.obfs_mode;
+    }
+    if (type === 'shadowtls') {
+        if (inbound?.version !== undefined) settings.version = inbound.version;
+        if (inbound?.password) settings.password = inbound.password;
+        if (inbound?.handshake) settings.handshake = inbound.handshake;
+    }
+    if (Array.isArray(inbound?.addrs) && inbound.addrs.length > 0) {
+        settings.addrs = inbound.addrs;
+    }
 
     // A client attached to several inbounds has one traffic counter in s-ui;
     // spreading it keeps node totals right instead of counting it per inbound.
@@ -948,7 +971,7 @@ export function suiInboundToXuiInbound(inbound: any, clients: any[] = [], tls: a
         protocol: type,
         listen: normalizeText(inbound?.listen),
         port: toNonNegativeInt(inbound?.listen_port),
-        enable: true,
+        enable: inbound?.enable !== false,
         up: Math.round(up),
         down: Math.round(down),
         total: 0,
@@ -1007,9 +1030,14 @@ export function xuiInboundPayloadToSui(payload: any = {}, existing: any = null):
     if (payload?.port !== undefined) next.listen_port = toNonNegativeInt(payload.port);
     if (payload?.suiTlsId !== undefined) next.tls_id = toNonNegativeInt(payload.suiTlsId);
     if (next.tls_id === undefined) next.tls_id = 0;
+    if (payload?.enable === false || payload?.enable === 'false' || typeof existing?.enable === 'boolean') {
+        next.enable = payload.enable !== false && payload.enable !== 'false';
+    }
+    if (Array.isArray(payload?.addrs)) next.addrs = payload.addrs;
     if (!Array.isArray(next.addrs)) next.addrs = [];
 
     const settings = parseMaybeJson(payload?.settings, {}) || {};
+    if (Array.isArray(settings.addrs)) next.addrs = settings.addrs;
     if (next.type === 'shadowsocks') {
         if (settings.method) next.method = settings.method;
         if (!next.method) next.method = '2022-blake3-aes-256-gcm';
@@ -1017,6 +1045,17 @@ export function xuiInboundPayloadToSui(payload: any = {}, existing: any = null):
         if (!next.password && String(next.method).startsWith('2022-')) {
             next.password = randomBase64Key(next.method === SS16_METHOD ? 16 : 32);
         }
+    } else if (next.type === 'hysteria' || next.type === 'hysteria2') {
+        if (settings.up_mbps !== undefined) next.up_mbps = toNonNegativeInt(settings.up_mbps);
+        if (settings.down_mbps !== undefined) next.down_mbps = toNonNegativeInt(settings.down_mbps);
+        if (settings.obfs && typeof settings.obfs === 'object') next.obfs = settings.obfs;
+    } else if (next.type === 'tuic') {
+        if (settings.congestion_control) next.congestion_control = settings.congestion_control;
+        if (settings.udp_relay_mode) next.udp_relay_mode = settings.udp_relay_mode;
+    } else if (next.type === 'snell') {
+        if (settings.version !== undefined) next.version = settings.version;
+        if (settings.psk) next.psk = settings.psk;
+        if (settings.obfs_mode) next.obfs_mode = settings.obfs_mode;
     }
 
     const stream = parseMaybeJson(payload?.streamSettings, null);
@@ -1587,10 +1626,11 @@ async function handleSubscription(ctx: FacadeContext, _req: FacadeRequest, match
 const NATIVE_GET_ACTIONS = new Set([
     'load', 'inbounds', 'outbounds', 'endpoints', 'services', 'tls', 'clients', 'config', 'users',
     'settings', 'stats', 'status', 'onlines', 'sessions', 'logs', 'changes', 'keypairs', 'checkOutbound',
+    'singbox-config', 'checkUpdate', 'tokens',
 ]);
 const NATIVE_POST_ACTIONS = new Set([
     'save', 'restartApp', 'restartSb', 'maintenance', 'resetTraffic', 'linkConvert', 'subConvert',
-    'closeSessions', 'getCertPing',
+    'closeSessions', 'getCertPing', 'update', 'addToken', 'deleteToken',
 ]);
 
 /** `/sui/<action>`: direct access to the s-ui API for the NMS s-ui editors. */

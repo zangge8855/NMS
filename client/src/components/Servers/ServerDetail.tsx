@@ -15,6 +15,7 @@ import toast from 'react-hot-toast';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { useI18n } from '../../contexts/LanguageContext';
 import { isSuiServer, normalizePanelType } from '../../utils/panelType';
+import { AUDIT_EVENT_LABELS } from '../../utils/auditEventLabels';
 import SectionHeader from '../UI/SectionHeader';
 import InboundRemarkPill from '../UI/InboundRemarkPill';
 import {
@@ -292,6 +293,15 @@ export default function ServerDetail() {
     useEffect(() => {
         if (activeTab === 'onlines') fetchSnapshot({ preserveCurrent: true, force: true });
         if (activeTab === 'audit') fetchAudit();
+    }, [activeTab, serverId]);
+
+    useEffect(() => {
+        const handlePageRefresh = () => {
+            fetchSnapshot({ preserveCurrent: true, force: true });
+            if (activeTab === 'audit') fetchAudit();
+        };
+        window.addEventListener('nms:page-refresh', handlePageRefresh);
+        return () => window.removeEventListener('nms:page-refresh', handlePageRefresh);
     }, [activeTab, serverId]);
 
     useEffect(() => {
@@ -791,7 +801,7 @@ export default function ServerDetail() {
                                                 <div className={`timeline-dot ${e.outcome === 'success' ? 'success' : e.outcome === 'failed' ? 'danger' : 'info'}`} />
                                                 <div className="timeline-content">
                                                     <div className="timeline-head">
-                                                        <span className="font-medium">{e.eventType}</span>
+                                                        <span className="font-medium">{AUDIT_EVENT_LABELS[locale as 'zh-CN' | 'en-US']?.[e.eventType] || e.eventType}</span>
                                                         <span className="timeline-time">{formatTime(e.ts, locale)}</span>
                                                     </div>
                                                     {e.actor && <div className="text-sm text-muted">{t('pages.serverDetail.auditLabels.actor')} {e.actor}</div>}

@@ -265,12 +265,12 @@ body {
 }
 
 /* --------------------------------------------------------------------------
-   Figures: proportional lining digits read calmer at display sizes;
-   tabular digits stay for tables and dense tiles where columns must align.
+   Figures: tabular lining digits keep dashboard KPIs, tables and dense tiles
+   crisply aligned across live telemetry updates.
    -------------------------------------------------------------------------- */
 :root .dashboard-stat-card-value-text {
-  font-variant-numeric: lining-nums proportional-nums;
-  letter-spacing: -0.02em;
+  font-variant-numeric: lining-nums tabular-nums;
+  letter-spacing: -0.025em;
 }
 
 :root :is(.node-health-tile-value, .table td) {
@@ -305,9 +305,10 @@ body {
 
 :root .node-health-tile:hover,
 :root .node-health-tile:focus-visible {
-  transform: none;
+  transform: translateY(-1px);
   border-color: var(--border-color-hover);
   background: var(--surface-panel-hover);
+  box-shadow: var(--shadow-md), var(--shadow-card);
 }
 
 :root .node-health-tile:focus-visible {

@@ -9,6 +9,7 @@ import userPolicyStore from './userPolicyStore.js';
 import userGroupStore from './userGroupStore.js';
 import clientEntitlementOverrideStore from './clientEntitlementOverrideStore.js';
 import inviteCodeStore from './inviteCodeStore.js';
+import certificateStore from './certificateStore.js';
 import { loadStoreSnapshot, writeStoreSnapshotNow } from './dbMirror.js';
 import { readSnapshot, shouldApplySnapshotPrivacyRedaction } from '../db/snapshots.js';
 
@@ -84,6 +85,7 @@ const STORE_REGISTRY: StoreRegistryEntry[] = [
     { key: 'user_policies', store: userPolicyStore },
     { key: 'user_groups', store: userGroupStore },
     { key: 'client_entitlement_overrides', store: clientEntitlementOverrideStore },
+    { key: 'certificates', store: certificateStore },
 ];
 
 function resolveKeys(inputKeys: any = []): StoreRegistryEntry[] {

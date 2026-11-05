@@ -201,14 +201,11 @@ export function registerOpsCommands(registry: CommandRegistry, ctx: any): void {
                     summary: `静音告警 ${Math.floor(minutes)} 分钟`,
                     execute: async ({ actor }: { actor?: string }) => {
                         const settingsStore = (await import('../../../store/systemSettingsStore.js')).default;
-                        const current: any = settingsStore.getSettings();
-                        const patch = {
+                        settingsStore.update({
                             telegram: {
-                                ...current.telegram,
                                 alertMutedUntil: untilIso,
                             },
-                        };
-                        settingsStore.update(patch);
+                        });
                         await recordTelegramAudit(services, {
                             event: 'telegram_alert_mute',
                             actor: actor || invokeCtx?.actor,
@@ -242,9 +239,8 @@ export function registerOpsCommands(registry: CommandRegistry, ctx: any): void {
                 summary: '解除告警静音',
                 execute: async ({ actor }: { actor?: string }) => {
                     const settingsStore = (await import('../../../store/systemSettingsStore.js')).default;
-                    const current: any = settingsStore.getAll();
                     settingsStore.update({
-                        telegram: { ...current.telegram, alertMutedUntil: '' },
+                        telegram: { alertMutedUntil: '' },
                     });
                     await recordTelegramAudit(services, {
                         event: 'telegram_alert_unmute',

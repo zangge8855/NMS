@@ -21,6 +21,9 @@ import {
 } from 'react-icons/hi2';
 import { getSearchableNavItems } from '../Layout/navConfig';
 import { getManagedUsersSnapshotMeta } from '../../utils/managedUsersCache';
+import { SESSION_SNAPSHOT_EVENT } from '../../utils/sessionSnapshot';
+
+const MANAGED_USERS_SNAPSHOT_KEY = 'managed_users_v1';
 
 export interface CommandItem {
     id: string;
@@ -113,6 +116,24 @@ export default function CommandPalette() {
     const isStaff = isAdmin || role === 'operator' || role === 'auditor';
     const isGlobalView = activeServerId === 'global';
     const copy = useMemo(() => getCommandCopy(locale), [locale]);
+    const [managedUsers, setManagedUsers] = useState<any[]>(() => getManagedUsersSnapshotMeta().users);
+
+    useEffect(() => {
+        const syncManagedUsers = () => {
+            setManagedUsers(getManagedUsersSnapshotMeta().users);
+        };
+        const handleSnapshotUpdate = (event: any) => {
+            if (event?.detail?.key === MANAGED_USERS_SNAPSHOT_KEY) {
+                syncManagedUsers();
+            }
+        };
+        window.addEventListener(SESSION_SNAPSHOT_EVENT, handleSnapshotUpdate);
+        window.addEventListener('focus', syncManagedUsers);
+        return () => {
+            window.removeEventListener(SESSION_SNAPSHOT_EVENT, handleSnapshotUpdate);
+            window.removeEventListener('focus', syncManagedUsers);
+        };
+    }, []);
 
     // Open/close listeners
     useEffect(() => {
@@ -274,7 +295,7 @@ export default function CommandPalette() {
         items.push(...actions);
 
         // 3. Servers & Nodes
-        if (isAdmin && Array.isArray(servers)) {
+        if (isStaff && Array.isArray(servers)) {
             const serverItems: CommandItem[] = servers
                 .map((srv: any) => {
                     const id = String(srv?.id || '').trim();
@@ -296,8 +317,8 @@ export default function CommandPalette() {
         }
 
         // 4. Managed Users
-        if (isAdmin) {
-            const cachedUsers = getManagedUsersSnapshotMeta().users;
+        if (isStaff) {
+            const cachedUsers = managedUsers;
             if (Array.isArray(cachedUsers)) {
                 const userItems: CommandItem[] = cachedUsers
                     .map((usr: any) => {
@@ -321,7 +342,7 @@ export default function CommandPalette() {
         }
 
         return items;
-    }, [copy, cycleTheme, isAdmin, isGlobalView, locale, location.pathname, logout, resolvedTheme, role, servers, toggleLocale]);
+    }, [copy, cycleTheme, isAdmin, isStaff, isGlobalView, locale, location.pathname, logout, managedUsers, resolvedTheme, role, servers, toggleLocale]);
 
     // Filter items according to search input
     const filteredItems = useMemo(() => {

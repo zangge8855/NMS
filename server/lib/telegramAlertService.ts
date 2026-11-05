@@ -686,14 +686,14 @@ function formatAuditMessage(entry: any = {}, rule: any = {}) {
 }
 
 function normalizeCommand(value) {
-    return String(value || '').trim().split(/\s+/)[0].toLowerCase();
+    return String(value || '').trim().split(/\s+/)[0].split('@')[0].toLowerCase();
 }
 
 function parseCommandLine(value = '') {
     const text = String(value || '').trim();
     if (!text) return { command: '', positional: [], raw: '' };
     const tokens = text.split(/\s+/);
-    const command = tokens[0].toLowerCase();
+    const command = tokens[0].split('@')[0].toLowerCase();
     const positional = tokens.slice(1);
     const raw = text.slice(tokens[0].length).trim();
     return { command, positional, raw };
@@ -2201,13 +2201,13 @@ export function createTelegramAlertService(options: any = {}) {
             },
     };
 
-    async function dispatchCommand(command = '', { actor = 'telegram', chatId = '', positional = [], raw = '', page = 1 }: any = {}) {
+    async function dispatchCommand(command = '', { actor = 'telegram', from = undefined, chatId = '', positional = [], raw = '', page = 1 }: any = {}) {
         ensureLegacyCommandsRegistered();
         const normalized = normalizeCommand(command);
         const result = await commandRegistry.dispatch({
             command: normalized,
             args: { positional, raw, page },
-            ctx: { actor, chatId, pendingActions, services: telegramServiceContext },
+            ctx: { actor, from, chatId, pendingActions, services: telegramServiceContext },
         });
 
         if (result.kind === 'unknown_command') {
@@ -2263,6 +2263,7 @@ export function createTelegramAlertService(options: any = {}) {
 
         const reply = await dispatchCommand(parsed.command, {
             actor: message?.from?.username || 'telegram',
+            from: message?.from,
             chatId,
             positional: parsed.positional,
             raw: parsed.raw,

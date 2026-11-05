@@ -722,8 +722,7 @@ export default function Dashboard() {
             return undefined;
         }
         fetchWsTicket({ force: true });
-        const interval = setInterval(() => fetchWsTicket({ force: true }), 5 * 60 * 1000);
-        return () => clearInterval(interval);
+        return undefined;
     }, [fetchWsTicket, token]);
 
     // ── WebSocket Connection ─────────────────────────────

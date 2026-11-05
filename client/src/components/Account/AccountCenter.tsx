@@ -26,6 +26,8 @@ function getAccountCopy(locale = 'zh-CN') {
             verified: 'Verified',
             unverified: 'Unverified',
             userRole: 'User',
+            operatorRole: 'Operator',
+            auditorRole: 'Auditor',
             adminRole: 'Admin',
             saveProfile: 'Save Account',
             savingProfile: 'Saving',
@@ -69,6 +71,8 @@ function getAccountCopy(locale = 'zh-CN') {
         verified: '已验证',
         unverified: '未验证',
         userRole: '用户',
+        operatorRole: '运维',
+        auditorRole: '审计员',
         adminRole: '管理员',
         saveProfile: '保存账户',
         savingProfile: '正在保存',
@@ -129,7 +133,13 @@ export default function AccountCenter() {
 
     const loginEmail = normalizeEmail(user?.email);
     const loginUsername = normalizeUsername(user?.username);
-    const roleLabel = user?.role === 'admin' ? copy.adminRole : copy.userRole;
+    const roleLabel = user?.role === 'admin'
+        ? copy.adminRole
+        : user?.role === 'operator'
+            ? copy.operatorRole
+            : user?.role === 'auditor'
+                ? copy.auditorRole
+                : copy.userRole;
     const profileChanged = normalizeUsername(username) !== loginUsername || normalizeEmail(email) !== loginEmail;
     const profileDraftKey = `${normalizeUsername(username)}\n${normalizeEmail(email)}`;
     const accountInitial = String(loginUsername || loginEmail || copy.title || '?').trim().charAt(0).toUpperCase() || '?';

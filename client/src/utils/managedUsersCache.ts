@@ -10,13 +10,15 @@ let pendingPromise: Promise<any> | null = null;
 let snapshotHydrated = false;
 let cachedSource = 'snapshot';
 
+const STAFF_ROLES = new Set(['admin', 'operator', 'auditor']);
+
 function normalizeUserList(response: any): any[] {
     const list = Array.isArray(response?.data?.obj) ? response.data.obj : [];
-    return list.filter((user: any) => user?.role !== 'admin');
+    return list.filter((user: any) => !STAFF_ROLES.has(String(user?.role || '')));
 }
 
 function normalizeCachedUsers(value: any): any[] {
-    return Array.isArray(value) ? value.filter((user: any) => user?.role !== 'admin') : [];
+    return Array.isArray(value) ? value.filter((user: any) => !STAFF_ROLES.has(String(user?.role || ''))) : [];
 }
 
 export function applyManagedUsersSnapshot(users: any[], options: { source?: string } = {}): any[] {
@@ -64,8 +66,25 @@ export async function fetchManagedUsers(api: any, options: FetchManagedUsersOpti
     }
 
     const request = api.get('/auth/users')
-        .then((response: any) => {
-            const nextUsers = normalizeUserList(response);
+        .then(async (response: any) => {
+            let combined = Array.isArray(response?.data?.obj) ? [...response.data.obj] : [];
+            const totalPages = Math.min(20, Number(response?.data?.totalPages || 1));
+            const pageSize = Number(response?.data?.pageSize || 50);
+            if (totalPages > 1) {
+                const pagePromises: Promise<any>[] = [];
+                for (let page = 2; page <= totalPages; page += 1) {
+                    pagePromises.push(
+                        api.get('/auth/users', { params: { page, pageSize } }).catch(() => null)
+                    );
+                }
+                const extraPages = await Promise.all(pagePromises);
+                for (const extra of extraPages) {
+                    if (Array.isArray(extra?.data?.obj)) {
+                        combined = combined.concat(extra.data.obj);
+                    }
+                }
+            }
+            const nextUsers = normalizeCachedUsers(combined);
             cachedUsers = nextUsers;
             cachedAtMs = Date.now();
             cachedSource = 'live';

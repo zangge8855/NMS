@@ -130,7 +130,7 @@ export default function XrayConsole() {
             setTemplate(obj.template || null);
             setSource(String(obj.source || ''));
         } catch (err) {
-            const message = getErrorMessage(err) || copy.loadError;
+            const message = getErrorMessage(err, copy.loadError, locale);
             toast.error(message);
             setSnapshot(null);
             setTemplate(null);
@@ -138,7 +138,7 @@ export default function XrayConsole() {
         } finally {
             setLoading(false);
         }
-    }, [copy.loadError, copy.unsupported, hasTargetServer, targetServerId]);
+    }, [copy.loadError, copy.unsupported, hasTargetServer, locale, targetServerId]);
 
     useEffect(() => {
         if (!hasTargetServer) {
@@ -149,6 +149,16 @@ export default function XrayConsole() {
         }
         loadConfig();
     }, [hasTargetServer, loadConfig, targetServerId]);
+
+    useEffect(() => {
+        const handlePageRefresh = () => {
+            if (hasTargetServer) {
+                loadConfig();
+            }
+        };
+        window.addEventListener('nms:page-refresh', handlePageRefresh);
+        return () => window.removeEventListener('nms:page-refresh', handlePageRefresh);
+    }, [hasTargetServer, loadConfig]);
 
     const handleSave = useCallback(async (section, payload) => {
         if (!hasTargetServer || saving) return;

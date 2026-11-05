@@ -146,7 +146,7 @@ export function createFakeSuiState(seed = {}) {
             const local = [];
             for (const inboundId of client.inbounds) {
                 const inbound = state.inbounds.find((item) => item.id === inboundId);
-                if (!inbound) continue;
+                if (!inbound || inbound.enable === false) continue;
                 const tls = inbound.tls_id ? state.tls.find((item) => item.id === inbound.tls_id) || null : null;
                 for (const uri of buildLinks(client, inbound, tls, seed.linkHost)) {
                     local.push({ remark: inbound.tag, type: 'local', uri });
@@ -176,7 +176,7 @@ export function createFakeSuiPanelApp(state, options = {}) {
         const local = [];
         for (const inboundId of client.inbounds) {
             const inbound = state.inbounds.find((item) => item.id === inboundId);
-            if (!inbound) continue;
+            if (!inbound || inbound.enable === false) continue;
             for (const uri of buildLinks(client, inbound, inbound.tls_id ? tlsById(inbound.tls_id) : null, hostname)) {
                 local.push({ remark: inbound.tag, type: 'local', uri });
             }
@@ -192,6 +192,7 @@ export function createFakeSuiPanelApp(state, options = {}) {
             tls_id: inbound.tls_id || 0,
             listen: inbound.listen,
             listen_port: inbound.listen_port,
+            ...(typeof inbound.enable === 'boolean' ? { enable: inbound.enable } : {}),
         };
         if (USER_TYPES.has(inbound.type)) {
             summary.users = state.clients.filter((client) => client.inbounds.includes(inbound.id)).map((client) => client.name);

@@ -5,12 +5,13 @@ import userPolicyStore from '../store/userPolicyStore.js';
 import userGroupStore from '../store/userGroupStore.js';
 import auditStore from '../store/auditStore.js';
 import subscriptionTokenStore from '../store/subscriptionTokenStore.js';
-import { authMiddleware, adminOnly } from '../middleware/auth.js';
+import { authMiddleware, operatorOrAbove } from '../middleware/auth.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import { normalizeEmail } from '../lib/normalize.js';
 import { querySubscriptionAccess } from '../services/subscriptionAuditService.js';
 import { enrichAuditEvents } from '../lib/auditEventEnrichment.js';
 import { resolveEffectivePolicy } from '../lib/userPolicyResolver.js';
+import { autoDeployClients } from '../services/subscriptionSyncService.js';
 
 const router = Router();
 
@@ -223,7 +224,7 @@ router.delete('/:id/tokens/:tid', (req: Request, res: Response) => {
 /**
  * POST /api/users/guest-pass — 创建临时访客试用订阅码
  */
-router.post('/guest-pass', authMiddleware, adminOnly, (req: Request, res: Response) => {
+router.post('/guest-pass', authMiddleware, operatorOrAbove, async (req: Request, res: Response) => {
     try {
         const { durationHours = 24, trafficLimitGb = 2, note = '访客临时体验' } = req.body || {};
         const hours = Math.max(1, Math.min(720, Number(durationHours) || 24));
@@ -245,13 +246,20 @@ router.post('/guest-pass', authMiddleware, adminOnly, (req: Request, res: Respon
             guestExpiresAt: expiresAt,
         });
 
-        // Set policy limits if needed
+        // Set policy limits and auto-deploy credentials to active nodes
         if (newUser && newUser.id) {
-            userPolicyStore.upsert(email, {
+            const guestPolicy = userPolicyStore.upsert(email, {
+                serverScopeMode: 'all',
+                protocolScopeMode: 'all',
                 trafficLimitBytes: Math.floor(limitGb * 1024 * 1024 * 1024),
                 expiryTime: new Date(expiresAt).getTime(),
                 comment: `[临时访客] ${note} (${hours}小时限时 / ${limitGb}GB)`,
             });
+            try {
+                await autoDeployClients(email, guestPolicy);
+            } catch {
+                // Best-effort node provisioning for guest pass
+            }
         }
 
         appendSecurityAudit('guest_pass_created', req, {

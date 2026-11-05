@@ -13,6 +13,7 @@ import {
     HiOutlineUsers,
     HiOutlineSun,
     HiOutlineMoon,
+    HiOutlineComputerDesktop,
 } from 'react-icons/hi2';
 import NotificationBell from './NotificationBell';
 import { getNavItemForPath, getSearchableNavItems } from './navConfig';
@@ -305,7 +306,7 @@ export default function Header({
 
     useEffect(() => {
         const handleGlobalShortcut = (event: KeyboardEvent) => {
-            const isShortcut = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k';
+            const isShortcut = (event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === 'k';
             if (!isShortcut) return;
             if (isEditableShortcutTarget(event.target)) return;
             event.preventDefault();
@@ -472,7 +473,7 @@ export default function Header({
                         <HiOutlineMagnifyingGlass className="header-search-icon" aria-hidden="true" />
                         <input
                             ref={inputRef}
-                            placeholder={t(isAdmin ? 'shell.searchPlaceholder' : 'shell.userSearchPlaceholder')}
+                            placeholder={t(isStaff ? 'shell.searchPlaceholder' : 'shell.userSearchPlaceholder')}
                             className="header-search-input"
                             value={searchTerm}
                             onChange={(event) => {
@@ -497,7 +498,13 @@ export default function Header({
                             title={locale === 'en-US' ? `Theme: ${mode} (click to switch)` : `外观：${mode === 'auto' ? '跟随系统' : mode === 'dark' ? '深色' : '浅色'}（点击切换）`}
                             aria-label={locale === 'en-US' ? 'Toggle theme' : '切换外观主题'}
                         >
-                            {resolvedTheme === 'dark' ? <HiOutlineSun className="theme-toggle-icon" /> : <HiOutlineMoon className="theme-toggle-icon" />}
+                            {mode === 'auto' ? (
+                                <HiOutlineComputerDesktop className="theme-toggle-icon" />
+                            ) : resolvedTheme === 'dark' ? (
+                                <HiOutlineSun className="theme-toggle-icon" />
+                            ) : (
+                                <HiOutlineMoon className="theme-toggle-icon" />
+                            )}
                         </button>
                         <button
                             type="button"
@@ -508,7 +515,7 @@ export default function Header({
                         >
                             <span className="language-toggle-label">{t('shell.langLabel')}</span>
                         </button>
-                        {isAdmin ? <NotificationBell /> : null}
+                        {isStaff ? <NotificationBell /> : null}
                     </div>
                 </div>
             </div>

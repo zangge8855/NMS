@@ -37,8 +37,9 @@ const router = Router();
 const CLIENT_ACTIONS = new Set(['add', 'update', 'enable', 'disable', 'delete', 'adjust']);
 const INBOUND_ACTIONS = new Set(['add', 'update', 'enable', 'disable', 'delete', 'resetTraffic', 'syncExistingUsers']);
 const FLOW_PROTOCOLS = new Set(['vless']);
-const UUID_PROTOCOLS = new Set(['vmess', 'vless']);
-const PASSWORD_PROTOCOLS = new Set(['trojan', 'shadowsocks']);
+const UUID_PROTOCOLS = new Set(['vmess', 'vless', 'tuic']);
+const PASSWORD_PROTOCOLS = new Set(['trojan', 'shadowsocks', 'hysteria', 'hysteria2', 'hy2', 'anytls', 'naive', 'socks', 'http', 'mixed']);
+const AUTH_PROTOCOLS = new Set(['hysteria', 'hysteria2', 'hy2']);
 const SENSITIVE_BATCH_ACTIONS = new Set(['delete', 'disable']);
 const JOB_ID_PATTERN = '[0-9a-fA-F-]{36}';
 const RETRY_GROUP_MODES = new Set(['none', 'server', 'error', 'server_error']);
@@ -109,7 +110,7 @@ function normalizeClientData(input: any = {}, fallbackIdentifier = '', options: 
     const allowFlow = options.allowFlow !== false;
     const protocol = normalizeProtocol(options.protocol || input.protocol);
     const idValue = toStringValue(input.id);
-    const passwordValue = toStringValue(input.password);
+    const passwordValue = toStringValue(input.password || input.auth);
     const fallback = toStringValue(fallbackIdentifier);
     const legacyIdentifier = toStringValue(idValue || passwordValue || fallback);
     let normalizedId = '';
@@ -131,6 +132,7 @@ function normalizeClientData(input: any = {}, fallbackIdentifier = '', options: 
     return {
         id: normalizedId,
         password: normalizedPassword,
+        ...(AUTH_PROTOCOLS.has(protocol) ? { auth: normalizedPassword } : {}),
         email,
         totalGB: toNumberValue(input.totalGB, 0),
         expiryTime: toNumberValue(input.expiryTime, 0),

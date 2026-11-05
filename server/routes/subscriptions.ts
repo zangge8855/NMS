@@ -51,7 +51,7 @@ function ensureEmailAccess(req, res, next) {
     next();
 }
 
-const RECONSTRUCTED_PROTOCOLS = new Set(['vmess', 'vless', 'trojan', 'shadowsocks']);
+const RECONSTRUCTED_PROTOCOLS = new Set(['vmess', 'vless', 'trojan', 'shadowsocks', 'hysteria', 'hysteria2', 'hy2', 'tuic']);
 const LINK_PATTERN = /^(vmess|vless|trojan|ss|hy2|hysteria2?|tuic|anytls|socks5?|https?|http2|naive\+https|naive\+quic):\/\//i;
 const MODE_SET = new Set(['auto', 'native', 'reconstructed']);
 const POLICY_SCOPE_SET = new Set(['all', 'selected', 'none']);
@@ -545,6 +545,7 @@ function buildVmessLink({ server, inbound, client, stream, diagnostics }) {
         || realityServerNames[0]
         || '';
 
+    const rawScy = String(client.security || '').trim().toLowerCase();
     const vmessObj: Record<string, any> = {
         v: '2',
         ps: getTag(server, inbound, client.email || ''),
@@ -552,7 +553,7 @@ function buildVmessLink({ server, inbound, client, stream, diagnostics }) {
         port: String(inbound.port),
         id: uuid,
         aid: String(client.alterId || 0),
-        scy: client.security || 'auto',
+        scy: (!rawScy || rawScy === 'none' || rawScy === 'zero') ? 'auto' : client.security,
         net,
         type: stream.tcpSettings?.header?.type || 'none',
         host: stream.wsSettings?.headers?.Host
@@ -606,7 +607,7 @@ function buildVlessLink({ server, inbound, client, stream, diagnostics }) {
     params.set('type', net);
     params.set('encryption', firstNonEmpty(inboundSettings.encryption, client.encryption, 'none'));
 
-    if (net === 'tcp') {
+    if (net === 'tcp' && inbound.disableFlow !== true) {
         setParamIfPresent(params, 'flow', client.flow);
     }
     applyTransportParams(params, stream);
@@ -624,20 +625,32 @@ function buildVlessLink({ server, inbound, client, stream, diagnostics }) {
         if (alpn) {
             params.set('alpn', alpn);
         }
-        const fp = firstNonEmpty(stream.tlsSettings?.settings?.fingerprint);
+        const cipherSuites = firstNonEmpty(stream.tlsSettings?.cipherSuites, stream.tlsSettings?.settings?.cipherSuites);
+        const fp = cipherSuites ? 'unsafe' : firstNonEmpty(stream.tlsSettings?.settings?.fingerprint);
         if (fp) {
             params.set('fp', fp);
+        }
+        if (cipherSuites) {
+            params.set('cs', cipherSuites);
         }
         const ech = firstNonEmpty(stream.tlsSettings?.settings?.echConfigList);
         if (ech) {
             params.set('ech', ech);
+        }
+        const pcs = firstNonEmpty(stream.tlsSettings?.settings?.pinnedPeerCertSha256);
+        if (pcs) {
+            params.set('pcs', pcs);
+        }
+        const vcn = firstNonEmpty(stream.tlsSettings?.settings?.verifyPeerCertByName);
+        if (vcn) {
+            params.set('vcn', vcn);
         }
         if (stream.tlsSettings?.allowInsecure === true) {
             params.set('allowInsecure', '1');
         }
     } else if (security === 'reality') {
         params.set('security', 'reality');
-        if (!client.flow && net === 'tcp') {
+        if (!client.flow && net === 'tcp' && inbound.disableFlow !== true) {
             params.set('flow', 'xtls-rprx-vision');
         }
         const { sni, pbk, fp, sid, spx, pqv } = getRealityParams(stream);
@@ -720,7 +733,11 @@ function buildShadowsocksLink({ server, inbound, client, settings, diagnostics }
         return null;
     }
 
-    const userInfo = Buffer.from(`${method}:${password}`).toString('base64');
+    const serverPassword = String(settings?.password || '').trim();
+    const combinedPassword = String(method).startsWith('2022-') && serverPassword && serverPassword !== String(password).trim()
+        ? `${serverPassword}:${password}`
+        : password;
+    const userInfo = Buffer.from(`${method}:${combinedPassword}`).toString('base64');
     const tag = encodeURIComponent(getTag(server, inbound, client.email || ''));
     return `ss://${userInfo}@${getServerHost(server.url)}:${inbound.port}#${tag}`;
 }
@@ -758,14 +775,25 @@ function buildHysteria2Link({ server, inbound, client, settings, stream, diagnos
         params.set('insecure', '1');
     }
 
-    // Legacy catalog rows keep obfs in settings; 3x-ui v3 moved it to a salamander finalmask.
+    // Legacy catalog rows keep obfs in settings; 3x-ui v3 moved it to a salamander/packetSize finalmask.
     const salamanderPassword = findUdpMask(stream, 'salamander')?.settings?.password;
-    const obfsType = settings?.obfs?.type || (salamanderPassword ? 'salamander' : '');
+    const packetSizeSettings = findUdpMask(stream, 'packetSize')?.settings;
+    const obfsType = settings?.obfs?.type
+        || (salamanderPassword ? 'salamander' : '')
+        || (packetSizeSettings ? 'gecko' : '');
     const obfsPassword = settings?.obfs?.password || salamanderPassword;
     if (obfsType) {
         params.set('obfs', obfsType);
         if (obfsPassword) {
             params.set('obfs-password', obfsPassword);
+        }
+        const minSize = packetSizeSettings?.minSize ?? settings?.obfs?.minSize;
+        const maxSize = packetSizeSettings?.maxSize ?? settings?.obfs?.maxSize;
+        if (minSize !== undefined && minSize !== null && String(minSize) !== '') {
+            params.set('obfs-min', String(minSize));
+        }
+        if (maxSize !== undefined && maxSize !== null && String(maxSize) !== '') {
+            params.set('obfs-max', String(maxSize));
         }
     }
 
@@ -1040,6 +1068,7 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options: any =
         const fallbackSubIds = new Set();
 
         for (const inbound of inbounds) {
+            if (inbound?.excludeFromSub === true || inbound?.enable === false) continue;
             const protocol = String(inbound.protocol || '').toLowerCase();
             const settings = parseJsonObjectLike(inbound.settings, {});
             const stream = parseJsonObjectLike(inbound.streamSettings, {});
@@ -1580,6 +1609,7 @@ function applySharedTlsConfig(proxy, options: any = {}) {
         if (!publicKey) return false;
         proxy['reality-opts'] = {
             'public-key': publicKey,
+            'support-x25519mlkem768': true,
         };
         if (shortId) {
             proxy['reality-opts']['short-id'] = shortId;
@@ -1591,8 +1621,32 @@ function applySharedTlsConfig(proxy, options: any = {}) {
 
 function applyTransportToMihomoProxy(proxy, network, options: any = {}) {
     const normalized = String(network || 'tcp').trim().toLowerCase() || 'tcp';
-    if (['httpupgrade', 'xhttp', 'kcp', 'quic'].includes(normalized)) {
+    if (['kcp', 'quic'].includes(normalized)) {
         return false;
+    }
+
+    if (normalized === 'httpupgrade') {
+        proxy.network = 'httpupgrade';
+        proxy['http-upgrade-opts'] = { path: decodeMaybeEncoded(options.path) || '/' };
+        const host = decodeMaybeEncoded(options.host);
+        if (host) {
+            proxy['http-upgrade-opts'].headers = { Host: host };
+        }
+        return true;
+    }
+
+    if (normalized === 'xhttp') {
+        proxy.network = 'xhttp';
+        proxy['xhttp-opts'] = { path: decodeMaybeEncoded(options.path) || '/' };
+        const host = decodeMaybeEncoded(options.host);
+        if (host) {
+            proxy['xhttp-opts'].host = host;
+        }
+        const mode = decodeMaybeEncoded(options.mode || options.headerType);
+        if (mode && mode !== 'none') {
+            proxy['xhttp-opts'].mode = mode;
+        }
+        return true;
     }
 
     if (normalized === 'http' || normalized === 'h2') {
@@ -1617,10 +1671,18 @@ function applyTransportToMihomoProxy(proxy, network, options: any = {}) {
 
     if (normalized === 'ws') {
         proxy.network = 'ws';
-        proxy['ws-opts'] = { path: decodeMaybeEncoded(options.path) || '/' };
+        const rawPath = decodeMaybeEncoded(options.path) || '/';
+        const edMatch = rawPath.match(/^(.*?)\?ed=(\d+)$/i);
+        const cleanPath = edMatch ? (edMatch[1] || '/') : rawPath;
+        const maxEarlyData = Number(options.maxEarlyData || (edMatch ? edMatch[2] : 0)) || 0;
+        proxy['ws-opts'] = { path: cleanPath };
         const host = decodeMaybeEncoded(options.host);
         if (host) {
             proxy['ws-opts'].headers = { Host: host };
+        }
+        if (maxEarlyData > 0) {
+            proxy['ws-opts']['max-early-data'] = maxEarlyData;
+            proxy['ws-opts']['early-data-header-name'] = 'Sec-WebSocket-Protocol';
         }
         return true;
     }
@@ -1734,6 +1796,8 @@ function parseVlessProxy(link, usedNames, index) {
         host: query.get('host'),
         serviceName: query.get('serviceName'),
         headerType: query.get('headerType'),
+        mode: query.get('mode'),
+        maxEarlyData: query.get('ed') || query.get('max-early-data'),
     })) {
         return null;
     }
@@ -1782,6 +1846,8 @@ function parseTrojanProxy(link, usedNames, index) {
         path: query.get('path'),
         host: query.get('host'),
         serviceName: query.get('serviceName'),
+        mode: query.get('mode'),
+        maxEarlyData: query.get('ed') || query.get('max-early-data'),
     })) {
         return null;
     }
@@ -2026,10 +2092,14 @@ function parseHysteria2Outbound(link, usedNames, index) {
 
     const obfsType = pickQueryText(query, 'obfs');
     const obfsPassword = pickQueryText(query, 'obfs-password');
-    if (obfsType && obfsPassword) {
+    const obfsMin = parseNumericParam(pickQueryText(query, 'obfs-min', 'obfs-min-packet-size'));
+    const obfsMax = parseNumericParam(pickQueryText(query, 'obfs-max', 'obfs-max-packet-size'));
+    if (obfsType && (obfsPassword || obfsType.toLowerCase() === 'gecko')) {
         outbound.obfs = {
             type: obfsType,
-            password: obfsPassword,
+            ...(obfsPassword ? { password: obfsPassword } : {}),
+            ...(obfsMin !== undefined ? { min_size: obfsMin } : {}),
+            ...(obfsMax !== undefined ? { max_size: obfsMax } : {}),
         };
     }
 
@@ -2292,6 +2362,8 @@ function toMihomoHysteria2Proxy(outbound: any) {
     if (outbound.server_ports) proxy.ports = outbound.server_ports;
     if (outbound.obfs?.type) proxy.obfs = outbound.obfs.type;
     if (outbound.obfs?.password) proxy['obfs-password'] = outbound.obfs.password;
+    if (outbound.obfs?.min_size !== undefined) proxy['obfs-min-packet-size'] = outbound.obfs.min_size;
+    if (outbound.obfs?.max_size !== undefined) proxy['obfs-max-packet-size'] = outbound.obfs.max_size;
     if (outbound.auth) proxy.auth = outbound.auth;
     if (outbound.up_mbps !== undefined) proxy.up = outbound.up_mbps;
     if (outbound.down_mbps !== undefined) proxy.down = outbound.down_mbps;
@@ -2446,15 +2518,28 @@ function buildMihomoConfigFromLinks(links: any[] = [], subscriptionUrl = "", rou
     return `${lines.join('\n')}\n`;
 }
 
+function formatSurgeParamValue(value) {
+    const text = String(value ?? '');
+    if (/[,="\s]/.test(text)) {
+        return `"${text.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+    }
+    return text;
+}
+
+function sanitizeSurgeProxyName(name) {
+    return String(name || '').replace(/[,=]/g, ' ').replace(/\s+/g, ' ').trim() || 'NODE';
+}
+
 function buildSurgeProxyLine(proxy) {
     if (!proxy || !proxy.type) return '';
+    const proxyName = sanitizeSurgeProxyName(proxy.name);
 
     if (proxy.type === 'ss') {
-        return `${proxy.name} = ss, ${proxy.server}, ${proxy.port}, encrypt-method=${proxy.cipher}, password=${proxy.password}`;
+        return `${proxyName} = ss, ${proxy.server}, ${proxy.port}, encrypt-method=${proxy.cipher}, password=${formatSurgeParamValue(proxy.password)}`;
     }
 
     if (proxy.type === 'vmess') {
-        let line = `${proxy.name} = vmess, ${proxy.server}, ${proxy.port}, username=${proxy.uuid}`;
+        let line = `${proxyName} = vmess, ${proxy.server}, ${proxy.port}, username=${proxy.uuid}`;
         if (Number(proxy.alterId || 0) === 0) line += ', vmess-aead=true';
         if (proxy.tls) {
             line += ', tls=true';
@@ -2475,7 +2560,7 @@ function buildSurgeProxyLine(proxy) {
     }
 
     if (proxy.type === 'trojan') {
-        let line = `${proxy.name} = trojan, ${proxy.server}, ${proxy.port}, password=${proxy.password}`;
+        let line = `${proxyName} = trojan, ${proxy.server}, ${proxy.port}, password=${formatSurgeParamValue(proxy.password)}`;
         if (proxy.sni) line += `, sni=${proxy.sni}`;
         if (proxy['skip-cert-verify']) line += ', skip-cert-verify=true';
         if (Array.isArray(proxy.alpn) && proxy.alpn.length > 0) {
@@ -2492,7 +2577,7 @@ function buildSurgeProxyLine(proxy) {
     }
 
     if (proxy.type === 'hysteria2') {
-        let line = `${proxy.name} = hysteria2, ${proxy.server}, ${proxy.port}, password=${proxy.password}`;
+        let line = `${proxyName} = hysteria2, ${proxy.server}, ${proxy.port}, password=${formatSurgeParamValue(proxy.password)}`;
         if (proxy.sni) line += `, sni=${proxy.sni}`;
         if (proxy['skip-cert-verify']) line += ', skip-cert-verify=true';
         if (Array.isArray(proxy.alpn) && proxy.alpn.length > 0) {
@@ -2503,7 +2588,7 @@ function buildSurgeProxyLine(proxy) {
     }
 
     if (proxy.type === 'tuic') {
-        let line = `${proxy.name} = tuic, ${proxy.server}, ${proxy.port}, password=${proxy.password}, uuid=${proxy.uuid}`;
+        let line = `${proxyName} = tuic, ${proxy.server}, ${proxy.port}, password=${formatSurgeParamValue(proxy.password)}, uuid=${proxy.uuid}`;
         if (proxy.sni) line += `, sni=${proxy.sni}`;
         if (proxy['skip-cert-verify']) line += ', skip-cert-verify=true';
         if (Array.isArray(proxy.alpn) && proxy.alpn.length > 0) {
@@ -2520,9 +2605,9 @@ function buildSurgeProxyLine(proxy) {
 
     if (proxy.type === 'socks5' || proxy.type === 'http') {
         const kind = proxy.type === 'http' ? (proxy.tls ? 'https' : 'http') : (proxy.tls ? 'socks5-tls' : 'socks5');
-        let line = `${proxy.name} = ${kind}, ${proxy.server}, ${proxy.port}`;
-        if (proxy.username) line += `, ${proxy.username}`;
-        if (proxy.password) line += `, ${proxy.password}`;
+        let line = `${proxyName} = ${kind}, ${proxy.server}, ${proxy.port}`;
+        if (proxy.username) line += `, ${formatSurgeParamValue(proxy.username)}`;
+        if (proxy.password) line += `, ${formatSurgeParamValue(proxy.password)}`;
         if (proxy.tls && proxy.sni) line += `, sni=${proxy.sni}`;
         if (proxy.type === 'socks5' && proxy.udp) line += ', udp-relay=true';
         return line;
@@ -2540,7 +2625,7 @@ function buildSurgeConfigObject(links: any[] = [], routingPolicy = "rules") {
         const line = buildSurgeProxyLine(proxy);
         if (line) {
             proxies.push({
-                name: proxy.name,
+                name: sanitizeSurgeProxyName(proxy.name),
                 line,
             });
         }
@@ -2671,10 +2756,26 @@ function resolveSingboxConfigVersion(requestedVersion, userAgent = '') {
 
 function applyTransportToSingboxOutbound(outbound, network, options: any = {}) {
     const normalized = String(network || 'tcp').trim().toLowerCase() || 'tcp';
-    if (['kcp', 'quic', 'xhttp'].includes(normalized)) {
+    if (['kcp', 'quic'].includes(normalized)) {
         return false;
     }
     if (normalized === 'tcp') return true;
+    if (normalized === 'xhttp') {
+        const transport: any = {
+            type: 'xhttp',
+            path: decodeMaybeEncoded(options.path) || '/',
+        };
+        const host = decodeMaybeEncoded(options.host);
+        if (host) {
+            transport.host = host;
+        }
+        const mode = decodeMaybeEncoded(options.mode);
+        if (mode && mode !== 'none') {
+            transport.mode = mode;
+        }
+        outbound.transport = transport;
+        return true;
+    }
     if (normalized === 'http' || normalized === 'h2') {
         const transport: any = {
             type: 'http',
@@ -2793,6 +2894,7 @@ function parseSingboxVmessOutbound(link, usedNames, index) {
         path: payload.path,
         host: payload.host,
         serviceName: payload.path,
+        mode: payload.type,
     })) {
         return null;
     }
@@ -2839,6 +2941,7 @@ function parseSingboxVlessOutbound(link, usedNames, index) {
         path: query.get('path'),
         host: query.get('host'),
         serviceName: query.get('serviceName'),
+        mode: query.get('mode'),
     })) {
         return null;
     }
@@ -2882,6 +2985,7 @@ function parseSingboxTrojanOutbound(link, usedNames, index) {
         path: query.get('path'),
         host: query.get('host'),
         serviceName: query.get('serviceName'),
+        mode: query.get('mode'),
     })) {
         return null;
     }
@@ -3057,7 +3161,15 @@ function buildSingboxConfigObject(links: any[] = [], options: any = {}) {
                     return { outbounds: [{ type: 'block', tag: 'REJECT' }, { type: 'direct', tag: 'DIRECT' }, ...proxies, { type: 'selector', tag: 'PROXY', outbounds: proxyTags }] };
                 }
                 if (routingPolicy === 'auto') {
-                    return { outbounds: [{ type: 'block', tag: 'REJECT' }, { type: 'direct', tag: 'DIRECT' }, ...proxies, { type: 'urltest', tag: 'AUTO', outbounds: proxyTags, url: 'https://www.gstatic.com/generate_204', interval: '10m', tolerance: 50 }] };
+                    return {
+                        outbounds: [
+                            { type: 'block', tag: 'REJECT' },
+                            { type: 'direct', tag: 'DIRECT' },
+                            ...proxies,
+                            { type: 'urltest', tag: 'AUTO', outbounds: proxyTags, url: 'https://www.gstatic.com/generate_204', interval: '10m', tolerance: 50 },
+                            { type: 'selector', tag: 'PROXY', outbounds: ['AUTO', ...proxyTags] },
+                        ]
+                    };
                 }
                 return {
                     outbounds: [
@@ -3179,7 +3291,15 @@ function buildSingboxConfigObject(links: any[] = [], options: any = {}) {
                     return { outbounds: [{ type: 'block', tag: 'REJECT' }, { type: 'direct', tag: 'DIRECT' }, ...proxies, { type: 'selector', tag: 'PROXY', outbounds: proxyTags }] };
                 }
                 if (routingPolicy === 'auto') {
-                    return { outbounds: [{ type: 'block', tag: 'REJECT' }, { type: 'direct', tag: 'DIRECT' }, ...proxies, { type: 'urltest', tag: 'AUTO', outbounds: proxyTags, url: 'https://www.gstatic.com/generate_204', interval: '10m', tolerance: 50 }] };
+                    return {
+                        outbounds: [
+                            { type: 'block', tag: 'REJECT' },
+                            { type: 'direct', tag: 'DIRECT' },
+                            ...proxies,
+                            { type: 'urltest', tag: 'AUTO', outbounds: proxyTags, url: 'https://www.gstatic.com/generate_204', interval: '10m', tolerance: 50 },
+                            { type: 'selector', tag: 'PROXY', outbounds: ['AUTO', ...proxyTags] },
+                        ]
+                    };
                 }
                 return {
                     outbounds: [
@@ -3674,6 +3794,13 @@ export function invalidatePublicSubCache(email: string = ''): void {
     }
 }
 
+function sanitizeProfileTitleHeader(value: unknown): string {
+    return String(value || '')
+        .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+        .trim()
+        .slice(0, 64);
+}
+
 async function handlePublicTokenRequest(req, res, emailFromPath = '') {
     const hintedEmail = normalizeEmail(emailFromPath || req.params.email);
     const tokenId = String(req.params.tokenId || '').trim();
@@ -3747,12 +3874,17 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
     }
 
     const ua = String(req.headers['user-agent'] || '').slice(0, 50);
-    const cacheKey = `${email}:${tokenId}:${format}:${mode}:${serverId || 'all'}:${routingPolicy}:${ua}`;
+    const publicBase = resolvePublicBase(req);
+    const profileTitle = sanitizeProfileTitleHeader(email || 'NMS');
+    const cacheKey = `${email}:${tokenId}:${format}:${mode}:${serverId || 'all'}:${routingPolicy}:${publicBase}:${ua}`;
     const cached = PUBLIC_SUB_CACHE.get(cacheKey);
     if (cached && (Date.now() - cached.timestamp) < PUBLIC_SUB_CACHE_TTL) {
         subscriptionTokenStore.touchLastUsedByTokenId(tokenId);
         res.setHeader('Content-Type', cached.contentType);
         res.setHeader('X-Subscription-Token-Id', cached.tokenId);
+        if (profileTitle) {
+            res.setHeader('Profile-Title', profileTitle);
+        }
         if (cached.userInfo) {
             res.setHeader('Subscription-Userinfo', cached.userInfo);
         }
@@ -3849,6 +3981,9 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
     });
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('X-Subscription-Token-Id', tokenId);
+    if (profileTitle) {
+        res.setHeader('Profile-Title', profileTitle);
+    }
     res.setHeader('Subscription-Userinfo', userInfo);
     if (format === 'clash') {
         const yaml = buildMihomoConfigFromLinks(links, scopedUrls.subscriptionUrlClash, routingPolicy);
@@ -3910,199 +4045,235 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
     return res.send(finalBody);
 }
 
-router.get('/public/t/:tokenId/:token', async (req, res) => {
-    return handlePublicTokenRequest(req, res, '');
+router.get('/public/t/:tokenId/:token', async (req, res, next) => {
+    try {
+        return await handlePublicTokenRequest(req, res, '');
+    } catch (error) {
+        return next(error);
+    }
 });
 
 // Legacy route for backward compatibility.
-router.get('/public/:email/:tokenId/:token', async (req, res) => {
-    return handlePublicTokenRequest(req, res, req.params.email);
+router.get('/public/:email/:tokenId/:token', async (req, res, next) => {
+    try {
+        return await handlePublicTokenRequest(req, res, req.params.email);
+    } catch (error) {
+        return next(error);
+    }
 });
 
-router.get('/public/:email/:sig', async (req, res) => {
-    const email = normalizeEmail(req.params.email);
-    const sig = String(req.params.sig || '');
-    const mode = normalizeMode(req.query.mode);
-    const serverId = normalizeServerId(req.query.serverId);
-    const routingPolicy = String(req.query.policy || "rules").toLowerCase();
-    const format = normalizeSubscriptionFormat(firstNonEmpty(req.query.format, req.query.target));
+router.get('/public/:email/:sig', async (req, res, next) => {
+    try {
+        const email = normalizeEmail(req.params.email);
+        const sig = String(req.params.sig || '');
+        const mode = normalizeMode(req.query.mode);
+        const serverId = normalizeServerId(req.query.serverId);
+        const routingPolicy = String(req.query.policy || "rules").toLowerCase();
+        const format = normalizeSubscriptionFormat(firstNonEmpty(req.query.format, req.query.target));
 
-    if (!email || !verifyEmailSig(email, sig)) {
-        appendSecurityAudit('subscription_public_denied_legacy', req, {
-            reason: 'invalid-signature',
-            email,
-        });
-        appendSubscriptionAccessAudit(req, {
-            email,
-            tokenId: 'legacy-signature',
-            status: 'denied',
-            reason: 'invalid-signature',
-            mode,
-            serverId,
-            format,
-        });
-        return res.status(403).send('invalid subscription signature');
-    }
-
-    subscriptionTokenStore.migrateLegacySigToken(email, sig, { createdBy: 'legacy-signature' });
-    const {
-        links,
-        serverNotFound,
-        inactiveReason,
-        uploadTrafficBytes,
-        downloadTrafficBytes,
-        trafficLimitBytes,
-        expiryTime,
-    } = await buildMergedLinksByEmail(email, { mode, serverId });
-    if (serverNotFound) {
-        appendSubscriptionAccessAudit(req, {
-            email,
-            tokenId: 'legacy-signature',
-            status: 'denied',
-            reason: 'server-not-found',
-            mode,
-            serverId,
-            format,
-        });
-        return res.status(404).send('server not found');
-    }
-    if (links.length === 0) {
-        // Mirror the token route: policy-scoped-to-zero is enforcement, serve empty 200.
-        if (inactiveReason === 'blocked-by-policy') {
+        if (!email || !verifyEmailSig(email, sig)) {
+            appendSecurityAudit('subscription_public_denied_legacy', req, {
+                reason: 'invalid-signature',
+                email,
+            });
             appendSubscriptionAccessAudit(req, {
                 email,
                 tokenId: 'legacy-signature',
-                status: 'success',
-                reason: 'blocked-by-policy',
+                status: 'denied',
+                reason: 'invalid-signature',
                 mode,
                 serverId,
                 format,
             });
-            res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-            res.setHeader('X-Subscription-Legacy', '1');
-            res.setHeader('Subscription-Userinfo', buildSubscriptionUserInfoHeader({
-                uploadTrafficBytes,
-                downloadTrafficBytes,
-                trafficLimitBytes,
-                expiryTime,
-            }));
-            const emptyPayload = buildSubscriptionPayload([]);
-            return res.send(format === 'raw' ? emptyPayload.raw : emptyPayload.encoded);
+            return res.status(403).send('invalid subscription signature');
         }
+
+        const user = userStore.getBySubscriptionEmail(email) || userStore.getByEmail(email) || null;
+        if (user) {
+            if (user.enabled === false) {
+                return res.status(403).send('user is disabled');
+            }
+            if (user.isGuest === true && user.guestExpiresAt && new Date(user.guestExpiresAt).getTime() < Date.now()) {
+                return res.status(410).send('guest pass expired');
+            }
+            if (user.expiresAt && new Date(user.expiresAt).getTime() < Date.now()) {
+                return res.status(410).send('user subscription expired');
+            }
+        }
+
+        subscriptionTokenStore.migrateLegacySigToken(email, sig, { createdBy: 'legacy-signature' });
+        const {
+            links,
+            serverNotFound,
+            inactiveReason,
+            uploadTrafficBytes,
+            downloadTrafficBytes,
+            trafficLimitBytes,
+            expiryTime,
+        } = await buildMergedLinksByEmail(email, { mode, serverId });
+        if (serverNotFound) {
+            appendSubscriptionAccessAudit(req, {
+                email,
+                tokenId: 'legacy-signature',
+                status: 'denied',
+                reason: 'server-not-found',
+                mode,
+                serverId,
+                format,
+            });
+            return res.status(404).send('server not found');
+        }
+        const profileTitle = sanitizeProfileTitleHeader(email || 'NMS');
+        if (links.length === 0) {
+            // Mirror the token route: policy-scoped-to-zero is enforcement, serve empty 200.
+            if (inactiveReason === 'blocked-by-policy') {
+                appendSubscriptionAccessAudit(req, {
+                    email,
+                    tokenId: 'legacy-signature',
+                    status: 'success',
+                    reason: 'blocked-by-policy',
+                    mode,
+                    serverId,
+                    format,
+                });
+                res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+                res.setHeader('X-Subscription-Legacy', '1');
+                if (profileTitle) {
+                    res.setHeader('Profile-Title', profileTitle);
+                }
+                res.setHeader('Subscription-Userinfo', buildSubscriptionUserInfoHeader({
+                    uploadTrafficBytes,
+                    downloadTrafficBytes,
+                    trafficLimitBytes,
+                    expiryTime,
+                }));
+                const emptyPayload = buildSubscriptionPayload([]);
+                return res.send(format === 'raw' ? emptyPayload.raw : emptyPayload.encoded);
+            }
+            appendSubscriptionAccessAudit(req, {
+                email,
+                tokenId: 'legacy-signature',
+                status: inactiveReason === 'all-expired-or-disabled' ? 'expired' : 'denied',
+                reason: inactiveReason || 'no-links-found',
+                mode,
+                serverId,
+                format,
+            });
+            return res.status(410).send(inactiveReason || 'no links found');
+        }
+
         appendSubscriptionAccessAudit(req, {
             email,
             tokenId: 'legacy-signature',
-            status: inactiveReason === 'all-expired-or-disabled' ? 'expired' : 'denied',
-            reason: inactiveReason || 'no-links-found',
+            status: 'success',
+            reason: 'ok',
             mode,
             serverId,
             format,
         });
-        return res.status(410).send(inactiveReason || 'no links found');
-    }
-
-    appendSubscriptionAccessAudit(req, {
-        email,
-        tokenId: 'legacy-signature',
-        status: 'success',
-        reason: 'ok',
-        mode,
-        serverId,
-        format,
-    });
-    const { raw, encoded } = buildSubscriptionPayload(links);
-    const scopedUrls = buildRequestScopedSubscriptionUrls(req, mode, serverId);
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.setHeader('X-Subscription-Legacy', '1');
-    res.setHeader('Subscription-Userinfo', buildSubscriptionUserInfoHeader({
-        uploadTrafficBytes,
-        downloadTrafficBytes,
-        trafficLimitBytes,
-        expiryTime,
-    }));
-    if (format === 'clash') {
-        const yaml = buildMihomoConfigFromLinks(links, scopedUrls.subscriptionUrlClash, routingPolicy);
-        if (!yaml) {
-            return res.status(410).send('no clash-compatible links found');
-        }
-        res.setHeader('Content-Type', 'text/yaml; charset=utf-8');
-        return res.send(yaml);
-    }
-    if (format === 'singbox') {
-        const profile = buildSingboxConfigFromLinks(links, resolveSingboxBuildOptions(req));
-        if (!profile) {
-            return res.status(410).send('no sing-box-compatible links found');
-        }
-        res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        return res.send(profile);
-    }
-    if (format === 'surge') {
-        const profile = buildSurgeConfigFromLinks(links, scopedUrls.subscriptionUrlSurge, routingPolicy);
-        if (!profile) {
-            return res.status(410).send('no surge-compatible links found');
-        }
+        const { raw, encoded } = buildSubscriptionPayload(links);
+        const scopedUrls = buildRequestScopedSubscriptionUrls(req, mode, serverId);
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-        return res.send(profile);
-    }
-    if (format === 'raw') return res.send(raw);
-    return res.send(encoded);
-});
-
-router.get('/users', authMiddleware, adminOnly, async (req, res) => {
-    const requestedServerId = normalizeServerId(req.query.serverId);
-    const allServers = serverStore.getAll();
-    const targetServers = requestedServerId
-        ? allServers.filter((item) => item.id === requestedServerId)
-        : allServers;
-
-    if (requestedServerId && targetServers.length === 0) {
-        return res.status(404).json({ success: false, msg: '节点不存在，请刷新节点列表后重试' });
-    }
-
-    const emails = new Set<string>();
-    const warnings = [];
-
-    const snapshots = await getServerPanelSnapshots({
-        servers: targetServers,
-        includeOnlines: false,
-    });
-
-    snapshots.forEach((snapshot, index) => {
-        const serverMeta = targetServers[index] || snapshot?.server || {};
-        const inbounds = sortInboundsForServer(serverMeta.id, Array.isArray(snapshot?.inbounds) ? snapshot.inbounds : []);
-
-        if (snapshot?.inboundsError) {
-            warnings.push({
-                serverId: serverMeta.id,
-                server: serverMeta.name,
-                reason: snapshot.inboundsError.message,
-            });
-            return;
+        res.setHeader('X-Subscription-Legacy', '1');
+        if (profileTitle) {
+            res.setHeader('Profile-Title', profileTitle);
         }
-
-        for (const inbound of inbounds) {
-            const settings = parseJsonObjectLike(inbound.settings, {});
-            const clients = Array.isArray(settings.clients) ? settings.clients : [];
-            for (const entry of clients) {
-                const email = normalizeEmail(entry.email);
-                if (email) emails.add(email);
+        res.setHeader('Subscription-Userinfo', buildSubscriptionUserInfoHeader({
+            uploadTrafficBytes,
+            downloadTrafficBytes,
+            trafficLimitBytes,
+            expiryTime,
+        }));
+        if (format === 'clash') {
+            const yaml = buildMihomoConfigFromLinks(links, scopedUrls.subscriptionUrlClash, routingPolicy);
+            if (!yaml) {
+                return res.status(410).send('no clash-compatible links found');
             }
+            res.setHeader('Content-Type', 'text/yaml; charset=utf-8');
+            return res.send(yaml);
         }
-    });
-
-    const users = Array.from(emails).sort((a, b) => a.localeCompare(b));
-    return res.json({
-        success: true,
-        obj: {
-            users,
-            total: users.length,
-            serverScope: requestedServerId || 'all',
-            warnings,
-        },
-    });
+        if (format === 'singbox') {
+            const profile = buildSingboxConfigFromLinks(links, resolveSingboxBuildOptions(req));
+            if (!profile) {
+                return res.status(410).send('no sing-box-compatible links found');
+            }
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            return res.send(profile);
+        }
+        if (format === 'surge') {
+            const profile = buildSurgeConfigFromLinks(links, scopedUrls.subscriptionUrlSurge, routingPolicy);
+            if (!profile) {
+                return res.status(410).send('no surge-compatible links found');
+            }
+            res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+            return res.send(profile);
+        }
+        if (format === 'raw') return res.send(raw);
+        return res.send(encoded);
+    } catch (error) {
+        return next(error);
+    }
 });
 
-router.get('/access/summary', authMiddleware, adminOnly, async (req, res) => {
+router.get('/users', authMiddleware, auditorOrAbove, async (req, res, next) => {
+    try {
+        const requestedServerId = normalizeServerId(req.query.serverId);
+        const allServers = serverStore.getAll();
+        const targetServers = requestedServerId
+            ? allServers.filter((item) => item.id === requestedServerId)
+            : allServers;
+
+        if (requestedServerId && targetServers.length === 0) {
+            return res.status(404).json({ success: false, msg: '节点不存在，请刷新节点列表后重试' });
+        }
+
+        const emails = new Set<string>();
+        const warnings = [];
+
+        const snapshots = await getServerPanelSnapshots({
+            servers: targetServers,
+            includeOnlines: false,
+        });
+
+        snapshots.forEach((snapshot, index) => {
+            const serverMeta = targetServers[index] || snapshot?.server || {};
+            const inbounds = sortInboundsForServer(serverMeta.id, Array.isArray(snapshot?.inbounds) ? snapshot.inbounds : []);
+
+            if (snapshot?.inboundsError) {
+                warnings.push({
+                    serverId: serverMeta.id,
+                    server: serverMeta.name,
+                    reason: snapshot.inboundsError.message,
+                });
+                return;
+            }
+
+            for (const inbound of inbounds) {
+                const settings = parseJsonObjectLike(inbound.settings, {});
+                const clients = Array.isArray(settings.clients) ? settings.clients : [];
+                for (const entry of clients) {
+                    const email = normalizeEmail(entry.email);
+                    if (email) emails.add(email);
+                }
+            }
+        });
+
+        const users = Array.from(emails).sort((a, b) => a.localeCompare(b));
+        return res.json({
+            success: true,
+            obj: {
+                users,
+                total: users.length,
+                serverScope: requestedServerId || 'all',
+                warnings,
+            },
+        });
+    } catch (error) {
+        return next(error);
+    }
+});
+
+router.get('/access/summary', authMiddleware, auditorOrAbove, async (req, res) => {
     try {
         const baseFilters = {
             from: req.query.from,
@@ -4148,7 +4319,7 @@ router.get('/access/summary', authMiddleware, adminOnly, async (req, res) => {
     }
 });
 
-router.get('/access', authMiddleware, adminOnly, async (req, res) => {
+router.get('/access', authMiddleware, auditorOrAbove, async (req, res) => {
     try {
         const result = await querySubscriptionAccess({
             page: req.query.page,
@@ -4175,7 +4346,55 @@ router.get('/access', authMiddleware, adminOnly, async (req, res) => {
     }
 });
 
-router.get('/:email/tokens', authMiddleware, adminOnly, (req, res) => {
+/**
+ * GET /api/subscriptions/concurrency-sentinel — 获取集群并发监控报告
+ */
+router.get('/concurrency-sentinel', authMiddleware, auditorOrAbove, async (req: any, res: any) => {
+    try {
+        const { sweepClusterConcurrency } = await import('../services/concurrencySentinel.js');
+        const force = req.query.force === 'true' || req.query.force === '1';
+        const targetEmail = typeof req.query.email === 'string' ? req.query.email : undefined;
+        const report = await sweepClusterConcurrency({ force, targetEmail });
+        return res.json({ success: true, obj: report });
+    } catch (error: any) {
+        return res.status(500).json({ success: false, msg: error.message || 'Failed to sweep concurrency' });
+    }
+});
+
+/**
+ * POST /api/subscriptions/concurrency-sentinel/sweep — 手动触发全局并发扫描
+ */
+router.post('/concurrency-sentinel/sweep', authMiddleware, operatorOrAbove, async (req: any, res: any) => {
+    try {
+        const { sweepClusterConcurrency } = await import('../services/concurrencySentinel.js');
+        const autoKick = req.body?.autoKick === true;
+        const targetEmail = typeof req.body?.email === 'string' ? req.body.email : undefined;
+        const report = await sweepClusterConcurrency({ force: true, targetEmail, autoKick });
+        return res.json({ success: true, obj: report });
+    } catch (error: any) {
+        return res.status(500).json({ success: false, msg: error.message || 'Failed to execute concurrency sweep' });
+    }
+});
+
+/**
+ * POST /api/subscriptions/concurrency-sentinel/kick — 强制踢出用户在线连接
+ */
+router.post('/concurrency-sentinel/kick', authMiddleware, operatorOrAbove, async (req: any, res: any) => {
+    try {
+        const email = String(req.body?.email || '').trim();
+        if (!email) {
+            return res.status(400).json({ success: false, msg: 'Email is required' });
+        }
+        const { kickUserSessions } = await import('../services/concurrencySentinel.js');
+        const serverIds = Array.isArray(req.body?.serverIds) ? req.body.serverIds : undefined;
+        const result = await kickUserSessions(email, serverIds);
+        return res.json({ success: true, obj: result });
+    } catch (error: any) {
+        return res.status(500).json({ success: false, msg: error.message || 'Failed to kick user sessions' });
+    }
+});
+
+router.get('/:email/tokens', authMiddleware, auditorOrAbove, (req, res) => {
     try {
         return res.json({
             success: true,
@@ -4186,7 +4405,7 @@ router.get('/:email/tokens', authMiddleware, adminOnly, (req, res) => {
     }
 });
 
-router.post('/:email/issue', authMiddleware, adminOnly, (req, res) => {
+router.post('/:email/issue', authMiddleware, operatorOrAbove, (req, res) => {
     try {
         const issued = issueSubscriptionToken(req.params.email, {
             name: req.body?.name,
@@ -4224,7 +4443,7 @@ router.post('/:email/issue', authMiddleware, adminOnly, (req, res) => {
     }
 });
 
-router.post('/:email/revoke', authMiddleware, adminOnly, (req, res) => {
+router.post('/:email/revoke', authMiddleware, operatorOrAbove, (req, res) => {
     try {
         const result = revokeSubscriptionTokens(req.params.email, req.body);
         if (result.revokeAll) {
@@ -4320,132 +4539,42 @@ router.post('/:email/reset-link', authMiddleware, ensureEmailAccess, async (req,
     }
 });
 
-router.get('/:email/raw', authMiddleware, ensureEmailAccess, async (req, res) => {
-    const email = normalizeEmail(req.params.email);
-    const mode = normalizeMode(req.query.mode);
-    const serverId = normalizeServerId(req.query.serverId);
-    const routingPolicy = String(req.query.policy || "rules").toLowerCase();
-    const { links, serverNotFound, inactiveReason } = await buildMergedLinksByEmail(email, { mode, serverId });
-    if (serverNotFound) {
-        return res.status(404).json({ success: false, msg: '节点不存在，请刷新节点列表后重试' });
+router.get('/:email/raw', authMiddleware, ensureEmailAccess, async (req, res, next) => {
+    try {
+        const email = normalizeEmail(req.params.email);
+        const mode = normalizeMode(req.query.mode);
+        const serverId = normalizeServerId(req.query.serverId);
+        const { links, serverNotFound, inactiveReason } = await buildMergedLinksByEmail(email, { mode, serverId });
+        if (serverNotFound) {
+            return res.status(404).json({ success: false, msg: '节点不存在，请刷新节点列表后重试' });
+        }
+        if (links.length === 0) {
+            return res.status(410).json({
+                success: false,
+                msg: inactiveReason || 'No active links found for this user',
+            });
+        }
+        const { raw } = buildSubscriptionPayload(links);
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        return res.send(raw);
+    } catch (error) {
+        return next(error);
     }
-    if (links.length === 0) {
-        return res.status(410).json({
-            success: false,
-            msg: inactiveReason || 'No active links found for this user',
-        });
-    }
-    const { raw } = buildSubscriptionPayload(links);
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    return res.send(raw);
 });
 
-router.get('/:email', authMiddleware, ensureEmailAccess, async (req, res) => {
-    const email = normalizeEmail(req.params.email);
-    const mode = normalizeMode(req.query.mode);
-    const serverId = normalizeServerId(req.query.serverId);
-    const routingPolicy = String(req.query.policy || "rules").toLowerCase();
+router.get('/:email', authMiddleware, ensureEmailAccess, async (req, res, next) => {
+    try {
+        const email = normalizeEmail(req.params.email);
+        const mode = normalizeMode(req.query.mode);
+        const serverId = normalizeServerId(req.query.serverId);
 
-    const {
-        links,
-        skipped,
-        warnings,
-        perServer,
-        sourceMode,
-        serverNotFound,
-        matchedClientsRaw,
-        matchedClientsActive,
-        filteredExpired,
-        filteredDisabled,
-        filteredByPolicy,
-        uploadTrafficBytes,
-        downloadTrafficBytes,
-        usedTrafficBytes,
-        trafficLimitBytes,
-        remainingTrafficBytes,
-        expiryTime,
-        subscriptionActive,
-        inactiveReason,
-        policy,
-    } = await buildMergedLinksByEmail(email, { mode, serverId });
-
-    if (serverNotFound) {
-        return res.status(404).json({ success: false, msg: '节点不存在，请刷新节点列表后重试' });
-    }
-
-    const { raw, encoded } = buildSubscriptionPayload(links);
-    // Don't auto-issue a persistent token unless this email actually resolved to a
-    // subscription (matched at least one client / produced links). Prevents per-keystroke
-    // token minting from the admin preview UI.
-    const hasResolvedSubscription = (Array.isArray(links) && links.length > 0)
-        || Number(matchedClientsRaw || 0) > 0;
-    const scopeToken = getOrCreateScopeToken(email, serverId, req.user?.role || 'admin', {
-        allowIssue: hasResolvedSubscription,
-    });
-    const tokenRequired = !scopeToken?.token;
-    if (scopeToken.autoIssued && scopeToken.metadata?.id) {
-        appendSecurityAudit('subscription_token_auto_issued', req, {
-            email,
-            tokenId: scopeToken.metadata.id,
-            ttlDays: 0,
-            scope: scopeToken.scopeName,
-        });
-    }
-
-    let subscriptionUrl = '';
-    let subscriptionUrlRaw = '';
-    let subscriptionUrlNative = '';
-    let subscriptionUrlReconstructed = '';
-    let subscriptionUrlNativeRaw = '';
-    let subscriptionUrlReconstructedRaw = '';
-    let subscriptionUrlV2rayn = '';
-    let subscriptionUrlClash = '';
-    let subscriptionUrlMihomo = '';
-    let subscriptionUrlSingbox = '';
-    let subscriptionUrlSurge = '';
-    let subscriptionConverterConfigured = false;
-
-    if (scopeToken?.token) {
-        const publicBase = buildTokenPublicBase(req, email, scopeToken.token);
-        const builtUrls = buildSubscriptionUrls(publicBase, mode, serverId);
-        subscriptionUrl = builtUrls.subscriptionUrl;
-        subscriptionUrlRaw = builtUrls.subscriptionUrlRaw;
-        subscriptionUrlNative = builtUrls.subscriptionUrlNative;
-        subscriptionUrlReconstructed = builtUrls.subscriptionUrlReconstructed;
-        subscriptionUrlNativeRaw = builtUrls.subscriptionUrlNativeRaw;
-        subscriptionUrlReconstructedRaw = builtUrls.subscriptionUrlReconstructedRaw;
-        subscriptionUrlV2rayn = builtUrls.subscriptionUrlV2rayn;
-        subscriptionUrlClash = builtUrls.subscriptionUrlClash;
-        subscriptionUrlMihomo = builtUrls.subscriptionUrlMihomo;
-        const singboxExternallyAvailable = builtUrls.subscriptionSingboxExternalConfigured === true;
-        const surgeExternallyAvailable = builtUrls.subscriptionSurgeExternalConfigured === true;
-        subscriptionUrlSingbox = (singboxExternallyAvailable || hasSingboxCompatibleLinks(links))
-            ? builtUrls.subscriptionUrlSingbox
-            : '';
-        subscriptionUrlSurge = (surgeExternallyAvailable || hasSurgeCompatibleLinks(links))
-            ? builtUrls.subscriptionUrlSurge
-            : '';
-        subscriptionConverterConfigured = builtUrls.subscriptionConverterConfigured === true;
-    }
-    const legacySubscriptionUrl = '';
-    const tokens = subscriptionTokenStore.listByEmail(email, {
-        includeRevoked: true,
-        includeExpired: true,
-    });
-
-    return res.json({
-        success: true,
-        obj: {
-            email,
-            total: links.length,
+        const {
             links,
             skipped,
             warnings,
             perServer,
             sourceMode,
-            mode,
-            subscriptionActive,
-            inactiveReason: inactiveReason || null,
+            serverNotFound,
             matchedClientsRaw,
             matchedClientsActive,
             filteredExpired,
@@ -4457,82 +4586,130 @@ router.get('/:email', authMiddleware, ensureEmailAccess, async (req, res) => {
             trafficLimitBytes,
             remainingTrafficBytes,
             expiryTime,
+            subscriptionActive,
+            inactiveReason,
             policy,
-            raw,
-            subscription: encoded,
-            subscriptionUrl,
-            subscriptionUrlRaw,
-            subscriptionUrlNative,
-            subscriptionUrlReconstructed,
-            subscriptionUrlNativeRaw,
-            subscriptionUrlReconstructedRaw,
-            subscriptionUrlV2rayn,
-            subscriptionUrlClash,
-            subscriptionUrlMihomo,
-            subscriptionUrlSingbox,
-            subscriptionUrlSurge,
-            subscriptionConverterConfigured,
-            legacySubscriptionUrl,
-            token: {
-                tokenRequired,
-                currentTokenId: scopeToken?.metadata?.id || '',
-                scope: serverId ? 'server' : 'all',
-                serverId: serverId || '',
-                activeCount: subscriptionTokenStore.countActiveByEmail(email),
-                activeLimit: config.subscription.maxActiveTokensPerUser,
-                tokens,
-                autoIssued: scopeToken.autoIssued,
-                issueError: scopeToken.issueError || null,
-            },
-        },
-    });
-});
+        } = await buildMergedLinksByEmail(email, { mode, serverId });
 
-/**
- * GET /api/subscriptions/concurrency-sentinel — 获取集群并发监控报告
- */
-router.get('/concurrency-sentinel', authMiddleware, auditorOrAbove, async (req: any, res: any) => {
-    try {
-        const { sweepClusterConcurrency } = await import('../services/concurrencySentinel.js');
-        const force = req.query.force === 'true' || req.query.force === '1';
-        const targetEmail = typeof req.query.email === 'string' ? req.query.email : undefined;
-        const report = await sweepClusterConcurrency({ force, targetEmail });
-        return res.json({ success: true, obj: report });
-    } catch (error: any) {
-        return res.status(500).json({ success: false, msg: error.message || 'Failed to sweep concurrency' });
-    }
-});
-
-/**
- * POST /api/subscriptions/concurrency-sentinel/sweep — 手动触发全局并发扫描
- */
-router.post('/concurrency-sentinel/sweep', authMiddleware, operatorOrAbove, async (req: any, res: any) => {
-    try {
-        const { sweepClusterConcurrency } = await import('../services/concurrencySentinel.js');
-        const autoKick = req.body?.autoKick === true;
-        const targetEmail = typeof req.body?.email === 'string' ? req.body.email : undefined;
-        const report = await sweepClusterConcurrency({ force: true, targetEmail, autoKick });
-        return res.json({ success: true, obj: report });
-    } catch (error: any) {
-        return res.status(500).json({ success: false, msg: error.message || 'Failed to execute concurrency sweep' });
-    }
-});
-
-/**
- * POST /api/subscriptions/concurrency-sentinel/kick — 强制踢出用户在线连接
- */
-router.post('/concurrency-sentinel/kick', authMiddleware, operatorOrAbove, async (req: any, res: any) => {
-    try {
-        const email = String(req.body?.email || '').trim();
-        if (!email) {
-            return res.status(400).json({ success: false, msg: 'Email is required' });
+        if (serverNotFound) {
+            return res.status(404).json({ success: false, msg: '节点不存在，请刷新节点列表后重试' });
         }
-        const { kickUserSessions } = await import('../services/concurrencySentinel.js');
-        const serverIds = Array.isArray(req.body?.serverIds) ? req.body.serverIds : undefined;
-        const result = await kickUserSessions(email, serverIds);
-        return res.json({ success: true, obj: result });
-    } catch (error: any) {
-        return res.status(500).json({ success: false, msg: error.message || 'Failed to kick user sessions' });
+
+        const { raw, encoded } = buildSubscriptionPayload(links);
+        // Don't auto-issue a persistent token unless this email actually resolved to a
+        // subscription (matched at least one client / produced links). Prevents per-keystroke
+        // token minting from the admin preview UI.
+        const hasResolvedSubscription = (Array.isArray(links) && links.length > 0)
+            || Number(matchedClientsRaw || 0) > 0;
+        const scopeToken = getOrCreateScopeToken(email, serverId, req.user?.role || 'admin', {
+            allowIssue: hasResolvedSubscription,
+        });
+        const tokenRequired = !scopeToken?.token;
+        if (scopeToken.autoIssued && scopeToken.metadata?.id) {
+            appendSecurityAudit('subscription_token_auto_issued', req, {
+                email,
+                tokenId: scopeToken.metadata.id,
+                ttlDays: 0,
+                scope: scopeToken.scopeName,
+            });
+        }
+
+        let subscriptionUrl = '';
+        let subscriptionUrlRaw = '';
+        let subscriptionUrlNative = '';
+        let subscriptionUrlReconstructed = '';
+        let subscriptionUrlNativeRaw = '';
+        let subscriptionUrlReconstructedRaw = '';
+        let subscriptionUrlV2rayn = '';
+        let subscriptionUrlClash = '';
+        let subscriptionUrlMihomo = '';
+        let subscriptionUrlSingbox = '';
+        let subscriptionUrlSurge = '';
+        let subscriptionConverterConfigured = false;
+
+        if (scopeToken?.token) {
+            const publicBase = buildTokenPublicBase(req, email, scopeToken.token);
+            const builtUrls = buildSubscriptionUrls(publicBase, mode, serverId);
+            subscriptionUrl = builtUrls.subscriptionUrl;
+            subscriptionUrlRaw = builtUrls.subscriptionUrlRaw;
+            subscriptionUrlNative = builtUrls.subscriptionUrlNative;
+            subscriptionUrlReconstructed = builtUrls.subscriptionUrlReconstructed;
+            subscriptionUrlNativeRaw = builtUrls.subscriptionUrlNativeRaw;
+            subscriptionUrlReconstructedRaw = builtUrls.subscriptionUrlReconstructedRaw;
+            subscriptionUrlV2rayn = builtUrls.subscriptionUrlV2rayn;
+            subscriptionUrlClash = builtUrls.subscriptionUrlClash;
+            subscriptionUrlMihomo = builtUrls.subscriptionUrlMihomo;
+            const singboxExternallyAvailable = builtUrls.subscriptionSingboxExternalConfigured === true;
+            const surgeExternallyAvailable = builtUrls.subscriptionSurgeExternalConfigured === true;
+            subscriptionUrlSingbox = (singboxExternallyAvailable || hasSingboxCompatibleLinks(links))
+                ? builtUrls.subscriptionUrlSingbox
+                : '';
+            subscriptionUrlSurge = (surgeExternallyAvailable || hasSurgeCompatibleLinks(links))
+                ? builtUrls.subscriptionUrlSurge
+                : '';
+            subscriptionConverterConfigured = builtUrls.subscriptionConverterConfigured === true;
+        }
+        const legacySubscriptionUrl = '';
+        const tokens = subscriptionTokenStore.listByEmail(email, {
+            includeRevoked: true,
+            includeExpired: true,
+        });
+
+        return res.json({
+            success: true,
+            obj: {
+                email,
+                total: links.length,
+                links,
+                skipped,
+                warnings,
+                perServer,
+                sourceMode,
+                mode,
+                subscriptionActive,
+                inactiveReason: inactiveReason || null,
+                matchedClientsRaw,
+                matchedClientsActive,
+                filteredExpired,
+                filteredDisabled,
+                filteredByPolicy,
+                uploadTrafficBytes,
+                downloadTrafficBytes,
+                usedTrafficBytes,
+                trafficLimitBytes,
+                remainingTrafficBytes,
+                expiryTime,
+                policy,
+                raw,
+                subscription: encoded,
+                subscriptionUrl,
+                subscriptionUrlRaw,
+                subscriptionUrlNative,
+                subscriptionUrlReconstructed,
+                subscriptionUrlNativeRaw,
+                subscriptionUrlReconstructedRaw,
+                subscriptionUrlV2rayn,
+                subscriptionUrlClash,
+                subscriptionUrlMihomo,
+                subscriptionUrlSingbox,
+                subscriptionUrlSurge,
+                subscriptionConverterConfigured,
+                legacySubscriptionUrl,
+                token: {
+                    tokenRequired,
+                    currentTokenId: scopeToken?.metadata?.id || '',
+                    scope: serverId ? 'server' : 'all',
+                    serverId: serverId || '',
+                    activeCount: subscriptionTokenStore.countActiveByEmail(email),
+                    activeLimit: config.subscription.maxActiveTokensPerUser,
+                    tokens,
+                    autoIssued: scopeToken.autoIssued,
+                    issueError: scopeToken.issueError || null,
+                },
+            },
+        });
+    } catch (error) {
+        return next(error);
     }
 });
 

@@ -1177,8 +1177,12 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                 stream.wsSettings.path = simpleStream.wsPath;
                 stream.wsSettings.host = simpleStream.wsHost || '';
                 stream.wsSettings.acceptProxyProtocol = !!simpleStream.wsAcceptProxyProtocol;
+                const existingHeaders = normalizeHeadersObject(stream.wsSettings.headers);
                 if (simpleStream.wsHost) {
-                    stream.wsSettings.headers = { Host: simpleStream.wsHost };
+                    stream.wsSettings.headers = { ...existingHeaders, Host: simpleStream.wsHost };
+                } else if (Object.prototype.hasOwnProperty.call(existingHeaders, 'Host')) {
+                    const { Host: _removedHost, ...restHeaders } = existingHeaders;
+                    stream.wsSettings.headers = restHeaders;
                 }
             } else if (simpleStream.network === 'grpc') {
                 stream.grpcSettings = stream.grpcSettings || {};
@@ -2217,7 +2221,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     </div>
                                 )}
 
-                                {(normalizedProtocol === 'hysteria2' || normalizedProtocol === 'hy2') && (
+                                {(normalizedProtocol === 'hysteria' || normalizedProtocol === 'hysteria2' || normalizedProtocol === 'hy2') && (
                                     <div className="border border-stroke-soft rounded-lg p-4 mb-4">
                                         <h4 className="text-secondary text-sm font-bold mb-3">{deepCopy.hysteria2Params}</h4>
                                         <div className="grid grid-cols-2 gap-4 mb-3">
@@ -2285,7 +2289,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         draft.ignore_client_bandwidth = e.target.checked;
                                                     })}
                                                 />
-                                                忽略客户端带宽 (ignore_client_bandwidth)
+                                                {locale === 'en-US' ? 'Ignore Client Bandwidth (ignore_client_bandwidth)' : '忽略客户端带宽 (ignore_client_bandwidth)'}
                                             </label>
                                         </div>
                                         <div className="form-group">
@@ -2301,7 +2305,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 />
                                                 <button
                                                     type="button"
-                                                    className="btn btn-secondary btn-icon"
+                                                    className="btn btn-secondary btn-sm"
                                                     title={deepCopy.randomPassword}
                                                     onClick={() => updateSettingsJson((draft) => {
                                                         const client = ensurePrimaryClient(draft);
@@ -2312,7 +2316,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         ).join('');
                                                     })}
                                                 >
-                                                    随机
+                                                    {locale === 'en-US' ? 'Random' : '随机'}
                                                 </button>
                                             </div>
                                         </div>

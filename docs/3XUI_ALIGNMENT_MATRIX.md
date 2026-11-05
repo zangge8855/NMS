@@ -33,10 +33,13 @@
 
 ### v3.11.0 备注
 
-- 对照版本：3x-ui v3.11.0（2026-10-25）。
+- 对照版本：3x-ui v3.11.0（2026-10-25）及 2026-11 `main` 分支。
 - v3.8.0 起无效 Bearer Token 返回 401（不再是 404），NMS 按认证失败处理。
 - v3.11.0 起 `openapi.json` 需要登录，节点 API Token 只写不读；NMS 不依赖这两项。
-- 上游新增但 NMS 暂未使用的接口：`clients/list/paged`、`get/subId`、`get/tgId`、批量客户端接口、客户端分组、hosts、订阅负载均衡、Xray 出站订阅。
+- 密码学工具链：`Capabilities` 与 `Tools` 已集成 `getNewUUID`、`getNewX25519Cert`、`getNewmldsa65`、`getNewmlkem768`、`getNewVlessEnc`、`getNewEchCert`、`getNewWireguardKeypair`。
+- Xray 路由与配置：`/xray` 页面支持可视化编辑 `domainStrategy`、`outboundTag`、`domain`、`ip`、`inboundTag`、`protocol`、`port`、`network` 及完整 JSON 配置。
+- 订阅分享链接与客户端配置生成：全面对齐 `vless`（含 XHTTP `xmux`、Post-Quantum `encryption`、REALITY `mldsa65Verify`/`spiderX`、ECH）、`vmess`、`trojan`、`shadowsocks`（含 2022 多用户中继密钥拼接）、`hysteria`（v1 & v2 `salamander` 混淆与 `udphop` 端口跳跃）、`tuic`、`anytls`、`naive`、`wireguard`。
+- 上游新增但 NMS 暂未直接暴露独立页面的接口：`clients/list/paged`、`get/subId`、`get/tgId`、客户端分组、hosts、订阅负载均衡、Xray 出站订阅。
 
 ### 验证建议
 
@@ -77,10 +80,13 @@ This matrix describes how NMS aligns with 3x-ui panel capabilities. It helps dev
 
 ### v3.11.0 notes
 
-- Checked against 3x-ui v3.11.0 (2026-10-25).
+- Checked against 3x-ui v3.11.0 (2026-10-25) and Nov 2026 `main`.
 - Since v3.8.0 a bad Bearer token returns 401 instead of 404; NMS treats it as an auth failure.
 - Since v3.11.0 `openapi.json` requires login and node API tokens are write-only; NMS relies on neither.
-- Upstream endpoints NMS does not use yet: `clients/list/paged`, `get/subId`, `get/tgId`, bulk client endpoints, client groups, hosts, subscription balancers and Xray outbound subscriptions.
+- Cryptographic generators: `Capabilities` and `Tools` integrate `getNewUUID`, `getNewX25519Cert`, `getNewmldsa65`, `getNewmlkem768`, `getNewVlessEnc`, `getNewEchCert`, and `getNewWireguardKeypair`.
+- Xray routing & settings: `/xray` supports visual editing of `domainStrategy`, `outboundTag`, `domain`, `ip`, `inboundTag`, `protocol`, `port`, `network`, as well as full JSON blocks.
+- Subscription URI & client profile generation: aligned for `vless` (XHTTP `xmux`, Post-Quantum `encryption`, REALITY `mldsa65Verify`/`spiderX`, ECH), `vmess`, `trojan`, `shadowsocks` (including 2022 multi-user relay key concatenation), `hysteria` (v1 & v2 `salamander` obfs and `udphop` port hopping), `tuic`, `anytls`, `naive`, and `wireguard`.
+- Upstream endpoints NMS does not expose as standalone pages yet: `clients/list/paged`, `get/subId`, `get/tgId`, client groups, hosts, subscription balancers and Xray outbound subscriptions.
 
 ### Validation guidance
 

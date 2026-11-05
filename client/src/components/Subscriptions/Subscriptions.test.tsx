@@ -682,7 +682,7 @@ describe('Subscriptions', () => {
         await waitFor(() => {
             expect(screen.getByDisplayValue('https://sub.example.com/server-b')).toBeInTheDocument();
             expect(screen.queryByDisplayValue('https://sub.example.com/all')).not.toBeInTheDocument();
-            expect(screen.getByText('查看范围: 节点 server-b · 已匹配 0/0')).toBeInTheDocument();
+            expect(screen.getByText('查看范围: 节点 Node B · 已匹配 0/0')).toBeInTheDocument();
         });
     });
 });

@@ -21,6 +21,12 @@ export const TASK_STATUS = {
 
 export type TaskStatusType = (typeof TASK_STATUS)[keyof typeof TASK_STATUS];
 
+const TERMINAL_STATUSES = new Set<string>([
+    TASK_STATUS.COMPLETED,
+    TASK_STATUS.FAILED,
+    TASK_STATUS.CANCELLED,
+]);
+
 function startBackgroundInterval(fn: () => void, delayMs: number): NodeJS.Timeout {
     const timer = setInterval(fn, delayMs);
     if (typeof timer?.unref === 'function') {
@@ -123,6 +129,7 @@ class TaskQueue extends EventEmitter {
     start(taskId: string): void {
         const task = this.tasks.get(taskId);
         if (!task) return;
+        if (TERMINAL_STATUSES.has(task.status)) return;
         task.status = TASK_STATUS.RUNNING;
         task.startedAt = new Date().toISOString();
         this._emit(taskId);
@@ -151,6 +158,7 @@ class TaskQueue extends EventEmitter {
     complete(taskId: string, result: any = null): void {
         const task = this.tasks.get(taskId);
         if (!task) return;
+        if (task.status === TASK_STATUS.CANCELLED) return;
         task.status = TASK_STATUS.COMPLETED;
         task.completedAt = new Date().toISOString();
         task.progress.percent = 100;
@@ -164,6 +172,7 @@ class TaskQueue extends EventEmitter {
     fail(taskId: string, error: unknown): void {
         const task = this.tasks.get(taskId);
         if (!task) return;
+        if (task.status === TASK_STATUS.CANCELLED) return;
         task.status = TASK_STATUS.FAILED;
         task.completedAt = new Date().toISOString();
         task.error = error instanceof Error ? error.message : String(error || 'unknown error');
@@ -207,9 +216,8 @@ class TaskQueue extends EventEmitter {
         const cutoff = now - 60 * 60 * 1000; // 1 hour for terminal tasks
         const stuckCutoff = now - 12 * 60 * 60 * 1000; // 12 hours for stuck non-terminal tasks
         for (const [id, task] of this.tasks.entries()) {
-            const terminal: string[] = [TASK_STATUS.COMPLETED, TASK_STATUS.FAILED, TASK_STATUS.CANCELLED];
             const createdAt = new Date(task.createdAt).getTime();
-            if (terminal.includes(task.status)) {
+            if (TERMINAL_STATUSES.has(task.status)) {
                 if (createdAt < cutoff) {
                     this.tasks.delete(id);
                 }

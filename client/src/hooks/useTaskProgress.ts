@@ -16,9 +16,21 @@ export interface UseTaskProgressReturn {
 
 export default function useTaskProgress(
     taskId?: string | number | null,
-    sendWsMessage?: (msg: any) => void
+    sendWsMessage?: (msg: any) => void,
+    lastWsMessage?: any
 ): UseTaskProgressReturn {
     const [task, setTask] = useState<any>(null);
+
+    // 处理来自 WebSocket 的实时任务进度推送
+    useEffect(() => {
+        if (!taskId || !lastWsMessage) return;
+        const isTaskMsg = lastWsMessage.type === 'task_progress' || lastWsMessage.type === 'NMS_TASK_PROGRESS';
+        if (!isTaskMsg) return;
+        const incoming = lastWsMessage.task || lastWsMessage.data || null;
+        if (incoming && String(incoming.id) === String(taskId)) {
+            setTask(incoming);
+        }
+    }, [taskId, lastWsMessage]);
 
     // 通过 REST 轮询（作为 WebSocket 的兜底）
     useEffect(() => {

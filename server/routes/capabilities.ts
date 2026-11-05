@@ -1071,10 +1071,7 @@ function buildCapabilitiesPayload({
         systemModules: isSui ? SUI_SYSTEM_MODULES : SYSTEM_MODULES,
         batchActions: {
             clients: ['add', 'update', 'enable', 'disable', 'delete'],
-            // s-ui inbounds have no enable switch of their own.
-            inbounds: isSui
-                ? ['add', 'update', 'delete', 'resetTraffic']
-                : ['add', 'update', 'enable', 'disable', 'delete', 'resetTraffic'],
+            inbounds: ['add', 'update', 'enable', 'disable', 'delete', 'resetTraffic'],
         },
         nodeGovernance: {
             fields: ['group', 'tags', 'environment', 'health'],

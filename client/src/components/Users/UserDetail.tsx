@@ -13,7 +13,7 @@ import useAnimatedCounter from '../../hooks/useAnimatedCounter';
 import { formatBytes, formatDateOnly, formatDateTime, getErrorMessage } from '../../utils/format';
 import { attachBatchRiskToken } from '../../utils/riskConfirm';
 import { resolveAccessGeoDisplay } from '../../utils/accessGeo';
-import { mergeInboundClientStats } from '../../utils/inboundClients';
+import { mergeInboundClientStats, resolveClientUsed } from '../../utils/inboundClients';
 import { buildOnlineMatchMap, countClientOnlineSessions } from '../../utils/clientPresence';
 import { isUnsupportedPanelClientIpsError, normalizePanelClientIps } from '../../utils/panelClientIps';
 import { buildSubscriptionProfileBundle, findSubscriptionProfile } from '../../utils/subscriptionProfiles';
@@ -44,6 +44,28 @@ import {
     HiOutlineGlobeAlt,
     HiOutlineXMark,
 } from 'react-icons/hi2';
+
+function normalizeInactiveReason(reason: any, locale = 'zh-CN') {
+    const text = String(reason || '').trim().toLowerCase();
+    if (locale === 'en-US') {
+        if (!text) return 'Available';
+        if (text === 'expired' || text === 'subscription_expired' || text === 'all-expired-or-disabled') return 'All nodes have expired or are disabled';
+        if (text === 'depleted' || text === 'traffic_depleted') return 'Traffic quota depleted';
+        if (text === 'disabled' || text === 'user_disabled') return 'Account is disabled';
+        if (text === 'blocked-by-policy') return 'Blocked by subscription policy';
+        if (text === 'user-not-found') return 'User not found';
+        if (text === 'no-links-found') return 'No usable node links were generated';
+        return String(reason || '');
+    }
+    if (!text) return '可用';
+    if (text === 'expired' || text === 'subscription_expired' || text === 'all-expired-or-disabled') return '全部节点已过期或禁用';
+    if (text === 'depleted' || text === 'traffic_depleted') return '流量配额已耗尽';
+    if (text === 'disabled' || text === 'user_disabled') return '用户已被停用';
+    if (text === 'blocked-by-policy') return '被订阅权限策略限制';
+    if (text === 'user-not-found') return '未找到该用户';
+    if (text === 'no-links-found') return '未生成可用节点链接';
+    return String(reason || '');
+}
 
 function clampProgress(value) {
     const numeric = Number(value);
@@ -779,7 +801,7 @@ export default function UserDetail() {
     const [clientAdjustTrafficGb, setClientAdjustTrafficGb] = useState('');
     const [clientAdjustSaving, setClientAdjustSaving] = useState(false);
     const [batchResultData, setBatchResultData] = useState(null);
-    const [batchResultTitle, setBatchResultTitle] = useState('批量调整结果');
+    const [batchResultTitle, setBatchResultTitle] = useState(locale === 'en-US' ? 'Batch Adjust Result' : '批量调整结果');
 
     const applyTab = (tabKey) => {
         const normalized = normalizeDetailTab(tabKey);
@@ -847,7 +869,7 @@ export default function UserDetail() {
                 bundle,
                 mergedUrl: bundle.mergedUrl,
                 subscriptionActive: payload.subscriptionActive !== false,
-                inactiveReason: payload.inactiveReason || '',
+                inactiveReason: normalizeInactiveReason(payload.inactiveReason, locale),
                 filteredExpired: Number(payload.filteredExpired || 0),
                 filteredDisabled: Number(payload.filteredDisabled || 0),
                 filteredByPolicy: Number(payload.filteredByPolicy || 0),
@@ -972,6 +994,15 @@ export default function UserDetail() {
             setClientsLoading(false);
         }
     };
+
+    useEffect(() => {
+        const handlePageRefresh = () => {
+            fetchDetail({ preserveCurrent: true });
+            fetchClients({ preserveCurrent: true, force: true });
+        };
+        window.addEventListener('nms:page-refresh', handlePageRefresh);
+        return () => window.removeEventListener('nms:page-refresh', handlePageRefresh);
+    }, [userId, servers]);
 
     const submitClientAdjust = async (event) => {
         event.preventDefault();
@@ -1217,7 +1248,7 @@ export default function UserDetail() {
 
     // Stats
     const totalTraffic = useMemo(() => {
-        return clientData.reduce((sum, c) => sum + (c.up || 0) + (c.down || 0), 0);
+        return clientData.reduce((sum, c) => sum + resolveClientUsed(c), 0);
     }, [clientData]);
     const liveTrafficSummaryText = liveTrafficSummary.ready
         ? `${formatBytes(liveTrafficSummary.totalPerSecond)}/s`
@@ -1865,7 +1896,7 @@ export default function UserDetail() {
                                                     <div className="user-detail-client-metrics">
                                                         <div className="user-detail-client-metric">
                                                             <span className="user-detail-client-metric-label">{copy.labels.traffic}</span>
-                                                            <span className="user-detail-client-metric-value">{formatBytes((client.up || 0) + (client.down || 0))}</span>
+                                                            <span className="user-detail-client-metric-value">{formatBytes(resolveClientUsed(client))}</span>
                                                         </div>
                                                         <div className="user-detail-client-metric">
                                                             <span className="user-detail-client-metric-label">{copy.labels.expiryTime}</span>
@@ -1916,7 +1947,7 @@ export default function UserDetail() {
                                                         </td>
                                                         <td data-label={copy.labels.inbound}>{c.inboundRemark || c.inboundId}</td>
                                                         <td data-label={copy.labels.protocol} className="table-cell-center user-detail-protocol-cell"><span className="badge badge-neutral">{c.protocol}</span></td>
-                                                        <td data-label={copy.labels.traffic} className="table-cell-right cell-mono-right user-detail-traffic-cell">{formatBytes((c.up || 0) + (c.down || 0))}</td>
+                                                        <td data-label={copy.labels.traffic} className="table-cell-right cell-mono-right user-detail-traffic-cell">{formatBytes(resolveClientUsed(c))}</td>
                                                         <td data-label={copy.labels.expiryTime} className="table-cell-center cell-mono user-detail-expiry-cell">{c.expiryTime > 0 ? formatDateOnly(c.expiryTime, locale) : copy.labels.permanent}</td>
                                                         <td data-label={copy.labels.status} className="table-cell-center user-detail-status-cell"><span className={`badge ${c.enable ? 'badge-success' : 'badge-danger'}`}>{c.enable ? copy.labels.enabled : copy.labels.disabled}</span></td>
                                                         <td data-label={copy.labels.actions} className="table-cell-actions user-detail-actions-cell">

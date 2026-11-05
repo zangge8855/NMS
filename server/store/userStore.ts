@@ -190,6 +190,7 @@ class UserStore {
             enabled: u.enabled !== false,
             createdAt: u.createdAt,
             lastLoginAt: u.lastLoginAt || null,
+            ...(u.isGuest ? { isGuest: true, guestExpiresAt: u.guestExpiresAt || null } : {}),
         })) as SanitizedUser[];
     }
 
@@ -346,7 +347,8 @@ class UserStore {
             emailVerified: user.emailVerified,
             enabled: user.enabled !== false,
             role: user.role,
-            createdAt: user.createdAt
+            createdAt: user.createdAt,
+            ...(user.isGuest ? { isGuest: true, guestExpiresAt: user.guestExpiresAt || null } : {}),
         };
     }
 
@@ -426,6 +428,7 @@ class UserStore {
             enabled: this.users[idx].enabled !== false,
             role: this.users[idx].role,
             createdAt: this.users[idx].createdAt,
+            ...(this.users[idx].isGuest ? { isGuest: true, guestExpiresAt: this.users[idx].guestExpiresAt || null } : {}),
         };
     }
 
@@ -450,6 +453,7 @@ class UserStore {
             enabled: this.users[idx].enabled !== false,
             role: this.users[idx].role,
             createdAt: this.users[idx].createdAt,
+            ...(this.users[idx].isGuest ? { isGuest: true, guestExpiresAt: this.users[idx].guestExpiresAt || null } : {}),
         };
     }
 
@@ -504,6 +508,7 @@ class UserStore {
             enabled: this.users[idx].enabled !== false,
             role: this.users[idx].role,
             createdAt: this.users[idx].createdAt,
+            ...(this.users[idx].isGuest ? { isGuest: true, guestExpiresAt: this.users[idx].guestExpiresAt || null } : {}),
         };
     }
 

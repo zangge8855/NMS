@@ -10,7 +10,7 @@ import {
     HiOutlineEyeSlash,
 } from 'react-icons/hi2';
 import api from '../../api/client';
-import { getErrorMessage } from '../../utils/format';
+import { formatDateTime, getErrorMessage } from '../../utils/format';
 
 function getCopy(locale = 'zh-CN') {
     if (locale === 'en-US') {
@@ -51,7 +51,7 @@ function getCopy(locale = 'zh-CN') {
         enabledAt: (ts: string) => `启用时间: ${ts}`,
         enable: '开启',
         disable: '关闭',
-        setupStarted: '用验证器扫描下面的二维码,再输入 6 位验证码。',
+        setupStarted: '用验证器扫描下面的二维码，再输入 6 位验证码。',
         qrAlt: '2FA 注册二维码',
         secret: '手动密钥',
         secretCopied: '密钥已复制',
@@ -59,10 +59,10 @@ function getCopy(locale = 'zh-CN') {
         verifyCode: '验证码',
         verify: '确认开启',
         cancel: '取消',
-        invalidCode: '验证码不正确,请重试',
+        invalidCode: '验证码不正确，请重试',
         generic: '操作失败',
         backupTitle: '备用码',
-        backupHint: '请妥善保存以下一次性备用码,每个可代替一次 TOTP 验证码使用。',
+        backupHint: '请妥善保存以下一次性备用码，每个可代替一次 TOTP 验证码使用。',
         backupCopied: '备用码已复制',
         done: '我已保存',
         disableConfirm: '请输入当前账号密码以确认关闭 2FA。',
@@ -180,7 +180,7 @@ export default function TwoFactorPanel({ locale = 'zh-CN' }: TwoFactorPanelProps
             {enabled && !disableMode ? (
                 <div className="account-twofactor-section">
                     <div className="account-twofactor-meta">
-                        {copy.enabledAt(status?.enabledAt || '')}
+                        {copy.enabledAt(status?.enabledAt ? formatDateTime(status.enabledAt, locale) : '')}
                         {' · '}
                         {copy.backupRemaining(Number(status?.backupCodesRemaining || 0))}
                     </div>

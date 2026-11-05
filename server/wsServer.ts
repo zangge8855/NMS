@@ -407,10 +407,8 @@ export function initWebSocket(httpServer: HttpServer) {
         }
     }, BROADCAST_INTERVAL);
 
-    wss.on('close', () => clearInterval(broadcastLoop));
-
     // ── Task Progress Broadcast ─────────────────────────
-    taskQueue.on('progress', (task: any) => {
+    const onTaskProgress = (task: any) => {
         const payload = JSON.stringify({
             type: 'NMS_TASK_PROGRESS',
             ts: Date.now(),
@@ -422,10 +420,11 @@ export function initWebSocket(httpServer: HttpServer) {
                 safeSendRaw(ws, payload);
             }
         }
-    });
+    };
+    taskQueue.on('progress', onTaskProgress);
 
     // ── Notification Broadcast ──────────────────────────
-    notificationService.on('notification', (notification: any) => {
+    const onNotification = (notification: any) => {
         const payload = JSON.stringify({
             type: 'NMS_NOTIFICATION',
             ts: Date.now(),
@@ -436,8 +435,17 @@ export function initWebSocket(httpServer: HttpServer) {
         });
         for (const ws of wss.clients as Set<CustomWebSocket>) {
             if (ws.readyState !== 1) continue;
+            const role = ws.user?.role;
+            if (role !== 'admin' && role !== 'operator' && role !== 'auditor') continue;
             safeSendRaw(ws, payload);
         }
+    };
+    notificationService.on('notification', onNotification);
+
+    wss.on('close', () => {
+        clearInterval(broadcastLoop);
+        taskQueue.off('progress', onTaskProgress);
+        notificationService.off('notification', onNotification);
     });
 
     console.log('  🔌 WebSocket server initialized on /ws');

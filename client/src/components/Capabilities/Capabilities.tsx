@@ -25,8 +25,10 @@ import toast from 'react-hot-toast';
 import EmptyState from '../UI/EmptyState';
 import Table from '../UI/Table';
 import PageToolbar from '../UI/PageToolbar';
+import PageServerSelector from '../UI/PageServerSelector';
 import SectionHeader from '../UI/SectionHeader';
-import { getErrorMessage } from '../../utils/format';
+import usePageServerTarget from '../../hooks/usePageServerTarget';
+import { formatDateTime, getErrorMessage } from '../../utils/format';
 import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot';
 import { getPanelTypeLabel } from '../../utils/panelType';
 
@@ -380,14 +382,27 @@ export interface CapabilitiesProps {
 }
 
 export default function Capabilities({ serverId = '', embedded = false }: CapabilitiesProps = {}) {
-    const { activeServerId } = useServer();
+    const { activeServerId, servers = [] } = useServer();
     const { locale, t } = useI18n();
     const navigate = useNavigate();
+    const {
+        serverList,
+        hasServers,
+        targetServerId: pageTargetServerId,
+        hasTargetServer: hasPageTargetServer,
+        isUsingPageServer,
+        draftServerId,
+        setDraftServerId,
+        setPageTargetServerId,
+        commitDraftServer,
+    } = usePageServerTarget({ activeServerId: serverId || activeServerId, servers });
     const targetServerId = useMemo(() => {
-        const normalized = String(serverId || activeServerId || '').trim();
-        return normalized && normalized !== 'global' ? normalized : '';
-    }, [activeServerId, serverId]);
+        const explicit = String(serverId || '').trim();
+        if (explicit && explicit !== 'global') return explicit;
+        return hasPageTargetServer ? String(pageTargetServerId || '').trim() : '';
+    }, [hasPageTargetServer, pageTargetServerId, serverId]);
     const hasTargetServer = Boolean(targetServerId);
+    const hasDraftServer = hasServers && Boolean(draftServerId);
     const copy = useMemo(() => getCapabilitiesCopy(locale), [locale]);
     const cachedData = hasTargetServer ? readCapabilitiesSnapshot(targetServerId) : null;
     const capabilitiesRequestIdRef = useRef(0);
@@ -436,6 +451,16 @@ export default function Capabilities({ serverId = '', embedded = false }: Capabi
         setLoading(snapshot == null);
         fetchCapabilities({ preserveCurrent: snapshot != null });
     }, [targetServerId, hasTargetServer]);
+
+    useEffect(() => {
+        const handlePageRefresh = () => {
+            if (hasTargetServer) {
+                fetchCapabilities({ preserveCurrent: true });
+            }
+        };
+        window.addEventListener('nms:page-refresh', handlePageRefresh);
+        return () => window.removeEventListener('nms:page-refresh', handlePageRefresh);
+    }, [hasTargetServer, targetServerId]);
 
     useEffect(() => {
         if (!hasTargetServer || !data) return;
@@ -497,9 +522,29 @@ export default function Capabilities({ serverId = '', embedded = false }: Capabi
                 icon={<HiOutlineCircleStack style={{ fontSize: '48px' }} />}
                 surface
                 action={!embedded ? (
-                    <button type="button" className="btn btn-primary" onClick={() => navigate('/servers')}>
-                        {copy.goToServers}
-                    </button>
+                    hasServers ? (
+                        <div className="page-server-selection-action">
+                            <PageServerSelector
+                                servers={serverList}
+                                value={draftServerId}
+                                onChange={setDraftServerId}
+                                label={locale === 'en-US' ? 'Target node' : '目标节点'}
+                                placeholder={locale === 'en-US' ? 'Select node' : '选择节点'}
+                            />
+                            <button
+                                type="button"
+                                className="btn btn-primary"
+                                onClick={commitDraftServer}
+                                disabled={!hasDraftServer}
+                            >
+                                {locale === 'en-US' ? 'Open Node' : '打开节点'}
+                            </button>
+                        </div>
+                    ) : (
+                        <button type="button" className="btn btn-primary" onClick={() => navigate('/servers')}>
+                            {copy.goToServers}
+                        </button>
+                    )
                 ) : undefined}
             />
         );
@@ -511,11 +556,27 @@ export default function Capabilities({ serverId = '', embedded = false }: Capabi
                     className="card mb-6 capabilities-toolbar"
                     compact
                     actions={(
-                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchCapabilities()} disabled={loading}>
-                            <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> {copy.refresh}
-                        </button>
+                        <>
+                            {!embedded && isUsingPageServer && hasServers ? (
+                                <PageServerSelector
+                                    servers={serverList}
+                                    value={targetServerId}
+                                    onChange={setPageTargetServerId}
+                                    label={locale === 'en-US' ? 'Target node' : '目标节点'}
+                                    placeholder={locale === 'en-US' ? 'Select node' : '选择节点'}
+                                />
+                            ) : null}
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchCapabilities()} disabled={loading}>
+                                <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> {copy.refresh}
+                            </button>
+                        </>
                     )}
-                    meta={<span>{copy.toolbarSummary(protocolList.length, toolEntries.length)}</span>}
+                    meta={(
+                        <span>
+                            {copy.toolbarSummary(protocolList.length, toolEntries.length)}
+                            {data?.generatedAt ? ` · ${formatDateTime(data.generatedAt, locale)}` : ''}
+                        </span>
+                    )}
                 />
                 {!data ? (
                     <EmptyState

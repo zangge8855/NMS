@@ -18,7 +18,7 @@ import {
     normalizeLimitIp,
 } from '../../utils/entitlements';
 import { generateSecurePassword } from '../../utils/crypto';
-import { mergeInboundClientStats, resolveClientUsed, safeNumber } from '../../utils/inboundClients';
+import { mergeInboundClientStats, resolveClientQuota, resolveClientUsed, safeNumber } from '../../utils/inboundClients';
 import { buildOnlineMatchMap, countClientOnlineSessions } from '../../utils/clientPresence';
 import {
     applyManagedUsersSnapshot,
@@ -200,6 +200,7 @@ function createEmptyUserClientData() {
         totalUsed: 0,
         totalUp: 0,
         totalDown: 0,
+        totalLimit: 0,
         expiryValues: [],
         onlineSessions: 0,
     };
@@ -223,6 +224,7 @@ function mergeUserClientDataRecords(records = []) {
         merged.totalUsed += Number(record.totalUsed || 0);
         merged.totalUp += Number(record.totalUp || 0);
         merged.totalDown += Number(record.totalDown || 0);
+        merged.totalLimit += Number(record.totalLimit || 0);
         merged.onlineSessions += Number(record.onlineSessions || 0);
         if (Array.isArray(record.expiryValues)) {
             expiryValues.push(...record.expiryValues.map((value) => Number(value || 0)).filter((value) => value > 0));
@@ -547,9 +549,10 @@ export default function UsersHub() {
                     }
                 });
 
+                const supportedProtocolKeys = new Set(PROTOCOL_OPTIONS.map((p) => p.key));
                 inbounds.forEach((ib) => {
                     const protocol = String(ib.protocol || '').toLowerCase();
-                    if (!['vmess', 'vless', 'trojan', 'shadowsocks'].includes(protocol)) return;
+                    if (!supportedProtocolKeys.has(protocol)) return;
                     if (ib.enable === false) return;
 
                     const ibClients = mergeInboundClientStats(ib);
@@ -585,7 +588,7 @@ export default function UsersHub() {
                         const email = normalizeEmail(cl.email);
                         if (!email) return;
                         if (!emailMap.has(email)) {
-                            emailMap.set(email, { count: 0, totalUsed: 0, totalUp: 0, totalDown: 0, expiryValues: [], onlineSessions: 0 });
+                            emailMap.set(email, { count: 0, totalUsed: 0, totalUp: 0, totalDown: 0, totalLimit: 0, expiryValues: [], onlineSessions: 0 });
                         }
                         const entry = emailMap.get(email);
                         const onlineSessions = countClientOnlineSessions(cl, protocol, onlineMatchMap);
@@ -593,6 +596,7 @@ export default function UsersHub() {
                         entry.totalUsed += resolveClientUsed(cl);
                         entry.totalUp += safeNumber(cl?.up);
                         entry.totalDown += safeNumber(cl?.down);
+                        entry.totalLimit += resolveClientQuota(cl);
                         entry.onlineSessions += onlineSessions;
                         if (Number(cl.expiryTime || 0) > 0) {
                             entry.expiryValues.push(Number(cl.expiryTime));
@@ -747,7 +751,7 @@ export default function UsersHub() {
         for (const user of allOrderedUsers) {
             if (user.status.key === 'active' || user.status.key === 'enabled') active++;
             if (user.status.key === 'disabled') disabled++;
-            const trafficLimit = safeNumber(user.trafficLimit);
+            const trafficLimit = safeNumber(user.trafficLimit || user.clientData?.totalLimit);
             const trafficUsed = resolveClientUsed(user.clientData);
             if (trafficLimit > 0 && (trafficUsed / trafficLimit) >= 0.8) {
                 warningTraffic++;
@@ -776,7 +780,7 @@ export default function UsersHub() {
                 } else if (statusFilter === 'disabled') {
                     if (user.status.key !== 'disabled') return false;
                 } else if (statusFilter === 'warning_traffic') {
-                    const trafficLimit = safeNumber(user.trafficLimit);
+                    const trafficLimit = safeNumber(user.trafficLimit || user.clientData?.totalLimit);
                     const trafficUsed = resolveClientUsed(user.clientData);
                     if (!(trafficLimit > 0 && (trafficUsed / trafficLimit) >= 0.8)) return false;
                 } else if (statusFilter === 'expiring') {
@@ -1072,6 +1076,32 @@ export default function UsersHub() {
             icon: HiOutlinePencilSquare,
             onClick: () => openEditModal(user),
         });
+        if (user.status.key === 'active') {
+            dropdownActions.push({
+                label: t('comp.users.provisionAction'),
+                icon: HiOutlinePlusCircle,
+                onClick: () => openProvisionModal(user),
+            });
+            dropdownActions.push({
+                label: locale === 'en-US' ? 'Kick Online Sessions' : '强制断开在线连接',
+                icon: HiOutlineArrowPath,
+                onClick: async () => {
+                    const targetEmail = user.subscriptionEmail || user.email;
+                    if (!targetEmail) return;
+                    try {
+                        const res = await api.post('/subscriptions/concurrency-sentinel/kick', { email: targetEmail });
+                        if (res.data?.success) {
+                            toast.success(locale === 'en-US' ? 'Online sessions kicked' : '已断开用户在线连接');
+                            await fetchData({ forceStats: true });
+                        } else {
+                            toast.error(res.data?.msg || (locale === 'en-US' ? 'Action failed' : '操作失败'));
+                        }
+                    } catch (err: any) {
+                        toast.error(err.response?.data?.msg || err.message || (locale === 'en-US' ? 'Action failed' : '操作失败'));
+                    }
+                },
+            });
+        }
         dropdownActions.push({
             label: t('comp.common.delete'),
             icon: HiOutlineTrash,
@@ -1399,9 +1429,10 @@ export default function UsersHub() {
                         const rawIds = Array.isArray(p.allowedServerIds) ? p.allowedServerIds : [];
                         const validIds = new Set(servers.map((s) => s.id));
                         setEditServerIds(rawIds.filter((id) => validIds.has(id)));
+                        const supportedProtoKeys = new Set(PROTOCOL_OPTIONS.map((item) => item.key));
                         const protos = (Array.isArray(p.allowedProtocols) ? p.allowedProtocols : [])
                             .map((v) => String(v || '').trim().toLowerCase())
-                            .filter((v) => ['vless', 'vmess', 'trojan', 'shadowsocks'].includes(v));
+                            .filter((v) => supportedProtoKeys.has(v));
                         setEditProtocols(protos);
                         const sMode = String(p.serverScopeMode || '').toLowerCase();
                         const pMode = String(p.protocolScopeMode || '').toLowerCase();
@@ -3325,63 +3356,63 @@ export default function UsersHub() {
                                 <HiOutlineXMark />
                             </button>
                         </div>
-                        <div className="modal-body space-y-4 pt-2">
                         {!guestResult ? (
                             <form
                                 onSubmit={(e) => {
                                     e.preventDefault();
                                     handleCreateGuestPass();
                                 }}
-                                className="space-y-4"
                             >
-                                <div className="text-xs text-muted leading-relaxed">
-                                    {locale === 'en-US'
-                                        ? 'Generate a temporary trial account with limited duration and traffic limit. The account will automatically expire when duration ends.'
-                                        : '生成一个具有限时时长与限额流量的临时体验账号，到期后系统将自动失效回收，无需手动清理。'}
-                                </div>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div className="form-group">
-                                        <label className="form-label">{locale === 'en-US' ? 'Valid Duration' : '有效时长'}</label>
-                                        <select
-                                            className="form-input"
-                                            value={guestDuration}
-                                            onChange={(e) => setGuestDuration(Number(e.target.value))}
-                                        >
-                                            <option value={6}>{locale === 'en-US' ? '6 Hours' : '6 小时'}</option>
-                                            <option value={24}>{locale === 'en-US' ? '24 Hours (1 Day)' : '24 小时 (1 天)'}</option>
-                                            <option value={72}>{locale === 'en-US' ? '72 Hours (3 Days)' : '72 小时 (3 天)'}</option>
-                                            <option value={168}>{locale === 'en-US' ? '7 Days' : '7 天'}</option>
-                                        </select>
+                                <div className="modal-body space-y-4 pt-2">
+                                    <div className="text-xs text-muted leading-relaxed">
+                                        {locale === 'en-US'
+                                            ? 'Generate a temporary trial account with limited duration and traffic limit. The account will automatically expire when duration ends.'
+                                            : '生成一个具有限时时长与限额流量的临时体验账号，到期后系统将自动失效回收，无需手动清理。'}
                                     </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div className="form-group">
+                                            <label className="form-label">{locale === 'en-US' ? 'Valid Duration' : '有效时长'}</label>
+                                            <select
+                                                className="form-select"
+                                                value={guestDuration}
+                                                onChange={(e) => setGuestDuration(Number(e.target.value))}
+                                            >
+                                                <option value={6}>{locale === 'en-US' ? '6 Hours' : '6 小时'}</option>
+                                                <option value={24}>{locale === 'en-US' ? '24 Hours (1 Day)' : '24 小时 (1 天)'}</option>
+                                                <option value={72}>{locale === 'en-US' ? '72 Hours (3 Days)' : '72 小时 (3 Days)'}</option>
+                                                <option value={168}>{locale === 'en-US' ? '7 Days' : '7 天'}</option>
+                                            </select>
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">{locale === 'en-US' ? 'Traffic Quota (GB)' : '流量限额 (GB)'}</label>
+                                            <select
+                                                className="form-select"
+                                                value={guestTrafficGb}
+                                                onChange={(e) => setGuestTrafficGb(Number(e.target.value))}
+                                            >
+                                                <option value={1}>1 GB</option>
+                                                <option value={2}>2 GB</option>
+                                                <option value={5}>5 GB</option>
+                                                <option value={10}>10 GB</option>
+                                                <option value={20}>20 GB</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
                                     <div className="form-group">
-                                        <label className="form-label">{locale === 'en-US' ? 'Traffic Quota (GB)' : '流量限额 (GB)'}</label>
-                                        <select
+                                        <label className="form-label">{locale === 'en-US' ? 'Remarks / Note' : '备注说明'}</label>
+                                        <input
+                                            type="text"
                                             className="form-input"
-                                            value={guestTrafficGb}
-                                            onChange={(e) => setGuestTrafficGb(Number(e.target.value))}
-                                        >
-                                            <option value={1}>1 GB</option>
-                                            <option value={2}>2 GB</option>
-                                            <option value={5}>5 GB</option>
-                                            <option value={10}>10 GB</option>
-                                            <option value={20}>20 GB</option>
-                                        </select>
+                                            value={guestNote}
+                                            onChange={(e) => setGuestNote(e.target.value)}
+                                            placeholder={locale === 'en-US' ? 'e.g. Trial for friend' : '例如: 朋友临时测速体验'}
+                                        />
                                     </div>
                                 </div>
 
-                                <div className="form-group">
-                                    <label className="form-label">{locale === 'en-US' ? 'Remarks / Note' : '备注说明'}</label>
-                                    <input
-                                        type="text"
-                                        className="form-input"
-                                        value={guestNote}
-                                        onChange={(e) => setGuestNote(e.target.value)}
-                                        placeholder={locale === 'en-US' ? 'e.g. Trial for friend' : '例如: 朋友临时测速体验'}
-                                    />
-                                </div>
-
-                                <div className="modal-footer pt-4 border-t border-stroke-soft flex justify-end gap-2">
+                                <div className="modal-footer">
                                     <button
                                         type="button"
                                         className="btn btn-secondary"
@@ -3399,53 +3430,55 @@ export default function UsersHub() {
                                 </div>
                             </form>
                         ) : (
-                            <div className="space-y-4 animate-fade-in">
-                                <div className="p-4 rounded-xl bg-success/10 border border-success/30 text-success text-xs font-semibold flex items-center gap-2">
-                                    <HiOutlineCheck className="w-5 h-5 shrink-0" />
-                                    <span>{locale === 'en-US' ? 'Guest Pass generated successfully!' : '临时访客试用账号已生成！'}</span>
-                                </div>
-
-                                <div className="p-4 rounded-xl bg-surface-panel border border-stroke-soft space-y-3 text-xs">
-                                    <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-500 text-[11px] font-medium leading-relaxed">
-                                        {locale === 'en-US'
-                                            ? '⚠️ Guest accounts are strictly restricted to proxy subscription traffic testing. Logging into the Web management panel is prohibited.'
-                                            : '⚠️ 访客账号受系统安全策略限制，仅限客户端订阅测速使用，禁止登录 Web 管理后台。'}
+                            <>
+                                <div className="modal-body space-y-4 pt-2 animate-fade-in">
+                                    <div className="p-4 rounded-xl bg-success/10 border border-success/30 text-success text-xs font-semibold flex items-center gap-2">
+                                        <HiOutlineCheck className="w-5 h-5 shrink-0" />
+                                        <span>{locale === 'en-US' ? 'Guest Pass generated successfully!' : '临时访客试用账号已生成！'}</span>
                                     </div>
 
-                                    {guestResult.subscriptionUrl && (
-                                        <div className="space-y-1.5 pt-1">
-                                            <div className="text-muted font-semibold">{locale === 'en-US' ? 'One-Click Subscription URL' : '一键订阅链接'}</div>
-                                            <div className="flex gap-2">
-                                                <input className="form-input font-mono text-xs" value={guestResult.subscriptionUrl} readOnly />
-                                                <button
-                                                    type="button"
-                                                    className="btn btn-secondary btn-sm shrink-0"
-                                                    onClick={async () => {
-                                                        await copyToClipboard(guestResult.subscriptionUrl);
-                                                        toast.success(locale === 'en-US' ? 'Subscription URL copied!' : '订阅链接已复制到剪贴板！');
-                                                    }}
-                                                >
-                                                    <HiOutlineClipboard /> {locale === 'en-US' ? 'Copy Link' : '复制链接'}
-                                                </button>
-                                            </div>
+                                    <div className="p-4 rounded-xl bg-surface-panel border border-stroke-soft space-y-3 text-xs">
+                                        <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-500 text-[11px] font-medium leading-relaxed">
+                                            {locale === 'en-US'
+                                                ? '⚠️ Guest accounts are strictly restricted to proxy subscription traffic testing. Logging into the Web management panel is prohibited.'
+                                                : '⚠️ 访客账号受系统安全策略限制，仅限客户端订阅测速使用，禁止登录 Web 管理后台。'}
                                         </div>
-                                    )}
 
-                                    <div className="flex justify-between py-1.5 border-t border-b border-stroke-soft">
-                                        <span className="text-muted">{locale === 'en-US' ? 'Username' : '临时用户识别码'}</span>
-                                        <span className="font-mono font-bold text-primary">{guestResult.username}</span>
-                                    </div>
-                                    <div className="flex justify-between py-1 border-b border-stroke-soft">
-                                        <span className="text-muted">{locale === 'en-US' ? 'Traffic Quota' : '流量限额'}</span>
-                                        <span className="font-bold text-primary">{guestResult.trafficLimitGb} GB</span>
-                                    </div>
-                                    <div className="flex justify-between py-1">
-                                        <span className="text-muted">{locale === 'en-US' ? 'Expires At' : '有效期至'}</span>
-                                        <span className="font-mono text-warning font-semibold">{formatDateOnly(guestResult.expiresAt)}</span>
+                                        {guestResult.subscriptionUrl && (
+                                            <div className="space-y-1.5 pt-1">
+                                                <div className="text-muted font-semibold">{locale === 'en-US' ? 'One-Click Subscription URL' : '一键订阅链接'}</div>
+                                                <div className="flex gap-2">
+                                                    <input className="form-input font-mono text-xs" value={guestResult.subscriptionUrl} readOnly />
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-secondary btn-sm shrink-0"
+                                                        onClick={async () => {
+                                                            await copyToClipboard(guestResult.subscriptionUrl);
+                                                            toast.success(locale === 'en-US' ? 'Subscription URL copied!' : '订阅链接已复制到剪贴板！');
+                                                        }}
+                                                    >
+                                                        <HiOutlineClipboard /> {locale === 'en-US' ? 'Copy Link' : '复制链接'}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className="flex justify-between py-1.5 border-t border-b border-stroke-soft">
+                                            <span className="text-muted">{locale === 'en-US' ? 'Username' : '临时用户识别码'}</span>
+                                            <span className="font-mono font-bold text-primary">{guestResult.username}</span>
+                                        </div>
+                                        <div className="flex justify-between py-1 border-b border-stroke-soft">
+                                            <span className="text-muted">{locale === 'en-US' ? 'Traffic Quota' : '流量限额'}</span>
+                                            <span className="font-bold text-primary">{guestResult.trafficLimitGb} GB</span>
+                                        </div>
+                                        <div className="flex justify-between py-1">
+                                            <span className="text-muted">{locale === 'en-US' ? 'Expires At' : '有效期至'}</span>
+                                            <span className="font-mono text-warning font-semibold">{formatDateOnly(guestResult.expiresAt)}</span>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div className="modal-footer pt-4 border-t border-stroke-soft flex justify-end gap-2">
+                                <div className="modal-footer">
                                     <button
                                         type="button"
                                         className="btn btn-secondary"
@@ -3469,9 +3502,8 @@ export default function UsersHub() {
                                         {t('comp.users.close')}
                                     </button>
                                 </div>
-                            </div>
+                            </>
                         )}
-                    </div>
                     </div>
                 </ModalShell>
             )}

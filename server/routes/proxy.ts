@@ -331,11 +331,25 @@ router.all('/:serverId/*', upload.any(), async (req: Request, res: Response) => 
         });
     }
 
-    if (userRole === ROLES.auditor && method !== 'GET') {
-        return res.status(403).json({
-            success: false,
-            msg: '权限不足: 审计员角色仅限只读查询',
-        });
+    if (userRole === ROLES.auditor) {
+        const isBinaryDbExport = panelPath === '/panel/api/server/database/export' || panelPath === '/panel/api/server/getDb';
+        const isReadOnlyPost = method === 'POST' && (
+            panelPath === '/panel/api/clients/onlinesByGuid'
+            || panelPath === '/panel/api/clients/onlinesByNode'
+            || panelPath === '/panel/api/clients/onlines'
+            || panelPath === '/panel/api/inbounds/onlines'
+            || panelPath.startsWith('/panel/api/inbounds/clientIps/')
+            || panelPath.startsWith('/panel/api/clients/ips/')
+            || panelPath.startsWith('/panel/api/server/logs/')
+            || panelPath.startsWith('/panel/api/server/xraylogs/')
+            || panelPath.startsWith('/panel/api/inbounds/getClientTraffics/')
+        );
+        if (isBinaryDbExport || (method !== 'GET' && !isReadOnlyPost)) {
+            return res.status(403).json({
+                success: false,
+                msg: '权限不足: 审计员角色仅限只读查询',
+            });
+        }
     }
 
     if (!isAllowedPanelPath(panelPath)) {
@@ -363,6 +377,9 @@ router.all('/:serverId/*', upload.any(), async (req: Request, res: Response) => 
             url: panelPath,
             timeout: 60000,
         };
+        if (panelPath === '/panel/api/server/database/export' || panelPath === '/panel/api/server/getDb') {
+            axiosConfig.responseType = 'arraybuffer';
+        }
 
         if (Object.keys(req.query).length > 0) {
             axiosConfig.params = req.query;

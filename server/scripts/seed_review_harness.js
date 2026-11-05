@@ -84,7 +84,8 @@ function main() {
         scenario,
         host,
         apiBaseUrl,
-        jwtSecret: process.env.JWT_SECRET || 'default-secret-change-me',
+        jwtSecret: process.env.JWT_SECRET || 'review-jwt-secret-1234567890-abcdef',
+        credentialsSecret: process.env.CREDENTIALS_SECRET || 'review-credentials-secret-1234567890-abcdef',
         ports: {
             healthy: toPort(args['healthy-port'] || process.env.REVIEW_PANEL_PORT_HEALTHY, REVIEW_PANEL_PORTS.healthy),
             legacy: toPort(args['legacy-port'] || process.env.REVIEW_PANEL_PORT_LEGACY, REVIEW_PANEL_PORTS.legacy),

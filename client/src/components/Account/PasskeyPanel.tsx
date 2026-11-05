@@ -282,10 +282,10 @@ export default function PasskeyPanel({ locale = 'zh-CN' }: PasskeyPanelProps) {
                                         {pk.deviceName || 'Passkey'}
                                     </div>
                                     <div className="text-xs text-muted flex items-center gap-1.5">
-                                        <span>{copy.createdOn}: {formatDateOnly(pk.createdAt)}</span>
+                                        <span>{copy.createdOn}: {formatDateOnly(pk.createdAt, locale)}</span>
                                     </div>
                                     <div className="text-xs text-muted">
-                                        {pk.lastUsedAt ? `${copy.lastUsed}: ${formatDateOnly(pk.lastUsedAt)}` : copy.neverUsed}
+                                        {pk.lastUsedAt ? `${copy.lastUsed}: ${formatDateOnly(pk.lastUsedAt, locale)}` : copy.neverUsed}
                                     </div>
                                 </div>
                             </div>

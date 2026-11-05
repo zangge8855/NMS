@@ -305,6 +305,8 @@ const AUDIT_COPY = {
         },
         roles: {
             admin: '管理员',
+            operator: '运维',
+            auditor: '审计员',
             user: '用户',
             anonymous: '未登录',
         },
@@ -513,6 +515,8 @@ const AUDIT_COPY = {
         },
         roles: {
             admin: 'Admin',
+            operator: 'Operator',
+            auditor: 'Auditor',
             user: 'User',
             anonymous: 'Unauthenticated',
         },
@@ -994,6 +998,8 @@ function formatAuditActorRole(role, locale = 'zh-CN') {
     const value = String(role || '').trim();
     if (!value) return '';
     if (value === 'admin') return copy.roles.admin;
+    if (value === 'operator') return copy.roles.operator;
+    if (value === 'auditor') return copy.roles.auditor;
     if (value === 'user') return copy.roles.user;
     if (value === 'anonymous') return copy.roles.anonymous;
     return value;
@@ -1738,6 +1744,20 @@ export default function AuditCenter() {
     }, [selectedTrafficWindow, tab, customFromDate, customToDate]);
 
     useEffect(() => {
+        const handlePageRefresh = () => {
+            if (tab === 'events') {
+                fetchEvents(eventsPage);
+            } else if (tab === 'traffic') {
+                fetchTrafficOverview(true, selectedTrafficWindowRef.current);
+            } else if (tab === 'subscriptions') {
+                fetchAccess(accessPage);
+            }
+        };
+        window.addEventListener('nms:page-refresh', handlePageRefresh);
+        return () => window.removeEventListener('nms:page-refresh', handlePageRefresh);
+    }, [accessPage, eventsPage, tab]);
+
+    useEffect(() => {
         if (eventFilters.actor || eventFilters.eventType || eventFilters.serverId || eventFilters.targetEmail) {
             setShowAdvancedEventFilters(true);
         }
@@ -1818,8 +1838,22 @@ export default function AuditCenter() {
     const leaderboardTrendParams = useMemo(() => {
         if (selectedTrafficWindow === 'week') return { days: 7, granularity: 'day', labelZh: '7日趋势', labelEn: '7d Trend' };
         if (selectedTrafficWindow === 'month') return { days: 30, granularity: 'day', labelZh: '30日趋势', labelEn: '30d Trend' };
+        if (selectedTrafficWindow === 'custom') {
+            const fromMs = new Date(customFromDate).getTime();
+            const toMs = new Date(customToDate).getTime();
+            const customDays = Number.isFinite(fromMs) && Number.isFinite(toMs) && toMs >= fromMs
+                ? Math.max(1, Math.min(365, Math.round((toMs - fromMs) / 86_400_000) + 1))
+                : 7;
+            const granularity = customDays > 2 ? 'day' : 'hour';
+            return {
+                days: customDays,
+                granularity,
+                labelZh: `${customDays}日趋势`,
+                labelEn: `${customDays}d Trend`,
+            };
+        }
         return { days: 1, granularity: 'hour', labelZh: '24h 趋势', labelEn: '24h Trend' };
-    }, [selectedTrafficWindow]);
+    }, [customFromDate, customToDate, selectedTrafficWindow]);
     const leaderboardTrendLabel = locale === 'en-US' ? leaderboardTrendParams.labelEn : leaderboardTrendParams.labelZh;
     const {
         userTrends: trafficUserRowTrends,
@@ -2221,6 +2255,14 @@ export default function AuditCenter() {
                                         <option value="hour">{copy.filters.byHour}</option>
                                         <option value="day">{copy.filters.byDay}</option>
                                     </select>
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={() => fetchTrafficOverview(true, selectedTrafficWindow)}
+                                        disabled={trafficLoading}
+                                    >
+                                        <HiOutlineArrowPath className={trafficLoading ? 'spinning' : ''} /> {copy.actions.refreshSample}
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -2952,7 +2994,7 @@ export default function AuditCenter() {
                                 {selectedEvent.serverId && (
                                     <div>
                                         <span className="text-muted">{copy.detail.node}: </span>
-                                        <span>{selectedEvent.serverId}</span>
+                                        <span>{resolveServerName(selectedEvent.serverId) || selectedEvent.serverId}</span>
                                     </div>
                                 )}
                                 {resolveAuditTarget(selectedEvent) !== '-' && (

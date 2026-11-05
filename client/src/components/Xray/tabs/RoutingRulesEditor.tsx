@@ -14,14 +14,19 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
     });
 
     const [jsonText, setJsonText] = useState('');
+    const [rawInputs, setRawInputs] = useState({});
 
     useEffect(() => {
         try {
             if (value && typeof value === 'object') {
                 setConfig(JSON.parse(JSON.stringify(value)));
+            } else {
+                setConfig({ domainStrategy: 'AsIs', rules: [] });
             }
+            setRawInputs({});
         } catch {
-            // ignore
+            setConfig({ domainStrategy: 'AsIs', rules: [] });
+            setRawInputs({});
         }
     }, [value]);
 
@@ -61,6 +66,7 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
     const removeRule = (index) => {
         const newRules = [...(config.rules || [])];
         newRules.splice(index, 1);
+        setRawInputs({});
         setConfig({ ...config, rules: newRules });
     };
 
@@ -75,16 +81,25 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
             newRules[index] = newRules[index + 1];
             newRules[index + 1] = temp;
         }
+        setRawInputs({});
         setConfig({ ...config, rules: newRules });
     };
 
     const updateRule = (index, field, val) => {
         const newRules = [...(config.rules || [])];
         const nextRule = { ...(newRules[index] || {}) };
-        if (field === 'domain' || field === 'ip') {
+        if (field === 'domain' || field === 'ip' || field === 'inboundTag' || field === 'protocol') {
+            setRawInputs((prev) => ({ ...prev, [`${index}:${field}`]: val }));
             const arr = val.split(',').map(s => s.trim()).filter(Boolean);
             if (arr.length > 0) {
                 nextRule[field] = arr;
+            } else {
+                delete nextRule[field];
+            }
+        } else if (field === 'port' || field === 'network') {
+            const trimmed = String(val || '').trim();
+            if (trimmed) {
+                nextRule[field] = trimmed;
             } else {
                 delete nextRule[field];
             }
@@ -93,6 +108,24 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
         }
         newRules[index] = nextRule;
         setConfig({ ...config, rules: newRules });
+    };
+
+    const getRuleArrayInput = (rule, index, field) => {
+        const rawKey = `${index}:${field}`;
+        if (Object.prototype.hasOwnProperty.call(rawInputs, rawKey)) {
+            return rawInputs[rawKey];
+        }
+        return (rule?.[field] || []).join(', ');
+    };
+
+    const clearRawInput = (index, field) => {
+        const rawKey = `${index}:${field}`;
+        setRawInputs((prev) => {
+            if (!Object.prototype.hasOwnProperty.call(prev, rawKey)) return prev;
+            const next = { ...prev };
+            delete next[rawKey];
+            return next;
+        });
     };
 
     return (
@@ -135,7 +168,7 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
                     <div className="form-group mb-6">
                         <label className="form-label">{locale === 'en-US' ? 'Domain Strategy' : '域名解析策略 (domainStrategy)'}</label>
                         <select
-                            className="form-input"
+                            className="form-select"
                             value={config.domainStrategy || 'AsIs'}
                             onChange={(e) => setConfig({ ...config, domainStrategy: e.target.value })}
                         >
@@ -186,14 +219,15 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="flex gap-4">
+                                        <div className="flex gap-4 mb-3">
                                             <div className="flex-1">
                                                 <label className="block text-xs text-muted mb-1">{locale === 'en-US' ? 'Domains (Comma separated)' : '域名匹配 (domain) - 逗号分隔'}</label>
                                                 <input
                                                     type="text"
                                                     className="form-input form-input-sm"
-                                                    value={(rule.domain || []).join(', ')}
+                                                    value={getRuleArrayInput(rule, index, 'domain')}
                                                     onChange={(e) => updateRule(index, 'domain', e.target.value)}
+                                                    onBlur={() => clearRawInput(index, 'domain')}
                                                     placeholder="e.g. geosite:google, domain:example.com"
                                                 />
                                             </div>
@@ -202,10 +236,58 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
                                                 <input
                                                     type="text"
                                                     className="form-input form-input-sm"
-                                                    value={(rule.ip || []).join(', ')}
+                                                    value={getRuleArrayInput(rule, index, 'ip')}
                                                     onChange={(e) => updateRule(index, 'ip', e.target.value)}
+                                                    onBlur={() => clearRawInput(index, 'ip')}
                                                     placeholder="e.g. geoip:cn, 8.8.8.8"
                                                 />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                                            <div>
+                                                <label className="block text-xs text-muted mb-1">{locale === 'en-US' ? 'Inbound Tags (inboundTag)' : '入站标签 (inboundTag)'}</label>
+                                                <input
+                                                    type="text"
+                                                    className="form-input form-input-sm"
+                                                    value={getRuleArrayInput(rule, index, 'inboundTag')}
+                                                    onChange={(e) => updateRule(index, 'inboundTag', e.target.value)}
+                                                    onBlur={() => clearRawInput(index, 'inboundTag')}
+                                                    placeholder="e.g. inbound-443"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs text-muted mb-1">{locale === 'en-US' ? 'Protocols (protocol)' : '协议匹配 (protocol)'}</label>
+                                                <input
+                                                    type="text"
+                                                    className="form-input form-input-sm"
+                                                    value={getRuleArrayInput(rule, index, 'protocol')}
+                                                    onChange={(e) => updateRule(index, 'protocol', e.target.value)}
+                                                    onBlur={() => clearRawInput(index, 'protocol')}
+                                                    placeholder="e.g. bittorrent, tls, http"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs text-muted mb-1">{locale === 'en-US' ? 'Ports (port)' : '端口范围 (port)'}</label>
+                                                <input
+                                                    type="text"
+                                                    className="form-input form-input-sm"
+                                                    value={rule.port || ''}
+                                                    onChange={(e) => updateRule(index, 'port', e.target.value)}
+                                                    placeholder="e.g. 53, 443, 1000-2000"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs text-muted mb-1">{locale === 'en-US' ? 'Network (network)' : '传输协议 (network)'}</label>
+                                                <select
+                                                    className="form-select form-select-sm"
+                                                    value={rule.network || ''}
+                                                    onChange={(e) => updateRule(index, 'network', e.target.value)}
+                                                >
+                                                    <option value="">{locale === 'en-US' ? 'Any (TCP/UDP)' : '不限 (TCP/UDP)'}</option>
+                                                    <option value="tcp">TCP</option>
+                                                    <option value="udp">UDP</option>
+                                                    <option value="tcp,udp">TCP + UDP</option>
+                                                </select>
                                             </div>
                                         </div>
                                     </div>

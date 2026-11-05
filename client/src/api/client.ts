@@ -65,8 +65,17 @@ export function shouldClearSessionOnUnauthorized(error: any): boolean {
     const requestUrl = String(error?.config?.url || '').trim();
     const errorCode = String(error?.response?.data?.code || '').trim();
 
-    // Panel-side auth failures (3x-ui login/session) should not force logout NMS JWT.
-    if (requestUrl.startsWith('/panel/') || errorCode.startsWith('PANEL_')) {
+    // Panel-side auth failures (3x-ui / s-ui login/session) or password/2FA verification
+    // failures should not force logout of the active NMS JWT session.
+    if (
+        requestUrl.startsWith('/panel/')
+        || requestUrl.startsWith('/servers/')
+        || requestUrl.includes('/auth/change-password')
+        || requestUrl.includes('/auth/2fa/disable')
+        || requestUrl.includes('/auth/login')
+        || requestUrl.includes('/auth/passkey/login')
+        || errorCode.startsWith('PANEL_')
+    ) {
         return false;
     }
 

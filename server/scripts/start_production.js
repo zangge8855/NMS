@@ -1,11 +1,19 @@
+import { register } from 'node:module';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
-import {
+
+try {
+    register('tsx', import.meta.url);
+} catch {
+    // Already registered or unsupported
+}
+
+const {
     collectStartupIssues,
     ensureRuntimeDirectories,
     formatStartupIssues,
     loadRuntimeEnv,
-} from '../lib/startupPreflight.js';
+} = await import('../lib/startupPreflight.ts');
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = resolve(__dirname, '..', '..');

@@ -50,7 +50,7 @@ import {
     updateManagedUserExpiry,
     updateUserSubscriptionBinding,
 } from '../services/userAdminService.js';
-import { authMiddleware, adminOnly, anyRole } from '../middleware/auth.js';
+import { authMiddleware, adminOnly, auditorOrAbove, anyRole } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -631,7 +631,7 @@ router.post('/reset-password', (req, res) => {
  * GET /api/auth/users — 获取用户列表（支持分页）
  * Query: page (default 1), pageSize (default 50, max 200), search (optional)
  */
-router.get('/users', authMiddleware, adminOnly, (req, res) => {
+router.get('/users', authMiddleware, auditorOrAbove, (req, res) => {
     const allUsers = listUsers();
     const search = String(req.query.search || '').trim().toLowerCase();
 

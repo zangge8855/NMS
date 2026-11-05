@@ -48,14 +48,18 @@ function normalizeInactiveReason(reason, locale = 'zh-CN') {
     const text = String(reason || '').trim().toLowerCase();
     if (locale === 'en-US') {
         if (!text) return 'Available';
-        if (text === 'all-expired-or-disabled') return 'All nodes have expired or are disabled';
+        if (text === 'expired' || text === 'subscription_expired' || text === 'all-expired-or-disabled') return 'All nodes have expired or are disabled';
+        if (text === 'depleted' || text === 'traffic_depleted') return 'Traffic quota depleted';
+        if (text === 'disabled' || text === 'user_disabled') return 'Account is disabled';
         if (text === 'blocked-by-policy') return 'Blocked by subscription policy';
         if (text === 'user-not-found') return 'User not found';
         if (text === 'no-links-found') return 'No usable node links were generated';
         return reason;
     }
     if (!text) return '可用';
-    if (text === 'all-expired-or-disabled') return '全部节点已过期或禁用';
+    if (text === 'expired' || text === 'subscription_expired' || text === 'all-expired-or-disabled') return '全部节点已过期或禁用';
+    if (text === 'depleted' || text === 'traffic_depleted') return '流量配额已耗尽';
+    if (text === 'disabled' || text === 'user_disabled') return '用户已被停用';
     if (text === 'blocked-by-policy') return '被订阅权限策略限制';
     if (text === 'user-not-found') return '未找到该用户';
     if (text === 'no-links-found') return '未生成可用节点链接';
@@ -287,12 +291,32 @@ function getUserFacingProfileLabel(profile) {
     return 'v2rayN / Shadowrocket';
 }
 
-function buildSelectedImportActions(bundle, profileKey, locale = 'zh-CN') {
+function rewriteImportSchemeUrl(href, policy) {
+    if (!href || !policy || policy === 'rules') return href;
+    try {
+        const match = String(href).match(/^([a-z0-9+-]+:\/\/[^?]*\?)(.*)$/i);
+        if (!match) return href;
+        const prefix = match[1];
+        const rest = match[2];
+        const hashIdx = rest.indexOf('#');
+        const queryPart = hashIdx >= 0 ? rest.slice(0, hashIdx) : rest;
+        const hashPart = hashIdx >= 0 ? rest.slice(hashIdx) : '';
+        const params = new URLSearchParams(queryPart);
+        const innerUrl = params.get('url');
+        if (!innerUrl) return href;
+        params.set('url', appendRoutingPolicy(innerUrl, policy));
+        return `${prefix}${params.toString()}${hashPart}`;
+    } catch {
+        return href;
+    }
+}
+
+function buildSelectedImportActions(bundle, profileKey, locale = 'zh-CN', routingPolicy = 'rules') {
     const normalizedProfileKey = normalizeProfileKey(profileKey);
     const importActions = Array.isArray(bundle?.importActions) ? bundle.importActions : [];
     const pushLink = (items, href, label) => {
         if (!String(href || '').trim() || !String(label || '').trim()) return;
-        items.push({ href, label });
+        items.push({ href: rewriteImportSchemeUrl(href, routingPolicy), label });
     };
 
     if (normalizedProfileKey === 'v2rayn') {
@@ -311,12 +335,12 @@ function buildSelectedImportActions(bundle, profileKey, locale = 'zh-CN') {
 
     if (normalizedProfileKey === 'surge') {
         const surge = importActions.find((item) => item.key === 'surge');
-        return surge?.href ? [{ href: surge.href, label: locale === 'en-US' ? `Import to ${surge.label}` : `导入到 ${surge.label}` }] : [];
+        return surge?.href ? [{ href: rewriteImportSchemeUrl(surge.href, routingPolicy), label: locale === 'en-US' ? `Import to ${surge.label}` : `导入到 ${surge.label}` }] : [];
     }
 
     if (normalizedProfileKey === 'singbox') {
         const singbox = importActions.find((item) => item.key === 'singbox');
-        return singbox?.href ? [{ href: singbox.href, label: locale === 'en-US' ? `Import to ${singbox.label}` : `导入到 ${singbox.label}` }] : [];
+        return singbox?.href ? [{ href: rewriteImportSchemeUrl(singbox.href, routingPolicy), label: locale === 'en-US' ? `Import to ${singbox.label}` : `导入到 ${singbox.label}` }] : [];
     }
 
     return [];
@@ -436,8 +460,8 @@ export default function Subscriptions() {
         [availableProfiles, isUserOnly]
     );
     const selectedImportActions = useMemo(
-        () => buildSelectedImportActions(result?.bundle, profileKey, locale),
-        [result, profileKey, locale]
+        () => buildSelectedImportActions(result?.bundle, profileKey, locale, routingPolicy),
+        [result, profileKey, locale, routingPolicy]
     );
     const primaryImportActions = useMemo(
         () => (isCompactViewport ? selectedImportActions.slice(0, 1) : selectedImportActions),
@@ -448,8 +472,12 @@ export default function Subscriptions() {
         [isCompactViewport, selectedImportActions]
     );
     const linkedUserHref = normalizedEmail ? `/clients?q=${encodeURIComponent(normalizedEmail)}` : '';
+    const selectedServerDisplayName = useMemo(
+        () => servers.find((item) => item.id === selectedServerId)?.name || selectedServerId,
+        [servers, selectedServerId]
+    );
     const summaryScopeLabel = isAdmin && selectedServerId && selectedServerId !== 'all'
-        ? ui.selectedNode.replace('{id}', selectedServerId)
+        ? ui.selectedNode.replace('{id}', selectedServerDisplayName)
         : ui.allNodes;
     const toolbarSelectionLabel = normalizedEmail
         ? `${locale === 'en-US' ? 'User' : '当前用户'} · ${normalizedEmail}`
@@ -627,6 +655,17 @@ export default function Subscriptions() {
     }, [isAdmin]);
 
     useEffect(() => {
+        const handlePageRefresh = () => {
+            loadUsers({ preserveCurrent: true });
+            if (normalizedEmail) {
+                loadSubscription(normalizedEmail, { preserveCurrent: true });
+            }
+        };
+        window.addEventListener('nms:page-refresh', handlePageRefresh);
+        return () => window.removeEventListener('nms:page-refresh', handlePageRefresh);
+    }, [isAdmin, normalizedEmail, selectedServerId]);
+
+    useEffect(() => {
         if (!isUserOnly) return;
         if (!selectedEmail && defaultIdentity) {
             setSelectedEmail(defaultIdentity);
@@ -678,7 +717,7 @@ export default function Subscriptions() {
     const handleResetLink = async () => {
         if (!normalizedEmail) return;
         const scopeLabel = isAdmin && selectedServerId && selectedServerId !== 'all'
-            ? ui.currentNode.replace('{id}', selectedServerId)
+            ? ui.currentNode.replace('{id}', selectedServerDisplayName)
             : t('comp.subscriptions.currentScope');
         const resetMessage = isAdmin
             ? t('comp.subscriptions.resetAdminMsg')
@@ -799,6 +838,24 @@ export default function Subscriptions() {
                                 {item.label}
                             </button>
                         ))}
+                    </div>
+
+                    <div className="subscription-routing-policy" style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+                        <label htmlFor="subscription-user-routing-policy-select" className="text-sm font-medium" style={{ marginRight: '0.5rem' }}>
+                            {locale === 'en-US' ? 'Routing Policy:' : '路由策略:'}
+                        </label>
+                        <select
+                            id="subscription-user-routing-policy-select"
+                            className="form-select form-select-sm"
+                            style={{ width: 'auto', display: 'inline-block' }}
+                            aria-label={locale === 'en-US' ? 'Routing Policy' : '路由策略'}
+                            value={routingPolicy}
+                            onChange={e => setRoutingPolicy(e.target.value)}
+                        >
+                            <option value="rules">{locale === 'en-US' ? 'Rules' : '规则策略'}</option>
+                            <option value="global">{locale === 'en-US' ? 'Global' : '全局代理'}</option>
+                            <option value="auto">{locale === 'en-US' ? 'Auto Select' : '自动优选'}</option>
+                        </select>
                     </div>
 
                     <div className={`subscription-user-address-layout${userInlineQrCard ? ' subscription-user-address-layout--with-qr' : ''}`}>

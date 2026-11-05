@@ -70,6 +70,9 @@ const ALLOWED_KEYS: Record<string, Set<string>> = {
         'secret',
         'events',
     ]),
+    geofiles: new Set([
+        'customSources',
+    ]),
 };
 
 const GEO_PROVIDERS = new Set<string>(['ip_api', 'ipip_myip']);
@@ -270,6 +273,7 @@ function normalizeCamouflageTitle(value: unknown, fallback: string = DEFAULT_CAM
 }
 
 function normalizeTelegramChatId(value: unknown, fallback: string = ''): string {
+    if (value === '' || value === null) return '';
     const text = String(value || '').trim();
     if (!text) return String(fallback || '').trim();
     return text.replace(/\s+/g, '').slice(0, 160);
@@ -687,6 +691,11 @@ export class SystemSettingsStore {
         const inboundOrderInput = normalizeInboundOrderMap(input.inboundOrder);
         const userOrderInput = normalizeIdList(input.userOrder);
 
+        const hasServerOrder = Object.prototype.hasOwnProperty.call(input, 'serverOrder') && Array.isArray(input.serverOrder);
+        const hasInboundOrder = Object.prototype.hasOwnProperty.call(input, 'inboundOrder')
+            && input.inboundOrder && typeof input.inboundOrder === 'object' && !Array.isArray(input.inboundOrder);
+        const hasUserOrder = Object.prototype.hasOwnProperty.call(input, 'userOrder') && Array.isArray(input.userOrder);
+
         return {
             site: this._normalizeSite(siteInput, siteFallback),
             registration: this._normalizeRegistration(registrationInput, registrationFallback),
@@ -698,9 +707,9 @@ export class SystemSettingsStore {
             telegram: this._normalizeTelegram(telegramInput, telegramFallback),
             webhook: this._normalizeWebhook(webhookInput, webhookFallback),
             geofiles: this._normalizeGeofiles(geofilesInput, geofilesFallback),
-            serverOrder: serverOrderInput.length > 0 ? serverOrderInput : serverOrderFallback,
-            inboundOrder: Object.keys(inboundOrderInput).length > 0 ? inboundOrderInput : inboundOrderFallback,
-            userOrder: userOrderInput.length > 0 ? userOrderInput : userOrderFallback,
+            serverOrder: hasServerOrder ? serverOrderInput : (serverOrderInput.length > 0 ? serverOrderInput : serverOrderFallback),
+            inboundOrder: hasInboundOrder ? inboundOrderInput : (Object.keys(inboundOrderInput).length > 0 ? inboundOrderInput : inboundOrderFallback),
+            userOrder: hasUserOrder ? userOrderInput : (userOrderInput.length > 0 ? userOrderInput : userOrderFallback),
             updatedAt: String(input.updatedAt || '').trim() || new Date().toISOString(),
         };
     }
@@ -926,9 +935,16 @@ export class SystemSettingsStore {
     }
 
     update(patch: any = {}): any {
-        this._assertAllowedPayload(patch);
-        if (patch.site && Object.prototype.hasOwnProperty.call(patch.site, 'accessPath')) {
-            const normalizedAccessPath = normalizeSiteAccessPath(patch.site.accessPath, '');
+        const sanitizedPatch = (patch && typeof patch === 'object' && !Array.isArray(patch))
+            ? { ...patch }
+            : patch;
+        if (sanitizedPatch?.telegram && typeof sanitizedPatch.telegram === 'object' && !Array.isArray(sanitizedPatch.telegram)) {
+            const { botTokenConfigured: _c, botTokenPreview: _p, botTokenStatus: _s, ...restTelegram } = sanitizedPatch.telegram;
+            sanitizedPatch.telegram = restTelegram;
+        }
+        this._assertAllowedPayload(sanitizedPatch);
+        if (sanitizedPatch.site && Object.prototype.hasOwnProperty.call(sanitizedPatch.site, 'accessPath')) {
+            const normalizedAccessPath = normalizeSiteAccessPath(sanitizedPatch.site.accessPath, '');
             if (!normalizedAccessPath) {
                 throw new Error('site.accessPath must be a valid path');
             }
@@ -937,15 +953,16 @@ export class SystemSettingsStore {
             }
         }
         const candidate = {
-            site: mergeSection(this.settings.site, patch.site),
-            registration: mergeSection(this.settings.registration, patch.registration),
-            security: mergeSection(this.settings.security, patch.security),
-            jobs: mergeSection(this.settings.jobs, patch.jobs),
-            audit: mergeSection(this.settings.audit, patch.audit),
-            subscription: mergeSection(this.settings.subscription, patch.subscription),
-            auditIpGeo: mergeSection(this.settings.auditIpGeo, patch.auditIpGeo),
-            telegram: mergeSection(this.settings.telegram, patch.telegram),
-            webhook: mergeSection(this.settings.webhook, patch.webhook),
+            site: mergeSection(this.settings.site, sanitizedPatch.site),
+            registration: mergeSection(this.settings.registration, sanitizedPatch.registration),
+            security: mergeSection(this.settings.security, sanitizedPatch.security),
+            jobs: mergeSection(this.settings.jobs, sanitizedPatch.jobs),
+            audit: mergeSection(this.settings.audit, sanitizedPatch.audit),
+            subscription: mergeSection(this.settings.subscription, sanitizedPatch.subscription),
+            auditIpGeo: mergeSection(this.settings.auditIpGeo, sanitizedPatch.auditIpGeo),
+            telegram: mergeSection(this.settings.telegram, sanitizedPatch.telegram),
+            webhook: mergeSection(this.settings.webhook, sanitizedPatch.webhook),
+            geofiles: mergeSection(this.settings.geofiles, sanitizedPatch.geofiles),
             serverOrder: this.settings.serverOrder,
             inboundOrder: this.settings.inboundOrder,
             userOrder: this.settings.userOrder,

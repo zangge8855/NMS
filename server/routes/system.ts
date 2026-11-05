@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { authMiddleware, adminOnly } from '../middleware/auth.js';
+import { authMiddleware, adminOnly, operatorOrAbove, auditorOrAbove } from '../middleware/auth.js';
 import serverStore from '../store/serverStore.js';
 import userStore from '../store/userStore.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
@@ -716,7 +716,7 @@ router.get('/monitor/status', adminOnly, (req, res) => {
     });
 });
 
-router.get('/panel/snapshot', adminOnly, async (req, res) => {
+router.get('/panel/snapshot', auditorOrAbove, async (req, res) => {
     try {
         const requestedServerIds = normalizeStoreKeys(req.query.serverIds);
         const includeOnlines = normalizeBoolean(req.query.includeOnlines, true);
@@ -824,21 +824,21 @@ router.put('/settings', adminOnly, (req, res) => {
     }
 });
 
-router.get('/inbounds/order', adminOnly, (req, res) => {
+router.get('/inbounds/order', auditorOrAbove, (req, res) => {
     return res.json({
         success: true,
         obj: systemSettingsStore.getInboundOrder(),
     });
 });
 
-router.get('/servers/order', adminOnly, (req, res) => {
+router.get('/servers/order', auditorOrAbove, (req, res) => {
     return res.json({
         success: true,
         obj: systemSettingsStore.getServerOrder(),
     });
 });
 
-router.put('/servers/order', adminOnly, (req, res) => {
+router.put('/servers/order', operatorOrAbove, (req, res) => {
     const serverIds = Array.isArray(req.body?.serverIds) ? req.body.serverIds : null;
     if (!serverIds) {
         return res.status(400).json({
@@ -869,7 +869,7 @@ router.put('/servers/order', adminOnly, (req, res) => {
     }
 });
 
-router.put('/inbounds/order', adminOnly, (req, res) => {
+router.put('/inbounds/order', operatorOrAbove, (req, res) => {
     const serverId = String(req.body?.serverId || '').trim();
     const inboundIds = Array.isArray(req.body?.inboundIds) ? req.body.inboundIds : null;
 
@@ -914,14 +914,14 @@ router.put('/inbounds/order', adminOnly, (req, res) => {
     }
 });
 
-router.get('/users/order', adminOnly, (req, res) => {
+router.get('/users/order', auditorOrAbove, (req, res) => {
     return res.json({
         success: true,
         obj: systemSettingsStore.getUserOrder(),
     });
 });
 
-router.put('/users/order', adminOnly, (req, res) => {
+router.put('/users/order', operatorOrAbove, (req, res) => {
     const userIds = Array.isArray(req.body?.userIds) ? req.body.userIds : null;
 
     if (!userIds) {
@@ -966,7 +966,7 @@ router.put('/users/order', adminOnly, (req, res) => {
     }
 });
 
-router.post('/batch-risk-token', adminOnly, (req, res) => {
+router.post('/batch-risk-token', operatorOrAbove, (req, res) => {
     const type = String(req.body?.type || '').trim().toLowerCase();
     const action = String(req.body?.action || '').trim().toLowerCase();
     const isRetry = normalizeBoolean(req.body?.isRetry, false);
@@ -1187,7 +1187,7 @@ router.post('/db/backfill', adminOnly, async (req, res) => {
 });
 
 // 获取任务状态
-router.get('/tasks', adminOnly, (req, res) => {
+router.get('/tasks', auditorOrAbove, (req, res) => {
     const { status, type, limit } = req.query;
     const tasks = taskQueue.list({
         status: status ? String(status) : undefined,
@@ -1197,7 +1197,7 @@ router.get('/tasks', adminOnly, (req, res) => {
     return res.json({ success: true, obj: { tasks } });
 });
 
-router.get('/tasks/:taskId', adminOnly, (req, res) => {
+router.get('/tasks/:taskId', auditorOrAbove, (req, res) => {
     const task = taskQueue.get(req.params.taskId);
     if (!task) {
         return res.status(404).json({ success: false, msg: 'Task not found' });
@@ -1205,7 +1205,7 @@ router.get('/tasks/:taskId', adminOnly, (req, res) => {
     return res.json({ success: true, obj: task });
 });
 
-router.delete('/tasks/:taskId', adminOnly, (req, res) => {
+router.delete('/tasks/:taskId', operatorOrAbove, (req, res) => {
     const task = taskQueue.get(req.params.taskId);
     if (!task) {
         return res.status(404).json({ success: false, msg: 'Task not found' });

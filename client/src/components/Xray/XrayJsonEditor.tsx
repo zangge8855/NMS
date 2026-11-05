@@ -67,7 +67,7 @@ export default function XrayJsonEditor({
                 setError(locale === 'en-US' ? 'Expected a JSON array.' : '需要 JSON 数组。');
                 return;
             }
-            if (!expectArray && parsed !== null && typeof parsed !== 'object') {
+            if (!expectArray && parsed !== null && (typeof parsed !== 'object' || Array.isArray(parsed))) {
                 setError(locale === 'en-US' ? 'Expected a JSON object.' : '需要 JSON 对象。');
                 return;
             }

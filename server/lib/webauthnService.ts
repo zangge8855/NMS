@@ -9,6 +9,7 @@ import userStore from '../store/userStore.js';
 import crypto from 'crypto';
 
 // Simple in-memory challenge store for webauthn
+const MAX_CHALLENGES = 1000;
 const challenges = new Map<string, { challenge: string; userId?: string; expiresAt: number }>();
 
 function cleanupChallenges() {
@@ -26,12 +27,22 @@ if (typeof challengeCleanupTimer?.unref === 'function') {
 }
 
 function saveChallenge(id: string, challenge: string, userId?: string) {
+    if (challenges.size >= MAX_CHALLENGES) {
+        cleanupChallenges();
+        if (challenges.size >= MAX_CHALLENGES) {
+            const oldestKey = challenges.keys().next().value;
+            if (oldestKey) challenges.delete(oldestKey);
+        }
+    }
     challenges.set(id, { challenge, userId, expiresAt: Date.now() + 5 * 60 * 1000 }); // 5 minutes TTL
 }
 
 function getChallenge(id: string) {
     const data = challenges.get(id);
-    if (!data || Date.now() > data.expiresAt) return null;
+    if (!data || Date.now() > data.expiresAt) {
+        if (data) challenges.delete(id);
+        return null;
+    }
     return data;
 }
 
@@ -122,11 +133,11 @@ export async function verifyPasskeyRegistration(req: Request, user: any, body: a
 
     challenges.delete(user.id);
 
-    const { registrationInfo } = verification;
-    if (!registrationInfo) {
-        throw new Error('Registration info missing');
+    if (!verification.verified || !verification.registrationInfo) {
+        throw new Error('Passkey registration verification failed');
     }
 
+    const { registrationInfo } = verification;
     const { credential, aaguid } = registrationInfo;
 
     return {
@@ -167,10 +178,15 @@ export async function createPasskeyLoginOptions(req: Request, user?: any) {
     return { options, challengeSessionId };
 }
 
-export async function verifyPasskeyLogin(req: Request, challengeSessionId: string, body: any, passkey: any): Promise<{ newCounter: number }> {
+export async function verifyPasskeyLogin(req: Request, challengeSessionId: string, body: any, passkey: any, expectedUserId?: string): Promise<{ newCounter: number }> {
     const challengeData = getChallenge(challengeSessionId);
     if (!challengeData) {
         throw new Error('Challenge not found or expired');
+    }
+
+    if (challengeData.userId && expectedUserId && String(challengeData.userId) !== String(expectedUserId)) {
+        challenges.delete(challengeSessionId);
+        throw new Error('Passkey user mismatch');
     }
 
     const { rpID, expectedOrigins } = getRpDetails(req);
@@ -190,6 +206,10 @@ export async function verifyPasskeyLogin(req: Request, challengeSessionId: strin
     });
 
     challenges.delete(challengeSessionId);
+
+    if (!verification.verified || !verification.authenticationInfo) {
+        throw new Error('Passkey authentication verification failed');
+    }
 
     const { authenticationInfo } = verification;
     return { newCounter: authenticationInfo.newCounter };

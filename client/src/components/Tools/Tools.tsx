@@ -102,7 +102,7 @@ export default function Tools() {
     } = usePageServerTarget({ activeServerId, servers });
     const cachedState = hasTargetServer ? readToolsSnapshot(targetServerId) : null;
     const toolsCatalogRequestIdRef = useRef(0);
-    const toolExecutionRequestIdRef = useRef(0);
+    const toolExecutionRequestIdRef = useRef<Record<string, number>>({});
     const [results, setResults] = useState<Record<string, string>>(() => cachedState?.results || {});
     const [loading, setLoading] = useState<Record<string, boolean>>({});
     const [catalogLoading, setCatalogLoading] = useState(() => hasTargetServer && cachedState == null);
@@ -284,19 +284,29 @@ export default function Tools() {
     useEffect(() => {
         if (!hasTargetServer) {
             toolsCatalogRequestIdRef.current += 1;
-            toolExecutionRequestIdRef.current += 1;
+            toolExecutionRequestIdRef.current = {};
             setResults({});
             setTools([]);
             setCatalogLoading(false);
             return;
         }
-        toolExecutionRequestIdRef.current += 1;
+        toolExecutionRequestIdRef.current = {};
         const snapshot = readToolsSnapshot(targetServerId);
         setResults(snapshot?.results || {});
         setTools(snapshot?.tools || []);
         setCatalogLoading(snapshot == null);
         fetchCatalog({ preserveCurrent: snapshot != null });
     }, [targetServerId, hasTargetServer]);
+
+    useEffect(() => {
+        const handlePageRefresh = () => {
+            if (hasTargetServer) {
+                fetchCatalog({ preserveCurrent: true });
+            }
+        };
+        window.addEventListener('nms:page-refresh', handlePageRefresh);
+        return () => window.removeEventListener('nms:page-refresh', handlePageRefresh);
+    }, [hasTargetServer, targetServerId]);
 
     useEffect(() => {
         if (!hasTargetServer) return;
@@ -320,24 +330,24 @@ export default function Tools() {
             toast.error(copy.selectServerFirst);
             return;
         }
-        const requestId = toolExecutionRequestIdRef.current + 1;
-        toolExecutionRequestIdRef.current = requestId;
+        const requestId = (toolExecutionRequestIdRef.current[tool.key] || 0) + 1;
+        toolExecutionRequestIdRef.current[tool.key] = requestId;
         setLoading((prev) => ({ ...prev, [tool.key]: true }));
         try {
             const method = tool.method || 'get';
             const res = targetServerId === activeServerId && typeof panelApi === 'function'
                 ? await panelApi(method, tool.path)
                 : await api({ method, url: `/panel/${encodeURIComponent(targetServerId)}${tool.path}` });
-            if (requestId !== toolExecutionRequestIdRef.current) return;
+            if (requestId !== toolExecutionRequestIdRef.current[tool.key]) return;
             setResults((prev) => ({
                 ...prev,
                 [tool.key]: formatToolValue(res.data?.obj),
             }));
         } catch (error) {
-            if (requestId !== toolExecutionRequestIdRef.current) return;
+            if (requestId !== toolExecutionRequestIdRef.current[tool.key]) return;
             toast.error(getErrorMessage(error, copy.executeFailed, locale));
         }
-        if (requestId === toolExecutionRequestIdRef.current) {
+        if (requestId === toolExecutionRequestIdRef.current[tool.key]) {
             setLoading((prev) => ({ ...prev, [tool.key]: false }));
         }
     };
@@ -350,12 +360,12 @@ export default function Tools() {
     // Generated ACME script
     const generatedAcmeScript = useMemo(() => {
         const domain = sslDomain.trim() || 'yourdomain.com';
-        const isWildcard = domain.startsWith('*.') || !domain.includes('.');
+        const isWildcard = domain.startsWith('*.');
         const cleanDomain = domain.replace(/^\*\./, '');
         const domainsParam = isWildcard ? `-d ${cleanDomain} -d *.${cleanDomain}` : `-d ${domain}`;
 
         return `# ==========================================
-# NMS 3X-UI Cloudflare ACME Automated Cert Issue
+# NMS 3X-UI / S-UI Cloudflare ACME Automated Cert Issue
 # ==========================================
 mkdir -p /root/cert
 curl https://get.acme.sh | sh -s email=${cfEmail.trim() || 'admin@example.com'}
@@ -370,7 +380,7 @@ ${cfEmail.trim() ? `export CF_Email="${cfEmail.trim()}"` : ''}
 ~/.acme.sh/acme.sh --install-cert ${domainsParam} \\
   --key-file "${sslKeyPath.trim() || '/root/cert/private.key'}" \\
   --fullchain-file "${sslCertPath.trim() || '/root/cert/cert.crt'}" \\
-  --reloadcmd "x-ui restart || systemctl restart x-ui"
+  --reloadcmd "x-ui restart || systemctl restart x-ui || systemctl restart s-ui"
 
 ~/.acme.sh/acme.sh --upgrade --auto-upgrade
 `;

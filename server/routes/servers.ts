@@ -9,7 +9,7 @@ import serverTelemetryStore from '../store/serverTelemetryStore.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
 import { derivePanelHealthFromStatus, ensureAuthenticated, fetchPanelServerStatus } from '../lib/panelClient.js';
 import { normalizePanelType } from '../lib/panelType.js';
-import { authMiddleware, adminOnly } from '../middleware/auth.js';
+import { authMiddleware, adminOnly, operatorOrAbove } from '../middleware/auth.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import config from '../config.js';
 import { normalizeBoolean as parseBoolean } from '../lib/normalize.js';
@@ -589,7 +589,7 @@ router.get('/:id', (req, res) => {
  * POST /api/servers
  * Register a new 3x-ui or s-ui panel server.
  */
-router.post('/', async (req, res) => {
+router.post('/', operatorOrAbove, async (req, res) => {
     const { name, url, basePath, panelType, username, password, apiToken, group, tags, environment, health } = req.body;
     const hasPasswordAuth = String(username || '').trim() && String(password || '');
     const hasApiTokenAuth = String(apiToken || '').trim();
@@ -646,7 +646,7 @@ router.post('/', async (req, res) => {
  *   testConnection: true|false
  * }
  */
-router.post('/batch', async (req, res) => {
+router.post('/batch', operatorOrAbove, async (req, res) => {
     const common = req.body?.common && typeof req.body.common === 'object' ? req.body.common : {};
     const items = Array.isArray(req.body?.items) ? req.body.items : [];
     const shouldTestConnection = req.body?.testConnection !== false;
@@ -831,7 +831,7 @@ router.post('/batch', async (req, res) => {
  * PUT /api/servers/:id
  * Update a registered server.
  */
-router.put('/:id', async (req, res) => {
+router.put('/:id', operatorOrAbove, async (req, res) => {
     const current = serverStore.getById(req.params.id);
     if (!current) {
         return res.status(404).json({ success: false, msg: '节点不存在，请刷新节点列表后重试' });
@@ -877,7 +877,7 @@ router.put('/:id', async (req, res) => {
  * DELETE /api/servers/:id
  * Remove a registered server.
  */
-router.delete('/:id', (req, res) => {
+router.delete('/:id', operatorOrAbove, (req, res) => {
     const serverId = String(req.params.id || '').trim();
     const removed = serverStore.remove(serverId);
     if (!removed) {
@@ -913,7 +913,7 @@ router.delete('/:id', (req, res) => {
  *   persistCredentials?: boolean // default true when username+password or apiToken provided
  * }
  */
-router.post('/:id/test', async (req, res) => {
+router.post('/:id/test', operatorOrAbove, async (req, res) => {
     try {
         const rawUsername = req.body?.username;
         const rawPassword = req.body?.password;
@@ -995,7 +995,7 @@ router.post('/:id/test', async (req, res) => {
 });
 
 // ── Batch Update (labels, group, environment, tags) ───────
-router.patch('/batch', (req, res) => {
+router.patch('/batch', operatorOrAbove, (req, res) => {
     const { serverIds, updates } = req.body || {};
     if (!Array.isArray(serverIds) || serverIds.length === 0) {
         return res.status(400).json({ success: false, msg: 'serverIds is required' });
@@ -1092,7 +1092,7 @@ function probeServer(urlStr: string): Promise<{ latencyMs: number, online: boole
     }
 }
 
-router.post('/ping-all', authMiddleware, adminOnly, async (req: any, res: any) => {
+router.post('/ping-all', authMiddleware, operatorOrAbove, async (req: any, res: any) => {
     try {
         const servers = serverStore.getAll();
         const results: Record<string, { latencyMs: number, online: boolean }> = {};
@@ -1108,7 +1108,7 @@ router.post('/ping-all', authMiddleware, adminOnly, async (req: any, res: any) =
     }
 });
 
-router.post('/:id/ping', authMiddleware, adminOnly, async (req: any, res: any) => {
+router.post('/:id/ping', authMiddleware, operatorOrAbove, async (req: any, res: any) => {
     try {
         const server = serverStore.getById(req.params.id);
         if (!server) {

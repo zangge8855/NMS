@@ -126,7 +126,7 @@ export async function fetchServerPanelData(
     const request = fetchViaPanelSnapshotRoute()
         .catch(async (error: any) => {
             const status = Number(error?.response?.status || 0);
-            if (status > 0 && status !== 404 && status !== 500) {
+            if (status > 0 && status !== 403 && status !== 404 && status !== 500) {
                 throw error;
             }
             return fetchViaLegacyPanelProxy();

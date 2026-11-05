@@ -112,6 +112,19 @@ function createLoginSession(payload: any = {}, deps: any = {}): any {
             };
             if (adminUser?.id) tokenPayload.userId = adminUser.id;
 
+            const twoFactor = adminUser?.id && typeof userRepo.getTwoFactor === 'function'
+                ? userRepo.getTwoFactor(adminUser.id)
+                : null;
+            if (twoFactor && twoFactor.enabled === true) {
+                return {
+                    success: false,
+                    reason: 'two_factor_required',
+                    challengeToken: buildTwoFactorChallenge(tokenPayload, deps),
+                    email: normalizeEmailInput(adminUser?.email),
+                    audit: buildAuditUser(adminUser, tokenPayload),
+                };
+            }
+
             return {
                 success: true,
                 token: buildSignedToken(tokenPayload, deps),
@@ -209,7 +222,10 @@ function verifyTwoFactorChallenge(token: unknown, deps: any = {}): any {
     const jwtConfig = deps.jwtConfig || config.jwt;
     const verifier = deps.jwtVerify || jwt.verify;
     try {
-        const decoded: any = verifier(token, jwtConfig.secret, { audience: TWO_FACTOR_CHALLENGE_AUDIENCE });
+        const decoded: any = verifier(token, jwtConfig.secret, {
+            audience: TWO_FACTOR_CHALLENGE_AUDIENCE,
+            algorithms: ['HS256'],
+        });
         if (!decoded || decoded.type !== '2fa_challenge' || !decoded.userId) {
             throw new Error('invalid');
         }
@@ -224,6 +240,9 @@ function completeTwoFactorLogin(payload: any = {}, deps: any = {}): any {
     const challenge = verifyTwoFactorChallenge(payload?.challengeToken, deps);
     const stored = userRepo.getById(challenge.userId);
     if (!stored) throw createHttpError(401, '账号不存在');
+    if (stored.enabled === false && stored.role !== 'admin') {
+        throw createHttpError(403, '账号已停用');
+    }
 
     const config2FA = typeof userRepo.getTwoFactor === 'function'
         ? userRepo.getTwoFactor(stored.id)
@@ -349,9 +368,17 @@ function validateSession(authHeader: unknown, deps: any = {}) {
     try {
         const verifier = deps.jwtVerify || jwt.verify;
         const jwtConfig = deps.jwtConfig || config.jwt;
-        const decoded: any = verifier(String(authHeader).split(' ')[1], jwtConfig.secret);
+        const decoded: any = verifier(String(authHeader).split(' ')[1], jwtConfig.secret, {
+            algorithms: ['HS256'],
+        });
+        if (!decoded || decoded.type || decoded.isGuest || decoded.role === 'guest') {
+            throw createHttpError(401, '未授权');
+        }
         const userRepo = deps.userRepository || userRepository;
         const stored = decoded.userId ? userRepo.getById(decoded.userId) : userRepo.getByUsername(decoded.username);
+        if (stored && stored.enabled === false && stored.role !== 'admin') {
+            throw createHttpError(401, '未授权');
+        }
 
         return {
             decoded,
@@ -584,4 +611,3 @@ export {
     disableTwoFactor,
     getTwoFactorStatus,
 };
-

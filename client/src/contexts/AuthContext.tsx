@@ -72,6 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const checkAuth = useCallback(async () => {
         const storedToken = getStoredToken();
         if (!storedToken) {
+            setToken(null);
             setIsAuthenticated(false);
             setUser(null);
             setLoading(false);
@@ -79,22 +80,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         try {
             const res = await api.get('/auth/check');
+            setToken(storedToken);
             setIsAuthenticated(true);
             setUser(res.data?.user || null);
         } catch (error: any) {
             const status = Number(error?.response?.status || 0);
             if (status === 401 || status === 403) {
                 clearStoredToken();
+                clearAppSessionState();
+                setToken(null);
                 setIsAuthenticated(false);
                 setUser(null);
             } else {
                 const decoded = decodeJwtPayload(storedToken);
+                const validRoles = ['admin', 'operator', 'auditor', 'user'];
+                const fallbackRole = validRoles.includes(String(decoded?.role || ''))
+                    ? (decoded?.role as User['role'])
+                    : 'user';
+                setToken(storedToken);
                 setIsAuthenticated(true);
                 setUser((prev) => prev || {
                     id: '',
                     createdAt: Date.now(),
                     username: String(decoded?.username || ''),
-                    role: (decoded?.role === 'admin' ? 'admin' : 'user'),
+                    role: fallbackRole,
                     email: '',
                     subscriptionEmail: '',
                 });

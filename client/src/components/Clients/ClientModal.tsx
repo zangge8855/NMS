@@ -196,6 +196,8 @@ export default function ClientModal({
                 setExpiryAfterDays('');
                 setEnable(true);
                 setLimitIp(0);
+                setSpeedLimitUp(0);
+                setSpeedLimitDown(0);
                 setTgId('');
                 setComment('');
                 setReset(0);
@@ -951,7 +953,7 @@ export default function ClientModal({
                         <div className="form-group mb-4">
                             <label className="form-label">{t('comp.clients.commentLabel')}</label>
                             <textarea
-                                className="form-input"
+                                className="form-textarea"
                                 rows={2}
                                 value={comment}
                                 placeholder={t('comp.clients.commentPlaceholder')}

@@ -86,6 +86,9 @@ export function resolveClientQuota(client?: any): number {
 }
 
 export function resolveClientUsed(client?: any): number {
+    if (client && client.totalUsed !== undefined && client.up === undefined && client.down === undefined) {
+        return safeNumber(client.totalUsed);
+    }
     return safeNumber(client?.up) + safeNumber(client?.down);
 }
 

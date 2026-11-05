@@ -366,7 +366,8 @@ export default function Servers() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        const hasApiToken = String(form.apiToken || '').trim() !== '';
+        const editingServer = editingId ? servers.find((item) => item.id === editingId) : null;
+        const hasApiToken = String(form.apiToken || '').trim() !== '' || Boolean(editingServer?.apiTokenConfigured);
         const hasPasswordAuth = String(form.username || '').trim() !== '' && (editingId || String(form.password || '') !== '');
         if (!form.url || (!hasApiToken && !hasPasswordAuth)) {
             toast.error(t('comp.servers.fillComplete'));
@@ -383,9 +384,12 @@ export default function Servers() {
                 group: String(form.group || '').trim(),
             };
             if (editingId) {
-                // Keep existing passwords if edit form leaves them blank.
+                // Keep existing passwords and tokens if edit form leaves them blank.
                 if (!payload.password) {
                     delete payload.password;
+                }
+                if (!payload.apiToken) {
+                    delete payload.apiToken;
                 }
                 const res = await updateServer(editingId, payload);
                 toast.success(res.msg || t('comp.servers.serverUpdated'));
@@ -969,7 +973,7 @@ export default function Servers() {
                             <span className="badge badge-danger">{locale === 'en-US' ? 'Timeout' : '超时'}</span>
                         )
                     )}
-                    {(server.credentialStatus === 'missing' || server.credentialStatus === 'broken') && (
+                    {(server.credentialStatus === 'missing' || server.credentialStatus === 'broken' || server.credentialStatus === 'unreadable') && (
                         <span className={`badge ${credentialBadge.cls}`}>{credentialBadge.text}</span>
                     )}
                 </div>
@@ -1597,7 +1601,7 @@ export default function Servers() {
 
                                     {batchResult && (
                                         <div className="card mt-4 p-3">
-                                            <div className="flex gap-8 items-center mb-12 flex-wrap">
+                                            <div className="flex gap-8 items-center mb-3 flex-wrap">
                                                 <span className="badge badge-neutral">{t('comp.servers.total')} {batchResult.summary?.total || 0}</span>
                                                 <span className="badge badge-success">{t('comp.servers.success')} {batchResult.summary?.success || 0}</span>
                                                 <span className="badge badge-danger">{t('comp.servers.failed')} {batchResult.summary?.failed || 0}</span>

@@ -38,6 +38,7 @@ export function issueWsTicket(user: WsTicketUser = {}): WsTicketResult {
     };
 
     const ticket = jwt.sign(payload, config.jwt.secret, {
+        algorithm: 'HS256',
         issuer: WS_TICKET_ISSUER,
         audience: WS_TICKET_AUDIENCE,
         expiresIn: expiresInSeconds,
@@ -52,6 +53,7 @@ export function issueWsTicket(user: WsTicketUser = {}): WsTicketResult {
 
 export function verifyWsTicket(ticket: unknown): any {
     const decoded: any = jwt.verify(String(ticket || ''), config.jwt.secret, {
+        algorithms: ['HS256'],
         issuer: WS_TICKET_ISSUER,
         audience: WS_TICKET_AUDIENCE,
     });

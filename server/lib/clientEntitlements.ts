@@ -13,7 +13,9 @@ const AUTH_PROTOCOLS = new Set<string>(['hysteria', 'hysteria2', 'hy2']);
 /** Fills the protocol-specific credential slots 3x-ui v3 expects beyond id/password. */
 function applyExtraProtocolCredentials(payload: any, protocol: string, password: string, existing: any = {}): void {
     if (AUTH_PROTOCOLS.has(protocol)) {
-        payload.auth = password || normalizeText(existing.auth);
+        const secret = password || normalizeText(existing.auth || existing.password);
+        payload.auth = secret;
+        payload.password = secret;
     } else if (protocol === 'tuic') {
         payload.password = password || normalizeText(existing.password);
     }

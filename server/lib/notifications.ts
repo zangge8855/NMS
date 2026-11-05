@@ -161,7 +161,9 @@ class NotificationService extends EventEmitter {
         try {
             const webhookConfig = systemSettingsStore.getWebhook();
             if (webhookConfig && (webhookConfig.url || webhookConfig.barkKey)) {
-                const isOffline = notification.type.includes('offline') || notification.type.includes('node');
+                const isOffline = notification.type.includes('offline')
+                    || notification.type.includes('node')
+                    || notification.type.includes('server_health');
                 const isTraffic = notification.type.includes('traffic');
                 const isCert = notification.type.includes('cert');
                 const events = webhookConfig.events || {};

@@ -23,16 +23,21 @@ The server wraps each s-ui node in an adapter (`server/lib/suiPanelAdapter.ts`).
 
 s-ui 以客户端为中心：一个客户端有一个名称（即订阅 ID）、一组按协议区分的凭据和所属入站列表，对应 3x-ui v3 的 `/panel/api/clients/*` 接口。
 
-## 支持的协议 / Protocols
+## 支持的协议与上游对齐（s-ui v1.6.7） / Protocols & Upstream Alignment (s-ui v1.6.7)
 
 | 类型 | 协议 |
 | --- | --- |
 | 带用户的入站（NMS 管理其客户端） | VLESS, VMess, Trojan, Shadowsocks, Hysteria, Hysteria2, TUIC, Naive, AnyTLS, ShadowTLS, Snell, Mixed, SOCKS, HTTP |
 | 仅 s-ui 可创建的其他入站 | Direct, TUN, Redirect, TProxy, Cloudflared |
 
+- **客户端上下行速率转换**：NMS 的 `speedLimitUp` / `speedLimitDown`（KB/s）与 s-ui `clients.up_mbps` / `clients.down_mbps`（Mbps）在 `suiPanelAdapter.ts` 中双向无损映射，并自动将速率同步到关联的 `hysteria` / `hysteria2` 入站。
+- **单客户端流量重置与软启用**：当将客户端 `up`/`down` 置零或切换 `enable` 状态时，适配器精准更新该客户端记录并同步入站 `users` 挂载列表，不会影响同一客户端下的其他参数。
+- **传输层与混淆合成**：适配器支持 `naive` TLS ALPN、`anytls`、`hysteria` v1 (`auth_str`, `obfs`)、`hysteria2` (`salamander` 混淆密码, `masquerade`)、`tuic` (`congestion_control`, `zero_rtt_handshake`) 以及 `httpupgrade` / `ws` / `grpc` / `http` 传输配置的双向转换。
+- **节点工具**：支持通过 s-ui `keypairs` 接口生成 `reality`（X25519）、`wireguard`、`ech`、`vless_enc`、`tls` 密钥与证书材料。
+
 用户策略里的「允许协议」、批量添加客户端和订阅生成都已包含上述 s-ui 协议。
 
-The user policy protocol list, batch client creation and subscription output all include the s-ui protocols above.
+The user policy protocol list, batch client creation and subscription output all include the s-ui protocols above, including bidirectional `up_mbps`/`down_mbps` speed limits, per-client traffic reset, `enable` toggling via inbound user attachment, and `keypairs` generation (`reality`, `wireguard`, `ech`, `vless_enc`, `tls`).
 
 ## 不支持的功能 / Not available on s-ui
 

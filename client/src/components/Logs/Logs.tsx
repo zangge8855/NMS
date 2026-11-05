@@ -295,7 +295,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
             : null,
     ].filter(Boolean);
 
-    const fetchSingleLogs = useCallback(async (options: { preserveCurrent?: boolean } = {}) => {
+    const fetchSingleLogs = useCallback(async (options: { preserveCurrent?: boolean; force?: boolean } = {}) => {
         if (!activeServerId || activeServerId === 'global') {
             logRequestIdRef.current += 1;
             return;
@@ -313,7 +313,11 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
         }
         try {
             const res = await api.get(`/servers/${encodeURIComponent(activeServerId)}/logs`, {
-                params: { source: resolvedSource, count },
+                params: {
+                    source: resolvedSource,
+                    count,
+                    ...(options.force ? { refresh: 'true' } : {}),
+                },
             });
             if (requestId !== logRequestIdRef.current) return;
             const payload = res.data?.obj || {};
@@ -358,7 +362,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
         }
     }, [activeServerId, activeServer?.name, count, resolvedSource, sourceLabel, t, locale]);
 
-    const fetchGlobalLogs = useCallback(async (options: { preserveCurrent?: boolean } = {}) => {
+    const fetchGlobalLogs = useCallback(async (options: { preserveCurrent?: boolean; force?: boolean } = {}) => {
         const preserveCurrent = options.preserveCurrent === true;
         const requestId = logRequestIdRef.current + 1;
         logRequestIdRef.current = requestId;
@@ -388,6 +392,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                     serverIds: targetServers.map((server) => server.id).join(','),
                     source: resolvedSource,
                     count: perServerCount,
+                    ...(options.force ? { refresh: 'true' } : {}),
                 },
             });
             if (requestId !== logRequestIdRef.current) return;
@@ -483,6 +488,25 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
             logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
         }
     }, [autoScrollEnabled, logs]);
+
+    useEffect(() => {
+        const handlePageRefresh = () => {
+            fetchLogs({ preserveCurrent: true, force: true });
+        };
+        window.addEventListener('nms:page-refresh', handlePageRefresh);
+        return () => window.removeEventListener('nms:page-refresh', handlePageRefresh);
+    }, [fetchLogs]);
+
+    useEffect(() => {
+        if (!immersiveMode) return undefined;
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setImmersiveMode(false);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [immersiveMode]);
 
     const filteredLogs = useMemo(() => {
         let result = logs;
@@ -647,7 +671,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                 >
                                     {t('pages.logs.copy')}
                                 </CopyFeedbackButton>
-                                <button type="button" className="btn btn-primary btn-sm" onClick={() => fetchLogs()} disabled={logRequestPending}>
+                                <button type="button" className="btn btn-primary btn-sm" onClick={() => fetchLogs({ force: true })} disabled={logRequestPending}>
                                     <HiOutlineArrowPath className={logRequestPending ? 'spinning' : ''} />
                                     {logRequestPending ? t('pages.logs.loading') : t('pages.logs.refresh')}
                                 </button>

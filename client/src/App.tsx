@@ -103,7 +103,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
     render() {
         if (this.state.hasError) {
-            const locale = typeof document !== 'undefined' && document.documentElement.lang === 'en' ? 'en-US' : 'zh-CN';
+            const locale = typeof document !== 'undefined' && String(document.documentElement.lang || '').toLowerCase().startsWith('en') ? 'en-US' : 'zh-CN';
             const isEn = locale === 'en-US';
             const errorMessage = this.state.error?.message || '';
             const isChunkError = (
@@ -333,8 +333,7 @@ function ProtectedLayout() {
             return undefined;
         }
         fetchRootWsTicket({ force: true });
-        const interval = setInterval(() => fetchRootWsTicket({ force: true }), 5 * 60 * 1000);
-        return () => clearInterval(interval);
+        return undefined;
     }, [fetchRootWsTicket, isStaff, token]);
 
     useEffect(() => {

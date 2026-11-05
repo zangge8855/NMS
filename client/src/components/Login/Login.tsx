@@ -4,6 +4,7 @@ import { startAuthentication } from '@simplewebauthn/browser';
 import api, { setStoredToken } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import { useI18n } from '../../contexts/LanguageContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import {
     HiOutlineLockClosed,
     HiOutlineUser,
@@ -14,6 +15,9 @@ import {
     HiOutlineFingerPrint,
     HiOutlineEye,
     HiOutlineEyeSlash,
+    HiOutlineSun,
+    HiOutlineMoon,
+    HiOutlineComputerDesktop,
 } from 'react-icons/hi2';
 import { getPasswordPolicyError, getPasswordPolicyHint } from '../../utils/passwordPolicy';
 import { buildSiteAssetPath } from '../../utils/sitePath';
@@ -31,6 +35,7 @@ export default function Login() {
     const logoSrc = buildSiteAssetPath('/nms-logo.png');
     const [mode, setMode] = useState<AuthMode>(MODE_LOGIN);
     const { t, toggleLocale, locale } = useI18n();
+    const { mode: themeMode, resolvedTheme, cycleTheme } = useTheme();
 
     const passwordPolicyHint = getPasswordPolicyHint(locale);
     const copy = locale === 'en-US'
@@ -507,6 +512,21 @@ export default function Login() {
             <div className="login-bg-glow three" aria-hidden="true" />
 
             <div className="login-top-actions">
+                <button
+                    type="button"
+                    className="theme-toggle-btn"
+                    onClick={cycleTheme}
+                    title={locale === 'en-US' ? `Theme: ${themeMode} (click to switch)` : `外观：${themeMode === 'auto' ? '跟随系统' : themeMode === 'dark' ? '深色' : '浅色'}（点击切换）`}
+                    aria-label={locale === 'en-US' ? 'Toggle theme' : '切换外观主题'}
+                >
+                    {themeMode === 'auto' ? (
+                        <HiOutlineComputerDesktop className="theme-toggle-icon" />
+                    ) : resolvedTheme === 'dark' ? (
+                        <HiOutlineSun className="theme-toggle-icon" />
+                    ) : (
+                        <HiOutlineMoon className="theme-toggle-icon" />
+                    )}
+                </button>
                 <button
                     type="button"
                     className="login-locale-toggle theme-toggle-btn language-toggle-btn"

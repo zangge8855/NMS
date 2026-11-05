@@ -171,20 +171,20 @@ export default function Inbounds() {
         limited: 'Limited', copyCredential: 'Copy full ID / password', total: 'Total', ipLimit: 'IP limit', expiry: 'Expiry', traffic: 'Up / Down',
         noServersTitle: 'Add a node in Server Management first', noServersSubtitle: 'Connect at least one 3x-ui or s-ui node before managing inbounds and clients.', goServers: 'Open Server Management',
         maskedCredential: 'ID / Password (masked)', usedTraffic: 'Used traffic', status: 'Status', actions: 'Actions', delete: 'Delete', reset: 'Reset',
-        batchAdjust: 'Batch Adjust Expiry / Traffic', node: 'Node', inbound: 'Inbound', selectedUsers: 'Selected users', expiryDelta: 'Expiry change in days',
+        batchAdjust: 'Batch Adjust Expiry / Traffic', node: 'Node', inbound: 'Inbound', selectedUsers: 'Selected users', selectedUsersCount: 'Selected {count} users', expiryDelta: 'Expiry change in days',
         expiryPlaceholder: 'e.g. 30 or -7', expiryHint: 'Positive values extend and negative values subtract. Clients that never expire are skipped.', trafficDelta: 'Traffic change',
         trafficPlaceholder: 'e.g. 100 or -20', trafficHint: 'Positive values add and negative values subtract. Unlimited clients are skipped.', execute: 'Apply adjustment',
         individualLimit: 'Individual limits', user: 'User', saveLimit: 'Save limits', restorePolicy: 'Restore unified policy', limit: 'Limits',
-        limitSetTitle: 'Individual limits are set; click to edit', limitUnsetTitle: 'Set individual limits', bulkDelete: 'Batch Delete',
+        limitSetTitle: 'Individual limits are set; click to edit', limitUnsetTitle: 'Set individual limits', bulkDelete: 'Batch Delete', addClient: 'Add Client',
     } : {
         limited: '已限制', copyCredential: '复制完整 ID / 密码', total: '总量', ipLimit: 'IP 限制', expiry: '到期时间', traffic: '上 / 下行',
         noServersTitle: '请先在「服务器管理」添加节点', noServersSubtitle: '接入至少一台 3x-ui 或 s-ui 节点后，再统一维护入站和客户端。', goServers: '前往服务器管理',
         maskedCredential: 'ID / 密码（脱敏）', usedTraffic: '已用流量', status: '状态', actions: '操作', delete: '删除', reset: '重置',
-        batchAdjust: '批量调整到期 / 流量', node: '节点', inbound: '入站', selectedUsers: '已选用户', expiryDelta: '到期天数变化',
+        batchAdjust: '批量调整到期 / 流量', node: '节点', inbound: '入站', selectedUsers: '已选用户', selectedUsersCount: '已选 {count} 位用户', expiryDelta: '到期天数变化',
         expiryPlaceholder: '例如：30 或 -7', expiryHint: '正数延长，负数扣减；永不过期用户会跳过到期调整。', trafficDelta: '流量变化',
         trafficPlaceholder: '例如：100 或 -20', trafficHint: '正数增加，负数扣减；不限流量用户会跳过流量调整。', execute: '执行调整',
         individualLimit: '单独限制', user: '用户', saveLimit: '保存限制', restorePolicy: '恢复统一策略', limit: '限制',
-        limitSetTitle: '已设置单独限制，点击修改', limitUnsetTitle: '设置单独限制', bulkDelete: '批量删除',
+        limitSetTitle: '已设置单独限制，点击修改', limitUnsetTitle: '设置单独限制', bulkDelete: '批量删除', addClient: '添加用户',
     }, [locale]);
     const isCompactLayout = useMediaQuery('(max-width: 1100px), (max-width: 768px)');
     const isCondensedLayout = useMediaQuery('(min-width: 769px) and (max-width: 1100px)');
@@ -211,7 +211,7 @@ export default function Inbounds() {
 
     // Batch Client Add State
     const [isClientModalOpen, setIsClientModalOpen] = useState(false);
-    const [clientTargets, _setClientTargets] = useState([]);
+    const [clientTargets, setClientTargets] = useState([]);
     const [batchResultData, setBatchResultData] = useState(null);
     const [batchResultTitle, setBatchResultTitle] = useState(t('comp.common.batchResult'));
     const [entitlementOpen, setEntitlementOpen] = useState(false);
@@ -427,6 +427,14 @@ export default function Inbounds() {
     }, [servers]);
 
     useEffect(() => {
+        const handlePageRefresh = () => {
+            fetchAllInbounds({ preserveCurrent: true, force: true });
+        };
+        window.addEventListener('nms:page-refresh', handlePageRefresh);
+        return () => window.removeEventListener('nms:page-refresh', handlePageRefresh);
+    }, [servers]);
+
+    useEffect(() => {
         writeSessionSnapshot(INBOUNDS_SNAPSHOT_KEY, {
             inbounds,
             inboundOrder,
@@ -501,10 +509,15 @@ export default function Inbounds() {
             const summary = output?.summary || { success: 0, total: targets.length, failed: targets.length };
             setBatchResultTitle(t('comp.inbounds.batchDeleteResult'));
             setBatchResultData(output || null);
-            toast.success(t('comp.inbounds.batchDeleteDone', {
+            const deleteDoneMsg = t('comp.inbounds.batchDeleteDone', {
                 success: summary.success,
                 total: summary.total,
-            }));
+            });
+            if (Number(summary.failed || 0) > 0) {
+                toast.error(deleteDoneMsg);
+            } else {
+                toast.success(deleteDoneMsg);
+            }
             setSelectedKeys(new Set());
             fetchAllInbounds();
         } catch (err) {
@@ -546,10 +559,15 @@ export default function Inbounds() {
             const summary = output?.summary || { success: 0, total: targets.length, failed: targets.length };
             setBatchResultTitle(t('comp.inbounds.batchResetResult'));
             setBatchResultData(output || null);
-            toast.success(t('comp.inbounds.trafficResetDone', {
+            const resetDoneMsg = t('comp.inbounds.trafficResetDone', {
                 success: summary.success,
                 total: summary.total,
-            }));
+            });
+            if (Number(summary.failed || 0) > 0) {
+                toast.error(resetDoneMsg);
+            } else {
+                toast.success(resetDoneMsg);
+            }
             setSelectedKeys(new Set());
             fetchAllInbounds();
         } catch (err) {
@@ -655,11 +673,16 @@ export default function Inbounds() {
             const summary = output?.summary || { success: 0, total: targets.length, failed: targets.length };
             setBatchResultTitle(enable ? t('comp.inbounds.batchEnableResult') : t('comp.inbounds.batchDisableResult'));
             setBatchResultData(output || null);
-            toast.success(t('comp.inbounds.batchToggleDone', {
+            const toggleDoneMsg = t('comp.inbounds.batchToggleDone', {
                 action: enable ? t('comp.inbounds.batchEnableDone') : t('comp.inbounds.batchDisableDone'),
                 success: summary.success,
                 total: summary.total,
-            }));
+            });
+            if (Number(summary.failed || 0) > 0) {
+                toast.error(toggleDoneMsg);
+            } else {
+                toast.success(toggleDoneMsg);
+            }
             setSelectedKeys(new Set());
             fetchAllInbounds();
         } catch (err) {
@@ -994,10 +1017,15 @@ export default function Inbounds() {
             const summary = output?.summary || { success: 0, total: targets.length, failed: targets.length };
             setBatchResultTitle(t('comp.inbounds.batchDeleteClientResult'));
             setBatchResultData(output || null);
-            toast.success(t('comp.inbounds.batchDeleteDone', {
+            const clientDeleteDoneMsg = t('comp.inbounds.batchDeleteDone', {
                 success: summary.success,
                 total: summary.total,
-            }));
+            });
+            if (Number(summary.failed || 0) > 0) {
+                toast.error(clientDeleteDoneMsg);
+            } else {
+                toast.success(clientDeleteDoneMsg);
+            }
             clearInboundClientSelection(inbound, selectedClients);
             fetchAllInbounds();
         } catch (err) {
@@ -1324,17 +1352,17 @@ export default function Inbounds() {
 
                         <div className="inbounds-client-mobile-status">
                             <span className={`badge ${cl.enable !== false ? 'badge-success' : 'badge-danger'}`}>
-                                {cl.enable !== false ? '启用' : '禁用'}
+                                {cl.enable !== false ? t('comp.common.enable') : t('comp.common.disable')}
                             </span>
                             <span
                                 className={`inbounds-client-online-status ${cl.isOnline ? 'is-online' : 'is-offline'}`}
-                                title={cl.isOnline ? `当前 ${cl.onlineSessionCount || 0} 个会话在线` : '当前无在线会话'}
+                                title={cl.isOnline ? (locale === 'en-US' ? `${cl.onlineSessionCount || 0} active session(s)` : `当前 ${cl.onlineSessionCount || 0} 个会话在线`) : (locale === 'en-US' ? 'No active sessions' : '当前无在线会话')}
                             >
                                 <span className="inbounds-client-online-dot-shell" aria-hidden="true">
                                     <span className="inbounds-client-online-dot-ping" />
                                     <span className="inbounds-client-online-dot" />
                                 </span>
-                                {cl.isOnline ? '在线' : '离线'}
+                                {cl.isOnline ? t('comp.common.online') : t('comp.common.offline')}
                             </span>
                         </div>
 
@@ -1550,7 +1578,7 @@ export default function Inbounds() {
                                             >
                                                 <button
                                                     type="button"
-                                                    className="inbounds-sequence-btn btn-icon"
+                                                    className="inbounds-sequence-btn"
                                                     aria-label={t('comp.inbounds.moveNodeUp', { name: ib.serverName })}
                                                     disabled={!canMoveServerUp}
                                                     onClick={(event) => {
@@ -1562,7 +1590,7 @@ export default function Inbounds() {
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    className="inbounds-sequence-btn btn-icon"
+                                                    className="inbounds-sequence-btn"
                                                     aria-label={t('comp.inbounds.moveNodeDown', { name: ib.serverName })}
                                                     disabled={!canMoveServerDown}
                                                     onClick={(event) => {
@@ -1641,7 +1669,7 @@ export default function Inbounds() {
                                                             <div className="inbounds-sequence-actions" aria-label={t('comp.inbounds.adjustInboundOrder', { name: inboundLabel })}>
                                                                 <button
                                                                     type="button"
-                                                                    className="inbounds-sequence-btn btn-icon"
+                                                                    className="inbounds-sequence-btn"
                                                                     aria-label={t('comp.inbounds.moveInboundUp', { name: inboundLabel })}
                                                                     disabled={!canMoveUp}
                                                                     onClick={(event) => {
@@ -1653,7 +1681,7 @@ export default function Inbounds() {
                                                                 </button>
                                                                 <button
                                                                     type="button"
-                                                                    className="inbounds-sequence-btn btn-icon"
+                                                                    className="inbounds-sequence-btn"
                                                                     aria-label={t('comp.inbounds.moveInboundDown', { name: inboundLabel })}
                                                                     disabled={!canMoveDown}
                                                                     onClick={(event) => {
@@ -1742,6 +1770,14 @@ export default function Inbounds() {
                                                         <ActionsDropdown
                                                             actions={[
                                                                 {
+                                                                    label: deepCopy.addClient,
+                                                                    icon: HiOutlinePlusCircle,
+                                                                    onClick: () => {
+                                                                        setClientTargets([ib]);
+                                                                        setIsClientModalOpen(true);
+                                                                    },
+                                                                },
+                                                                {
                                                                     label: ib.enable ? t('comp.common.disable') : t('comp.common.enable'),
                                                                     icon: ib.enable ? HiOutlineXMark : HiOutlineCheck,
                                                                     onClick: () => handleToggleInboundEnabled(ib),
@@ -1772,7 +1808,7 @@ export default function Inbounds() {
                                                                 </div>
                                                                 {selectedClientCount > 0 && (
                                                                     <div className="inbounds-clients-selection-bar">
-                                                                        <span className="text-xs font-semibold text-primary">{deepCopy.selectedUsers ? deepCopy.selectedUsers.replace('{count}', String(selectedClientCount)) : (locale === 'en-US' ? `Selected ${selectedClientCount} users` : `已选 ${selectedClientCount} 位用户`)}</span>
+                                                                        <span className="text-xs font-semibold text-primary">{deepCopy.selectedUsersCount ? deepCopy.selectedUsersCount.replace('{count}', String(selectedClientCount)) : (locale === 'en-US' ? `Selected ${selectedClientCount} users` : `已选 ${selectedClientCount} 位用户`)}</span>
                                                                         <button
                                                                             type="button"
                                                                             className="btn btn-danger btn-sm"
@@ -1948,7 +1984,7 @@ export default function Inbounds() {
                                                                                             openEntitlementModal(ib, cl);
                                                                                         }}
                                                                                     >
-                                                                                        限制
+                                                                                        {deepCopy.limit}
                                                                                     </button>
                                                                                     <ActionsDropdown
                                                                                         actions={[
@@ -1960,7 +1996,7 @@ export default function Inbounds() {
                                                                                                 disabled: isActioning,
                                                                                             },
                                                                                             {
-                                                                                                label: '删除',
+                                                                                                label: deepCopy.delete,
                                                                                                 icon: HiOutlineTrash,
                                                                                                 onClick: () => handleDeleteClient(ib, cl),
                                                                                                 isDanger: true,

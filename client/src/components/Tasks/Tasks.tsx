@@ -298,6 +298,14 @@ export default function Tasks({ embedded = false }) {
     }, []);
 
     useEffect(() => {
+        const handlePageRefresh = () => {
+            fetchTasks({ preserveCurrent: true });
+        };
+        window.addEventListener('nms:page-refresh', handlePageRefresh);
+        return () => window.removeEventListener('nms:page-refresh', handlePageRefresh);
+    }, []);
+
+    useEffect(() => {
         writeSessionSnapshot(TASKS_SNAPSHOT_KEY, {
             tasks,
         });
@@ -414,9 +422,14 @@ export default function Tasks({ embedded = false }) {
                 });
             }
             const summary = output?.summary || { success: 0, total: 0, failed: 0 };
-            toast.success(copy.retryDone
+            const doneMsg = copy.retryDone
                 .replace('{success}', String(summary.success))
-                .replace('{total}', String(summary.total)));
+                .replace('{total}', String(summary.total));
+            if (Number(summary.failed || 0) > 0 && Number(summary.success || 0) === 0) {
+                toast.error(doneMsg);
+            } else {
+                toast.success(doneMsg);
+            }
             await fetchTasks();
         } catch (err) {
             const msg = err.response?.data?.msg || err.message || copy.retryFailed;
