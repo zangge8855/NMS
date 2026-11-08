@@ -194,8 +194,8 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
                             <div className="flex flex-col gap-3">
                                 {config.rules.map((rule, index) => (
                                     <div key={index} className="p-4 bg-[var(--surface-panel-soft)] border border-[var(--border-color)] rounded-lg relative">
-                                        <div className="flex gap-4 mb-3">
-                                            <div className="flex-1">
+                                        <div className="flex flex-col sm:flex-row sm:items-end gap-3 mb-3">
+                                            <div className="flex-1 min-w-0">
                                                 <label className="block text-xs text-muted mb-1">{locale === 'en-US' ? 'Outbound Tag' : '目标出站 (outboundTag)'}</label>
                                                 <input
                                                     type="text"
@@ -205,7 +205,7 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
                                                     placeholder="e.g. block, direct, proxy"
                                                 />
                                             </div>
-                                            <div className="flex-none pt-5">
+                                            <div className="flex-none shrink-0">
                                                 <div className="flex items-center gap-1">
                                                     <button className="btn btn-sm btn-icon btn-secondary" onClick={() => moveRule(index, -1)} disabled={index === 0} title={locale === 'en-US' ? 'Move Up' : '上移'}>
                                                         <HiOutlineArrowUp />
@@ -219,8 +219,8 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="flex gap-4 mb-3">
-                                            <div className="flex-1">
+                                        <div className="flex flex-col sm:flex-row gap-3 mb-3">
+                                            <div className="flex-1 min-w-0">
                                                 <label className="block text-xs text-muted mb-1">{locale === 'en-US' ? 'Domains (Comma separated)' : '域名匹配 (domain) - 逗号分隔'}</label>
                                                 <input
                                                     type="text"
@@ -231,7 +231,7 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
                                                     placeholder="e.g. geosite:google, domain:example.com"
                                                 />
                                             </div>
-                                            <div className="flex-1">
+                                            <div className="flex-1 min-w-0">
                                                 <label className="block text-xs text-muted mb-1">{locale === 'en-US' ? 'IPs (Comma separated)' : 'IP 匹配 (ip) - 逗号分隔'}</label>
                                                 <input
                                                     type="text"

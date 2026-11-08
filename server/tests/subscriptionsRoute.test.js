@@ -29,6 +29,7 @@ const {
     buildXhttpExtra,
     mergeInboundClientEntries,
     normalizeSubscriptionFormat,
+    resolvePublicBase,
     resolveSingboxConfigVersion,
     selectNativeSubIds,
     summarizeSubscriptionUsage,
@@ -912,5 +913,99 @@ describe('s-ui protocol links in client configs', () => {
         assert.match(profile, /NODE-HTTPS = https, proxy\.example\.com, 8443, user, pass, sni=proxy\.example\.com/);
         assert.match(profile, /NODE-HY2S = hysteria2,/);
         assert.doesNotMatch(profile, /NODE-HY = /);
+    });
+});
+
+describe('ipv6 subscription link conversion and forwarded public base resolution', () => {
+    it('builds valid client links from ipv6 server urls with unbracketed vmess add and bracketed uri hosts', () => {
+        const ipv6Server = { id: 'srv-v6', name: 'IPv6 Edge', url: 'https://[2001:4860:4860::8888]:2053' };
+        const diagnostics = [];
+
+        const vmessOut = buildClientLink({
+            server: ipv6Server,
+            inbound: { id: 1, remark: 'VM-V6', protocol: 'vmess', port: 443 },
+            client: { id: '11111111-1111-1111-1111-111111111111', email: 'u@example.com' },
+            settings: {},
+            stream: { network: 'ws', security: 'tls', wsSettings: { path: '/ws', headers: { Host: 'v6.example.com' } } },
+            diagnostics,
+        });
+        const vmessJson = JSON.parse(Buffer.from(vmessOut.slice('vmess://'.length), 'base64').toString('utf8'));
+        assert.equal(vmessJson.add, '2001:4860:4860::8888');
+
+        const vlessOut = buildClientLink({
+            server: ipv6Server,
+            inbound: { id: 2, remark: 'VL-V6', protocol: 'vless', port: 443 },
+            client: { id: '22222222-2222-2222-2222-222222222222', email: 'u@example.com' },
+            settings: {},
+            stream: { network: 'tcp', security: 'tls', tlsSettings: { serverName: 'v6.example.com' } },
+            diagnostics,
+        });
+        assert.ok(vlessOut.includes('@[2001:4860:4860::8888]:443'));
+
+        const links = [
+            vmessOut,
+            vlessOut,
+            'trojan://tr-pass@[2001:4860:4860::8888]:8443?security=tls&sni=v6.example.com#TR-V6',
+            'hy2://hy-pass@[2001:4860:4860::8888]:9443?sni=v6.example.com#HY2-V6',
+            'tuic://33333333-3333-3333-3333-333333333333:tuic-pass@[2001:4860:4860::8888]:10443?sni=v6.example.com#TUIC-V6',
+        ];
+
+        const mihomoParsed = parseGeneratedYaml(buildMihomoConfigFromLinks(links));
+        for (const proxy of mihomoParsed.proxies) {
+            assert.equal(proxy.server, '2001:4860:4860::8888');
+        }
+        assert.ok(mihomoParsed.rules.includes('IP-CIDR6,::1/128,DIRECT,no-resolve'));
+        assert.ok(mihomoParsed.rules.includes('IP-CIDR6,fc00::/7,DIRECT,no-resolve'));
+
+        const singboxParsed = JSON.parse(buildSingboxConfigFromLinks(links));
+        const outbounds = singboxParsed.outbounds.filter((item) => item.server);
+        assert.equal(outbounds.length, 5);
+        for (const outbound of outbounds) {
+            assert.equal(outbound.server, '2001:4860:4860::8888');
+        }
+
+        const surgeProfile = buildSurgeConfigFromLinks(links, 'https://[2001:4860:4860::8888]:8443/sub?format=surge');
+        assert.match(surgeProfile, /ipv6 = true/);
+        assert.match(surgeProfile, /VM-V6 = vmess, 2001:4860:4860::8888, 443/);
+        assert.match(surgeProfile, /TR-V6 = trojan, 2001:4860:4860::8888, 8443/);
+        assert.match(surgeProfile, /HY2-V6 = hysteria2, 2001:4860:4860::8888, 9443/);
+        assert.match(surgeProfile, /TUIC-V6 = tuic, 2001:4860:4860::8888, 10443/);
+        assert.match(surgeProfile, /IP-CIDR6,::1\/128,DIRECT,no-resolve/);
+    });
+
+    it('resolves ipv6 forwarded hosts cleanly in resolvePublicBase', () => {
+        const makeReq = (headers, fallbackHost = 'localhost:3000') => ({
+            protocol: 'http',
+            headers,
+            get(name) {
+                return this.headers[String(name).toLowerCase()] || fallbackHost;
+            },
+        });
+
+        assert.equal(
+            resolvePublicBase(makeReq({
+                'x-forwarded-proto': 'https',
+                'x-forwarded-host': '[2001:db8::1]',
+                'x-forwarded-port': '8443',
+            })),
+            'https://[2001:db8::1]:8443'
+        );
+
+        assert.equal(
+            resolvePublicBase(makeReq({
+                'x-forwarded-proto': 'https',
+                'x-forwarded-host': '2001:db8::1',
+            })),
+            'https://[2001:db8::1]'
+        );
+
+        assert.equal(
+            resolvePublicBase(makeReq({
+                'x-forwarded-proto': 'https',
+                'x-forwarded-host': 'panel.example.com',
+                'x-forwarded-port': '8443',
+            })),
+            'https://panel.example.com:8443'
+        );
     });
 });

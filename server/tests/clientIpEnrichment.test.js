@@ -36,3 +36,24 @@ test('preserves client IP row metadata while adding geo labels', async () => {
     assert.equal(result.items[0].ipLocation, 'geo:203.0.113.8');
     assert.equal(result.items[0].ipCarrier, 'isp:203.0.113.8');
 });
+
+test('normalizes canonical ipv6 formats and ignores invalid colon strings', async () => {
+    const result = await enrichClientIpPayload([
+        '[2001:0DB8::0001]:443',
+        '::ffff:cb00:7109',
+        'foo:bar',
+    ], deps);
+    assert.deepEqual(result, [
+        {
+            ip: '2001:db8::1',
+            ipLocation: 'geo:2001:db8::1',
+            ipCarrier: 'isp:2001:db8::1',
+        },
+        {
+            ip: '203.0.113.9',
+            ipLocation: 'geo:203.0.113.9',
+            ipCarrier: 'isp:203.0.113.9',
+        },
+        'foo:bar',
+    ]);
+});

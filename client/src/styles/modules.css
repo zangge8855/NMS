@@ -2368,3 +2368,47 @@
         margin-left: 0;
     }
 }
+
+/* Client IP modal: wrap long IPv6/host strings cleanly without horizontal blowout */
+:root .client-ip-error-card {
+    border-color: var(--accent-danger-border);
+    background: var(--accent-danger-bg);
+}
+
+:root .client-ip-table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+:root .client-ip-address-cell {
+    overflow-wrap: anywhere;
+    word-break: break-all;
+}
+
+:root .client-ip-location-cell,
+:root .client-ip-note-cell {
+    overflow-wrap: anywhere;
+}
+
+:root .client-ip-count-column,
+:root .client-ip-count-cell {
+    width: 76px;
+}
+
+:root .client-ip-last-seen-column,
+:root .client-ip-last-seen-cell {
+    width: 152px;
+}
+
+@media (max-width: 768px) {
+    :root .client-ip-table {
+        table-layout: auto;
+    }
+
+    :root .client-ip-count-column,
+    :root .client-ip-count-cell,
+    :root .client-ip-last-seen-column,
+    :root .client-ip-last-seen-cell {
+        width: auto;
+    }
+}

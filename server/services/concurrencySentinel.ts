@@ -4,6 +4,7 @@ import { ensureAuthenticated } from '../lib/panelClient.js';
 import { getClientIpsCompat, clearClientIpsCompat } from '../lib/panelApiCompat.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import notificationService, { SEVERITY } from '../lib/notifications.js';
+import { normalizeIpAddress } from '../lib/ipGeoResolver.js';
 
 export interface ConcurrencySession {
     serverId: string;
@@ -46,7 +47,7 @@ function normalizeEmail(email: unknown): string {
     return String(email || '').trim().toLowerCase();
 }
 
-function extractIpList(response: any): string[] {
+export function extractIpList(response: any): string[] {
     if (!response) return [];
     const data = response.data !== undefined ? response.data : response;
     const list = Array.isArray(data?.obj) ? data.obj : Array.isArray(data) ? data : [];
@@ -55,10 +56,12 @@ function extractIpList(response: any): string[] {
     for (const item of list) {
         if (typeof item === 'string') {
             const trimmed = item.trim();
-            if (trimmed) ips.push(trimmed);
+            const normalized = normalizeIpAddress(trimmed) || trimmed;
+            if (normalized) ips.push(normalized);
         } else if (item && typeof item === 'object') {
-            const ip = String(item.ip || item.clientIp || item.address || item.value || '').trim();
-            if (ip) ips.push(ip);
+            const raw = String(item.ip || item.clientIp || item.address || item.value || '').trim();
+            const normalized = normalizeIpAddress(raw) || raw;
+            if (normalized) ips.push(normalized);
         }
     }
     return Array.from(new Set(ips));

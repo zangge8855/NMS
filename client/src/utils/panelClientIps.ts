@@ -1,7 +1,138 @@
+function parseIpv4Octets(text: string): [number, number, number, number] | null {
+    const parts = text.split('.');
+    if (parts.length !== 4) return null;
+    const nums = parts.map((item) => {
+        if (!/^(?:0|[1-9]\d{0,2})$/.test(item)) return -1;
+        return Number(item);
+    });
+    if (nums.some((item) => !Number.isInteger(item) || item < 0 || item > 255)) return null;
+    return nums as [number, number, number, number];
+}
+
+function parseIpv6Hextets(rawText: string): number[] | null {
+    let text = rawText.trim().toLowerCase();
+    if (!text || !text.includes(':')) return null;
+
+    if (text.includes('.')) {
+        const lastColon = text.lastIndexOf(':');
+        if (lastColon < 0) return null;
+        const ipv4Part = text.slice(lastColon + 1);
+        const octets = parseIpv4Octets(ipv4Part);
+        if (!octets) return null;
+        const high = ((octets[0] << 8) | octets[1]).toString(16);
+        const low = ((octets[2] << 8) | octets[3]).toString(16);
+        text = `${text.slice(0, lastColon)}:${high}:${low}`;
+    }
+
+    const compressionParts = text.split('::');
+    if (compressionParts.length > 2) return null;
+
+    if (compressionParts.length === 2) {
+        const head = compressionParts[0] ? compressionParts[0].split(':') : [];
+        const tail = compressionParts[1] ? compressionParts[1].split(':') : [];
+        if (head.some((item) => !item) || tail.some((item) => !item)) return null;
+        const missing = 8 - head.length - tail.length;
+        if (missing < 1) return null;
+        const groups = [
+            ...head,
+            ...Array.from({ length: missing }, () => '0'),
+            ...tail,
+        ];
+        if (groups.length !== 8) return null;
+        const parsed = groups.map((item) => (/^[0-9a-f]{1,4}$/.test(item) ? Number.parseInt(item, 16) : -1));
+        return parsed.some((item) => item < 0 || item > 0xffff) ? null : parsed;
+    }
+
+    const groups = text.split(':');
+    if (groups.length !== 8) return null;
+    const parsed = groups.map((item) => (/^[0-9a-f]{1,4}$/.test(item) ? Number.parseInt(item, 16) : -1));
+    return parsed.some((item) => item < 0 || item > 0xffff) ? null : parsed;
+}
+
+function formatCanonicalIpv6(hextets: number[]): string {
+    if (hextets.length !== 8) return '';
+
+    if (
+        hextets[0] === 0
+        && hextets[1] === 0
+        && hextets[2] === 0
+        && hextets[3] === 0
+        && hextets[4] === 0
+        && hextets[5] === 0xffff
+    ) {
+        const a = (hextets[6] >> 8) & 0xff;
+        const b = hextets[6] & 0xff;
+        const c = (hextets[7] >> 8) & 0xff;
+        const d = hextets[7] & 0xff;
+        return `${a}.${b}.${c}.${d}`;
+    }
+
+    let bestStart = -1;
+    let bestLen = 0;
+    let curStart = -1;
+    let curLen = 0;
+
+    for (let i = 0; i < 8; i += 1) {
+        if (hextets[i] === 0) {
+            if (curStart === -1) {
+                curStart = i;
+                curLen = 1;
+            } else {
+                curLen += 1;
+            }
+            if (curLen > bestLen) {
+                bestStart = curStart;
+                bestLen = curLen;
+            }
+        } else {
+            curStart = -1;
+            curLen = 0;
+        }
+    }
+
+    if (bestLen < 2) {
+        return hextets.map((value) => value.toString(16)).join(':');
+    }
+
+    const head = hextets.slice(0, bestStart).map((value) => value.toString(16)).join(':');
+    const tail = hextets.slice(bestStart + bestLen).map((value) => value.toString(16)).join(':');
+    if (!head && !tail) return '::';
+    return `${head}::${tail}`;
+}
+
+export function normalizePanelIpAddress(value: any): string {
+    let text = String(value || '').trim();
+    if (!text || text.toLowerCase() === 'unknown') return '';
+
+    if (text.includes(',')) {
+        text = text.split(',')[0].trim();
+    }
+
+    if (text.startsWith('[')) {
+        const bracketMatch = text.match(/^\[([^\]]+)\](?::(\d{1,5}))?$/);
+        if (!bracketMatch) return '';
+        if (bracketMatch[2]) {
+            const port = Number(bracketMatch[2]);
+            if (!Number.isInteger(port) || port < 1 || port > 65535) return '';
+        }
+        text = bracketMatch[1].trim();
+    } else if (/^\d{1,3}(?:\.\d{1,3}){3}:\d{1,5}$/.test(text)) {
+        text = text.replace(/:\d{1,5}$/, '');
+    }
+
+    if (text.includes('%')) {
+        text = text.split('%')[0].trim();
+    }
+
+    const ipv4 = parseIpv4Octets(text);
+    if (ipv4) return ipv4.join('.');
+
+    const hextets = parseIpv6Hextets(text);
+    return hextets ? formatCanonicalIpv6(hextets) : '';
+}
+
 function looksLikeIp(value: any): boolean {
-    const text = String(value || '').trim();
-    if (!text) return false;
-    return /^(\d{1,3}\.){3}\d{1,3}$/.test(text) || text.includes(':');
+    return Boolean(normalizePanelIpAddress(value));
 }
 
 function normalizeDateTime(value: any): string {
@@ -86,8 +217,8 @@ export function normalizePanelClientIps(raw: any): PanelClientIpRow[] {
     const deduped = new Map<string, PanelClientIpRow>();
 
     const pushRow = (row: Partial<PanelClientIpRow> & { ip: string }) => {
-        const ip = String(row?.ip || '').trim();
-        if (!looksLikeIp(ip)) return;
+        const ip = normalizePanelIpAddress(row?.ip);
+        if (!ip) return;
 
         const normalized: PanelClientIpRow = {
             ip,

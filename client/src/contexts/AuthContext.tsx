@@ -261,6 +261,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 }
 
+/** Like useAuth, but returns null outside an AuthProvider instead of throwing. */
+export function useOptionalAuth(): AuthContextType | null {
+    return useContext(AuthContext);
+}
+
 export function useAuth(): AuthContextType {
     const ctx = useContext(AuthContext);
     if (!ctx) throw new Error('useAuth must be used within AuthProvider');

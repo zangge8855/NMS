@@ -9,7 +9,8 @@ export interface CertificateRecord {
     id: string;
     domain: string;
     sans?: string[];
-    provider: 'letsencrypt' | 'zerossl' | 'custom' | string;
+    provider: 'letsencrypt' | 'letsencrypt-staging' | 'zerossl' | 'selfsigned' | 'custom' | string;
+    acmeDirectoryUrl?: string;
     challengeType: 'dns-cloudflare' | 'http' | 'manual' | string;
     cfApiToken?: string;
     email?: string;
@@ -21,8 +22,25 @@ export interface CertificateRecord {
     autoRenew: boolean;
     assignedServerIds?: string[];
     lastError?: string | null;
+    lastDispatchAt?: string | null;
     createdAt: string;
     updatedAt: string;
+}
+
+export function resolveCertificateStatus(record: Partial<CertificateRecord> | null | undefined, nowMs: number = Date.now()): CertificateRecord['status'] {
+    if (!record) return 'pending';
+    if (record.status === 'error') return 'error';
+    if (!record.certificate) {
+        return record.status || 'pending';
+    }
+    const expiresMs = record.expiresAt ? new Date(record.expiresAt).getTime() : NaN;
+    if (Number.isFinite(expiresMs)) {
+        const remainingMs = expiresMs - nowMs;
+        if (remainingMs <= 0) return 'expired';
+        if (remainingMs <= 14 * 24 * 60 * 60 * 1000) return 'expiring_soon';
+        return 'valid';
+    }
+    return record.status || 'valid';
 }
 
 const CERTS_FILE = path.join(config.dataDir, 'certificates.json');
@@ -79,6 +97,7 @@ class CertificateStore {
             domain: String(payload.domain || '').trim(),
             sans: Array.isArray(payload.sans) ? payload.sans : [],
             provider: payload.provider || 'letsencrypt',
+            acmeDirectoryUrl: payload.acmeDirectoryUrl ? String(payload.acmeDirectoryUrl).trim() : '',
             challengeType: payload.challengeType || 'dns-cloudflare',
             cfApiToken: payload.cfApiToken || '',
             email: payload.email || '',
@@ -90,6 +109,7 @@ class CertificateStore {
             autoRenew: payload.autoRenew !== false,
             assignedServerIds: Array.isArray(payload.assignedServerIds) ? payload.assignedServerIds : [],
             lastError: null,
+            lastDispatchAt: null,
             createdAt: now,
             updatedAt: now,
         };

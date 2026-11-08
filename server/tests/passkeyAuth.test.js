@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import config from '../config.js';
 import userStore from '../store/userStore.js';
 import app from '../index.js';
+import { getRpDetails } from '../lib/webauthnService.js';
 import { invokeApp } from './helpers/invokeApp.js';
 
 describe('Passkey Authentication Endpoints', () => {
@@ -158,5 +159,24 @@ describe('Passkey Authentication Endpoints', () => {
         // Verify deleted
         const passkeysAfterDel = userStore.getPasskeys(testUser.id);
         assert.equal(passkeysAfterDel.length, 0);
+    });
+
+    it('getRpDetails handles bracketed ipv6 loopback origins and fallback hosts safely', () => {
+        const mockReq = {
+            headers: {
+                host: '[::1]:5173',
+                'x-forwarded-host': '[::1]:5173',
+                'x-forwarded-proto': 'http',
+            },
+            protocol: 'http',
+            hostname: '::1',
+            get(name) {
+                return this.headers[String(name).toLowerCase()] || '';
+            },
+        };
+        const details = getRpDetails(mockReq);
+        assert.equal(details.rpID, '[::1]');
+        assert.ok(details.expectedOrigins.includes('http://[::1]:5173'));
+        assert.ok(details.expectedOrigins.includes('http://[::1]:3000'));
     });
 });

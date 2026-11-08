@@ -1,19 +1,23 @@
 import systemSettingsStore from '../store/systemSettingsStore.js';
-import ipGeoResolver from './ipGeoResolver.js';
+import ipGeoResolver, { normalizeIpAddress } from './ipGeoResolver.js';
 import ipIspResolver from './ipIspResolver.js';
 
+function normalizeCandidateIp(value: unknown): string {
+    return normalizeIpAddress(value);
+}
+
 function looksLikeIp(value: unknown): boolean {
-    const text = String(value || '').trim();
-    return /^(?:\d{1,3}\.){3}\d{1,3}$/.test(text) || text.includes(':');
+    return Boolean(normalizeCandidateIp(value));
 }
 
 function extractIp(row: unknown, fallback: unknown = ''): string {
-    if (typeof row === 'string') return row.trim();
-    if (!row || typeof row !== 'object' || Array.isArray(row)) return String(fallback || '').trim();
+    if (typeof row === 'string') return normalizeCandidateIp(row);
+    if (!row || typeof row !== 'object' || Array.isArray(row)) return normalizeCandidateIp(fallback);
     const obj = row as Record<string, any>;
-    return [obj.ip, obj.clientIp, obj.address, obj.host, obj.value, obj.remoteAddr]
+    const raw = [obj.ip, obj.clientIp, obj.address, obj.host, obj.value, obj.remoteAddr]
         .map((value) => String(value || '').trim())
         .find(Boolean) || String(fallback || '').trim();
+    return normalizeCandidateIp(raw);
 }
 
 function buildLookupMap(rows: any[]): string[] {

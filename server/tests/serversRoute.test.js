@@ -1,6 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import net from 'node:net';
 import { isBlockedHostname, normalizeTokenRows, requestPanelApiTokenRoute, validateServerUrl } from '../routes/servers.js';
+import { pingServer } from '../lib/probe.js';
 
 describe('servers route hostname guards', () => {
     it('blocks localhost and single-label hostnames', () => {
@@ -21,14 +23,52 @@ describe('servers route hostname guards', () => {
 });
 
 describe('validateServerUrl', () => {
-    it('accepts public ipv6 literal urls when private addresses are disallowed', async () => {
-        const err = await validateServerUrl('https://[2001:4860:4860::8888]:2053', { allowPrivate: false });
-        assert.equal(err, null);
+    it('accepts public ipv6 literal urls including short leading hextets when private addresses are disallowed', async () => {
+        assert.equal(await validateServerUrl('https://[2001:4860:4860::8888]:2053', { allowPrivate: false }), null);
+        assert.equal(await validateServerUrl('https://[fd0::1]:2053', { allowPrivate: false }), null);
+        assert.equal(await validateServerUrl('https://[fe8::1]:2053', { allowPrivate: false }), null);
     });
 
-    it('rejects private ipv6 literal urls when private addresses are disallowed', async () => {
-        const err = await validateServerUrl('https://[fd00::1]:2053', { allowPrivate: false });
-        assert.equal(err, '节点面板地址不能使用私有或内部 IP');
+    it('rejects private/loopback/mapped ipv6 literal urls when private addresses are disallowed', async () => {
+        for (const blockedUrl of [
+            'https://[fd00::1]:2053',
+            'https://[0:0:0:0:0:0:0:1]:2053',
+            'https://[::]:2053',
+            'https://[febf::1]:2053',
+            'https://[::ffff:7f00:1]:2053',
+        ]) {
+            const err = await validateServerUrl(blockedUrl, { allowPrivate: false });
+            assert.equal(err, '节点面板地址不能使用私有或内部 IP');
+        }
+    });
+
+    it('probes ipv6 literal server endpoints without failing on url brackets', async () => {
+        const server = net.createServer();
+        let port = 0;
+        let ipv6Supported = true;
+        try {
+            await new Promise((resolve, reject) => {
+                server.once('error', reject);
+                server.listen(0, '::1', resolve);
+            });
+            port = server.address().port;
+        } catch (err) {
+            if (err?.code === 'EAFNOSUPPORT' || err?.code === 'EADDRNOTAVAIL') {
+                ipv6Supported = false;
+            } else {
+                throw err;
+            }
+        }
+
+        if (ipv6Supported) {
+            try {
+                const probeResult = await pingServer(`http://[::1]:${port}`);
+                assert.equal(probeResult.online, true);
+                assert.ok(probeResult.latencyMs >= 0);
+            } finally {
+                await new Promise((resolve) => server.close(resolve));
+            }
+        }
     });
 });
 

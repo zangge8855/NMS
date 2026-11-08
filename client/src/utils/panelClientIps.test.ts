@@ -144,4 +144,33 @@ describe('panel client ip helpers', () => {
             },
         })).toBe(false);
     });
+
+    it('canonicalizes equivalent ipv6 addresses, unwraps mapped ipv4, and ignores invalid colon strings', () => {
+        expect(normalizePanelClientIps([
+            { clientIp: '2001:0DB8:0:0:0:0:0:1', count: 2, source: 'node-a' },
+            { clientIp: '[2001:db8::1]:443', count: 3, source: 'node-b' },
+            '::ffff:cb00:7109',
+            'foo:bar',
+            '[2001:db8::1]bad',
+        ])).toEqual([
+            {
+                ip: '2001:db8::1',
+                count: 5,
+                lastSeen: '',
+                source: 'node-a',
+                note: '',
+                ipLocation: '',
+                ipCarrier: '',
+            },
+            {
+                ip: '203.0.113.9',
+                count: 0,
+                lastSeen: '',
+                source: '',
+                note: '',
+                ipLocation: '',
+                ipCarrier: '',
+            },
+        ]);
+    });
 });

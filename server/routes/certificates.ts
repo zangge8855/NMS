@@ -1,8 +1,13 @@
 import { Router, type Request, type Response } from 'express';
-import certificateStore from '../store/certificateStore.js';
-import { issueOrRenewCertificate, dispatchCertificateToServers } from '../services/acmeService.js';
+import certificateStore, { resolveCertificateStatus } from '../store/certificateStore.js';
+import {
+    issueOrRenewCertificate,
+    dispatchCertificateToServers,
+    normalizeSanList,
+} from '../services/acmeService.js';
 import { authMiddleware, operatorOrAbove, auditorOrAbove } from '../middleware/auth.js';
 import { ROLES } from '../store/userStore.js';
+import { stripIpv6Brackets } from '../lib/ipGeoResolver.js';
 
 const router = Router();
 
@@ -10,7 +15,10 @@ router.use(authMiddleware);
 
 function sanitizeCert(cert: any, includeSecrets = false) {
     if (!cert) return null;
-    const sanitized = { ...cert };
+    const sanitized = {
+        ...cert,
+        status: resolveCertificateStatus(cert),
+    };
     if (!includeSecrets) {
         if (sanitized.cfApiToken) sanitized.cfApiToken = '********';
         if (sanitized.privateKey) sanitized.hasPrivateKey = true;
@@ -45,15 +53,30 @@ router.get('/:id', auditorOrAbove, (req: Request, res: Response) => {
  * POST /api/certificates — Add a new certificate profile
  */
 router.post('/', operatorOrAbove, async (req: Request, res: Response) => {
-    const { domain, provider, challengeType, cfApiToken, email, autoRenew, assignedServerIds } = req.body || {};
-    if (!domain) {
+    const {
+        domain,
+        sans,
+        provider,
+        acmeDirectoryUrl,
+        challengeType,
+        cfApiToken,
+        email,
+        autoRenew,
+        assignedServerIds,
+    } = req.body || {};
+    const normalizedDomain = stripIpv6Brackets(String(domain || '').trim());
+    if (!normalizedDomain) {
         return res.status(400).json({ success: false, msg: 'Domain is required' });
     }
 
+    const normalizedSans = normalizeSanList(normalizedDomain, sans).filter((item) => item !== normalizedDomain.toLowerCase());
+
     try {
         const record = certificateStore.create({
-            domain,
+            domain: normalizedDomain,
+            sans: normalizedSans,
             provider,
+            acmeDirectoryUrl,
             challengeType,
             cfApiToken,
             email,
@@ -67,9 +90,10 @@ router.post('/', operatorOrAbove, async (req: Request, res: Response) => {
                 const issued = await issueOrRenewCertificate(record.id);
                 return res.json({ success: true, obj: sanitizeCert(issued, false) });
             } catch (issueErr: any) {
+                const failedRecord = certificateStore.getById(record.id) || record;
                 return res.json({
                     success: true,
-                    obj: sanitizeCert(record, false),
+                    obj: sanitizeCert(failedRecord, false),
                     warning: `Created but issuance had warning: ${issueErr.message}`,
                 });
             }
@@ -85,7 +109,39 @@ router.post('/', operatorOrAbove, async (req: Request, res: Response) => {
  * PUT /api/certificates/:id — Update certificate profile
  */
 router.put('/:id', operatorOrAbove, (req: Request, res: Response) => {
-    const updated = certificateStore.update(req.params.id, req.body || {});
+    const existing = certificateStore.getById(req.params.id);
+    if (!existing) {
+        return res.status(404).json({ success: false, msg: 'Certificate not found' });
+    }
+
+    const body = req.body || {};
+    const updates: Record<string, any> = {};
+    if (body.domain !== undefined) {
+        const nextDomain = stripIpv6Brackets(String(body.domain || '').trim());
+        if (!nextDomain) {
+            return res.status(400).json({ success: false, msg: 'Domain cannot be empty' });
+        }
+        updates.domain = nextDomain;
+    }
+    if (body.sans !== undefined) {
+        const targetDomain = updates.domain || existing.domain;
+        updates.sans = normalizeSanList(targetDomain, body.sans).filter((item) => item !== targetDomain.toLowerCase());
+    }
+    if (body.provider !== undefined) updates.provider = String(body.provider || '').trim() || 'letsencrypt';
+    if (body.acmeDirectoryUrl !== undefined) updates.acmeDirectoryUrl = String(body.acmeDirectoryUrl || '').trim();
+    if (body.challengeType !== undefined) updates.challengeType = String(body.challengeType || '').trim() || 'dns-cloudflare';
+    if (body.email !== undefined) updates.email = String(body.email || '').trim();
+    if (body.autoRenew !== undefined) updates.autoRenew = Boolean(body.autoRenew);
+    if (body.assignedServerIds !== undefined) {
+        updates.assignedServerIds = Array.isArray(body.assignedServerIds)
+            ? body.assignedServerIds.map((id: any) => String(id || '').trim()).filter(Boolean)
+            : [];
+    }
+    if (body.cfApiToken !== undefined && body.cfApiToken !== '********') {
+        updates.cfApiToken = String(body.cfApiToken || '').trim();
+    }
+
+    const updated = certificateStore.update(req.params.id, updates);
     if (!updated) {
         return res.status(404).json({ success: false, msg: 'Certificate not found' });
     }
@@ -111,7 +167,9 @@ router.post('/:id/renew', operatorOrAbove, async (req: Request, res: Response) =
         const renewed = await issueOrRenewCertificate(req.params.id);
         return res.json({ success: true, obj: sanitizeCert(renewed, false) });
     } catch (err: any) {
-        return res.status(500).json({ success: false, msg: err.message || 'Failed to renew certificate' });
+        const message = err?.message || 'Failed to renew certificate';
+        const status = /not found/i.test(message) ? 404 : (/required|unsupported/i.test(message) ? 400 : 500);
+        return res.status(status).json({ success: false, msg: message });
     }
 });
 
@@ -121,10 +179,17 @@ router.post('/:id/renew', operatorOrAbove, async (req: Request, res: Response) =
 router.post('/:id/dispatch', operatorOrAbove, async (req: Request, res: Response) => {
     try {
         const serverIds = Array.isArray(req.body?.serverIds) ? req.body.serverIds : undefined;
-        const result = await dispatchCertificateToServers(req.params.id, serverIds);
+        const inboundIds = Array.isArray(req.body?.inboundIds) ? req.body.inboundIds : undefined;
+        const applyAllTlsInbounds = req.body?.applyAllTlsInbounds === true;
+        const result = await dispatchCertificateToServers(req.params.id, serverIds, {
+            inboundIds,
+            applyAllTlsInbounds,
+        });
         return res.json({ success: true, obj: result });
     } catch (err: any) {
-        return res.status(500).json({ success: false, msg: err.message || 'Failed to dispatch certificate' });
+        const message = err?.message || 'Failed to dispatch certificate';
+        const status = /not found|does not have valid certificate|match/i.test(message) ? 400 : 500;
+        return res.status(status).json({ success: false, msg: message });
     }
 });
 

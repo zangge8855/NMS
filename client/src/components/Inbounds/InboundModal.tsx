@@ -2661,14 +2661,15 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 <label className="form-label text-xs font-semibold mb-1">{deepCopy.mtprotoPreview}</label>
                                                 <div className="flex items-center gap-2">
                                                     <code className="text-xs font-mono break-all flex-1 select-all">
-                                                        {`tg://proxy?server=${listen || 'YOUR_SERVER_IP'}&port=${port || 'PORT'}&secret=${settingsObj.secret}`}
+                                                        {`tg://proxy?server=${(!listen || listen === '0.0.0.0' || listen === '::') ? 'YOUR_SERVER_IP' : listen.replace(/^\[(.*)\]$/, '$1')}&port=${port || 'PORT'}&secret=${settingsObj.secret}`}
                                                     </code>
                                                     <button
                                                         type="button"
                                                         className="btn btn-ghost btn-xs btn-icon"
                                                         title={deepCopy.copyLink || 'Copy'}
                                                         onClick={async () => {
-                                                            const link = `tg://proxy?server=${listen || 'YOUR_SERVER_IP'}&port=${port || 'PORT'}&secret=${settingsObj.secret}`;
+                                                            const hostPart = (!listen || listen === '0.0.0.0' || listen === '::') ? 'YOUR_SERVER_IP' : listen.replace(/^\[(.*)\]$/, '$1');
+                                                            const link = `tg://proxy?server=${hostPart}&port=${port || 'PORT'}&secret=${settingsObj.secret}`;
                                                             await copyToClipboard(link);
                                                             toast.success(deepCopy.linkCopied || t('comp.inbounds.idCopied'));
                                                         }}

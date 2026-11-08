@@ -4,29 +4,34 @@ export async function pingServer(urlStr: string): Promise<{ latencyMs: number, o
     try {
         const url = new URL(urlStr);
         const port = url.port ? parseInt(url.port, 10) : (url.protocol === 'https:' ? 443 : 80);
-        const host = url.hostname;
+        const host = url.hostname.replace(/^\[(.*)\]$/, '$1');
+        if (!host) {
+            return { online: false, latencyMs: -1 };
+        }
 
         const start = Date.now();
         return new Promise((resolve) => {
+            let settled = false;
             const socket = new net.Socket();
             socket.setTimeout(2000);
-            
-            let online = false;
+
+            const finish = (online: boolean, latencyMs: number) => {
+                if (settled) return;
+                settled = true;
+                try { socket.destroy(); } catch {}
+                resolve({ online, latencyMs });
+            };
 
             socket.on('connect', () => {
-                online = true;
-                const latencyMs = Date.now() - start;
-                socket.destroy();
-                resolve({ online: true, latencyMs });
+                finish(true, Date.now() - start);
             });
 
             socket.on('timeout', () => {
-                socket.destroy();
-                resolve({ online: false, latencyMs: -1 });
+                finish(false, -1);
             });
 
             socket.on('error', () => {
-                resolve({ online: false, latencyMs: -1 });
+                finish(false, -1);
             });
 
             socket.connect(port, host);

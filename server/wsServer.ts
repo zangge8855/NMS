@@ -268,7 +268,7 @@ export function initWebSocket(httpServer: HttpServer) {
         path: '/ws',
         verifyClient: ({ req }: { req: IncomingMessage & { wsUser?: any } }, done: (res: boolean, code?: number, message?: string) => void) => {
             try {
-                const url = new URL(req.url || '', `http://${req.headers.host}`);
+                const url = new URL(req.url || '', 'http://nms.local');
                 const ticket = url.searchParams.get('ticket');
                 if (!ticket) {
                     done(false, 401, 'Missing ticket');

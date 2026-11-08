@@ -8,6 +8,7 @@ import inviteCodeStore from '../store/inviteCodeStore.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import config from '../config.js';
 import { toHttpError } from '../lib/httpError.js';
+import { formatHostHeaderWithPort } from '../lib/ipGeoResolver.js';
 import { normalizeClientBasePath } from '../lib/clientBuild.js';
 import batchRiskTokenStore, {
     assessBatchRisk,
@@ -83,13 +84,18 @@ function normalizeStoreKeys(input) {
     return Array.from(new Set(input.map((item) => String(item || '').trim()).filter(Boolean)));
 }
 
+function pickFirstHeaderValue(value: unknown): string {
+    const first = Array.isArray(value) ? value[0] : value;
+    return String(first || '').split(',')[0].trim();
+}
+
 function buildSiteEntryUrl(req) {
-    const forwardedProto = String(req.headers['x-forwarded-proto'] || '')
-        .split(',')[0]
-        .trim()
-        .toLowerCase();
+    const forwardedProto = pickFirstHeaderValue(req.headers['x-forwarded-proto']).toLowerCase();
     const protocol = forwardedProto || String(req.protocol || 'http').trim().toLowerCase() || 'http';
-    const host = String(req.get('host') || req.headers.host || '').trim();
+    const forwardedHost = pickFirstHeaderValue(req.headers['x-forwarded-host']);
+    const forwardedPort = pickFirstHeaderValue(req.headers['x-forwarded-port']);
+    const rawHost = forwardedHost || String((typeof req.get === 'function' ? req.get('host') : '') || req.headers?.host || '').trim();
+    const host = formatHostHeaderWithPort(rawHost, forwardedHost ? forwardedPort : '');
     if (!host) return '';
 
     const siteAccessPath = normalizeClientBasePath(systemSettingsStore.getSite().accessPath, '/');

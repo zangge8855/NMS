@@ -6,6 +6,7 @@ import {
     resolveAccessCountry,
     resolveRegionDisplayName,
 } from '../../utils/accessGeo';
+import { normalizePanelIpAddress } from '../../utils/panelClientIps';
 
 export interface GeoItem {
     key: string;
@@ -39,7 +40,8 @@ export default function ClientGeoDistributionCard({ items = [], locale = 'zh-CN'
         // single chatty client does not dominate the distribution.
         const byIp = new Map<string, (typeof items)[number]>();
         items.forEach((item, index) => {
-            const ip = String(item?.clientIp || item?.ip || '').trim();
+            const rawIp = String(item?.clientIp || item?.ip || '').trim();
+            const ip = normalizePanelIpAddress(rawIp) || rawIp;
             const key = ip || `row:${item?.id || index}`;
             if (!byIp.has(key)) byIp.set(key, item);
         });

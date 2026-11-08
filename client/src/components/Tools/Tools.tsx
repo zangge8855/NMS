@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useServer } from '../../contexts/ServerContext';
+import { useOptionalAuth } from '../../contexts/AuthContext';
 import { useI18n } from '../../contexts/LanguageContext';
 import Header from '../Layout/Header';
-import { copyToClipboard, getErrorMessage } from '../../utils/format';
+import { copyToClipboard, formatDateTime, getErrorMessage } from '../../utils/format';
 import toast from 'react-hot-toast';
 import api from '../../api/client';
 import {
@@ -14,6 +15,10 @@ import {
     HiOutlineGlobeAlt,
     HiOutlineEye,
     HiOutlineEyeSlash,
+    HiOutlinePaperAirplane,
+    HiOutlineTrash,
+    HiOutlineKey,
+    HiOutlineShieldCheck,
 } from 'react-icons/hi2';
 import EmptyState from '../UI/EmptyState';
 import PageToolbar from '../UI/PageToolbar';
@@ -82,11 +87,51 @@ const TOOL_DESCRIPTIONS_ZH: Record<string, string> = {
     realityKeypair: '在节点上通过 sing-box 生成 REALITY 密钥对。',
 };
 
+function normalizeLookupInput(rawInput: string): string {
+    const trimmed = String(rawInput || '').trim();
+    if (!trimmed) return '';
+    if (/^[a-zA-Z][a-zA-Z\d+.-]*:\/\//.test(trimmed)) {
+        try {
+            return new URL(trimmed).hostname.replace(/^\[(.*)\]$/, '$1');
+        } catch {
+            return trimmed;
+        }
+    }
+    if (trimmed.startsWith('[')) {
+        return trimmed.replace(/^\[([^\]]+)\](?::\d{1,5})?$/, '$1');
+    }
+    const colonCount = (trimmed.match(/:/g) || []).length;
+    if (colonCount === 1) {
+        return trimmed.replace(/:\d{1,5}$/, '');
+    }
+    return trimmed;
+}
+
+export interface ManagedCertificate {
+    id: string;
+    domain: string;
+    sans?: string[];
+    provider: string;
+    acmeDirectoryUrl?: string;
+    challengeType: string;
+    email?: string;
+    status: 'valid' | 'expiring_soon' | 'expired' | 'pending' | 'error' | string;
+    issuedAt?: string | null;
+    expiresAt?: string | null;
+    certificate?: string;
+    hasPrivateKey?: boolean;
+    assignedServerIds?: string[];
+    lastError?: string | null;
+    lastDispatchAt?: string | null;
+}
+
 export default function Tools() {
     const { activeServerId, servers = [], panelApi } = useServer();
+    const auth = useOptionalAuth();
     const { locale, t } = useI18n();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<'node' | 'ssl' | 'ip'>('node');
+    const canManageCertificates = !auth?.user || auth.user.role === 'admin' || auth.user.role === 'operator';
 
     // Page Server Selection Target
     const {
@@ -110,11 +155,20 @@ export default function Tools() {
 
     // SSL Assistant States
     const [sslDomain, setSslDomain] = useState('');
+    const [sslSans, setSslSans] = useState('');
+    const [sslProvider, setSslProvider] = useState<'selfsigned' | 'letsencrypt' | 'letsencrypt-staging' | 'zerossl' | 'custom'>('letsencrypt');
+    const [sslChallengeType, setSslChallengeType] = useState<'dns-cloudflare' | 'http' | 'manual'>('dns-cloudflare');
+    const [sslAcmeDirectoryUrl, setSslAcmeDirectoryUrl] = useState('');
+    const [sslTargetServerIds, setSslTargetServerIds] = useState<string[]>([]);
     const [cfEmail, setCfEmail] = useState('');
     const [cfToken, setCfToken] = useState('');
     const [showCfToken, setShowCfToken] = useState(false);
     const [sslCertPath, setSslCertPath] = useState('/root/cert/cert.crt');
     const [sslKeyPath, setSslKeyPath] = useState('/root/cert/private.key');
+    const [certificates, setCertificates] = useState<ManagedCertificate[]>([]);
+    const [certsLoading, setCertsLoading] = useState(false);
+    const [issuingCert, setIssuingCert] = useState(false);
+    const [certActionBusy, setCertActionBusy] = useState<Record<string, boolean>>({});
 
     // IP Diagnostics States
     const [queryIp, setQueryIp] = useState('');
@@ -167,6 +221,44 @@ export default function Tools() {
                     scriptTitle: 'Generated One-Click Execution Script',
                     copyScript: 'Copy ACME Bash Script',
                     pathTip: 'Copy the certificate path and fill into your 3X-UI / Xray Inbound TLS configuration.',
+                    managedTitle: 'Managed TLS & ACME Certificates',
+                    managedSubtitle: 'Issue real X.509 v3 / RFC 8555 ACME v2 certificates and push inline PEM to matching 3x-ui TLS inbounds.',
+                    sansLabel: 'SAN Domains / IPs (Optional, IPv6 supported)',
+                    sansPlaceholder: 'e.g. *.example.com, 2001:db8::1',
+                    providerLabel: 'Issuer / CA',
+                    challengeLabel: 'Challenge Method',
+                    directoryLabel: 'Custom ACME Directory URL',
+                    directoryPlaceholder: 'https://acme.example.com/directory',
+                    targetNodesLabel: 'Bind Nodes for TLS Push (Optional)',
+                    issueButton: 'Issue Certificate',
+                    issuing: 'Issuing...',
+                    refreshCerts: 'Refresh List',
+                    noCerts: 'No managed certificates yet',
+                    noCertsHint: 'Enter a domain or IP above to issue a real X.509 / ACME certificate.',
+                    copyCert: 'Copy Cert PEM',
+                    copyKey: 'Copy Key PEM',
+                    renew: 'Renew',
+                    dispatch: 'Push to Nodes',
+                    deleteCert: 'Delete',
+                    expiresAtLabel: 'Expires',
+                    lastErrorLabel: 'Last error',
+                    domainRequired: 'Please enter a domain or IP first',
+                    issueSuccess: 'Certificate issued',
+                    issueWarning: 'Certificate saved with issuance warning',
+                    issueFailed: 'Failed to issue certificate',
+                    renewSuccess: 'Certificate renewed',
+                    renewFailed: 'Failed to renew certificate',
+                    dispatchSuccess: 'Pushed certificate to {servers} ({inbounds} inbound(s) updated)',
+                    dispatchPartial: 'Dispatched: {ok}; Failed: {failed}',
+                    dispatchFailed: 'Failed to dispatch certificate',
+                    selectDispatchServer: 'Select or bind at least one node first',
+                    deleteSuccess: 'Certificate deleted',
+                    deleteFailed: 'Failed to delete certificate',
+                    statusValid: 'Valid',
+                    statusExpiringSoon: 'Expiring soon',
+                    statusExpired: 'Expired',
+                    statusPending: 'Pending',
+                    statusError: 'Error',
                 },
                 ip: {
                     unknownCountry: 'Unknown',
@@ -227,6 +319,44 @@ export default function Tools() {
                     scriptTitle: '生成的一键执行 Shell 脚本',
                     copyScript: '复制完整 ACME 脚本',
                     pathTip: '申请成功后，请将公钥与私钥路径直接填写入站节点的 TLS 证书路径中。',
+                    managedTitle: '托管 TLS & ACME 证书签发与下发',
+                    managedSubtitle: '在控制台直接签发标准 X.509 v3 / RFC 8555 ACME v2 证书，并将内联 PEM 下发到匹配的 3x-ui TLS 入站。',
+                    sansLabel: '附加 SAN 域名/IP（可选，支持 IPv6）',
+                    sansPlaceholder: '例如 *.example.com, 2001:db8::1',
+                    providerLabel: '签发机构 (CA)',
+                    challengeLabel: '验证方式',
+                    directoryLabel: '自定义 ACME Directory URL',
+                    directoryPlaceholder: 'https://acme.example.com/directory',
+                    targetNodesLabel: '绑定自动下发节点（可选）',
+                    issueButton: '签发托管证书',
+                    issuing: '签发中...',
+                    refreshCerts: '刷新证书',
+                    noCerts: '暂无托管证书',
+                    noCertsHint: '在上方填写域名/IP 与签发参数即可直接生成并管理 TLS 证书。',
+                    copyCert: '复制证书 PEM',
+                    copyKey: '复制私钥 PEM',
+                    renew: '续期',
+                    dispatch: '下发至节点',
+                    deleteCert: '删除',
+                    expiresAtLabel: '到期时间',
+                    lastErrorLabel: '最近错误',
+                    domainRequired: '请先输入主域名或 IP',
+                    issueSuccess: '证书已签发',
+                    issueWarning: '证书记录已创建，但签发存在警告',
+                    issueFailed: '签发证书失败',
+                    renewSuccess: '证书已续期',
+                    renewFailed: '证书续期失败',
+                    dispatchSuccess: '已下发至 {servers}（更新 {inbounds} 个 TLS 入站）',
+                    dispatchPartial: '成功: {ok}；失败: {failed}',
+                    dispatchFailed: '下发证书失败',
+                    selectDispatchServer: '请先在上方或节点选择器中选择目标节点',
+                    deleteSuccess: '证书已删除',
+                    deleteFailed: '删除证书失败',
+                    statusValid: '有效',
+                    statusExpiringSoon: '即将过期',
+                    statusExpired: '已过期',
+                    statusPending: '待签发',
+                    statusError: '异常',
                 },
                 ip: {
                     unknownCountry: '未知',
@@ -357,39 +487,209 @@ export default function Tools() {
         toast.success(copy.copied);
     };
 
+    const fetchCertificates = useCallback(async () => {
+        if (typeof api.get !== 'function') return;
+        setCertsLoading(true);
+        try {
+            const res = await api.get('/certificates');
+            const list = Array.isArray(res?.data?.obj) ? res.data.obj : [];
+            setCertificates(list);
+        } catch (error) {
+            toast.error(getErrorMessage(error, copy.catalogLoadFailed, locale));
+        } finally {
+            setCertsLoading(false);
+        }
+    }, [copy.catalogLoadFailed, locale]);
+
+    useEffect(() => {
+        if (activeTab === 'ssl') {
+            fetchCertificates();
+        }
+    }, [activeTab, fetchCertificates]);
+
+    const toggleSslTargetServer = (serverId: string) => {
+        setSslTargetServerIds((prev) =>
+            prev.includes(serverId) ? prev.filter((id) => id !== serverId) : [...prev, serverId]
+        );
+    };
+
+    const handleIssueCertificate = async () => {
+        const domain = sslDomain.trim();
+        if (!domain) {
+            toast.error(copy.ssl.domainRequired);
+            return;
+        }
+        const sans = sslSans
+            .split(/[,\s]+/)
+            .map((item) => item.trim())
+            .filter(Boolean);
+        setIssuingCert(true);
+        try {
+            const res = await api.post('/certificates', {
+                domain,
+                sans,
+                provider: sslProvider,
+                challengeType: sslProvider === 'selfsigned' ? 'manual' : sslChallengeType,
+                acmeDirectoryUrl: sslProvider === 'custom' ? sslAcmeDirectoryUrl.trim() : undefined,
+                cfApiToken: cfToken.trim() || undefined,
+                email: cfEmail.trim() || undefined,
+                assignedServerIds: sslTargetServerIds,
+            });
+            if (res?.data?.warning) {
+                toast(res.data.warning);
+            } else {
+                toast.success(copy.ssl.issueSuccess);
+            }
+            await fetchCertificates();
+        } catch (error) {
+            toast.error(getErrorMessage(error, copy.ssl.issueFailed, locale));
+        } finally {
+            setIssuingCert(false);
+        }
+    };
+
+    const handleRenewCertificate = async (certId: string) => {
+        setCertActionBusy((prev) => ({ ...prev, [`renew:${certId}`]: true }));
+        try {
+            await api.post(`/certificates/${encodeURIComponent(certId)}/renew`);
+            toast.success(copy.ssl.renewSuccess);
+            await fetchCertificates();
+        } catch (error) {
+            toast.error(getErrorMessage(error, copy.ssl.renewFailed, locale));
+        } finally {
+            setCertActionBusy((prev) => ({ ...prev, [`renew:${certId}`]: false }));
+        }
+    };
+
+    const handleCopyPrivateKey = async (certId: string) => {
+        setCertActionBusy((prev) => ({ ...prev, [`key:${certId}`]: true }));
+        try {
+            const res = await api.get(`/certificates/${encodeURIComponent(certId)}?includeSecrets=true`);
+            const privateKey = String(res?.data?.obj?.privateKey || '').trim();
+            if (!privateKey) {
+                toast.error(copy.ssl.issueFailed);
+                return;
+            }
+            await copyToClipboard(privateKey);
+            toast.success(copy.copied);
+        } catch (error) {
+            toast.error(getErrorMessage(error, copy.executeFailed, locale));
+        } finally {
+            setCertActionBusy((prev) => ({ ...prev, [`key:${certId}`]: false }));
+        }
+    };
+
+    const handleDispatchCertificate = async (cert: ManagedCertificate) => {
+        const candidateIds = sslTargetServerIds.length > 0
+            ? sslTargetServerIds
+            : (Array.isArray(cert.assignedServerIds) && cert.assignedServerIds.length > 0
+                ? cert.assignedServerIds
+                : (hasTargetServer ? [String(targetServerId)] : []));
+        if (candidateIds.length === 0) {
+            toast.error(copy.ssl.selectDispatchServer);
+            return;
+        }
+        setCertActionBusy((prev) => ({ ...prev, [`dispatch:${cert.id}`]: true }));
+        try {
+            const res = await api.post(`/certificates/${encodeURIComponent(cert.id)}/dispatch`, {
+                serverIds: candidateIds,
+            });
+            const obj = res?.data?.obj || {};
+            const dispatched = Array.isArray(obj.dispatchedServers) ? obj.dispatchedServers : [];
+            const failed = Array.isArray(obj.failedServers) ? obj.failedServers : [];
+            const updatedInbounds = Number(obj.updatedInboundCount || 0);
+            if (failed.length > 0) {
+                toast.error(
+                    copy.ssl.dispatchPartial
+                        .replace('{ok}', dispatched.join(', ') || '-')
+                        .replace('{failed}', failed.join(', '))
+                );
+            } else {
+                toast.success(
+                    copy.ssl.dispatchSuccess
+                        .replace('{servers}', dispatched.join(', ') || String(candidateIds.length))
+                        .replace('{inbounds}', String(updatedInbounds))
+                );
+            }
+            await fetchCertificates();
+        } catch (error) {
+            toast.error(getErrorMessage(error, copy.ssl.dispatchFailed, locale));
+        } finally {
+            setCertActionBusy((prev) => ({ ...prev, [`dispatch:${cert.id}`]: false }));
+        }
+    };
+
+    const handleDeleteCertificate = async (certId: string) => {
+        setCertActionBusy((prev) => ({ ...prev, [`delete:${certId}`]: true }));
+        try {
+            await api.delete(`/certificates/${encodeURIComponent(certId)}`);
+            toast.success(copy.ssl.deleteSuccess);
+            setCertificates((prev) => prev.filter((item) => item.id !== certId));
+        } catch (error) {
+            toast.error(getErrorMessage(error, copy.ssl.deleteFailed, locale));
+        } finally {
+            setCertActionBusy((prev) => ({ ...prev, [`delete:${certId}`]: false }));
+        }
+    };
+
+    const getCertStatusMeta = (status: string) => {
+        switch (status) {
+            case 'valid':
+                return { cls: 'badge-success', label: copy.ssl.statusValid };
+            case 'expiring_soon':
+                return { cls: 'badge-warning', label: copy.ssl.statusExpiringSoon };
+            case 'expired':
+                return { cls: 'badge-danger', label: copy.ssl.statusExpired };
+            case 'error':
+                return { cls: 'badge-danger', label: copy.ssl.statusError };
+            default:
+                return { cls: 'badge-neutral', label: copy.ssl.statusPending };
+        }
+    };
+
     // Generated ACME script
     const generatedAcmeScript = useMemo(() => {
         const domain = sslDomain.trim() || 'yourdomain.com';
         const isWildcard = domain.startsWith('*.');
         const cleanDomain = domain.replace(/^\*\./, '');
         const domainsParam = isWildcard ? `-d ${cleanDomain} -d *.${cleanDomain}` : `-d ${domain}`;
+        const keyPath = sslKeyPath.trim() || '/root/cert/private.key';
+        const certPath = sslCertPath.trim() || '/root/cert/cert.crt';
 
-        return `# ==========================================
-# NMS 3X-UI / S-UI Cloudflare ACME Automated Cert Issue
-# ==========================================
-mkdir -p /root/cert
-curl https://get.acme.sh | sh -s email=${cfEmail.trim() || 'admin@example.com'}
-source ~/.bashrc
-
-export CF_Token="${cfToken.trim() || 'YOUR_CLOUDFLARE_API_TOKEN'}"
-${cfEmail.trim() ? `export CF_Email="${cfEmail.trim()}"` : ''}
-
-~/.acme.sh/acme.sh --set-default-ca --server letsencrypt
-~/.acme.sh/acme.sh --issue --dns dns_cf ${domainsParam} --force
-
-~/.acme.sh/acme.sh --install-cert ${domainsParam} \\
-  --key-file "${sslKeyPath.trim() || '/root/cert/private.key'}" \\
-  --fullchain-file "${sslCertPath.trim() || '/root/cert/cert.crt'}" \\
-  --reloadcmd "x-ui restart || systemctl restart x-ui || systemctl restart s-ui"
-
-~/.acme.sh/acme.sh --upgrade --auto-upgrade
-`;
+        const lines = [
+            '# ==========================================',
+            '# NMS 3X-UI / S-UI Cloudflare ACME Automated Cert Issue',
+            '# ==========================================',
+            `mkdir -p "$(dirname "${certPath}")" "$(dirname "${keyPath}")"`,
+            `curl https://get.acme.sh | sh -s email=${cfEmail.trim() || 'admin@example.com'}`,
+            'source ~/.bashrc',
+            '',
+            `export CF_Token="${cfToken.trim() || 'YOUR_CLOUDFLARE_API_TOKEN'}"`,
+        ];
+        if (cfEmail.trim()) {
+            lines.push(`export CF_Email="${cfEmail.trim()}"`);
+        }
+        lines.push(
+            '',
+            '~/.acme.sh/acme.sh --set-default-ca --server letsencrypt',
+            `~/.acme.sh/acme.sh --issue --dns dns_cf ${domainsParam} --force`,
+            '',
+            `~/.acme.sh/acme.sh --install-cert ${domainsParam} \\`,
+            `  --key-file "${keyPath}" \\`,
+            `  --fullchain-file "${certPath}" \\`,
+            '  --reloadcmd "x-ui restart || systemctl restart x-ui || systemctl restart s-ui"',
+            '',
+            '~/.acme.sh/acme.sh --upgrade --auto-upgrade',
+            ''
+        );
+        return lines.join('\n');
     }, [cfEmail, cfToken, sslCertPath, sslDomain, sslKeyPath]);
 
     // Handle IP Lookup
     const handleIpLookup = async () => {
-        const target = queryIp.trim();
-        if (!target) return;
+        const rawTarget = queryIp.trim();
+        if (!rawTarget) return;
+        const target = normalizeLookupInput(rawTarget);
         setIpLoading(true);
         try {
             let res: any = null;
@@ -613,95 +913,320 @@ ${cfEmail.trim() ? `export CF_Email="${cfEmail.trim()}"` : ''}
                 )}
 
                 {activeTab === 'ssl' && (
-                    <div className="card p-6 space-y-6">
-                        <SectionHeader
-                            title={copy.ssl.title}
-                            subtitle={copy.ssl.subtitle}
-                            divider
-                        />
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            <div className="form-group">
-                                <label className="form-label font-semibold">{copy.ssl.domainLabel}</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    placeholder={copy.ssl.domainPlaceholder}
-                                    autoComplete="off"
-                                    spellCheck={false}
-                                    value={sslDomain}
-                                    onChange={(e) => setSslDomain(e.target.value)}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label font-semibold">{copy.ssl.tokenLabel}</label>
-                                <div className="input-icon-wrapper">
-                                    <input
-                                        type={showCfToken ? 'text' : 'password'}
-                                        className="form-input input-with-trailing-action"
-                                        placeholder={copy.ssl.tokenPlaceholder}
-                                        autoComplete="new-password"
-                                        spellCheck={false}
-                                        value={cfToken}
-                                        onChange={(e) => setCfToken(e.target.value)}
-                                    />
+                    <div className="space-y-6">
+                        <div className="card p-6 space-y-6">
+                            <SectionHeader
+                                title={copy.ssl.managedTitle}
+                                subtitle={copy.ssl.managedSubtitle}
+                                divider
+                                meta={(
                                     <button
                                         type="button"
-                                        className="input-trailing-action-btn"
-                                        onClick={() => setShowCfToken((prev) => !prev)}
-                                        tabIndex={-1}
-                                        aria-label={showCfToken ? 'Hide token' : 'Show token'}
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={fetchCertificates}
+                                        disabled={certsLoading}
                                     >
-                                        {showCfToken ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                        <HiOutlineArrowPath className={certsLoading ? 'spinning' : ''} /> {copy.ssl.refreshCerts}
                                     </button>
+                                )}
+                            />
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div className="form-group">
+                                    <label className="form-label font-semibold">{copy.ssl.domainLabel}</label>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        placeholder={copy.ssl.domainPlaceholder}
+                                        autoComplete="off"
+                                        spellCheck={false}
+                                        value={sslDomain}
+                                        onChange={(e) => setSslDomain(e.target.value)}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label font-semibold">{copy.ssl.sansLabel}</label>
+                                    <input
+                                        type="text"
+                                        className="form-input font-mono text-sm"
+                                        placeholder={copy.ssl.sansPlaceholder}
+                                        autoComplete="off"
+                                        spellCheck={false}
+                                        value={sslSans}
+                                        onChange={(e) => setSslSans(e.target.value)}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label font-semibold">{copy.ssl.providerLabel}</label>
+                                    <select
+                                        className="form-input"
+                                        value={sslProvider}
+                                        onChange={(e) => {
+                                            const next = e.target.value as any;
+                                            setSslProvider(next);
+                                            if (next === 'selfsigned') {
+                                                setSslChallengeType('manual');
+                                            } else if (sslChallengeType === 'manual') {
+                                                setSslChallengeType('dns-cloudflare');
+                                            }
+                                        }}
+                                    >
+                                        <option value="letsencrypt">Let&apos;s Encrypt (ACME v2)</option>
+                                        <option value="letsencrypt-staging">Let&apos;s Encrypt Staging</option>
+                                        <option value="zerossl">ZeroSSL (ACME v2)</option>
+                                        <option value="selfsigned">X.509 v3 Self-Signed</option>
+                                        <option value="custom">Custom ACME Directory</option>
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label font-semibold">{copy.ssl.challengeLabel}</label>
+                                    <select
+                                        className="form-input"
+                                        value={sslProvider === 'selfsigned' ? 'manual' : sslChallengeType}
+                                        disabled={sslProvider === 'selfsigned'}
+                                        onChange={(e) => setSslChallengeType(e.target.value as any)}
+                                    >
+                                        <option value="dns-cloudflare">Cloudflare DNS-01</option>
+                                        <option value="http">HTTP-01 (/.well-known/acme-challenge)</option>
+                                        <option value="manual">Local X.509 v3 Self-Signed</option>
+                                    </select>
+                                </div>
+                                {sslProvider === 'custom' && (
+                                    <div className="form-group">
+                                        <label className="form-label font-semibold">{copy.ssl.directoryLabel}</label>
+                                        <input
+                                            type="url"
+                                            className="form-input font-mono text-sm"
+                                            placeholder={copy.ssl.directoryPlaceholder}
+                                            value={sslAcmeDirectoryUrl}
+                                            onChange={(e) => setSslAcmeDirectoryUrl(e.target.value)}
+                                        />
+                                    </div>
+                                )}
+                                <div className="form-group">
+                                    <label className="form-label font-semibold">{copy.ssl.tokenLabel}</label>
+                                    <div className="input-icon-wrapper">
+                                        <input
+                                            type={showCfToken ? 'text' : 'password'}
+                                            className="form-input input-with-trailing-action"
+                                            placeholder={copy.ssl.tokenPlaceholder}
+                                            autoComplete="new-password"
+                                            spellCheck={false}
+                                            value={cfToken}
+                                            onChange={(e) => setCfToken(e.target.value)}
+                                        />
+                                        <button
+                                            type="button"
+                                            className="input-trailing-action-btn"
+                                            onClick={() => setShowCfToken((prev) => !prev)}
+                                            tabIndex={-1}
+                                            aria-label={showCfToken ? 'Hide token' : 'Show token'}
+                                        >
+                                            {showCfToken ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label font-semibold">{copy.ssl.emailLabel}</label>
+                                    <input
+                                        type="email"
+                                        className="form-input"
+                                        placeholder={copy.ssl.emailPlaceholder || 'admin@example.com'}
+                                        autoComplete="off"
+                                        value={cfEmail}
+                                        onChange={(e) => setCfEmail(e.target.value)}
+                                    />
                                 </div>
                             </div>
-                            <div className="form-group">
-                                <label className="form-label font-semibold">{copy.ssl.emailLabel}</label>
-                                <input
-                                    type="email"
-                                    className="form-input"
-                                    placeholder={copy.ssl.emailPlaceholder || 'admin@example.com'}
-                                    autoComplete="off"
-                                    value={cfEmail}
-                                    onChange={(e) => setCfEmail(e.target.value)}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label font-semibold">{copy.ssl.certPathLabel}</label>
-                                <input
-                                    type="text"
-                                    className="form-input font-mono text-sm"
-                                    value={sslCertPath}
-                                    onChange={(e) => setSslCertPath(e.target.value)}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label font-semibold">{copy.ssl.keyPathLabel}</label>
-                                <input
-                                    type="text"
-                                    className="form-input font-mono text-sm"
-                                    value={sslKeyPath}
-                                    onChange={(e) => setSslKeyPath(e.target.value)}
-                                />
+
+                            {serverList.length > 0 && (
+                                <div className="space-y-2">
+                                    <div className="text-xs font-semibold text-secondary">{copy.ssl.targetNodesLabel}</div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {serverList.map((srv: any) => {
+                                            const sid = String(srv?.id || '').trim();
+                                            const checked = sslTargetServerIds.includes(sid);
+                                            return (
+                                                <button
+                                                    key={sid}
+                                                    type="button"
+                                                    className={`btn btn-sm ${checked ? 'btn-primary' : 'btn-secondary'}`}
+                                                    onClick={() => toggleSslTargetServer(sid)}
+                                                >
+                                                    {srv?.name || sid}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {canManageCertificates && (
+                                <div className="flex flex-wrap gap-3">
+                                    <button
+                                        type="button"
+                                        className="btn btn-primary"
+                                        onClick={handleIssueCertificate}
+                                        disabled={issuingCert}
+                                    >
+                                        {issuingCert ? <span className="spinner" /> : <HiOutlineShieldCheck />}
+                                        {issuingCert ? copy.ssl.issuing : copy.ssl.issueButton}
+                                    </button>
+                                </div>
+                            )}
+
+                            <div className="pt-4 border-t border-stroke-soft space-y-3">
+                                {certificates.length === 0 && !certsLoading ? (
+                                    <div className="p-4 rounded-xl bg-surface-panel border border-stroke-soft text-sm text-secondary">
+                                        <div className="font-semibold text-primary">{copy.ssl.noCerts}</div>
+                                        <div className="text-xs text-muted mt-1">{copy.ssl.noCertsHint}</div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {certificates.map((cert) => {
+                                            const statusMeta = getCertStatusMeta(cert.status);
+                                            const isRenewing = Boolean(certActionBusy[`renew:${cert.id}`]);
+                                            const isDispatching = Boolean(certActionBusy[`dispatch:${cert.id}`]);
+                                            const isCopyingKey = Boolean(certActionBusy[`key:${cert.id}`]);
+                                            const isDeleting = Boolean(certActionBusy[`delete:${cert.id}`]);
+                                            return (
+                                                <div
+                                                    key={cert.id}
+                                                    className="p-4 rounded-xl bg-surface-panel border border-stroke-soft space-y-3"
+                                                >
+                                                    <div className="flex flex-wrap justify-between items-start gap-2">
+                                                        <div className="min-w-0 space-y-1">
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                <span className="font-mono font-semibold text-sm break-all">
+                                                                    {cert.domain}
+                                                                </span>
+                                                                <span className={`badge ${statusMeta.cls}`}>
+                                                                    {statusMeta.label}
+                                                                </span>
+                                                                <span className="badge badge-neutral">
+                                                                    {cert.provider} / {cert.challengeType}
+                                                                </span>
+                                                            </div>
+                                                            {Array.isArray(cert.sans) && cert.sans.length > 0 && (
+                                                                <div className="text-xs font-mono text-muted break-all">
+                                                                    SAN: {cert.sans.join(', ')}
+                                                                </div>
+                                                            )}
+                                                            <div className="text-xs text-muted">
+                                                                {copy.ssl.expiresAtLabel}:{' '}
+                                                                {cert.expiresAt ? formatDateTime(cert.expiresAt, locale) : '-'}
+                                                            </div>
+                                                            {cert.lastError && (
+                                                                <div className="text-xs text-danger break-all">
+                                                                    {copy.ssl.lastErrorLabel}: {cert.lastError}
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="flex flex-wrap gap-2 shrink-0">
+                                                            {cert.certificate && (
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn btn-secondary btn-sm"
+                                                                    onClick={() => handleCopy(cert.certificate || '')}
+                                                                >
+                                                                    <HiOutlineClipboard /> {copy.ssl.copyCert}
+                                                                </button>
+                                                            )}
+                                                            {canManageCertificates && cert.hasPrivateKey && (
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn btn-secondary btn-sm"
+                                                                    onClick={() => handleCopyPrivateKey(cert.id)}
+                                                                    disabled={isCopyingKey}
+                                                                >
+                                                                    <HiOutlineKey /> {copy.ssl.copyKey}
+                                                                </button>
+                                                            )}
+                                                            {canManageCertificates && (
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn btn-secondary btn-sm"
+                                                                    onClick={() => handleRenewCertificate(cert.id)}
+                                                                    disabled={isRenewing}
+                                                                >
+                                                                    <HiOutlineArrowPath className={isRenewing ? 'spinning' : ''} /> {copy.ssl.renew}
+                                                                </button>
+                                                            )}
+                                                            {canManageCertificates && cert.certificate && (
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn btn-primary btn-sm"
+                                                                    onClick={() => handleDispatchCertificate(cert)}
+                                                                    disabled={isDispatching}
+                                                                >
+                                                                    <HiOutlinePaperAirplane /> {copy.ssl.dispatch}
+                                                                </button>
+                                                            )}
+                                                            {canManageCertificates && (
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn btn-danger btn-sm"
+                                                                    onClick={() => handleDeleteCertificate(cert.id)}
+                                                                    disabled={isDeleting}
+                                                                >
+                                                                    <HiOutlineTrash /> {copy.ssl.deleteCert}
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
-                        <div className="space-y-3 pt-2">
-                            <div className="flex justify-between items-center">
-                                <label className="form-label font-semibold">{copy.ssl.scriptTitle}</label>
-                                <button
-                                    type="button"
-                                    className="btn btn-primary btn-sm"
-                                    onClick={() => handleCopy(generatedAcmeScript)}
-                                >
-                                    <HiOutlineClipboard /> {copy.ssl.copyScript}
-                                </button>
+                        <div className="card p-6 space-y-6">
+                            <SectionHeader
+                                title={copy.ssl.title}
+                                subtitle={copy.ssl.subtitle}
+                                divider
+                            />
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="form-group">
+                                    <label className="form-label font-semibold">{copy.ssl.certPathLabel}</label>
+                                    <input
+                                        type="text"
+                                        className="form-input font-mono text-sm"
+                                        value={sslCertPath}
+                                        onChange={(e) => setSslCertPath(e.target.value)}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label font-semibold">{copy.ssl.keyPathLabel}</label>
+                                    <input
+                                        type="text"
+                                        className="form-input font-mono text-sm"
+                                        value={sslKeyPath}
+                                        onChange={(e) => setSslKeyPath(e.target.value)}
+                                    />
+                                </div>
                             </div>
-                            <pre className="p-4 rounded-xl bg-surface-panel border border-stroke-soft font-mono text-xs overflow-x-auto text-primary leading-relaxed">
-                                {generatedAcmeScript}
-                            </pre>
-                            <p className="text-xs text-muted">{copy.ssl.pathTip}</p>
+
+                            <div className="space-y-3 pt-2">
+                                <div className="flex flex-wrap justify-between items-center gap-2">
+                                    <label className="form-label font-semibold">{copy.ssl.scriptTitle}</label>
+                                    <button
+                                        type="button"
+                                        className="btn btn-primary btn-sm"
+                                        onClick={() => handleCopy(generatedAcmeScript)}
+                                    >
+                                        <HiOutlineClipboard /> {copy.ssl.copyScript}
+                                    </button>
+                                </div>
+                                <pre className="p-4 rounded-xl bg-surface-panel border border-stroke-soft font-mono text-xs overflow-x-auto text-primary leading-relaxed">
+                                    {generatedAcmeScript}
+                                </pre>
+                                <p className="text-xs text-muted">{copy.ssl.pathTip}</p>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -714,10 +1239,10 @@ ${cfEmail.trim() ? `export CF_Email="${cfEmail.trim()}"` : ''}
                             divider
                         />
 
-                        <div className="flex gap-3 max-w-xl">
+                        <div className="flex flex-col sm:flex-row gap-3 max-w-xl">
                             <input
                                 type="text"
-                                className="form-input flex-1 font-mono text-sm"
+                                className="form-input flex-1 min-w-0 font-mono text-sm"
                                 placeholder={copy.ip.inputPlaceholder}
                                 value={queryIp}
                                 onChange={(e) => setQueryIp(e.target.value)}
@@ -725,7 +1250,7 @@ ${cfEmail.trim() ? `export CF_Email="${cfEmail.trim()}"` : ''}
                             />
                             <button
                                 type="button"
-                                className="btn btn-primary"
+                                className="btn btn-primary shrink-0"
                                 onClick={handleIpLookup}
                                 disabled={ipLoading || !queryIp.trim()}
                             >
@@ -735,24 +1260,24 @@ ${cfEmail.trim() ? `export CF_Email="${cfEmail.trim()}"` : ''}
 
                         {ipResult && (
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-stroke-soft animate-fade-in">
-                                <div className="p-4 rounded-xl bg-surface-panel border border-stroke-soft">
+                                <div className="p-4 rounded-xl bg-surface-panel border border-stroke-soft min-w-0">
                                     <div className="text-xs text-muted mb-1">{copy.ip.ipLabel}</div>
-                                    <div className="text-base font-mono font-bold">{ipResult.ip}</div>
+                                    <div className="text-base font-mono font-bold break-all">{ipResult.ip}</div>
                                 </div>
-                                <div className="p-4 rounded-xl bg-surface-panel border border-stroke-soft">
+                                <div className="p-4 rounded-xl bg-surface-panel border border-stroke-soft min-w-0">
                                     <div className="text-xs text-muted mb-1">{copy.ip.locationLabel}</div>
-                                    <div className="text-base font-bold flex items-center gap-2">
-                                        <span>{ipResult.flag}</span>
-                                        <span>{ipResult.country} {ipResult.city && ipResult.city !== '-' ? `(${ipResult.city})` : ''}</span>
+                                    <div className="text-base font-bold flex items-center gap-2 min-w-0">
+                                        <span className="shrink-0">{ipResult.flag}</span>
+                                        <span className="break-all">{ipResult.country} {ipResult.city && ipResult.city !== '-' ? `(${ipResult.city})` : ''}</span>
                                     </div>
                                 </div>
-                                <div className="p-4 rounded-xl bg-surface-panel border border-stroke-soft">
+                                <div className="p-4 rounded-xl bg-surface-panel border border-stroke-soft min-w-0">
                                     <div className="text-xs text-muted mb-1">{copy.ip.carrierLabel}</div>
-                                    <div className="text-sm font-semibold">{ipResult.isp || '-'}</div>
+                                    <div className="text-sm font-semibold break-all">{ipResult.isp || '-'}</div>
                                 </div>
-                                <div className="p-4 rounded-xl bg-surface-panel border border-stroke-soft">
+                                <div className="p-4 rounded-xl bg-surface-panel border border-stroke-soft min-w-0">
                                     <div className="text-xs text-muted mb-1">{copy.ip.asnLabel}</div>
-                                    <div className="text-xs font-mono text-muted">{ipResult.asn || '-'}</div>
+                                    <div className="text-xs font-mono text-muted break-all">{ipResult.asn || '-'}</div>
                                 </div>
                             </div>
                         )}

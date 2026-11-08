@@ -1,10 +1,81 @@
+import dns from 'node:dns/promises';
+import net from 'node:net';
 import { Router, type Request, type Response } from 'express';
 import { authMiddleware, adminOnly } from '../middleware/auth.js';
 import auditStore from '../store/auditStore.js';
 import { enrichAuditEvent, enrichAuditEvents } from '../lib/auditEventEnrichment.js';
-import ipGeoResolver from '../lib/ipGeoResolver.js';
+import ipGeoResolver, { normalizeIpAddress, stripIpv6Brackets } from '../lib/ipGeoResolver.js';
 import ipIspResolver from '../lib/ipIspResolver.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
+
+function extractLookupCandidate(rawInput: unknown): string {
+    const raw = String(rawInput || '').trim();
+    if (!raw) return '';
+    if (/^[a-zA-Z][a-zA-Z\d+.-]*:\/\//.test(raw)) {
+        try {
+            return stripIpv6Brackets(new URL(raw).hostname);
+        } catch {
+            return '';
+        }
+    }
+    const directIp = normalizeIpAddress(raw);
+    if (directIp) return directIp;
+
+    if (/^\[[^\]]+\](?::\d{1,5})?$/.test(raw)) {
+        return stripIpv6Brackets(raw.replace(/:\d{1,5}$/, ''));
+    }
+
+    // Strip host:port for hostnames without touching raw IPv6 literals.
+    const hostPortMatch = raw.match(/^([^:\s]+):(\d{1,5})$/);
+    if (hostPortMatch) {
+        return hostPortMatch[1].trim();
+    }
+
+    return stripIpv6Brackets(raw);
+}
+
+export async function resolveIpLookupTarget(
+    rawInput: unknown,
+    dnsLookup: (hostname: string) => Promise<Array<{ address: string; family: number }>> = async (h) => {
+        const res = await dns.lookup(h, { all: true });
+        return Array.isArray(res) ? res : [res];
+    }
+): Promise<{ ip: string; host: string; resolvedIps: string[] }> {
+    const candidate = extractLookupCandidate(rawInput);
+    if (!candidate) {
+        throw new Error('Missing IP or hostname');
+    }
+
+    const literalIp = normalizeIpAddress(candidate);
+    if (literalIp) {
+        return {
+            ip: literalIp,
+            host: '',
+            resolvedIps: [literalIp],
+        };
+    }
+
+    if (/\s/.test(candidate) || candidate.includes('/') || candidate.length > 253) {
+        throw new Error('Invalid IP address or hostname');
+    }
+
+    const records = await dnsLookup(candidate).catch(() => []);
+    const resolvedIps = Array.from(new Set(
+        (Array.isArray(records) ? records : [])
+            .map((entry) => normalizeIpAddress(entry?.address))
+            .filter((ip) => Boolean(ip) && net.isIP(ip) !== 0)
+    ));
+
+    if (resolvedIps.length === 0) {
+        throw new Error(`Unable to resolve hostname: ${candidate}`);
+    }
+
+    return {
+        ip: resolvedIps[0],
+        host: candidate,
+        resolvedIps,
+    };
+}
 
 const router = Router();
 
@@ -86,22 +157,35 @@ router.get('/events/:id', async (req: Request, res: Response) => {
 });
 
 router.post('/ip-lookup', async (req: Request, res: Response) => {
-    const ip = String(req.body?.ip || req.query?.ip || '').trim();
-    if (!ip) {
+    const rawTarget = String(req.body?.ip || req.query?.ip || '').trim();
+    if (!rawTarget) {
         return res.status(400).json({ success: false, msg: 'Missing IP' });
     }
+
+    let resolved: { ip: string; host: string; resolvedIps: string[] };
+    try {
+        resolved = await resolveIpLookupTarget(rawTarget);
+    } catch (error: any) {
+        return res.status(400).json({
+            success: false,
+            msg: error?.message || '无效的 IP 地址或无法解析的主机名',
+        });
+    }
+
     ipGeoResolver.configure(systemSettingsStore.getAuditIpGeo());
     if (typeof ipIspResolver.configure === 'function') {
         ipIspResolver.configure(systemSettingsStore.getAuditIpGeo());
     }
     const [ipLocation, ipCarrier] = await Promise.all([
-        ipGeoResolver.lookup(ip).catch(() => ''),
-        ipIspResolver.lookup(ip).catch(() => ''),
+        ipGeoResolver.lookup(resolved.ip).catch(() => ''),
+        ipIspResolver.lookup(resolved.ip).catch(() => ''),
     ]);
     return res.json({
         success: true,
         obj: {
-            ip,
+            ip: resolved.ip,
+            host: resolved.host || undefined,
+            resolvedIps: resolved.resolvedIps,
             ipLocation: ipLocation || '',
             ipCarrier: ipCarrier || '',
         },

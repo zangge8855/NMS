@@ -21,6 +21,146 @@ function toBoolean(value: unknown, fallback: boolean = false): boolean {
     return fallback;
 }
 
+export function stripIpv6Brackets(value: unknown): string {
+    const text = String(value || '').trim();
+    if (text.startsWith('[') && text.endsWith(']')) {
+        return text.slice(1, -1);
+    }
+    return text;
+}
+
+export function formatHostHeaderWithPort(hostRaw: unknown, portRaw: unknown = ''): string {
+    const rawHost = String(hostRaw || '').trim();
+    if (!rawHost) return '';
+
+    const rawPortText = String(portRaw || '').trim();
+    const portNum = /^\d{1,5}$/.test(rawPortText) ? Number(rawPortText) : 0;
+    const cleanPort = (portNum >= 1 && portNum <= 65535) ? String(portNum) : '';
+
+    if (rawHost.startsWith('[')) {
+        if (/^\[[^\]]+\]:\d{1,5}$/.test(rawHost) || !cleanPort) {
+            return rawHost;
+        }
+        return `${rawHost}:${cleanPort}`;
+    }
+
+    if (net.isIP(rawHost) === 6) {
+        const bracketed = `[${rawHost}]`;
+        return cleanPort ? `${bracketed}:${cleanPort}` : bracketed;
+    }
+
+    if (rawHost.includes(':') || !cleanPort) {
+        return rawHost;
+    }
+    return `${rawHost}:${cleanPort}`;
+}
+
+function parseIpv4Octets(ip: string): [number, number, number, number] | null {
+    const parts = String(ip || '').split('.');
+    if (parts.length !== 4) return null;
+    const nums = parts.map((item) => {
+        if (!/^(?:0|[1-9]\d{0,2})$/.test(item)) return -1;
+        return Number(item);
+    });
+    if (nums.some((item) => !Number.isInteger(item) || item < 0 || item > 255)) {
+        return null;
+    }
+    return nums as [number, number, number, number];
+}
+
+function parseIpv6Hextets(ip: string): number[] | null {
+    let text = String(ip || '').trim().toLowerCase();
+    if (!text) return null;
+
+    if (text.includes('.')) {
+        const lastColon = text.lastIndexOf(':');
+        if (lastColon < 0) return null;
+        const ipv4Part = text.slice(lastColon + 1);
+        const octets = parseIpv4Octets(ipv4Part);
+        if (!octets) return null;
+        const high = ((octets[0] << 8) | octets[1]).toString(16);
+        const low = ((octets[2] << 8) | octets[3]).toString(16);
+        text = `${text.slice(0, lastColon)}:${high}:${low}`;
+    }
+
+    const compressionParts = text.split('::');
+    if (compressionParts.length > 2) return null;
+
+    if (compressionParts.length === 2) {
+        const head = compressionParts[0] ? compressionParts[0].split(':') : [];
+        const tail = compressionParts[1] ? compressionParts[1].split(':') : [];
+        if (head.some((item) => !item) || tail.some((item) => !item)) return null;
+        const missing = 8 - head.length - tail.length;
+        if (missing < 1) return null;
+        const groups = [
+            ...head,
+            ...Array.from({ length: missing }, () => '0'),
+            ...tail,
+        ];
+        if (groups.length !== 8) return null;
+        const parsed = groups.map((item) => (/^[0-9a-f]{1,4}$/.test(item) ? Number.parseInt(item, 16) : -1));
+        return parsed.some((item) => item < 0 || item > 0xffff) ? null : parsed;
+    }
+
+    const groups = text.split(':');
+    if (groups.length !== 8) return null;
+    const parsed = groups.map((item) => (/^[0-9a-f]{1,4}$/.test(item) ? Number.parseInt(item, 16) : -1));
+    return parsed.some((item) => item < 0 || item > 0xffff) ? null : parsed;
+}
+
+function formatCanonicalIpv6(hextets: number[]): string {
+    if (hextets.length !== 8) return '';
+
+    // Unwrap IPv4-mapped IPv6 addresses (::ffff:0:0/96) into dotted IPv4.
+    if (
+        hextets[0] === 0
+        && hextets[1] === 0
+        && hextets[2] === 0
+        && hextets[3] === 0
+        && hextets[4] === 0
+        && hextets[5] === 0xffff
+    ) {
+        const a = (hextets[6] >> 8) & 0xff;
+        const b = hextets[6] & 0xff;
+        const c = (hextets[7] >> 8) & 0xff;
+        const d = hextets[7] & 0xff;
+        return `${a}.${b}.${c}.${d}`;
+    }
+
+    // RFC 5952 longest zero-run compression (only compress runs of >= 2 hextets, leftmost tie-break).
+    let bestStart = -1;
+    let bestLen = 0;
+    let curStart = -1;
+    let curLen = 0;
+
+    for (let i = 0; i < 8; i += 1) {
+        if (hextets[i] === 0) {
+            if (curStart === -1) {
+                curStart = i;
+                curLen = 1;
+            } else {
+                curLen += 1;
+            }
+            if (curLen > bestLen) {
+                bestStart = curStart;
+                bestLen = curLen;
+            }
+        } else {
+            curStart = -1;
+            curLen = 0;
+        }
+    }
+
+    if (bestLen < 2) {
+        return hextets.map((value) => value.toString(16)).join(':');
+    }
+
+    const head = hextets.slice(0, bestStart).map((value) => value.toString(16)).join(':');
+    const tail = hextets.slice(bestStart + bestLen).map((value) => value.toString(16)).join(':');
+    if (!head && !tail) return '::';
+    return `${head}::${tail}`;
+}
+
 export function normalizeIpAddress(value: unknown): string {
     let text = String(value || '').trim();
     if (!text || text.toLowerCase() === 'unknown') return '';
@@ -29,58 +169,113 @@ export function normalizeIpAddress(value: unknown): string {
         text = text.split(',')[0].trim();
     }
 
+    if ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith("'") && text.endsWith("'"))) {
+        text = text.slice(1, -1).trim();
+    }
+
     if (text.startsWith('[')) {
-        const end = text.indexOf(']');
-        if (end > 0) {
-            text = text.slice(1, end);
+        const bracketMatch = text.match(/^\[([^\]]+)\](?::(\d{1,5}))?$/);
+        if (!bracketMatch) return '';
+        if (bracketMatch[2]) {
+            const port = Number(bracketMatch[2]);
+            if (!Number.isInteger(port) || port < 1 || port > 65535) return '';
         }
-    } else if (/^\d{1,3}(?:\.\d{1,3}){3}:\d+$/.test(text)) {
-        text = text.replace(/:\d+$/, '');
+        text = bracketMatch[1].trim();
+    } else if (/^\d{1,3}(?:\.\d{1,3}){3}:\d{1,5}$/.test(text)) {
+        text = text.replace(/:\d{1,5}$/, '');
     }
 
     if (text.includes('%')) {
         text = text.split('%')[0].trim();
     }
 
-    if (text.toLowerCase().startsWith('::ffff:')) {
-        const mapped = text.slice(7);
-        if (net.isIP(mapped) === 4) {
-            text = mapped;
+    const family = net.isIP(text);
+    if (family === 4) return text;
+    if (family === 6) {
+        const hextets = parseIpv6Hextets(text);
+        return hextets ? formatCanonicalIpv6(hextets) : '';
+    }
+    return '';
+}
+
+function isPrivateIpv4Octets(octets: [number, number, number, number], includeSpecialUse = false): boolean {
+    const [a, b] = octets;
+    if (a === 10) return true;
+    if (a === 127) return true;
+    if (a === 0) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (includeSpecialUse) {
+        if (a === 100 && b >= 64 && b <= 127) return true; // carrier-grade NAT 100.64.0.0/10
+        if (a === 198 && (b === 18 || b === 19)) return true; // benchmark 198.18.0.0/15
+        if (a >= 224) return true; // multicast & reserved 224.0.0.0/4 + 240.0.0.0/4
+    }
+    return false;
+}
+
+function isPrivateIpv6Hextets(hextets: number[], includeSpecialUse = false): boolean {
+    if (hextets.length !== 8) return false;
+    const h0 = hextets[0];
+    const allZero = hextets.every((v) => v === 0);
+    const isLoopback = hextets.slice(0, 7).every((v) => v === 0) && hextets[7] === 1;
+    if (allZero || isLoopback) return true; // ::/128, ::1/128
+    if ((h0 & 0xfe00) === 0xfc00) return true; // fc00::/7 Unique Local
+    if ((h0 & 0xffc0) === 0xfe80) return true; // fe80::/10 Link-Local
+    if ((h0 & 0xff00) === 0xff00) return true; // ff00::/8 Multicast
+
+    // IPv4-mapped (::ffff:0:0/96) or IPv4-compatible (::/96)
+    if (
+        hextets[0] === 0
+        && hextets[1] === 0
+        && hextets[2] === 0
+        && hextets[3] === 0
+        && hextets[4] === 0
+        && (hextets[5] === 0xffff || hextets[5] === 0)
+    ) {
+        return isPrivateIpv4Octets([
+            (hextets[6] >> 8) & 0xff,
+            hextets[6] & 0xff,
+            (hextets[7] >> 8) & 0xff,
+            hextets[7] & 0xff,
+        ], includeSpecialUse);
+    }
+
+    if (includeSpecialUse) {
+        // 64:ff9b:1::/48 local-use NAT64
+        if (hextets[0] === 0x0064 && hextets[1] === 0xff9b && hextets[2] === 0x0001) return true;
+        // 2002::/16 6to4 carrying embedded private/special IPv4
+        if (hextets[0] === 0x2002) {
+            return isPrivateIpv4Octets([
+                (hextets[1] >> 8) & 0xff,
+                hextets[1] & 0xff,
+                (hextets[2] >> 8) & 0xff,
+                hextets[2] & 0xff,
+            ], true);
         }
     }
 
-    return net.isIP(text) ? text : '';
-}
-
-function isPrivateIpv4(ip: string): boolean {
-    const parts = ip.split('.').map((item) => Number(item));
-    if (parts.length !== 4 || parts.some((item) => !Number.isFinite(item) || item < 0 || item > 255)) {
-        return false;
-    }
-    if (parts[0] === 10) return true;
-    if (parts[0] === 127) return true;
-    if (parts[0] === 0) return true;
-    if (parts[0] === 169 && parts[1] === 254) return true;
-    if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
-    if (parts[0] === 192 && parts[1] === 168) return true;
     return false;
 }
 
-function isPrivateIpv6(ip: string): boolean {
-    const text = ip.toLowerCase();
-    if (text === '::1') return true;
-    if (text.startsWith('fc') || text.startsWith('fd')) return true;
-    if (text.startsWith('fe8') || text.startsWith('fe9') || text.startsWith('fea') || text.startsWith('feb')) return true;
-    return false;
-}
-
-export function isPrivateOrLocalIp(value: unknown): boolean {
+export function isPrivateOrLocalIp(value: unknown, options: { includeSpecialUse?: boolean } = {}): boolean {
     const ip = normalizeIpAddress(value);
     if (!ip) return false;
+    const includeSpecialUse = options.includeSpecialUse === true;
     const family = net.isIP(ip);
-    if (family === 4) return isPrivateIpv4(ip);
-    if (family === 6) return isPrivateIpv6(ip);
+    if (family === 4) {
+        const octets = parseIpv4Octets(ip);
+        return octets ? isPrivateIpv4Octets(octets, includeSpecialUse) : false;
+    }
+    if (family === 6) {
+        const hextets = parseIpv6Hextets(ip);
+        return hextets ? isPrivateIpv6Hextets(hextets, includeSpecialUse) : false;
+    }
     return false;
+}
+
+export function isReservedOrPrivateIp(value: unknown): boolean {
+    return isPrivateOrLocalIp(value, { includeSpecialUse: true });
 }
 
 function sanitizeLocation(value: unknown): string {

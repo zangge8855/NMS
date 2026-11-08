@@ -2,24 +2,51 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
     createIpGeoResolver,
+    formatHostHeaderWithPort,
     isPrivateOrLocalIp,
     normalizeIpAddress,
     parseIpipMyIpResponse,
 } from '../lib/ipGeoResolver.js';
 
 describe('ip geo resolver helpers', () => {
-    it('normalizes ip addresses from common proxy formats', () => {
+    it('normalizes ip addresses from common proxy formats including canonical ipv6', () => {
         assert.equal(normalizeIpAddress('::ffff:203.0.113.9'), '203.0.113.9');
+        assert.equal(normalizeIpAddress('::ffff:cb00:7109'), '203.0.113.9');
         assert.equal(normalizeIpAddress('203.0.113.9:12345'), '203.0.113.9');
         assert.equal(normalizeIpAddress('[2001:db8::1]:443'), '2001:db8::1');
+        assert.equal(normalizeIpAddress('2001:0DB8:0000:0000:0000:0000:0000:0001'), '2001:db8::1');
+        assert.equal(normalizeIpAddress('2001:db8:0:1:1:1:1:1'), '2001:db8:0:1:1:1:1:1');
+        assert.equal(normalizeIpAddress('fe80::1%eth0'), 'fe80::1');
+        assert.equal(normalizeIpAddress('[2001:db8::1]garbage'), '');
+        assert.equal(normalizeIpAddress('foo:bar'), '');
         assert.equal(normalizeIpAddress('unknown'), '');
     });
 
-    it('detects private/local ip ranges', () => {
+    it('formats Host header values safely for IPv6, IPv4, and ports', () => {
+        assert.equal(formatHostHeaderWithPort('2001:db8::1', '8443'), '[2001:db8::1]:8443');
+        assert.equal(formatHostHeaderWithPort('[2001:db8::1]', '8443'), '[2001:db8::1]:8443');
+        assert.equal(formatHostHeaderWithPort('[2001:db8::1]:9443', '8443'), '[2001:db8::1]:9443');
+        assert.equal(formatHostHeaderWithPort('::1'), '[::1]');
+        assert.equal(formatHostHeaderWithPort('panel.example.com', '8443'), 'panel.example.com:8443');
+        assert.equal(formatHostHeaderWithPort('panel.example.com:8443', '9000'), 'panel.example.com:8443');
+        assert.equal(formatHostHeaderWithPort('panel.example.com', 'invalid'), 'panel.example.com');
+    });
+
+    it('detects private/local ip ranges accurately without prefix false positives', () => {
         assert.equal(isPrivateOrLocalIp('10.0.0.3'), true);
         assert.equal(isPrivateOrLocalIp('192.168.1.8'), true);
+        assert.equal(isPrivateOrLocalIp('::'), true);
+        assert.equal(isPrivateOrLocalIp('0:0:0:0:0:0:0:1'), true);
         assert.equal(isPrivateOrLocalIp('::1'), true);
+        assert.equal(isPrivateOrLocalIp('::ffff:7f00:1'), true);
+        assert.equal(isPrivateOrLocalIp('fc00::1'), true);
+        assert.equal(isPrivateOrLocalIp('fd12:3456:789a::1'), true);
+        assert.equal(isPrivateOrLocalIp('febf::1'), true);
+        assert.equal(isPrivateOrLocalIp('ff02::1'), true);
         assert.equal(isPrivateOrLocalIp('8.8.8.8'), false);
+        assert.equal(isPrivateOrLocalIp('fd0::1'), false);
+        assert.equal(isPrivateOrLocalIp('fe8::1'), false);
+        assert.equal(isPrivateOrLocalIp('2001:4860:4860::8888'), false);
     });
 
     it('parses ipip response location text', () => {

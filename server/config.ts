@@ -269,6 +269,7 @@ export interface AppConfig {
         dedupWindowMs: number;
     };
     port: number;
+    host: string;
     nodeEnv: string;
     dataDir: string;
 }
@@ -392,6 +393,7 @@ const config: AppConfig = {
         dedupWindowMs: parsePositiveInt(process.env.TELEGRAM_ALERT_DEDUP_MS, 2 * 60 * 1000),
     },
     port: parseInt(String(process.env.PORT || ''), 10) || 3000,
+    host: String(process.env.HOST || process.env.LISTEN_HOST || '::').trim() || '::',
     nodeEnv,
     // Path to store server registry
     dataDir: resolveDataDir(process.env.DATA_DIR),

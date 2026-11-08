@@ -18,44 +18,13 @@ import { evictServerStatusCaches } from '../lib/serverStatusService.js';
 import { buildServerDetailSnapshot } from '../lib/serverDetailSnapshotService.js';
 import { buildErrorSnapshot, getServerLogSnapshot, getServerLogSnapshots } from '../lib/serverLogsSnapshotService.js';
 import { invalidateServerPanelSnapshotCache } from '../lib/serverPanelSnapshotService.js';
+import { isReservedOrPrivateIp, stripIpv6Brackets } from '../lib/ipGeoResolver.js';
 import { fetchServerLogPayload as fetchServerLogResult, normalizeLogCount as normalizeRequestedLogCount, normalizeLogSource as normalizeRequestedLogSource } from '../services/panelLogsService.js';
 
 const router = Router();
 
-function isPrivateIPv4(ip) {
-    const parts = String(ip).split('.').map((item) => Number(item));
-    if (parts.length !== 4 || parts.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return false;
-    const [a, b] = parts;
-    if (a === 10) return true;
-    if (a === 127) return true;
-    if (a === 0) return true;
-    if (a === 169 && b === 254) return true;
-    if (a === 172 && b >= 16 && b <= 31) return true;
-    if (a === 192 && b === 168) return true;
-    if (a === 100 && b >= 64 && b <= 127) return true; // carrier-grade NAT
-    if (a === 198 && (b === 18 || b === 19)) return true; // benchmark
-    return false;
-}
-
-function isPrivateIPv6(ip) {
-    const lower = String(ip).toLowerCase();
-    if (lower === '::1') return true;
-    if (lower.startsWith('fc') || lower.startsWith('fd')) return true; // unique local
-    if (lower.startsWith('fe8') || lower.startsWith('fe9') || lower.startsWith('fea') || lower.startsWith('feb')) {
-        return true; // link-local fe80::/10
-    }
-    if (lower.startsWith('::ffff:')) {
-        const embedded = lower.replace('::ffff:', '');
-        if (net.isIP(embedded) === 4) return isPrivateIPv4(embedded);
-    }
-    return false;
-}
-
 function isPrivateAddress(address) {
-    const family = net.isIP(address);
-    if (family === 4) return isPrivateIPv4(address);
-    if (family === 6) return isPrivateIPv6(address);
-    return false;
+    return isReservedOrPrivateIp(address);
 }
 
 function normalizeHostname(hostname) {
@@ -114,7 +83,7 @@ function deriveServerName(name, url, index) {
     if (normalizedName) return normalizedName;
     try {
         const parsed = new URL(url);
-        return parsed.hostname || `Server ${index}`;
+        return stripIpv6Brackets(parsed.hostname) || `Server ${index}`;
     } catch {
         return `Server ${index}`;
     }
@@ -1050,7 +1019,7 @@ function probeServer(urlStr: string): Promise<{ latencyMs: number, online: boole
         const urlStrWithProto = trimmed.includes('://') ? trimmed : `http://${trimmed}`;
         const url = new URL(urlStrWithProto);
         const port = url.port ? parseInt(url.port, 10) : (url.protocol === 'https:' ? 443 : 80);
-        const host = url.hostname;
+        const host = stripIpv6Brackets(url.hostname);
 
         if (!host) {
             return Promise.resolve({ online: false, latencyMs: -1 });

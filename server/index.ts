@@ -40,6 +40,7 @@ import { startServerPanelSnapshotWarmLoop, stopServerPanelSnapshotWarmLoop } fro
 import { startClusterStatusWarmLoop, stopClusterStatusWarmLoop } from './lib/serverStatusService.js';
 import telegramAlertService from './lib/telegramAlertService.js';
 import subscriptionExpiryNotifier from './lib/subscriptionExpiryNotifier.js';
+import { getAcmeHttpChallengeResponse } from './services/acmeService.js';
 import { startTrafficStatsWarmLoop, stopTrafficStatsWarmLoop } from './store/trafficStatsStore.js';
 import { pathToFileURL } from 'url';
 import { resolve } from 'path';
@@ -152,6 +153,15 @@ export function createApp(options: { serveClientBuild?: boolean } = {}): Express
 
     // Subscriptions
     app.use('/api/subscriptions', subscriptionRoutes);
+
+    // ACME HTTP-01 Challenge Endpoint (RFC 8555)
+    app.get('/.well-known/acme-challenge/:token', (req: Request, res: Response) => {
+        const challengeResponse = getAcmeHttpChallengeResponse(req.params.token);
+        if (!challengeResponse) {
+            return res.status(404).type('text/plain').send('Not Found');
+        }
+        return res.status(200).type('text/plain').send(challengeResponse);
+    });
 
     // Serve React build in production
     if (serveClientBuild) {
@@ -287,9 +297,11 @@ async function bootstrapRuntime() {
 }
 
 // ── Start ──────────────────────────────────────────────────
-export async function startServer(options: { port?: number | string; app?: Express; enableWebSocket?: boolean } = {}) {
+export async function startServer(options: { port?: number | string; host?: string; app?: Express; enableWebSocket?: boolean } = {}) {
     await bootstrapRuntime();
     const port = Number(options.port || config.port);
+    const explicitHost = String(options.host || process.env.HOST || process.env.LISTEN_HOST || '').trim();
+    let listenHost = explicitHost || String(config.host || '::').trim() || '::';
     const { app: serverApp, httpServer } = createHttpServer({
         app: options.app || app,
         enableWebSocket: options.enableWebSocket,
@@ -305,19 +317,35 @@ export async function startServer(options: { port?: number | string; app?: Expre
     telegramAlertService.start();
     subscriptionExpiryNotifier.start();
 
-    await new Promise<void>((resolvePromise, rejectPromise) => {
+    const listenOnHost = (targetHost: string) => new Promise<void>((resolvePromise, rejectPromise) => {
         httpServer.once('error', rejectPromise);
-        httpServer.listen(port, '0.0.0.0', () => {
+        httpServer.listen(port, targetHost, () => {
             httpServer.off('error', rejectPromise);
             resolvePromise();
         });
     });
 
+    try {
+        await listenOnHost(listenHost);
+    } catch (err: any) {
+        if (!explicitHost && listenHost === '::' && (err?.code === 'EAFNOSUPPORT' || err?.code === 'EADDRNOTAVAIL')) {
+            console.warn(`  ⚠️  IPv6 dual-stack bind (::) unavailable (${err.code}), falling back to 0.0.0.0`);
+            listenHost = '0.0.0.0';
+            await listenOnHost(listenHost);
+        } else {
+            throw err;
+        }
+    }
+
     setupGracefulShutdown(httpServer);
 
-    console.log(`\n  🚀 Node Management System (NMS) running on http://localhost:${port}`);
+    const displayHost = (listenHost === '::' || listenHost === '0.0.0.0')
+        ? 'localhost'
+        : (listenHost.includes(':') && !listenHost.startsWith('[') ? `[${listenHost}]` : listenHost);
+
+    console.log(`\n  🚀 Node Management System (NMS) running on http://${displayHost}:${port} (bind: ${listenHost})`);
     console.log(`  📦 Environment: ${config.nodeEnv}`);
-    console.log(`  🔗 API: http://localhost:${port}/api\n`);
+    console.log(`  🔗 API: http://${displayHost}:${port}/api\n`);
 
     return { app: serverApp, httpServer };
 }

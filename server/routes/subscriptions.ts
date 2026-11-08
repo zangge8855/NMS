@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import crypto from 'crypto';
+import net from 'node:net';
 import { authMiddleware, adminOnly, operatorOrAbove, auditorOrAbove } from '../middleware/auth.js';
+import { stripIpv6Brackets, formatHostHeaderWithPort } from '../lib/ipGeoResolver.js';
 import { ensureAuthenticated } from '../lib/panelClient.js';
 import serverStore from '../store/serverStore.js';
 import subscriptionTokenStore from '../store/subscriptionTokenStore.js';
@@ -549,7 +551,7 @@ function buildVmessLink({ server, inbound, client, stream, diagnostics }) {
     const vmessObj: Record<string, any> = {
         v: '2',
         ps: getTag(server, inbound, client.email || ''),
-        add: getServerHost(server.url),
+        add: stripIpv6Brackets(getServerHost(server.url)),
         port: String(inbound.port),
         id: uuid,
         aid: String(client.alterId || 0),
@@ -1408,6 +1410,9 @@ const LOCAL_DIRECT_RULES = [
     'IP-CIDR,172.16.0.0/12,DIRECT,no-resolve',
     'IP-CIDR,192.168.0.0/16,DIRECT,no-resolve',
     'IP-CIDR,100.64.0.0/10,DIRECT,no-resolve',
+    'IP-CIDR6,::1/128,DIRECT,no-resolve',
+    'IP-CIDR6,fc00::/7,DIRECT,no-resolve',
+    'IP-CIDR6,fe80::/10,DIRECT,no-resolve',
 ];
 const SURGE_GENERAL_CONFIG = {
     'allow-wifi-access': false,
@@ -1416,12 +1421,12 @@ const SURGE_GENERAL_CONFIG = {
     'http-listen': '127.0.0.1:6152',
     'socks5-listen': '127.0.0.1:6153',
     'allow-hotspot-access': false,
-    'skip-proxy': '127.0.0.1,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12,100.64.0.0/10,17.0.0.0/8,localhost,*.local',
+    'skip-proxy': '127.0.0.1,::1,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12,100.64.0.0/10,17.0.0.0/8,fc00::/7,fe80::/10,localhost,*.local',
     'test-timeout': 5,
     'proxy-test-url': 'http://cp.cloudflare.com/generate_204',
     'internet-test-url': 'http://www.apple.com/library/test/success.html',
     'geoip-maxmind-url': 'https://raw.githubusercontent.com/Loyalsoldier/geoip/release/Country.mmdb',
-    ipv6: false,
+    ipv6: true,
     'show-error-page-for-reject': true,
     'dns-server': '119.29.29.29, 180.184.1.1, 223.5.5.5, system',
     'encrypted-dns-server': 'https://223.5.5.5/dns-query',
@@ -1722,7 +1727,7 @@ function parseVmessProxy(link, usedNames, index) {
     // link can't throw past the caller and hang the whole config build.
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
 
-    const server = firstNonEmpty(payload.add, payload.server);
+    const server = stripIpv6Brackets(firstNonEmpty(payload.add, payload.server));
     const port = Number(payload.port);
     const uuid = firstNonEmpty(payload.id, payload.uuid);
     if (!server || !Number.isFinite(port) || port <= 0 || !uuid) return null;
@@ -1770,7 +1775,7 @@ function parseVlessProxy(link, usedNames, index) {
         return null;
     }
 
-    const server = parsed.hostname;
+    const server = stripIpv6Brackets(parsed.hostname);
     const port = Number(parsed.port);
     const uuid = decodeMaybeEncoded(parsed.username);
     if (!server || !Number.isFinite(port) || port <= 0 || !uuid) return null;
@@ -1825,7 +1830,7 @@ function parseTrojanProxy(link, usedNames, index) {
         return null;
     }
 
-    const server = parsed.hostname;
+    const server = stripIpv6Brackets(parsed.hostname);
     const port = Number(parsed.port);
     const password = decodeMaybeEncoded(parsed.username);
     if (!server || !Number.isFinite(port) || port <= 0 || !password) return null;
@@ -2064,7 +2069,7 @@ function parseHysteria2Outbound(link, usedNames, index) {
         return null;
     }
 
-    const server = parsed.hostname;
+    const server = stripIpv6Brackets(parsed.hostname);
     const serverPort = Number(parsed.port);
     if (!server || !Number.isFinite(serverPort) || serverPort <= 0) return null;
 
@@ -2133,7 +2138,7 @@ function parseTuicOutbound(link, usedNames, index) {
         return null;
     }
 
-    const server = parsed.hostname;
+    const server = stripIpv6Brackets(parsed.hostname);
     const serverPort = Number(parsed.port);
     const uuid = decodeMaybeEncoded(parsed.username);
     const password = decodeMaybeEncoded(parsed.password);
@@ -2875,7 +2880,7 @@ function parseSingboxVmessOutbound(link, usedNames, index) {
     // cleanly but would throw on the property access below.
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
 
-    const server = firstNonEmpty(payload.add, payload.server);
+    const server = stripIpv6Brackets(firstNonEmpty(payload.add, payload.server));
     const serverPort = Number(payload.port);
     const uuid = firstNonEmpty(payload.id, payload.uuid);
     if (!server || !Number.isFinite(serverPort) || serverPort <= 0 || !uuid) return null;
@@ -2920,7 +2925,7 @@ function parseSingboxVlessOutbound(link, usedNames, index) {
     } catch {
         return null;
     }
-    const server = parsed.hostname;
+    const server = stripIpv6Brackets(parsed.hostname);
     const serverPort = Number(parsed.port);
     const uuid = decodeMaybeEncoded(parsed.username);
     if (!server || !Number.isFinite(serverPort) || serverPort <= 0 || !uuid) return null;
@@ -2967,7 +2972,7 @@ function parseSingboxTrojanOutbound(link, usedNames, index) {
     } catch {
         return null;
     }
-    const server = parsed.hostname;
+    const server = stripIpv6Brackets(parsed.hostname);
     const serverPort = Number(parsed.port);
     const password = decodeMaybeEncoded(parsed.username);
     if (!server || !Number.isFinite(serverPort) || serverPort <= 0 || !password) return null;
@@ -3452,9 +3457,7 @@ function resolvePublicBase(req) {
     const forwardedHostRaw = pickHeaderFirstValue(req.headers['x-forwarded-host']);
     const forwardedPort = pickHeaderFirstValue(req.headers['x-forwarded-port']);
     if (forwardedHostRaw) {
-        const host = forwardedHostRaw.includes(':') || !forwardedPort
-            ? forwardedHostRaw
-            : `${forwardedHostRaw}:${forwardedPort}`;
+        const host = formatHostHeaderWithPort(forwardedHostRaw, forwardedPort);
         const base = normalizeBaseUrl(`${forwardedProtocol}://${host}`);
         if (base) return base;
     }
@@ -3465,7 +3468,7 @@ function resolvePublicBase(req) {
     const refererBase = normalizeBaseUrl(req.headers.referer);
     if (refererBase) return refererBase;
 
-    const host = req.get('host');
+    const host = formatHostHeaderWithPort(typeof req.get === 'function' ? req.get('host') : req.headers?.host);
     return normalizeBaseUrl(`${getForwardedProtocol(req)}://${host}`);
 }
 
@@ -4727,6 +4730,7 @@ export {
     buildXhttpExtra,
     mergeInboundClientEntries,
     normalizeSubscriptionFormat,
+    resolvePublicBase,
     resolveSingboxConfigVersion,
     selectNativeSubIds,
     summarizeSubscriptionUsage,

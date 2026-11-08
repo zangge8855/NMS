@@ -74,7 +74,15 @@ function getRpDetails(req: Request) {
     try {
         rpID = new URL(origin).hostname || req.hostname || 'localhost';
     } catch {
-        rpID = req.hostname || hostHeader.split(':')[0] || 'localhost';
+        let hostOnly = '';
+        try {
+            hostOnly = new URL(`${proto}://${hostHeader}`).hostname;
+        } catch {
+            hostOnly = hostHeader.startsWith('[')
+                ? hostHeader.slice(1, hostHeader.indexOf(']') > 0 ? hostHeader.indexOf(']') : undefined)
+                : hostHeader.split(':')[0];
+        }
+        rpID = req.hostname || hostOnly || 'localhost';
     }
 
     const expectedOrigins = Array.from(new Set([
@@ -85,10 +93,14 @@ function getRpDetails(req: Request) {
         'http://localhost:3000',
         'http://127.0.0.1:5173',
         'http://127.0.0.1:3000',
+        'http://[::1]:5173',
+        'http://[::1]:3000',
     ].filter(Boolean)));
 
     return { rpName, rpID, origin, expectedOrigins };
 }
+
+export { getRpDetails };
 
 export async function createPasskeyRegistrationOptions(req: Request, user: any) {
     const { rpName, rpID } = getRpDetails(req);
