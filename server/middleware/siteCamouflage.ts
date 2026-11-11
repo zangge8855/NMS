@@ -1,20 +1,38 @@
 import type { Request, Response, NextFunction } from 'express';
-import { extname } from 'path';
-import { applyCamouflageResponseHeaders, createSiteCamouflageHtml } from '../lib/siteCamouflage.js';
-import { normalizeClientBasePath, shouldServeCamouflageRequest, shouldServeClientRequest } from '../lib/clientBuild.js';
+import { applyCamouflageResponseHeaders, renderCamouflageResponse } from '../lib/siteCamouflage.js';
+import { normalizeClientBasePath, shouldServeClientRequest } from '../lib/clientBuild.js';
 
-function resolveCamouflageHomePath(): string {
-    return '/';
+const HOST_PATTERN = /^(?:[a-z0-9-]+(?:\.[a-z0-9-]+)*|\[[0-9a-f:.]+\])(?::\d{1,5})?$/i;
+const DOMAIN_PATTERN = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$/i;
+
+function resolveHost(req: Request): string {
+    const host = String(req.headers?.host || '').trim().toLowerCase();
+    return HOST_PATTERN.test(host) ? host : '';
 }
 
-function resolveStatusCode(pathname: unknown = '/'): number {
-    return String(pathname || '/').trim() === '/' ? 200 : 404;
+function resolveOrigin(req: Request, host: string): string {
+    if (!host) return '';
+    const forwarded = String(req.headers?.['x-forwarded-proto'] || '').split(',')[0].trim().toLowerCase();
+    const protocol = forwarded === 'https' || forwarded === 'http'
+        ? forwarded
+        : (req.secure ? 'https' : (req.protocol || 'http'));
+    return `${protocol}://${host}`;
+}
+
+function resolveContactEmail(host: string): string {
+    const hostname = host.replace(/:\d+$/, '').replace(/^www\./, '');
+    return DOMAIN_PATTERN.test(hostname) ? `hello@${hostname}` : '';
 }
 
 export interface CamouflageNotFoundOptions {
     getSiteConfig?: () => any;
 }
 
+/**
+ * Serves the public camouflage site for every request outside the real access
+ * path: real pages for known routes, and a themed 404 page for anything else
+ * (including probes for files such as /.env or /wp-login.php).
+ */
 export function createCamouflageNotFoundMiddleware({
     getSiteConfig = () => ({}),
 }: CamouflageNotFoundOptions = {}) {
@@ -27,26 +45,23 @@ export function createCamouflageNotFoundMiddleware({
             return next();
         }
 
-        if (shouldServeCamouflageRequest(req)) {
-            const statusCode = resolveStatusCode(req.path);
-            applyCamouflageResponseHeaders(res);
-            return res
-                .status(statusCode)
-                .type('html')
-                .send(createSiteCamouflageHtml({
-                    siteConfig,
-                    requestPath: req.originalUrl || req.path,
-                    requestMethod: req.method,
-                    statusCode,
-                }));
-        }
-
         const method = String(req.method || 'GET').toUpperCase();
-        if (['GET', 'HEAD'].includes(method) && extname(String(req.path || ''))) {
-            applyCamouflageResponseHeaders(res);
-            return res.redirect(302, resolveCamouflageHomePath());
-        }
+        const host = resolveHost(req);
+        const result = renderCamouflageResponse({
+            siteConfig,
+            requestPath: ['GET', 'HEAD'].includes(method) ? req.path : '/__missing__',
+            requestMethod: method,
+            origin: resolveOrigin(req, host),
+            contactEmail: resolveContactEmail(host),
+        });
 
-        return next();
+        applyCamouflageResponseHeaders(res, result.cacheControl);
+        if (result.lastModified) {
+            res.setHeader('Last-Modified', result.lastModified);
+        }
+        return res
+            .status(result.status)
+            .type(result.contentType)
+            .send(result.body);
     };
 }

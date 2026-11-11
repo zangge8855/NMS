@@ -574,7 +574,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
         <>
             {!embedded && (
                 <Header
-                    title={isGlobal ? `${t('pages.logs.clusterPrefix')} ${sourceLabel}`.trim() : sourceLabel}
+                    title={isGlobal ? `${t('pages.logs.clusterPrefix')}${sourceLabel}`.trim() : sourceLabel}
                     icon={<HiOutlineDocumentText />}
                 />
             )}

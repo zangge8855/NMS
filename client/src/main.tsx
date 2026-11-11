@@ -20,7 +20,7 @@ import './styles/modules.css';
 import './styles/subscription-center.css';
 import './styles/theme.css';
 import './styles/polish.css';
-import { resolveSiteBasePath } from './utils/sitePath';
+import { buildSiteAssetPath, resolveSiteBasePath } from './utils/sitePath';
 
 // Gracefully handle dynamic import chunk failures after new deployments
 if (typeof window !== 'undefined') {
@@ -35,7 +35,8 @@ if (typeof window !== 'undefined') {
 
     if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/sw.js').catch(() => {});
+            const scope = buildSiteAssetPath('/').replace(/\/?$/, '/');
+            navigator.serviceWorker.register(buildSiteAssetPath('/sw.js'), { scope }).catch(() => {});
         });
     }
 }

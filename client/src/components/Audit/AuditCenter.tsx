@@ -131,6 +131,7 @@ const AUDIT_COPY = {
         },
         filters: {
             keyword: '关键词',
+            keywordPlaceholder: '事件、操作者、邮箱或 IP',
             eventType: '事件类型',
             actor: '操作者',
             fromDate: '开始日期',
@@ -341,6 +342,7 @@ const AUDIT_COPY = {
         },
         filters: {
             keyword: 'Keyword',
+            keywordPlaceholder: 'Event, actor, email or IP',
             eventType: 'Event Type',
             actor: 'Actor',
             fromDate: 'From Date',
@@ -2007,24 +2009,30 @@ export default function AuditCenter() {
                                 </div>
                                 <div className="audit-filter-stack">
                                     <div className="audit-filter-grid audit-filter-grid--events-primary">
-                                        <input
-                                            className="form-input"
-                                            aria-label={copy.filters.keyword}
-                                            placeholder={copy.filters.keyword}
-                                            value={eventFilters.q}
-                                            onChange={(e) => setEventFilters((prev) => ({ ...prev, q: e.target.value }))}
-                                        />
-                                        <select
-                                            className="form-select"
-                                            aria-label={copy.filters.allResults}
-                                            value={eventFilters.outcome}
-                                            onChange={(e) => setEventFilters((prev) => ({ ...prev, outcome: e.target.value }))}
-                                        >
-                                            <option value="">{copy.filters.allResults}</option>
-                                            <option value="success">{copy.filters.success}</option>
-                                            <option value="failed">{copy.filters.failed}</option>
-                                            <option value="info">{copy.filters.info}</option>
-                                        </select>
+                                        <label className="audit-filter-field">
+                                            <span className="audit-filter-field-label">{copy.filters.keyword}</span>
+                                            <input
+                                                className="form-input"
+                                                aria-label={copy.filters.keyword}
+                                                placeholder={copy.filters.keywordPlaceholder}
+                                                value={eventFilters.q}
+                                                onChange={(e) => setEventFilters((prev) => ({ ...prev, q: e.target.value }))}
+                                            />
+                                        </label>
+                                        <label className="audit-filter-field">
+                                            <span className="audit-filter-field-label">{copy.tables.result}</span>
+                                            <select
+                                                className="form-select"
+                                                aria-label={copy.filters.allResults}
+                                                value={eventFilters.outcome}
+                                                onChange={(e) => setEventFilters((prev) => ({ ...prev, outcome: e.target.value }))}
+                                            >
+                                                <option value="">{copy.filters.allResults}</option>
+                                                <option value="success">{copy.filters.success}</option>
+                                                <option value="failed">{copy.filters.failed}</option>
+                                                <option value="info">{copy.filters.info}</option>
+                                            </select>
+                                        </label>
                                         <label className="audit-filter-field">
                                             <span className="audit-filter-field-label">{copy.filters.fromDate}</span>
                                             <input

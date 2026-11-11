@@ -135,3 +135,16 @@
 @media (min-width: 1024px) {
   .lg\:grid-cols-3 { grid-template-columns:repeat(3,minmax(0,1fr)); }
 }
+
+/* Visually hidden, still announced by screen readers. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

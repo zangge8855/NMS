@@ -18,7 +18,10 @@ export const CLIENT_STATIC_OPTIONS = {
             res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
             res.setHeader('Pragma', 'no-cache');
             res.setHeader('Expires', '0');
-        } else if (filePath.includes('/assets/')) {
+        } else if (/[\\/](?:sw\.js|manifest\.json)$/.test(filePath)) {
+            // The service worker and manifest are not content-hashed; always revalidate them.
+            res.setHeader('Cache-Control', 'no-cache');
+        } else if (/[\\/]assets[\\/]/.test(filePath)) {
             res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
         }
     },
@@ -77,13 +80,16 @@ export function rewriteClientAssetPaths(html: string, basePath: unknown = '/'): 
     const assetRoot = normalizedBasePath === '/' ? '' : normalizedBasePath;
     const assetPath = `${assetRoot}/assets/`;
     const logoPath = `${assetRoot}/nms-logo.png`;
+    const manifestPath = `${assetRoot}/manifest.json`;
 
     return html
         .replace(/((?:src|href)=["'])\/assets\//g, `$1${assetPath}`)
         .replace(/((?:src|href)=["'])\.\/assets\//g, `$1${assetPath}`)
         .replace(/((?:src|href)=["'])assets\//g, `$1${assetPath}`)
         .replace(/((?:href)=["'])\.\/nms-logo\.png/g, `$1${logoPath}`)
-        .replace(/((?:href)=["'])nms-logo\.png/g, `$1${logoPath}`);
+        .replace(/((?:href)=["'])nms-logo\.png/g, `$1${logoPath}`)
+        .replace(/((?:href)=["'])(?:\.\/|\/)?manifest\.json/g, `$1${manifestPath}`)
+        .replace(/((?:href)=["'])\/nms-logo\.png/g, `$1${logoPath}`);
 }
 
 export function injectClientBasePath(html: string, basePath: unknown = '/'): string {

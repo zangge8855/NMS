@@ -1,8 +1,13 @@
-const CACHE_NAME = 'nms-shell-v2';
+const CACHE_NAME = 'nms-shell-v3';
+// The app can be served below a custom access path, so every cached URL is
+// resolved against this worker's registration scope instead of the origin root.
+const SCOPE_URL = new URL(self.registration.scope);
+const SCOPE_PATH = SCOPE_URL.pathname.endsWith('/') ? SCOPE_URL.pathname : `${SCOPE_URL.pathname}/`;
+const SHELL_URL = SCOPE_PATH;
 const STATIC_ASSETS = [
-    '/',
-    '/manifest.json',
-    '/nms-logo.png',
+    SHELL_URL,
+    `${SCOPE_PATH}manifest.json`,
+    `${SCOPE_PATH}nms-logo.png`,
 ];
 
 self.addEventListener('install', (event) => {
@@ -19,7 +24,7 @@ self.addEventListener('activate', (event) => {
         caches.keys().then((keys) => {
             return Promise.all(
                 keys.map((key) => {
-                    if (key !== CACHE_NAME) {
+                    if (key !== CACHE_NAME && key.startsWith('nms-shell-')) {
                         return caches.delete(key);
                     }
                 })
@@ -40,7 +45,7 @@ self.addEventListener('fetch', (event) => {
     if (event.request.mode === 'navigate') {
         event.respondWith(
             fetch(event.request).catch(() => {
-                return caches.match('/') || caches.match(event.request);
+                return caches.match(SHELL_URL).then((cached) => cached || caches.match(event.request));
             })
         );
         return;

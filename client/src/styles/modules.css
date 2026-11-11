@@ -39,7 +39,8 @@
 
 .section-header-copy {
   display: flex;
-  flex: 1 1 240px;
+  flex: 1 1 200px;
+  min-width: 0;
   flex-direction: column;
   gap: 4px;
 }
@@ -1817,9 +1818,23 @@
   min-width: 56px;
 }
 
+/* Fixed two-slot grid: the chevron always sits in the same column whether or
+   not this row also carries the node-group reorder arrows. */
 :root .inbounds-table .inbounds-expand-stack {
-  flex-direction: row;
-  gap: 2px;
+  display: grid;
+  grid-template-columns: 22px 20px;
+  align-items: center;
+  justify-content: center;
+  column-gap: 2px;
+}
+
+:root .inbounds-table .inbounds-expand-stack > .inbounds-expand-indicator {
+  grid-column: 1;
+  justify-self: center;
+}
+
+:root .inbounds-table .inbounds-expand-stack > .inbounds-node-order-actions {
+  grid-column: 2;
 }
 
 :root .inbounds-table .inbounds-sequence-actions.is-vertical {
@@ -2019,6 +2034,31 @@
 
   :root .inbounds-table .inbounds-node-badge {
     max-width: 128px;
+  }
+}
+
+/* Wide screens have room to keep typical node names on a single line. */
+@media (min-width: 1360px) {
+  :root .inbounds-table .inbounds-node-col {
+    width: 172px;
+    min-width: 172px;
+    max-width: 172px;
+  }
+
+  :root .inbounds-table .inbounds-node-badge {
+    max-width: 164px;
+    align-items: center;
+  }
+
+  :root .inbounds-table .inbounds-node-badge svg {
+    margin-top: 0;
+  }
+
+  :root .inbounds-table .inbounds-node-name {
+    display: block;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    -webkit-line-clamp: unset;
   }
 }
 

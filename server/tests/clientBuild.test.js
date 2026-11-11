@@ -265,11 +265,10 @@ describe('client build helpers', () => {
         assert.match(html, /City Field Notes/);
         assert.match(html, /中文/);
         assert.match(html, /English/);
-        assert.match(html, /城市周刊/);
         assert.match(html, /城市漫游志/);
         assert.match(html, /雨后街区的慢早餐/);
-        assert.match(html, /data:image\/svg\+xml;base64,/);
-        assert.match(html, /连续 12 期|12 issues/);
+        assert.match(html, /\/media\/slow-breakfast-after-rain\.svg/);
+        assert.match(html, /\/feed\.xml/);
         assert.match(html, /city_lang_pref/);
         assert.doesNotMatch(html, /访问说明|更新节奏|受限资源|公开范围|路径说明|维护节奏/);
         assert.doesNotMatch(html, /公开站点壳层|当前页面仅保留最小公开信息|PUBLIC SITE|ACCESS NOTICE|STATUS UPDATE/i);

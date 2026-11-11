@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { HiOutlineArrowPath, HiOutlineCheck, HiOutlineExclamationTriangle } from 'react-icons/hi2';
+import { HiOutlineArrowPath, HiOutlineCheck, HiOutlineCommandLine, HiOutlineExclamationTriangle } from 'react-icons/hi2';
 import Header from '../Layout/Header';
 import PageToolbar from '../UI/PageToolbar';
 import PageServerSelector from '../UI/PageServerSelector';
@@ -261,7 +261,7 @@ export default function XrayConsole() {
 
                 {!hasTargetServer ? (
                     <EmptyState
-                        icon={<HiOutlineExclamationTriangle />}
+                        icon={activeSuiServer || hasOnlySuiServers ? <HiOutlineExclamationTriangle /> : <HiOutlineCommandLine />}
                         title={activeSuiServer
                             ? copy.suiActiveTitle
                             : (hasDraftServer ? copy.confirmServerTitle : copy.selectServer)}

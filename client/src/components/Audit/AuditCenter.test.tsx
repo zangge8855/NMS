@@ -208,7 +208,7 @@ describe('AuditCenter localization', () => {
         renderWithRouter(<AuditCenter />, { route: '/audit' });
 
         expect(await screen.findByText('暂无审计记录')).toBeInTheDocument();
-        await user.type(screen.getByPlaceholderText('关键词'), 'login');
+        await user.type(screen.getByRole('textbox', { name: '关键词' }), 'login');
         await user.selectOptions(screen.getByRole('combobox', { name: '全部结果' }), 'failed');
         await user.type(screen.getByLabelText('开始日期'), '2026-03-01');
         await user.type(screen.getByLabelText('结束日期'), '2026-03-31');

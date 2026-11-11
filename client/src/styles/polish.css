@@ -709,6 +709,16 @@ body {
   color: var(--text-muted);
 }
 
+/* Mixed rows (labelled date pickers beside placeholder-only inputs) share one
+   control baseline instead of the unlabelled inputs floating to the top. */
+:root .audit-filter-grid {
+  align-items: end;
+}
+
+:root .audit-control-meta--compact {
+  margin-bottom: 4px;
+}
+
 /* --------------------------------------------------------------------------
    18. Server list telemetry cell
    -------------------------------------------------------------------------- */
@@ -1480,6 +1490,38 @@ body {
   gap: 14px;
 }
 
+/* A field that needs room for inline actions (password + show/copy/regenerate). */
+.page-field-grid > .page-field-wide {
+  grid-column: span 2;
+}
+
+@media (max-width: 640px) {
+  .page-field-grid > .page-field-wide {
+    grid-column: 1 / -1;
+  }
+}
+
+.password-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.password-field > .form-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+:root .password-field > .btn {
+  flex: 0 0 auto;
+  width: 36px !important;
+  min-width: 36px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 !important;
+  justify-content: center;
+}
+
 .btn-group {
   display: inline-flex;
   align-items: center;
@@ -1684,10 +1726,18 @@ body {
   border-color: var(--accent-info-border);
 }
 
+/* Four backup actions (export / save locally / send to Telegram / restore):
+   a 2x2 grid keeps them even instead of leaving "restore" orphaned. */
 .settings-backup-actions--triple {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+
+@media (min-width: 1680px) {
+  .settings-backup-actions--triple {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 640px) {
@@ -1807,3 +1857,290 @@ body {
 }
 
 
+
+/* --------------------------------------------------------------------------
+   Node gate: "confirm target node" prompts on Tools / Xray render as one
+   centred panel (icon badge, copy, then selector + action on one line)
+   rather than loose text floating in the canvas.
+   -------------------------------------------------------------------------- */
+:root .empty-state.empty-state--surface {
+  width: min(560px, 100%);
+  margin: 32px auto 0;
+  padding: 36px 32px 32px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+}
+
+:root .empty-state.empty-state--surface .empty-state-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 16px;
+  border-radius: 16px;
+  background: var(--accent-primary-soft);
+  color: var(--accent-primary);
+  opacity: 1;
+  font-size: 26px;
+}
+
+:root .empty-state.empty-state--surface .empty-state-icon svg {
+  width: 26px;
+  height: 26px;
+  font-size: 26px !important;
+}
+
+:root .empty-state.empty-state--surface .empty-state-title {
+  font-size: 17px;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+:root .empty-state.empty-state--surface .empty-state-sub {
+  max-width: 400px;
+  margin: 6px auto 0;
+  line-height: 1.6;
+}
+
+:root .empty-state.empty-state--surface .empty-state-action {
+  align-self: stretch;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-color);
+}
+
+:root .empty-state--surface .page-server-selection-action {
+  flex-direction: row;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+}
+
+:root .empty-state--surface .page-server-selector {
+  flex: 0 1 300px;
+  align-items: stretch;
+  gap: 6px;
+  min-width: 0;
+  text-align: left;
+}
+
+:root .empty-state--surface .page-server-selection-action > .btn {
+  flex: 0 0 auto;
+  min-height: var(--control-h, 38px);
+}
+
+@media (max-width: 520px) {
+  :root .empty-state.empty-state--surface {
+    margin-top: 16px;
+    padding: 28px 18px 22px;
+  }
+
+  :root .empty-state--surface .page-server-selection-action {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  :root .empty-state--surface .page-server-selector {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Login: theme + language toggles share one 38px control size and surface
+   (several legacy layers sized them 60px vs 30px).
+   -------------------------------------------------------------------------- */
+:root .login-top-actions {
+  gap: 8px;
+}
+
+:root .login-top-actions :is(.theme-toggle-btn, .language-toggle-btn),
+:root[data-theme] .login-top-actions :is(.theme-toggle-btn, .language-toggle-btn) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: color-mix(in srgb, var(--bg-card) 88%, transparent);
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+}
+
+:root .login-top-actions .theme-toggle-btn:not(.language-toggle-btn) {
+  width: 38px;
+  padding: 0;
+}
+
+:root .login-top-actions .theme-toggle-icon {
+  width: 17px;
+  height: 17px;
+}
+
+:root .login-top-actions :is(.theme-toggle-btn, .language-toggle-btn):hover {
+  color: var(--text-primary);
+  border-color: var(--accent-primary-border, var(--border-color-hover));
+  background: var(--bg-card);
+}
+
+/* Default empty-state glyph scales with its container (48px, 36px compact). */
+:root .empty-state-icon > .empty-state-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+:root .empty-state--compact .empty-state-title {
+  font-size: 13.5px;
+  font-weight: 550;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+/* Downloads: device-card labels read as quiet section captions (the mono 10px
+   face rendered CJK poorly), and the tool → profile mapping uses an arrow. */
+:root .subscription-device-block-label,
+:root .subscription-device-compact-label {
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+:root .subscription-device-rule {
+  gap: 8px;
+  min-height: 34px;
+  padding: 7px 12px;
+  border-radius: 8px;
+}
+
+:root .subscription-device-rule-tools {
+  min-width: 0;
+}
+
+:root .subscription-device-rule-arrow {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  color: var(--text-muted);
+  opacity: 0.8;
+}
+
+:root .subscription-device-rule-arrow svg {
+  width: 15px;
+  height: 15px;
+}
+
+:root .subscription-device-rule-profile {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* Subscriptions (user view): when the hero strip stacks on narrow screens,
+   left-align copy and status pills to one inset instead of centring the copy. */
+@media (max-width: 768px) {
+  :root .subscription-user-hero-strip {
+    align-items: stretch;
+    gap: 14px;
+  }
+
+  :root .subscription-user-hero-copy,
+  :root .subscription-user-status-pills {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+/* Mobile header: the collapsed search is a true square icon button — the
+   (transparent) input overlays it so a tap still focuses and expands it. */
+@media (max-width: 768px) {
+  :root .header-search:not(:focus-within):not([data-open="true"]) {
+    position: relative;
+    height: var(--control-h, 36px);
+    min-height: var(--control-h, 36px);
+    flex: 0 0 var(--control-h, 36px);
+  }
+
+  :root .header-search:not(:focus-within):not([data-open="true"]) .header-search-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  :root .header-search:not(:focus-within):not([data-open="true"]) .header-search-icon {
+    margin: 0;
+  }
+}
+
+/* Command search: section shown once, as a quiet trailing chip. */
+:root .header-search-item-kind {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-soft, var(--bg-secondary));
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+/* Dashboard: the traffic-window row uses the same vertical rhythm as the hero
+   KPI row above it (label · 6px · value · 6px · meta), so both rows match. */
+:root .dashboard-stat-card .dashboard-stat-card-head {
+  margin-bottom: 6px;
+}
+
+:root .dashboard-stat-card .dashboard-stat-card-body {
+  gap: 6px;
+}
+
+:root .dashboard-stat-card .dashboard-stat-card-subtitle {
+  margin-top: 0;
+  line-height: 18px;
+}
+
+:root .dashboard-hero-kpi .dashboard-hero-kpi-meta {
+  line-height: 18px;
+}
+
+@media (max-width: 520px) {
+  :root .dashboard-hero-kpi,
+  :root .dashboard-stat-card {
+    padding: 14px 12px;
+  }
+
+  :root .dashboard-hero-kpi .dashboard-hero-kpi-value,
+  :root .dashboard-stat-card .dashboard-stat-card-value {
+    font-size: 21px;
+    line-height: 1.25;
+    letter-spacing: -0.4px;
+    white-space: nowrap;
+  }
+
+  :root .dashboard-hero-kpi .dashboard-hero-kpi-meta,
+  :root .dashboard-stat-card .dashboard-stat-card-subtitle {
+    font-size: 11px;
+    line-height: 16px;
+  }
+}

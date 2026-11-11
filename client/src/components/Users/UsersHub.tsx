@@ -2608,9 +2608,9 @@ export default function UsersHub() {
                                         <option value="admin">{t('shell.roleAdmin')}</option>
                                     </select>
                                 </div>
-                                <div className="form-group">
+                                <div className="form-group page-field-wide">
                                     <label className="form-label">{t('pages.usersHub.createModal.initialPassword')}</label>
-                                    <div className="flex gap-2">
+                                    <div className="password-field">
                                         <input
                                             type={showCreatePassword ? 'text' : 'password'}
                                             className="form-input font-mono"
@@ -2650,8 +2650,8 @@ export default function UsersHub() {
                                     <p className="text-muted text-sm mt-1">{getPasswordPolicyHint(locale)}</p>
                                 </div>
                                 </div>
-                                <div className="form-group">
-                                    <label className="badge badge-info flex items-center gap-2 cursor-pointer">
+                                <div className="form-group mt-4">
+                                    <label className="form-check-label">
                                         <input
                                             type="checkbox"
                                             checked={createProvisionAfterCreate}

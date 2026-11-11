@@ -436,9 +436,11 @@ export default function Header({
                                 </span>
                                 <span className="header-search-item-copy">
                                     <span className="header-search-item-label">{item.label}</span>
-                                    <span className="header-search-item-meta">{item.description || item.section}</span>
+                                    {item.description && item.description !== item.section ? (
+                                        <span className="header-search-item-meta">{item.description}</span>
+                                    ) : null}
                                 </span>
-                                <span className="header-search-item-kind">{item.section}</span>
+                                {item.section ? <span className="header-search-item-kind">{item.section}</span> : null}
                             </button>
                         );
                     })

@@ -3,14 +3,10 @@ import { useI18n } from '../../contexts/LanguageContext';
 
 function EmptyIcon() {
     return (
-        <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="empty-state-svg">
-            <rect x="10" y="30" width="100" height="60" rx="8" stroke="currentColor" strokeWidth="1.5" opacity="0.15" />
-            <rect x="20" y="45" width="40" height="4" rx="2" fill="currentColor" opacity="0.1" />
-            <rect x="20" y="55" width="60" height="4" rx="2" fill="currentColor" opacity="0.08" />
-            <rect x="20" y="65" width="50" height="4" rx="2" fill="currentColor" opacity="0.06" />
-            <rect x="20" y="75" width="30" height="4" rx="2" fill="currentColor" opacity="0.04" />
-            <circle cx="90" cy="40" r="15" stroke="currentColor" strokeWidth="1.5" opacity="0.12" />
-            <path d="M85 40L88 43L95 36" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.12" />
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="empty-state-svg">
+            <path d="M8 27.5 12.6 13.4A3 3 0 0 1 15.45 11.4h17.1a3 3 0 0 1 2.85 2l4.6 14.1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.55" />
+            <path d="M8 27.5h9.2l2.4 4.2h8.8l2.4-4.2H40v7.6a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3v-7.6Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" opacity="0.8" />
+            <path d="M18 19.5h12M20 23.5h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.35" />
         </svg>
     );
 }
