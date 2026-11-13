@@ -2265,7 +2265,7 @@ export default function UsersHub() {
                                                 <td data-label={t('pages.usersHub.cols.online')} className="table-cell-center users-online-cell">
                                                     <div className="flex items-center justify-center gap-2 flex-wrap users-online-stack">
                                                         <span className={`badge ${user.onlineStatus.badge}`}>{user.onlineStatus.label}</span>
-                                                        {user.onlineStatus.detail ? <span className="text-xs text-muted font-mono">{user.onlineStatus.detail}</span> : null}
+                                                        {user.onlineStatus.detail ? <span className="text-xs text-muted font-mono whitespace-nowrap">{user.onlineStatus.detail}</span> : null}
                                                     </div>
                                                 </td>
                                                 <td data-label={t('pages.usersHub.cols.nodeCount')} className="table-cell-center users-node-count-cell">

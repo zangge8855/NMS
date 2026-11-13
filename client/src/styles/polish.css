@@ -201,6 +201,17 @@ body {
   box-shadow: var(--shadow-sm);
 }
 
+@media (min-width: 1101px) {
+  :root .header-search {
+    width: min(356px, 30vw);
+    min-width: 280px;
+  }
+
+  :root .header-search-input {
+    min-width: 0;
+  }
+}
+
 :root .header-primary-actions .btn {
   height: var(--control-h);
   padding: 0 12px;
@@ -358,11 +369,27 @@ body {
 }
 
 :root .login-shell {
+  width: min(100%, 496px);
+  max-width: 496px;
   min-height: 0;
   height: auto;
 }
 
+:root .login-shell:has(.login-form-grid),
+:root .login-shell--register,
+:root .login-shell--forgot {
+  width: min(100%, 690px);
+  max-width: 690px;
+}
+
+:root .login-card-column {
+  width: 100%;
+  max-width: 100%;
+}
+
 :root .login-card {
+  max-width: 100%;
+  padding: clamp(20px, 3vw, 28px);
   border-radius: 20px;
   border: 1px solid var(--border-color);
   box-shadow: 0 24px 64px -24px rgba(16, 24, 40, 0.25), 0 1px 2px rgba(16, 24, 40, 0.05);
@@ -436,15 +463,18 @@ body {
   }
 
   :root .header-title {
-    font-size: 18px;
-    white-space: nowrap;
+    font-size: 15.5px;
+    line-height: 1.18;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    white-space: normal;
     overflow: hidden;
-    text-overflow: ellipsis;
   }
 
   :root .header-actions {
     flex: 0 0 auto;
-    gap: 6px;
+    gap: 5px;
   }
 
   :root .header-search {
@@ -1319,6 +1349,9 @@ body {
   font-size: 11px;
   font-weight: 500;
   color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 :root .node-health-metric-bar {
@@ -1379,7 +1412,7 @@ body {
 :root :is(.batch-action-bar, .floating-bulk-dock) {
   backdrop-filter: saturate(160%) blur(16px);
   -webkit-backdrop-filter: saturate(160%) blur(16px);
-  background: color-mix(in srgb, var(--floating-panel-bg) 88%, transparent);
+  background: color-mix(in srgb, var(--floating-panel-bg) 96%, transparent);
   box-shadow: var(--shadow-lg), 0 0 0 1px var(--border-color);
 }
 
@@ -2142,5 +2175,179 @@ body {
   :root .dashboard-stat-card .dashboard-stat-card-subtitle {
     font-size: 11px;
     line-height: 16px;
+  }
+}
+
+/* Keep floating menus/popovers opaque so underlying metric text never bleeds through */
+:root :is(.notification-dropdown, .header-search-results, .actions-dropdown-menu, .dropdown-menu, .server-dropdown-menu) {
+  background: var(--floating-panel-bg) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Crisp borders on unchecked checkboxes and radios in dark & light themes */
+:root input[type="checkbox"]:not(:checked):not(.settings-toggle-input),
+:root input[type="radio"]:not(:checked) {
+  border-color: rgba(148, 163, 184, 0.45);
+  border-width: 1.5px;
+}
+
+[data-theme="light"] input[type="checkbox"]:not(:checked):not(.settings-toggle-input),
+[data-theme="light"] input[type="radio"]:not(:checked) {
+  border-color: rgba(15, 23, 42, 0.34);
+  background: #ffffff;
+}
+
+/* Balanced 2x2 grid in Add User Account & modal form grids */
+@media (min-width: 641px) {
+  :root .modal .page-field-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Fit all 11 Inbounds table columns (including Actions) cleanly on desktop without horizontal clipping */
+@media (min-width: 1101px) {
+  :root .inbounds-table {
+    width: 100%;
+    min-width: 0;
+  }
+
+  :root .inbounds-table th,
+  :root .inbounds-table td {
+    padding-inline: 8px;
+  }
+
+  :root .inbounds-table .cell-checkbox {
+    width: 38px;
+    min-width: 38px;
+    padding-inline: 6px;
+  }
+
+  :root .inbounds-table .inbounds-expand-col,
+  :root .inbounds-table .inbounds-expand-cell {
+    width: 40px;
+    min-width: 40px;
+    padding-inline: 4px;
+  }
+
+  :root .inbounds-table .inbounds-sequence-col.is-compact,
+  :root .inbounds-table .inbounds-sequence-cell.is-compact {
+    width: 52px;
+    min-width: 52px;
+  }
+
+  :root .inbounds-table .inbounds-node-col,
+  :root .inbounds-table .inbounds-node-cell {
+    width: 168px;
+    min-width: 152px;
+    max-width: 176px;
+  }
+
+  :root .inbounds-table .inbounds-protocol-col,
+  :root .inbounds-table .inbounds-protocol-cell {
+    width: 88px;
+    min-width: 82px;
+  }
+
+  :root .inbounds-table .inbounds-port-col,
+  :root .inbounds-table .inbounds-port-cell {
+    width: 90px;
+    min-width: 82px;
+  }
+
+  :root .inbounds-table .inbounds-users-col,
+  :root .inbounds-table .inbounds-users-cell {
+    width: 68px;
+    min-width: 60px;
+  }
+
+  :root .inbounds-table .inbounds-traffic-col,
+  :root .inbounds-table .inbounds-traffic-cell {
+    width: 100px;
+    min-width: 92px;
+  }
+
+  :root .inbounds-table .inbounds-status-col,
+  :root .inbounds-table .inbounds-status-cell-wrap {
+    width: 104px;
+    min-width: 98px;
+  }
+
+  :root .inbounds-table .inbounds-status-cell {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    width: auto;
+    min-width: 0;
+  }
+
+  :root .inbounds-table .inbounds-actions-col,
+  :root .inbounds-table .inbounds-actions-cell {
+    width: 92px;
+    min-width: 88px;
+  }
+
+  /* Fit all 9 Servers columns on 1440px desktop without sticky Actions overlapping Status */
+  :root .servers-table {
+    width: 100%;
+    min-width: 0;
+  }
+
+  :root .servers-table th,
+  :root .servers-table td {
+    padding-inline: 7px;
+  }
+
+  :root .servers-table .servers-select-column {
+    width: 38px;
+    min-width: 38px;
+    padding-inline: 4px;
+  }
+
+  :root .servers-table .servers-move-column {
+    width: 42px;
+    min-width: 42px;
+    padding-inline: 4px;
+  }
+
+  :root .servers-table .servers-order-column {
+    width: 32px;
+    min-width: 32px;
+    padding-inline: 4px;
+  }
+
+  :root .servers-table .servers-name-column {
+    min-width: 152px;
+  }
+
+  :root .servers-table .servers-telemetry-column {
+    min-width: 162px;
+  }
+
+  :root .servers-table .servers-group-column {
+    min-width: 112px;
+  }
+
+  :root .servers-table .servers-account-column {
+    min-width: 124px;
+  }
+
+  :root .servers-table .servers-status-column,
+  :root .servers-table .servers-status-stack {
+    min-width: 92px;
+  }
+
+  :root .servers-table .servers-actions-column,
+  :root .servers-table .servers-actions-cell {
+    min-width: 236px;
+  }
+
+  :root .servers-table .servers-row-actions {
+    gap: 5px;
+  }
+
+  :root .servers-table .servers-row-actions > .btn-sm {
+    padding-inline: 9px;
   }
 }

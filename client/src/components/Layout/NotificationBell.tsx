@@ -123,9 +123,15 @@ export default function NotificationBell() {
     const notificationGroups = React.useMemo(() => groupNotifications(notifications.slice(0, 60)).slice(0, 30), [notifications]);
 
     useEffect(() => {
+        const closePopoverHandler = () => setOpen(false);
+        window.addEventListener('nms:close-popovers', closePopoverHandler);
+        return () => window.removeEventListener('nms:close-popovers', closePopoverHandler);
+    }, []);
+
+    useEffect(() => {
         if (!open) return;
         void ensureExpandedNotifications();
-        const handler = (e: MouseEvent) => {
+        const handler = (e: Event) => {
             const clickedInsideTrigger = ref.current?.contains(e.target as Node);
             const clickedInsideDropdown = dropdownRef.current?.contains(e.target as Node);
             if (!clickedInsideTrigger && !clickedInsideDropdown) setOpen(false);
@@ -136,10 +142,12 @@ export default function NotificationBell() {
                 triggerRef.current?.focus();
             }
         };
+        document.addEventListener('pointerdown', handler);
         document.addEventListener('mousedown', handler);
         document.addEventListener('keydown', keyHandler);
         requestAnimationFrame(() => dropdownRef.current?.focus({ preventScroll: true }));
         return () => {
+            document.removeEventListener('pointerdown', handler);
             document.removeEventListener('mousedown', handler);
             document.removeEventListener('keydown', keyHandler);
         };
@@ -147,18 +155,19 @@ export default function NotificationBell() {
 
     const computeDropdownPosition = useCallback(({ anchorRect, panelRect, viewport }: ComputePositionParams) => {
         const viewportPadding = 12;
+        const bottomReserve = viewport.width <= 768 ? 84 : viewportPadding;
         const gap = 10;
         const width = Math.min(360, viewport.width - (viewportPadding * 2));
         const left = clamp(anchorRect.right - width, viewportPadding, viewport.width - width - viewportPadding);
-        const spaceBelow = viewport.height - anchorRect.bottom - viewportPadding - gap;
+        const spaceBelow = viewport.height - anchorRect.bottom - bottomReserve - gap;
         const spaceAbove = anchorRect.top - viewportPadding - gap;
         const measuredHeight = panelRect.height || 320;
         const openUpward = spaceBelow < Math.min(220, measuredHeight) && spaceAbove > spaceBelow;
-        const maxHeight = Math.max(180, openUpward ? spaceAbove : spaceBelow);
+        const maxHeight = Math.max(160, openUpward ? spaceAbove : spaceBelow);
         const renderedHeight = Math.min(measuredHeight, maxHeight);
         const top = openUpward
-            ? clamp(anchorRect.top - renderedHeight - gap, viewportPadding, viewport.height - renderedHeight - viewportPadding)
-            : clamp(anchorRect.bottom + gap, viewportPadding, viewport.height - renderedHeight - viewportPadding);
+            ? clamp(anchorRect.top - renderedHeight - gap, viewportPadding, viewport.height - renderedHeight - bottomReserve)
+            : clamp(anchorRect.bottom + gap, viewportPadding, viewport.height - renderedHeight - bottomReserve);
         const originX = clamp(anchorRect.right - left - (anchorRect.width / 2), 24, width - 24);
 
         return {

@@ -292,16 +292,30 @@ export default function Header({
     }, []);
 
     useEffect(() => {
+        const closePopoverHandler = () => setSearchOpen(false);
+        window.addEventListener('nms:close-popovers', closePopoverHandler);
+        return () => window.removeEventListener('nms:close-popovers', closePopoverHandler);
+    }, []);
+
+    useEffect(() => {
+        setSearchOpen(false);
+    }, [location.pathname]);
+
+    useEffect(() => {
         if (!searchOpen) return undefined;
-        const handleClickOutside = (event: MouseEvent) => {
+        const handleClickOutside = (event: Event) => {
             const clickedInsideSearch = searchRef.current?.contains(event.target as Node);
             const clickedInsideResults = searchResultsRef.current?.contains(event.target as Node);
             if (!clickedInsideSearch && !clickedInsideResults) {
                 setSearchOpen(false);
             }
         };
+        document.addEventListener('pointerdown', handleClickOutside);
         document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('pointerdown', handleClickOutside);
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
     }, [searchOpen]);
 
     useEffect(() => {
@@ -368,21 +382,22 @@ export default function Header({
 
     const computeSearchResultsPosition = useCallback(({ anchorRect, panelRect, viewport }: ComputePositionParams) => {
         const viewportPadding = 12;
+        const bottomReserve = viewport.width <= 768 ? 84 : viewportPadding;
         const gap = 10;
         const width = Math.min(
             Math.max(anchorRect.width + 48, 320),
             Math.min(420, viewport.width - (viewportPadding * 2))
         );
         const left = clamp(anchorRect.right - width, viewportPadding, viewport.width - width - viewportPadding);
-        const spaceBelow = viewport.height - anchorRect.bottom - viewportPadding - gap;
+        const spaceBelow = viewport.height - anchorRect.bottom - bottomReserve - gap;
         const spaceAbove = anchorRect.top - viewportPadding - gap;
         const measuredHeight = panelRect.height || 280;
         const openUpward = spaceBelow < Math.min(220, measuredHeight) && spaceAbove > spaceBelow;
         const maxHeight = Math.max(180, openUpward ? spaceAbove : spaceBelow);
         const renderedHeight = Math.min(measuredHeight, maxHeight);
         const top = openUpward
-            ? clamp(anchorRect.top - renderedHeight - gap, viewportPadding, viewport.height - renderedHeight - viewportPadding)
-            : clamp(anchorRect.bottom + gap, viewportPadding, viewport.height - renderedHeight - viewportPadding);
+            ? clamp(anchorRect.top - renderedHeight - gap, viewportPadding, viewport.height - renderedHeight - bottomReserve)
+            : clamp(anchorRect.bottom + gap, viewportPadding, viewport.height - renderedHeight - bottomReserve);
         const originX = clamp(anchorRect.right - left - 18, 24, width - 24);
 
         return {
@@ -497,7 +512,9 @@ export default function Header({
                             type="button"
                             className="theme-toggle-btn header-theme-toggle"
                             onClick={cycleTheme}
-                            title={locale === 'en-US' ? `Theme: ${mode} (click to switch)` : `外观：${mode === 'auto' ? '跟随系统' : mode === 'dark' ? '深色' : '浅色'}（点击切换）`}
+                            title={locale === 'en-US'
+                                ? `Theme: ${mode === 'auto' ? `Auto (${resolvedTheme === 'dark' ? 'Dark' : 'Light'})` : mode === 'dark' ? 'Dark' : 'Light'} (click to switch)`
+                                : `外观：${mode === 'auto' ? `跟随系统（当前${resolvedTheme === 'dark' ? '深色' : '浅色'}）` : mode === 'dark' ? '深色' : '浅色'}（点击切换）`}
                             aria-label={locale === 'en-US' ? 'Toggle theme' : '切换外观主题'}
                         >
                             {mode === 'auto' ? (

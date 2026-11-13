@@ -639,17 +639,20 @@
     padding: 18px;
   }
 
-  /* Profile pills scroll horizontally instead of stacking */
+  /* Profile pills wrap cleanly on mobile so options are never clipped mid-pill */
   :root .subscription-user-workbench .subscription-profile-switches {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    margin: 0 -18px;
-    padding: 0 18px 2px;
-    scrollbar-width: none;
+    flex-wrap: wrap;
+    overflow-x: visible;
+    margin: 0;
+    padding: 0;
+    gap: 6px;
   }
 
-  :root .subscription-user-workbench .subscription-profile-switches::-webkit-scrollbar {
-    display: none;
+  :root .subscription-user-workbench .subscription-profile-switches .btn {
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 0 12px !important;
+    font-size: 12.5px !important;
   }
 
   :root .subscription-user-workbench .subscription-user-address-card {

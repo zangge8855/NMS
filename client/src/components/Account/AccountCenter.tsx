@@ -114,7 +114,7 @@ function normalizeUsername(value: any): string {
 
 export default function AccountCenter() {
     const { user, patchUser } = useAuth();
-    const { locale } = useI18n();
+    const { locale, t } = useI18n();
     const copy = useMemo(() => getAccountCopy(locale), [locale]);
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
@@ -401,7 +401,7 @@ export default function AccountCenter() {
                                         className="input-trailing-action-btn"
                                         onClick={() => setShowOldPassword((prev) => !prev)}
                                         tabIndex={-1}
-                                        aria-label={showOldPassword ? 'Hide password' : 'Show password'}
+                                        aria-label={showOldPassword ? t('comp.common.hidePassword') : t('comp.common.showPassword')}
                                     >
                                         {showOldPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
                                     </button>
@@ -424,7 +424,7 @@ export default function AccountCenter() {
                                         className="input-trailing-action-btn"
                                         onClick={() => setShowNewPassword((prev) => !prev)}
                                         tabIndex={-1}
-                                        aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                                        aria-label={showNewPassword ? t('comp.common.hidePassword') : t('comp.common.showPassword')}
                                     >
                                         {showNewPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
                                     </button>
@@ -448,7 +448,7 @@ export default function AccountCenter() {
                                         className="input-trailing-action-btn"
                                         onClick={() => setShowConfirmPassword((prev) => !prev)}
                                         tabIndex={-1}
-                                        aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                                        aria-label={showConfirmPassword ? t('comp.common.hidePassword') : t('comp.common.showPassword')}
                                     >
                                         {showConfirmPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
                                     </button>

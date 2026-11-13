@@ -595,7 +595,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                             </select>
 
                             <select
-                                className={`${filterSelectClassName} w-100`}
+                                className={`${filterSelectClassName} w-120`}
                                 aria-label={locale === 'en-US' ? 'Line count' : '显示行数'}
                                 value={count}
                                 onChange={(e) => setCount(Number(e.target.value))}

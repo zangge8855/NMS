@@ -260,6 +260,12 @@ function ProtectedLayout() {
     }, [isMobile]);
 
     useEffect(() => {
+        if (sidebarOpen) {
+            window.dispatchEvent(new CustomEvent('nms:close-popovers'));
+        }
+    }, [sidebarOpen]);
+
+    useEffect(() => {
         const handleGlobalKeyDown = (e: KeyboardEvent) => {
             if (e.altKey && e.key.toLowerCase() === 's') {
                 e.preventDefault();

@@ -108,7 +108,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     const cycleTheme = useCallback(() => {
         setModeState((current) => {
-            const next: 'auto' | 'light' | 'dark' = current === 'dark' ? 'light' : current === 'light' ? 'auto' : 'dark';
+            const next: 'auto' | 'light' | 'dark' = current === 'auto'
+                ? (systemTheme === 'dark' ? 'light' : 'dark')
+                : current === 'light'
+                    ? (systemTheme === 'dark' ? 'dark' : 'auto')
+                    : (systemTheme === 'light' ? 'light' : 'auto');
             try {
                 if (next === 'auto') {
                     window.localStorage.removeItem(STORAGE_KEY);
@@ -118,7 +122,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
             } catch {}
             return next;
         });
-    }, []);
+    }, [systemTheme]);
 
     useEffect(() => () => {
         if (transitionTimeoutRef.current) {

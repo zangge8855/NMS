@@ -516,7 +516,9 @@ export default function Login() {
                     type="button"
                     className="theme-toggle-btn"
                     onClick={cycleTheme}
-                    title={locale === 'en-US' ? `Theme: ${themeMode} (click to switch)` : `外观：${themeMode === 'auto' ? '跟随系统' : themeMode === 'dark' ? '深色' : '浅色'}（点击切换）`}
+                    title={locale === 'en-US'
+                        ? `Theme: ${themeMode === 'auto' ? `Auto (${resolvedTheme === 'dark' ? 'Dark' : 'Light'})` : themeMode === 'dark' ? 'Dark' : 'Light'} (click to switch)`
+                        : `外观：${themeMode === 'auto' ? `跟随系统（当前${resolvedTheme === 'dark' ? '深色' : '浅色'}）` : themeMode === 'dark' ? '深色' : '浅色'}（点击切换）`}
                     aria-label={locale === 'en-US' ? 'Toggle theme' : '切换外观主题'}
                 >
                     {themeMode === 'auto' ? (
@@ -624,7 +626,7 @@ export default function Login() {
                                             className="input-trailing-action-btn"
                                             onClick={() => setShowPassword((prev) => !prev)}
                                             tabIndex={-1}
-                                            aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                            aria-label={showPassword ? t('comp.common.hidePassword') : t('comp.common.showPassword')}
                                         >
                                             {showPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
                                         </button>
@@ -728,7 +730,7 @@ export default function Login() {
                                                 className="input-trailing-action-btn"
                                                 onClick={() => setShowRegPassword((prev) => !prev)}
                                                 tabIndex={-1}
-                                                aria-label={showRegPassword ? 'Hide password' : 'Show password'}
+                                                aria-label={showRegPassword ? t('comp.common.hidePassword') : t('comp.common.showPassword')}
                                             >
                                                 {showRegPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
                                             </button>
@@ -753,7 +755,7 @@ export default function Login() {
                                                 className="input-trailing-action-btn"
                                                 onClick={() => setShowRegConfirm((prev) => !prev)}
                                                 tabIndex={-1}
-                                                aria-label={showRegConfirm ? 'Hide password' : 'Show password'}
+                                                aria-label={showRegConfirm ? t('comp.common.hidePassword') : t('comp.common.showPassword')}
                                             >
                                                 {showRegConfirm ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
                                             </button>
@@ -924,7 +926,7 @@ export default function Login() {
                                                 className="input-trailing-action-btn"
                                                 onClick={() => setShowResetPassword((prev) => !prev)}
                                                 tabIndex={-1}
-                                                aria-label={showResetPassword ? 'Hide password' : 'Show password'}
+                                                aria-label={showResetPassword ? t('comp.common.hidePassword') : t('comp.common.showPassword')}
                                             >
                                                 {showResetPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
                                             </button>
@@ -949,7 +951,7 @@ export default function Login() {
                                                 className="input-trailing-action-btn"
                                                 onClick={() => setShowResetConfirm((prev) => !prev)}
                                                 tabIndex={-1}
-                                                aria-label={showResetConfirm ? 'Hide password' : 'Show password'}
+                                                aria-label={showResetConfirm ? t('comp.common.hidePassword') : t('comp.common.showPassword')}
                                             >
                                                 {showResetConfirm ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
                                             </button>
