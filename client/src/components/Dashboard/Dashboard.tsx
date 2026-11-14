@@ -621,6 +621,18 @@ export default function Dashboard() {
     ));
     const liveGlobalDataAtRef = useRef(0);
     const globalFallbackInFlightRef = useRef(false);
+    const isMountedRef = useRef(true);
+    const singleRequestIdRef = useRef(0);
+    const globalRequestIdRef = useRef(0);
+
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+            singleRequestIdRef.current += 1;
+            globalRequestIdRef.current += 1;
+        };
+    }, []);
 
     // Shared State
     const [loading, setLoading] = useState(() => dashboardBootstrapRef.current?.hasRenderableData !== true);
@@ -864,11 +876,16 @@ export default function Dashboard() {
 
     // ── REST Fetchers (fallback / single server) ─────────
     const fetchSingleData = useCallback(async (options: any = {}) => {
-        if (!activeServerId || activeServerId === 'global') return;
+        if (!activeServerId || activeServerId === 'global') {
+            singleRequestIdRef.current += 1;
+            return;
+        }
+        const requestId = ++singleRequestIdRef.current;
         try {
             const res = await api.get(`/servers/${activeServerId}/dashboard/snapshot`, {
                 params: options.force === true ? { refresh: true } : undefined,
             });
+            if (!isMountedRef.current || requestId !== singleRequestIdRef.current) return;
             const payload = res.data?.obj || {};
             setStatus(payload?.status && typeof payload.status === 'object' ? payload.status : null);
             setCpuHistory(Array.isArray(payload?.cpuHistory) ? payload.cpuHistory : []);
@@ -882,12 +899,17 @@ export default function Dashboard() {
                 totalDown: Number(payload?.singleServerTrafficTotals?.totalDown || 0),
             });
         } catch (err) {
+            if (!isMountedRef.current || requestId !== singleRequestIdRef.current) return;
             console.error('Dashboard fetch error:', err);
+        } finally {
+            if (isMountedRef.current && requestId === singleRequestIdRef.current) {
+                setLoading(false);
+            }
         }
-        setLoading(false);
     }, [activeServerId]);
 
     const fetchGlobalData = useCallback(async (options: any = {}) => {
+        const requestId = ++globalRequestIdRef.current;
         if (servers.length === 0) {
             setGlobalOnlineUsers([]);
             setGlobalManagedOnlineCount(0);
@@ -905,16 +927,21 @@ export default function Dashboard() {
             const res = await api.get('/servers/dashboard/snapshot', {
                 params: options.force === true ? { refresh: true } : undefined,
             });
+            if (!isMountedRef.current || requestId !== globalRequestIdRef.current) return;
             applyGlobalDashboardSnapshot(res.data?.obj || {});
             markGlobalDataLive();
         } catch (err) {
+            if (!isMountedRef.current || requestId !== globalRequestIdRef.current) return;
             console.error('Global fetch error:', err);
             if (!options.preserveCurrent) {
                 setGlobalPresenceReady(false);
             }
+        } finally {
+            if (isMountedRef.current && requestId === globalRequestIdRef.current) {
+                setGlobalPresenceLoading(false);
+                setLoading(false);
+            }
         }
-        setGlobalPresenceLoading(false);
-        setLoading(false);
     }, [applyGlobalDashboardSnapshot, markGlobalDataLive, servers.length]);
 
     const hydrateGlobalPresence = useCallback(async (options: any = {}) => {
@@ -1003,6 +1030,14 @@ export default function Dashboard() {
 
     useEffect(() => {
         if (activeServerId === 'global') return;
+        globalRequestIdRef.current += 1;
+        setStatus(null);
+        setCpuHistory([]);
+        setInbounds([]);
+        setOnlineUsers([]);
+        setOnlineCount(0);
+        setOnlineSessionCount(0);
+        setSingleServerTrafficTotals({ totalUp: 0, totalDown: 0 });
         if (activeServerId) {
             setHasLiveClusterSnapshot(false);
             setLoading(true);
@@ -1058,14 +1093,12 @@ export default function Dashboard() {
     }, [activeServerId, fetchGlobalData, fetchSingleData, hydrateGlobalPresence, wsStatus]);
 
     const toggleAutoRefresh = () => {
-        setAutoRefresh((previous) => {
-            const next = !previous;
-            try { localStorage.setItem('nms_dashboard_autorefresh', String(next)); } catch { /* ignore */ }
-            if (next) {
-                refresh();
-            }
-            return next;
-        });
+        const next = !autoRefresh;
+        setAutoRefresh(next);
+        try { localStorage.setItem('nms_dashboard_autorefresh', String(next)); } catch { /* ignore */ }
+        if (next) {
+            void refresh();
+        }
     };
     const cpuChartEndTick = cpuHistory.length > 0 ? cpuHistory[cpuHistory.length - 1].time : 0;
 
@@ -1081,7 +1114,7 @@ export default function Dashboard() {
                     <EmptyState
                         title={t('pages.dashboardEmpty.bodyTitle')}
                         subtitle={t('pages.dashboardEmpty.bodySubtitle')}
-                        icon={<HiOutlineServerStack style={{ fontSize: '48px' }} />}
+                        icon={<HiOutlineServerStack className="empty-state-svg" />}
                         action={(
                             <button type="button" className="btn btn-primary" onClick={() => navigate('/servers')}>
                                 {t('pages.dashboardEmpty.action')}
@@ -1419,7 +1452,11 @@ export default function Dashboard() {
                             title={t('pages.dashboardNode.onlineDetailTitle')}
                             meta={<span className="text-sm text-muted">{t('pages.dashboardCommon.userSessionSummary', { users: onlineUsers.length, sessions: onlineSessionCount })}</span>}
                         />
-                        {onlineUsers.length === 0 ? (
+                        {loading && onlineUsers.length === 0 ? (
+                            <div className="p-6 flex items-center justify-center">
+                                <span className="spinner" />
+                            </div>
+                        ) : onlineUsers.length === 0 ? (
                             <EmptyState
                                 title={t('pages.dashboardCommon.onlineEmpty')}
                                 size="compact"
@@ -1475,7 +1512,11 @@ export default function Dashboard() {
                         title={t('pages.dashboardNode.inboundsTitle')}
                         meta={<span className="text-sm text-muted">{t('pages.dashboardNode.inboundsCount', { count: inbounds.length })}</span>}
                     />
-                    {inbounds.length === 0 ? (
+                    {loading && inbounds.length === 0 ? (
+                        <div className="p-6 flex items-center justify-center">
+                            <span className="spinner" />
+                        </div>
+                    ) : inbounds.length === 0 ? (
                         <div className="table-container border-none overflow-x-auto p-4">
                             <EmptyState
                                 title={t('pages.dashboardNode.inboundsEmpty')}

@@ -134,12 +134,14 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
                 <h3 className="text-lg font-medium text-primary">{locale === 'en-US' ? 'Routing Rules' : '路由规则'}</h3>
                 <div className="btn-group">
                     <button
+                        type="button"
                         className={`btn btn-sm ${mode === 'visual' ? 'btn-primary' : 'btn-secondary'}`}
                         onClick={handleSwitchToVisual}
                     >
                         <HiOutlineSquares2X2 className="mr-1" /> {locale === 'en-US' ? 'Visual' : '可视化'}
                     </button>
                     <button
+                        type="button"
                         className={`btn btn-sm ${mode === 'json' ? 'btn-primary' : 'btn-secondary'}`}
                         onClick={handleSwitchToJSON}
                     >
@@ -181,7 +183,7 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
                     <div className="rules-list mb-6">
                         <div className="flex items-center justify-between mb-3">
                             <label className="form-label mb-0">{locale === 'en-US' ? 'Rules' : '路由规则列表'}</label>
-                            <button className="btn btn-sm btn-secondary" onClick={addRule}>
+                            <button type="button" className="btn btn-sm btn-secondary" onClick={addRule}>
                                 <HiOutlinePlus className="mr-1" /> {locale === 'en-US' ? 'Add Rule' : '添加规则'}
                             </button>
                         </div>
@@ -207,13 +209,33 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
                                             </div>
                                             <div className="flex-none shrink-0">
                                                 <div className="flex items-center gap-1">
-                                                    <button className="btn btn-sm btn-icon btn-secondary" onClick={() => moveRule(index, -1)} disabled={index === 0} title={locale === 'en-US' ? 'Move Up' : '上移'}>
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-sm btn-icon btn-secondary"
+                                                        onClick={() => moveRule(index, -1)}
+                                                        disabled={index === 0}
+                                                        title={locale === 'en-US' ? 'Move Up' : '上移'}
+                                                        aria-label={locale === 'en-US' ? 'Move Up' : '上移'}
+                                                    >
                                                         <HiOutlineArrowUp />
                                                     </button>
-                                                    <button className="btn btn-sm btn-icon btn-secondary" onClick={() => moveRule(index, 1)} disabled={index === config.rules.length - 1} title={locale === 'en-US' ? 'Move Down' : '下移'}>
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-sm btn-icon btn-secondary"
+                                                        onClick={() => moveRule(index, 1)}
+                                                        disabled={index === config.rules.length - 1}
+                                                        title={locale === 'en-US' ? 'Move Down' : '下移'}
+                                                        aria-label={locale === 'en-US' ? 'Move Down' : '下移'}
+                                                    >
                                                         <HiOutlineArrowDown />
                                                     </button>
-                                                    <button className="btn btn-sm btn-icon btn-danger ml-2" onClick={() => removeRule(index)} title={locale === 'en-US' ? 'Remove' : '删除'}>
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-sm btn-icon btn-danger ml-2"
+                                                        onClick={() => removeRule(index)}
+                                                        title={locale === 'en-US' ? 'Remove' : '删除'}
+                                                        aria-label={locale === 'en-US' ? 'Remove' : '删除'}
+                                                    >
                                                         <HiOutlineTrash />
                                                     </button>
                                                 </div>
@@ -297,7 +319,7 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
                     </div>
 
                     <div className="flex justify-end pt-4 border-t border-[var(--border-color)]">
-                        <button className="btn btn-primary" onClick={handleVisualSave} disabled={saving}>
+                        <button type="button" className="btn btn-primary" onClick={handleVisualSave} disabled={saving}>
                             {saving ? (locale === 'en-US' ? 'Saving...' : '保存中...') : (locale === 'en-US' ? 'Save Changes' : '保存设置')}
                         </button>
                     </div>

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { HiOutlineArrowPath, HiOutlineCheck, HiOutlineCommandLine, HiOutlineExclamationTriangle } from 'react-icons/hi2';
 import Header from '../Layout/Header';
@@ -117,11 +117,27 @@ export default function XrayConsole() {
     const [template, setTemplate] = useState(null);
     const [source, setSource] = useState('');
 
+    const isMountedRef = useRef(true);
+    const configRequestIdRef = useRef(0);
+
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+            configRequestIdRef.current += 1;
+        };
+    }, []);
+
     const loadConfig = useCallback(async () => {
-        if (!hasTargetServer) return;
+        if (!hasTargetServer) {
+            configRequestIdRef.current += 1;
+            return;
+        }
+        const requestId = ++configRequestIdRef.current;
         setLoading(true);
         try {
             const res = await api.get(`/xray/${targetServerId}/config`);
+            if (!isMountedRef.current || requestId !== configRequestIdRef.current) return;
             const obj = res?.data?.obj;
             if (!obj || !obj.snapshot) {
                 throw new Error(copy.unsupported);
@@ -130,13 +146,16 @@ export default function XrayConsole() {
             setTemplate(obj.template || null);
             setSource(String(obj.source || ''));
         } catch (err) {
+            if (!isMountedRef.current || requestId !== configRequestIdRef.current) return;
             const message = getErrorMessage(err, copy.loadError, locale);
             toast.error(message);
             setSnapshot(null);
             setTemplate(null);
             setSource('');
         } finally {
-            setLoading(false);
+            if (isMountedRef.current && requestId === configRequestIdRef.current) {
+                setLoading(false);
+            }
         }
     }, [copy.loadError, copy.unsupported, hasTargetServer, locale, targetServerId]);
 
@@ -225,7 +244,7 @@ export default function XrayConsole() {
                         className="card mb-6 xray-toolbar"
                         compact
                         main={(
-                            <div className="xray-toolbar-meta">
+                            <div className="xray-toolbar-meta flex flex-wrap items-center gap-2">
                                 <span className="text-sm text-muted">{copy.subtitle}</span>
                                 {source ? (
                                     <span className="badge badge-neutral">

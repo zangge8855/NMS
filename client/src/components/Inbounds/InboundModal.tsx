@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { HiOutlineXMark, HiOutlineCheck, HiOutlineClipboard } from 'react-icons/hi2';
 import { useServer } from '../../contexts/ServerContext';
 import api from '../../api/client';
@@ -586,6 +586,170 @@ function normalizeStreamForSubmission(rawStream, protocolKey) {
     return normalized;
 }
 
+const DEFAULT_VLESS_TESTSEED = [900, 500, 900, 256];
+
+function parseOptionalNumberInput(raw: string): number | '' {
+    return raw === '' ? '' : Number(raw);
+}
+
+function fallbackNumericValue(value: unknown, fallback: number): number {
+    if (value === '' || value === null || value === undefined) return fallback;
+    const num = Number(value);
+    return Number.isFinite(num) ? num : fallback;
+}
+
+function parseStreamToSimpleState(streamInput: unknown) {
+    const stream = parseJsonObject(streamInput, createDefaultStream('tcp', 'none'));
+    const hasReality = isObject(stream.realitySettings);
+    const realityServerNames = stream.realitySettings?.serverNames;
+    const realitySNI = Array.isArray(realityServerNames)
+        ? realityServerNames.map((item: unknown) => String(item || '').trim()).filter(Boolean).join(',')
+        : String(realityServerNames || '').trim();
+    const realityShortIds = stream.realitySettings?.shortIds;
+    const realityShortId = Array.isArray(realityShortIds)
+        ? realityShortIds.map((item: unknown) => String(item || '').trim()).filter(Boolean).join(',')
+        : String(realityShortIds || '').trim();
+    const defaultRealitySni = DEFAULT_REALITY_TARGET.sni.split(',')[0] || 'www.apple.com';
+    return {
+        network: stream.network || 'tcp',
+        security: stream.security || 'none',
+        tcpHeaderType: stream.tcpSettings?.header?.type || 'none',
+        tcpAcceptProxyProtocol: !!stream.tcpSettings?.acceptProxyProtocol,
+        kcpMtu: fallbackNumericValue(stream.kcpSettings?.mtu, 1350) as number | string,
+        kcpTti: fallbackNumericValue(stream.kcpSettings?.tti, 20) as number | string,
+        kcpUplinkCapacity: fallbackNumericValue(stream.kcpSettings?.uplinkCapacity, 5) as number | string,
+        kcpDownlinkCapacity: fallbackNumericValue(stream.kcpSettings?.downlinkCapacity, 20) as number | string,
+        kcpCongestion: !!stream.kcpSettings?.congestion,
+        kcpReadBufferSize: fallbackNumericValue(stream.kcpSettings?.readBufferSize, 1) as number | string,
+        kcpWriteBufferSize: fallbackNumericValue(stream.kcpSettings?.writeBufferSize, 1) as number | string,
+        wsPath: stream.wsSettings?.path || '/',
+        wsHost: stream.wsSettings?.host || stream.wsSettings?.headers?.Host || '',
+        wsAcceptProxyProtocol: !!stream.wsSettings?.acceptProxyProtocol,
+        grpcServiceName: stream.grpcSettings?.serviceName || '',
+        grpcAuthority: stream.grpcSettings?.authority || '',
+        httpupgradePath: stream.httpupgradeSettings?.path || '/',
+        httpupgradeHost: stream.httpupgradeSettings?.host || '',
+        httpupgradeAcceptProxyProtocol: !!stream.httpupgradeSettings?.acceptProxyProtocol,
+        xhttpPath: stream.xhttpSettings?.path || '/',
+        xhttpHost: stream.xhttpSettings?.host || '',
+        xhttpMode: stream.xhttpSettings?.mode || 'auto',
+        tlsSni: stream.tlsSettings?.serverName || '',
+        tlsFingerprint: stream.tlsSettings?.settings?.fingerprint || 'chrome',
+        tlsAlpn: Array.isArray(stream.tlsSettings?.alpn) ? stream.tlsSettings.alpn.join(',') : (stream.tlsSettings?.alpn || 'h2,http/1.1'),
+        realityShow: stream.realitySettings?.show !== false,
+        realityXver: fallbackNumericValue(stream.realitySettings?.xver, 0) as number | string,
+        realityDest: hasReality
+            ? String(stream.realitySettings?.target || stream.realitySettings?.dest || '')
+            : DEFAULT_REALITY_TARGET.target,
+        realitySNI: hasReality ? realitySNI : defaultRealitySni,
+        realityShortId,
+        realityPrivateKey: stream.realitySettings?.privateKey || '',
+        realityMinClientVer: stream.realitySettings?.minClientVer || '',
+        realityMaxClientVer: stream.realitySettings?.maxClientVer || '',
+        realityMaxTimediff: fallbackNumericValue(stream.realitySettings?.maxTimediff, 0) as number | string,
+        realityPublicKey: stream.realitySettings?.settings?.publicKey || '',
+        realityFingerprint: stream.realitySettings?.settings?.fingerprint || 'chrome',
+        realitySpiderX: stream.realitySettings?.settings?.spiderX || '/',
+        realityMldsa65Seed: stream.realitySettings?.mldsa65Seed || '',
+        realityMldsa65Verify: stream.realitySettings?.settings?.mldsa65Verify || '',
+    };
+}
+
+function normalizeSettingsNumericFields(parsedSettings: Record<string, any>, protocolKey: string) {
+    if (!isObject(parsedSettings)) return parsedSettings;
+    const normProto = String(protocolKey || '').toLowerCase();
+    if (normProto === 'wireguard') {
+        parsedSettings.mtu = fallbackNumericValue(parsedSettings.mtu, 1420);
+        parsedSettings.jc = fallbackNumericValue(parsedSettings.jc, 4);
+        parsedSettings.jmin = fallbackNumericValue(parsedSettings.jmin, 40);
+        parsedSettings.jmax = fallbackNumericValue(parsedSettings.jmax, 70);
+        parsedSettings.s1 = fallbackNumericValue(parsedSettings.s1, 0);
+        parsedSettings.s2 = fallbackNumericValue(parsedSettings.s2, 0);
+        parsedSettings.h1 = fallbackNumericValue(parsedSettings.h1, 1);
+        parsedSettings.h2 = fallbackNumericValue(parsedSettings.h2, 2);
+        parsedSettings.h3 = fallbackNumericValue(parsedSettings.h3, 3);
+        parsedSettings.h4 = fallbackNumericValue(parsedSettings.h4, 4);
+        if (Array.isArray(parsedSettings.peers)) {
+            parsedSettings.peers = parsedSettings.peers.map((peer: any) => (
+                isObject(peer) ? { ...peer, keepAlive: fallbackNumericValue(peer.keepAlive, 0) } : peer
+            ));
+        }
+    }
+    if (normProto === 'hysteria' || normProto === 'hysteria2' || normProto === 'hy2') {
+        parsedSettings.up_mbps = fallbackNumericValue(parsedSettings.up_mbps, 0);
+        parsedSettings.down_mbps = fallbackNumericValue(parsedSettings.down_mbps, 0);
+    }
+    if (normProto === 'tunnel' || normProto === 'dokodemo-door') {
+        parsedSettings.port = fallbackNumericValue(parsedSettings.port, 0);
+        parsedSettings.timeout = fallbackNumericValue(parsedSettings.timeout, 0);
+        parsedSettings.userLevel = fallbackNumericValue(parsedSettings.userLevel, 0);
+    }
+    if (normProto === 'vless') {
+        if (Array.isArray(parsedSettings.fallbacks)) {
+            parsedSettings.fallbacks = parsedSettings.fallbacks.map((fb: any) => (
+                isObject(fb) ? { ...fb, xver: fallbackNumericValue(fb.xver, 0) } : fb
+            ));
+        }
+        if (Array.isArray(parsedSettings.testseed)) {
+            parsedSettings.testseed = parsedSettings.testseed.slice(0, 4).map((item: any, idx: number) => (
+                fallbackNumericValue(item, DEFAULT_VLESS_TESTSEED[idx] ?? 0)
+            ));
+        }
+    }
+    return parsedSettings;
+}
+
+function normalizeStreamNumericFields(parsedStream: Record<string, any>) {
+    if (!isObject(parsedStream)) return parsedStream;
+    if (isObject(parsedStream.kcpSettings)) {
+        parsedStream.kcpSettings.mtu = fallbackNumericValue(parsedStream.kcpSettings.mtu, 1350);
+        parsedStream.kcpSettings.tti = fallbackNumericValue(parsedStream.kcpSettings.tti, 20);
+        parsedStream.kcpSettings.uplinkCapacity = fallbackNumericValue(parsedStream.kcpSettings.uplinkCapacity, 5);
+        parsedStream.kcpSettings.downlinkCapacity = fallbackNumericValue(parsedStream.kcpSettings.downlinkCapacity, 20);
+        parsedStream.kcpSettings.readBufferSize = fallbackNumericValue(parsedStream.kcpSettings.readBufferSize, 1);
+        parsedStream.kcpSettings.writeBufferSize = fallbackNumericValue(parsedStream.kcpSettings.writeBufferSize, 1);
+    }
+    if (isObject(parsedStream.wsSettings)) {
+        parsedStream.wsSettings.heartbeatPeriod = fallbackNumericValue(parsedStream.wsSettings.heartbeatPeriod, 0);
+    }
+    if (isObject(parsedStream.xhttpSettings)) {
+        parsedStream.xhttpSettings.scMaxBufferedPosts = fallbackNumericValue(parsedStream.xhttpSettings.scMaxBufferedPosts, 30);
+        parsedStream.xhttpSettings.uplinkChunkSize = fallbackNumericValue(parsedStream.xhttpSettings.uplinkChunkSize, 0);
+    }
+    if (isObject(parsedStream.realitySettings)) {
+        parsedStream.realitySettings.xver = fallbackNumericValue(parsedStream.realitySettings.xver, 0);
+        parsedStream.realitySettings.maxTimediff = fallbackNumericValue(parsedStream.realitySettings.maxTimediff, 0);
+    }
+    if (Array.isArray(parsedStream.externalProxy)) {
+        parsedStream.externalProxy = parsedStream.externalProxy.map((row: any) => (
+            isObject(row) ? { ...row, port: fallbackNumericValue(row.port, 443) } : row
+        ));
+    }
+    if (isObject(parsedStream.sockopt)) {
+        parsedStream.sockopt.mark = fallbackNumericValue(parsedStream.sockopt.mark, 0);
+        parsedStream.sockopt.tcpKeepAliveInterval = fallbackNumericValue(parsedStream.sockopt.tcpKeepAliveInterval, 0);
+        parsedStream.sockopt.tcpKeepAliveIdle = fallbackNumericValue(parsedStream.sockopt.tcpKeepAliveIdle, 0);
+        parsedStream.sockopt.tcpMaxSeg = fallbackNumericValue(parsedStream.sockopt.tcpMaxSeg, 0);
+        parsedStream.sockopt.tcpUserTimeout = fallbackNumericValue(parsedStream.sockopt.tcpUserTimeout, 0);
+        parsedStream.sockopt.tcpWindowClamp = fallbackNumericValue(parsedStream.sockopt.tcpWindowClamp, 0);
+    }
+    if (isObject(parsedStream.finalmask) && Array.isArray(parsedStream.finalmask.udp)) {
+        parsedStream.finalmask.udp = parsedStream.finalmask.udp.map((mask: any) => {
+            if (isObject(mask) && isObject(mask.settings) && Object.prototype.hasOwnProperty.call(mask.settings, 'id')) {
+                return {
+                    ...mask,
+                    settings: {
+                        ...mask.settings,
+                        id: mask.settings.id === '' ? 0 : fallbackNumericValue(mask.settings.id, 0),
+                    },
+                };
+            }
+            return mask;
+        });
+    }
+    return parsedStream;
+}
+
 export function validateInboundPayload(protocol, port, stream, protocolSchema = null, translate = null) {
     const t = typeof translate === 'function'
         ? translate
@@ -702,6 +866,11 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
         fakeTlsDomain: 'FakeTLS Domain (fakeTlsDomain)', mtprotoSecret: 'MTProto Secret (secret)',
         generateSecret: 'Generate FakeTLS Secret', mtprotoPreview: 'Telegram Proxy Connect Link',
         noKernelTun: 'Disable Kernel TUN (noKernelTun)', addPeer: '+ Add Peer', delete: 'Delete',
+        add: 'Add', enable: 'Enable', followRedirect: 'Follow Redirect (followRedirect)',
+        routeOnly: 'Route Only', metadataOnly: 'Metadata Only', oneTimeLoading: 'One-Time Loading',
+        buildChain: 'Build Chain', enableSockopt: 'Enable Sockopt',
+        realityPrivateKeyHint: 'REALITY server private key; leave blank to auto-generate per target node on save',
+        realityPublicKeyHint: 'pbk parameter required for subscription links (enter manually or click "Generate keys")',
         addMask: '+ Add Mask', genMlkemCert: 'Generate ML-KEM-768',
         copyLink: 'Copy link', linkCopied: 'Link copied',
     } : {
@@ -723,6 +892,11 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
         fakeTlsDomain: 'FakeTLS 伪装域名 (fakeTlsDomain)', mtprotoSecret: 'MTProto 密钥 (secret)',
         generateSecret: '生成随机 FakeTLS 密钥', mtprotoPreview: 'Telegram 代理连接链接',
         noKernelTun: '不使用内核 TUN (noKernelTun)', addPeer: '+ 添加对端', delete: '删除',
+        add: '新增', enable: '开启', followRedirect: '透明代理跟随重定向 (followRedirect)',
+        routeOnly: '仅路由 (Route Only)', metadataOnly: '仅元数据 (Metadata Only)', oneTimeLoading: '一次性加载',
+        buildChain: '构建证书链', enableSockopt: '启用 Sockopt',
+        realityPrivateKeyHint: 'REALITY 服务端私钥；留空时保存会自动为每个目标节点生成密钥对',
+        realityPublicKeyHint: '订阅链接所需 pbk 参数（可手动填入，或点击“生成密钥”自动填充）',
         addMask: '+ 新增 Mask', genMlkemCert: '生成 ML-KEM-768',
         copyLink: '复制链接', linkCopied: '链接已复制',
     }, [locale]);
@@ -753,7 +927,47 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
     const [sniffing, setSniffing] = useState(JSON.stringify({ enabled: false, destOverride: ['http', 'tls', 'quic', 'fakedns'], metadataOnly: false, routeOnly: false }, null, 2));
 
     // Simple Mode State
-    const [simpleStream, setSimpleStream] = useState({
+    const [simpleStream, setSimpleStream] = useState<{
+        network: string;
+        security: string;
+        tcpHeaderType: string;
+        tcpAcceptProxyProtocol: boolean;
+        kcpMtu: number | string;
+        kcpTti: number | string;
+        kcpUplinkCapacity: number | string;
+        kcpDownlinkCapacity: number | string;
+        kcpCongestion: boolean;
+        kcpReadBufferSize: number | string;
+        kcpWriteBufferSize: number | string;
+        wsPath: string;
+        wsHost: string;
+        wsAcceptProxyProtocol: boolean;
+        grpcServiceName: string;
+        grpcAuthority: string;
+        httpupgradePath: string;
+        httpupgradeHost: string;
+        httpupgradeAcceptProxyProtocol: boolean;
+        xhttpPath: string;
+        xhttpHost: string;
+        xhttpMode: string;
+        tlsSni: string;
+        tlsFingerprint: string;
+        tlsAlpn: string;
+        realityShow: boolean;
+        realityXver: number | string;
+        realityDest: string;
+        realitySNI: string;
+        realityShortId: string;
+        realityPrivateKey: string;
+        realityMinClientVer: string;
+        realityMaxClientVer: string;
+        realityMaxTimediff: number | string;
+        realityPublicKey: string;
+        realityFingerprint: string;
+        realitySpiderX: string;
+        realityMldsa65Seed: string;
+        realityMldsa65Verify: string;
+    }>({
         network: 'tcp',
         security: 'none',
         tcpHeaderType: 'none',
@@ -794,6 +1008,18 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
         realityMldsa65Seed: '',
         realityMldsa65Verify: '',
     });
+
+    const latestServersRef = useRef(servers);
+    latestServersRef.current = servers;
+    const latestSchemasRef = useRef(schemaProtocols);
+    latestSchemasRef.current = schemaProtocols;
+    const latestEditingInboundRef = useRef(editingInbound);
+    latestEditingInboundRef.current = editingInbound;
+    const streamSettingsRef = useRef(streamSettings);
+    streamSettingsRef.current = streamSettings;
+    const initSessionKeyRef = useRef<string | null>(null);
+    const hasUserTouchedServersRef = useRef(false);
+    const skipSyncForSimpleObjRef = useRef<any>(null);
 
     const protocolDefaultSettings = useMemo(
         () => createDefaultSettings(protocol),
@@ -923,24 +1149,40 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
 
     const vlessTestseed = useMemo(() => {
         if (Array.isArray(settingsObj?.testseed) && settingsObj.testseed.length >= 4) {
-            return settingsObj.testseed.slice(0, 4).map((item) => Number(item || 0));
+            return settingsObj.testseed.slice(0, 4).map((item) => (item === '' ? '' : Number(item ?? 0)));
         }
-        return [900, 500, 900, 256];
+        return DEFAULT_VLESS_TESTSEED;
     }, [settingsObj]);
 
-    // Initialize form
+    const editingSessionKey = editingInbound
+        ? `edit:${String(editingInbound.serverId || '')}:${String(editingInbound.id ?? '')}`
+        : 'new';
+
+    // Initialize form only when modal opens or the target inbound identity changes
     useEffect(() => {
-        if (editingInbound) {
-            setRemark(editingInbound.remark || '');
-            const resolvedProto = normalizeProtocolName(editingInbound.protocol, protocolSchemas) || defaultProtocol;
+        if (!isOpen) {
+            initSessionKeyRef.current = null;
+            return;
+        }
+        if (initSessionKeyRef.current === editingSessionKey) {
+            return;
+        }
+        initSessionKeyRef.current = editingSessionKey;
+        hasUserTouchedServersRef.current = false;
+        setIsAdvanced(false);
+
+        const targetInbound = latestEditingInboundRef.current;
+        if (targetInbound) {
+            setRemark(targetInbound.remark || '');
+            const resolvedProto = normalizeProtocolName(targetInbound.protocol, latestSchemasRef.current) || defaultProtocol;
             setProtocol(resolvedProto);
-            setPort(editingInbound.port);
-            setListen(editingInbound.listen || '');
-            setInboundEnabled(editingInbound.enable !== false);
-            setTrafficReset(String(editingInbound.trafficReset || 'never'));
-            setTotalGB(editingInbound.total ? editingInbound.total / (1024 * 1024 * 1024) : 0);
+            setPort(targetInbound.port);
+            setListen(targetInbound.listen || '');
+            setInboundEnabled(targetInbound.enable !== false);
+            setTrafficReset(String(targetInbound.trafficReset || 'never'));
+            setTotalGB(targetInbound.total ? targetInbound.total / (1024 * 1024 * 1024) : 0);
             {
-                const rawExpiry = Number(editingInbound.expiryTime || 0);
+                const rawExpiry = Number(targetInbound.expiryTime || 0);
                 setExpiryTime(rawExpiry);
                 if (rawExpiry > 0) {
                     setExpiryMode('datetime');
@@ -952,15 +1194,15 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                 setExpiryAfterDays('');
             }
             const initialSettings = ensureJsonString(
-                editingInbound.settings,
+                targetInbound.settings,
                 createDefaultSettings(resolvedProto)
             );
             const initialStream = ensureJsonString(
-                editingInbound.streamSettings,
+                targetInbound.streamSettings,
                 createDefaultStream('tcp', 'none')
             );
             const initialSniffing = ensureJsonString(
-                editingInbound.sniffing,
+                targetInbound.sniffing,
                 { enabled: false, destOverride: ['http', 'tls', 'quic', 'fakedns'], metadataOnly: false, routeOnly: false }
             );
 
@@ -969,58 +1211,10 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
             setSniffing(initialSniffing);
             setSyncExistingSubscriptions(false);
 
-            // Try to parse simplified state
             try {
-                const stream = parseJsonObject(initialStream, createDefaultStream('tcp', 'none'));
-                const realityServerNames = stream.realitySettings?.serverNames;
-                const realitySNI = typeof realityServerNames === 'string'
-                    ? realityServerNames.split(',')[0]
-                    : (realityServerNames?.[0] || '');
-                const realityShortIds = stream.realitySettings?.shortIds;
-                const realityShortId = typeof realityShortIds === 'string'
-                    ? realityShortIds.split(',')[0]
-                    : (realityShortIds?.[0] || '');
-                setSimpleStream({
-                    network: stream.network || 'tcp',
-                    security: stream.security || 'none',
-                    tcpHeaderType: stream.tcpSettings?.header?.type || 'none',
-                    tcpAcceptProxyProtocol: !!stream.tcpSettings?.acceptProxyProtocol,
-                    kcpMtu: Number(stream.kcpSettings?.mtu || 1350),
-                    kcpTti: Number(stream.kcpSettings?.tti || 20),
-                    kcpUplinkCapacity: Number(stream.kcpSettings?.uplinkCapacity || 5),
-                    kcpDownlinkCapacity: Number(stream.kcpSettings?.downlinkCapacity || 20),
-                    kcpCongestion: !!stream.kcpSettings?.congestion,
-                    kcpReadBufferSize: Number(stream.kcpSettings?.readBufferSize || 1),
-                    kcpWriteBufferSize: Number(stream.kcpSettings?.writeBufferSize || 1),
-                    wsPath: stream.wsSettings?.path || '/',
-                    wsHost: stream.wsSettings?.host || stream.wsSettings?.headers?.Host || '',
-                    wsAcceptProxyProtocol: !!stream.wsSettings?.acceptProxyProtocol,
-                    grpcServiceName: stream.grpcSettings?.serviceName || '',
-                    grpcAuthority: stream.grpcSettings?.authority || '',
-                    httpupgradePath: stream.httpupgradeSettings?.path || '/',
-                    httpupgradeHost: stream.httpupgradeSettings?.host || '',
-                    httpupgradeAcceptProxyProtocol: !!stream.httpupgradeSettings?.acceptProxyProtocol,
-                    xhttpPath: stream.xhttpSettings?.path || '/',
-                    xhttpHost: stream.xhttpSettings?.host || '',
-                    xhttpMode: stream.xhttpSettings?.mode || 'auto',
-                    tlsSni: stream.tlsSettings?.serverName || '',
-                    tlsFingerprint: stream.tlsSettings?.settings?.fingerprint || 'chrome',
-                    tlsAlpn: Array.isArray(stream.tlsSettings?.alpn) ? stream.tlsSettings.alpn.join(',') : (stream.tlsSettings?.alpn || 'h2,http/1.1'),
-                    realityShow: stream.realitySettings?.show !== false,
-                    realityXver: Number(stream.realitySettings?.xver || 0),
-                    realityDest: stream.realitySettings?.target || stream.realitySettings?.dest || '',
-                    realitySNI: realitySNI,
-                    realityShortId: realityShortId,
-                    realityPrivateKey: stream.realitySettings?.privateKey || '',
-                    realityMinClientVer: stream.realitySettings?.minClientVer || '',
-                    realityMaxClientVer: stream.realitySettings?.maxClientVer || '',
-                    realityMaxTimediff: Number(stream.realitySettings?.maxTimediff || 0),
-                    realityPublicKey: stream.realitySettings?.settings?.publicKey || '',
-                    realityFingerprint: stream.realitySettings?.settings?.fingerprint || 'chrome',
-                    realitySpiderX: stream.realitySettings?.settings?.spiderX || '/',
-                    realityMldsa65Seed: stream.realitySettings?.mldsa65Seed || '',
-                    realityMldsa65Verify: stream.realitySettings?.settings?.mldsa65Verify || '',
-                });
+                const parsedSimple = parseStreamToSimpleState(initialStream);
+                skipSyncForSimpleObjRef.current = parsedSimple;
+                setSimpleStream(parsedSimple);
             } catch { }
         } else {
             // Reset
@@ -1039,18 +1233,18 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
             setStreamSettings(JSON.stringify(createDefaultStream('tcp', 'none'), null, 2));
             setSniffing(JSON.stringify({ enabled: false, destOverride: ['http', 'tls', 'quic', 'fakedns'], metadataOnly: false, routeOnly: false }, null, 2));
             setSyncExistingSubscriptions(false);
-            setSimpleStream({
+            const defaultSimple = {
                 network: 'tcp',
                 security: 'none',
                 tcpHeaderType: 'none',
                 tcpAcceptProxyProtocol: false,
-                kcpMtu: 1350,
-                kcpTti: 20,
-                kcpUplinkCapacity: 5,
-                kcpDownlinkCapacity: 20,
+                kcpMtu: 1350 as number | string,
+                kcpTti: 20 as number | string,
+                kcpUplinkCapacity: 5 as number | string,
+                kcpDownlinkCapacity: 20 as number | string,
                 kcpCongestion: false,
-                kcpReadBufferSize: 1,
-                kcpWriteBufferSize: 1,
+                kcpReadBufferSize: 1 as number | string,
+                kcpWriteBufferSize: 1 as number | string,
                 wsPath: '/',
                 wsHost: '',
                 wsAcceptProxyProtocol: false,
@@ -1066,23 +1260,33 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                 tlsFingerprint: 'chrome',
                 tlsAlpn: 'h2,http/1.1',
                 realityShow: true,
-                realityXver: 0,
+                realityXver: 0 as number | string,
                 realityDest: DEFAULT_REALITY_TARGET.target,
                 realitySNI: DEFAULT_REALITY_TARGET.sni.split(',')[0] || 'www.apple.com',
                 realityShortId: '',
                 realityPrivateKey: '',
                 realityMinClientVer: '',
                 realityMaxClientVer: '',
-                realityMaxTimediff: 0,
+                realityMaxTimediff: 0 as number | string,
                 realityPublicKey: '',
                 realityFingerprint: 'chrome',
                 realitySpiderX: '/',
                 realityMldsa65Seed: '',
                 realityMldsa65Verify: '',
-            });
-            if (servers.length > 0) setSelectedServerIds(servers.map(s => s.id));
+            };
+            skipSyncForSimpleObjRef.current = defaultSimple;
+            setSimpleStream(defaultSimple);
+            const currentServers = latestServersRef.current;
+            setSelectedServerIds(currentServers.length > 0 ? currentServers.map(s => s.id) : []);
         }
-    }, [defaultProtocol, editingInbound, isOpen, servers]);
+    }, [defaultProtocol, editingSessionKey, isOpen]);
+
+    useEffect(() => {
+        if (!isOpen || editingInbound || hasUserTouchedServersRef.current) return;
+        if (servers.length > 0 && selectedServerIds.length === 0) {
+            setSelectedServerIds(servers.map((s) => s.id));
+        }
+    }, [editingInbound, isOpen, selectedServerIds.length, servers]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -1122,13 +1326,6 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
         return () => { cancelled = true; };
     }, [isOpen]);
 
-    // Protocol Change -> Reset Settings
-    useEffect(() => {
-        if (!editingInbound && isOpen) {
-            setSettings(JSON.stringify(createDefaultSettings(protocol), null, 2));
-        }
-    }, [protocol, editingInbound, isOpen]);
-
     useEffect(() => {
         if (!isOpen) return;
         setSimpleStream((prev) => {
@@ -1150,93 +1347,133 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
         });
     }, [isOpen, networkOptions, securityOptions]);
 
-    // Simple Mode -> Update JSON
+    // Simple Mode -> Update JSON (skips when hydrating from Expert JSON or modal init)
     useEffect(() => {
-        if (!isAdvanced && isOpen) {
-            const stream = parseJsonObject(streamSettings, createDefaultStream(simpleStream.network, simpleStream.security));
-
-            stream.network = simpleStream.network;
-            stream.security = simpleStream.security;
-
-            if (simpleStream.network === 'tcp') {
-                stream.tcpSettings = stream.tcpSettings || {};
-                stream.tcpSettings.header = stream.tcpSettings.header || {};
-                stream.tcpSettings.header.type = simpleStream.tcpHeaderType || 'none';
-                stream.tcpSettings.acceptProxyProtocol = !!simpleStream.tcpAcceptProxyProtocol;
-            } else if (simpleStream.network === 'kcp') {
-                stream.kcpSettings = stream.kcpSettings || {};
-                stream.kcpSettings.mtu = Number(simpleStream.kcpMtu || 1350);
-                stream.kcpSettings.tti = Number(simpleStream.kcpTti || 20);
-                stream.kcpSettings.uplinkCapacity = Number(simpleStream.kcpUplinkCapacity || 5);
-                stream.kcpSettings.downlinkCapacity = Number(simpleStream.kcpDownlinkCapacity || 20);
-                stream.kcpSettings.congestion = !!simpleStream.kcpCongestion;
-                stream.kcpSettings.readBufferSize = Number(simpleStream.kcpReadBufferSize || 1);
-                stream.kcpSettings.writeBufferSize = Number(simpleStream.kcpWriteBufferSize || 1);
-            } else if (simpleStream.network === 'ws') {
-                stream.wsSettings = stream.wsSettings || {};
-                stream.wsSettings.path = simpleStream.wsPath;
-                stream.wsSettings.host = simpleStream.wsHost || '';
-                stream.wsSettings.acceptProxyProtocol = !!simpleStream.wsAcceptProxyProtocol;
-                const existingHeaders = normalizeHeadersObject(stream.wsSettings.headers);
-                if (simpleStream.wsHost) {
-                    stream.wsSettings.headers = { ...existingHeaders, Host: simpleStream.wsHost };
-                } else if (Object.prototype.hasOwnProperty.call(existingHeaders, 'Host')) {
-                    const { Host: _removedHost, ...restHeaders } = existingHeaders;
-                    stream.wsSettings.headers = restHeaders;
-                }
-            } else if (simpleStream.network === 'grpc') {
-                stream.grpcSettings = stream.grpcSettings || {};
-                stream.grpcSettings.serviceName = simpleStream.grpcServiceName || '';
-                stream.grpcSettings.authority = simpleStream.grpcAuthority || '';
-            } else if (simpleStream.network === 'httpupgrade') {
-                stream.httpupgradeSettings = stream.httpupgradeSettings || {};
-                stream.httpupgradeSettings.path = simpleStream.httpupgradePath || '/';
-                stream.httpupgradeSettings.host = simpleStream.httpupgradeHost || '';
-                stream.httpupgradeSettings.acceptProxyProtocol = !!simpleStream.httpupgradeAcceptProxyProtocol;
-            } else if (simpleStream.network === 'xhttp') {
-                stream.xhttpSettings = stream.xhttpSettings || {};
-                stream.xhttpSettings.path = simpleStream.xhttpPath || '/';
-                stream.xhttpSettings.host = simpleStream.xhttpHost || '';
-                stream.xhttpSettings.mode = simpleStream.xhttpMode || 'auto';
+        if (!isOpen || isAdvanced) return;
+        if (skipSyncForSimpleObjRef.current !== null) {
+            if (skipSyncForSimpleObjRef.current === simpleStream) {
+                skipSyncForSimpleObjRef.current = null;
             }
-
-            if (simpleStream.security === 'tls') {
-                stream.tlsSettings = stream.tlsSettings || {};
-                stream.tlsSettings.serverName = simpleStream.tlsSni || '';
-                stream.tlsSettings.settings = stream.tlsSettings.settings || {};
-                stream.tlsSettings.settings.fingerprint = simpleStream.tlsFingerprint || 'chrome';
-                const alpnArr = (simpleStream.tlsAlpn || '').split(',').map(s => s.trim()).filter(Boolean);
-                stream.tlsSettings.alpn = alpnArr.length > 0 ? alpnArr : ['h2', 'http/1.1'];
-            }
-
-            // Reality
-            if (simpleStream.security === 'reality') {
-                stream.realitySettings = stream.realitySettings || createDefaultRealitySettings();
-                stream.realitySettings.settings = stream.realitySettings.settings || {};
-                stream.realitySettings.show = !!simpleStream.realityShow;
-                stream.realitySettings.xver = Number(simpleStream.realityXver || 0);
-                stream.realitySettings.target = simpleStream.realityDest;
-                delete stream.realitySettings.dest; // remove legacy field
-                stream.realitySettings.serverNames = simpleStream.realitySNI
-                    ? simpleStream.realitySNI.split(',').map(s => s.trim()).filter(Boolean)
-                    : DEFAULT_REALITY_TARGET.sni.split(',').map(s => s.trim()).filter(Boolean);
-                stream.realitySettings.shortIds = simpleStream.realityShortId
-                    ? simpleStream.realityShortId.split(',').map(s => s.trim())
-                    : [randomString(8, HEX_CHARS)];
-                stream.realitySettings.privateKey = simpleStream.realityPrivateKey;
-                stream.realitySettings.minClientVer = simpleStream.realityMinClientVer || '';
-                stream.realitySettings.maxClientVer = simpleStream.realityMaxClientVer || '';
-                stream.realitySettings.maxTimediff = Number(simpleStream.realityMaxTimediff || 0);
-                stream.realitySettings.mldsa65Seed = simpleStream.realityMldsa65Seed || '';
-                stream.realitySettings.settings.publicKey = simpleStream.realityPublicKey;
-                stream.realitySettings.settings.fingerprint = simpleStream.realityFingerprint || 'chrome';
-                stream.realitySettings.settings.spiderX = simpleStream.realitySpiderX || '/';
-                stream.realitySettings.settings.mldsa65Verify = simpleStream.realityMldsa65Verify || '';
-            }
-
-            setStreamSettings(JSON.stringify(stream, null, 2));
+            return;
         }
-    }, [simpleStream, isAdvanced]);
+
+        const stream = parseJsonObject(streamSettingsRef.current, createDefaultStream(simpleStream.network, simpleStream.security));
+
+        stream.network = simpleStream.network;
+        stream.security = simpleStream.security;
+
+        if (simpleStream.network === 'tcp') {
+            stream.tcpSettings = stream.tcpSettings || {};
+            stream.tcpSettings.header = stream.tcpSettings.header || {};
+            stream.tcpSettings.header.type = simpleStream.tcpHeaderType || 'none';
+            stream.tcpSettings.acceptProxyProtocol = !!simpleStream.tcpAcceptProxyProtocol;
+        } else if (simpleStream.network === 'kcp') {
+            stream.kcpSettings = stream.kcpSettings || {};
+            stream.kcpSettings.mtu = fallbackNumericValue(simpleStream.kcpMtu, 1350);
+            stream.kcpSettings.tti = fallbackNumericValue(simpleStream.kcpTti, 20);
+            stream.kcpSettings.uplinkCapacity = fallbackNumericValue(simpleStream.kcpUplinkCapacity, 5);
+            stream.kcpSettings.downlinkCapacity = fallbackNumericValue(simpleStream.kcpDownlinkCapacity, 20);
+            stream.kcpSettings.congestion = !!simpleStream.kcpCongestion;
+            stream.kcpSettings.readBufferSize = fallbackNumericValue(simpleStream.kcpReadBufferSize, 1);
+            stream.kcpSettings.writeBufferSize = fallbackNumericValue(simpleStream.kcpWriteBufferSize, 1);
+        } else if (simpleStream.network === 'ws') {
+            stream.wsSettings = stream.wsSettings || {};
+            stream.wsSettings.path = simpleStream.wsPath;
+            stream.wsSettings.host = simpleStream.wsHost || '';
+            stream.wsSettings.acceptProxyProtocol = !!simpleStream.wsAcceptProxyProtocol;
+            const existingHeaders = normalizeHeadersObject(stream.wsSettings.headers);
+            if (simpleStream.wsHost) {
+                stream.wsSettings.headers = { ...existingHeaders, Host: simpleStream.wsHost };
+            } else if (Object.prototype.hasOwnProperty.call(existingHeaders, 'Host')) {
+                const { Host: _removedHost, ...restHeaders } = existingHeaders;
+                stream.wsSettings.headers = restHeaders;
+            }
+        } else if (simpleStream.network === 'grpc') {
+            stream.grpcSettings = stream.grpcSettings || {};
+            stream.grpcSettings.serviceName = simpleStream.grpcServiceName || '';
+            stream.grpcSettings.authority = simpleStream.grpcAuthority || '';
+        } else if (simpleStream.network === 'httpupgrade') {
+            stream.httpupgradeSettings = stream.httpupgradeSettings || {};
+            stream.httpupgradeSettings.path = simpleStream.httpupgradePath || '/';
+            stream.httpupgradeSettings.host = simpleStream.httpupgradeHost || '';
+            stream.httpupgradeSettings.acceptProxyProtocol = !!simpleStream.httpupgradeAcceptProxyProtocol;
+        } else if (simpleStream.network === 'xhttp') {
+            stream.xhttpSettings = stream.xhttpSettings || {};
+            stream.xhttpSettings.path = simpleStream.xhttpPath || '/';
+            stream.xhttpSettings.host = simpleStream.xhttpHost || '';
+            stream.xhttpSettings.mode = simpleStream.xhttpMode || 'auto';
+        }
+
+        if (simpleStream.security === 'tls') {
+            stream.tlsSettings = stream.tlsSettings || {};
+            stream.tlsSettings.serverName = simpleStream.tlsSni || '';
+            stream.tlsSettings.settings = stream.tlsSettings.settings || {};
+            stream.tlsSettings.settings.fingerprint = simpleStream.tlsFingerprint || 'chrome';
+            const alpnArr = (simpleStream.tlsAlpn || '').split(',').map(s => s.trim()).filter(Boolean);
+            stream.tlsSettings.alpn = alpnArr.length > 0 ? alpnArr : ['h2', 'http/1.1'];
+        }
+
+        // Reality
+        if (simpleStream.security === 'reality') {
+            stream.realitySettings = stream.realitySettings || createDefaultRealitySettings();
+            stream.realitySettings.settings = stream.realitySettings.settings || {};
+            stream.realitySettings.show = !!simpleStream.realityShow;
+            stream.realitySettings.xver = fallbackNumericValue(simpleStream.realityXver, 0);
+            stream.realitySettings.target = simpleStream.realityDest;
+            delete stream.realitySettings.dest; // remove legacy field
+            stream.realitySettings.serverNames = simpleStream.realitySNI
+                ? simpleStream.realitySNI.split(',').map(s => s.trim()).filter(Boolean)
+                : [];
+            stream.realitySettings.shortIds = simpleStream.realityShortId
+                ? simpleStream.realityShortId.split(',').map(s => s.trim()).filter(Boolean)
+                : [];
+            stream.realitySettings.privateKey = simpleStream.realityPrivateKey;
+            stream.realitySettings.minClientVer = simpleStream.realityMinClientVer || '';
+            stream.realitySettings.maxClientVer = simpleStream.realityMaxClientVer || '';
+            stream.realitySettings.maxTimediff = fallbackNumericValue(simpleStream.realityMaxTimediff, 0);
+            stream.realitySettings.mldsa65Seed = simpleStream.realityMldsa65Seed || '';
+            stream.realitySettings.settings.publicKey = simpleStream.realityPublicKey;
+            stream.realitySettings.settings.fingerprint = simpleStream.realityFingerprint || 'chrome';
+            stream.realitySettings.settings.spiderX = simpleStream.realitySpiderX || '/';
+            stream.realitySettings.settings.mldsa65Verify = simpleStream.realityMldsa65Verify || '';
+        }
+
+        const nextStreamText = JSON.stringify(stream, null, 2);
+        if (nextStreamText !== streamSettingsRef.current) {
+            setStreamSettings(nextStreamText);
+        }
+    }, [simpleStream, isAdvanced, isOpen]);
+
+    const handleToggleAdvanced = (nextAdvanced: boolean) => {
+        if (isAdvanced && !nextAdvanced) {
+            try {
+                const parsedStream = streamSettings.trim() ? JSON.parse(streamSettings) : {};
+                if (!parsedStream || typeof parsedStream !== 'object' || Array.isArray(parsedStream)) {
+                    throw new Error('Invalid streamSettings JSON');
+                }
+                if (settings.trim()) {
+                    const parsedSet = JSON.parse(settings);
+                    if (!parsedSet || typeof parsedSet !== 'object' || Array.isArray(parsedSet)) {
+                        throw new Error('Invalid settings JSON');
+                    }
+                }
+                if (sniffing.trim()) {
+                    const parsedSniff = JSON.parse(sniffing);
+                    if (!parsedSniff || typeof parsedSniff !== 'object' || Array.isArray(parsedSniff)) {
+                        throw new Error('Invalid sniffing JSON');
+                    }
+                }
+                const nextSimple = parseStreamToSimpleState(parsedStream);
+                skipSyncForSimpleObjRef.current = nextSimple;
+                setSimpleStream(nextSimple);
+                setIsAdvanced(false);
+            } catch {
+                toast.error(t('comp.inbounds.invalidJsonAdvanced'));
+            }
+            return;
+        }
+        setIsAdvanced(nextAdvanced);
+    };
 
     const resolveToolServerId = () => {
         if (editingInbound?.serverId) return editingInbound.serverId;
@@ -1560,7 +1797,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
         params.append('protocol', protocol);
         params.append('port', String(port));
         params.append('listen', listen);
-        params.append('total', String(Number(totalGB) * 1024 * 1024 * 1024));
+        params.append('total', String((Number(totalGB) || 0) * 1024 * 1024 * 1024));
         params.append('expiryTime', String(Number(expiryTimeValue || 0)));
         params.append('trafficReset', trafficReset);
         params.append('settings', typeof settingsValue === 'string' ? settingsValue : JSON.stringify(settingsValue || {}));
@@ -1624,6 +1861,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
             }
 
             const normalizedProtocol = String(protocol || '').toLowerCase();
+            parsedSettings = normalizeSettingsNumericFields(parsedSettings, normalizedProtocol);
+            parsedStreamSettings = normalizeStreamNumericFields(parsedStreamSettings);
             const isStreamProtocol = STREAM_PROTOCOLS.has(normalizedProtocol);
             const preStream = isStreamProtocol
                 ? normalizeStreamForSubmission(parsedStreamSettings, normalizedProtocol) || {}
@@ -1713,7 +1952,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                         protocol,
                         port: Number(port),
                         listen,
-                        total: Number(totalGB) * 1024 * 1024 * 1024,
+                        total: (Number(totalGB) || 0) * 1024 * 1024 * 1024,
                         expiryTime: Math.max(0, Number(resolvedExpiryTime || 0)),
                         trafficReset,
                         settings: parsedSettings,
@@ -1801,7 +2040,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                             <input
                                 type="checkbox"
                                 checked={isAdvanced}
-                                onChange={e => setIsAdvanced(e.target.checked)}
+                                onChange={e => handleToggleAdvanced(e.target.checked)}
                             />
                             {t('comp.inbounds.expertMode')}
                         </label>
@@ -1823,6 +2062,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             type="checkbox"
                                             checked={selectedServerIds.length === servers.length}
                                             onChange={(e) => {
+                                                hasUserTouchedServersRef.current = true;
                                                 if (e.target.checked) setSelectedServerIds(servers.map(s => s.id));
                                                 else setSelectedServerIds([]);
                                             }}
@@ -1835,6 +2075,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 type="checkbox"
                                                 checked={selectedServerIds.includes(s.id)}
                                                 onChange={(e) => {
+                                                    hasUserTouchedServersRef.current = true;
                                                     if (e.target.checked) setSelectedServerIds(prev => Array.from(new Set([...prev, s.id])));
                                                     else setSelectedServerIds(prev => prev.filter(id => id !== s.id));
                                                 }}
@@ -1862,7 +2103,18 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                             </div>
                             <div className="form-group">
                                 <label className="form-label">{t('comp.inbounds.labelProtocol')}</label>
-                                <select className="form-select" value={protocol} onChange={e => setProtocol(e.target.value)} disabled={!!editingInbound}>
+                                <select
+                                    className="form-select"
+                                    value={protocol}
+                                    onChange={(e) => {
+                                        const nextProto = e.target.value;
+                                        setProtocol(nextProto);
+                                        if (!editingInbound) {
+                                            setSettings(JSON.stringify(createDefaultSettings(nextProto), null, 2));
+                                        }
+                                    }}
+                                    disabled={!!editingInbound}
+                                >
                                     {protocolOptions.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
                                 </select>
                             </div>
@@ -2006,7 +2258,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                             client.id = randomUuid();
                                                         })}
                                                     >
-                                                        生成
+                                                        {deepCopy.generate}
                                                     </button>
                                                 </div>
                                             </div>
@@ -2053,14 +2305,14 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     className="btn btn-secondary btn-sm"
                                                     onClick={generateVlessEncKeys}
                                                 >
-                                                    生成
+                                                    {deepCopy.generate}
                                                 </button>
                                                 <button
                                                     type="button"
                                                     className="btn btn-secondary btn-sm"
                                                     onClick={clearVlessEncKeys}
                                                 >
-                                                    清空
+                                                    {deepCopy.clear}
                                                 </button>
                                             </div>
                                         </div>
@@ -2077,7 +2329,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                             draft.fallbacks.push({ name: '', alpn: '', path: '', dest: '', xver: 0 });
                                                         })}
                                                     >
-                                                        新增
+                                                        {deepCopy.add}
                                                     </button>
                                                 </div>
                                                 {vlessFallbacks.length === 0 && (
@@ -2095,7 +2347,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                                     draft.fallbacks.splice(index, 1);
                                                                 })}
                                                             >
-                                                                删除
+                                                                {deepCopy.delete}
                                                             </button>
                                                         </div>
                                                         <div className="grid grid-cols-2 gap-3">
@@ -2154,12 +2406,21 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                                     type="number"
                                                                     min={0}
                                                                     max={2}
-                                                                    value={Number(fallback?.xver || 0)}
+                                                                    value={fallback?.xver ?? 0}
                                                                     onChange={(e) => updateSettingsJson((draft) => {
                                                                         if (!Array.isArray(draft.fallbacks)) draft.fallbacks = [];
                                                                         draft.fallbacks[index] = draft.fallbacks[index] || {};
-                                                                        draft.fallbacks[index].xver = Number(e.target.value || 0);
+                                                                        draft.fallbacks[index].xver = parseOptionalNumberInput(e.target.value);
                                                                     })}
+                                                                    onBlur={(e) => {
+                                                                        if (e.target.value === '') {
+                                                                            updateSettingsJson((draft) => {
+                                                                                if (!Array.isArray(draft.fallbacks)) draft.fallbacks = [];
+                                                                                draft.fallbacks[index] = draft.fallbacks[index] || {};
+                                                                                draft.fallbacks[index].xver = 0;
+                                                                            });
+                                                                        }
+                                                                    }}
                                                                 />
                                                             </div>
                                                         </div>
@@ -2208,11 +2469,21 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                             max={9999}
                                                             value={seed}
                                                             onChange={(e) => updateSettingsJson((draft) => {
-                                                                const current = Array.isArray(draft.testseed) ? draft.testseed.slice(0, 4) : [900, 500, 900, 256];
-                                                                while (current.length < 4) current.push(0);
-                                                                current[idx] = Number(e.target.value || 0);
+                                                                const current = Array.isArray(draft.testseed) ? draft.testseed.slice(0, 4) : [...DEFAULT_VLESS_TESTSEED];
+                                                                while (current.length < 4) current.push(DEFAULT_VLESS_TESTSEED[current.length] ?? 0);
+                                                                current[idx] = parseOptionalNumberInput(e.target.value);
                                                                 draft.testseed = current;
                                                             })}
+                                                            onBlur={(e) => {
+                                                                if (e.target.value === '') {
+                                                                    updateSettingsJson((draft) => {
+                                                                        const current = Array.isArray(draft.testseed) ? draft.testseed.slice(0, 4) : [...DEFAULT_VLESS_TESTSEED];
+                                                                        while (current.length < 4) current.push(DEFAULT_VLESS_TESTSEED[current.length] ?? 0);
+                                                                        current[idx] = DEFAULT_VLESS_TESTSEED[idx] ?? 0;
+                                                                        draft.testseed = current;
+                                                                    });
+                                                                }
+                                                            }}
                                                         />
                                                     ))}
                                                 </div>
@@ -2231,10 +2502,17 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     className="form-input"
                                                     type="number"
                                                     min={0}
-                                                    value={Number(settingsObj?.up_mbps || 0)}
+                                                    value={settingsObj?.up_mbps ?? 0}
                                                     onChange={(e) => updateSettingsJson((draft) => {
-                                                        draft.up_mbps = Number(e.target.value || 0);
+                                                        draft.up_mbps = parseOptionalNumberInput(e.target.value);
                                                     })}
+                                                    onBlur={(e) => {
+                                                        if (e.target.value === '') {
+                                                            updateSettingsJson((draft) => {
+                                                                draft.up_mbps = 0;
+                                                            });
+                                                        }
+                                                    }}
                                                 />
                                                 <div className="text-xs text-muted mt-1">{deepCopy.unlimitedRecommended}</div>
                                             </div>
@@ -2244,10 +2522,17 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     className="form-input"
                                                     type="number"
                                                     min={0}
-                                                    value={Number(settingsObj?.down_mbps || 0)}
+                                                    value={settingsObj?.down_mbps ?? 0}
                                                     onChange={(e) => updateSettingsJson((draft) => {
-                                                        draft.down_mbps = Number(e.target.value || 0);
+                                                        draft.down_mbps = parseOptionalNumberInput(e.target.value);
                                                     })}
+                                                    onBlur={(e) => {
+                                                        if (e.target.value === '') {
+                                                            updateSettingsJson((draft) => {
+                                                                draft.down_mbps = 0;
+                                                            });
+                                                        }
+                                                    }}
                                                 />
                                                 <div className="text-xs text-muted mt-1">{deepCopy.unlimitedRecommended}</div>
                                             </div>
@@ -2334,10 +2619,17 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     type="number"
                                                     min={576}
                                                     max={9000}
-                                                    value={Number(settingsObj?.mtu || 1420)}
+                                                    value={settingsObj?.mtu ?? 1420}
                                                     onChange={(e) => updateSettingsJson((draft) => {
-                                                        draft.mtu = Number(e.target.value || 1420);
+                                                        draft.mtu = parseOptionalNumberInput(e.target.value);
                                                     })}
+                                                    onBlur={(e) => {
+                                                        if (e.target.value === '') {
+                                                            updateSettingsJson((draft) => {
+                                                                draft.mtu = 1420;
+                                                            });
+                                                        }
+                                                    }}
                                                 />
                                             </div>
                                             <div className="form-group">
@@ -2405,8 +2697,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         type="number"
                                                         min={0}
                                                         max={128}
-                                                        value={Number(settingsObj?.jc ?? 4)}
-                                                        onChange={(e) => updateSettingsJson((draft) => { draft.jc = Number(e.target.value || 0); })}
+                                                        value={settingsObj?.jc ?? 4}
+                                                        onChange={(e) => updateSettingsJson((draft) => { draft.jc = parseOptionalNumberInput(e.target.value); })}
+                                                        onBlur={(e) => { if (e.target.value === '') updateSettingsJson((draft) => { draft.jc = 4; }); }}
                                                     />
                                                 </div>
                                                 <div className="form-group">
@@ -2416,8 +2709,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         type="number"
                                                         min={0}
                                                         max={1500}
-                                                        value={Number(settingsObj?.jmin ?? 40)}
-                                                        onChange={(e) => updateSettingsJson((draft) => { draft.jmin = Number(e.target.value || 0); })}
+                                                        value={settingsObj?.jmin ?? 40}
+                                                        onChange={(e) => updateSettingsJson((draft) => { draft.jmin = parseOptionalNumberInput(e.target.value); })}
+                                                        onBlur={(e) => { if (e.target.value === '') updateSettingsJson((draft) => { draft.jmin = 40; }); }}
                                                     />
                                                 </div>
                                                 <div className="form-group">
@@ -2427,8 +2721,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         type="number"
                                                         min={0}
                                                         max={1500}
-                                                        value={Number(settingsObj?.jmax ?? 70)}
-                                                        onChange={(e) => updateSettingsJson((draft) => { draft.jmax = Number(e.target.value || 0); })}
+                                                        value={settingsObj?.jmax ?? 70}
+                                                        onChange={(e) => updateSettingsJson((draft) => { draft.jmax = parseOptionalNumberInput(e.target.value); })}
+                                                        onBlur={(e) => { if (e.target.value === '') updateSettingsJson((draft) => { draft.jmax = 70; }); }}
                                                     />
                                                 </div>
                                             </div>
@@ -2440,8 +2735,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         type="number"
                                                         min={0}
                                                         max={1500}
-                                                        value={Number(settingsObj?.s1 ?? 0)}
-                                                        onChange={(e) => updateSettingsJson((draft) => { draft.s1 = Number(e.target.value || 0); })}
+                                                        value={settingsObj?.s1 ?? 0}
+                                                        onChange={(e) => updateSettingsJson((draft) => { draft.s1 = parseOptionalNumberInput(e.target.value); })}
+                                                        onBlur={(e) => { if (e.target.value === '') updateSettingsJson((draft) => { draft.s1 = 0; }); }}
                                                     />
                                                 </div>
                                                 <div className="form-group">
@@ -2451,8 +2747,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         type="number"
                                                         min={0}
                                                         max={1500}
-                                                        value={Number(settingsObj?.s2 ?? 0)}
-                                                        onChange={(e) => updateSettingsJson((draft) => { draft.s2 = Number(e.target.value || 0); })}
+                                                        value={settingsObj?.s2 ?? 0}
+                                                        onChange={(e) => updateSettingsJson((draft) => { draft.s2 = parseOptionalNumberInput(e.target.value); })}
+                                                        onBlur={(e) => { if (e.target.value === '') updateSettingsJson((draft) => { draft.s2 = 0; }); }}
                                                     />
                                                 </div>
                                             </div>
@@ -2462,8 +2759,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     <input
                                                         className="form-input text-xs font-mono"
                                                         type="number"
-                                                        value={Number(settingsObj?.h1 ?? 1)}
-                                                        onChange={(e) => updateSettingsJson((draft) => { draft.h1 = Number(e.target.value || 0); })}
+                                                        value={settingsObj?.h1 ?? 1}
+                                                        onChange={(e) => updateSettingsJson((draft) => { draft.h1 = parseOptionalNumberInput(e.target.value); })}
+                                                        onBlur={(e) => { if (e.target.value === '') updateSettingsJson((draft) => { draft.h1 = 1; }); }}
                                                     />
                                                 </div>
                                                 <div className="form-group">
@@ -2471,8 +2769,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     <input
                                                         className="form-input text-xs font-mono"
                                                         type="number"
-                                                        value={Number(settingsObj?.h2 ?? 2)}
-                                                        onChange={(e) => updateSettingsJson((draft) => { draft.h2 = Number(e.target.value || 0); })}
+                                                        value={settingsObj?.h2 ?? 2}
+                                                        onChange={(e) => updateSettingsJson((draft) => { draft.h2 = parseOptionalNumberInput(e.target.value); })}
+                                                        onBlur={(e) => { if (e.target.value === '') updateSettingsJson((draft) => { draft.h2 = 2; }); }}
                                                     />
                                                 </div>
                                                 <div className="form-group">
@@ -2480,8 +2779,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     <input
                                                         className="form-input text-xs font-mono"
                                                         type="number"
-                                                        value={Number(settingsObj?.h3 ?? 3)}
-                                                        onChange={(e) => updateSettingsJson((draft) => { draft.h3 = Number(e.target.value || 0); })}
+                                                        value={settingsObj?.h3 ?? 3}
+                                                        onChange={(e) => updateSettingsJson((draft) => { draft.h3 = parseOptionalNumberInput(e.target.value); })}
+                                                        onBlur={(e) => { if (e.target.value === '') updateSettingsJson((draft) => { draft.h3 = 3; }); }}
                                                     />
                                                 </div>
                                                 <div className="form-group">
@@ -2489,8 +2789,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     <input
                                                         className="form-input text-xs font-mono"
                                                         type="number"
-                                                        value={Number(settingsObj?.h4 ?? 4)}
-                                                        onChange={(e) => updateSettingsJson((draft) => { draft.h4 = Number(e.target.value || 0); })}
+                                                        value={settingsObj?.h4 ?? 4}
+                                                        onChange={(e) => updateSettingsJson((draft) => { draft.h4 = parseOptionalNumberInput(e.target.value); })}
+                                                        onBlur={(e) => { if (e.target.value === '') updateSettingsJson((draft) => { draft.h4 = 4; }); }}
                                                     />
                                                 </div>
                                             </div>
@@ -2577,10 +2878,17 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                                     className="form-input"
                                                                     type="number"
                                                                     min={0}
-                                                                    value={Number(peer?.keepAlive || 0)}
+                                                                    value={peer?.keepAlive ?? 0}
                                                                     onChange={(e) => updateSettingsJson((draft) => {
-                                                                        draft.peers[peerIdx].keepAlive = Number(e.target.value || 0);
+                                                                        draft.peers[peerIdx].keepAlive = parseOptionalNumberInput(e.target.value);
                                                                     })}
+                                                                    onBlur={(e) => {
+                                                                        if (e.target.value === '') {
+                                                                            updateSettingsJson((draft) => {
+                                                                                draft.peers[peerIdx].keepAlive = 0;
+                                                                            });
+                                                                        }
+                                                                    }}
                                                                 />
                                                             </div>
                                                         </div>
@@ -2670,8 +2978,12 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         onClick={async () => {
                                                             const hostPart = (!listen || listen === '0.0.0.0' || listen === '::') ? 'YOUR_SERVER_IP' : listen.replace(/^\[(.*)\]$/, '$1');
                                                             const link = `tg://proxy?server=${hostPart}&port=${port || 'PORT'}&secret=${settingsObj.secret}`;
-                                                            await copyToClipboard(link);
-                                                            toast.success(deepCopy.linkCopied || t('comp.inbounds.idCopied'));
+                                                            const copied = await copyToClipboard(link);
+                                                            if (copied) {
+                                                                toast.success(deepCopy.linkCopied || t('comp.inbounds.idCopied'));
+                                                            } else {
+                                                                toast.error(t('comp.common.copyFailed'));
+                                                            }
                                                         }}
                                                     >
                                                         <HiOutlineClipboard />
@@ -2704,10 +3016,17 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     type="number"
                                                     min={1}
                                                     max={65535}
-                                                    value={Number(settingsObj?.port || 0)}
+                                                    value={settingsObj?.port ?? 0}
                                                     onChange={(e) => updateSettingsJson((draft) => {
-                                                        draft.port = Number(e.target.value || 0);
+                                                        draft.port = parseOptionalNumberInput(e.target.value);
                                                     })}
+                                                    onBlur={(e) => {
+                                                        if (e.target.value === '') {
+                                                            updateSettingsJson((draft) => {
+                                                                draft.port = 0;
+                                                            });
+                                                        }
+                                                    }}
                                                 />
                                             </div>
                                         </div>
@@ -2732,10 +3051,17 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     className="form-input"
                                                     type="number"
                                                     min={0}
-                                                    value={Number(settingsObj?.timeout || 0)}
+                                                    value={settingsObj?.timeout ?? 0}
                                                     onChange={(e) => updateSettingsJson((draft) => {
-                                                        draft.timeout = Number(e.target.value || 0);
+                                                        draft.timeout = parseOptionalNumberInput(e.target.value);
                                                     })}
+                                                    onBlur={(e) => {
+                                                        if (e.target.value === '') {
+                                                            updateSettingsJson((draft) => {
+                                                                draft.timeout = 0;
+                                                            });
+                                                        }
+                                                    }}
                                                 />
                                             </div>
                                         </div>
@@ -2749,7 +3075,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                             draft.followRedirect = e.target.checked;
                                                         })}
                                                     />
-                                                    透明代理跟随重定向 (followRedirect)
+                                                    {deepCopy.followRedirect}
                                                 </label>
                                             </div>
                                             <div className="form-group">
@@ -2758,10 +3084,17 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     className="form-input"
                                                     type="number"
                                                     min={0}
-                                                    value={Number(settingsObj?.userLevel || 0)}
+                                                    value={settingsObj?.userLevel ?? 0}
                                                     onChange={(e) => updateSettingsJson((draft) => {
-                                                        draft.userLevel = Number(e.target.value || 0);
+                                                        draft.userLevel = parseOptionalNumberInput(e.target.value);
                                                     })}
+                                                    onBlur={(e) => {
+                                                        if (e.target.value === '') {
+                                                            updateSettingsJson((draft) => {
+                                                                draft.userLevel = 0;
+                                                            });
+                                                        }
+                                                    }}
                                                 />
                                             </div>
                                         </div>
@@ -2803,7 +3136,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     s.enabled = e.target.checked;
                                                 })}
                                             />
-                                            启用
+                                            {t('comp.common.enable')}
                                         </label>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
@@ -2838,7 +3171,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         s.routeOnly = e.target.checked;
                                                     })}
                                                 />
-                                                仅路由 (Route Only)
+                                                {deepCopy.routeOnly}
                                             </label>
                                             <label className="flex items-center gap-2 cursor-pointer text-sm">
                                                 <input
@@ -2848,7 +3181,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         s.metadataOnly = e.target.checked;
                                                     })}
                                                 />
-                                                仅元数据 (Metadata Only)
+                                                {deepCopy.metadataOnly}
                                             </label>
                                         </div>
                                     </div>
@@ -3002,7 +3335,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 min={576}
                                                 max={1460}
                                                 value={simpleStream.kcpMtu}
-                                                onChange={e => setSimpleStream({ ...simpleStream, kcpMtu: Number(e.target.value || 1350) })}
+                                                onChange={e => setSimpleStream({ ...simpleStream, kcpMtu: parseOptionalNumberInput(e.target.value) })}
+                                                onBlur={e => { if (e.target.value === '') setSimpleStream({ ...simpleStream, kcpMtu: 1350 }); }}
                                             />
                                         </div>
                                         <div className="form-group">
@@ -3013,7 +3347,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 min={10}
                                                 max={100}
                                                 value={simpleStream.kcpTti}
-                                                onChange={e => setSimpleStream({ ...simpleStream, kcpTti: Number(e.target.value || 20) })}
+                                                onChange={e => setSimpleStream({ ...simpleStream, kcpTti: parseOptionalNumberInput(e.target.value) })}
+                                                onBlur={e => { if (e.target.value === '') setSimpleStream({ ...simpleStream, kcpTti: 20 }); }}
                                             />
                                         </div>
                                         <div className="form-group">
@@ -3023,7 +3358,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 type="number"
                                                 min={0}
                                                 value={simpleStream.kcpUplinkCapacity}
-                                                onChange={e => setSimpleStream({ ...simpleStream, kcpUplinkCapacity: Number(e.target.value || 0) })}
+                                                onChange={e => setSimpleStream({ ...simpleStream, kcpUplinkCapacity: parseOptionalNumberInput(e.target.value) })}
+                                                onBlur={e => { if (e.target.value === '') setSimpleStream({ ...simpleStream, kcpUplinkCapacity: 5 }); }}
                                             />
                                         </div>
                                         <div className="form-group">
@@ -3033,7 +3369,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 type="number"
                                                 min={0}
                                                 value={simpleStream.kcpDownlinkCapacity}
-                                                onChange={e => setSimpleStream({ ...simpleStream, kcpDownlinkCapacity: Number(e.target.value || 0) })}
+                                                onChange={e => setSimpleStream({ ...simpleStream, kcpDownlinkCapacity: parseOptionalNumberInput(e.target.value) })}
+                                                onBlur={e => { if (e.target.value === '') setSimpleStream({ ...simpleStream, kcpDownlinkCapacity: 20 }); }}
                                             />
                                         </div>
                                         <div className="form-group">
@@ -3043,7 +3380,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 type="number"
                                                 min={0}
                                                 value={simpleStream.kcpReadBufferSize}
-                                                onChange={e => setSimpleStream({ ...simpleStream, kcpReadBufferSize: Number(e.target.value || 0) })}
+                                                onChange={e => setSimpleStream({ ...simpleStream, kcpReadBufferSize: parseOptionalNumberInput(e.target.value) })}
+                                                onBlur={e => { if (e.target.value === '') setSimpleStream({ ...simpleStream, kcpReadBufferSize: 1 }); }}
                                             />
                                         </div>
                                         <div className="form-group">
@@ -3053,7 +3391,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 type="number"
                                                 min={0}
                                                 value={simpleStream.kcpWriteBufferSize}
-                                                onChange={e => setSimpleStream({ ...simpleStream, kcpWriteBufferSize: Number(e.target.value || 0) })}
+                                                onChange={e => setSimpleStream({ ...simpleStream, kcpWriteBufferSize: parseOptionalNumberInput(e.target.value) })}
+                                                onBlur={e => { if (e.target.value === '') setSimpleStream({ ...simpleStream, kcpWriteBufferSize: 1 }); }}
                                             />
                                         </div>
                                         <div className="form-group">
@@ -3064,7 +3403,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     checked={!!simpleStream.kcpCongestion}
                                                     onChange={e => setSimpleStream({ ...simpleStream, kcpCongestion: e.target.checked })}
                                                 />
-                                                开启
+                                                {deepCopy.enable}
                                             </label>
                                         </div>
                                     </div>
@@ -3100,11 +3439,19 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     className="form-input"
                                                     type="number"
                                                     min={0}
-                                                    value={Number(streamObj?.wsSettings?.heartbeatPeriod || 0)}
+                                                    value={streamObj?.wsSettings?.heartbeatPeriod ?? 0}
                                                     onChange={(e) => updateStreamJson((draft) => {
                                                         draft.wsSettings = draft.wsSettings || {};
-                                                        draft.wsSettings.heartbeatPeriod = Number(e.target.value || 0);
+                                                        draft.wsSettings.heartbeatPeriod = parseOptionalNumberInput(e.target.value);
                                                     })}
+                                                    onBlur={(e) => {
+                                                        if (e.target.value === '') {
+                                                            updateStreamJson((draft) => {
+                                                                draft.wsSettings = draft.wsSettings || {};
+                                                                draft.wsSettings.heartbeatPeriod = 0;
+                                                            });
+                                                        }
+                                                    }}
                                                 />
                                             </div>
                                             <div className="form-group">
@@ -3157,7 +3504,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         draft.grpcSettings.multiMode = e.target.checked;
                                                     })}
                                                 />
-                                                开启
+                                                {deepCopy.enable}
                                             </label>
                                         </div>
                                     </div>
@@ -3231,11 +3578,19 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     className="form-input"
                                                     type="number"
                                                     min={0}
-                                                    value={Number(streamObj?.xhttpSettings?.scMaxBufferedPosts || 30)}
+                                                    value={streamObj?.xhttpSettings?.scMaxBufferedPosts ?? 30}
                                                     onChange={(e) => updateStreamJson((draft) => {
                                                         draft.xhttpSettings = draft.xhttpSettings || {};
-                                                        draft.xhttpSettings.scMaxBufferedPosts = Number(e.target.value || 0);
+                                                        draft.xhttpSettings.scMaxBufferedPosts = parseOptionalNumberInput(e.target.value);
                                                     })}
+                                                    onBlur={(e) => {
+                                                        if (e.target.value === '') {
+                                                            updateStreamJson((draft) => {
+                                                                draft.xhttpSettings = draft.xhttpSettings || {};
+                                                                draft.xhttpSettings.scMaxBufferedPosts = 30;
+                                                            });
+                                                        }
+                                                    }}
                                                 />
                                             </div>
                                             <div className="form-group">
@@ -3282,7 +3637,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                             draft.xhttpSettings.noSSEHeader = e.target.checked;
                                                         })}
                                                     />
-                                                    开启
+                                                    {deepCopy.enable}
                                                 </label>
                                             </div>
                                             <div className="form-group">
@@ -3296,7 +3651,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                             draft.xhttpSettings.xPaddingObfsMode = e.target.checked;
                                                         })}
                                                     />
-                                                    开启
+                                                    {deepCopy.enable}
                                                 </label>
                                             </div>
                                         </div>
@@ -3464,11 +3819,19 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     className="form-input"
                                                     type="number"
                                                     min={0}
-                                                    value={Number(streamObj?.xhttpSettings?.uplinkChunkSize || 0)}
+                                                    value={streamObj?.xhttpSettings?.uplinkChunkSize ?? 0}
                                                     onChange={(e) => updateStreamJson((draft) => {
                                                         draft.xhttpSettings = draft.xhttpSettings || {};
-                                                        draft.xhttpSettings.uplinkChunkSize = Number(e.target.value || 0);
+                                                        draft.xhttpSettings.uplinkChunkSize = parseOptionalNumberInput(e.target.value);
                                                     })}
+                                                    onBlur={(e) => {
+                                                        if (e.target.value === '') {
+                                                            updateStreamJson((draft) => {
+                                                                draft.xhttpSettings = draft.xhttpSettings || {};
+                                                                draft.xhttpSettings.uplinkChunkSize = 0;
+                                                            });
+                                                        }
+                                                    }}
                                                 />
                                             </div>
                                         </div>
@@ -3583,7 +3946,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                             draft.tlsSettings.rejectUnknownSni = e.target.checked;
                                                         })}
                                                     />
-                                                    开启
+                                                    {deepCopy.enable}
                                                 </label>
                                             </div>
                                             <div className="form-group">
@@ -3597,7 +3960,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                             draft.tlsSettings.disableSystemRoot = e.target.checked;
                                                         })}
                                                     />
-                                                    开启
+                                                    {deepCopy.enable}
                                                 </label>
                                             </div>
                                             <div className="form-group">
@@ -3611,7 +3974,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                             draft.tlsSettings.enableSessionResumption = e.target.checked;
                                                         })}
                                                     />
-                                                    开启
+                                                    {deepCopy.enable}
                                                 </label>
                                             </div>
                                         </div>
@@ -3725,7 +4088,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                                 draft.tlsSettings.certificates[0].oneTimeLoading = e.target.checked;
                                                             })}
                                                         />
-                                                        一次性加载
+                                                        {deepCopy.oneTimeLoading}
                                                     </label>
                                                     {String(streamObj?.tlsSettings?.certificates?.[0]?.usage || 'encipherment') === 'issue' && (
                                                         <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
@@ -3740,7 +4103,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                                     draft.tlsSettings.certificates[0].buildChain = e.target.checked;
                                                                 })}
                                                             />
-                                                            构建证书链
+                                                            {deepCopy.buildChain}
                                                         </label>
                                                     )}
                                                 </div>
@@ -3779,7 +4142,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     min={0}
                                                     max={2}
                                                     value={simpleStream.realityXver}
-                                                    onChange={e => setSimpleStream({ ...simpleStream, realityXver: Number(e.target.value || 0) })}
+                                                    onChange={e => setSimpleStream({ ...simpleStream, realityXver: parseOptionalNumberInput(e.target.value) })}
+                                                    onBlur={e => { if (e.target.value === '') setSimpleStream({ ...simpleStream, realityXver: 0 }); }}
                                                 />
                                             </div>
                                         </div>
@@ -3816,14 +4180,14 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             <label className="form-label">PrivateKey</label>
                                             <input className="form-input font-mono text-xs" value={simpleStream.realityPrivateKey} onChange={e => setSimpleStream({ ...simpleStream, realityPrivateKey: e.target.value })} />
                                             <div className="text-xs text-muted mt-1">
-                                                REALITY 服务端私钥；留空时保存会自动为每个目标节点生成密钥对
+                                                {deepCopy.realityPrivateKeyHint}
                                             </div>
                                         </div>
                                         <div className="form-group">
                                             <label className="form-label">PublicKey</label>
                                             <input className="form-input font-mono text-xs" value={simpleStream.realityPublicKey} onChange={e => setSimpleStream({ ...simpleStream, realityPublicKey: e.target.value })} />
                                             <div className="text-xs text-muted mt-1">
-                                                订阅链接所需 pbk 参数（可手动填入，或点击“生成密钥”自动填充）
+                                                {deepCopy.realityPublicKeyHint}
                                             </div>
                                         </div>
                                         <div className="grid grid-cols-3 gap-4">
@@ -3852,7 +4216,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     type="number"
                                                     min={0}
                                                     value={simpleStream.realityMaxTimediff}
-                                                    onChange={e => setSimpleStream({ ...simpleStream, realityMaxTimediff: Number(e.target.value || 0) })}
+                                                    onChange={e => setSimpleStream({ ...simpleStream, realityMaxTimediff: parseOptionalNumberInput(e.target.value) })}
+                                                    onBlur={e => { if (e.target.value === '') setSimpleStream({ ...simpleStream, realityMaxTimediff: 0 }); }}
                                                 />
                                             </div>
                                         </div>
@@ -3916,7 +4281,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         draft.externalProxy.push({ forceTls: 'same', dest: '', port: 443, remark: '' });
                                                     })}
                                                 >
-                                                    新增
+                                                    {deepCopy.add}
                                                 </button>
                                                 <button
                                                     type="button"
@@ -3925,7 +4290,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         draft.externalProxy = [];
                                                     })}
                                                 >
-                                                    清空
+                                                    {deepCopy.clear}
                                                 </button>
                                             </div>
                                         </div>
@@ -3962,12 +4327,21 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     type="number"
                                                     min={1}
                                                     max={65535}
-                                                    value={Number(row?.port || 443)}
+                                                    value={row?.port ?? 443}
                                                     onChange={(e) => updateStreamJson((draft) => {
                                                         draft.externalProxy = Array.isArray(draft.externalProxy) ? draft.externalProxy : [];
                                                         draft.externalProxy[index] = draft.externalProxy[index] || {};
-                                                        draft.externalProxy[index].port = Number(e.target.value || 443);
+                                                        draft.externalProxy[index].port = parseOptionalNumberInput(e.target.value);
                                                     })}
+                                                    onBlur={(e) => {
+                                                        if (e.target.value === '') {
+                                                            updateStreamJson((draft) => {
+                                                                draft.externalProxy = Array.isArray(draft.externalProxy) ? draft.externalProxy : [];
+                                                                draft.externalProxy[index] = draft.externalProxy[index] || {};
+                                                                draft.externalProxy[index].port = 443;
+                                                            });
+                                                        }
+                                                    }}
                                                     placeholder="port"
                                                 />
                                                 <input
@@ -3988,7 +4362,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         draft.externalProxy.splice(index, 1);
                                                     })}
                                                 >
-                                                    删除
+                                                    {deepCopy.delete}
                                                 </button>
                                             </div>
                                         ))}
@@ -4028,33 +4402,33 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     }
                                                 })}
                                             />
-                                            启用 Sockopt
+                                            {deepCopy.enableSockopt}
                                         </label>
                                         {!!streamObj?.sockopt && (
                                             <div className="grid grid-cols-3 gap-4">
                                                 <div className="form-group">
                                                     <label className="form-label">Route Mark</label>
-                                                    <input className="form-input" type="number" min={0} value={Number(streamObj?.sockopt?.mark || 0)} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.mark = Number(e.target.value || 0); })} />
+                                                    <input className="form-input" type="number" min={0} value={streamObj?.sockopt?.mark ?? 0} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.mark = parseOptionalNumberInput(e.target.value); })} onBlur={(e) => { if (e.target.value === '') updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.mark = 0; }); }} />
                                                 </div>
                                                 <div className="form-group">
                                                     <label className="form-label">TCP KeepAlive Interval</label>
-                                                    <input className="form-input" type="number" min={0} value={Number(streamObj?.sockopt?.tcpKeepAliveInterval || 0)} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpKeepAliveInterval = Number(e.target.value || 0); })} />
+                                                    <input className="form-input" type="number" min={0} value={streamObj?.sockopt?.tcpKeepAliveInterval ?? 0} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpKeepAliveInterval = parseOptionalNumberInput(e.target.value); })} onBlur={(e) => { if (e.target.value === '') updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpKeepAliveInterval = 0; }); }} />
                                                 </div>
                                                 <div className="form-group">
                                                     <label className="form-label">TCP KeepAlive Idle</label>
-                                                    <input className="form-input" type="number" min={0} value={Number(streamObj?.sockopt?.tcpKeepAliveIdle || 0)} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpKeepAliveIdle = Number(e.target.value || 0); })} />
+                                                    <input className="form-input" type="number" min={0} value={streamObj?.sockopt?.tcpKeepAliveIdle ?? 0} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpKeepAliveIdle = parseOptionalNumberInput(e.target.value); })} onBlur={(e) => { if (e.target.value === '') updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpKeepAliveIdle = 0; }); }} />
                                                 </div>
                                                 <div className="form-group">
                                                     <label className="form-label">TCP Max Seg</label>
-                                                    <input className="form-input" type="number" min={0} value={Number(streamObj?.sockopt?.tcpMaxSeg || 0)} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpMaxSeg = Number(e.target.value || 0); })} />
+                                                    <input className="form-input" type="number" min={0} value={streamObj?.sockopt?.tcpMaxSeg ?? 0} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpMaxSeg = parseOptionalNumberInput(e.target.value); })} onBlur={(e) => { if (e.target.value === '') updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpMaxSeg = 0; }); }} />
                                                 </div>
                                                 <div className="form-group">
                                                     <label className="form-label">TCP User Timeout</label>
-                                                    <input className="form-input" type="number" min={0} value={Number(streamObj?.sockopt?.tcpUserTimeout || 0)} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpUserTimeout = Number(e.target.value || 0); })} />
+                                                    <input className="form-input" type="number" min={0} value={streamObj?.sockopt?.tcpUserTimeout ?? 0} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpUserTimeout = parseOptionalNumberInput(e.target.value); })} onBlur={(e) => { if (e.target.value === '') updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpUserTimeout = 0; }); }} />
                                                 </div>
                                                 <div className="form-group">
                                                     <label className="form-label">TCP Window Clamp</label>
-                                                    <input className="form-input" type="number" min={0} value={Number(streamObj?.sockopt?.tcpWindowClamp || 0)} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpWindowClamp = Number(e.target.value || 0); })} />
+                                                    <input className="form-input" type="number" min={0} value={streamObj?.sockopt?.tcpWindowClamp ?? 0} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpWindowClamp = parseOptionalNumberInput(e.target.value); })} onBlur={(e) => { if (e.target.value === '') updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpWindowClamp = 0; }); }} />
                                                 </div>
                                                 <div className="form-group">
                                                     <label className="form-label">Domain Strategy</label>
@@ -4183,13 +4557,15 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 />
                                                 <input
                                                     className="form-input"
-                                                    value={String(mask?.settings?.id ?? '')}
+                                                    type="number"
+                                                    min={0}
+                                                    value={mask?.settings?.id ?? ''}
                                                     onChange={(e) => updateStreamJson((draft) => {
                                                         draft.finalmask = draft.finalmask || {};
                                                         draft.finalmask.udp = Array.isArray(draft.finalmask.udp) ? draft.finalmask.udp : [];
                                                         const current = draft.finalmask.udp[index] || { type: 'xicmp', settings: {} };
                                                         current.settings = current.settings || {};
-                                                        current.settings.id = Number(e.target.value || 0);
+                                                        current.settings.id = parseOptionalNumberInput(e.target.value);
                                                         draft.finalmask.udp[index] = current;
                                                     })}
                                                     placeholder={locale === 'en-US' ? 'id (xicmp only)' : 'id (仅 xicmp)'}

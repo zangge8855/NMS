@@ -1120,6 +1120,7 @@ function AuditEventsMobileList({ items = [], copy, locale, onSelect, resolveServ
                         </div>
                     <div className="audit-mobile-card-actions">
                         <button
+                            type="button"
                             className="btn btn-secondary btn-sm audit-action-btn"
                             onClick={() => onSelect(item)}
                             title={copy.actions.viewDetail}
@@ -1222,6 +1223,19 @@ export default function AuditCenter() {
     const eventsLiveUpdatedAtRef = useRef(0);
     const trafficLiveUpdatedAtRef = useRef(0);
     const accessLiveUpdatedAtRef = useRef(0);
+    const isMountedRef = useRef(true);
+    const eventsRequestIdRef = useRef(0);
+    const accessRequestIdRef = useRef(0);
+    const liveActionsRef = useRef<any>({});
+
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+            eventsRequestIdRef.current += 1;
+            accessRequestIdRef.current += 1;
+        };
+    }, []);
 
     const setTab = (nextTab) => {
         const normalized = validTabs.has(nextTab) ? nextTab : 'events';
@@ -1442,6 +1456,7 @@ export default function AuditCenter() {
     ]);
 
     const fetchEvents = async (targetPage = eventsPage, filters = eventFilters) => {
+        const requestId = ++eventsRequestIdRef.current;
         setEventsLoading(true);
         try {
             const params = new URLSearchParams();
@@ -1449,13 +1464,18 @@ export default function AuditCenter() {
             params.append('pageSize', '20');
             appendAuditEventFilterParams(params, filters);
             const res = await api.get(`/audit/events?${params.toString()}`);
+            if (!isMountedRef.current || requestId !== eventsRequestIdRef.current) return;
             setEventsData(res.data?.obj || { items: [], total: 0, page: targetPage, totalPages: 1 });
             setEventsPage(targetPage);
             eventsLiveUpdatedAtRef.current = Date.now();
         } catch (err) {
+            if (!isMountedRef.current || requestId !== eventsRequestIdRef.current) return;
             toast.error(getErrorMessage(err, copy.toast.auditLoadFailed, locale));
+        } finally {
+            if (isMountedRef.current && requestId === eventsRequestIdRef.current) {
+                setEventsLoading(false);
+            }
         }
-        setEventsLoading(false);
     };
 
     const fetchTrafficOverview = async (force = false, windowKey = selectedTrafficWindowRef.current) => {
@@ -1575,6 +1595,7 @@ export default function AuditCenter() {
     };
 
     const fetchAccess = async (targetPage = accessPage, filtersOverride = null) => {
+        const requestId = ++accessRequestIdRef.current;
         setAccessLoading(true);
         try {
             const sourceFilters = filtersOverride || accessFilters;
@@ -1588,6 +1609,7 @@ export default function AuditCenter() {
                 api.get(`/subscriptions/access?${params.toString()}`),
                 api.get(`/subscriptions/access/summary?${summaryParams.toString()}`),
             ]);
+            if (!isMountedRef.current || requestId !== accessRequestIdRef.current) return;
             const summaryPayload = summaryRes.data?.obj || { ...EMPTY_ACCESS_SUMMARY };
             setAccessData(res.data?.obj || { items: [], total: 0, page: targetPage, totalPages: 1, statusBreakdown: {} });
             setAccessSummary(summaryPayload);
@@ -1598,6 +1620,7 @@ export default function AuditCenter() {
             setAccessPage(targetPage);
             accessLiveUpdatedAtRef.current = Date.now();
         } catch (err) {
+            if (!isMountedRef.current || requestId !== accessRequestIdRef.current) return;
             if (!hasVisibleAccessSnapshot(accessStateRef.current)) {
                 setAccessSummary({ ...EMPTY_ACCESS_SUMMARY });
                 setAccessUserWindows({
@@ -1606,8 +1629,11 @@ export default function AuditCenter() {
                 });
             }
             toast.error(getErrorMessage(err, copy.toast.accessLoadFailed, locale));
+        } finally {
+            if (isMountedRef.current && requestId === accessRequestIdRef.current) {
+                setAccessLoading(false);
+            }
         }
-        setAccessLoading(false);
     };
 
     useEffect(() => {
@@ -1745,19 +1771,33 @@ export default function AuditCenter() {
         }
     }, [selectedTrafficWindow, tab, customFromDate, customToDate]);
 
+    liveActionsRef.current = {
+        tab,
+        eventsPage,
+        accessPage,
+        selectedUser,
+        selectedServerId,
+        fetchEvents,
+        fetchTrafficOverview,
+        fetchUserTrend,
+        fetchServerTrend,
+        fetchAccess,
+    };
+
     useEffect(() => {
         const handlePageRefresh = () => {
-            if (tab === 'events') {
-                fetchEvents(eventsPage);
-            } else if (tab === 'traffic') {
-                fetchTrafficOverview(true, selectedTrafficWindowRef.current);
-            } else if (tab === 'subscriptions') {
-                fetchAccess(accessPage);
+            const current = liveActionsRef.current;
+            if (current.tab === 'events') {
+                current.fetchEvents(current.eventsPage);
+            } else if (current.tab === 'traffic') {
+                current.fetchTrafficOverview(true, selectedTrafficWindowRef.current);
+            } else if (current.tab === 'subscriptions') {
+                current.fetchAccess(current.accessPage);
             }
         };
         window.addEventListener('nms:page-refresh', handlePageRefresh);
         return () => window.removeEventListener('nms:page-refresh', handlePageRefresh);
-    }, [accessPage, eventsPage, tab]);
+    }, []);
 
     useEffect(() => {
         if (eventFilters.actor || eventFilters.eventType || eventFilters.serverId || eventFilters.targetEmail) {
@@ -1778,16 +1818,17 @@ export default function AuditCenter() {
     useEffect(() => {
         if (tab !== 'traffic') return undefined;
         const timer = window.setInterval(() => {
-            fetchTrafficOverview(false, selectedTrafficWindowRef.current);
-            if (selectedUser) {
-                fetchUserTrend(selectedUser, selectedTrafficWindowRef.current);
+            const current = liveActionsRef.current;
+            current.fetchTrafficOverview(false, selectedTrafficWindowRef.current);
+            if (current.selectedUser) {
+                current.fetchUserTrend(current.selectedUser, selectedTrafficWindowRef.current);
             }
-            if (selectedServerId) {
-                fetchServerTrend(selectedServerId, selectedTrafficWindowRef.current);
+            if (current.selectedServerId) {
+                current.fetchServerTrend(current.selectedServerId, selectedTrafficWindowRef.current);
             }
         }, AUDIT_TRAFFIC_AUTO_REFRESH_MS);
         return () => window.clearInterval(timer);
-    }, [selectedServerId, selectedUser, tab]);
+    }, [tab]);
 
     const topUsers = useMemo(() => Array.isArray(trafficOverview?.topUsers) ? trafficOverview.topUsers : [], [trafficOverview]);
     const topServers = useMemo(() => Array.isArray(trafficOverview?.topServers) ? trafficOverview.topServers : [], [trafficOverview]);
@@ -1944,6 +1985,7 @@ export default function AuditCenter() {
                                 const isActive = tab === item.id;
                                 return (
                                     <button
+                                        type="button"
                                         key={item.id}
                                         className={`tab ${isActive ? 'active' : ''}`}
                                         onClick={() => setTab(item.id)}
@@ -1971,10 +2013,11 @@ export default function AuditCenter() {
                                     </div>
                                     <div className="audit-control-actions">
                                         <div className="audit-control-action-group">
-                                            <button className="btn btn-primary btn-sm" onClick={() => fetchEvents(1)} disabled={eventsLoading}>
+                                            <button type="button" className="btn btn-primary btn-sm" onClick={() => fetchEvents(1)} disabled={eventsLoading}>
                                                 <HiOutlineArrowPath className={eventsLoading ? 'spinning' : ''} /> {copy.actions.query}
                                             </button>
                                             <button
+                                                type="button"
                                                 className={`btn btn-sm ${showAdvancedEventFilters ? 'btn-secondary' : 'btn-ghost'}`}
                                                 onClick={() => setShowAdvancedEventFilters((value) => !value)}
                                             >
@@ -1982,7 +2025,7 @@ export default function AuditCenter() {
                                                 {showAdvancedEventFilters ? copy.actions.lessFilters : copy.actions.moreFilters}
                                             </button>
                                             {activeEventFilterCount > 0 && (
-                                                <button className="btn btn-ghost btn-sm" onClick={handleResetEventFilters}>
+                                                <button type="button" className="btn btn-ghost btn-sm" onClick={handleResetEventFilters}>
                                                     {copy.actions.resetFilters}
                                                 </button>
                                             )}
@@ -1991,7 +2034,7 @@ export default function AuditCenter() {
                                             <button type="button" className="btn btn-secondary btn-sm" onClick={handleExportAuditCSV} disabled={exportingAuditCsv} title="CSV">
                                                 {exportingAuditCsv ? <span className="spinner" /> : <HiOutlineArrowDownTray />} {copy.actions.export}
                                             </button>
-                                            <button className="btn btn-danger btn-sm" onClick={handleClearEvents} title={copy.confirm.clearEventsTitle}>
+                                            <button type="button" className="btn btn-danger btn-sm" onClick={handleClearEvents} title={copy.confirm.clearEventsTitle}>
                                                 <HiOutlineTrash /> {copy.actions.clear}
                                             </button>
                                         </div>
@@ -2038,6 +2081,7 @@ export default function AuditCenter() {
                                             <input
                                                 className="form-input"
                                                 type="date"
+                                                aria-label={copy.filters.fromDate}
                                                 value={eventFilters.from}
                                                 onChange={(e) => setEventFilters((prev) => ({ ...prev, from: e.target.value }))}
                                             />
@@ -2047,6 +2091,7 @@ export default function AuditCenter() {
                                             <input
                                                 className="form-input"
                                                 type="date"
+                                                aria-label={copy.filters.toDate}
                                                 value={eventFilters.to}
                                                 onChange={(e) => setEventFilters((prev) => ({ ...prev, to: e.target.value }))}
                                             />
@@ -2163,6 +2208,7 @@ export default function AuditCenter() {
                                                     <td data-label={copy.tables.action} className="table-cell-actions">
                                                         <div className="table-row-actions audit-table-row-actions">
                                                             <button
+                                                                type="button"
                                                                 className="btn btn-secondary btn-sm audit-action-btn"
                                                                 onClick={() => setSelectedEvent(item)}
                                                                 title={copy.actions.viewDetail}
@@ -2219,7 +2265,8 @@ export default function AuditCenter() {
                                                     type="button"
                                                     className={`tab${selectedTrafficWindow === item.key ? ' active' : ''}`}
                                                     onClick={() => selectTrafficWindow(item.key)}
-                                                    aria-pressed={selectedTrafficWindow === item.key}
+                                                    role="tab"
+                                                    aria-selected={selectedTrafficWindow === item.key}
                                                 >
                                                     {item.label}
                                                 </button>
@@ -2233,6 +2280,7 @@ export default function AuditCenter() {
                                                 <input
                                                     className="form-input form-input-sm"
                                                     type="date"
+                                                    aria-label={copy.filters.fromDate}
                                                     value={customFromDate}
                                                     onChange={(e) => setCustomFromDate(e.target.value)}
                                                 />
@@ -2243,6 +2291,7 @@ export default function AuditCenter() {
                                                 <input
                                                     className="form-input form-input-sm"
                                                     type="date"
+                                                    aria-label={copy.filters.toDate}
                                                     value={customToDate}
                                                     onChange={(e) => setCustomToDate(e.target.value)}
                                                 />
@@ -2717,17 +2766,17 @@ export default function AuditCenter() {
                                 </div>
                                 <div className="audit-control-actions">
                                     <div className="audit-control-action-group">
-                                        <button className="btn btn-primary btn-sm" onClick={() => fetchAccess(1)} disabled={accessLoading}>
+                                        <button type="button" className="btn btn-primary btn-sm" onClick={() => fetchAccess(1)} disabled={accessLoading}>
                                             <HiOutlineArrowPath className={accessLoading ? 'spinning' : ''} /> {copy.actions.query}
                                         </button>
                                         {activeAccessFilterCount > 0 && (
-                                            <button className="btn btn-ghost btn-sm" onClick={handleResetAccessFilters}>
+                                            <button type="button" className="btn btn-ghost btn-sm" onClick={handleResetAccessFilters}>
                                                 {copy.actions.resetFilters}
                                             </button>
                                         )}
                                     </div>
                                     <div className="audit-control-action-group audit-control-action-group--secondary">
-                                        <button className="btn btn-danger btn-sm" onClick={handleClearAccessLogs} title={copy.confirm.clearAccessTitle}>
+                                        <button type="button" className="btn btn-danger btn-sm" onClick={handleClearAccessLogs} title={copy.confirm.clearAccessTitle}>
                                             <HiOutlineTrash /> {copy.actions.clear}
                                         </button>
                                     </div>
@@ -2749,6 +2798,7 @@ export default function AuditCenter() {
                                     <input
                                         className="form-input"
                                         type="date"
+                                        aria-label={copy.filters.fromDate}
                                         value={accessFilters.from}
                                         onChange={(e) => setAccessFilters((prev) => ({ ...prev, from: e.target.value }))}
                                     />
@@ -2758,6 +2808,7 @@ export default function AuditCenter() {
                                     <input
                                         className="form-input"
                                         type="date"
+                                        aria-label={copy.filters.toDate}
                                         value={accessFilters.to}
                                         onChange={(e) => setAccessFilters((prev) => ({ ...prev, to: e.target.value }))}
                                     />
@@ -3022,7 +3073,7 @@ export default function AuditCenter() {
                                             <div>
                                                 <div className="text-xs text-danger mb-1 font-semibold">{copy.detail.before}</div>
                                                 <pre className="log-viewer log-viewer-compact max-h-[200px] bg-danger/5 border border-danger/15">
-                                                    {JSON.stringify(selectedEvent.beforeSnapshot, null, 2)}
+                                                    {JSON.stringify(sanitizeAuditDetailPayload(selectedEvent.beforeSnapshot, locale), null, 2)}
                                                 </pre>
                                             </div>
                                         )}
@@ -3030,7 +3081,7 @@ export default function AuditCenter() {
                                             <div>
                                                 <div className="text-xs text-success mb-1 font-semibold">{copy.detail.after}</div>
                                                 <pre className="log-viewer log-viewer-compact max-h-[200px] bg-success/5 border border-success/15">
-                                                    {JSON.stringify(selectedEvent.afterSnapshot, null, 2)}
+                                                    {JSON.stringify(sanitizeAuditDetailPayload(selectedEvent.afterSnapshot, locale), null, 2)}
                                                 </pre>
                                             </div>
                                         )}

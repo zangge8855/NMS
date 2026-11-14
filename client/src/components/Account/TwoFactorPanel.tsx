@@ -213,7 +213,9 @@ export default function TwoFactorPanel({ locale = 'zh-CN' }: TwoFactorPanelProps
                                 className="input-trailing-action-btn"
                                 onClick={() => setShowDisablePassword((prev) => !prev)}
                                 tabIndex={-1}
-                                aria-label={showDisablePassword ? 'Hide password' : 'Show password'}
+                                aria-label={locale === 'en-US'
+                                    ? (showDisablePassword ? 'Hide password' : 'Show password')
+                                    : (showDisablePassword ? '隐藏密码' : '显示密码')}
                             >
                                 {showDisablePassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
                             </button>
@@ -255,7 +257,7 @@ export default function TwoFactorPanel({ locale = 'zh-CN' }: TwoFactorPanelProps
                             <HiOutlineClipboard /> {copy.copyAction}
                         </button>
                     </div>
-                    <div className="form-group mb-0">
+                    <div className="form-group mb-0" style={{ maxWidth: '240px' }}>
                         <label className="form-label" htmlFor="account-twofactor-verify-input">{copy.verifyCode}</label>
                         <input
                             id="account-twofactor-verify-input"

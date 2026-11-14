@@ -19,8 +19,10 @@ import {
     HiOutlineTrash,
     HiOutlineKey,
     HiOutlineShieldCheck,
+    HiOutlineXMark,
 } from 'react-icons/hi2';
 import EmptyState from '../UI/EmptyState';
+import ModalShell from '../UI/ModalShell';
 import PageToolbar from '../UI/PageToolbar';
 import PageServerSelector from '../UI/PageServerSelector';
 import SectionHeader from '../UI/SectionHeader';
@@ -169,11 +171,28 @@ export default function Tools() {
     const [certsLoading, setCertsLoading] = useState(false);
     const [issuingCert, setIssuingCert] = useState(false);
     const [certActionBusy, setCertActionBusy] = useState<Record<string, boolean>>({});
+    const [deleteConfirmCert, setDeleteConfirmCert] = useState<ManagedCertificate | null>(null);
 
     // IP Diagnostics States
     const [queryIp, setQueryIp] = useState('');
     const [ipResult, setIpResult] = useState<any>(null);
     const [ipLoading, setIpLoading] = useState(false);
+
+    const isMountedRef = useRef(true);
+    const ipLookupRequestIdRef = useRef(0);
+    const activeTabRef = useRef(activeTab);
+    activeTabRef.current = activeTab;
+    const hasTargetServerRef = useRef(hasTargetServer);
+    hasTargetServerRef.current = hasTargetServer;
+
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+            toolsCatalogRequestIdRef.current += 1;
+            ipLookupRequestIdRef.current += 1;
+        };
+    }, []);
 
     const copy = useMemo(() => (
         locale === 'en-US'
@@ -254,6 +273,10 @@ export default function Tools() {
                     selectDispatchServer: 'Select or bind at least one node first',
                     deleteSuccess: 'Certificate deleted',
                     deleteFailed: 'Failed to delete certificate',
+                    deleteConfirmTitle: 'Delete Certificate',
+                    deleteConfirmMessage: 'Are you sure you want to delete certificate "{domain}"? This action cannot be undone.',
+                    cancel: 'Cancel',
+                    confirmDelete: 'Delete',
                     statusValid: 'Valid',
                     statusExpiringSoon: 'Expiring soon',
                     statusExpired: 'Expired',
@@ -352,6 +375,10 @@ export default function Tools() {
                     selectDispatchServer: '请先在上方或节点选择器中选择目标节点',
                     deleteSuccess: '证书已删除',
                     deleteFailed: '删除证书失败',
+                    deleteConfirmTitle: '删除证书',
+                    deleteConfirmMessage: '确定要删除证书 "{domain}" 吗？此操作不可撤销。',
+                    cancel: '取消',
+                    confirmDelete: '确认删除',
                     statusValid: '有效',
                     statusExpiringSoon: '即将过期',
                     statusExpired: '已过期',
@@ -389,7 +416,7 @@ export default function Tools() {
         }
         try {
             const res = await api.get(`/capabilities/${targetServerId}`);
-            if (requestId !== toolsCatalogRequestIdRef.current) return;
+            if (!isMountedRef.current || requestId !== toolsCatalogRequestIdRef.current) return;
             const entries = Object.values<any>(res.data?.obj?.tools || {})
                 .filter((item) => item.uiAction === 'node_console' || item.uiAction === 'node_tools')
                 .filter((item) => item.supportedByNms === true)
@@ -398,18 +425,20 @@ export default function Tools() {
                 .filter((item) => item.source !== 'unprobed' && !String(item.path || '').includes('/:'));
             setTools(entries);
         } catch (error) {
-            if (requestId !== toolsCatalogRequestIdRef.current) return;
+            if (!isMountedRef.current || requestId !== toolsCatalogRequestIdRef.current) return;
             const msg = getErrorMessage(error, copy.catalogLoadFailed, locale);
             toast.error(msg);
             if (!preserveCurrent) {
                 setTools([]);
             }
         } finally {
-            if (requestId === toolsCatalogRequestIdRef.current) {
+            if (isMountedRef.current && requestId === toolsCatalogRequestIdRef.current) {
                 setCatalogLoading(false);
             }
         }
     };
+    const fetchCatalogRef = useRef(fetchCatalog);
+    fetchCatalogRef.current = fetchCatalog;
 
     useEffect(() => {
         if (!hasTargetServer) {
@@ -427,16 +456,6 @@ export default function Tools() {
         setCatalogLoading(snapshot == null);
         fetchCatalog({ preserveCurrent: snapshot != null });
     }, [targetServerId, hasTargetServer]);
-
-    useEffect(() => {
-        const handlePageRefresh = () => {
-            if (hasTargetServer) {
-                fetchCatalog({ preserveCurrent: true });
-            }
-        };
-        window.addEventListener('nms:page-refresh', handlePageRefresh);
-        return () => window.removeEventListener('nms:page-refresh', handlePageRefresh);
-    }, [hasTargetServer, targetServerId]);
 
     useEffect(() => {
         if (!hasTargetServer) return;
@@ -468,38 +487,64 @@ export default function Tools() {
             const res = targetServerId === activeServerId && typeof panelApi === 'function'
                 ? await panelApi(method, tool.path)
                 : await api({ method, url: `/panel/${encodeURIComponent(targetServerId)}${tool.path}` });
-            if (requestId !== toolExecutionRequestIdRef.current[tool.key]) return;
+            if (!isMountedRef.current || requestId !== toolExecutionRequestIdRef.current[tool.key]) return;
             setResults((prev) => ({
                 ...prev,
                 [tool.key]: formatToolValue(res.data?.obj),
             }));
         } catch (error) {
-            if (requestId !== toolExecutionRequestIdRef.current[tool.key]) return;
+            if (!isMountedRef.current || requestId !== toolExecutionRequestIdRef.current[tool.key]) return;
             toast.error(getErrorMessage(error, copy.executeFailed, locale));
         }
-        if (requestId === toolExecutionRequestIdRef.current[tool.key]) {
+        if (isMountedRef.current && requestId === toolExecutionRequestIdRef.current[tool.key]) {
             setLoading((prev) => ({ ...prev, [tool.key]: false }));
         }
     };
 
     const handleCopy = async (text: string) => {
-        await copyToClipboard(text);
-        toast.success(copy.copied);
+        const copied = await copyToClipboard(text);
+        if (copied) {
+            toast.success(copy.copied);
+        } else {
+            toast.error(t('comp.common.copyFailed'));
+        }
     };
 
+    const fetchCertificatesRequestIdRef = useRef(0);
     const fetchCertificates = useCallback(async () => {
         if (typeof api.get !== 'function') return;
+        const requestId = fetchCertificatesRequestIdRef.current + 1;
+        fetchCertificatesRequestIdRef.current = requestId;
         setCertsLoading(true);
         try {
             const res = await api.get('/certificates');
+            if (!isMountedRef.current || requestId !== fetchCertificatesRequestIdRef.current) return;
             const list = Array.isArray(res?.data?.obj) ? res.data.obj : [];
             setCertificates(list);
         } catch (error) {
+            if (!isMountedRef.current || requestId !== fetchCertificatesRequestIdRef.current) return;
             toast.error(getErrorMessage(error, copy.catalogLoadFailed, locale));
         } finally {
-            setCertsLoading(false);
+            if (isMountedRef.current && requestId === fetchCertificatesRequestIdRef.current) {
+                setCertsLoading(false);
+            }
         }
     }, [copy.catalogLoadFailed, locale]);
+    const fetchCertificatesRef = useRef(fetchCertificates);
+    fetchCertificatesRef.current = fetchCertificates;
+
+    useEffect(() => {
+        const handlePageRefresh = () => {
+            if (hasTargetServerRef.current) {
+                fetchCatalogRef.current({ preserveCurrent: true });
+            }
+            if (activeTabRef.current === 'ssl') {
+                fetchCertificatesRef.current();
+            }
+        };
+        window.addEventListener('nms:page-refresh', handlePageRefresh);
+        return () => window.removeEventListener('nms:page-refresh', handlePageRefresh);
+    }, []);
 
     useEffect(() => {
         if (activeTab === 'ssl') {
@@ -535,6 +580,7 @@ export default function Tools() {
                 email: cfEmail.trim() || undefined,
                 assignedServerIds: sslTargetServerIds,
             });
+            if (!isMountedRef.current) return;
             if (res?.data?.warning) {
                 toast(res.data.warning);
             } else {
@@ -542,9 +588,12 @@ export default function Tools() {
             }
             await fetchCertificates();
         } catch (error) {
+            if (!isMountedRef.current) return;
             toast.error(getErrorMessage(error, copy.ssl.issueFailed, locale));
         } finally {
-            setIssuingCert(false);
+            if (isMountedRef.current) {
+                setIssuingCert(false);
+            }
         }
     };
 
@@ -552,12 +601,16 @@ export default function Tools() {
         setCertActionBusy((prev) => ({ ...prev, [`renew:${certId}`]: true }));
         try {
             await api.post(`/certificates/${encodeURIComponent(certId)}/renew`);
+            if (!isMountedRef.current) return;
             toast.success(copy.ssl.renewSuccess);
             await fetchCertificates();
         } catch (error) {
+            if (!isMountedRef.current) return;
             toast.error(getErrorMessage(error, copy.ssl.renewFailed, locale));
         } finally {
-            setCertActionBusy((prev) => ({ ...prev, [`renew:${certId}`]: false }));
+            if (isMountedRef.current) {
+                setCertActionBusy((prev) => ({ ...prev, [`renew:${certId}`]: false }));
+            }
         }
     };
 
@@ -565,17 +618,25 @@ export default function Tools() {
         setCertActionBusy((prev) => ({ ...prev, [`key:${certId}`]: true }));
         try {
             const res = await api.get(`/certificates/${encodeURIComponent(certId)}?includeSecrets=true`);
+            if (!isMountedRef.current) return;
             const privateKey = String(res?.data?.obj?.privateKey || '').trim();
             if (!privateKey) {
                 toast.error(copy.ssl.issueFailed);
                 return;
             }
-            await copyToClipboard(privateKey);
-            toast.success(copy.copied);
+            const copied = await copyToClipboard(privateKey);
+            if (copied) {
+                toast.success(copy.copied);
+            } else {
+                toast.error(t('comp.common.copyFailed'));
+            }
         } catch (error) {
+            if (!isMountedRef.current) return;
             toast.error(getErrorMessage(error, copy.executeFailed, locale));
         } finally {
-            setCertActionBusy((prev) => ({ ...prev, [`key:${certId}`]: false }));
+            if (isMountedRef.current) {
+                setCertActionBusy((prev) => ({ ...prev, [`key:${certId}`]: false }));
+            }
         }
     };
 
@@ -594,6 +655,7 @@ export default function Tools() {
             const res = await api.post(`/certificates/${encodeURIComponent(cert.id)}/dispatch`, {
                 serverIds: candidateIds,
             });
+            if (!isMountedRef.current) return;
             const obj = res?.data?.obj || {};
             const dispatched = Array.isArray(obj.dispatchedServers) ? obj.dispatchedServers : [];
             const failed = Array.isArray(obj.failedServers) ? obj.failedServers : [];
@@ -613,22 +675,33 @@ export default function Tools() {
             }
             await fetchCertificates();
         } catch (error) {
+            if (!isMountedRef.current) return;
             toast.error(getErrorMessage(error, copy.ssl.dispatchFailed, locale));
         } finally {
-            setCertActionBusy((prev) => ({ ...prev, [`dispatch:${cert.id}`]: false }));
+            if (isMountedRef.current) {
+                setCertActionBusy((prev) => ({ ...prev, [`dispatch:${cert.id}`]: false }));
+            }
         }
     };
 
-    const handleDeleteCertificate = async (certId: string) => {
+    const confirmDeleteCertificate = async () => {
+        const target = deleteConfirmCert;
+        if (!target) return;
+        const certId = target.id;
         setCertActionBusy((prev) => ({ ...prev, [`delete:${certId}`]: true }));
         try {
             await api.delete(`/certificates/${encodeURIComponent(certId)}`);
+            if (!isMountedRef.current) return;
             toast.success(copy.ssl.deleteSuccess);
             setCertificates((prev) => prev.filter((item) => item.id !== certId));
+            setDeleteConfirmCert(null);
         } catch (error) {
+            if (!isMountedRef.current) return;
             toast.error(getErrorMessage(error, copy.ssl.deleteFailed, locale));
         } finally {
-            setCertActionBusy((prev) => ({ ...prev, [`delete:${certId}`]: false }));
+            if (isMountedRef.current) {
+                setCertActionBusy((prev) => ({ ...prev, [`delete:${certId}`]: false }));
+            }
         }
     };
 
@@ -690,6 +763,8 @@ export default function Tools() {
         const rawTarget = queryIp.trim();
         if (!rawTarget) return;
         const target = normalizeLookupInput(rawTarget);
+        const requestId = ipLookupRequestIdRef.current + 1;
+        ipLookupRequestIdRef.current = requestId;
         setIpLoading(true);
         try {
             let res: any = null;
@@ -702,6 +777,7 @@ export default function Tools() {
             } catch {
                 res = null;
             }
+            if (!isMountedRef.current || requestId !== ipLookupRequestIdRef.current) return;
 
             if (res && res.success !== false) {
                 setIpResult({
@@ -720,6 +796,7 @@ export default function Tools() {
 
             // Fallback to backend NMS resolver
             const backendRes = await api.post('/audit/ip-lookup', { ip: target }).catch(() => null);
+            if (!isMountedRef.current || requestId !== ipLookupRequestIdRef.current) return;
             if (backendRes?.data?.success && backendRes.data?.obj) {
                 const obj = backendRes.data.obj;
                 setIpResult({
@@ -746,6 +823,7 @@ export default function Tools() {
                 isBogon: false,
             });
         } catch {
+            if (!isMountedRef.current || requestId !== ipLookupRequestIdRef.current) return;
             setIpResult({
                 ip: target,
                 country: copy.ip.lookupFailed || '查询失败',
@@ -757,7 +835,9 @@ export default function Tools() {
                 isBogon: false,
             });
         } finally {
-            setIpLoading(false);
+            if (isMountedRef.current && requestId === ipLookupRequestIdRef.current) {
+                setIpLoading(false);
+            }
         }
     };
 
@@ -796,7 +876,7 @@ export default function Tools() {
                             <EmptyState
                                 title={hasDraftServer ? copy.confirmServerTitle : copy.selectServerFirst}
                                 subtitle={hasServers ? (hasDraftServer ? copy.confirmServerHint : copy.selectServerHint) : copy.noServersHint}
-                                icon={<HiOutlineWrench style={{ fontSize: '48px' }} />}
+                                icon={<HiOutlineWrench className="empty-state-svg" />}
                                 surface
                                 action={hasServers ? (
                                     <div className="page-server-selection-action">
@@ -844,7 +924,7 @@ export default function Tools() {
                                                 placeholder={copy.serverPlaceholder}
                                             />
                                         ) : null}
-                                        <button className="btn btn-secondary btn-sm" onClick={() => fetchCatalog()} disabled={catalogLoading}>
+                                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchCatalog()} disabled={catalogLoading}>
                                             <HiOutlineArrowPath className={catalogLoading ? 'spinning' : ''} /> {copy.refresh}
                                         </button>
                                         </>
@@ -1020,7 +1100,9 @@ export default function Tools() {
                                             className="input-trailing-action-btn"
                                             onClick={() => setShowCfToken((prev) => !prev)}
                                             tabIndex={-1}
-                                            aria-label={showCfToken ? 'Hide token' : 'Show token'}
+                                            aria-label={locale === 'en-US'
+                                                ? (showCfToken ? 'Hide token' : 'Show token')
+                                                : (showCfToken ? '隐藏 Token' : '显示 Token')}
                                         >
                                             {showCfToken ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
                                         </button>
@@ -1167,7 +1249,7 @@ export default function Tools() {
                                                                 <button
                                                                     type="button"
                                                                     className="btn btn-danger btn-sm"
-                                                                    onClick={() => handleDeleteCertificate(cert.id)}
+                                                                    onClick={() => setDeleteConfirmCert(cert)}
                                                                     disabled={isDeleting}
                                                                 >
                                                                     <HiOutlineTrash /> {copy.ssl.deleteCert}
@@ -1239,7 +1321,7 @@ export default function Tools() {
                             divider
                         />
 
-                        <div className="flex flex-col sm:flex-row gap-3 max-w-xl">
+                        <div className="flex flex-col sm:flex-row gap-3">
                             <input
                                 type="text"
                                 className="form-input flex-1 min-w-0 font-mono text-sm"
@@ -1284,6 +1366,57 @@ export default function Tools() {
                     </div>
                 )}
             </div>
+
+            {deleteConfirmCert && (
+                <ModalShell
+                    isOpen={!!deleteConfirmCert}
+                    onClose={() => {
+                        if (!certActionBusy[`delete:${deleteConfirmCert.id}`]) {
+                            setDeleteConfirmCert(null);
+                        }
+                    }}
+                >
+                    <div className="modal modal-sm" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3 className="modal-title">{copy.ssl.deleteConfirmTitle}</h3>
+                            <button
+                                type="button"
+                                className="modal-close"
+                                onClick={() => setDeleteConfirmCert(null)}
+                                disabled={Boolean(certActionBusy[`delete:${deleteConfirmCert.id}`])}
+                                aria-label={t('comp.common.close')}
+                                title={t('comp.common.close')}
+                            >
+                                <HiOutlineXMark />
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <p className="text-sm text-secondary">
+                                {copy.ssl.deleteConfirmMessage.replace('{domain}', deleteConfirmCert.domain || '')}
+                            </p>
+                        </div>
+                        <div className="modal-footer">
+                            <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => setDeleteConfirmCert(null)}
+                                disabled={Boolean(certActionBusy[`delete:${deleteConfirmCert.id}`])}
+                            >
+                                {copy.ssl.cancel}
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-danger btn-sm"
+                                onClick={confirmDeleteCertificate}
+                                disabled={Boolean(certActionBusy[`delete:${deleteConfirmCert.id}`])}
+                            >
+                                {certActionBusy[`delete:${deleteConfirmCert.id}`] ? <span className="spinner" /> : <HiOutlineTrash />}
+                                {copy.ssl.confirmDelete}
+                            </button>
+                        </div>
+                    </div>
+                </ModalShell>
+            )}
         </>
     );
 }

@@ -1224,6 +1224,8 @@ export default function SystemSettings() {
         const handleKeyDown = (e: KeyboardEvent) => {
             if ((e.ctrlKey || e.metaKey) && e.key === 's') {
                 e.preventDefault();
+                if (dangerConfirmOpen || backupRestoreModalOpen) return;
+                if (typeof document !== 'undefined' && document.querySelector('[role="dialog"], .modal-overlay')) return;
                 if (hasPendingChanges && !saving && !loading && isAdmin) {
                     saveSettings();
                 }
@@ -1231,7 +1233,7 @@ export default function SystemSettings() {
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [hasPendingChanges, saving, loading, isAdmin, saveSettings]);
+    }, [hasPendingChanges, saving, loading, isAdmin, saveSettings, dangerConfirmOpen, backupRestoreModalOpen]);
 
     const createInviteCode = async () => {
         if (!isAdmin) return;
@@ -1992,7 +1994,7 @@ export default function SystemSettings() {
                         title={t("pages.settings.registerAndInviteLabel")}
                         actions={(
                             <div className="settings-panel-actions">
-                                <button className="btn btn-secondary btn-sm" onClick={() => fetchInviteCodes()} disabled={inviteCodesLoading || inviteCodeActionLoading}>
+                                <button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchInviteCodes()} disabled={inviteCodesLoading || inviteCodeActionLoading}>
                                     {inviteCodesLoading ? <span className="spinner" /> : t('pages.settings.refreshInviteBtn')}
                                 </button>
                             </div>
@@ -2443,7 +2445,7 @@ export default function SystemSettings() {
                                 </div>
                             </div>
                             <div className="settings-panel-actions settings-ops-actions settings-ops-actions--single">
-                                <button className="btn btn-secondary btn-sm" onClick={testEmailConnection} disabled={emailStatusLoading || emailTestLoading}>
+                                <button type="button" className="btn btn-secondary btn-sm" onClick={testEmailConnection} disabled={emailStatusLoading || emailTestLoading}>
                                     {emailTestLoading ? <span className="spinner" /> : t('pages.settings.testSmtp')}
                                 </button>
                             </div>
@@ -2474,6 +2476,7 @@ export default function SystemSettings() {
                             </div>
                             <div className="settings-panel-actions settings-ops-actions settings-ops-actions--single">
                                 <button
+                                    type="button"
                                     className="btn btn-secondary btn-sm"
                                     onClick={openNoticeModal}
                                     disabled={!emailStatus?.configured || noticeSending}
@@ -2511,7 +2514,7 @@ export default function SystemSettings() {
                                 </div>
                             </div>
                             <div className="settings-panel-actions settings-ops-actions settings-ops-actions--single">
-                                <button className="btn btn-primary btn-sm" onClick={runMonitorCheck} disabled={monitorLoading}>
+                                <button type="button" className="btn btn-primary btn-sm" onClick={runMonitorCheck} disabled={monitorLoading}>
                                     {monitorLoading ? <span className="spinner" /> : t('pages.settings.inspectNowBtn')}
                                 </button>
                             </div>
@@ -2526,6 +2529,7 @@ export default function SystemSettings() {
                         title={t("pages.settings.telegramBot")}
                         actions={(
                             <button
+                                type="button"
                                 className="btn btn-secondary btn-sm"
                                 onClick={testTelegramAlert}
                                 disabled={telegramTestLoading || !draft.telegram.enabled}
@@ -2582,7 +2586,7 @@ export default function SystemSettings() {
                                     className="input-trailing-action-btn"
                                     onClick={() => setShowTelegramToken((prev) => !prev)}
                                     tabIndex={-1}
-                                    aria-label={showTelegramToken ? 'Hide token' : 'Show token'}
+                                    aria-label={t(showTelegramToken ? 'comp.common.hidePassword' : 'comp.common.showPassword')}
                                 >
                                     {showTelegramToken ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
                                 </button>
@@ -2792,7 +2796,7 @@ export default function SystemSettings() {
                                     className="input-trailing-action-btn"
                                     onClick={() => setShowWebhookSecret((prev) => !prev)}
                                     tabIndex={-1}
-                                    aria-label={showWebhookSecret ? 'Hide secret' : 'Show secret'}
+                                    aria-label={t(showWebhookSecret ? 'comp.common.hidePassword' : 'comp.common.showPassword')}
                                 >
                                     {showWebhookSecret ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
                                 </button>
@@ -2845,7 +2849,7 @@ export default function SystemSettings() {
                     compact
                     title={t("pages.settings.backupAndRestore")}
                     actions={(
-                        <button className="btn btn-secondary btn-sm" onClick={() => fetchBackupStatus()} disabled={backupStatusLoading}>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchBackupStatus()} disabled={backupStatusLoading}>
                             {backupStatusLoading ? <span className="spinner" /> : t('pages.settings.refreshStatusBtn')}
                         </button>
                     )}
@@ -2855,7 +2859,7 @@ export default function SystemSettings() {
                         <div className="text-sm font-medium">{t("pages.settings.exportToBrowser")}</div>
                         <div className="text-xs text-muted mt-1">{t("pages.settings.downloadAnEncryptedBackupPackage")}</div>
                         <div className="settings-backup-action-footer">
-                            <button className="btn btn-primary btn-sm" onClick={exportBackup} disabled={backupLoading || backupRestoreLoading || backupLocalSaving}>
+                            <button type="button" className="btn btn-primary btn-sm" onClick={exportBackup} disabled={backupLoading || backupRestoreLoading || backupLocalSaving}>
                                 {backupLoading ? <span className="spinner" /> : <><HiOutlineArrowDownTray />{t("pages.settings.exportBackupBtn")}</>}
                             </button>
                         </div>
@@ -2864,7 +2868,7 @@ export default function SystemSettings() {
                         <div className="text-sm font-medium">{t("pages.settings.saveToLocalServer")}</div>
                         <div className="text-xs text-muted mt-1">{t("pages.settings.keepAnEncryptedBackupLocallyOnTheSe")}</div>
                         <div className="settings-backup-action-footer">
-                            <button className="btn btn-secondary btn-sm" onClick={saveBackupLocally} disabled={backupLocalSaving || backupLoading || backupRestoreLoading}>
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={saveBackupLocally} disabled={backupLocalSaving || backupLoading || backupRestoreLoading}>
                                 {backupLocalSaving ? <span className="spinner" /> : <><HiOutlineShieldCheck />{t("pages.settings.saveLocalBackupBtn")}</>}
                             </button>
                         </div>
@@ -2874,6 +2878,7 @@ export default function SystemSettings() {
                         <div className="text-xs text-muted mt-1">{t("pages.settings.sendTheCurrentNmsEncryptedBackupPac")}</div>
                         <div className="settings-backup-action-footer">
                             <button
+                                type="button"
                                 className="btn btn-secondary btn-sm"
                                 onClick={sendBackupToTelegram}
                                 disabled={backupTelegramSending || backupLoading || backupRestoreLoading || backupLocalSaving || !draft.telegram.enabled}
@@ -2887,6 +2892,7 @@ export default function SystemSettings() {
                         <div className="text-xs text-muted mt-1">{t("pages.settings.restoreAfterUploadingTheBackupPacka")}</div>
                         <div className="settings-backup-action-footer">
                             <button
+                                type="button"
                                 className="btn btn-secondary btn-sm"
                                 onClick={() => {
                                     setBackupRestoreModalOpen(true);
@@ -3076,10 +3082,10 @@ export default function SystemSettings() {
                                 : t('pages.settings.decryptedWithKey', { key: backupInspection.keyHint || 'CREDENTIALS_SECRET' })}
                         </div>
                         <div className="settings-backup-inspection-actions">
-                            <button className="btn btn-secondary btn-sm" onClick={inspectBackup} disabled={!backupFile || backupInspectLoading || backupRestoreLoading}>
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={inspectBackup} disabled={!backupFile || backupInspectLoading || backupRestoreLoading}>
                                 {backupInspectLoading ? <span className="spinner" /> : t('comp.system.sysReVerify')}
                             </button>
-                            <button className="btn btn-danger btn-sm" onClick={restoreBackup} disabled={backupRestoreLoading || (backupInspection.restorableKeys || []).length === 0}>
+                            <button type="button" className="btn btn-danger btn-sm" onClick={restoreBackup} disabled={backupRestoreLoading || (backupInspection.restorableKeys || []).length === 0}>
                                 {backupRestoreLoading ? <span className="spinner" /> : t('comp.system.sysConfirmRestore')}
                             </button>
                         </div>
@@ -3099,7 +3105,7 @@ export default function SystemSettings() {
                     title={t("pages.settings.databaseReadAndWriteMode")}
                     subtitle={t("pages.settings.switchTheDatabaseReadAndWriteStrate")}
                     actions={(
-                        <button className="btn btn-secondary btn-sm" onClick={() => fetchDbStatus()} disabled={dbLoading}>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchDbStatus()} disabled={dbLoading}>
                             {dbLoading ? <span className="spinner" /> : t('pages.settings.refreshStatusBtn')}
                         </button>
                     )}
@@ -3143,18 +3149,21 @@ export default function SystemSettings() {
                                         </select>
                                     </div>
                                     <div className="settings-db-inline-options">
-                                        <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
+                                        <label className="form-check-label flex items-start gap-2 cursor-pointer text-sm leading-snug">
                                             <input
                                                 type="checkbox"
                                                 aria-label={t("pages.settings.synchronouslyLoadIntoTheMemoryCache")}
                                                 checked={dbModeDraft.hydrateOnReadDb}
                                                 onChange={(event) => setDbModeDraft((prev) => ({ ...prev, hydrateOnReadDb: event.target.checked }))}
                                                 disabled={!isAdmin}
-                                            />{t("pages.settings.synchronouslyLoadIntoTheMemoryCache")}</label>
+                                            />
+                                            <span>{t("pages.settings.synchronouslyLoadIntoTheMemoryCache")}</span>
+                                        </label>
                                     </div>
                                 </div>
                                 <div className="settings-db-card-foot">
                                     <button
+                                        type="button"
                                         className="btn btn-primary btn-sm"
                                         onClick={switchDbMode}
                                         disabled={dbSwitchLoading || !dbStatus.connection?.enabled || !isAdmin}
@@ -3204,6 +3213,7 @@ export default function SystemSettings() {
                                 </div>
                                 <div className="settings-db-card-foot">
                                     <button
+                                        type="button"
                                         className={`btn btn-sm ${dbBackfillDraft.dryRun ? 'btn-secondary' : 'btn-danger'}`}
                                         onClick={runDbBackfill}
                                         disabled={dbBackfillLoading || !dbStatus.connection?.enabled || !isAdmin}
@@ -3522,7 +3532,7 @@ export default function SystemSettings() {
                     <EmptyState
                         title={t("pages.settings.adminAccessOnlyTitle")}
                         subtitle={t("pages.settings.adminAccessOnlyDesc")}
-                        icon={<HiOutlineCog6Tooth style={{ fontSize: '48px' }} />}
+                        icon={<HiOutlineCog6Tooth className="empty-state-svg" />}
                         surface
                         action={(
                             <button type="button" className="btn btn-secondary" onClick={() => navigate('/account')}>
@@ -3620,11 +3630,11 @@ export default function SystemSettings() {
                                 </div>
                                 <div className="settings-save-dock-actions">
                                     {hasPendingChanges ? (
-                                        <button className="btn btn-ghost btn-sm" onClick={resetPendingChanges} disabled={loading || saving}>
+                                        <button type="button" className="btn btn-ghost btn-sm" onClick={resetPendingChanges} disabled={loading || saving}>
                                             {t('pages.settings.saveDock.revertChanges')}
                                         </button>
                                     ) : null}
-                                    <button className="btn btn-primary btn-sm" onClick={saveSettings} disabled={loading || saving || !hasPendingChanges}>
+                                    <button type="button" className="btn btn-primary btn-sm" onClick={saveSettings} disabled={loading || saving || !hasPendingChanges}>
                                         {saving ? <span className="spinner" /> : t('pages.settings.saveDock.saveSettings')}
                                     </button>
                                 </div>

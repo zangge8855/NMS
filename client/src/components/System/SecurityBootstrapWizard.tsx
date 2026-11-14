@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import api, { setStoredToken } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
@@ -6,6 +6,16 @@ import { useI18n } from '../../contexts/LanguageContext';
 import { getPasswordPolicyError } from '../../utils/passwordPolicy';
 import { getErrorMessage } from '../../utils/format';
 import { HiOutlineEye, HiOutlineEyeSlash } from 'react-icons/hi2';
+import { acquireModalStackSlot } from '../UI/ModalShell';
+
+const FOCUSABLE_SELECTOR = [
+    'a[href]',
+    'button:not([disabled])',
+    'input:not([disabled]):not([type="hidden"])',
+    'select:not([disabled])',
+    'textarea:not([disabled])',
+    '[tabindex]:not([tabindex="-1"])',
+].join(', ');
 
 const SECURITY_BOOTSTRAP_COPY = {
     'zh-CN': {
@@ -79,8 +89,11 @@ function getCopy(locale = 'zh-CN') {
 
 export default function SecurityBootstrapWizard() {
     const { user, refreshAuth } = useAuth();
-    const { locale } = useI18n();
+    const { locale, t } = useI18n();
     const copy = useMemo(() => getCopy(locale), [locale]);
+    const isMountedRef = useRef(true);
+    const statusRequestIdRef = useRef(0);
+    const overlayRef = useRef<HTMLDivElement | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [showAdminPassword, setShowAdminPassword] = useState(false);
@@ -100,6 +113,14 @@ export default function SecurityBootstrapWizard() {
         credentialsSecret: '',
     });
 
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+            statusRequestIdRef.current += 1;
+        };
+    }, []);
+
     const initializeDraft = (nextStatus) => {
         setDraft({
             adminUsername: String(nextStatus?.admin?.username || user?.username || '').trim(),
@@ -112,13 +133,16 @@ export default function SecurityBootstrapWizard() {
 
     const loadStatus = async ({ preserveDraft = false } = {}) => {
         if (user?.role !== 'admin') {
-            setLoading(false);
+            if (isMountedRef.current) setLoading(false);
             return;
         }
 
+        const requestId = statusRequestIdRef.current + 1;
+        statusRequestIdRef.current = requestId;
         setLoading(true);
         try {
             const res = await api.get('/system/security/bootstrap-status');
+            if (!isMountedRef.current || requestId !== statusRequestIdRef.current) return;
             const payload = res.data?.obj || {};
             setStatus({
                 required: payload.required === true,
@@ -131,9 +155,13 @@ export default function SecurityBootstrapWizard() {
                 initializeDraft(payload);
             }
         } catch (error) {
+            if (!isMountedRef.current || requestId !== statusRequestIdRef.current) return;
             toast.error(error.response?.data?.msg || error.message || copy.loadFailed);
+        } finally {
+            if (isMountedRef.current && requestId === statusRequestIdRef.current) {
+                setLoading(false);
+            }
         }
-        setLoading(false);
     };
 
     useEffect(() => {
@@ -142,9 +170,57 @@ export default function SecurityBootstrapWizard() {
         return undefined;
     }, [user?.role]);
 
-    if (user?.role !== 'admin') return null;
-    if (loading && !status.required) return null;
-    if (!status.required) return null;
+    const isWizardVisible = user?.role === 'admin' && status.required && !(loading && !status.required);
+
+    useEffect(() => {
+        if (!isWizardVisible || typeof document === 'undefined') return undefined;
+
+        const stackSlot = acquireModalStackSlot();
+        const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        const container = overlayRef.current;
+
+        if (container && (!document.activeElement || !container.contains(document.activeElement))) {
+            const focusable = Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+            if (focusable.length > 0) {
+                focusable[0].focus();
+            }
+        }
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key !== 'Tab' || !stackSlot.isTopmost()) return;
+            const currentContainer = overlayRef.current;
+            if (!currentContainer) return;
+            const focusable = Array.from(currentContainer.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
+                .filter((el) => !el.hasAttribute('hidden') && el.getAttribute('aria-hidden') !== 'true');
+            if (focusable.length === 0) {
+                event.preventDefault();
+                return;
+            }
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            const active = document.activeElement;
+            if (event.shiftKey) {
+                if (active === first || !currentContainer.contains(active)) {
+                    event.preventDefault();
+                    last.focus();
+                }
+            } else if (active === last || !currentContainer.contains(active)) {
+                event.preventDefault();
+                first.focus();
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown, true);
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown, true);
+            stackSlot.release();
+            if (previousFocus && previousFocus.isConnected && typeof previousFocus.focus === 'function') {
+                previousFocus.focus();
+            }
+        };
+    }, [isWizardVisible]);
+
+    if (!isWizardVisible) return null;
 
     const canSubmit = Boolean(
         draft.adminUsername.trim()
@@ -177,10 +253,12 @@ export default function SecurityBootstrapWizard() {
                 jwtSecret: draft.jwtSecret.trim(),
                 credentialsSecret: draft.credentialsSecret.trim(),
             });
+            if (!isMountedRef.current) return;
             const payload = res.data?.obj || {};
             if (payload.token) {
                 setStoredToken(payload.token);
                 await refreshAuth();
+                if (!isMountedRef.current) return;
             }
             setStatus((current) => ({
                 ...current,
@@ -189,13 +267,17 @@ export default function SecurityBootstrapWizard() {
             }));
             toast.success(copy.applySuccess);
         } catch (error) {
+            if (!isMountedRef.current) return;
             toast.error(getErrorMessage(error, copy.applyFailed, locale));
+        } finally {
+            if (isMountedRef.current) {
+                setSaving(false);
+            }
         }
-        setSaving(false);
     };
 
     return (
-        <div className="security-bootstrap-overlay" role="dialog" aria-modal="true" aria-labelledby="security-bootstrap-title">
+        <div ref={overlayRef} className="security-bootstrap-overlay" role="dialog" aria-modal="true" aria-labelledby="security-bootstrap-title">
             <div className="security-bootstrap-shell">
                 <div className="security-bootstrap-copy">
                     <div className="security-bootstrap-kicker">NMS Security</div>
@@ -256,7 +338,7 @@ export default function SecurityBootstrapWizard() {
                                 className="input-trailing-action-btn"
                                 onClick={() => setShowAdminPassword((prev) => !prev)}
                                 tabIndex={-1}
-                                aria-label={showAdminPassword ? 'Hide password' : 'Show password'}
+                                aria-label={t(showAdminPassword ? 'comp.common.hidePassword' : 'comp.common.showPassword')}
                             >
                                 {showAdminPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
                             </button>
@@ -278,7 +360,7 @@ export default function SecurityBootstrapWizard() {
                                 className="input-trailing-action-btn"
                                 onClick={() => setShowConfirmPassword((prev) => !prev)}
                                 tabIndex={-1}
-                                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                                aria-label={t(showConfirmPassword ? 'comp.common.hidePassword' : 'comp.common.showPassword')}
                             >
                                 {showConfirmPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
                             </button>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { HiOutlineXMark, HiOutlineCheck, HiOutlineArrowPath } from 'react-icons/hi2';
 import api from '../../api/client';
 import { attachBatchRiskToken } from '../../utils/riskConfirm';
@@ -127,6 +127,27 @@ export default function ClientModal({
     const [selectedInboundKeys, setSelectedInboundKeys] = useState<string[]>([]);
     const [baseFlowOptions, setBaseFlowOptions] = useState(['', 'xtls-rprx-vision']);
     const [flowProtocols, setFlowProtocols] = useState(['vless']);
+    const initializedKeyRef = useRef('');
+    const latestEditingClientRef = useRef(editingClient);
+    latestEditingClientRef.current = editingClient;
+    const latestTargetsRef = useRef(targets);
+    latestTargetsRef.current = targets;
+    const latestInboundProtocolRef = useRef(inboundProtocol);
+    latestInboundProtocolRef.current = inboundProtocol;
+    const prevRequiresUuidRef = useRef(false);
+    const prevRequiresPasswordRef = useRef(false);
+
+    const sessionInitKey = useMemo(() => {
+        if (!isOpen) return '';
+        if (editingClient) {
+            return `edit:${String(editingClient.serverId || serverId || '')}:${String(editingClient.inboundId || inboundId || '')}:${String(editingClient.id || editingClient.password || editingClient.email || '')}`;
+        }
+        const targetKeys = (Array.isArray(targets) ? targets : [])
+            .map((item) => getTargetKey(item))
+            .filter(Boolean)
+            .join(',');
+        return `add:${String(serverId || '')}:${String(inboundId || '')}:${normalizeProtocol(inboundProtocol)}:${targetKeys}`;
+    }, [editingClient, inboundId, inboundProtocol, isOpen, serverId, targets]);
     const flowOptions = useMemo(() => {
         if (flow && !baseFlowOptions.includes(flow)) {
             return [...baseFlowOptions, flow];
@@ -135,80 +156,97 @@ export default function ClientModal({
     }, [flow, baseFlowOptions]);
 
     useEffect(() => {
-        if (isOpen) {
-            if (editingClient) {
-                const editScopeTargets = Array.isArray(editingClient.editTargets) && editingClient.editTargets.length > 0
-                    ? editingClient.editTargets
-                    : [editingClient];
-                const protocolSet = new Set<string>(
-                    editScopeTargets.map((item: any) => normalizeProtocol(item?.protocol)).filter(Boolean)
-                );
-                const needsUuid = protocolSet.size === 0 || Array.from(protocolSet).some((item) => UUID_PROTOCOLS.has(item));
-                const needsPassword = Array.from(protocolSet).some((item) => PASSWORD_PROTOCOLS.has(item));
-                const currentId = String(editingClient.id || '').trim();
-                const currentPassword = String(editingClient.password || '').trim();
-
-                setEmail(editingClient.email);
-                setUuid(currentId || (needsUuid ? currentPassword : ''));
-                setPassword(currentPassword || (needsPassword ? currentId : ''));
-                setSubId(editingClient.subId || '');
-                setTotalGB(bytesToGigabytesInput(editingClient.totalGB));
-                {
-                    const rawExpiry = Number(editingClient.expiryTime || 0);
-                    setExpiryTime(rawExpiry);
-                    if (rawExpiry > 0) {
-                        setExpiryMode('datetime');
-                        setExpiryDateTime(toLocalDateTimeInput(rawExpiry));
-                    } else {
-                        setExpiryMode('never');
-                        setExpiryDateTime('');
-                    }
-                    setExpiryAfterDays('');
-                }
-                setEnable(editingClient.enable !== false);
-                setLimitIp(editingClient.limitIp || 0);
-                setSpeedLimitUp(bytesPerSecondToKilobytesInput(editingClient.speedLimitUp));
-                setSpeedLimitDown(bytesPerSecondToKilobytesInput(editingClient.speedLimitDown));
-                setTgId(String(editingClient.tgId || ''));
-                setComment(String(editingClient.comment || ''));
-                setReset(Number(editingClient.reset || 0));
-                setFlow(editingClient.flow || '');
-                setEditTargets(Array.isArray(editingClient.editTargets) ? editingClient.editTargets : []);
-                setSelectedServerIds([]);
-                setSelectedInboundKeys([]);
-            } else {
-                const addProtocolSet = new Set<string>((targets || []).map((item: any) => normalizeProtocol(item?.protocol)).filter(Boolean));
-                const normalizedInboundProtocol = normalizeProtocol(inboundProtocol);
-                if (addProtocolSet.size === 0 && normalizedInboundProtocol) {
-                    addProtocolSet.add(normalizedInboundProtocol);
-                }
-                const needsUuid = addProtocolSet.size === 0 || Array.from(addProtocolSet).some((item: string) => UUID_PROTOCOLS.has(item));
-                const needsPassword = Array.from(addProtocolSet).some((item: string) => PASSWORD_PROTOCOLS.has(item));
-
-                setEmail('user_' + Math.random().toString(36).substring(7));
-                setUuid(needsUuid ? generateUuidLocal() : '');
-                setPassword(needsPassword ? generateSecurePassword() : '');
-                setSubId('');
-                setTotalGB(0);
-                setExpiryTime(0);
-                setExpiryMode('never');
-                setExpiryDateTime('');
-                setExpiryAfterDays('');
-                setEnable(true);
-                setLimitIp(0);
-                setSpeedLimitUp(0);
-                setSpeedLimitDown(0);
-                setTgId('');
-                setComment('');
-                setReset(0);
-                setFlow('');
-                setEditTargets([]);
-                const uniqueServerIds = Array.from(new Set<string>((targets || []).map((t: any) => String(t.serverId || '')).filter(Boolean)));
-                setSelectedServerIds(uniqueServerIds);
-                setSelectedInboundKeys((targets || []).map((item) => getTargetKey(item)).filter(Boolean));
-            }
+        if (!isOpen) {
+            initializedKeyRef.current = '';
+            prevRequiresUuidRef.current = false;
+            prevRequiresPasswordRef.current = false;
+            return;
         }
-    }, [editingClient, inboundProtocol, isOpen, targets]);
+        if (initializedKeyRef.current === sessionInitKey) {
+            return;
+        }
+        initializedKeyRef.current = sessionInitKey;
+
+        const currentEditing = latestEditingClientRef.current;
+        const currentTargets = latestTargetsRef.current;
+        const currentInboundProtocol = latestInboundProtocolRef.current;
+
+        if (currentEditing) {
+            const editScopeTargets = Array.isArray(currentEditing.editTargets) && currentEditing.editTargets.length > 0
+                ? currentEditing.editTargets
+                : [currentEditing];
+            const protocolSet = new Set<string>(
+                editScopeTargets.map((item: any) => normalizeProtocol(item?.protocol)).filter(Boolean)
+            );
+            const needsUuid = protocolSet.size === 0 || Array.from(protocolSet).some((item) => UUID_PROTOCOLS.has(item));
+            const needsPassword = Array.from(protocolSet).some((item) => PASSWORD_PROTOCOLS.has(item));
+            const currentId = String(currentEditing.id || '').trim();
+            const currentPassword = String(currentEditing.password || '').trim();
+
+            setEmail(currentEditing.email);
+            setUuid(currentId || (needsUuid ? currentPassword : ''));
+            setPassword(currentPassword || (needsPassword ? currentId : ''));
+            setSubId(currentEditing.subId || '');
+            setTotalGB(bytesToGigabytesInput(currentEditing.totalGB));
+            {
+                const rawExpiry = Number(currentEditing.expiryTime || 0);
+                setExpiryTime(rawExpiry);
+                if (rawExpiry > 0) {
+                    setExpiryMode('datetime');
+                    setExpiryDateTime(toLocalDateTimeInput(rawExpiry));
+                } else {
+                    setExpiryMode('never');
+                    setExpiryDateTime('');
+                }
+                setExpiryAfterDays('');
+            }
+            setEnable(currentEditing.enable !== false);
+            setLimitIp(currentEditing.limitIp || 0);
+            setSpeedLimitUp(bytesPerSecondToKilobytesInput(currentEditing.speedLimitUp));
+            setSpeedLimitDown(bytesPerSecondToKilobytesInput(currentEditing.speedLimitDown));
+            setTgId(String(currentEditing.tgId || ''));
+            setComment(String(currentEditing.comment || ''));
+            setReset(Number(currentEditing.reset || 0));
+            setFlow(currentEditing.flow || '');
+            setEditTargets(Array.isArray(currentEditing.editTargets) ? currentEditing.editTargets : []);
+            setSelectedServerIds([]);
+            setSelectedInboundKeys([]);
+            prevRequiresUuidRef.current = needsUuid;
+            prevRequiresPasswordRef.current = needsPassword;
+        } else {
+            const addProtocolSet = new Set<string>((currentTargets || []).map((item: any) => normalizeProtocol(item?.protocol)).filter(Boolean));
+            const normalizedInboundProtocol = normalizeProtocol(currentInboundProtocol);
+            if (addProtocolSet.size === 0 && normalizedInboundProtocol) {
+                addProtocolSet.add(normalizedInboundProtocol);
+            }
+            const needsUuid = addProtocolSet.size === 0 || Array.from(addProtocolSet).some((item: string) => UUID_PROTOCOLS.has(item));
+            const needsPassword = Array.from(addProtocolSet).some((item: string) => PASSWORD_PROTOCOLS.has(item));
+
+            setEmail('user_' + Math.random().toString(36).substring(7));
+            setUuid(needsUuid ? generateUuidLocal() : '');
+            setPassword(needsPassword ? generateSecurePassword() : '');
+            setSubId('');
+            setTotalGB(0);
+            setExpiryTime(0);
+            setExpiryMode('never');
+            setExpiryDateTime('');
+            setExpiryAfterDays('');
+            setEnable(true);
+            setLimitIp(0);
+            setSpeedLimitUp(0);
+            setSpeedLimitDown(0);
+            setTgId('');
+            setComment('');
+            setReset(0);
+            setFlow('');
+            setEditTargets([]);
+            const uniqueServerIds = Array.from(new Set<string>((currentTargets || []).map((t: any) => String(t.serverId || '')).filter(Boolean)));
+            setSelectedServerIds(uniqueServerIds);
+            setSelectedInboundKeys((currentTargets || []).map((item) => getTargetKey(item)).filter(Boolean));
+            prevRequiresUuidRef.current = needsUuid;
+            prevRequiresPasswordRef.current = needsPassword;
+        }
+    }, [isOpen, sessionInitKey]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -349,15 +387,18 @@ export default function ClientModal({
         }
     }, [isFlowSupported, flow]);
 
+    const isEditingClient = Boolean(editingClient);
     useEffect(() => {
-        if (!isOpen || editingClient) return;
-        if (requiresUuidCredential && !uuid) {
-            setUuid(generateUuidLocal());
+        if (!isOpen || isEditingClient) return;
+        if (!prevRequiresUuidRef.current && requiresUuidCredential) {
+            setUuid((prev) => prev || generateUuidLocal());
         }
-        if (requiresPasswordCredential && !password) {
-            setPassword(generateSecurePassword());
+        if (!prevRequiresPasswordRef.current && requiresPasswordCredential) {
+            setPassword((prev) => prev || generateSecurePassword());
         }
-    }, [editingClient, isOpen, password, requiresPasswordCredential, requiresUuidCredential, uuid]);
+        prevRequiresUuidRef.current = requiresUuidCredential;
+        prevRequiresPasswordRef.current = requiresPasswordCredential;
+    }, [isEditingClient, isOpen, requiresPasswordCredential, requiresUuidCredential]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();

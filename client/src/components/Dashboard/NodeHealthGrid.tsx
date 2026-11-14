@@ -214,8 +214,8 @@ function NodeTile({ server, serverData, trend = [], showSparkline = false, ping 
             <div className="node-health-tile-head">
                 <div className="node-health-tile-title">
                     {isOnline
-                        ? <HiOutlineSignal style={{ color: color.dot, fontSize: '16px', flexShrink: 0 }} />
-                        : <HiOutlineXMark style={{ color: color.dot, fontSize: '16px', flexShrink: 0 }} />
+                        ? <HiOutlineSignal className="w-4 h-4 shrink-0" style={{ color: color.dot }} />
+                        : <HiOutlineXMark className="w-4 h-4 shrink-0" style={{ color: color.dot }} />
                     }
                     <div className="node-health-tile-heading">
                         <span className="node-health-tile-name">{server.name}</span>
@@ -238,11 +238,10 @@ function NodeTile({ server, serverData, trend = [], showSparkline = false, ping 
                 <div className="flex items-center gap-1.5">
                     {ping && (
                         <span
-                            className={`badge ${ping.latencyMs > 0 && ping.latencyMs < 150 ? 'badge-success' : (ping.latencyMs > 0 && ping.latencyMs < 350 ? 'badge-warning' : 'badge-danger')}`}
-                            style={{ fontSize: '10px', padding: '2px 5px', height: 'auto', display: 'inline-flex', alignItems: 'center', gap: '2px' }}
+                            className={`badge inline-flex items-center gap-1 ${ping.latencyMs > 0 && ping.latencyMs < 150 ? 'badge-success' : (ping.latencyMs > 0 && ping.latencyMs < 350 ? 'badge-warning' : 'badge-danger')}`}
                             title={ping.latencyMs > 0 ? (locale === 'en-US' ? `RTT Latency: ${ping.latencyMs}ms` : `实时探测延迟: ${ping.latencyMs}ms`) : (locale === 'en-US' ? 'Probe Timeout' : '探测超时')}
                         >
-                            <HiOutlineBolt style={{ fontSize: '11px' }} />
+                            <HiOutlineBolt className="w-3.5 h-3.5 shrink-0" />
                             {ping.latencyMs > 0 ? `${ping.latencyMs}ms` : (locale === 'en-US' ? 'Timeout' : '超时')}
                         </span>
                     )}
@@ -254,7 +253,7 @@ function NodeTile({ server, serverData, trend = [], showSparkline = false, ping 
                 <div className="node-health-tile-meta">
                     <div className="node-health-metric-cell">
                         <div className="node-health-metric-label">{t('pages.nodeHealth.cpu')}</div>
-                        <div className="node-health-tile-value" style={{ color: cpu > 85 ? 'var(--accent-danger)' : cpu > 70 ? 'var(--accent-warning)' : 'var(--text-primary)' }}>
+                        <div className={`node-health-tile-value ${cpu > 85 ? 'text-danger' : cpu > 70 ? 'text-warning' : 'text-primary'}`}>
                             {cpu.toFixed(1)}%
                         </div>
                         <div className="node-health-metric-bar" aria-hidden="true">
@@ -269,7 +268,7 @@ function NodeTile({ server, serverData, trend = [], showSparkline = false, ping 
                     </div>
                     <div className="node-health-metric-cell">
                         <div className="node-health-metric-label">{t('pages.nodeHealth.memory')}</div>
-                        <div className="node-health-tile-value" style={{ color: memPercent > 85 ? 'var(--accent-danger)' : memPercent > 75 ? 'var(--accent-warning)' : 'var(--text-primary)' }}>
+                        <div className={`node-health-tile-value ${memPercent > 85 ? 'text-danger' : memPercent > 75 ? 'text-warning' : 'text-primary'}`}>
                             {memPercent.toFixed(1)}%
                         </div>
                         <div className="node-health-metric-bar" aria-hidden="true">
@@ -335,8 +334,8 @@ function SkeletonTile() {
         <div className="node-health-skeleton">
             <div className="node-health-skeleton-head">
                 <div className="node-health-skeleton-title">
-                    <div className="skeleton node-health-skeleton-bar" style={{ width: '16px', height: '16px', borderRadius: '4px' }} />
-                    <div className="skeleton node-health-skeleton-bar" style={{ width: '80px' }} />
+                    <div className="skeleton node-health-skeleton-bar w-4 h-4 rounded" />
+                    <div className="skeleton node-health-skeleton-bar w-20" />
                 </div>
                 <div className="skeleton node-health-skeleton-pill" />
             </div>

@@ -193,6 +193,17 @@ export default function ServerDetail() {
     const snapshotRequestIdRef = useRef(0);
     const auditRequestIdRef = useRef(0);
     const clientIpRequestIdRef = useRef(0);
+    const isMountedRef = useRef(true);
+
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+            snapshotRequestIdRef.current += 1;
+            auditRequestIdRef.current += 1;
+            clientIpRequestIdRef.current += 1;
+        };
+    }, []);
 
     const [loading, setLoading] = useState(() => detailBootstrapRef.current?.server == null);
     const [server, setServer] = useState(() => detailBootstrapRef.current?.server || null);
@@ -204,6 +215,9 @@ export default function ServerDetail() {
     const [inboundsLoading, setInboundsLoading] = useState(() => detailBootstrapRef.current?.inbounds == null);
     const [onlinesLoading, setOnlinesLoading] = useState(() => detailBootstrapRef.current?.onlines == null);
     const [auditEvents, setAuditEvents] = useState(() => detailBootstrapRef.current?.auditEvents || []);
+    const [snapshotError, setSnapshotError] = useState('');
+    const [isNotFound, setIsNotFound] = useState(false);
+    const [auditError, setAuditError] = useState('');
     const [activeTab, setActiveTab] = useState(() => getServerDetailTab(searchParams));
     const [clientIpSupport, setClientIpSupport] = useState({ supported: true, reason: '' });
     const [clientIpModal, setClientIpModal] = useState({
@@ -229,7 +243,7 @@ export default function ServerDetail() {
             const res = await api.get(`/servers/${encodeURIComponent(serverId)}/snapshot`, {
                 params: force ? { refresh: true } : undefined,
             });
-            if (requestId !== snapshotRequestIdRef.current) return;
+            if (!isMountedRef.current || requestId !== snapshotRequestIdRef.current) return;
             if (res.data?.success) {
                 const payload = res.data?.obj || {};
                 setServer(payload.server || null);
@@ -238,21 +252,40 @@ export default function ServerDetail() {
                 setInbounds(Array.isArray(payload.inbounds) ? payload.inbounds : []);
                 setOnlines(Array.isArray(payload.onlines) ? payload.onlines : []);
                 setLastOnline(payload.lastOnline && typeof payload.lastOnline === 'object' && !Array.isArray(payload.lastOnline) ? payload.lastOnline : {});
+                setSnapshotError('');
+                setIsNotFound(!payload.server);
             } else {
-                toast.error(t('pages.serverDetail.errors.serverNotFound'));
+                const msg = String(res.data?.msg || '').trim();
+                if (msg) {
+                    setSnapshotError(msg);
+                    toast.error(msg);
+                } else {
+                    setIsNotFound(true);
+                    toast.error(t('pages.serverDetail.errors.serverNotFound'));
+                }
             }
         } catch (err) {
-            if (requestId !== snapshotRequestIdRef.current) return;
-            if (!preserveCurrent) {
-                toast.error(getErrorMessage(err, t('pages.serverDetail.errors.loadSnapshotFailed'), locale));
-                setServer(null);
-                setStatus(null);
-                setStatusMeta(null);
-                setInbounds([]);
-                setOnlines([]);
+            if (!isMountedRef.current || requestId !== snapshotRequestIdRef.current) return;
+            const statusCode = Number(err?.response?.status || 0);
+            if (statusCode === 404) {
+                setIsNotFound(true);
+                setSnapshotError('');
+                if (!preserveCurrent) {
+                    setServer(null);
+                    setStatus(null);
+                    setStatusMeta(null);
+                    setInbounds([]);
+                    setOnlines([]);
+                }
+                toast.error(t('pages.serverDetail.errors.serverNotFound'));
+            } else {
+                const errMsg = getErrorMessage(err, t('pages.serverDetail.errors.loadSnapshotFailed'), locale);
+                setIsNotFound(false);
+                setSnapshotError(errMsg);
+                toast.error(errMsg);
             }
         } finally {
-            if (requestId === snapshotRequestIdRef.current) {
+            if (isMountedRef.current && requestId === snapshotRequestIdRef.current) {
                 setLoading(false);
                 setInboundsLoading(false);
                 setOnlinesLoading(false);
@@ -263,11 +296,17 @@ export default function ServerDetail() {
     const fetchAudit = async () => {
         const requestId = auditRequestIdRef.current + 1;
         auditRequestIdRef.current = requestId;
+        setAuditError('');
         try {
             const res = await api.get('/audit/events', { params: { serverId, pageSize: 20 } });
-            if (requestId !== auditRequestIdRef.current) return;
+            if (!isMountedRef.current || requestId !== auditRequestIdRef.current) return;
             setAuditEvents(res.data?.obj?.items || []);
-        } catch { /* ignore */ }
+        } catch (err) {
+            if (!isMountedRef.current || requestId !== auditRequestIdRef.current) return;
+            const errMsg = getErrorMessage(err, locale === 'en-US' ? 'Failed to load audit log' : '加载审计日志失败', locale);
+            setAuditError(errMsg);
+            toast.error(errMsg);
+        }
     };
 
     useEffect(() => {
@@ -286,6 +325,9 @@ export default function ServerDetail() {
         setOnlinesLoading(snapshot?.onlines == null);
         setAuditEvents(snapshot?.auditEvents || []);
         setClientIpSupport({ supported: true, reason: '' });
+        setSnapshotError('');
+        setIsNotFound(false);
+        setAuditError('');
         closeClientIpModal();
         fetchSnapshot({ preserveCurrent: snapshot?.server != null });
     }, [serverId]);
@@ -358,7 +400,7 @@ export default function ServerDetail() {
     }, [inbounds]);
 
     const refreshAll = () => {
-        fetchSnapshot({ force: true });
+        fetchSnapshot({ preserveCurrent: true, force: true });
         if (activeTab === 'audit') {
             fetchAudit();
         }
@@ -496,17 +538,29 @@ export default function ServerDetail() {
     }
 
     if (!server) {
+        const isLoadFailure = Boolean(snapshotError && !isNotFound);
         return (
             <>
                 <Header
                     title={t('pages.serverDetail.title')}
                 />
                 <div className="page-content page-content--wide page-enter server-detail-page">
-                    <EmptyState title={t('pages.serverDetail.errors.serverNotFound')} subtitle={t('pages.serverDetail.errors.serverDeleted')} action={
-                        <button className="btn btn-secondary" onClick={() => navigate('/servers')}>
-                            <HiOutlineArrowLeft /> {t('pages.serverDetail.backToServerList')}
-                        </button>
-                    } />
+                    <EmptyState
+                        title={isLoadFailure ? t('pages.serverDetail.errors.loadSnapshotFailed') : t('pages.serverDetail.errors.serverNotFound')}
+                        subtitle={isLoadFailure ? snapshotError : t('pages.serverDetail.errors.serverDeleted')}
+                        action={(
+                            <div className="flex flex-wrap justify-center gap-2">
+                                {isLoadFailure && (
+                                    <button type="button" className="btn btn-primary" onClick={() => fetchSnapshot({ force: true })}>
+                                        <HiOutlineArrowPath /> {(locale === 'en-US' ? 'Retry' : '重试')}
+                                    </button>
+                                )}
+                                <button type="button" className="btn btn-secondary" onClick={() => navigate('/servers')}>
+                                    <HiOutlineArrowLeft /> {t('pages.serverDetail.backToServerList')}
+                                </button>
+                            </div>
+                        )}
+                    />
                 </div>
             </>
         );
@@ -549,9 +603,25 @@ export default function ServerDetail() {
                 allowTitleWrap
             />
             <div className="page-content page-content--wide page-enter server-detail-page">
-                <button className="btn btn-secondary btn-sm mb-4 page-back-link" onClick={() => navigate('/servers')}>
+                <button type="button" className="btn btn-secondary btn-sm mb-4 page-back-link" onClick={() => navigate('/servers')}>
                     <HiOutlineArrowLeft /> {t('pages.serverDetail.backToServerList')}
                 </button>
+
+                {snapshotError && (
+                    <div
+                        className="mb-4 p-3 rounded-lg border border-danger/25 bg-danger/10 text-sm text-danger flex flex-wrap items-center justify-between gap-2"
+                        role="alert"
+                    >
+                        <span>{snapshotError}</span>
+                        <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => fetchSnapshot({ preserveCurrent: true, force: true })}
+                        >
+                            <HiOutlineArrowPath /> {(locale === 'en-US' ? 'Retry' : '重试')}
+                        </button>
+                    </div>
+                )}
 
                 {/* Server Profile Card */}
                 <div className="glass-panel mb-6 detail-hero-panel detail-hero-panel--server">
@@ -589,7 +659,7 @@ export default function ServerDetail() {
                             </div>
                         </div>
                         <div className="user-profile-actions">
-                            <button className="btn btn-secondary btn-sm" onClick={refreshAll}>
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={refreshAll}>
                                 <HiOutlineArrowPath /> {t('pages.serverDetail.refresh')}
                             </button>
                         </div>
@@ -611,7 +681,7 @@ export default function ServerDetail() {
                 <div className="user-detail-tabs detail-tabs">
                     <div className="tabs">
                         {tabs.map(t => (
-                            <button key={t.key} className={`tab ${activeTab === t.key ? 'active' : ''}`} onClick={() => selectTab(t.key)}>
+                            <button key={t.key} type="button" className={`tab ${activeTab === t.key ? 'active' : ''}`} onClick={() => selectTab(t.key)}>
                                 {t.label}
                             </button>
                         ))}
@@ -657,7 +727,9 @@ export default function ServerDetail() {
                         {/* Inbounds Tab */}
                         {activeTab === 'inbounds' && (
                             <div>
-                                {inbounds.length === 0 ? (
+                                {inboundsLoading && inbounds.length === 0 ? (
+                                    <SkeletonTable rows={4} cols={5} />
+                                ) : inbounds.length === 0 ? (
                                     <EmptyState
                                         title={t('pages.serverDetail.empty.noInboundsTitle')}
                                         subtitle={t('pages.serverDetail.empty.noInboundsSubtitle')}
@@ -723,7 +795,7 @@ export default function ServerDetail() {
                                         </div>
                                     )}
                                     actions={(
-                                        <button className="btn btn-secondary btn-sm" onClick={() => fetchSnapshot({ preserveCurrent: true, force: true })}><HiOutlineArrowPath /> {t('pages.serverDetail.refresh')}</button>
+                                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchSnapshot({ preserveCurrent: true, force: true })}><HiOutlineArrowPath /> {t('pages.serverDetail.refresh')}</button>
                                     )}
                                 />
                                 {onlinesLoading ? (
@@ -784,13 +856,24 @@ export default function ServerDetail() {
                         {/* Audit Tab */}
                         {activeTab === 'audit' && (
                             <div>
+                                {auditError && (
+                                    <div
+                                        className="mb-4 p-3 rounded-lg border border-danger/25 bg-danger/10 text-sm text-danger flex flex-wrap items-center justify-between gap-2"
+                                        role="alert"
+                                    >
+                                        <span>{auditError}</span>
+                                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchAudit()}>
+                                            <HiOutlineArrowPath /> {(locale === 'en-US' ? 'Retry' : '重试')}
+                                        </button>
+                                    </div>
+                                )}
                                 {auditEvents.length === 0 ? (
                                     <EmptyState
-                                        title={t('pages.serverDetail.empty.noAuditTitle')}
-                                        subtitle={t('pages.serverDetail.empty.noAuditSubtitle')}
+                                        title={auditError ? (locale === 'en-US' ? 'Failed to load audit log' : '加载审计日志失败') : t('pages.serverDetail.empty.noAuditTitle')}
+                                        subtitle={auditError || t('pages.serverDetail.empty.noAuditSubtitle')}
                                         action={(
-                                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchSnapshot({ preserveCurrent: true, force: true })}>
-                                                <HiOutlineArrowPath /> {t('pages.serverDetail.empty.refreshAction')}
+                                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchAudit()}>
+                                                <HiOutlineArrowPath /> {auditError ? (locale === 'en-US' ? 'Retry' : '重试') : t('pages.serverDetail.empty.refreshAction')}
                                             </button>
                                         )}
                                     />

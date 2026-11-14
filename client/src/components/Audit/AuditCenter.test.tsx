@@ -775,7 +775,9 @@ describe('AuditCenter localization', () => {
             expect(params.get('window')).toBe('today');
         });
 
-        expect(screen.getByRole('button', { name: '今日' })).toHaveClass('active');
+        const todayTab = screen.getByRole('tab', { name: '今日' });
+        expect(todayTab).toHaveClass('active');
+        expect(todayTab).toHaveAttribute('aria-selected', 'true');
         expect(screen.getByText('今日用户流量')).toBeInTheDocument();
     });
 

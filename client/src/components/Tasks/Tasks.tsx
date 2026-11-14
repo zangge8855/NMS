@@ -191,6 +191,7 @@ function TaskMobileList({
                         </div>
                         <div className="audit-mobile-card-actions tasks-mobile-actions">
                             <button
+                                type="button"
                                 className="btn btn-secondary btn-sm"
                                 onClick={() => onView(task.id)}
                                 title={copy.viewDetail}
@@ -201,6 +202,7 @@ function TaskMobileList({
                             </button>
                             {failedCount > 0 && (
                                 <button
+                                    type="button"
                                     className="btn btn-primary btn-sm"
                                     onClick={() => onRetryFailed(task)}
                                     disabled={retryingId === task.id}
@@ -293,13 +295,16 @@ export default function Tasks({ embedded = false }) {
         }
     };
 
+    const fetchTasksRef = useRef(fetchTasks);
+    fetchTasksRef.current = fetchTasks;
+
     useEffect(() => {
-        fetchTasks({ preserveCurrent: tasksBootstrapRef.current != null });
+        fetchTasksRef.current({ preserveCurrent: tasksBootstrapRef.current != null });
     }, []);
 
     useEffect(() => {
         const handlePageRefresh = () => {
-            fetchTasks({ preserveCurrent: true });
+            fetchTasksRef.current({ preserveCurrent: true });
         };
         window.addEventListener('nms:page-refresh', handlePageRefresh);
         return () => window.removeEventListener('nms:page-refresh', handlePageRefresh);
@@ -448,10 +453,10 @@ export default function Tasks({ embedded = false }) {
                         compact
                         actions={(
                             <div className="tasks-page-actions">
-                                <button className="btn btn-secondary btn-sm" onClick={fetchTasks} disabled={loading}>
+                                <button type="button" className="btn btn-secondary btn-sm" onClick={() => void fetchTasks()} disabled={loading}>
                                     <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> {copy.refresh}
                                 </button>
-                                <button className="btn btn-danger btn-sm" onClick={handleClear}>
+                                <button type="button" className="btn btn-danger btn-sm" onClick={handleClear}>
                                     <HiOutlineTrash /> {copy.clear}
                                 </button>
                             </div>
@@ -469,10 +474,10 @@ export default function Tasks({ embedded = false }) {
                                     <div className="audit-control-text">{copy.embeddedSubtitle}</div>
                                 </div>
                                 <div className="audit-control-actions">
-                                    <button className="btn btn-secondary btn-sm" onClick={fetchTasks} disabled={loading}>
+                                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => void fetchTasks()} disabled={loading}>
                                         <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> {copy.refresh}
                                     </button>
-                                    <button className="btn btn-danger btn-sm" onClick={handleClear}>
+                                    <button type="button" className="btn btn-danger btn-sm" onClick={handleClear}>
                                         <HiOutlineTrash /> {copy.clear}
                                     </button>
                                 </div>
@@ -488,15 +493,15 @@ export default function Tasks({ embedded = false }) {
                                 </span>
                             </div>
                             <div className="audit-filter-grid audit-filter-grid--tasks">
-                                <select className={filterSelectClassName} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+                                <select className={filterSelectClassName} aria-label={copy.allTypes} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
                                     <option value="all">{copy.allTypes}</option>
                                     {typeOptions.map((x) => <option key={x} value={x}>{formatTaskTypeLabel(x, locale)}</option>)}
                                 </select>
-                                <select className={filterSelectClassName} value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
+                                <select className={filterSelectClassName} aria-label={copy.allActions} value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
                                     <option value="all">{copy.allActions}</option>
                                     {actionOptions.map((x) => <option key={x} value={x}>{formatTaskActionLabel(x, locale)}</option>)}
                                 </select>
-                                <select className={filterSelectClassName} value={serverFilter} onChange={(e) => setServerFilter(e.target.value)}>
+                                <select className={filterSelectClassName} aria-label={copy.allServers} value={serverFilter} onChange={(e) => setServerFilter(e.target.value)}>
                                     <option value="all">{copy.allServers}</option>
                                     {serverOptions.map((x) => <option key={x} value={x}>{x}</option>)}
                                 </select>
@@ -509,7 +514,7 @@ export default function Tasks({ embedded = false }) {
                                     />
                                     {copy.failedOnly}
                                 </label>
-                                <select className={filterSelectClassName} value={retryGroupBy} onChange={(e) => setRetryGroupBy(e.target.value)}>
+                                <select className={filterSelectClassName} aria-label={locale === 'en-US' ? 'Retry grouping' : '失败重试分组'} value={retryGroupBy} onChange={(e) => setRetryGroupBy(e.target.value)}>
                                     <option value="none">{formatRetryGroupLabel('none', locale)}</option>
                                     <option value="server">{formatRetryGroupLabel('server', locale)}</option>
                                     <option value="error">{formatRetryGroupLabel('error', locale)}</option>
@@ -523,15 +528,15 @@ export default function Tasks({ embedded = false }) {
                             filters={(
                                 <>
                             {/* Keep native controls on the shared form surface and focus ring rules. */}
-                            <select className={`${filterSelectClassName} w-140`} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+                            <select className={`${filterSelectClassName} w-140`} aria-label={copy.allTypes} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
                                 <option value="all">{copy.allTypes}</option>
                                 {typeOptions.map((x) => <option key={x} value={x}>{formatTaskTypeLabel(x, locale)}</option>)}
                             </select>
-                            <select className={`${filterSelectClassName} w-140`} value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
+                            <select className={`${filterSelectClassName} w-140`} aria-label={copy.allActions} value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
                                 <option value="all">{copy.allActions}</option>
                                 {actionOptions.map((x) => <option key={x} value={x}>{formatTaskActionLabel(x, locale)}</option>)}
                             </select>
-                            <select className={`${filterSelectClassName} w-180`} value={serverFilter} onChange={(e) => setServerFilter(e.target.value)}>
+                            <select className={`${filterSelectClassName} w-180`} aria-label={copy.allServers} value={serverFilter} onChange={(e) => setServerFilter(e.target.value)}>
                                 <option value="all">{copy.allServers}</option>
                                 {serverOptions.map((x) => <option key={x} value={x}>{x}</option>)}
                             </select>
@@ -544,7 +549,7 @@ export default function Tasks({ embedded = false }) {
                                 />
                                 {copy.failedOnly}
                             </label>
-                            <select className={`${filterSelectClassName} w-180`} value={retryGroupBy} onChange={(e) => setRetryGroupBy(e.target.value)}>
+                            <select className={`${filterSelectClassName} w-180`} aria-label={locale === 'en-US' ? 'Retry grouping' : '失败重试分组'} value={retryGroupBy} onChange={(e) => setRetryGroupBy(e.target.value)}>
                                 <option value="none">{formatRetryGroupLabel('none', locale)}</option>
                                 <option value="server">{formatRetryGroupLabel('server', locale)}</option>
                                 <option value="error">{formatRetryGroupLabel('error', locale)}</option>
@@ -579,7 +584,7 @@ export default function Tasks({ embedded = false }) {
                                     {copy.resetFilters}
                                 </button>
                             ) : (
-                                <button type="button" className="btn btn-secondary btn-sm" onClick={fetchTasks}>
+                                <button type="button" className="btn btn-secondary btn-sm" onClick={() => void fetchTasks()}>
                                     <HiOutlineArrowPath /> {copy.refresh}
                                 </button>
                             )
@@ -623,11 +628,12 @@ export default function Tasks({ embedded = false }) {
                                 <td data-label={copy.failedCol} className="table-cell-right cell-mono-right tasks-failed-cell">{task.summary?.failed ?? '-'}</td>
                                 <td data-label={copy.actions} className="table-cell-actions tasks-actions-cell">
                                     <div className="table-row-actions tasks-row-actions">
-                                    <button className="btn btn-secondary btn-sm btn-icon table-action-btn" onClick={() => handleView(task.id)} title={copy.viewDetail} aria-label={copy.viewDetail}>
+                                    <button type="button" className="btn btn-secondary btn-sm btn-icon table-action-btn" onClick={() => handleView(task.id)} title={copy.viewDetail} aria-label={copy.viewDetail}>
                                         <HiOutlineEye />
                                     </button>
                                     {Number(task.summary?.failed || 0) > 0 && (
                                         <button
+                                            type="button"
                                             className="btn btn-primary btn-sm btn-icon table-action-btn is-primary"
                                             onClick={() => handleRetryFailed(task)}
                                             disabled={retryingId === task.id}

@@ -278,6 +278,19 @@ function summarizePartialErrors(partialErrors, t) {
     return parts.join('; ');
 }
 
+const EXPIRY_PRESET_DAYS = [1, 7, 30, 90, 365] as const;
+
+function formatExpiryPresetLabel(days: number, locale: string) {
+    if (locale === 'en-US') {
+        return days === 365 ? '+1y' : `+${days}d`;
+    }
+    return days === 365 ? '+1年' : `+${days}天`;
+}
+
+function getDefaultGuestNote(locale: string) {
+    return locale === 'en-US' ? 'Guest temporary pass' : '访客临时体验';
+}
+
 export default function UsersHub() {
     const { servers } = useServer();
     const confirmAction = useConfirm();
@@ -289,6 +302,7 @@ export default function UsersHub() {
         summary: t('comp.users.summarySyncing'),
     }), [t]);
     const requestIdRef = useRef(0);
+    const editPolicyRequestIdRef = useRef(0);
     const initialUsersSnapshotMeta = useMemo(() => getManagedUsersSnapshotMeta(), []);
     const usersBootstrapRef = useRef(initialUsersSnapshotMeta.users);
     const serverInventoryKey = useMemo(
@@ -384,9 +398,17 @@ export default function UsersHub() {
     const [guestModalOpen, setGuestModalOpen] = useState(false);
     const [guestDuration, setGuestDuration] = useState(24);
     const [guestTrafficGb, setGuestTrafficGb] = useState(2);
-    const [guestNote, setGuestNote] = useState('访客临时体验');
+    const [guestNote, setGuestNote] = useState(() => getDefaultGuestNote(locale));
     const [guestCreating, setGuestCreating] = useState(false);
     const [guestResult, setGuestResult] = useState<any>(null);
+
+    useEffect(() => {
+        setGuestNote((prev) => (
+            !prev || prev === '访客临时体验' || prev === 'Guest temporary pass'
+                ? getDefaultGuestNote(locale)
+                : prev
+        ));
+    }, [locale]);
 
     // Edit user modal
     const [editOpen, setEditOpen] = useState(false);
@@ -405,6 +427,7 @@ export default function UsersHub() {
     const [editSaving, setEditSaving] = useState(false);
     // Policy fields in edit modal
     const [editPolicyLoading, setEditPolicyLoading] = useState(false);
+    const [editPolicyError, setEditPolicyError] = useState('');
     const [editNoServerLimit, setEditNoServerLimit] = useState(true);
     const [editNoProtocolLimit, setEditNoProtocolLimit] = useState(true);
     const [editServerIds, setEditServerIds] = useState([]);
@@ -889,6 +912,33 @@ export default function UsersHub() {
         }
     };
 
+    // --- Kick online sessions ---
+    const handleKickOnlineSessions = async (user: any) => {
+        const targetEmail = user.subscriptionEmail || user.email;
+        if (!targetEmail) return;
+        const ok = await confirmAction({
+            title: locale === 'en-US' ? 'Kick Online Sessions' : '强制断开在线连接',
+            message: locale === 'en-US'
+                ? `Disconnect all active proxy sessions for "${user.username || targetEmail}" (${targetEmail})?`
+                : `确定强制断开用户 "${user.username || targetEmail}" (${targetEmail}) 的所有在线连接吗？`,
+            confirmText: locale === 'en-US' ? 'Kick Sessions' : '确认断开',
+            tone: 'danger',
+        });
+        if (!ok) return;
+
+        try {
+            const res = await api.post('/subscriptions/concurrency-sentinel/kick', { email: targetEmail });
+            if (res.data?.success) {
+                toast.success(locale === 'en-US' ? 'Online sessions kicked' : '已断开用户在线连接');
+                await fetchData({ forceStats: true });
+            } else {
+                toast.error(res.data?.msg || (locale === 'en-US' ? 'Action failed' : '操作失败'));
+            }
+        } catch (err: any) {
+            toast.error(err.response?.data?.msg || err.message || (locale === 'en-US' ? 'Action failed' : '操作失败'));
+        }
+    };
+
     // --- Delete user ---
     const handleDelete = async (user) => {
         const ok = await confirmAction({
@@ -1004,6 +1054,7 @@ export default function UsersHub() {
             return (
                 <div className="flex items-center gap-2">
                     <button
+                        type="button"
                         className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn is-success"
                         title={t('comp.users.approve')}
                         aria-label={t('comp.users.approve')}
@@ -1031,21 +1082,7 @@ export default function UsersHub() {
             dropdownActions.push({
                 label: locale === 'en-US' ? 'Kick Online Sessions' : '强制断开在线连接',
                 icon: HiOutlineArrowPath,
-                onClick: async () => {
-                    const targetEmail = user.subscriptionEmail || user.email;
-                    if (!targetEmail) return;
-                    try {
-                        const res = await api.post('/subscriptions/concurrency-sentinel/kick', { email: targetEmail });
-                        if (res.data?.success) {
-                            toast.success(locale === 'en-US' ? 'Online sessions kicked' : '已断开用户在线连接');
-                            await fetchData({ forceStats: true });
-                        } else {
-                            toast.error(res.data?.msg || (locale === 'en-US' ? 'Action failed' : '操作失败'));
-                        }
-                    } catch (err: any) {
-                        toast.error(err.response?.data?.msg || err.message || (locale === 'en-US' ? 'Action failed' : '操作失败'));
-                    }
-                },
+                onClick: () => void handleKickOnlineSessions(user),
             });
             dropdownActions.push({
                 label: t('comp.common.delete'),
@@ -1057,6 +1094,7 @@ export default function UsersHub() {
             return (
                 <div className="flex items-center gap-2">
                     <button
+                        type="button"
                         className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn is-primary"
                         title={t('comp.users.provisionAction')}
                         aria-label={t('comp.users.provisionAction')}
@@ -1085,21 +1123,7 @@ export default function UsersHub() {
             dropdownActions.push({
                 label: locale === 'en-US' ? 'Kick Online Sessions' : '强制断开在线连接',
                 icon: HiOutlineArrowPath,
-                onClick: async () => {
-                    const targetEmail = user.subscriptionEmail || user.email;
-                    if (!targetEmail) return;
-                    try {
-                        const res = await api.post('/subscriptions/concurrency-sentinel/kick', { email: targetEmail });
-                        if (res.data?.success) {
-                            toast.success(locale === 'en-US' ? 'Online sessions kicked' : '已断开用户在线连接');
-                            await fetchData({ forceStats: true });
-                        } else {
-                            toast.error(res.data?.msg || (locale === 'en-US' ? 'Action failed' : '操作失败'));
-                        }
-                    } catch (err: any) {
-                        toast.error(err.response?.data?.msg || err.message || (locale === 'en-US' ? 'Action failed' : '操作失败'));
-                    }
-                },
+                onClick: () => void handleKickOnlineSessions(user),
             });
         }
         dropdownActions.push({
@@ -1112,6 +1136,7 @@ export default function UsersHub() {
         return (
             <div className="flex items-center gap-2">
                 <button
+                    type="button"
                     className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn"
                     title={t('comp.users.details')}
                     aria-label={t('comp.users.details')}
@@ -1379,6 +1404,82 @@ export default function UsersHub() {
         setEditSubscriptionFollowLogin(normalizeEmail(value) === normalizeEmail(editEmail));
     };
 
+    const loadEditUserPolicy = async (targetUser: any, prefilledExpiry = '') => {
+        const requestId = editPolicyRequestIdRef.current + 1;
+        editPolicyRequestIdRef.current = requestId;
+        const policyEmail = normalizeEmail(targetUser?.subscriptionEmail || targetUser?.email);
+        setEditPolicyError('');
+        setEditNoServerLimit(true);
+        setEditNoProtocolLimit(true);
+        setEditServerIds([]);
+        setEditProtocols([]);
+        setEditLimitIp('0');
+        setEditTrafficLimitGb('0');
+        setEditSpeedLimitUp('0');
+        setEditSpeedLimitDown('0');
+        setEditTgId('0');
+        setEditGroup('');
+        setEditComment('');
+        setEditReset('0');
+        setEditOverrideFields([]);
+
+        if (!policyEmail) {
+            setEditPolicyLoading(false);
+            return;
+        }
+
+        setEditPolicyLoading(true);
+        try {
+            const res = await api.get(`/user-policy/${encodeURIComponent(policyEmail)}`);
+            if (requestId !== editPolicyRequestIdRef.current) return;
+            const p = res.data?.obj || {};
+            const rawIds = Array.isArray(p.allowedServerIds) ? p.allowedServerIds : [];
+            const validIds = new Set(servers.map((s) => s.id));
+            setEditServerIds(rawIds.filter((id) => validIds.has(id)));
+            const supportedProtoKeys = new Set(PROTOCOL_OPTIONS.map((item) => item.key));
+            const protos = (Array.isArray(p.allowedProtocols) ? p.allowedProtocols : [])
+                .map((v) => String(v || '').trim().toLowerCase())
+                .filter((v) => supportedProtoKeys.has(v));
+            setEditProtocols(protos);
+            const sMode = String(p.serverScopeMode || '').toLowerCase();
+            const pMode = String(p.protocolScopeMode || '').toLowerCase();
+            setEditNoServerLimit(sMode !== 'selected' && sMode !== 'none');
+            setEditNoProtocolLimit(pMode !== 'selected' && pMode !== 'none');
+            setEditLimitIp(String(normalizeLimitIp(p.limitIp)));
+            setEditTrafficLimitGb(bytesToGigabytesInput(p.trafficLimitBytes));
+            setEditSpeedLimitUp(bytesPerSecondToKilobytesInput(p.speedLimitUp));
+            setEditSpeedLimitDown(bytesPerSecondToKilobytesInput(p.speedLimitDown));
+            setEditTgId(String(p.tgId || 0));
+            setEditGroup(p.group || '');
+            setEditComment(p.comment || '');
+            setEditReset(String(p.reset || 0));
+            setEditInheritGroup(p.inheritGroup === true || (String(targetUser?.groupId || '') && !p.updatedAt));
+            setEditOverrideFields(Array.isArray(p.overrideFields) ? p.overrideFields.slice() : []);
+            let fallbackExpiry = 0;
+            const isInheriting = p.inheritGroup === true || (String(targetUser?.groupId || '') && !p.updatedAt);
+            const group = userGroups.find((g) => String(g.id) === String(targetUser?.groupId));
+            if (isInheriting && group && !p.overrideFields?.includes('expiryTime')) {
+                fallbackExpiry = Number(group.expiryTime || 0);
+            } else {
+                fallbackExpiry = Number(p.expiryTime || 0);
+            }
+            if (!prefilledExpiry && fallbackExpiry > 0) {
+                const fromPolicy = toLocalDateTimeString(fallbackExpiry);
+                setEditExpiryDate(fromPolicy);
+                setEditExpiryInitial(fromPolicy);
+            }
+        } catch (err: any) {
+            if (requestId !== editPolicyRequestIdRef.current) return;
+            const msg = getErrorMessage(err, t('comp.common.loadFailed'), locale);
+            setEditPolicyError(msg);
+            toast.error(msg);
+        } finally {
+            if (requestId === editPolicyRequestIdRef.current) {
+                setEditPolicyLoading(false);
+            }
+        }
+    };
+
     const openEditModal = (user) => {
         try {
             setEditUser(user);
@@ -1406,66 +1507,7 @@ export default function UsersHub() {
             setEditExpiryDate(prefilled);
             setEditExpiryInitial(prefilled);
 
-            // Load policy
-            const policyEmail = normalizeEmail(user.subscriptionEmail || user.email);
-            setEditNoServerLimit(true);
-            setEditNoProtocolLimit(true);
-            setEditServerIds([]);
-            setEditProtocols([]);
-            setEditLimitIp('0');
-            setEditTrafficLimitGb('0');
-            setEditSpeedLimitUp('0');
-            setEditSpeedLimitDown('0');
-            setEditTgId('0');
-            setEditGroup('');
-            setEditComment('');
-            setEditReset('0');
-            setEditOverrideFields([]);
-            if (policyEmail) {
-                setEditPolicyLoading(true);
-                api.get(`/user-policy/${encodeURIComponent(policyEmail)}`)
-                    .then((res) => {
-                        const p = res.data?.obj || {};
-                        const rawIds = Array.isArray(p.allowedServerIds) ? p.allowedServerIds : [];
-                        const validIds = new Set(servers.map((s) => s.id));
-                        setEditServerIds(rawIds.filter((id) => validIds.has(id)));
-                        const supportedProtoKeys = new Set(PROTOCOL_OPTIONS.map((item) => item.key));
-                        const protos = (Array.isArray(p.allowedProtocols) ? p.allowedProtocols : [])
-                            .map((v) => String(v || '').trim().toLowerCase())
-                            .filter((v) => supportedProtoKeys.has(v));
-                        setEditProtocols(protos);
-                        const sMode = String(p.serverScopeMode || '').toLowerCase();
-                        const pMode = String(p.protocolScopeMode || '').toLowerCase();
-                        setEditNoServerLimit(sMode !== 'selected' && sMode !== 'none');
-                        setEditNoProtocolLimit(pMode !== 'selected' && pMode !== 'none');
-                        setEditLimitIp(String(normalizeLimitIp(p.limitIp)));
-                        setEditTrafficLimitGb(bytesToGigabytesInput(p.trafficLimitBytes));
-                        setEditSpeedLimitUp(bytesPerSecondToKilobytesInput(p.speedLimitUp));
-                        setEditSpeedLimitDown(bytesPerSecondToKilobytesInput(p.speedLimitDown));
-                        setEditTgId(String(p.tgId || 0));
-                        setEditGroup(p.group || '');
-                        setEditComment(p.comment || '');
-                        setEditReset(String(p.reset || 0));
-                        setEditInheritGroup(p.inheritGroup === true || (String(user.groupId || '') && !p.updatedAt));
-                        setEditOverrideFields(Array.isArray(p.overrideFields) ? p.overrideFields.slice() : []);
-                        // Fallback expiry pre-fill from policy when client list is empty
-                        let fallbackExpiry = 0;
-                        const isInheriting = p.inheritGroup === true || (String(user.groupId || '') && !p.updatedAt);
-                        const group = userGroups.find(g => String(g.id) === String(user.groupId));
-                        if (isInheriting && group && !p.overrideFields?.includes('expiryTime')) {
-                            fallbackExpiry = Number(group.expiryTime || 0);
-                        } else {
-                            fallbackExpiry = Number(p.expiryTime || 0);
-                        }
-                        if (!prefilled && fallbackExpiry > 0) {
-                            const fromPolicy = toLocalDateTimeString(fallbackExpiry);
-                            setEditExpiryDate(fromPolicy);
-                            setEditExpiryInitial(fromPolicy);
-                        }
-                    })
-                    .catch(() => {})
-                    .finally(() => setEditPolicyLoading(false));
-            }
+            void loadEditUserPolicy(user, prefilled);
 
             setEditOpen(true);
         } catch (err) {
@@ -1474,16 +1516,19 @@ export default function UsersHub() {
     };
 
     const closeEditModal = () => {
+        editPolicyRequestIdRef.current += 1;
         setEditOpen(false);
         setEditUser(null);
         setEditSubscriptionEmail('');
         setEditSubscriptionFollowLogin(false);
         setEditSaving(false);
+        setEditPolicyLoading(false);
+        setEditPolicyError('');
     };
 
     const submitEdit = async (event) => {
         event.preventDefault();
-        if (!editUser?.id) return;
+        if (!editUser?.id || editPolicyLoading || editPolicyError) return;
 
         const username = String(editUsername || '').trim();
         if (!username) {
@@ -1893,6 +1938,16 @@ export default function UsersHub() {
         }
     }, [users, loading, searchParams]);
 
+    const openGuestModal = () => {
+        setGuestResult(null);
+        setGuestNote((prev) => (
+            !prev || prev === '访客临时体验' || prev === 'Guest temporary pass'
+                ? getDefaultGuestNote(locale)
+                : prev
+        ));
+        setGuestModalOpen(true);
+    };
+
     const handleCreateGuestPass = async () => {
         setGuestCreating(true);
         try {
@@ -1957,7 +2012,7 @@ export default function UsersHub() {
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                 />
                             </div>
-                            <div className="filter-chips-bar" role="group" aria-label="Status filter">
+                            <div className="filter-chips-bar" role="group" aria-label={locale === 'en-US' ? 'Status filter' : '状态筛选'}>
                                 <button
                                     type="button"
                                     className={`filter-chip ${statusFilter === 'all' ? 'active' : ''}`}
@@ -2023,21 +2078,22 @@ export default function UsersHub() {
                     )}
                     actions={(
                         <>
-                        <button className="btn btn-secondary btn-sm" onClick={handleExportCSV} title={t('pages.usersHub.toolbar.exportTitle')}>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={handleExportCSV} title={t('pages.usersHub.toolbar.exportTitle')}>
                             <HiOutlineArrowDownTray /> {t('pages.usersHub.toolbar.export')}
                         </button>
-                        <button className="btn btn-secondary btn-sm" onClick={() => fetchData({ forceUsers: true })} title={t('pages.usersHub.toolbar.refreshTitle')}>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchData({ forceUsers: true })} title={t('pages.usersHub.toolbar.refreshTitle')}>
                             <HiOutlineArrowPath /> {t('pages.usersHub.toolbar.refresh')}
                         </button>
                         <button
+                            type="button"
                             className="btn btn-secondary btn-sm flex items-center gap-1"
-                            onClick={() => { setGuestResult(null); setGuestModalOpen(true); }}
+                            onClick={openGuestModal}
                             title={locale === 'en-US' ? 'Guest Pass (Temporary Trial)' : '生成临时访客试用码'}
                         >
                             <HiOutlineSparkles className="text-warning" />
                             <span>{locale === 'en-US' ? 'Guest Pass' : '访客试用码'}</span>
                         </button>
-                        <button className="btn btn-primary btn-sm" onClick={openCreateModal} title={t('pages.usersHub.toolbar.addAccountTitle')}>
+                        <button type="button" className="btn btn-primary btn-sm" onClick={openCreateModal} title={t('pages.usersHub.toolbar.addAccountTitle')}>
                             <HiOutlineUserPlus /> {t('pages.usersHub.toolbar.addAccount')}
                         </button>
                         </>
@@ -2055,10 +2111,10 @@ export default function UsersHub() {
                 {selectedIds.size > 0 && (
                     <div className="bulk-toolbar mb-4 users-bulk-toolbar">
                         <span className="bulk-toolbar-count">{t('pages.usersHub.toolbar.selected', { count: selectedIds.size })}</span>
-                        <button className={bulkToggleClassName} onClick={() => handleBulkSetEnabled(bulkToggleEnable)} disabled={bulkLoading}>
+                        <button type="button" className={bulkToggleClassName} onClick={() => handleBulkSetEnabled(bulkToggleEnable)} disabled={bulkLoading}>
                             {bulkLoading ? <span className="spinner" /> : bulkToggleIcon} {bulkToggleLabel}
                         </button>
-                        <button className="btn btn-secondary btn-sm" onClick={() => setSelectedIds(new Set())} disabled={bulkLoading}>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => setSelectedIds(new Set())} disabled={bulkLoading}>
                             {t('pages.usersHub.toolbar.deselect')}
                         </button>
                     </div>
@@ -2630,7 +2686,14 @@ export default function UsersHub() {
                                         <button
                                             type="button"
                                             className="btn btn-secondary btn-sm btn-icon"
-                                            onClick={() => { copyToClipboard(createPassword); toast.success(t('comp.users.passwordCopied')); }}
+                                            onClick={async () => {
+                                                const ok = await copyToClipboard(createPassword);
+                                                if (ok) {
+                                                    toast.success(t('comp.users.passwordCopied'));
+                                                } else {
+                                                    toast.error(t('comp.common.copyFailed'));
+                                                }
+                                            }}
                                             title={t('comp.users.copyPassword')}
                                             aria-label={t('comp.users.copyPassword')}
                                         >
@@ -2804,24 +2867,18 @@ export default function UsersHub() {
                                     <div className="flex items-center justify-between mb-1">
                                         <label className="form-label mb-0">{t('comp.users.provisionExpiryLabel')}</label>
                                         <div className="flex items-center gap-1 flex-wrap">
-                                            {[
-                                                { label: '+1天', days: 1 },
-                                                { label: '+7天', days: 7 },
-                                                { label: '+30天', days: 30 },
-                                                { label: '+90天', days: 90 },
-                                                { label: '+1年', days: 365 },
-                                            ].map((preset) => (
+                                            {EXPIRY_PRESET_DAYS.map((days) => (
                                                 <button
-                                                    key={preset.days}
+                                                    key={days}
                                                     type="button"
                                                     className="btn btn-ghost btn-xs text-xs px-1.5 py-0.5"
                                                     onClick={() => {
                                                         const base = editExpiryDate ? new Date(editExpiryDate).getTime() : Date.now();
                                                         const start = base > Date.now() ? base : Date.now();
-                                                        setEditExpiryDate(toLocalDateTimeString(start + preset.days * 86400000));
+                                                        setEditExpiryDate(toLocalDateTimeString(start + days * 86400000));
                                                     }}
                                                 >
-                                                    {preset.label}
+                                                    {formatExpiryPresetLabel(days, locale)}
                                                 </button>
                                             ))}
                                             <button
@@ -2847,6 +2904,17 @@ export default function UsersHub() {
                                     <label className="form-label">{t('comp.users.editPolicy')}</label>
                                     {editPolicyLoading ? (
                                         <div className="text-center p-4"><span className="spinner" /></div>
+                                    ) : editPolicyError ? (
+                                        <div className="card p-4 text-center space-y-2">
+                                            <div className="text-sm text-danger">{editPolicyError}</div>
+                                            <button
+                                                type="button"
+                                                className="btn btn-secondary btn-sm"
+                                                onClick={() => void loadEditUserPolicy(editUser, editExpiryDate || editExpiryInitial)}
+                                            >
+                                                <HiOutlineArrowPath /> {locale === 'en-US' ? 'Retry' : '重试'}
+                                            </button>
+                                        </div>
                                     ) : editGroupId && editInheritGroup ? (
                                         <div className="card">
                                             <div className="text-sm font-medium mb-2">
@@ -3024,7 +3092,7 @@ export default function UsersHub() {
                             </div>
                             <div className="modal-footer">
                                 <button type="button" className="btn btn-secondary" onClick={closeEditModal} disabled={editSaving}>{t('comp.users.cancel')}</button>
-                                <button type="submit" className="btn btn-primary" disabled={editSaving}>
+                                <button type="submit" className="btn btn-primary" disabled={editSaving || editPolicyLoading || Boolean(editPolicyError)}>
                                     {editSaving ? <span className="spinner" /> : <><HiOutlineCheck /> {t('comp.users.save')}</>}
                                 </button>
                             </div>
@@ -3066,24 +3134,18 @@ export default function UsersHub() {
                                                     <div className="flex items-center justify-between mb-1">
                                                         <label className="form-label mb-0">{t('comp.users.provisionExpiryLabel')}</label>
                                                         <div className="flex items-center gap-1 flex-wrap">
-                                                            {[
-                                                                { label: '+1天', days: 1 },
-                                                                { label: '+7天', days: 7 },
-                                                                { label: '+30天', days: 30 },
-                                                                { label: '+90天', days: 90 },
-                                                                { label: '+1年', days: 365 },
-                                                            ].map((preset) => (
+                                                            {EXPIRY_PRESET_DAYS.map((days) => (
                                                                 <button
-                                                                    key={preset.days}
+                                                                    key={days}
                                                                     type="button"
                                                                     className="btn btn-ghost btn-xs text-xs px-1.5 py-0.5"
                                                                     onClick={() => {
                                                                         const base = provisionExpiryDate ? new Date(provisionExpiryDate).getTime() : Date.now();
                                                                         const start = base > Date.now() ? base : Date.now();
-                                                                        setProvisionExpiryDate(toLocalDateTimeString(start + preset.days * 86400000));
+                                                                        setProvisionExpiryDate(toLocalDateTimeString(start + days * 86400000));
                                                                     }}
                                                                 >
-                                                                    {preset.label}
+                                                                    {formatExpiryPresetLabel(days, locale)}
                                                                 </button>
                                                             ))}
                                                             <button
@@ -3311,7 +3373,11 @@ export default function UsersHub() {
                                                         className="btn btn-secondary btn-sm"
                                                         onClick={async () => {
                                                             const ok = await copyToClipboard(item.url);
-                                                            if (ok) toast.success(t('comp.users.linkCopied', { label: item.label }));
+                                                            if (ok) {
+                                                                toast.success(t('comp.users.linkCopied', { label: item.label }));
+                                                            } else {
+                                                                toast.error(t('comp.common.copyFailed'));
+                                                            }
                                                         }}
                                                     >
                                                         <HiOutlineClipboard /> {t('comp.users.copyLink', { label: item.label })}
@@ -3380,7 +3446,7 @@ export default function UsersHub() {
                                             >
                                                 <option value={6}>{locale === 'en-US' ? '6 Hours' : '6 小时'}</option>
                                                 <option value={24}>{locale === 'en-US' ? '24 Hours (1 Day)' : '24 小时 (1 天)'}</option>
-                                                <option value={72}>{locale === 'en-US' ? '72 Hours (3 Days)' : '72 小时 (3 Days)'}</option>
+                                                <option value={72}>{locale === 'en-US' ? '72 Hours (3 Days)' : '72 小时 (3 天)'}</option>
                                                 <option value={168}>{locale === 'en-US' ? '7 Days' : '7 天'}</option>
                                             </select>
                                         </div>
@@ -3453,8 +3519,12 @@ export default function UsersHub() {
                                                         type="button"
                                                         className="btn btn-secondary btn-sm shrink-0"
                                                         onClick={async () => {
-                                                            await copyToClipboard(guestResult.subscriptionUrl);
-                                                            toast.success(locale === 'en-US' ? 'Subscription URL copied!' : '订阅链接已复制到剪贴板！');
+                                                            const ok = await copyToClipboard(guestResult.subscriptionUrl);
+                                                            if (ok) {
+                                                                toast.success(locale === 'en-US' ? 'Subscription URL copied!' : '订阅链接已复制到剪贴板！');
+                                                            } else {
+                                                                toast.error(t('comp.common.copyFailed'));
+                                                            }
                                                         }}
                                                     >
                                                         <HiOutlineClipboard /> {locale === 'en-US' ? 'Copy Link' : '复制链接'}
@@ -3489,6 +3559,8 @@ export default function UsersHub() {
                                             const ok = await copyToClipboard(copyText);
                                             if (ok) {
                                                 toast.success(locale === 'en-US' ? 'Trial credentials copied!' : '访客体验信息已复制到剪贴板！');
+                                            } else {
+                                                toast.error(t('comp.common.copyFailed'));
                                             }
                                         }}
                                     >

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { HiOutlineXMark, HiOutlineCheckCircle, HiOutlineCloudArrowUp } from 'react-icons/hi2';
 
 function tryFormat(value) {
@@ -38,12 +38,14 @@ export default function XrayJsonEditor({
     const initialText = useMemo(() => tryFormat(initialValue), [initialValue]);
     const [text, setText] = useState(initialText);
     const [error, setError] = useState('');
+    const onChangeTextRef = useRef(onChangeText);
+    onChangeTextRef.current = onChangeText;
 
     useEffect(() => {
         setText(initialText);
         setError('');
-        onChangeText?.(initialText);
-    }, [initialText, onChangeText]);
+        onChangeTextRef.current?.(initialText);
+    }, [initialText]);
 
     const dirty = text !== initialText;
 
@@ -115,11 +117,14 @@ export default function XrayJsonEditor({
                 className="form-textarea font-mono text-sm w-full"
                 rows={20}
                 spellCheck={false}
+                aria-label={typeof label === 'string' && label.trim()
+                    ? label
+                    : (locale === 'en-US' ? 'Xray JSON configuration' : 'Xray JSON 配置')}
                 value={text}
                 onChange={(e) => {
                     setText(e.target.value);
                     if (error) setError('');
-                    onChangeText?.(e.target.value);
+                    onChangeTextRef.current?.(e.target.value);
                 }}
             />
 

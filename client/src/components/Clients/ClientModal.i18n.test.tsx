@@ -106,4 +106,52 @@ describe('ClientModal i18n (en-US)', () => {
         expect(msgs.every((m) => !/不能为空|保存失败|未知错误|批量/.test(m))).toBe(true);
         expect(msgs.some((m) => /UUID is required|Missing|failed|required/i.test(m))).toBe(true);
     });
+
+    it('keeps cleared UUID empty and preserves unsaved input when targets array reference updates', async () => {
+        const user = userEvent.setup();
+        const initialTargets = [{
+            serverId: 's1',
+            serverName: 'Node A',
+            id: 1,
+            protocol: 'vless',
+            remark: 'main',
+            port: 443,
+        }];
+
+        function ClientTestHarness() {
+            const [targets, setTargets] = React.useState(initialTargets);
+            return (
+                <>
+                    <button type="button" onClick={() => setTargets((prev) => prev.map((item) => ({ ...item })))}>
+                        refresh-targets
+                    </button>
+                    <ClientModal
+                        isOpen
+                        onClose={() => {}}
+                        targets={targets}
+                        onSuccess={() => {}}
+                    />
+                </>
+            );
+        }
+
+        renderWithRouter(<ClientTestHarness />);
+
+        await screen.findByRole('heading', { name: /Batch add clients/i });
+        const uuidInput = document.querySelector('input.font-mono:not([readonly])') as HTMLInputElement;
+        expect(uuidInput).toBeTruthy();
+        expect(uuidInput.value.length).toBeGreaterThan(0);
+
+        await user.clear(uuidInput);
+        expect(uuidInput.value).toBe('');
+
+        const emailInput = screen.getByDisplayValue(/^user_/) as HTMLInputElement;
+        await user.clear(emailInput);
+        await user.type(emailInput, 'custom@example.com');
+
+        await user.click(screen.getByRole('button', { name: 'refresh-targets' }));
+
+        expect((document.querySelector('input.font-mono:not([readonly])') as HTMLInputElement).value).toBe('');
+        expect(screen.getByDisplayValue('custom@example.com')).toBeInTheDocument();
+    });
 });

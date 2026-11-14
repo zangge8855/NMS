@@ -321,7 +321,7 @@ function buildSelectedImportActions(bundle, profileKey, locale = 'zh-CN', routin
 
     if (normalizedProfileKey === 'v2rayn') {
         const shadowrocket = importActions.find((item) => item.key === 'shadowrocket');
-        return shadowrocket?.href ? [{ href: shadowrocket.href, label: locale === 'en-US' ? `Import to ${shadowrocket.label}` : `导入到 ${shadowrocket.label}` }] : [];
+        return shadowrocket?.href ? [{ href: rewriteImportSchemeUrl(shadowrocket.href, routingPolicy), label: locale === 'en-US' ? `Import to ${shadowrocket.label}` : `导入到 ${shadowrocket.label}` }] : [];
     }
 
     if (normalizedProfileKey === 'clash') {
@@ -536,6 +536,15 @@ export default function Subscriptions() {
     const shouldShowInlineQr = !isCompactViewport;
     const shouldShowUserSummarySideColumn = false;
     const shouldShowSideColumn = !isUserOnly || shouldShowUserSummarySideColumn;
+    const tRef = useRef(t);
+    tRef.current = t;
+    const localeRef = useRef(locale);
+    localeRef.current = locale;
+    const normalizedEmailRef = useRef(normalizedEmail);
+    normalizedEmailRef.current = normalizedEmail;
+    const selectedServerIdRef = useRef(selectedServerId);
+    selectedServerIdRef.current = selectedServerId;
+
     const syncFromQuery = () => {
         const emailFromQuery = String(searchParams.get('email') || '').trim();
         const serverIdFromQuery = String(searchParams.get('serverId') || '').trim();
@@ -558,13 +567,13 @@ export default function Subscriptions() {
             setUsers(list);
             setUsersAccessDenied(false);
 
-            if (!normalizedEmail && list.length > 0 && !searchParams.get('email')) {
+            if (!normalizedEmailRef.current && list.length > 0 && !searchParams.get('email')) {
                 setSelectedEmail(list[0]);
             }
 
             const warningCount = Array.isArray(payload.warnings) ? payload.warnings.length : 0;
             if (warningCount > 0) {
-                toast.error(locale === 'en-US'
+                toast.error(localeRef.current === 'en-US'
                     ? `${warningCount} node user lists failed to load`
                     : `有 ${warningCount} 个节点用户列表拉取失败`, { id: 'subscriptions-users-warning' });
             }
@@ -573,7 +582,7 @@ export default function Subscriptions() {
                 setUsers([]);
                 setUsersAccessDenied(true);
             } else {
-                const msg = getErrorMessage(error, t('comp.subscriptions.userListFailed'), locale);
+                const msg = getErrorMessage(error, tRef.current('comp.subscriptions.userListFailed'), localeRef.current);
                 toast.error(msg, { id: 'subscriptions-users-error' });
                 if (!preserveCurrent) {
                     setUsers([]);
@@ -583,10 +592,10 @@ export default function Subscriptions() {
         setUsersLoading(false);
     };
 
-    const loadSubscription = async (targetEmail = normalizedEmail, options: any = {}) => {
+    const loadSubscription = async (targetEmail = normalizedEmailRef.current, options: any = {}) => {
         const resolvedEmail = String(targetEmail || '').trim();
         const requestServerId = isAdmin
-            ? String((options.serverId ?? selectedServerId) || '').trim() || 'all'
+            ? String((options.serverId ?? selectedServerIdRef.current) || '').trim() || 'all'
             : 'all';
         if (!resolvedEmail) {
             subscriptionRequestIdRef.current += 1;
@@ -614,7 +623,7 @@ export default function Subscriptions() {
             if (requestId !== subscriptionRequestIdRef.current) return;
             const payload = res.data?.obj || {};
             const nextResult = buildSubscriptionResult(payload, {
-                locale,
+                locale: localeRef.current,
                 resolvedEmail,
                 selectedServerId: requestServerId,
             });
@@ -633,7 +642,7 @@ export default function Subscriptions() {
             if (!preserveCurrent) {
                 setResult(null);
             }
-            const msg = getErrorMessage(error, t('comp.subscriptions.subLoadFailed'), locale);
+            const msg = getErrorMessage(error, tRef.current('comp.subscriptions.subLoadFailed'), localeRef.current);
             toast.error(msg);
         } finally {
             if (requestId === subscriptionRequestIdRef.current) {
@@ -657,13 +666,16 @@ export default function Subscriptions() {
     useEffect(() => {
         const handlePageRefresh = () => {
             loadUsers({ preserveCurrent: true });
-            if (normalizedEmail) {
-                loadSubscription(normalizedEmail, { preserveCurrent: true });
+            if (normalizedEmailRef.current) {
+                loadSubscription(normalizedEmailRef.current, {
+                    preserveCurrent: true,
+                    serverId: selectedServerIdRef.current,
+                });
             }
         };
         window.addEventListener('nms:page-refresh', handlePageRefresh);
         return () => window.removeEventListener('nms:page-refresh', handlePageRefresh);
-    }, [isAdmin, normalizedEmail, selectedServerId]);
+    }, [isAdmin]);
 
     useEffect(() => {
         if (!isUserOnly) return;
@@ -680,7 +692,7 @@ export default function Subscriptions() {
             && snapshot?.subscriptionServerId === scopedServerId;
         if (canUseSnapshot) {
             setResult(buildSubscriptionResult(snapshot.subscriptionPayload, {
-                locale,
+                locale: localeRef.current,
                 resolvedEmail: deferredEmail,
                 selectedServerId,
             }));
@@ -693,7 +705,18 @@ export default function Subscriptions() {
             preserveCurrent: canUseSnapshot,
             serverId: selectedServerId,
         });
-    }, [deferredEmail, selectedServerId, locale]);
+    }, [deferredEmail, selectedServerId]);
+
+    useEffect(() => {
+        setResult((prev) => {
+            if (!prev?.rawPayload) return prev;
+            return buildSubscriptionResult(prev.rawPayload, {
+                locale,
+                resolvedEmail: prev.email || normalizedEmailRef.current,
+                selectedServerId: selectedServerIdRef.current,
+            });
+        });
+    }, [locale]);
 
     useEffect(() => {
         writeSessionSnapshot(SUBSCRIPTIONS_SNAPSHOT_KEY, {
@@ -811,7 +834,7 @@ export default function Subscriptions() {
                         <div className="subscription-user-meter-track" aria-hidden="true">
                             <div
                                 className={`subscription-user-meter-bar subscription-user-meter-bar--${item.tone}`}
-                                style={{ width: `${Math.max(4, Math.min(100, item.progress))}%` }}
+                                style={{ width: item.progress > 0 ? `${Math.max(4, Math.min(100, item.progress))}%` : '0%' }}
                             />
                         </div>
                     </div>
@@ -957,6 +980,7 @@ export default function Subscriptions() {
 
             <div className="subscription-user-address-foot subscription-user-danger-row">
                 <button
+                    type="button"
                     className="btn btn-danger btn-sm subscription-user-reset-inline-btn"
                     onClick={handleResetLink}
                     disabled={resetLoading || !normalizedEmail || !result.subscriptionActive}
@@ -1055,12 +1079,12 @@ export default function Subscriptions() {
                                             {ui.manageUsers}
                                         </Link>
                                     )}
-                                    <button className="btn btn-secondary" onClick={loadUsers} disabled={usersLoading}>
+                                    <button type="button" className="btn btn-secondary" onClick={loadUsers} disabled={usersLoading}>
                                         {usersLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {ui.refreshUsers}</>}
                                     </button>
                                 </div>
                                 <div className="subscriptions-toolbar-primary">
-                                    <button className="btn btn-primary" onClick={() => loadSubscription()} disabled={subscriptionBusy || !normalizedEmail}>
+                                    <button type="button" className="btn btn-primary" onClick={() => loadSubscription()} disabled={subscriptionBusy || !normalizedEmail}>
                                         {subscriptionBusy ? <span className="spinner" /> : <><HiOutlineArrowPath /> {ui.reload}</>}
                                     </button>
                                 </div>
@@ -1086,7 +1110,7 @@ export default function Subscriptions() {
                             <div className="card subscription-empty-card">
                                 <EmptyState
                                     title={isUserOnly ? (defaultIdentity ? ui.loadingAddress : ui.noAssignedLink) : ui.inputEmailHint}
-                                    icon={<HiOutlineLink style={{ fontSize: '48px' }} />}
+                                    icon={<HiOutlineLink className="empty-state-svg" />}
                                     surface
                                     action={isUserOnly ? (
                                         <button type="button" className="btn btn-secondary" onClick={() => loadSubscription()} disabled={subscriptionBusy || !defaultIdentity}>
@@ -1108,6 +1132,7 @@ export default function Subscriptions() {
                                             title={ui.adminTitle}
                                             actions={(
                                                 <button
+                                                    type="button"
                                                     className="btn btn-secondary btn-sm"
                                                     onClick={handleResetLink}
                                                     disabled={resetLoading || !normalizedEmail}

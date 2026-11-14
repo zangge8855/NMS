@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-import { HiOutlineArrowLongRight } from 'react-icons/hi2';
 import { useI18n } from '../../contexts/LanguageContext';
 
 function buildToolLookup(items = []) {
@@ -82,7 +81,6 @@ export default function SubscriptionClientLinks({
                 chooseAny: 'Pick any mainstream client.',
                 downloads: 'Client Downloads',
                 recommended: 'Recommended Config',
-                chooseLabel: 'Use with',
                 importMethod: 'Import Method',
                 copyAddress: 'If one-tap import is not available, just copy the address above.',
             }
@@ -92,7 +90,6 @@ export default function SubscriptionClientLinks({
                 chooseAny: '选一个常用客户端。',
                 downloads: '客户端下载',
                 recommended: '推荐配置文件',
-                chooseLabel: '推荐使用',
                 importMethod: '导入方式',
                 copyAddress: '复制上面的地址导入就行。',
             }
@@ -257,7 +254,6 @@ export default function SubscriptionClientLinks({
                                                     {item.profileRules.map((rule) => (
                                                         <div key={rule.key} className="subscription-device-rule">
                                                             <span className="subscription-device-rule-tools">{rule.tools.join(' / ')}</span>
-                                                            <span className="subscription-device-rule-arrow" title={copy.chooseLabel}><HiOutlineArrowLongRight aria-hidden="true" /><span className="sr-only">{copy.chooseLabel}</span></span>
                                                             <span className="subscription-device-rule-profile">{rule.profileLabel}</span>
                                                         </div>
                                                     ))}
@@ -306,7 +302,6 @@ export default function SubscriptionClientLinks({
                                                     {item.profileRules.map((rule) => (
                                                         <div key={rule.key} className="subscription-device-rule">
                                                             <span className="subscription-device-rule-tools">{rule.tools.join(' / ')}</span>
-                                                            <span className="subscription-device-rule-arrow" title={copy.chooseLabel}><HiOutlineArrowLongRight aria-hidden="true" /><span className="sr-only">{copy.chooseLabel}</span></span>
                                                             <span className="subscription-device-rule-profile">{rule.profileLabel}</span>
                                                         </div>
                                                     ))}

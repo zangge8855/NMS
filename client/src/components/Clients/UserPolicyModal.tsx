@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { HiOutlineCheck, HiOutlineXMark } from 'react-icons/hi2';
 import toast from 'react-hot-toast';
 import api from '../../api/client';
@@ -28,10 +28,17 @@ function normalizeScopeMode(mode, selectedItems = []) {
 }
 
 export default function UserPolicyModal({ isOpen, email, servers = [], onClose }) {
-    const { t } = useI18n();
+    const { t, locale } = useI18n();
     const normalizedEmail = useMemo(() => String(email || '').trim().toLowerCase(), [email]);
     const validServerIdSet = useMemo(() => new Set((Array.isArray(servers) ? servers : []).map((item) => item.id)), [servers]);
+    const validServerIdSetRef = useRef(validServerIdSet);
+    validServerIdSetRef.current = validServerIdSet;
+    const tRef = useRef(t);
+    tRef.current = t;
+    const requestIdRef = useRef(0);
     const [loading, setLoading] = useState(false);
+    const [loadError, setLoadError] = useState('');
+    const [policyLoaded, setPolicyLoaded] = useState(false);
     const [saving, setSaving] = useState(false);
     const [noServerLimit, setNoServerLimit] = useState(true);
     const [noProtocolLimit, setNoProtocolLimit] = useState(true);
@@ -42,50 +49,64 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
     const [speedLimitUp, setSpeedLimitUp] = useState('0');
     const [speedLimitDown, setSpeedLimitDown] = useState('0');
 
-    useEffect(() => {
-        if (!isOpen || !normalizedEmail) return;
-        let cancelled = false;
-
-        const loadPolicy = async () => {
-            setLoading(true);
-            setSelectedServerIds([]);
-            setSelectedProtocols([]);
-            setNoServerLimit(true);
-            setNoProtocolLimit(true);
-            setLimitIp('0');
-            setTrafficLimitGb('0');
-            setSpeedLimitUp('0');
-            setSpeedLimitDown('0');
-            try {
-                const res = await api.get(`/user-policy/${encodeURIComponent(normalizedEmail)}`);
-                const payload = res.data?.obj || {};
-                const rawServerIds = Array.isArray(payload.allowedServerIds) ? payload.allowedServerIds : [];
-                const serverIds = rawServerIds.filter((item) => validServerIdSet.has(item));
-                const protocols = (Array.isArray(payload.allowedProtocols) ? payload.allowedProtocols : [])
-                    .filter((item) => PROTOCOL_KEY_SET.has(String(item || '').trim().toLowerCase()));
-                const serverScopeMode = normalizeScopeMode(payload.serverScopeMode, rawServerIds);
-                const protocolScopeMode = normalizeScopeMode(payload.protocolScopeMode, protocols);
-                if (cancelled) return;
-                setSelectedServerIds(serverIds);
-                setSelectedProtocols(protocols);
-                setNoServerLimit(serverScopeMode === 'all');
-                setNoProtocolLimit(protocolScopeMode === 'all');
-                setLimitIp(String(normalizeLimitIp(payload.limitIp)));
-                setTrafficLimitGb(bytesToGigabytesInput(payload.trafficLimitBytes));
-                setSpeedLimitUp(bytesPerSecondToKilobytesInput(payload.speedLimitUp));
-                setSpeedLimitDown(bytesPerSecondToKilobytesInput(payload.speedLimitDown));
-            } catch (error) {
-                if (!cancelled) {
-                    const msg = error.response?.data?.msg || error.message || t('comp.userPolicy.loadFailed');
-                    toast.error(msg);
-                }
+    const loadPolicy = useCallback(async () => {
+        if (!normalizedEmail) return;
+        const requestId = ++requestIdRef.current;
+        setLoading(true);
+        setLoadError('');
+        setPolicyLoaded(false);
+        setSelectedServerIds([]);
+        setSelectedProtocols([]);
+        setNoServerLimit(true);
+        setNoProtocolLimit(true);
+        setLimitIp('0');
+        setTrafficLimitGb('0');
+        setSpeedLimitUp('0');
+        setSpeedLimitDown('0');
+        try {
+            const res = await api.get(`/user-policy/${encodeURIComponent(normalizedEmail)}`);
+            if (requestIdRef.current !== requestId) return;
+            const payload = res.data?.obj || {};
+            const rawServerIds = Array.isArray(payload.allowedServerIds) ? payload.allowedServerIds : [];
+            const serverIds = rawServerIds.filter((item) => validServerIdSetRef.current.has(item));
+            const protocols = (Array.isArray(payload.allowedProtocols) ? payload.allowedProtocols : [])
+                .filter((item) => PROTOCOL_KEY_SET.has(String(item || '').trim().toLowerCase()));
+            const serverScopeMode = normalizeScopeMode(payload.serverScopeMode, rawServerIds);
+            const protocolScopeMode = normalizeScopeMode(payload.protocolScopeMode, protocols);
+            setSelectedServerIds(serverIds);
+            setSelectedProtocols(protocols);
+            setNoServerLimit(serverScopeMode === 'all');
+            setNoProtocolLimit(protocolScopeMode === 'all');
+            setLimitIp(String(normalizeLimitIp(payload.limitIp)));
+            setTrafficLimitGb(bytesToGigabytesInput(payload.trafficLimitBytes));
+            setSpeedLimitUp(bytesPerSecondToKilobytesInput(payload.speedLimitUp));
+            setSpeedLimitDown(bytesPerSecondToKilobytesInput(payload.speedLimitDown));
+            setPolicyLoaded(true);
+        } catch (error) {
+            if (requestIdRef.current !== requestId) return;
+            const msg = error.response?.data?.msg || error.message || tRef.current('comp.userPolicy.loadFailed');
+            setLoadError(msg);
+            toast.error(msg);
+        } finally {
+            if (requestIdRef.current === requestId) {
+                setLoading(false);
             }
-            if (!cancelled) setLoading(false);
-        };
+        }
+    }, [normalizedEmail]);
 
-        loadPolicy();
-        return () => { cancelled = true; };
-    }, [isOpen, normalizedEmail, t, validServerIdSet]);
+    useEffect(() => {
+        if (!isOpen || !normalizedEmail) {
+            requestIdRef.current += 1;
+            setLoading(false);
+            setLoadError('');
+            setPolicyLoaded(false);
+            return;
+        }
+        void loadPolicy();
+        return () => {
+            requestIdRef.current += 1;
+        };
+    }, [isOpen, normalizedEmail, loadPolicy]);
 
     const toggleServerId = (serverId, checked) => {
         setSelectedServerIds((prev) => {
@@ -103,6 +124,7 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!policyLoaded || loadError) return;
         if (!normalizedEmail) {
             toast.error(t('comp.userPolicy.emptyEmail'));
             return;
@@ -163,6 +185,17 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
 
                         {loading ? (
                             <div className="text-center p-6"><span className="spinner" /></div>
+                        ) : loadError ? (
+                            <div className="p-6 text-center space-y-3" role="alert">
+                                <div className="text-sm text-danger">{loadError}</div>
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={() => void loadPolicy()}
+                                >
+                                    {locale === 'en-US' ? 'Retry' : '重试'}
+                                </button>
+                            </div>
                         ) : (
                             <>
                                 <div className="card mb-4">
@@ -288,7 +321,7 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                         <button type="button" className="btn btn-secondary" onClick={onClose}>
                             {t('comp.common.cancel')}
                         </button>
-                        <button type="submit" className="btn btn-primary" disabled={saving || loading}>
+                        <button type="submit" className="btn btn-primary" disabled={saving || loading || !policyLoaded || Boolean(loadError)}>
                             {saving ? <span className="spinner" /> : <><HiOutlineCheck /> {t('comp.userPolicy.savePolicy')}</>}
                         </button>
                     </div>

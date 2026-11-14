@@ -1003,10 +1003,11 @@ export default function Servers() {
                 ) : null}
 
                 <div className="servers-mobile-actions" onClick={(e) => e.stopPropagation()}>
-                    <button className="btn btn-secondary btn-sm" onClick={() => navigate(`/servers/${server.id}`)} title={t('comp.servers.details')}>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => navigate(`/servers/${server.id}`)} title={t('comp.servers.details')}>
                         <HiOutlineEye /> {t('comp.servers.details')}
                     </button>
                     <button
+                        type="button"
                         className="btn btn-secondary btn-sm"
                         onClick={() => handleTest(server.id)}
                         disabled={rowBusy}
@@ -1014,10 +1015,10 @@ export default function Servers() {
                         {rowBusy ? <span className="spinner" /> : <HiOutlineSignal />}
                         {testState === 'success' ? t('comp.servers.testOk') : testState === 'error' ? t('comp.servers.testFail') : t('comp.servers.testConnect')}
                     </button>
-                    <button className="btn btn-secondary btn-sm" onClick={() => handleEdit(server)} aria-label={t('comp.common.edit')} disabled={rowBusy}>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleEdit(server)} aria-label={t('comp.common.edit')} disabled={rowBusy}>
                         <HiOutlinePencilSquare /> {t('comp.common.edit')}
                     </button>
-                    <button className="btn btn-danger btn-sm" onClick={() => handleDelete(server.id)} aria-label={t('comp.common.delete')} disabled={rowBusy}>
+                    <button type="button" className="btn btn-danger btn-sm" onClick={() => handleDelete(server.id)} aria-label={t('comp.common.delete')} disabled={rowBusy}>
                         <HiOutlineTrash /> {t('comp.common.delete')}
                     </button>
                 </div>
@@ -1069,13 +1070,13 @@ export default function Servers() {
                     summary={selectedIds.size > 0 ? (
                         <div className="flex gap-2 items-center animate-fade-in servers-selection-bar servers-selection-bar-takeover">
                             <span className="text-sm font-bold px-2 bulk-toolbar-count">{t('pages.servers.toolbar.selectedItems', { count: selectedIds.size })}</span>
-                            <button className="btn btn-secondary btn-sm" onClick={handleBulkTest} disabled={bulkActionBusy}>
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={handleBulkTest} disabled={bulkActionBusy}>
                                 {bulkTestAction.pendingIds.length > 0 ? <span className="spinner" /> : <HiOutlineSignal />} {t('pages.servers.toolbar.bulkTest')}
                             </button>
-                            <button className="btn btn-danger btn-sm" onClick={handleBulkDelete} disabled={bulkActionBusy}>
+                            <button type="button" className="btn btn-danger btn-sm" onClick={handleBulkDelete} disabled={bulkActionBusy}>
                                 <HiOutlineTrash /> {t('pages.servers.toolbar.bulkDelete')}
                             </button>
-                            <button className="btn btn-secondary btn-sm" onClick={() => setSelectedIds(new Set())} disabled={bulkActionBusy}>
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setSelectedIds(new Set())} disabled={bulkActionBusy}>
                                 {t('pages.servers.toolbar.cancelSelectAll')}
                             </button>
                         </div>
@@ -1350,10 +1351,11 @@ export default function Servers() {
                                     </td>
                                     <td className="table-cell-actions servers-actions-cell" data-label={t('pages.servers.cols.actions')} onClick={(e) => e.stopPropagation()}>
                                         <div className="table-row-actions servers-row-actions">
-                                            <button className="btn btn-secondary btn-sm servers-row-action-main" onClick={() => navigate(`/servers/${server.id}`)} title={t('comp.servers.details')} disabled={rowBusy}>
+                                            <button type="button" className="btn btn-secondary btn-sm servers-row-action-main" onClick={() => navigate(`/servers/${server.id}`)} title={t('comp.servers.details')} disabled={rowBusy}>
                                             <HiOutlineEye /> {t('comp.servers.details')}
                                         </button>
                                         <button
+                                            type="button"
                                             className="btn btn-secondary btn-sm servers-row-action-main"
                                             onClick={() => handleTest(server.id)}
                                             disabled={rowBusy}
@@ -1454,7 +1456,7 @@ export default function Servers() {
                                                     className="input-trailing-action-btn"
                                                     onClick={() => setShowFormPassword((prev) => !prev)}
                                                     tabIndex={-1}
-                                                    aria-label={showFormPassword ? 'Hide password' : 'Show password'}
+                                                    aria-label={t(showFormPassword ? 'comp.common.hidePassword' : 'comp.common.showPassword')}
                                                 >
                                                     {showFormPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
                                                 </button>
@@ -1476,7 +1478,7 @@ export default function Servers() {
                                                 className="input-trailing-action-btn"
                                                 onClick={() => setShowFormApiToken((prev) => !prev)}
                                                 tabIndex={-1}
-                                                aria-label={showFormApiToken ? 'Hide token' : 'Show token'}
+                                                aria-label={locale === 'en-US' ? (showFormApiToken ? 'Hide token' : 'Show token') : (showFormApiToken ? '隐藏令牌' : '显示令牌')}
                                             >
                                                 {showFormApiToken ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
                                             </button>
@@ -1536,7 +1538,7 @@ export default function Servers() {
                                                         className="input-trailing-action-btn"
                                                         onClick={() => setShowBatchFormPassword((prev) => !prev)}
                                                         tabIndex={-1}
-                                                        aria-label={showBatchFormPassword ? 'Hide password' : 'Show password'}
+                                                        aria-label={t(showBatchFormPassword ? 'comp.common.hidePassword' : 'comp.common.showPassword')}
                                                     >
                                                         {showBatchFormPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
                                                     </button>
@@ -1558,7 +1560,9 @@ export default function Servers() {
                                                     className="input-trailing-action-btn"
                                                     onClick={() => setShowBatchFormApiToken((prev) => !prev)}
                                                     tabIndex={-1}
-                                                    aria-label={showBatchFormApiToken ? 'Hide token' : 'Show token'}
+                                                    aria-label={locale === 'en-US'
+                                                        ? (showBatchFormApiToken ? 'Hide API token' : 'Show API token')
+                                                        : (showBatchFormApiToken ? '隐藏 API Token' : '显示 API Token')}
                                                 >
                                                     {showBatchFormApiToken ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
                                                 </button>
@@ -1693,7 +1697,7 @@ export default function Servers() {
                                                 className="input-trailing-action-btn"
                                                 onClick={() => setShowRepairPassword((prev) => !prev)}
                                                 tabIndex={-1}
-                                                aria-label={showRepairPassword ? 'Hide password' : 'Show password'}
+                                                aria-label={t(showRepairPassword ? 'comp.common.hidePassword' : 'comp.common.showPassword')}
                                             >
                                                 {showRepairPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
                                             </button>
@@ -1714,7 +1718,9 @@ export default function Servers() {
                                                 className="input-trailing-action-btn"
                                                 onClick={() => setShowRepairApiToken((prev) => !prev)}
                                                 tabIndex={-1}
-                                                aria-label={showRepairApiToken ? 'Hide token' : 'Show token'}
+                                                aria-label={locale === 'en-US'
+                                                    ? (showRepairApiToken ? 'Hide API token' : 'Show API token')
+                                                    : (showRepairApiToken ? '隐藏 API Token' : '显示 API Token')}
                                             >
                                                 {showRepairApiToken ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
                                             </button>

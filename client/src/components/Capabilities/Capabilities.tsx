@@ -32,6 +32,30 @@ import { formatDateTime, getErrorMessage } from '../../utils/format';
 import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot';
 import { getPanelTypeLabel } from '../../utils/panelType';
 
+const CAPABILITIES_UI_ACTION_EN_MAP: Record<string, string> = {
+    '节点控制台': 'Node Console',
+    '日志中心': 'Logs',
+    '官方文档': 'Official Docs',
+    '登录页': 'Login Page',
+    '入站管理': 'Inbounds',
+    '用户管理': 'Users',
+    '控制面板': 'Dashboard',
+    's-ui 面板': 's-ui Panel',
+    '3x-ui 面板': '3x-ui Panel',
+    'Xray 设置': 'Xray Settings',
+    '账户中心': 'Account Center',
+    '系统设置': 'System Settings',
+};
+
+function localizeUiActionLabel(label: unknown, locale = 'zh-CN'): string {
+    const text = String(label || '').trim();
+    if (!text) return '-';
+    if (locale === 'en-US') {
+        return CAPABILITIES_UI_ACTION_EN_MAP[text] || text;
+    }
+    return text;
+}
+
 const CAPABILITIES_SNAPSHOT_TTL_MS = 2 * 60_000;
 
 function buildCapabilitiesSnapshotKey(serverId: string | number): string {
@@ -519,7 +543,7 @@ export default function Capabilities({ serverId = '', embedded = false }: Capabi
             <EmptyState
                 title={copy.selectServerTitle}
                 subtitle={copy.selectServerSubtitle}
-                icon={<HiOutlineCircleStack style={{ fontSize: '48px' }} />}
+                icon={<HiOutlineCircleStack className="empty-state-svg" />}
                 surface
                 action={!embedded ? (
                     hasServers ? (
@@ -748,7 +772,7 @@ export default function Capabilities({ serverId = '', embedded = false }: Capabi
                                         <td data-label={supportColumnLabel} className="table-cell-center capability-support-cell">{renderBooleanSupport(module.supportedBy3xui === true, copy)}</td>
                                         <td data-label={copy.matrixColumns.status} className="table-cell-center capability-status-cell">{renderAlignmentStatus(module.status, copy)}</td>
                                         <td data-label={copy.matrixColumns.entry} className="table-cell-center capability-entry-cell">
-                                            <span className="badge badge-neutral">{module.uiActionLabel || '-'}</span>
+                                            <span className="badge badge-neutral">{localizeUiActionLabel(module.uiActionLabel, locale)}</span>
                                         </td>
                                         <td data-label={copy.matrixColumns.note} className="text-sm text-muted">{module.note || '-'}</td>
                                     </tr>
@@ -789,7 +813,7 @@ export default function Capabilities({ serverId = '', embedded = false }: Capabi
                                         <td data-label={copy.toolsColumns.availability} className="table-cell-center capability-availability-cell">{renderAvailability(tool.available, copy)}</td>
                                         <td data-label={copy.toolsColumns.status} className="table-cell-center capability-status-cell">{renderAlignmentStatus(tool.status, copy)}</td>
                                         <td data-label={copy.toolsColumns.entry} className="table-cell-center capability-entry-cell">
-                                            <span className="badge badge-neutral">{tool.uiActionLabel || '-'}</span>
+                                            <span className="badge badge-neutral">{localizeUiActionLabel(tool.uiActionLabel, locale)}</span>
                                         </td>
                                         <td data-label={copy.toolsColumns.source} className="text-sm text-muted">{renderProbeSource(tool.source, copy)}</td>
                                     </tr>

@@ -757,8 +757,11 @@ export default function UserDetail() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const confirmAction = useConfirm();
+    const isMountedRef = useRef(true);
     const detailRequestIdRef = useRef(0);
     const clientRequestIdRef = useRef(0);
+    const subscriptionRequestIdRef = useRef(0);
+    const clientIpRequestIdRef = useRef(0);
     const detailBootstrapRef = useRef(readUserDetailSnapshot(userId));
     const preserveBootstrapClientsRef = useRef(detailBootstrapRef.current?.clientsFetched === true);
     const liveTrafficSnapshotRef = useRef(null);
@@ -824,7 +827,7 @@ export default function UserDetail() {
         }
         try {
             const res = await api.get(`/users/${encodeURIComponent(userId)}/detail`);
-            if (requestId !== detailRequestIdRef.current) return null;
+            if (!isMountedRef.current || requestId !== detailRequestIdRef.current) return null;
             if (res.data?.success) {
                 const nextDetail = normalizeUserDetailPayload(res.data.obj);
                 setDetail(nextDetail);
@@ -833,10 +836,10 @@ export default function UserDetail() {
                 toast.error(res.data?.msg || copy.labels.loadUserFailed);
             }
         } catch (err) {
-            if (requestId !== detailRequestIdRef.current) return null;
+            if (!isMountedRef.current || requestId !== detailRequestIdRef.current) return null;
             toast.error(err.response?.data?.msg || copy.labels.loadUserFailed);
         } finally {
-            if (requestId === detailRequestIdRef.current) {
+            if (isMountedRef.current && requestId === detailRequestIdRef.current) {
                 setLoading(false);
             }
         }
@@ -844,6 +847,8 @@ export default function UserDetail() {
     };
 
     const loadSubscription = async (options: any = {}) => {
+        const requestId = subscriptionRequestIdRef.current + 1;
+        subscriptionRequestIdRef.current = requestId;
         const quiet = options.quiet === true;
         const email = String(
             detail?.user?.subscriptionEmail
@@ -852,14 +857,17 @@ export default function UserDetail() {
         ).trim().toLowerCase();
 
         if (!email) {
+            if (!isMountedRef.current || requestId !== subscriptionRequestIdRef.current) return;
             setSubscriptionResult(null);
             setSubscriptionFetched(true);
+            setSubscriptionLoading(false);
             return;
         }
 
         setSubscriptionLoading(true);
         try {
             const res = await api.get(`/subscriptions/${encodeURIComponent(email)}`);
+            if (!isMountedRef.current || requestId !== subscriptionRequestIdRef.current) return;
             const payload = res.data?.obj || {};
             const bundle = buildSubscriptionProfileBundle(payload, locale);
             setSubscriptionResult({
@@ -885,13 +893,17 @@ export default function UserDetail() {
                 setSubscriptionProfileKey(bundle.defaultProfileKey);
             }
         } catch (err) {
+            if (!isMountedRef.current || requestId !== subscriptionRequestIdRef.current) return;
             setSubscriptionResult(null);
             if (!quiet) {
                 toast.error(err.response?.data?.msg || copy.labels.loadSubscriptionFailed);
             }
+        } finally {
+            if (isMountedRef.current && requestId === subscriptionRequestIdRef.current) {
+                setSubscriptionFetched(true);
+                setSubscriptionLoading(false);
+            }
         }
-        setSubscriptionFetched(true);
-        setSubscriptionLoading(false);
     };
 
     const fetchClients = async (options: any = {}) => {
@@ -901,7 +913,7 @@ export default function UserDetail() {
         const background = options.background === true;
         const trackedEmails = collectTrackedUserEmails(detail?.user);
         if (trackedEmails.length === 0) {
-            if (requestId !== clientRequestIdRef.current) return;
+            if (!isMountedRef.current || requestId !== clientRequestIdRef.current) return;
             setClientData([]);
             setClientsFetched(true);
             setLiveTrafficSummary({ ...EMPTY_LIVE_TRAFFIC_SUMMARY });
@@ -914,7 +926,7 @@ export default function UserDetail() {
         }
         try {
             if (servers.length === 0) {
-                if (requestId !== clientRequestIdRef.current) return;
+                if (!isMountedRef.current || requestId !== clientRequestIdRef.current) return;
                 setClientData([]);
                 setClientsFetched(true);
                 setLiveTrafficSummary({ ...EMPTY_LIVE_TRAFFIC_SUMMARY });
@@ -931,7 +943,7 @@ export default function UserDetail() {
                 includeOnlines: true,
                 force: options.force === true,
             });
-            if (requestId !== clientRequestIdRef.current) return;
+            if (!isMountedRef.current || requestId !== clientRequestIdRef.current) return;
 
             serverResults.forEach((result) => {
                 const server = result.server;
@@ -968,7 +980,7 @@ export default function UserDetail() {
                 });
             });
 
-            if (requestId !== clientRequestIdRef.current) return;
+            if (!isMountedRef.current || requestId !== clientRequestIdRef.current) return;
             setClientData(clients);
             const checkedAtMs = Date.now();
             const nextLiveTrafficSnapshot = buildLiveTrafficSnapshot(
@@ -980,7 +992,7 @@ export default function UserDetail() {
             lastClientFetchAtRef.current = checkedAtMs;
             setLiveTrafficSummary(nextLiveTrafficSnapshot.summary);
         } catch {
-            if (requestId !== clientRequestIdRef.current) return;
+            if (!isMountedRef.current || requestId !== clientRequestIdRef.current) return;
             if (!preserveCurrent) {
                 setClientData([]);
                 setLiveTrafficSummary({ ...EMPTY_LIVE_TRAFFIC_SUMMARY });
@@ -988,7 +1000,7 @@ export default function UserDetail() {
                 lastClientFetchAtRef.current = 0;
             }
         }
-        if (requestId !== clientRequestIdRef.current) return;
+        if (!isMountedRef.current || requestId !== clientRequestIdRef.current) return;
         setClientsFetched(true);
         if (!background) {
             setClientsLoading(false);
@@ -1083,8 +1095,21 @@ export default function UserDetail() {
         setClientIpSupportByServer({});
         detailRequestIdRef.current += 1;
         clientRequestIdRef.current += 1;
+        subscriptionRequestIdRef.current += 1;
+        clientIpRequestIdRef.current += 1;
         fetchDetail({ preserveCurrent: snapshot?.detail != null });
     }, [userId]);
+
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+            detailRequestIdRef.current += 1;
+            clientRequestIdRef.current += 1;
+            subscriptionRequestIdRef.current += 1;
+            clientIpRequestIdRef.current += 1;
+        };
+    }, []);
 
     useEffect(() => {
         if (!detail) return;
@@ -1393,6 +1418,9 @@ export default function UserDetail() {
         const supportState = clientIpSupportByServer[target.serverId];
         if (supportState?.supported === false) return;
 
+        const requestId = clientIpRequestIdRef.current + 1;
+        clientIpRequestIdRef.current = requestId;
+
         if (options.preserveOpen !== true) {
             setClientIpModal((prev) => ({
                 ...prev,
@@ -1419,6 +1447,7 @@ export default function UserDetail() {
 
         try {
             const res = await api.post(`/panel/${encodeURIComponent(target.serverId)}/panel/api/clients/ips/${encodeURIComponent(target.email)}`);
+            if (!isMountedRef.current || requestId !== clientIpRequestIdRef.current) return;
             const items = normalizePanelClientIps(res.data?.obj);
             setClientIpSupportByServer((prev) => ({
                 ...prev,
@@ -1439,6 +1468,7 @@ export default function UserDetail() {
                 error: '',
             }));
         } catch (err) {
+            if (!isMountedRef.current || requestId !== clientIpRequestIdRef.current) return;
             const msg = getErrorMessage(err, copy.labels.clientIpLoadFailed, locale);
             if (isUnsupportedPanelClientIpsError(err)) {
                 setClientIpSupportByServer((prev) => ({
@@ -1622,7 +1652,7 @@ export default function UserDetail() {
                             <button type="button" className="btn btn-secondary btn-sm" onClick={() => navigate(`/clients?edit=${user.id}`)}>
                                 <HiOutlinePencilSquare /> {t('comp.common.edit')}
                             </button>
-                            <button type="button" className="btn btn-secondary btn-sm" onClick={fetchDetail}>
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => void fetchDetail()}>
                                 <HiOutlineArrowPath /> {copy.labels.refresh}
                             </button>
                         </div>
@@ -2029,11 +2059,11 @@ export default function UserDetail() {
                                         <label className="form-label mb-0">{t('comp.users.expiryDaysDelta')}</label>
                                         <div className="flex items-center gap-1 flex-wrap">
                                             {[
-                                                { label: '+7天', days: '7' },
-                                                { label: '+30天', days: '30' },
-                                                { label: '+90天', days: '90' },
-                                                { label: '+180天', days: '180' },
-                                                { label: '+365天', days: '365' },
+                                                { label: locale === 'en-US' ? '+7d' : '+7天', days: '7' },
+                                                { label: locale === 'en-US' ? '+30d' : '+30天', days: '30' },
+                                                { label: locale === 'en-US' ? '+90d' : '+90天', days: '90' },
+                                                { label: locale === 'en-US' ? '+180d' : '+180天', days: '180' },
+                                                { label: locale === 'en-US' ? '+365d' : '+365天', days: '365' },
                                             ].map((preset) => (
                                                 <button
                                                     key={preset.days}

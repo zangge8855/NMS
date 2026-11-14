@@ -324,7 +324,7 @@ export default function AccountCenter() {
                                     </span>
                                 </div>
                             </div>
-                            <div className="form-group mb-0">
+                            <div className="form-group mb-0" style={{ gridColumn: '1 / -1' }}>
                                 <label className="form-label" htmlFor="account-email">{copy.email}</label>
                                 <input
                                     id="account-email"

@@ -1324,7 +1324,7 @@ export default function Inbounds() {
                                 />
                             </div>
                             <div className="inbound-client-usage-meta">
-                                {totalBytes > 0 ? `${t('comp.inbounds.remaining').replace('{size}', formatBytes(remainingBytes))}` : t('comp.inbounds.totalUnlimited')}
+                                {totalBytes > 0 ? t('comp.inbounds.remaining', { size: formatBytes(remainingBytes) }) : t('comp.inbounds.totalUnlimited')}
                             </div>
                         </div>
 
@@ -1426,7 +1426,7 @@ export default function Inbounds() {
                     <EmptyState
                         title={deepCopy.noServersTitle}
                         subtitle={deepCopy.noServersSubtitle}
-                        icon={<HiOutlineSignal style={{ fontSize: '48px' }} />}
+                        icon={<HiOutlineSignal className="empty-state-svg" />}
                         action={<button type="button" className="btn btn-primary" onClick={() => navigate('/servers')}><HiOutlineServer /> {deepCopy.goServers}</button>}
                     />
                 </div>
@@ -1462,29 +1462,30 @@ export default function Inbounds() {
                     actions={selectedVisibleCount > 0 ? (
                         <div className="flex flex-wrap gap-2 items-center animate-fade-in inbounds-selection-bar">
                             <span className="text-sm font-bold px-2 text-primary">{t('pages.inbounds.toolbar.selected', { count: selectedVisibleCount })}</span>
-                            <button className={bulkToggleClassName} onClick={() => handleBulkSetEnable(bulkToggleEnable)}>
+                            <button type="button" className={bulkToggleClassName} onClick={() => handleBulkSetEnable(bulkToggleEnable)}>
                                 {bulkToggleIcon}
                                 {bulkToggleLabel}
                             </button>
-                            <button className="btn btn-danger btn-sm" onClick={handleBulkDelete}>
+                            <button type="button" className="btn btn-danger btn-sm" onClick={handleBulkDelete}>
                                 <HiOutlineTrash /> {t('pages.inbounds.toolbar.delete')}
                             </button>
-                            <button className="btn btn-secondary btn-sm" onClick={handleBulkReset}>
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={handleBulkReset}>
                                 <HiOutlineArrowPath /> {t('pages.inbounds.toolbar.reset')}
                             </button>
-                            <button className="btn btn-secondary btn-sm" onClick={handleBulkSyncExistingUsers}>
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={handleBulkSyncExistingUsers}>
                                 <HiOutlineArrowPath /> {t('comp.inbounds.syncExistingUsersButton')}
                             </button>
-                            <button className="btn btn-secondary btn-sm" onClick={() => setSelectedKeys(new Set())}>
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setSelectedKeys(new Set())}>
                                 {t('comp.common.cancel')}
                             </button>
                         </div>
                     ) : (
                         <>
-                        <button className="btn btn-primary btn-sm" onClick={handleAdd}>
+                        <button type="button" className="btn btn-primary btn-sm" onClick={handleAdd}>
                             <HiOutlinePlusCircle /> {t('pages.inbounds.toolbar.add')}
                         </button>
                         <button
+                            type="button"
                             className="btn btn-secondary btn-sm btn-icon inbounds-refresh-btn"
                             onClick={() => fetchAllInbounds({ force: true })}
                             title={t('pages.inbounds.toolbar.refresh')}
@@ -1760,6 +1761,7 @@ export default function Inbounds() {
                                                 <td data-label={t('pages.inbounds.cols.actions')} className="table-cell-actions inbounds-actions-cell" onClick={(e) => e.stopPropagation()}>
                                                     <div className="flex gap-2 items-center inbounds-row-actions">
                                                         <button
+                                                            type="button"
                                                             className="btn btn-secondary btn-sm btn-icon table-action-btn inbounds-action-btn"
                                                             title={t('comp.common.edit')}
                                                             onClick={() => handleEdit(ib)}
@@ -1942,7 +1944,7 @@ export default function Inbounds() {
                                                                                         />
                                                                                     </div>
                                                                                     <div className="inbound-client-usage-meta">
-                                                                                        {totalBytes > 0 ? `${t('comp.inbounds.remaining').replace('{size}', formatBytes(remainingBytes))}` : t('comp.inbounds.totalUnlimited')}
+                                                                                        {totalBytes > 0 ? t('comp.inbounds.remaining', { size: formatBytes(remainingBytes) }) : t('comp.inbounds.totalUnlimited')}
                                                                                     </div>
                                                                                 </div>
                                                                             </td>
@@ -2053,13 +2055,13 @@ export default function Inbounds() {
                 {selectedVisibleCount > 0 && (
                     <div className="mobile-batch-bar">
                         <div className="batch-count">{t('comp.inbounds.selectedCount', { count: selectedVisibleCount })}</div>
-                        <button className={bulkToggleClassName} onClick={() => handleBulkSetEnable(bulkToggleEnable)}>
+                        <button type="button" className={bulkToggleClassName} onClick={() => handleBulkSetEnable(bulkToggleEnable)}>
                             {bulkToggleIcon}
                             {bulkToggleLabel}
                         </button>
-                        <button className="btn btn-danger btn-sm" onClick={handleBulkDelete}><HiOutlineTrash /> {deepCopy.delete}</button>
-                        <button className="btn btn-secondary btn-sm" onClick={handleBulkReset}><HiOutlineArrowPath /> {deepCopy.reset}</button>
-                        <button className="btn btn-secondary btn-sm" onClick={handleBulkSyncExistingUsers}><HiOutlineArrowPath /> {t('comp.inbounds.syncExistingUsersButton')}</button>
+                        <button type="button" className="btn btn-danger btn-sm" onClick={handleBulkDelete}><HiOutlineTrash /> {deepCopy.delete}</button>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={handleBulkReset}><HiOutlineArrowPath /> {deepCopy.reset}</button>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={handleBulkSyncExistingUsers}><HiOutlineArrowPath /> {t('comp.inbounds.syncExistingUsersButton')}</button>
                     </div>
                 )}
 
@@ -2075,7 +2077,7 @@ export default function Inbounds() {
                         <div className="modal modal-md" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
                                 <h3 className="modal-title">{deepCopy.batchAdjust}</h3>
-                                <button className="modal-close" onClick={closeClientAdjustModal} aria-label={t('comp.common.close')} title={t('comp.common.close')}>
+                                <button type="button" className="modal-close" onClick={closeClientAdjustModal} aria-label={t('comp.common.close')} title={t('comp.common.close')}>
                                     <HiOutlineXMark />
                                 </button>
                             </div>
@@ -2130,7 +2132,7 @@ export default function Inbounds() {
                         <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
                                 <h3 className="modal-title">{deepCopy.individualLimit}</h3>
-                                <button className="modal-close" onClick={closeEntitlementModal} aria-label={t('comp.common.close')} title={t('comp.common.close')}>
+                                <button type="button" className="modal-close" onClick={closeEntitlementModal} aria-label={t('comp.common.close')} title={t('comp.common.close')}>
                                     <HiOutlineXMark />
                                 </button>
                             </div>
@@ -2229,7 +2231,7 @@ export default function Inbounds() {
                                                 className="form-input"
                                                 value={entitlementGroup}
                                                 onChange={(e) => setEntitlementGroup(e.target.value)}
-                                                placeholder="e.g. VipGroup"
+                                                placeholder={locale === 'en-US' ? 'e.g. VipGroup' : '例如：VipGroup'}
                                             />
                                             <p className="text-xs text-muted mt-1">{t('comp.users.provisionGroupHint')}</p>
                                         </div>
@@ -2241,7 +2243,7 @@ export default function Inbounds() {
                                             className="form-input"
                                             value={entitlementComment}
                                             onChange={(e) => setEntitlementComment(e.target.value)}
-                                            placeholder="e.g. My private note"
+                                            placeholder={locale === 'en-US' ? 'e.g. My private note' : '例如：内部备注'}
                                         />
                                         <p className="text-xs text-muted mt-1">{t('comp.users.provisionCommentHint')}</p>
                                     </div>

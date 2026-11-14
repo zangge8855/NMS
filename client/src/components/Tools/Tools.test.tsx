@@ -360,6 +360,13 @@ describe('Tools', () => {
         });
 
         await user.click(screen.getByRole('button', { name: /删除/ }));
+        expect(api.delete).not.toHaveBeenCalled();
+
+        await user.click(screen.getByRole('button', { name: '取消' }));
+        expect(screen.queryByRole('button', { name: '确认删除' })).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: /删除/ }));
+        await user.click(screen.getByRole('button', { name: '确认删除' }));
         await waitFor(() => {
             expect(api.delete).toHaveBeenCalledWith('/certificates/cert-1');
             expect(screen.queryByText('edge.example.com')).not.toBeInTheDocument();

@@ -419,4 +419,83 @@ describe('ServerDetail', () => {
             expect(screen.getByText('alice@example.com')).toBeInTheDocument();
         });
     });
+
+    it('renders snapshot error state instead of serverNotFound when initial load returns 500', async () => {
+        api.get.mockImplementation((url) => {
+            if (url === '/servers/server-1/snapshot') {
+                return Promise.reject({ response: { status: 500, data: { msg: 'Snapshot upstream timeout' } } });
+            }
+            if (url === '/audit/events') {
+                return Promise.resolve({ data: { obj: { items: [] } } });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<ServerDetail />);
+
+        expect(await screen.findByText('加载服务器快照失败')).toBeInTheDocument();
+        expect(screen.queryByText(/服务器不存在|服务器未找到/)).not.toBeInTheDocument();
+    });
+
+    it('preserves rendered server and shows an alert banner when a snapshot refresh returns 500', async () => {
+        const user = userEvent.setup();
+        let snapshotCalls = 0;
+
+        api.get.mockImplementation((url) => {
+            if (url === '/servers/server-1/snapshot') {
+                snapshotCalls += 1;
+                if (snapshotCalls === 1) {
+                    return Promise.resolve(buildServerSnapshot({ name: 'Edge Node', inboundBytes: 2048 }));
+                }
+                return Promise.reject({ response: { status: 500, data: { msg: 'Gateway busy' } } });
+            }
+            if (url === '/audit/events') {
+                return Promise.resolve({ data: { obj: { items: [] } } });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<ServerDetail />);
+
+        await screen.findByText('服务器 · Edge Node');
+        await user.click(screen.getByRole('button', { name: '刷新' }));
+
+        const alert = await screen.findByRole('alert');
+        expect(alert).toHaveTextContent('Gateway busy');
+        expect(screen.getByText('服务器 · Edge Node')).toBeInTheDocument();
+    });
+
+    it('surfaces audit load failures in the audit tab with retry', async () => {
+        const user = userEvent.setup();
+        let auditCalls = 0;
+
+        api.get.mockImplementation((url) => {
+            if (url === '/servers/server-1/snapshot') {
+                return Promise.resolve(buildServerSnapshot());
+            }
+            if (url === '/audit/events') {
+                auditCalls += 1;
+                if (auditCalls === 1) {
+                    return Promise.reject({ response: { status: 500, data: { msg: 'Audit service down' } } });
+                }
+                return Promise.resolve({
+                    data: {
+                        obj: {
+                            items: [{ eventType: 'server_test', outcome: 'success', ts: '2026-01-01T00:00:00Z', actor: 'admin' }],
+                        },
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<ServerDetail />);
+
+        await screen.findByText('服务器 · Test Server');
+        await user.click(screen.getByRole('button', { name: '审计日志' }));
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('Audit service down');
+        await user.click(screen.getAllByRole('button', { name: '重试' })[0]);
+        expect(await screen.findByText('admin', { exact: false })).toBeInTheDocument();
+    });
 });

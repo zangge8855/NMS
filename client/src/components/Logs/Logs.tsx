@@ -228,8 +228,10 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
     const [immersiveMode, setImmersiveMode] = useState(false);
 
     // Global mode: server selection
-    const [selectedServerIds, setSelectedServerIds] = useState<any[]>([]);
-    const hasInitializedGlobalSelectionRef = useRef(false);
+    const [selectedServerIds, setSelectedServerIds] = useState<any[]>(() => (
+        activeServerId === 'global' ? servers.map((server) => server.id) : []
+    ));
+    const hasInitializedGlobalSelectionRef = useRef(activeServerId === 'global' && servers.length > 0);
 
     // Only auto-select all servers the first time we enter global mode.
     // After that, an empty selection is treated as an intentional filter state.
@@ -241,7 +243,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
 
         const availableServerIds = servers.map((server) => server.id);
         if (availableServerIds.length === 0) {
-            setSelectedServerIds([]);
+            setSelectedServerIds((prev) => (prev.length === 0 ? prev : []));
             return;
         }
 
@@ -249,12 +251,22 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
             hasInitializedGlobalSelectionRef.current = true;
             setSelectedServerIds((prev) => {
                 const preserved = prev.filter((id) => availableServerIds.includes(id));
-                return preserved.length > 0 ? preserved : availableServerIds;
+                const next = preserved.length > 0 ? preserved : availableServerIds;
+                if (next.length === prev.length && next.every((id, index) => id === prev[index])) {
+                    return prev;
+                }
+                return next;
             });
             return;
         }
 
-        setSelectedServerIds((prev) => prev.filter((id) => availableServerIds.includes(id)));
+        setSelectedServerIds((prev) => {
+            const next = prev.filter((id) => availableServerIds.includes(id));
+            if (next.length === prev.length && next.every((id, index) => id === prev[index])) {
+                return prev;
+            }
+            return next;
+        });
     }, [isGlobal, servers]);
 
     const logContainerRef = useRef<HTMLDivElement | null>(null);
@@ -270,6 +282,16 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
     const sourceLabel = String(displayLabel || '').trim() || (
         activeSourceMeta.label || t('pages.logs.sourcePanel')
     );
+    const tRef = useRef(t);
+    tRef.current = t;
+    const localeRef = useRef(locale);
+    localeRef.current = locale;
+    const sourceLabelRef = useRef(sourceLabel);
+    sourceLabelRef.current = sourceLabel;
+    const activeServerNameRef = useRef(activeServer?.name || '');
+    activeServerNameRef.current = activeServer?.name || '';
+    const serversRef = useRef(servers);
+    serversRef.current = servers;
     const fetchSummaryMeta = getSummaryToneMeta(fetchSummary?.tone);
     // Reuse the shared form surface and rounded tokens so controls stay visually consistent.
     const filterSelectClassName = 'form-select rounded-lg';
@@ -328,28 +350,30 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                 }
                 setFetchSummary({
                     tone: 'danger',
-                    message: t('pages.logs.loadFailed', {
-                        source: sourceLabel,
-                        message: String(error.message || t('pages.logs.unknownError')).trim(),
+                    message: tRef.current('pages.logs.loadFailed', {
+                        source: sourceLabelRef.current,
+                        message: String(error.message || tRef.current('pages.logs.unknownError')).trim(),
                     }),
                 });
                 return;
             }
             const lines = Array.isArray(payload.lines) ? payload.lines : [];
-            setLogs(lines.map((line: string) => ({ line, serverName: activeServer?.name || '' })));
+            setLogs(lines.map((line: string) => ({ line, serverName: activeServerNameRef.current || '' })));
             if (payload.supported === false || payload.warning) {
                 setFetchSummary({
                     tone: payload.supported === false ? 'warning' : 'info',
-                    message: payload.warning || t('pages.logs.sourceUnsupported', { source: sourceLabel }),
+                    message: payload.warning || tRef.current('pages.logs.sourceUnsupported', { source: sourceLabelRef.current }),
                 });
+            } else {
+                setFetchSummary(null);
             }
         } catch (err) {
             if (requestId !== logRequestIdRef.current) return;
-            const message = getErrorMessage(err, t('pages.logs.unknownError'), locale);
-            toast.error(t('pages.logs.fetchFailed', { message }));
+            const message = getErrorMessage(err, tRef.current('pages.logs.unknownError'), localeRef.current);
+            toast.error(tRef.current('pages.logs.fetchFailed', { message }));
             setFetchSummary({
                 tone: 'danger',
-                message: t('pages.logs.loadFailed', { source: sourceLabel, message }),
+                message: tRef.current('pages.logs.loadFailed', { source: sourceLabelRef.current, message }),
             });
             if (!preserveCurrent) {
                 setLogs([]);
@@ -360,7 +384,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                 setRefreshing(false);
             }
         }
-    }, [activeServerId, activeServer?.name, count, resolvedSource, sourceLabel, t, locale]);
+    }, [activeServerId, count, resolvedSource]);
 
     const fetchGlobalLogs = useCallback(async (options: { preserveCurrent?: boolean; force?: boolean } = {}) => {
         const preserveCurrent = options.preserveCurrent === true;
@@ -372,7 +396,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
             }
             setFetchSummary({
                 tone: 'info',
-                message: t('pages.logs.selectNodeHint'),
+                message: tRef.current('pages.logs.selectNodeHint'),
             });
             setLoading(false);
             setRefreshing(false);
@@ -385,7 +409,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
             setRefreshing(true);
         }
         try {
-            const targetServers = servers.filter((s) => selectedServerIds.includes(s.id));
+            const targetServers = serversRef.current.filter((s) => selectedServerIds.includes(s.id));
             const perServerCount = Math.max(1, Math.ceil(count / targetServers.length));
             const res = await api.get('/servers/logs/snapshot', {
                 params: {
@@ -404,7 +428,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                 const serverName = String(item?.serverName || '').trim();
                 const error = item?.error && typeof item.error === 'object' ? item.error : null;
                 if (error) {
-                    failedServers.push(error.message || t('comp.common.unknownError'));
+                    failedServers.push(error.message || tRef.current('comp.common.unknownError'));
                     continue;
                 }
                 allLogs.push(...lines.map((line: string, index: number) => ({
@@ -424,8 +448,8 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
             if (failedServers.length > 0) {
                 setFetchSummary({
                     tone: 'warning',
-                    message: t('pages.logs.partialFailed', {
-                        source: sourceLabel,
+                    message: tRef.current('pages.logs.partialFailed', {
+                        source: sourceLabelRef.current,
                         failed: failedServers.length,
                         total: targetServers.length,
                     }),
@@ -435,12 +459,12 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
             }
         } catch (err) {
             if (requestId !== logRequestIdRef.current) return;
-            const message = getErrorMessage(err, t('pages.logs.unknownError'), locale);
-            toast.error(t('pages.logs.globalFetchFailed', { message }));
+            const message = getErrorMessage(err, tRef.current('pages.logs.unknownError'), localeRef.current);
+            toast.error(tRef.current('pages.logs.globalFetchFailed', { message }));
             setFetchSummary({
                 tone: 'danger',
-                message: t('pages.logs.globalLoadFailed', {
-                    source: sourceLabel,
+                message: tRef.current('pages.logs.globalLoadFailed', {
+                    source: sourceLabelRef.current,
                     message,
                 }),
             });
@@ -453,21 +477,23 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                 setRefreshing(false);
             }
         }
-    }, [isGlobal, selectedServerIds, servers, count, resolvedSource, sourceLabel, t, locale]);
+    }, [isGlobal, selectedServerIds, count, resolvedSource]);
 
     const fetchLogs = isGlobal ? fetchGlobalLogs : fetchSingleLogs;
     const logRequestPending = loading || refreshing;
 
     useEffect(() => {
         const snapshot = readLogsSnapshot(logsSnapshotKey);
+        const nextHasSnapshot = snapshot != null;
         logsBootstrapRef.current = snapshot;
         setLogs(snapshot?.logs || []);
         setFetchSummary(snapshot?.fetchSummary || null);
         setLoading(snapshot == null);
-        setScopeSnapshotState({
-            key: logsSnapshotKey,
-            hasSnapshot: snapshot != null,
-        });
+        setScopeSnapshotState((prev) => (
+            prev.key === logsSnapshotKey && prev.hasSnapshot === nextHasSnapshot
+                ? prev
+                : { key: logsSnapshotKey, hasSnapshot: nextHasSnapshot }
+        ));
     }, [logsSnapshotKey]);
 
     useEffect(() => {
@@ -705,8 +731,8 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                             )}
                             actions={(
                                 <>
-                                    <button className="btn btn-ghost btn-sm" onClick={selectAllServers}>{t('pages.logs.selectAll')}</button>
-                                    <button className="btn btn-ghost btn-sm" onClick={selectNoneServers}>{t('pages.logs.clearSelection')}</button>
+                                    <button type="button" className="btn btn-ghost btn-sm" onClick={selectAllServers}>{t('pages.logs.selectAll')}</button>
+                                    <button type="button" className="btn btn-ghost btn-sm" onClick={selectNoneServers}>{t('pages.logs.clearSelection')}</button>
                                 </>
                             )}
                         />
