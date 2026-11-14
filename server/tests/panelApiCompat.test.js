@@ -801,3 +801,26 @@ test('postAddInboundCompat keeps hysteria2 for s-ui facades', async () => {
     assert.match(seen[0], /protocol=hysteria(&|$)/);
     assert.match(seen[1], /protocol=hysteria2/);
 });
+
+test('postUpdateClientCompat falls back to v3 update when legacy readback verification fails with an error', async () => {
+    const calls = [];
+    const client = {
+        async post(path, data) {
+            calls.push({ method: 'post', path, data });
+            return { data: { success: true } };
+        },
+        async get(path) {
+            calls.push({ method: 'get', path });
+            throw new Error('upstream readback unavailable');
+        },
+    };
+
+    await postUpdateClientCompat(client, 7, 'uuid-a', {
+        id: 'uuid-a',
+        email: 'user@example.com',
+        expiryTime: 1800000000000,
+    }, { email: 'user@example.com' });
+
+    assert.equal(calls.at(-1).method, 'post');
+    assert.equal(calls.at(-1).path, '/panel/api/clients/update/user%40example.com');
+});

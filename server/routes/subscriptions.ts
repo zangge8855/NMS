@@ -2,10 +2,18 @@ import { Router } from 'express';
 import crypto from 'crypto';
 import net from 'node:net';
 import { authMiddleware, adminOnly, operatorOrAbove, auditorOrAbove } from '../middleware/auth.js';
-import { stripIpv6Brackets, formatHostHeaderWithPort } from '../lib/ipGeoResolver.js';
+import {
+    formatHostHeaderWithPort,
+    isPrivateOrLocalIp,
+    normalizeIpAddress,
+    stripIpv6Brackets,
+} from '../lib/ipGeoResolver.js';
 import { ensureAuthenticated } from '../lib/panelClient.js';
 import serverStore from '../store/serverStore.js';
-import subscriptionTokenStore from '../store/subscriptionTokenStore.js';
+import subscriptionTokenStore, {
+    signLegacySubscriptionEmail,
+    verifyLegacyEmailSignature,
+} from '../store/subscriptionTokenStore.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import config from '../config.js';
 import auditStore from '../store/auditStore.js';
@@ -175,20 +183,11 @@ function normalizePolicyScopeMode(mode, selectedItems: any[] = []) {
 }
 
 function signEmail(email) {
-    return crypto
-        .createHmac('sha256', config.jwt.secret)
-        .update(normalizeEmail(email))
-        .digest('hex');
+    return signLegacySubscriptionEmail(email);
 }
 
 function verifyEmailSig(email, sig) {
-    try {
-        const expected = signEmail(email);
-        if (typeof sig !== 'string' || sig.length !== expected.length) return false;
-        return crypto.timingSafeEqual(Buffer.from(sig, 'utf8'), Buffer.from(expected, 'utf8'));
-    } catch {
-        return false;
-    }
+    return verifyLegacyEmailSignature(email, sig);
 }
 
 function toPositiveInt(value, fallback) {
@@ -3097,13 +3096,14 @@ function buildSingboxConfigObject(links: any[] = [], options: any = {}) {
     const proxyTags = proxies.map((item) => item.tag);
 
     if (configVersion === '1.11') {
+        const defaultProxyDetour = routingPolicy === 'rules' ? '🚀 节点选择' : 'PROXY';
         return {
             dns: {
                 servers: [
                     {
                         tag: 'dns_proxy',
                         address: 'tls://1.1.1.1',
-                        detour: 'PROXY',
+                        detour: defaultProxyDetour,
                     },
                     {
                         tag: 'dns_direct',
@@ -3448,28 +3448,36 @@ function normalizeHttpUrlKeepQuery(urlLike) {
     }
 }
 
+function canTrustForwardedBaseHeaders(req: any): boolean {
+    const trustProxy = config.security?.trustProxy;
+    if (trustProxy === true) return true;
+    if (trustProxy === false) return false;
+    const upstreamIp = normalizeIpAddress(req?.socket?.remoteAddress || '') || normalizeIpAddress(req?.ip || '');
+    // Preserve unit-test compatibility when synthetic request mocks omit socket/ip fields.
+    if (!upstreamIp) return true;
+    return isPrivateOrLocalIp(upstreamIp) || (Array.isArray(req?.ips) && req.ips.length > 0);
+}
+
 function resolvePublicBase(req) {
     const runtime = systemSettingsStore.getSubscription();
     const configured = normalizeBaseUrl(runtime?.publicBaseUrl || config.subscription?.publicBaseUrl || '');
     if (configured) return configured;
 
-    const forwardedProtocol = pickHeaderFirstValue(req.headers['x-forwarded-proto']) || getForwardedProtocol(req) || req.protocol;
-    const forwardedHostRaw = pickHeaderFirstValue(req.headers['x-forwarded-host']);
-    const forwardedPort = pickHeaderFirstValue(req.headers['x-forwarded-port']);
-    if (forwardedHostRaw) {
-        const host = formatHostHeaderWithPort(forwardedHostRaw, forwardedPort);
-        const base = normalizeBaseUrl(`${forwardedProtocol}://${host}`);
-        if (base) return base;
+    const trustForwarded = canTrustForwardedBaseHeaders(req);
+    if (trustForwarded) {
+        const forwardedProtocol = pickHeaderFirstValue(req.headers['x-forwarded-proto']) || getForwardedProtocol(req) || req.protocol;
+        const forwardedHostRaw = pickHeaderFirstValue(req.headers['x-forwarded-host']);
+        const forwardedPort = pickHeaderFirstValue(req.headers['x-forwarded-port']);
+        if (forwardedHostRaw) {
+            const host = formatHostHeaderWithPort(forwardedHostRaw, forwardedPort);
+            const base = normalizeBaseUrl(`${forwardedProtocol}://${host}`);
+            if (base) return base;
+        }
     }
 
-    const originBase = normalizeBaseUrl(req.headers.origin);
-    if (originBase) return originBase;
-
-    const refererBase = normalizeBaseUrl(req.headers.referer);
-    if (refererBase) return refererBase;
-
     const host = formatHostHeaderWithPort(typeof req.get === 'function' ? req.get('host') : req.headers?.host);
-    return normalizeBaseUrl(`${getForwardedProtocol(req)}://${host}`);
+    const protocol = trustForwarded ? getForwardedProtocol(req) : (req.protocol || 'http');
+    return normalizeBaseUrl(`${protocol}://${host}`);
 }
 
 function resolveSubscriptionConverterBaseUrl() {
@@ -3783,6 +3791,50 @@ interface PublicSubCacheEntry {
 
 const PUBLIC_SUB_CACHE = new Map<string, PublicSubCacheEntry>();
 const PUBLIC_SUB_CACHE_TTL = 30_000;
+const PUBLIC_SUB_CACHE_MAX_ENTRIES = 500;
+
+function pruneExpiredPublicSubCache(now: number = Date.now()): void {
+    for (const [key, entry] of PUBLIC_SUB_CACHE.entries()) {
+        if (!entry || (now - entry.timestamp) >= PUBLIC_SUB_CACHE_TTL) {
+            PUBLIC_SUB_CACHE.delete(key);
+        }
+    }
+}
+
+export function getPublicSubCacheEntry(cacheKey: string, now: number = Date.now()): PublicSubCacheEntry | null {
+    const entry = PUBLIC_SUB_CACHE.get(cacheKey);
+    if (!entry) return null;
+    if ((now - entry.timestamp) >= PUBLIC_SUB_CACHE_TTL) {
+        PUBLIC_SUB_CACHE.delete(cacheKey);
+        return null;
+    }
+    PUBLIC_SUB_CACHE.delete(cacheKey);
+    PUBLIC_SUB_CACHE.set(cacheKey, entry);
+    return entry;
+}
+
+export function setPublicSubCacheEntry(
+    cacheKey: string,
+    entry: PublicSubCacheEntry,
+    maxEntries: number = PUBLIC_SUB_CACHE_MAX_ENTRIES
+): void {
+    const cap = Math.max(1, Number(maxEntries) || PUBLIC_SUB_CACHE_MAX_ENTRIES);
+    if (PUBLIC_SUB_CACHE.has(cacheKey)) {
+        PUBLIC_SUB_CACHE.delete(cacheKey);
+    } else if (PUBLIC_SUB_CACHE.size >= cap) {
+        pruneExpiredPublicSubCache(entry.timestamp);
+        while (PUBLIC_SUB_CACHE.size >= cap) {
+            const oldestKey = PUBLIC_SUB_CACHE.keys().next().value;
+            if (oldestKey === undefined) break;
+            PUBLIC_SUB_CACHE.delete(oldestKey);
+        }
+    }
+    PUBLIC_SUB_CACHE.set(cacheKey, entry);
+}
+
+export function getPublicSubCacheSize(): number {
+    return PUBLIC_SUB_CACHE.size;
+}
 
 export function invalidatePublicSubCache(email: string = ''): void {
     if (!email) {
@@ -3880,8 +3932,8 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
     const publicBase = resolvePublicBase(req);
     const profileTitle = sanitizeProfileTitleHeader(email || 'NMS');
     const cacheKey = `${email}:${tokenId}:${format}:${mode}:${serverId || 'all'}:${routingPolicy}:${publicBase}:${ua}`;
-    const cached = PUBLIC_SUB_CACHE.get(cacheKey);
-    if (cached && (Date.now() - cached.timestamp) < PUBLIC_SUB_CACHE_TTL) {
+    const cached = getPublicSubCacheEntry(cacheKey);
+    if (cached) {
         subscriptionTokenStore.touchLastUsedByTokenId(tokenId);
         res.setHeader('Content-Type', cached.contentType);
         res.setHeader('X-Subscription-Token-Id', cached.tokenId);
@@ -3942,7 +3994,7 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
             res.setHeader('Subscription-Userinfo', userInfo);
             const emptyPayload = buildSubscriptionPayload([]);
             const body = format === 'raw' ? emptyPayload.raw : emptyPayload.encoded;
-            PUBLIC_SUB_CACHE.set(cacheKey, {
+            setPublicSubCacheEntry(cacheKey, {
                 body,
                 contentType: 'text/plain; charset=utf-8',
                 userInfo,
@@ -3994,7 +4046,7 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
             return res.status(410).send('no clash-compatible links found');
         }
         res.setHeader('Content-Type', 'text/yaml; charset=utf-8');
-        PUBLIC_SUB_CACHE.set(cacheKey, {
+        setPublicSubCacheEntry(cacheKey, {
             body: yaml,
             contentType: 'text/yaml; charset=utf-8',
             userInfo,
@@ -4010,7 +4062,7 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
             return res.status(410).send('no sing-box-compatible links found');
         }
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        PUBLIC_SUB_CACHE.set(cacheKey, {
+        setPublicSubCacheEntry(cacheKey, {
             body: profile,
             contentType: 'application/json; charset=utf-8',
             userInfo,
@@ -4026,7 +4078,7 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
             return res.status(410).send('no surge-compatible links found');
         }
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-        PUBLIC_SUB_CACHE.set(cacheKey, {
+        setPublicSubCacheEntry(cacheKey, {
             body: profile,
             contentType: 'text/plain; charset=utf-8',
             userInfo,
@@ -4037,7 +4089,7 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
         return res.send(profile);
     }
     const finalBody = format === 'raw' ? raw : encoded;
-    PUBLIC_SUB_CACHE.set(cacheKey, {
+    setPublicSubCacheEntry(cacheKey, {
         body: finalBody,
         contentType: 'text/plain; charset=utf-8',
         userInfo,

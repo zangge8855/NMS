@@ -5,7 +5,10 @@ import {
     verifyAuthenticationResponse,
 } from '@simplewebauthn/server';
 import type { Request } from 'express';
+import config from '../config.js';
 import userStore from '../store/userStore.js';
+import systemSettingsStore from '../store/systemSettingsStore.js';
+import { isPrivateOrLocalIp, normalizeIpAddress } from './ipGeoResolver.js';
 import crypto from 'crypto';
 
 // Simple in-memory challenge store for webauthn
@@ -46,55 +49,118 @@ function getChallenge(id: string) {
     return data;
 }
 
-function getRpDetails(req: Request) {
-    const rpName = 'NMS';
-    const originHeader = req.get('origin') || '';
-    const refererHeader = req.get('referer') || '';
-    let origin = '';
-    if (originHeader) {
-        origin = originHeader;
-    } else if (refererHeader) {
-        try {
-            const refUrl = new URL(refererHeader);
-            origin = refUrl.origin;
-        } catch {
-            // ignore
-        }
-    }
+function parseExpectedOriginsList(value: unknown): string[] {
+    return String(value || '')
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .map((item) => {
+            try {
+                return new URL(item).origin;
+            } catch {
+                return '';
+            }
+        })
+        .filter(Boolean);
+}
 
-    const hostHeader = req.get('x-forwarded-host') || req.get('host') || 'localhost';
-    const proto = req.get('x-forwarded-proto') || req.protocol || 'http';
+function isTrustedProxyForWebauthn(req: any): boolean {
+    const trustProxy = config.security?.trustProxy;
+    if (trustProxy === true) return true;
+    if (trustProxy === false) return false;
+    const socketIp = normalizeIpAddress(req?.socket?.remoteAddress || '');
+    const upstreamIp = socketIp || normalizeIpAddress(req?.ip || '');
+    if (!upstreamIp) return true;
+    return isPrivateOrLocalIp(upstreamIp) || (Array.isArray(req?.ips) && req.ips.length > 0);
+}
+
+function getRpDetails(req: Request, options: { nodeEnv?: string } = {}) {
+    const rpName = 'NMS';
+    const effectiveEnv = String(options.nodeEnv || process.env.NODE_ENV || config.nodeEnv || 'development').trim().toLowerCase();
+    const allowDevOrigins = effectiveEnv === 'development' || effectiveEnv === 'test';
+    const trustForwarded = isTrustedProxyForWebauthn(req);
+
+    const requestHost = typeof req.get === 'function' ? (req.get('host') || '') : '';
+    const forwardedHost = trustForwarded && typeof req.get === 'function' ? (req.get('x-forwarded-host') || '') : '';
+    const forwardedProto = trustForwarded && typeof req.get === 'function' ? (req.get('x-forwarded-proto') || '') : '';
+    const hostHeader = forwardedHost || requestHost || 'localhost';
+    const proto = String(forwardedProto || req.protocol || 'http').split(',')[0].trim() || 'http';
     const fallbackOrigin = `${proto}://${hostHeader}`;
 
+    const configuredBase = String(
+        systemSettingsStore.getSubscription()?.publicBaseUrl
+        || config.subscription?.publicBaseUrl
+        || ''
+    ).trim();
+    let configuredOrigin = '';
+    if (configuredBase) {
+        try {
+            configuredOrigin = new URL(configuredBase).origin;
+        } catch {
+            configuredOrigin = '';
+        }
+    }
+    const configuredOrigins = parseExpectedOriginsList(process.env.WEBAUTHN_EXPECTED_ORIGINS);
+
+    let origin = '';
+    if (allowDevOrigins) {
+        const originHeader = typeof req.get === 'function' ? (req.get('origin') || '') : '';
+        const refererHeader = typeof req.get === 'function' ? (req.get('referer') || '') : '';
+        if (originHeader) {
+            origin = originHeader;
+        } else if (refererHeader) {
+            try {
+                origin = new URL(refererHeader).origin;
+            } catch {
+                // ignore
+            }
+        }
+    }
     if (!origin) {
-        origin = fallbackOrigin;
+        origin = configuredOrigin || configuredOrigins[0] || fallbackOrigin;
     }
 
-    let rpID = 'localhost';
-    try {
-        rpID = new URL(origin).hostname || req.hostname || 'localhost';
-    } catch {
-        let hostOnly = '';
+    const extractHostname = (originLike: string, hostLike: string): string => {
         try {
-            hostOnly = new URL(`${proto}://${hostHeader}`).hostname;
+            const urlHost = new URL(originLike).hostname;
+            if (urlHost) return urlHost;
         } catch {
-            hostOnly = hostHeader.startsWith('[')
-                ? hostHeader.slice(1, hostHeader.indexOf(']') > 0 ? hostHeader.indexOf(']') : undefined)
-                : hostHeader.split(':')[0];
+            // fallback below
         }
-        rpID = req.hostname || hostOnly || 'localhost';
-    }
+        try {
+            const hostParsed = new URL(`${proto}://${hostLike}`).hostname;
+            if (hostParsed) return hostParsed;
+        } catch {
+            // fallback below
+        }
+        return hostLike.startsWith('[')
+            ? hostLike.slice(1, hostLike.indexOf(']') > 0 ? hostLike.indexOf(']') : undefined)
+            : hostLike.split(':')[0];
+    };
+
+    const configuredRpId = String(process.env.WEBAUTHN_RP_ID || '').trim();
+    const rpID = (!allowDevOrigins && configuredRpId)
+        ? configuredRpId
+        : (extractHostname(origin, hostHeader) || req.hostname || 'localhost');
+
+    const devOrigins = allowDevOrigins
+        ? [
+            'http://localhost:5173',
+            'http://localhost:3000',
+            'http://127.0.0.1:5173',
+            'http://127.0.0.1:3000',
+            'http://[::1]:5173',
+            'http://[::1]:3000',
+        ]
+        : [];
 
     const expectedOrigins = Array.from(new Set([
         origin,
+        configuredOrigin,
+        ...configuredOrigins,
         fallbackOrigin,
-        `${proto}://${req.get('host')}`,
-        'http://localhost:5173',
-        'http://localhost:3000',
-        'http://127.0.0.1:5173',
-        'http://127.0.0.1:3000',
-        'http://[::1]:5173',
-        'http://[::1]:3000',
+        requestHost ? `${proto}://${requestHost}` : '',
+        ...devOrigins,
     ].filter(Boolean)));
 
     return { rpName, rpID, origin, expectedOrigins };

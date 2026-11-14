@@ -92,4 +92,40 @@ describe('capabilities payload alignment', () => {
         assert.equal(tools.customGeoResources.source, 'upstream_removed');
         assert.equal(calls.some(([, url]) => url === '/panel/api/custom-geo/list'), false);
     });
+
+    it('localizes uiActionLabel entries for en-US while keeping zh-CN default', () => {
+        const zhPayload = buildCapabilitiesPayload({
+            serverId: 'node-zh',
+            status: null,
+            inbounds: [],
+            xrayVersions: [],
+            tools: {
+                uuid: {
+                    key: 'uuid',
+                    uiAction: 'node_console',
+                    uiActionLabel: '节点控制台',
+                },
+            },
+        });
+        assert.equal(zhPayload.tools.uuid.uiActionLabel, '节点控制台');
+        assert.equal(zhPayload.systemModules.find((item) => item.key === 'xrayVersion')?.uiActionLabel, '节点控制台');
+
+        const enPayload = buildCapabilitiesPayload({
+            serverId: 'node-en',
+            status: null,
+            inbounds: [],
+            xrayVersions: [],
+            tools: {
+                uuid: {
+                    key: 'uuid',
+                    uiAction: 'node_console',
+                    uiActionLabel: '节点控制台',
+                },
+            },
+            locale: 'en-US',
+        });
+        assert.equal(enPayload.tools.uuid.uiActionLabel, 'Node Console');
+        assert.equal(enPayload.systemModules.find((item) => item.key === 'xrayVersion')?.uiActionLabel, 'Node Console');
+        assert.equal(enPayload.systemModules.find((item) => item.key === 'databaseManagement')?.uiActionLabel, 'Node Console');
+    });
 });

@@ -306,13 +306,16 @@ function findUpdatedClient(clients: any[] = [], clientIdentifier: string = '', p
 }
 
 async function legacyUpdateAppearsApplied(panelClient: any, inboundId: any, clientIdentifier: string, clientData: any = {}, options: any = {}): Promise<boolean> {
+    if (typeof panelClient?.get !== 'function') {
+        return true;
+    }
     try {
         const inbound = await fetchInboundById(panelClient, inboundId);
         const protocol = normalizeProtocol(options.protocol || inbound?.protocol || clientData?.protocol);
         const match = findUpdatedClient(parseInboundClients(inbound), clientIdentifier, protocol, clientData, options);
         return Boolean(match && clientUpdateMatches(match, clientData));
     } catch {
-        return true;
+        return false;
     }
 }
 
@@ -356,12 +359,14 @@ async function resolveClientEmailForInbound(panelClient: any, inboundId: any, cl
     const explicitEmail = normalizeEmail(options.currentEmail || options.email || options.sourceClient?.email);
     if (explicitEmail) return explicitEmail;
 
-    const inbound = await fetchInboundById(panelClient, inboundId);
-    const protocol = normalizeProtocol(options.protocol || inbound?.protocol);
-    const clients = parseInboundClients(inbound);
-    const match = clients.find((item) => clientMatchesIdentifier(item, clientIdentifier, protocol));
-    const matchedEmail = normalizeEmail(match?.email);
-    if (matchedEmail) return matchedEmail;
+    if (typeof panelClient?.get === 'function') {
+        const inbound = await fetchInboundById(panelClient, inboundId);
+        const protocol = normalizeProtocol(options.protocol || inbound?.protocol);
+        const clients = parseInboundClients(inbound);
+        const match = clients.find((item) => clientMatchesIdentifier(item, clientIdentifier, protocol));
+        const matchedEmail = normalizeEmail(match?.email);
+        if (matchedEmail) return matchedEmail;
+    }
 
     const identifierAsEmail = normalizeEmail(clientIdentifier);
     if (identifierAsEmail.includes('@')) return identifierAsEmail;

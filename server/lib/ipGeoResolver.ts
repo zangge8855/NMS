@@ -5,6 +5,7 @@ const DEFAULT_PROVIDER = 'ip_api';
 const DEFAULT_ENDPOINT = 'http://ip-api.com/json/{ip}?fields=status,country,regionName,city&lang=zh-CN';
 const DEFAULT_TIMEOUT_MS = 3000;
 const DEFAULT_CACHE_TTL_SECONDS = 6 * 60 * 60;
+const MAX_GEO_CACHE_ENTRIES = 2000;
 const LOCAL_IP_LABEL = '内网/本地';
 
 function toPositiveInt(value: unknown, fallback: number): number {
@@ -373,20 +374,24 @@ function parseProviderResult(provider: string, payload: unknown): string {
 
 function createDefaultFetcher() {
     return async ({ url, timeoutMs }: { url: string; timeoutMs: number; ip?: string; provider?: string }): Promise<string> => {
-        if (typeof fetch !== 'function') {
-            throw new Error('fetch-unavailable');
-        }
+        const { resolveExternalHttpTarget, requestExternalWithPinnedIp } = await import('./ssrfProtection.js');
+        const resolved = await resolveExternalHttpTarget(url, { label: 'Geo provider URL' });
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
         try {
-            const response = await fetch(url, {
+            const response = await requestExternalWithPinnedIp(resolved, {
                 method: 'GET',
                 headers: {
                     'User-Agent': 'NMS-Audit-IPGeo/1.0',
                     'Accept': 'text/plain,*/*;q=0.8',
                 },
+                timeoutMs,
                 signal: controller.signal,
+                maxResponseBytes: 1024 * 1024,
             });
+            if (response.type === 'opaqueredirect' || (response.status >= 300 && response.status < 400)) {
+                throw new Error('geo-provider-redirect-blocked');
+            }
             if (!response.ok) {
                 throw new Error(`geo-provider-status-${response.status}`);
             }
@@ -395,6 +400,23 @@ function createDefaultFetcher() {
             clearTimeout(timer);
         }
     };
+}
+
+function isSafeEndpointSyntaxSync(urlLike: string): boolean {
+    try {
+        const parsed = new URL(urlLike);
+        if (!['http:', 'https:'].includes(parsed.protocol)) return false;
+        if (parsed.username || parsed.password) return false;
+        const host = stripIpv6Brackets(parsed.hostname).toLowerCase();
+        if (!host || host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal')) {
+            return false;
+        }
+        if (net.isIP(host) === 0 && !host.includes('.')) return false;
+        if (isReservedOrPrivateIp(host)) return false;
+        return true;
+    } catch {
+        return false;
+    }
 }
 
 export interface IpGeoResolverOptions {
@@ -407,10 +429,11 @@ export interface IpGeoResolverOptions {
 }
 
 export function createIpGeoResolver(options: IpGeoResolverOptions = {}) {
+    const initialEndpoint = String(options.endpoint || DEFAULT_ENDPOINT).trim() || DEFAULT_ENDPOINT;
     const runtime = {
         enabled: toBoolean(options.enabled, false),
         provider: String(options.provider || DEFAULT_PROVIDER).trim().toLowerCase() || DEFAULT_PROVIDER,
-        endpoint: String(options.endpoint || DEFAULT_ENDPOINT).trim() || DEFAULT_ENDPOINT,
+        endpoint: isSafeEndpointSyntaxSync(initialEndpoint) ? initialEndpoint : DEFAULT_ENDPOINT,
         timeoutMs: toPositiveInt(options.timeoutMs, DEFAULT_TIMEOUT_MS),
         cacheTtlSeconds: toPositiveInt(options.cacheTtlSeconds, DEFAULT_CACHE_TTL_SECONDS),
     };
@@ -419,6 +442,14 @@ export function createIpGeoResolver(options: IpGeoResolverOptions = {}) {
     const cache = new Map<string, { location: string; expiresAt: number }>();
     const inflight = new Map<string, Promise<string>>();
 
+    function pruneExpiredCache(nowTs: number = Date.now()): void {
+        for (const [key, item] of cache.entries()) {
+            if (!item || item.expiresAt <= nowTs) {
+                cache.delete(key);
+            }
+        }
+    }
+
     function fromCache(ip: string, nowTs: number = Date.now()): string | undefined {
         const item = cache.get(ip);
         if (!item) return undefined;
@@ -426,13 +457,26 @@ export function createIpGeoResolver(options: IpGeoResolverOptions = {}) {
             cache.delete(ip);
             return undefined;
         }
+        cache.delete(ip);
+        cache.set(ip, item);
         return item.location;
     }
 
     function toCache(ip: string, location: unknown, ttlMs: number = runtime.cacheTtlSeconds * 1000): void {
+        const nowTs = Date.now();
+        if (cache.has(ip)) {
+            cache.delete(ip);
+        } else if (cache.size >= MAX_GEO_CACHE_ENTRIES) {
+            pruneExpiredCache(nowTs);
+            while (cache.size >= MAX_GEO_CACHE_ENTRIES) {
+                const oldestKey = cache.keys().next().value;
+                if (oldestKey === undefined) break;
+                cache.delete(oldestKey);
+            }
+        }
         cache.set(ip, {
             location: String(location || ''),
-            expiresAt: Date.now() + Math.max(1000, ttlMs),
+            expiresAt: nowTs + Math.max(1000, ttlMs),
         });
     }
 
@@ -449,7 +493,9 @@ export function createIpGeoResolver(options: IpGeoResolverOptions = {}) {
         }
         if (Object.prototype.hasOwnProperty.call(next, 'endpoint')) {
             const normalizedEndpoint = String(next.endpoint || '').trim();
-            if (normalizedEndpoint) runtime.endpoint = normalizedEndpoint;
+            if (normalizedEndpoint && isSafeEndpointSyntaxSync(normalizedEndpoint)) {
+                runtime.endpoint = normalizedEndpoint;
+            }
         }
         if (Object.prototype.hasOwnProperty.call(next, 'timeoutMs')) {
             runtime.timeoutMs = toPositiveInt(next.timeoutMs, runtime.timeoutMs);

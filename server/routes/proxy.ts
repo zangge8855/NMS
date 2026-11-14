@@ -1,3 +1,4 @@
+import path from 'path';
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import { ensureAuthenticated } from '../lib/panelClient.js';
 import { isSuiPanelServer } from '../lib/panelType.js';
@@ -36,6 +37,7 @@ import {
 } from '../lib/panelApiCompat.js';
 import { invalidateServerPanelSnapshotCache } from '../lib/serverPanelSnapshotService.js';
 import { enrichClientIpPayload } from '../lib/clientIpEnrichment.js';
+import { invalidatePublicSubCache } from './subscriptions.js';
 
 const router = Router();
 const upload = multer({
@@ -51,11 +53,62 @@ const ALLOWED_PREFIXES = ['/panel/api/', '/server/api/', '/sub/', '/sui/'];
 // Native s-ui actions, answered by the s-ui adapter (never forwarded to a 3x-ui panel).
 const SUI_NATIVE_PREFIX = '/sui/';
 
-function isAllowedPanelPath(path: unknown): boolean {
-    if (!path || typeof path !== 'string') return false;
-    if (!path.startsWith('/')) return false;
-    if (path.includes('..')) return false;
-    return ALLOWED_PREFIXES.some((prefix) => path.startsWith(prefix));
+function decodePathIteratively(rawPath: string): string {
+    let current = String(rawPath || '');
+    for (let pass = 0; pass < 3; pass += 1) {
+        if (current.includes('..') || current.includes('\\') || /[\x00-\x1f\x7f]/.test(current)) {
+            return '';
+        }
+        try {
+            const decoded = decodeURIComponent(current);
+            if (decoded === current) break;
+            current = decoded;
+        } catch {
+            break;
+        }
+    }
+    if (current.includes('..') || current.includes('\\') || /[\x00-\x1f\x7f]/.test(current)) {
+        return '';
+    }
+    return current;
+}
+
+function isAllowedPanelPath(rawPath: unknown): boolean {
+    if (!rawPath || typeof rawPath !== 'string') return false;
+    if (!rawPath.startsWith('/')) return false;
+    const decoded = decodePathIteratively(rawPath);
+    if (!decoded) return false;
+    const normalizedRaw = path.posix.normalize(rawPath);
+    const normalizedDecoded = path.posix.normalize(decoded);
+    if (normalizedRaw.includes('..') || normalizedDecoded.includes('..')) return false;
+    return (
+        ALLOWED_PREFIXES.some((prefix) => normalizedRaw.startsWith(prefix))
+        && ALLOWED_PREFIXES.some((prefix) => normalizedDecoded.startsWith(prefix))
+    );
+}
+
+function isReadOnlyProxyPost(method: string, canonicalPath: string): boolean {
+    return method === 'POST' && (
+        canonicalPath === '/panel/api/clients/onlinesByGuid'
+        || canonicalPath === '/panel/api/clients/onlinesByNode'
+        || canonicalPath === '/panel/api/clients/onlines'
+        || canonicalPath === '/panel/api/inbounds/onlines'
+        || canonicalPath.startsWith('/panel/api/inbounds/clientIps/')
+        || canonicalPath.startsWith('/panel/api/clients/ips/')
+        || canonicalPath.startsWith('/panel/api/server/logs/')
+        || canonicalPath.startsWith('/panel/api/server/xraylogs/')
+        || canonicalPath.startsWith('/panel/api/inbounds/getClientTraffics/')
+    );
+}
+
+function isMutatingProxyRequest(method: string, canonicalPath: string): boolean {
+    if (method === 'PUT' || method === 'PATCH' || method === 'DELETE') {
+        return true;
+    }
+    if (method === 'POST') {
+        return !isReadOnlyProxyPost(method, canonicalPath);
+    }
+    return false;
 }
 
 function safeDecodePathSegment(value: unknown = ''): string {
@@ -331,32 +384,46 @@ router.all('/:serverId/*', upload.any(), async (req: Request, res: Response) => 
         });
     }
 
-    if (userRole === ROLES.auditor) {
-        const isBinaryDbExport = panelPath === '/panel/api/server/database/export' || panelPath === '/panel/api/server/getDb';
-        const isReadOnlyPost = method === 'POST' && (
-            panelPath === '/panel/api/clients/onlinesByGuid'
-            || panelPath === '/panel/api/clients/onlinesByNode'
-            || panelPath === '/panel/api/clients/onlines'
-            || panelPath === '/panel/api/inbounds/onlines'
-            || panelPath.startsWith('/panel/api/inbounds/clientIps/')
-            || panelPath.startsWith('/panel/api/clients/ips/')
-            || panelPath.startsWith('/panel/api/server/logs/')
-            || panelPath.startsWith('/panel/api/server/xraylogs/')
-            || panelPath.startsWith('/panel/api/inbounds/getClientTraffics/')
-        );
-        if (isBinaryDbExport || (method !== 'GET' && !isReadOnlyPost)) {
-            return res.status(403).json({
-                success: false,
-                msg: '权限不足: 审计员角色仅限只读查询',
-            });
-        }
-    }
-
     if (!isAllowedPanelPath(panelPath)) {
         return res.status(400).json({
             success: false,
             msg: `Path not allowed: ${panelPath}`,
         });
+    }
+
+    const decodedPanelPath = decodePathIteratively(panelPath) || panelPath;
+    const canonicalPath = path.posix.normalize(decodedPanelPath);
+    const isReadOnlyPost = isReadOnlyProxyPost(method, canonicalPath);
+
+    if (userRole === ROLES.auditor) {
+        const isBinaryDbExport = (
+            canonicalPath === '/panel/api/server/database/export'
+            || canonicalPath === '/panel/api/server/getDb'
+            || canonicalPath === '/sui/getdb'
+        );
+        const isSensitivePath = (
+            canonicalPath === '/panel/api/setting/apiTokens'
+            || canonicalPath.startsWith('/panel/api/setting/apiTokens/')
+            || canonicalPath === '/panel/setting/apiTokens'
+            || canonicalPath.startsWith('/panel/setting/apiTokens/')
+            || canonicalPath === '/sui/tokens'
+            || canonicalPath.startsWith('/sui/tokens/')
+            || canonicalPath === '/sui/users'
+            || canonicalPath.startsWith('/sui/users/')
+            || canonicalPath === '/sui/sessions'
+            || canonicalPath.startsWith('/sui/sessions/')
+            || canonicalPath === '/sui/settings'
+            || canonicalPath.startsWith('/sui/settings/')
+            || canonicalPath === '/sui/load'
+            || canonicalPath.startsWith('/sui/load/')
+            || canonicalPath.startsWith('/sub/')
+        );
+        if (isBinaryDbExport || isSensitivePath || (method !== 'GET' && !isReadOnlyPost)) {
+            return res.status(403).json({
+                success: false,
+                msg: '权限不足: 审计员角色仅限只读查询',
+            });
+        }
     }
 
     const serverRecord = serverStore.getById(serverId);
@@ -428,8 +495,9 @@ router.all('/:serverId/*', upload.any(), async (req: Request, res: Response) => 
             return res.send(Buffer.from(panelRes.data));
         }
 
-        if (method === 'POST' || method === 'PUT' || method === 'DELETE') {
+        if (isMutatingProxyRequest(method, canonicalPath)) {
             invalidateServerPanelSnapshotCache(serverId);
+            invalidatePublicSubCache();
         }
 
         let responseData = panelRes.data;
@@ -478,11 +546,16 @@ router.all('/:serverId/*', upload.any(), async (req: Request, res: Response) => 
                     ? await tryCompatPanelGetRequest(client, panelPath)
                     : await tryCompatPanelRequest(client, method, panelPath, req.body || {}, req.files as Express.Multer.File[]);
                 if (compatRes) {
+                    const compatStatus = Number(compatRes.status || 200);
+                    if (compatStatus < 400 && isMutatingProxyRequest(method, canonicalPath)) {
+                        invalidateServerPanelSnapshotCache(serverId);
+                        invalidatePublicSubCache();
+                    }
                     if (compatRes.isBinary) {
                         res.set(compatRes.headers || {});
                         return res.send(compatRes.data);
                     }
-                    return res.status(compatRes.status || 200).json(compatRes.data);
+                    return res.status(compatStatus).json(compatRes.data);
                 }
             } catch (compatError: any) {
                 if (compatError.response) {

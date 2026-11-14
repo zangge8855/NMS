@@ -379,3 +379,71 @@ test('registerUser rejects invite registration when the code is bound to another
         }
     );
 });
+
+test('verifyEmailCode and resetPasswordWithCode enforce per-user attempt lockouts', () => {
+    const userState = {
+        id: 'user-lock-1',
+        username: 'lockuser',
+        email: 'lock@example.com',
+        emailVerified: false,
+        verifyCode: '123456',
+        verifyCodeExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+        verifyCodeAttempts: 0,
+        resetCode: '654321',
+        resetCodeExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+        resetCodeAttempts: 0,
+    };
+    const repo = {
+        getByEmail() {
+            return userState;
+        },
+        recordVerifyCodeFailure(_id, maxAttempts = 5) {
+            userState.verifyCodeAttempts += 1;
+            const invalidated = userState.verifyCodeAttempts >= maxAttempts;
+            if (invalidated) {
+                userState.verifyCode = null;
+                userState.verifyCodeExpiresAt = null;
+            }
+            return { attempts: userState.verifyCodeAttempts, invalidated };
+        },
+        recordResetCodeFailure(_id, maxAttempts = 5) {
+            userState.resetCodeAttempts += 1;
+            const invalidated = userState.resetCodeAttempts >= maxAttempts;
+            if (invalidated) {
+                userState.resetCode = null;
+                userState.resetCodeExpiresAt = null;
+            }
+            return { attempts: userState.resetCodeAttempts, invalidated };
+        },
+    };
+
+    for (let i = 0; i < 4; i += 1) {
+        assert.throws(
+            () => verifyEmailCode({ email: 'lock@example.com', code: '000000' }, { userRepository: repo }),
+            (err) => err.status === 400
+        );
+    }
+    assert.throws(
+        () => verifyEmailCode({ email: 'lock@example.com', code: '000000' }, { userRepository: repo }),
+        (err) => err.status === 429
+    );
+    assert.equal(userState.verifyCode, null);
+
+    for (let i = 0; i < 4; i += 1) {
+        assert.throws(
+            () => resetPasswordWithCode(
+                { email: 'lock@example.com', code: '000000', newPassword: 'StrongPass123!' },
+                { userRepository: repo }
+            ),
+            (err) => err.status === 400
+        );
+    }
+    assert.throws(
+        () => resetPasswordWithCode(
+            { email: 'lock@example.com', code: '000000', newPassword: 'StrongPass123!' },
+            { userRepository: repo }
+        ),
+        (err) => err.status === 429
+    );
+    assert.equal(userState.resetCode, null);
+});

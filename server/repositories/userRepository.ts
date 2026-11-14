@@ -78,6 +78,18 @@ const userRepository = {
         return userStore.setPasswordResetCode(id, code, expiresAt);
     },
 
+    recordVerifyCodeFailure(id: string, maxAttempts?: number) {
+        return userStore.recordVerifyCodeFailure(id, maxAttempts);
+    },
+
+    recordResetCodeFailure(id: string, maxAttempts?: number) {
+        return userStore.recordResetCodeFailure(id, maxAttempts);
+    },
+
+    recordProfileVerifyFailure(id: string, maxAttempts?: number) {
+        return userStore.recordProfileVerifyFailure(id, maxAttempts);
+    },
+
     setTwoFactor(id: string, payload: any): boolean {
         return userStore.setTwoFactor(id, payload);
     },

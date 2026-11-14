@@ -50,6 +50,11 @@ test('sqliteClient lifecycle and snapshot CRUD', async (t) => {
     const reloaded = sqliteReadSnapshot('servers');
     assert.deepEqual(reloaded, updatedPayload);
 
+    // 5b. Corrupted JSON in SQLite throws instead of silently returning null
+    const db = (await import('../db/sqliteClient.js')).getSqliteDb();
+    db.prepare(`UPDATE snapshots SET payload = ? WHERE store_key = ?`).run('{broken-json', 'servers');
+    assert.throws(() => sqliteReadSnapshot('servers'));
+
     // 6. Close database
     closeSqliteDb();
     assert.equal(isSqliteReady(), false);

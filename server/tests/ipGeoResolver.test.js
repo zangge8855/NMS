@@ -149,4 +149,15 @@ describe('ip geo resolver runtime behavior', () => {
         await resolver.lookup('8.8.8.8');
         assert.equal(capturedUrl, 'http://myip.ipip.net/?ip=1.1.1.1');
     });
+
+    it('rejects unsafe private/local geo endpoint overrides', () => {
+        const resolver = createIpGeoResolver({
+            enabled: true,
+            endpoint: 'http://127.0.0.1:8080/geo?ip={ip}',
+        });
+        assert.equal(resolver.metadata().endpoint, 'http://ip-api.com/json/{ip}?fields=status,country,regionName,city&lang=zh-CN');
+
+        resolver.configure({ endpoint: 'http://169.254.169.254/latest/meta-data' });
+        assert.equal(resolver.metadata().endpoint, 'http://ip-api.com/json/{ip}?fields=status,country,regionName,city&lang=zh-CN');
+    });
 });

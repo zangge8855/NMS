@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import config from '../config.js';
-import { ROLES } from '../store/userStore.js';
+import userStore, { ROLES } from '../store/userStore.js';
 
 /**
  * JWT 认证中间件。
@@ -26,7 +26,27 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
         if (decoded && (decoded.isGuest || decoded.role === 'guest')) {
             return res.status(403).json({ success: false, msg: '访客体验账号仅限节点订阅使用，禁止访问 Web 管理后台' });
         }
-        (req as any).user = decoded;
+        const userId = String(decoded?.userId || '').trim();
+        const username = String(decoded?.username || '').trim();
+        const stored = userId ? userStore.getById(userId) : (username ? userStore.getByUsername(username) : null);
+        if (!stored) {
+            return res.status(401).json({ success: false, msg: 'Invalid or expired token' });
+        }
+        if (stored.enabled === false && stored.role !== 'admin') {
+            return res.status(403).json({ success: false, msg: '该账号已被禁用' });
+        }
+        if (decoded?.role && stored.role && decoded.role !== stored.role) {
+            return res.status(401).json({ success: false, msg: 'Invalid or expired token' });
+        }
+        if (Number(decoded?.tokenVersion ?? 1) !== Number(stored.tokenVersion ?? 1)) {
+            return res.status(401).json({ success: false, msg: 'Invalid or expired token' });
+        }
+        (req as any).user = {
+            ...decoded,
+            userId: stored.id,
+            username: stored.username,
+            role: stored.role,
+        };
         next();
     } catch {
         return res.status(401).json({ success: false, msg: 'Invalid or expired token' });

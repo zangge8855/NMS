@@ -60,16 +60,20 @@ class CertificateStore {
     }
 
     private _load(): CertificateRecord[] {
-        try {
-            if (fs.existsSync(CERTS_FILE)) {
-                const raw = fs.readFileSync(CERTS_FILE, 'utf-8');
-                const parsed = JSON.parse(raw);
-                return Array.isArray(parsed) ? parsed : [];
-            }
-        } catch {
+        if (!fs.existsSync(CERTS_FILE)) {
             return [];
         }
-        return [];
+        try {
+            const raw = fs.readFileSync(CERTS_FILE, 'utf-8');
+            const parsed = JSON.parse(raw);
+            if (!Array.isArray(parsed)) {
+                throw new Error('Data in certificates.json is not a JSON array');
+            }
+            return parsed;
+        } catch (err: any) {
+            console.error('CRITICAL: Failed to load certificates.json:', err?.message || err);
+            throw err;
+        }
     }
 
     private _save(): void {

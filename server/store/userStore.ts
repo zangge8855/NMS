@@ -132,6 +132,12 @@ class UserStore {
                     profileVerifyUsername: normalizeUsernameValue(item?.profileVerifyUsername),
                     profileVerifyEmail: normalizeEmailValue(item?.profileVerifyEmail),
                     groupId: normalizeGroupId(item?.groupId),
+                    tokenVersion: Number.isInteger(Number(item?.tokenVersion)) && Number(item?.tokenVersion) >= 1
+                        ? Number(item.tokenVersion)
+                        : 1,
+                    verifyCodeAttempts: Math.max(0, Number(item?.verifyCodeAttempts || 0) || 0),
+                    resetCodeAttempts: Math.max(0, Number(item?.resetCodeAttempts || 0) || 0),
+                    profileVerifyAttempts: Math.max(0, Number(item?.profileVerifyAttempts || 0) || 0),
                     passkeys: Array.isArray(item.passkeys) ? item.passkeys : [],
                 };
             });
@@ -156,20 +162,31 @@ class UserStore {
             this.users.push({
                 id: crypto.randomUUID(),
                 username: adminUsername,
-                passwordHash: hash,
-                passwordSalt: salt,
-                pbkdf2Iterations: iterations,
-                role: ROLES.admin,
-                enabled: true,
+                email: '',
                 subscriptionEmail: '',
                 subscriptionAliasPath: '',
                 groupId: '',
+                emailVerified: false,
+                enabled: true,
+                verifyCode: null,
+                verifyCodeExpiresAt: null,
+                verifyCodeAttempts: 0,
+                resetCode: null,
+                resetCodeExpiresAt: null,
+                resetCodeAttempts: 0,
                 profileVerifyCode: null,
                 profileVerifyCodeExpiresAt: null,
                 profileVerifyTargetEmail: '',
                 profileVerifyUsername: '',
                 profileVerifyEmail: '',
+                profileVerifyAttempts: 0,
+                tokenVersion: 1,
+                passwordHash: hash,
+                passwordSalt: salt,
+                pbkdf2Iterations: iterations,
+                role: ROLES.admin,
                 createdAt: new Date().toISOString(),
+                lastLoginAt: null,
                 passkeys: [],
             });
             this._save();
@@ -315,13 +332,17 @@ class UserStore {
             enabled: !!enabled,
             verifyCode: null,
             verifyCodeExpiresAt: null,
+            verifyCodeAttempts: 0,
             resetCode: null,
             resetCodeExpiresAt: null,
+            resetCodeAttempts: 0,
             profileVerifyCode: null,
             profileVerifyCodeExpiresAt: null,
             profileVerifyTargetEmail: '',
             profileVerifyUsername: '',
             profileVerifyEmail: '',
+            profileVerifyAttempts: 0,
+            tokenVersion: 1,
             passwordHash: hash,
             passwordSalt: salt,
             pbkdf2Iterations: iterations,
@@ -406,10 +427,15 @@ class UserStore {
             this.users[idx].pbkdf2Iterations = iterations;
             this.users[idx].resetCode = null;
             this.users[idx].resetCodeExpiresAt = null;
+            this.users[idx].resetCodeAttempts = 0;
+            this.users[idx].tokenVersion = Math.max(1, Number(this.users[idx].tokenVersion || 1)) + 1;
         }
         if (data.role) {
             const normalizedRole = normalizeRole(data.role, { strict: true });
             if (ROLE_LIST.includes(normalizedRole as any)) {
+                if (this.users[idx].role !== normalizedRole) {
+                    this.users[idx].tokenVersion = Math.max(1, Number(this.users[idx].tokenVersion || 1)) + 1;
+                }
                 this.users[idx].role = normalizedRole;
             } else {
                 throw new Error(`无效角色: ${data.role}`);
@@ -466,6 +492,7 @@ class UserStore {
         this.users[idx].profileVerifyTargetEmail = normalizeEmailValue(payload.targetEmail);
         this.users[idx].profileVerifyUsername = normalizeUsernameValue(payload.username);
         this.users[idx].profileVerifyEmail = normalizeEmailValue(payload.email);
+        this.users[idx].profileVerifyAttempts = 0;
         this._save();
         return {
             id: this.users[idx].id,
@@ -484,6 +511,7 @@ class UserStore {
         this.users[idx].profileVerifyTargetEmail = '';
         this.users[idx].profileVerifyUsername = '';
         this.users[idx].profileVerifyEmail = '';
+        this.users[idx].profileVerifyAttempts = 0;
         this._save();
         return {
             id: this.users[idx].id,
@@ -496,6 +524,9 @@ class UserStore {
         const idx = this.users.findIndex(u => u.id === id);
         if (idx === -1) return null;
         this.users[idx].enabled = !!enabled;
+        if (!enabled) {
+            this.users[idx].tokenVersion = Math.max(1, Number(this.users[idx].tokenVersion || 1)) + 1;
+        }
         this._save();
         return {
             id: this.users[idx].id,
@@ -518,6 +549,7 @@ class UserStore {
         if (idx === -1) return false;
         this.users[idx].verifyCode = code;
         this.users[idx].verifyCodeExpiresAt = expiresAt;
+        this.users[idx].verifyCodeAttempts = 0;
         this._save();
         return true;
     }
@@ -529,6 +561,7 @@ class UserStore {
         this.users[idx].emailVerified = true;
         this.users[idx].verifyCode = null;
         this.users[idx].verifyCodeExpiresAt = null;
+        this.users[idx].verifyCodeAttempts = 0;
         this._save();
         return true;
     }
@@ -539,6 +572,7 @@ class UserStore {
         if (idx === -1) return false;
         this.users[idx].resetCode = code;
         this.users[idx].resetCodeExpiresAt = expiresAt;
+        this.users[idx].resetCodeAttempts = 0;
         this._save();
         return true;
     }
@@ -549,8 +583,53 @@ class UserStore {
         if (idx === -1) return false;
         this.users[idx].resetCode = null;
         this.users[idx].resetCodeExpiresAt = null;
+        this.users[idx].resetCodeAttempts = 0;
         this._save();
         return true;
+    }
+
+    _recordCodeFailure(
+        id: string,
+        countField: 'verifyCodeAttempts' | 'resetCodeAttempts' | 'profileVerifyAttempts',
+        codeField: 'verifyCode' | 'resetCode' | 'profileVerifyCode',
+        expiresField: 'verifyCodeExpiresAt' | 'resetCodeExpiresAt' | 'profileVerifyCodeExpiresAt',
+        clearExtras: string[] = [],
+        maxAttempts: number = 5
+    ): { attempts: number; invalidated: boolean } {
+        const idx = this.users.findIndex(u => u.id === id);
+        if (idx === -1) return { attempts: 0, invalidated: false };
+        const limit = Math.max(1, Number(maxAttempts) || 5);
+        const nextAttempts = Math.max(0, Number(this.users[idx][countField] || 0) || 0) + 1;
+        this.users[idx][countField] = nextAttempts;
+        const invalidated = nextAttempts >= limit;
+        if (invalidated) {
+            this.users[idx][codeField] = null;
+            this.users[idx][expiresField] = null;
+            for (const extraField of clearExtras) {
+                this.users[idx][extraField] = '';
+            }
+        }
+        this._save();
+        return { attempts: nextAttempts, invalidated };
+    }
+
+    recordVerifyCodeFailure(id: string, maxAttempts: number = 5): { attempts: number; invalidated: boolean } {
+        return this._recordCodeFailure(id, 'verifyCodeAttempts', 'verifyCode', 'verifyCodeExpiresAt', [], maxAttempts);
+    }
+
+    recordResetCodeFailure(id: string, maxAttempts: number = 5): { attempts: number; invalidated: boolean } {
+        return this._recordCodeFailure(id, 'resetCodeAttempts', 'resetCode', 'resetCodeExpiresAt', [], maxAttempts);
+    }
+
+    recordProfileVerifyFailure(id: string, maxAttempts: number = 5): { attempts: number; invalidated: boolean } {
+        return this._recordCodeFailure(
+            id,
+            'profileVerifyAttempts',
+            'profileVerifyCode',
+            'profileVerifyCodeExpiresAt',
+            ['profileVerifyTargetEmail', 'profileVerifyUsername', 'profileVerifyEmail'],
+            maxAttempts
+        );
     }
 
     /** 启用/更新二步验证 */
@@ -697,19 +776,93 @@ class UserStore {
         if (!snapshot || !Array.isArray(snapshot?.users)) {
             throw new Error('Invalid snapshot format for UserStore: users array is missing');
         }
-        this.users = snapshot.users.map((item: any) => {
-            const aliasCheck = validateSubscriptionAliasPath(item?.subscriptionAliasPath);
-            return {
-                ...item,
-                email: normalizeEmailValue(item?.email),
-                subscriptionEmail: Object.prototype.hasOwnProperty.call(item || {}, 'subscriptionEmail')
-                    ? normalizeEmailValue(item?.subscriptionEmail)
-                    : normalizeEmailValue(item?.email),
-                subscriptionAliasPath: aliasCheck.ok ? aliasCheck.value : '',
-                groupId: normalizeGroupId(item?.groupId),
-                passkeys: Array.isArray(item.passkeys) ? item.passkeys : [],
-            };
-        });
+        const MAX_IMPORT_USERS = 50_000;
+        const rawUsers = snapshot.users.slice(0, MAX_IMPORT_USERS);
+        this.users = rawUsers
+            .filter((item: any) => item && typeof item === 'object' && !Array.isArray(item))
+            .map((item: any) => {
+                const role = normalizeRole(item.role);
+                const email = normalizeEmailValue(item.email);
+                const subscriptionEmail = Object.prototype.hasOwnProperty.call(item, 'subscriptionEmail')
+                    ? normalizeEmailValue(item.subscriptionEmail)
+                    : email;
+                const aliasCheck = validateSubscriptionAliasPath(item.subscriptionAliasPath);
+                const enabled = role === ROLES.admin
+                    ? true
+                    : (item.enabled !== undefined ? !!item.enabled : true);
+                const twoFactor = item.twoFactor && typeof item.twoFactor === 'object' && item.twoFactor.enabled === true
+                    ? {
+                        enabled: true,
+                        secret: String(item.twoFactor.secret || '').trim().slice(0, 256),
+                        backupCodeHashes: Array.isArray(item.twoFactor.backupCodeHashes)
+                            ? item.twoFactor.backupCodeHashes
+                                .slice(0, 32)
+                                .map((entry: any) => String(entry || '').trim().slice(0, 256))
+                                .filter(Boolean)
+                            : [],
+                        enabledAt: String(item.twoFactor.enabledAt || '').trim().slice(0, 64),
+                    }
+                    : null;
+                const passkeys = Array.isArray(item.passkeys)
+                    ? item.passkeys
+                        .filter((pk: any) => pk && typeof pk === 'object' && !Array.isArray(pk))
+                        .slice(0, 64)
+                        .map((pk: any) => ({
+                            ...(pk.id !== undefined ? { id: String(pk.id).slice(0, 512) } : {}),
+                            ...(pk.credentialID !== undefined ? { credentialID: String(pk.credentialID).slice(0, 512) } : {}),
+                            ...(pk.credentialPublicKey !== undefined ? { credentialPublicKey: pk.credentialPublicKey } : {}),
+                            ...(pk.publicKey !== undefined ? { publicKey: pk.publicKey } : {}),
+                            counter: Math.max(0, Number(pk.counter || 0) || 0),
+                            ...(pk.deviceName !== undefined ? { deviceName: String(pk.deviceName || '').trim().slice(0, 50) } : {}),
+                            ...(pk.aaguid !== undefined ? { aaguid: String(pk.aaguid).slice(0, 128) } : {}),
+                            ...(Array.isArray(pk.transports)
+                                ? { transports: pk.transports.slice(0, 16).map((t: any) => String(t || '').slice(0, 32)).filter(Boolean) }
+                                : {}),
+                            ...(pk.credentialDeviceType !== undefined ? { credentialDeviceType: String(pk.credentialDeviceType).slice(0, 64) } : {}),
+                            ...(pk.credentialBackedUp !== undefined ? { credentialBackedUp: !!pk.credentialBackedUp } : {}),
+                            ...(pk.createdAt !== undefined ? { createdAt: String(pk.createdAt).slice(0, 64) } : {}),
+                            ...(pk.lastUsedAt !== undefined ? { lastUsedAt: String(pk.lastUsedAt).slice(0, 64) } : {}),
+                        }))
+                    : [];
+
+                return {
+                    id: String(item.id || '').trim().slice(0, 128) || crypto.randomUUID(),
+                    username: normalizeUsernameValue(item.username).slice(0, 128),
+                    email,
+                    subscriptionEmail,
+                    subscriptionAliasPath: aliasCheck.ok ? aliasCheck.value : '',
+                    groupId: normalizeGroupId(item.groupId).slice(0, 128),
+                    emailVerified: !!item.emailVerified,
+                    enabled,
+                    verifyCode: normalizeOptionalText(item.verifyCode),
+                    verifyCodeExpiresAt: normalizeOptionalText(item.verifyCodeExpiresAt),
+                    verifyCodeAttempts: Math.max(0, Number(item.verifyCodeAttempts || 0) || 0),
+                    resetCode: normalizeOptionalText(item.resetCode),
+                    resetCodeExpiresAt: normalizeOptionalText(item.resetCodeExpiresAt),
+                    resetCodeAttempts: Math.max(0, Number(item.resetCodeAttempts || 0) || 0),
+                    profileVerifyCode: normalizeOptionalText(item.profileVerifyCode),
+                    profileVerifyCodeExpiresAt: normalizeOptionalText(item.profileVerifyCodeExpiresAt),
+                    profileVerifyTargetEmail: normalizeEmailValue(item.profileVerifyTargetEmail),
+                    profileVerifyUsername: normalizeUsernameValue(item.profileVerifyUsername).slice(0, 128),
+                    profileVerifyEmail: normalizeEmailValue(item.profileVerifyEmail),
+                    profileVerifyAttempts: Math.max(0, Number(item.profileVerifyAttempts || 0) || 0),
+                    tokenVersion: Number.isInteger(Number(item.tokenVersion)) && Number(item.tokenVersion) >= 1
+                        ? Number(item.tokenVersion)
+                        : 1,
+                    passwordHash: String(item.passwordHash || '').slice(0, 512),
+                    passwordSalt: String(item.passwordSalt || '').slice(0, 256),
+                    pbkdf2Iterations: Math.max(0, Number(item.pbkdf2Iterations || 0) || 0),
+                    role,
+                    createdAt: String(item.createdAt || new Date().toISOString()).slice(0, 64),
+                    lastLoginAt: item.lastLoginAt ? String(item.lastLoginAt).slice(0, 64) : null,
+                    ...(twoFactor ? { twoFactor } : {}),
+                    passkeys,
+                    ...(item.isGuest === true ? {
+                        isGuest: true,
+                        guestExpiresAt: String(item.guestExpiresAt || '').trim().slice(0, 64),
+                    } : {}),
+                };
+            });
         this._ensureDefaultAdmin();
     }
 }

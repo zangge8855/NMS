@@ -20,6 +20,7 @@ import { buildErrorSnapshot, getServerLogSnapshot, getServerLogSnapshots } from 
 import { invalidateServerPanelSnapshotCache } from '../lib/serverPanelSnapshotService.js';
 import { isReservedOrPrivateIp, stripIpv6Brackets } from '../lib/ipGeoResolver.js';
 import { fetchServerLogPayload as fetchServerLogResult, normalizeLogCount as normalizeRequestedLogCount, normalizeLogSource as normalizeRequestedLogSource } from '../services/panelLogsService.js';
+import { invalidatePublicSubCache } from './subscriptions.js';
 
 const router = Router();
 
@@ -593,6 +594,10 @@ router.post('/', operatorOrAbove, async (req, res) => {
         url: server.url,
         panelType: server.panelType,
     });
+    invalidateServerPanelSnapshotCache(server.id);
+    evictServerDashboardCaches(server.id);
+    evictServerStatusCaches(server.id);
+    invalidatePublicSubCache();
 
     // Test connection
     try {
@@ -779,6 +784,16 @@ router.post('/batch', operatorOrAbove, async (req, res) => {
         success: results.filter((item) => item.success).length,
         failed: results.filter((item) => !item.success).length,
     };
+    if (summary.success > 0) {
+        for (const item of results) {
+            if (item.success && item.serverId) {
+                invalidateServerPanelSnapshotCache(item.serverId);
+                evictServerDashboardCaches(item.serverId);
+                evictServerStatusCaches(item.serverId);
+            }
+        }
+        invalidatePublicSubCache();
+    }
 
     appendSecurityAudit('server_batch_added', req, {
         total: summary.total,
@@ -829,12 +844,15 @@ router.put('/:id', operatorOrAbove, async (req, res) => {
     const updated = serverStore.update(req.params.id, req.body);
     if (normalizePanelType(current.panelType) !== updated.panelType
         || current.url !== updated.url
-        || current.basePath !== updated.basePath) {
-        // Cached inbounds/status belong to the previous panel.
+        || current.basePath !== updated.basePath
+        || current.name !== updated.name
+        || current.health !== updated.health) {
+        // Cached inbounds/status/names belong to the previous server configuration.
         invalidateServerPanelSnapshotCache(updated.id);
         evictServerDashboardCaches(updated.id);
         evictServerStatusCaches(updated.id);
     }
+    invalidatePublicSubCache();
     appendSecurityAudit('server_updated', req, {
         serverId: updated.id,
         changedKeys: Object.keys(req.body || {}),
@@ -858,6 +876,7 @@ router.delete('/:id', operatorOrAbove, (req, res) => {
     invalidateServerPanelSnapshotCache(serverId);
     evictServerDashboardCaches(serverId);
     evictServerStatusCaches(serverId);
+    invalidatePublicSubCache();
     appendSecurityAudit('server_deleted', req, { serverId, affectedPolicies, affectedGroups });
     res.json({
         success: true,
@@ -988,12 +1007,18 @@ router.patch('/batch', operatorOrAbove, (req, res) => {
             const updated = serverStore.update(id, filteredUpdates);
             if (updated) {
                 results.updated.push({ id, name: updated.name });
+                invalidateServerPanelSnapshotCache(updated.id);
+                evictServerDashboardCaches(updated.id);
+                evictServerStatusCaches(updated.id);
             } else {
                 results.failed.push({ id, msg: '节点不存在，请刷新节点列表后重试' });
             }
         } catch (err) {
             results.failed.push({ id, msg: String(err?.message || err) });
         }
+    }
+    if (results.updated.length > 0) {
+        invalidatePublicSubCache();
     }
 
     appendSecurityAudit('servers_batch_update', req, {

@@ -127,11 +127,13 @@ export function registerOpsCommands(registry: CommandRegistry, ctx: any): void {
         level: 'write',
         summary: '延长客户到期 N 天',
         handler: async ({ args, ctx: invokeCtx }: { args: any; ctx: any }) => {
+const MAX_EXTEND_DAYS = 3650;
+
             const target = args?.positional?.[0];
             const days = Number(args?.positional?.[1]);
-            if (!target || !Number.isFinite(days) || days <= 0) {
+            if (!target || !Number.isFinite(days) || days <= 0 || days > MAX_EXTEND_DAYS) {
                 return {
-                    text: missingArgs(helpers, '/client_extend <id 或 email> <天数>'),
+                    text: missingArgs(helpers, `/client_extend <id 或 email> <1-${MAX_EXTEND_DAYS} 天>`),
                     kind: 'client_extend_missing_args',
                 };
             }

@@ -133,4 +133,10 @@ test('/client_extend rejects non-positive day counts', async () => {
         args: { positional: ['a@b.c', '-3'], raw: 'a@b.c -3' },
     });
     assert.equal(negative.kind, 'client_extend_missing_args');
+
+    const excessive = await registry.dispatch({
+        command: '/client_extend',
+        args: { positional: ['a@b.c', '9999'], raw: 'a@b.c 9999' },
+    });
+    assert.equal(excessive.kind, 'client_extend_missing_args');
 });

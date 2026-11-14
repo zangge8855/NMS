@@ -28,3 +28,27 @@ test('auditStore redactSensitive prevents infinite loop on circular references',
         assert.equal(entry.details.self, '[CIRCULAR]');
     });
 });
+
+test('auditStore queryEvents honors forExport cap above default maxPageSize', async () => {
+    const auditStore = (await import('../store/auditStore.js')).default;
+    const originalEvents = [...auditStore.events];
+    auditStore.events = Array.from({ length: 240 }, (_, idx) => ({
+        id: `exp-${idx}`,
+        ts: new Date().toISOString(),
+        eventType: 'test_export',
+        actor: 'admin',
+        ip: '203.0.113.10',
+        method: 'GET',
+        path: '/api/audit',
+        outcome: 'success',
+    }));
+
+    try {
+        const standard = auditStore.queryEvents({ page: 1, pageSize: 500 });
+        assert.ok(standard.items.length <= 200);
+        const exported = auditStore.queryEvents({ page: 1, pageSize: 500, forExport: true });
+        assert.equal(exported.items.length, 240);
+    } finally {
+        auditStore.events = originalEvents;
+    }
+});

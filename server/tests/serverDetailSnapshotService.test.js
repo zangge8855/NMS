@@ -76,3 +76,30 @@ test('buildServerDetailSnapshot throws 404 when the server does not exist', asyn
         (error) => error?.status === 404
     );
 });
+
+test('buildServerDetailSnapshot sanitizes server credentials with _publicServer', async () => {
+    const snapshot = await buildServerDetailSnapshot('server-secret', {}, {
+        serverStore: {
+            getById: () => ({
+                id: 'server-secret',
+                name: 'Secret Node',
+                url: 'https://node.example.com',
+                username: 'rootadmin',
+                password: 'plaintext-panel-password',
+                credentials: { apiToken: 'secret-token' },
+            }),
+            _publicServer: (server) => ({
+                id: server.id,
+                name: server.name,
+                url: server.url,
+            }),
+        },
+        collectClusterStatusSnapshot: async () => ({ items: [] }),
+        getServerPanelSnapshot: async () => ({ inbounds: [], onlines: [], lastOnline: {} }),
+    });
+
+    assert.equal(snapshot.server.id, 'server-secret');
+    assert.equal(snapshot.server.password, undefined);
+    assert.equal(snapshot.server.username, undefined);
+    assert.equal(snapshot.server.credentials, undefined);
+});

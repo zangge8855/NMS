@@ -54,9 +54,10 @@ describe('resolveClientIp', () => {
 });
 
 describe('resolveClientIpDetails', () => {
-    it('prefers cloudflare real visitor ip over edge proxy address', () => {
+    it('prefers cloudflare real visitor ip over edge proxy address when trusted proxy chain applies', () => {
         const details = resolveClientIpDetails({
             ip: '162.158.10.20',
+            ips: ['162.158.10.20'],
             headers: {
                 'cf-connecting-ip': '198.51.100.77',
                 'cf-ipcountry': 'US',
@@ -69,9 +70,10 @@ describe('resolveClientIpDetails', () => {
         assert.equal(details.cfCountry, 'US');
     });
 
-    it('prefers cloudflare ipv6 header when connecting ip is pseudo ipv4', () => {
+    it('prefers cloudflare ipv6 header when connecting ip is pseudo ipv4 behind trusted proxy', () => {
         const details = resolveClientIpDetails({
             ip: '172.68.1.2',
+            ips: ['172.68.1.2'],
             headers: {
                 'cf-connecting-ip': '192.0.2.10',
                 'cf-connecting-ipv6': '2001:db8::8',
@@ -80,5 +82,22 @@ describe('resolveClientIpDetails', () => {
         });
         assert.equal(details.clientIp, '2001:db8::8');
         assert.equal(details.ipSource, 'cf-connecting-ipv6');
+    });
+
+    it('ignores spoofed cloudflare and forwarded headers from untrusted public sockets', () => {
+        const details = resolveClientIpDetails({
+            ip: '203.0.113.50',
+            ips: [],
+            headers: {
+                'cf-connecting-ip': '127.0.0.1',
+                'true-client-ip': '10.0.0.1',
+                'x-forwarded-for': '8.8.8.8',
+                'cf-ipcountry': 'XX',
+            },
+            socket: { remoteAddress: '203.0.113.50' },
+        });
+        assert.equal(details.clientIp, '203.0.113.50');
+        assert.equal(details.ipSource, 'req.ip');
+        assert.equal(details.cfCountry, '');
     });
 });

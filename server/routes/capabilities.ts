@@ -4,6 +4,28 @@ import { ensureAuthenticated } from '../lib/panelClient.js';
 import { buildProtocolSummary, canonicalizeProtocolList } from '../lib/protocolCatalog.js';
 import { PANEL_TYPE_3XUI, PANEL_TYPE_SUI } from '../lib/panelType.js';
 import { isSuiPanelContext } from '../lib/clientProtocols.js';
+import { isEnglishLocale, pickLocalizedText, resolveRequestLocale, type AppLocale } from '../lib/requestLocale.js';
+
+const UI_ACTION_LABELS_EN: Record<string, string> = {
+    '节点控制台': 'Node Console',
+    '日志中心': 'Logs',
+    '官方文档': 'Docs',
+    '登录页': 'Sign In',
+    '入站管理': 'Inbounds',
+    '用户管理': 'Users',
+    '控制面板': 'Dashboard',
+    'Xray 设置': 'Xray Settings',
+    '账户中心': 'Account',
+    '系统设置': 'System Settings',
+    '3x-ui 面板': '3x-ui Panel',
+    's-ui 面板': 's-ui Panel',
+};
+
+function localizeUiActionLabel(label: unknown, locale: AppLocale): string {
+    const raw = String(label || '');
+    if (!isEnglishLocale(locale)) return raw;
+    return UI_ACTION_LABELS_EN[raw] || raw;
+}
 
 const router = Router();
 
@@ -1048,14 +1070,32 @@ function buildCapabilitiesPayload({
     xrayVersions = [],
     tools = {},
     panelType = PANEL_TYPE_3XUI,
+    locale = 'zh-CN',
 }: any) {
     const isSui = isSuiPanelContext(panelType);
+    const resolvedLocale: AppLocale = isEnglishLocale(locale) ? 'en-US' : 'zh-CN';
     const rawProtocols = (Array.isArray(inbounds) ? inbounds : []).map((item: any) => item?.protocol);
     // s-ui keeps socks and mixed apart, so the 3x-ui alias folding does not apply.
     const protocols = (isSui
         ? Array.from(new Set(rawProtocols.map((item: any) => String(item || '').trim().toLowerCase()).filter(Boolean)))
         : canonicalizeProtocolList(rawProtocols)
     ).sort();
+
+    const localizedTools = Object.entries(tools || {}).reduce((acc: any, [key, value]: [string, any]) => {
+        if (value && typeof value === 'object') {
+            acc[key] = {
+                ...value,
+                uiActionLabel: localizeUiActionLabel(value.uiActionLabel, resolvedLocale),
+            };
+        } else {
+            acc[key] = value;
+        }
+        return acc;
+    }, {});
+    const systemModules = (isSui ? SUI_SYSTEM_MODULES : SYSTEM_MODULES).map((item) => ({
+        ...item,
+        uiActionLabel: localizeUiActionLabel(item.uiActionLabel, resolvedLocale),
+    }));
 
     return {
         serverId,
@@ -1067,8 +1107,8 @@ function buildCapabilitiesPayload({
         versions: {
             xray: Array.isArray(xrayVersions) ? xrayVersions : [],
         },
-        tools,
-        systemModules: isSui ? SUI_SYSTEM_MODULES : SYSTEM_MODULES,
+        tools: localizedTools,
+        systemModules,
         batchActions: {
             clients: ['add', 'update', 'enable', 'disable', 'delete'],
             inbounds: ['add', 'update', 'enable', 'disable', 'delete', 'resetTraffic'],
@@ -1085,6 +1125,7 @@ function buildCapabilitiesPayload({
 router.use(authMiddleware);
 
 router.get('/:serverId', async (req: Request, res: Response) => {
+    const locale = resolveRequestLocale(req);
     try {
         const { serverId } = req.params;
         const client = await ensureAuthenticated(serverId);
@@ -1106,18 +1147,19 @@ router.get('/:serverId', async (req: Request, res: Response) => {
                 xrayVersions: xrayVersionRes?.data?.obj || [],
                 tools,
                 panelType: isSui ? PANEL_TYPE_SUI : PANEL_TYPE_3XUI,
+                locale,
             }),
         });
     } catch (error: any) {
         if (String(error.message || '').toLowerCase().includes('server not found')) {
             return res.status(404).json({
                 success: false,
-                msg: '节点不存在，请刷新节点列表后重试',
+                msg: pickLocalizedText(locale, '节点不存在，请刷新节点列表后重试', 'Node not found. Refresh the node list and try again.'),
             });
         }
         return res.status(500).json({
             success: false,
-            msg: '节点能力探测失败，请确认节点在线并重试',
+            msg: pickLocalizedText(locale, '节点能力探测失败，请确认节点在线并重试', 'Failed to probe node capabilities. Ensure the node is online and try again.'),
         });
     }
 });

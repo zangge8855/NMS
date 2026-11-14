@@ -16,6 +16,52 @@ import { isValidEmail, normalizeEmailInput } from './emailAuthService.js';
 
 const TWO_FACTOR_CHALLENGE_AUDIENCE = 'nms-2fa-challenge';
 const TWO_FACTOR_CHALLENGE_TTL_SECONDS = 5 * 60;
+const TWO_FACTOR_FAILURE_MAX_ATTEMPTS = 5;
+const TWO_FACTOR_FAILURE_WINDOW_MS = 15 * 60 * 1000;
+const twoFactorFailures = new Map<string, { count: number; firstAttempt: number; blockedUntil: number }>();
+
+function getTwoFactorFailureState(userId: string) {
+    const key = String(userId || '').trim();
+    if (!key) return { blocked: false };
+    const now = Date.now();
+    const record = twoFactorFailures.get(key);
+    if (!record) return { blocked: false };
+    if (record.blockedUntil > now) return { blocked: true };
+    if (now - record.firstAttempt > TWO_FACTOR_FAILURE_WINDOW_MS) {
+        twoFactorFailures.delete(key);
+        return { blocked: false };
+    }
+    return { blocked: false };
+}
+
+function recordTwoFactorFailure(userId: string) {
+    const key = String(userId || '').trim();
+    if (!key) return false;
+    const now = Date.now();
+    if (twoFactorFailures.size >= 5000) {
+        for (const [entryKey, entry] of twoFactorFailures.entries()) {
+            if ((entry.blockedUntil && entry.blockedUntil <= now) || (now - entry.firstAttempt > TWO_FACTOR_FAILURE_WINDOW_MS)) {
+                twoFactorFailures.delete(entryKey);
+            }
+        }
+    }
+    const existing = twoFactorFailures.get(key);
+    if (!existing || now - existing.firstAttempt > TWO_FACTOR_FAILURE_WINDOW_MS) {
+        twoFactorFailures.set(key, { count: 1, firstAttempt: now, blockedUntil: 0 });
+        return false;
+    }
+    existing.count += 1;
+    if (existing.count >= TWO_FACTOR_FAILURE_MAX_ATTEMPTS) {
+        existing.blockedUntil = now + TWO_FACTOR_FAILURE_WINDOW_MS;
+        return true;
+    }
+    return false;
+}
+
+function clearTwoFactorFailures(userId: string) {
+    const key = String(userId || '').trim();
+    if (key) twoFactorFailures.delete(key);
+}
 
 function normalizeUsernameInput(value: unknown): string {
     return String(value || '').trim();
@@ -105,10 +151,11 @@ function createLoginSession(payload: any = {}, deps: any = {}): any {
             || loginIdentifier === legacyUsername
             || (legacyEmail && normalizedIdentifierEmail === legacyEmail);
 
-        if (identifierMatchesLegacy && authConfig.allowLegacyPasswordLogin !== false && password === authConfig.adminPassword) {
+        if (identifierMatchesLegacy && authConfig.allowLegacyPasswordLogin === true && password === authConfig.adminPassword) {
             const tokenPayload: any = {
                 role: 'admin',
                 username: legacyUsername || 'admin',
+                tokenVersion: Number(adminUser?.tokenVersion || 1),
             };
             if (adminUser?.id) tokenPayload.userId = adminUser.id;
 
@@ -171,7 +218,12 @@ function createLoginSession(payload: any = {}, deps: any = {}): any {
         };
     }
 
-    const tokenPayload = { userId: user.id, role: user.role, username: user.username };
+    const tokenPayload = {
+        userId: user.id,
+        role: user.role,
+        username: user.username,
+        tokenVersion: Number(fullUser?.tokenVersion || 1),
+    };
 
     const twoFactor = typeof userRepo.getTwoFactor === 'function'
         ? userRepo.getTwoFactor(user.id)
@@ -243,6 +295,9 @@ function completeTwoFactorLogin(payload: any = {}, deps: any = {}): any {
     if (stored.enabled === false && stored.role !== 'admin') {
         throw createHttpError(403, '账号已停用');
     }
+    if (getTwoFactorFailureState(stored.id).blocked) {
+        throw createHttpError(429, '2FA 验证尝试过于频繁，请 15 分钟后再试');
+    }
 
     const config2FA = typeof userRepo.getTwoFactor === 'function'
         ? userRepo.getTwoFactor(stored.id)
@@ -258,15 +313,27 @@ function completeTwoFactorLogin(payload: any = {}, deps: any = {}): any {
     if (usedBackup) {
         const result = verifyBackupCode(code, config2FA.backupCodeHashes);
         if (!result.match) {
+            if (recordTwoFactorFailure(stored.id)) {
+                throw createHttpError(429, '2FA 验证尝试过于频繁，请 15 分钟后再试');
+            }
             return { success: false, reason: 'invalid_code', audit: buildAuditUser(stored, challenge) };
         }
         userRepo.consumeTwoFactorBackupCode(stored.id, result.remaining);
         backupConsumed = true;
     } else if (!verifyTotp(code, config2FA.secret)) {
+        if (recordTwoFactorFailure(stored.id)) {
+            throw createHttpError(429, '2FA 验证尝试过于频繁，请 15 分钟后再试');
+        }
         return { success: false, reason: 'invalid_code', audit: buildAuditUser(stored, challenge) };
     }
 
-    const tokenPayload = { userId: stored.id, role: stored.role, username: stored.username };
+    clearTwoFactorFailures(stored.id);
+    const tokenPayload = {
+        userId: stored.id,
+        role: stored.role,
+        username: stored.username,
+        tokenVersion: Number(stored.tokenVersion || 1),
+    };
     return {
         success: true,
         token: buildSignedToken(tokenPayload, deps),
@@ -376,7 +443,16 @@ function validateSession(authHeader: unknown, deps: any = {}) {
         }
         const userRepo = deps.userRepository || userRepository;
         const stored = decoded.userId ? userRepo.getById(decoded.userId) : userRepo.getByUsername(decoded.username);
-        if (stored && stored.enabled === false && stored.role !== 'admin') {
+        if (!stored) {
+            throw createHttpError(401, '未授权');
+        }
+        if (stored.enabled === false && stored.role !== 'admin') {
+            throw createHttpError(401, '未授权');
+        }
+        if (decoded.role && stored.role && decoded.role !== stored.role) {
+            throw createHttpError(401, '未授权');
+        }
+        if (Number(decoded.tokenVersion ?? 1) !== Number(stored.tokenVersion ?? 1)) {
             throw createHttpError(401, '未授权');
         }
 
@@ -558,6 +634,12 @@ function updateOwnProfile(payload: any = {}, currentUser: any = {}, deps: any = 
         throw createHttpError(400, '请先发送邮箱验证码');
     }
     if (String(user.profileVerifyCode).trim() !== code) {
+        if (typeof userRepo.recordProfileVerifyFailure === 'function') {
+            const failure = userRepo.recordProfileVerifyFailure(user.id, 5);
+            if (failure?.invalidated) {
+                throw createHttpError(429, '验证码错误次数过多，请重新发送验证码');
+            }
+        }
         throw createHttpError(400, '验证码错误');
     }
     if (user.profileVerifyCodeExpiresAt && new Date(user.profileVerifyCodeExpiresAt) < new Date()) {
@@ -586,7 +668,12 @@ function updateOwnProfile(payload: any = {}, currentUser: any = {}, deps: any = 
 }
 
 function createDirectUserSession(user: any, deps: any = {}): any {
-    const tokenPayload = { userId: user.id, role: user.role, username: user.username };
+    const tokenPayload = {
+        userId: user.id,
+        role: user.role,
+        username: user.username,
+        tokenVersion: Number(user?.tokenVersion || 1),
+    };
     return {
         success: true,
         token: buildSignedToken(tokenPayload, deps),

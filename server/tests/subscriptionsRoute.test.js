@@ -27,11 +27,15 @@ const {
     buildSingboxConfigFromLinks,
     buildSubscriptionUrls,
     buildXhttpExtra,
+    getPublicSubCacheEntry,
+    getPublicSubCacheSize,
+    invalidatePublicSubCache,
     mergeInboundClientEntries,
     normalizeSubscriptionFormat,
     resolvePublicBase,
     resolveSingboxConfigVersion,
     selectNativeSubIds,
+    setPublicSubCacheEntry,
     summarizeSubscriptionUsage,
     sortInboundsForServer,
     sortServersForSubscription,
@@ -999,13 +1003,67 @@ describe('ipv6 subscription link conversion and forwarded public base resolution
             'https://[2001:db8::1]'
         );
 
-        assert.equal(
-            resolvePublicBase(makeReq({
+        assert.equal(resolvePublicBase(makeReq({
                 'x-forwarded-proto': 'https',
                 'x-forwarded-host': 'panel.example.com',
                 'x-forwarded-port': '8443',
             })),
             'https://panel.example.com:8443'
         );
+
+        assert.equal(
+            resolvePublicBase({
+                protocol: 'https',
+                ip: '203.0.113.99',
+                socket: { remoteAddress: '203.0.113.99' },
+                headers: {
+                    host: 'panel.example.com',
+                    origin: 'https://evil.example.net',
+                    referer: 'https://evil.example.net/steal',
+                    'x-forwarded-host': 'evil.example.net',
+                },
+                get(name) {
+                    return this.headers[String(name).toLowerCase()] || '';
+                },
+            }),
+            'https://panel.example.com'
+        );
+    });
+
+    it('routes sing-box 1.11 dns_proxy detour to 🚀 节点选择 under rules policy and PROXY under global', () => {
+        const rulesParsed = JSON.parse(buildSingboxConfigFromLinks([vmessLink], {
+            userAgent: 'SFI/1.12.2 (Build 2; sing-box 1.11.4; language zh_CN)',
+            routingPolicy: 'rules',
+        }));
+        const rulesDnsProxy = rulesParsed.dns.servers.find((item) => item.tag === 'dns_proxy');
+        assert.equal(rulesDnsProxy?.detour, '🚀 节点选择');
+        assert.ok(rulesParsed.outbounds.some((item) => item.tag === rulesDnsProxy?.detour));
+
+        const globalParsed = JSON.parse(buildSingboxConfigFromLinks([vmessLink], {
+            userAgent: 'SFI/1.12.2 (Build 2; sing-box 1.11.4; language zh_CN)',
+            routingPolicy: 'global',
+        }));
+        const globalDnsProxy = globalParsed.dns.servers.find((item) => item.tag === 'dns_proxy');
+        assert.equal(globalDnsProxy?.detour, 'PROXY');
+        assert.ok(globalParsed.outbounds.some((item) => item.tag === globalDnsProxy?.detour));
+    });
+
+    it('bounds PUBLIC_SUB_CACHE size with LRU eviction and supports invalidation', () => {
+        invalidatePublicSubCache();
+        setPublicSubCacheEntry('alice@example.com:k1', {
+            body: '1', contentType: 'text/plain', userInfo: '', tokenId: 't1', status: 200, timestamp: Date.now(),
+        }, 2);
+        setPublicSubCacheEntry('bob@example.com:k2', {
+            body: '2', contentType: 'text/plain', userInfo: '', tokenId: 't2', status: 200, timestamp: Date.now(),
+        }, 2);
+        assert.equal(getPublicSubCacheEntry('alice@example.com:k1')?.body, '1');
+        setPublicSubCacheEntry('carol@example.com:k3', {
+            body: '3', contentType: 'text/plain', userInfo: '', tokenId: 't3', status: 200, timestamp: Date.now(),
+        }, 2);
+        assert.equal(getPublicSubCacheSize(), 2);
+        assert.equal(getPublicSubCacheEntry('bob@example.com:k2'), null);
+        assert.equal(getPublicSubCacheEntry('alice@example.com:k1')?.body, '1');
+        invalidatePublicSubCache();
+        assert.equal(getPublicSubCacheSize(), 0);
     });
 });

@@ -7,6 +7,7 @@ import {
 
 const DEFAULT_TTL_MS = 15_000;
 const DEFAULT_CONCURRENCY = 4;
+const MAX_LOG_CACHE_ENTRIES = 200;
 
 interface CacheRecord {
     value: any;
@@ -22,14 +23,30 @@ function buildCacheKey(serverId: unknown, source: unknown, count: unknown): stri
 
 function getRecord(serverId: unknown, source: unknown, count: unknown): CacheRecord {
     const key = buildCacheKey(serverId, source, count);
-    if (!cache.has(key)) {
-        cache.set(key, {
-            value: null,
-            checkedAtMs: 0,
-            promise: null,
-        });
+    if (cache.has(key)) {
+        const existing = cache.get(key)!;
+        cache.delete(key);
+        cache.set(key, existing);
+        return existing;
     }
-    return cache.get(key)!;
+    while (cache.size >= MAX_LOG_CACHE_ENTRIES) {
+        let evicted = false;
+        for (const [candidateKey, candidate] of cache.entries()) {
+            if (!candidate.promise) {
+                cache.delete(candidateKey);
+                evicted = true;
+                break;
+            }
+        }
+        if (!evicted) break;
+    }
+    const created: CacheRecord = {
+        value: null,
+        checkedAtMs: 0,
+        promise: null,
+    };
+    cache.set(key, created);
+    return created;
 }
 
 function buildErrorPayload(error: any) {

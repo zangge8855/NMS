@@ -8,6 +8,7 @@ import {
 import { authMiddleware, operatorOrAbove, auditorOrAbove } from '../middleware/auth.js';
 import { ROLES } from '../store/userStore.js';
 import { stripIpv6Brackets } from '../lib/ipGeoResolver.js';
+import { assertSafeExternalUrlSyntax } from '../lib/ssrfProtection.js';
 
 const router = Router();
 
@@ -70,13 +71,21 @@ router.post('/', operatorOrAbove, async (req: Request, res: Response) => {
     }
 
     const normalizedSans = normalizeSanList(normalizedDomain, sans).filter((item) => item !== normalizedDomain.toLowerCase());
+    const cleanDirectoryUrl = String(acmeDirectoryUrl || '').trim();
+    if (cleanDirectoryUrl) {
+        try {
+            assertSafeExternalUrlSyntax(cleanDirectoryUrl, 'ACME directory URL');
+        } catch (err: any) {
+            return res.status(400).json({ success: false, msg: err?.message || 'Invalid ACME directory URL' });
+        }
+    }
 
     try {
         const record = certificateStore.create({
             domain: normalizedDomain,
             sans: normalizedSans,
             provider,
-            acmeDirectoryUrl,
+            acmeDirectoryUrl: cleanDirectoryUrl,
             challengeType,
             cfApiToken,
             email,
@@ -128,7 +137,17 @@ router.put('/:id', operatorOrAbove, (req: Request, res: Response) => {
         updates.sans = normalizeSanList(targetDomain, body.sans).filter((item) => item !== targetDomain.toLowerCase());
     }
     if (body.provider !== undefined) updates.provider = String(body.provider || '').trim() || 'letsencrypt';
-    if (body.acmeDirectoryUrl !== undefined) updates.acmeDirectoryUrl = String(body.acmeDirectoryUrl || '').trim();
+    if (body.acmeDirectoryUrl !== undefined) {
+        const cleanDirectoryUrl = String(body.acmeDirectoryUrl || '').trim();
+        if (cleanDirectoryUrl) {
+            try {
+                assertSafeExternalUrlSyntax(cleanDirectoryUrl, 'ACME directory URL');
+            } catch (err: any) {
+                return res.status(400).json({ success: false, msg: err?.message || 'Invalid ACME directory URL' });
+            }
+        }
+        updates.acmeDirectoryUrl = cleanDirectoryUrl;
+    }
     if (body.challengeType !== undefined) updates.challengeType = String(body.challengeType || '').trim() || 'dns-cloudflare';
     if (body.email !== undefined) updates.email = String(body.email || '').trim();
     if (body.autoRenew !== undefined) updates.autoRenew = Boolean(body.autoRenew);

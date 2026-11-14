@@ -11,6 +11,8 @@ export const REPO_ROOT = resolve(__dirname, '..', '..');
 export const DEFAULT_ENV_FILE = resolve(REPO_ROOT, '.env');
 export const DEFAULT_LOGS_DIR = resolve(REPO_ROOT, 'logs');
 export const DEFAULT_JWT_SECRET = 'default-secret-change-me';
+const DEV_FALLBACK_JWT_SECRET = 'nms-default-jwt-secret-key-32-chars-min-ok!';
+const DEV_FALLBACK_CREDENTIALS_SECRET = 'nms-default-credentials-secret-32-chars-min-ok!';
 const CORE_RUNTIME_FILES = [
     { key: 'users', file: 'users.json' },
     { key: 'servers', file: 'servers.json' },
@@ -60,7 +62,7 @@ export function shouldServeClientBuild(env: Record<string, any> = process.env): 
 
 export function isWeakJwtSecret(value: unknown): boolean {
     const text = String(value || '');
-    return text.length < 32 || text === DEFAULT_JWT_SECRET;
+    return text.length < 32 || text === DEFAULT_JWT_SECRET || text === DEV_FALLBACK_JWT_SECRET;
 }
 
 export function isWeakAdminPassword(value: unknown): boolean {
@@ -87,7 +89,7 @@ export function isWeakAdminUsername(value: unknown): boolean {
 export function isWeakCredentialsSecret(value: unknown, jwtSecret: unknown): boolean {
     const text = String(value || '');
     if (text.length < 32) return true;
-    if (text === DEFAULT_JWT_SECRET) return true;
+    if (text === DEFAULT_JWT_SECRET || text === DEV_FALLBACK_JWT_SECRET || text === DEV_FALLBACK_CREDENTIALS_SECRET) return true;
     if (text === String(jwtSecret || '')) return true;
     return false;
 }

@@ -179,4 +179,30 @@ describe('Passkey Authentication Endpoints', () => {
         assert.ok(details.expectedOrigins.includes('http://[::1]:5173'));
         assert.ok(details.expectedOrigins.includes('http://[::1]:3000'));
     });
+
+    it('getRpDetails excludes dev localhost origins and ignores untrusted origin/forwarded headers in production', () => {
+        const mockReq = {
+            headers: {
+                host: 'panel.example.com',
+                origin: 'https://evil.example.net',
+                referer: 'https://evil.example.net/login',
+                'x-forwarded-host': 'evil-proxy.example.net',
+                'x-forwarded-proto': 'http',
+            },
+            protocol: 'https',
+            ip: '203.0.113.10',
+            ips: [],
+            socket: { remoteAddress: '203.0.113.10' },
+            hostname: 'panel.example.com',
+            get(name) {
+                return this.headers[String(name).toLowerCase()] || '';
+            },
+        };
+        const details = getRpDetails(mockReq, { nodeEnv: 'production' });
+        assert.equal(details.rpID, 'panel.example.com');
+        assert.equal(details.origin, 'https://panel.example.com');
+        assert.equal(details.expectedOrigins.includes('http://localhost:5173'), false);
+        assert.equal(details.expectedOrigins.includes('https://evil.example.net'), false);
+        assert.equal(details.expectedOrigins.includes('http://evil-proxy.example.net'), false);
+    });
 });

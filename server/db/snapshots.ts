@@ -98,7 +98,7 @@ export function shouldApplySnapshotPrivacyRedaction(storeKey: string, options: S
     return SNAPSHOT_PRIVACY_REDACTION_STORE_KEYS.has(String(storeKey || '').trim());
 }
 
-function applyPrivacyRedaction(storeKey: string, payload: any, options: SnapshotRedactionOptions = {}): any {
+export function applyPrivacyRedaction(storeKey: string, payload: any, options: SnapshotRedactionOptions = {}): any {
     if (!shouldApplySnapshotPrivacyRedaction(storeKey, options)) return payload;
     if (storeKey === 'traffic') return redactTrafficSnapshot(payload);
     return payload;
@@ -109,7 +109,39 @@ function schemaTable(): string {
     return `${qIdent(schema)}.store_snapshots`;
 }
 
-async function upsertSnapshot(storeKey: string, payload: any): Promise<void> {
+const activeWriteLocks = new Map<string, Promise<void>>();
+const writeGenerations = new Map<string, number>();
+
+function nextWriteGeneration(storeKey: string): number {
+    const next = (writeGenerations.get(storeKey) || 0) + 1;
+    writeGenerations.set(storeKey, next);
+    return next;
+}
+
+async function runWithKeyWriteLock<T>(storeKey: string, fn: () => Promise<T>): Promise<T> {
+    const prev = activeWriteLocks.get(storeKey) || Promise.resolve();
+    let release!: () => void;
+    const next = new Promise<void>((resolve) => {
+        release = resolve;
+    });
+    const chained = prev.then(() => next, () => next);
+    activeWriteLocks.set(storeKey, chained);
+    await prev.catch(() => {});
+    try {
+        return await fn();
+    } finally {
+        release();
+        if (activeWriteLocks.get(storeKey) === chained) {
+            activeWriteLocks.delete(storeKey);
+        }
+    }
+}
+
+async function upsertSnapshot(storeKey: string, payload: any, generation?: number): Promise<void> {
+    const key = String(storeKey || '').trim();
+    if (generation !== undefined && writeGenerations.get(key) !== generation) {
+        throw new Error(`Superseded snapshot write for ${key}`);
+    }
     const body = cloneJson(payload);
     const payloadText = JSON.stringify(body ?? null);
     const size = Buffer.byteLength(payloadText, 'utf8');
@@ -123,7 +155,7 @@ async function upsertSnapshot(storeKey: string, payload: any): Promise<void> {
             payload_size = EXCLUDED.payload_size,
             updated_at = NOW();
         `,
-        [String(storeKey || '').trim(), payloadText, size]
+        [key, payloadText, size]
     );
 }
 
@@ -153,16 +185,19 @@ export async function writeSnapshotNow(storeKey: string, payload: any, options: 
     if (!key) return { success: false, skipped: true };
 
     const body = applyPrivacyRedaction(key, payload, options);
-    try {
-        await upsertSnapshot(key, body);
-        alertEngine.recordSuccess();
-        state.writesSucceeded += 1;
-        state.lastWriteAt = new Date().toISOString();
-        return { success: true };
-    } catch (error: any) {
-        alertEngine.recordFailure(key, String(error?.message || error));
-        throw error;
-    }
+    const generation = nextWriteGeneration(key);
+    return runWithKeyWriteLock(key, async () => {
+        try {
+            await upsertSnapshot(key, body, generation);
+            alertEngine.recordSuccess();
+            state.writesSucceeded += 1;
+            state.lastWriteAt = new Date().toISOString();
+            return { success: true };
+        } catch (error: any) {
+            alertEngine.recordFailure(key, String(error?.message || error));
+            throw error;
+        }
+    });
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errMsg = 'Timeout'): Promise<T> {
@@ -178,13 +213,42 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errMsg = 'Timeou
 
 const pendingWritesMap = new Map<string, any>();
 let isProcessingQueue = false;
+let queuePauseDepth = 0;
 let flushResolvers: Array<() => void> = [];
 
+export function pauseSnapshotQueue(): void {
+    queuePauseDepth += 1;
+}
+
+export function resumeSnapshotQueue(): void {
+    if (queuePauseDepth > 0) {
+        queuePauseDepth -= 1;
+    }
+    if (queuePauseDepth === 0 && pendingWritesMap.size > 0) {
+        void processQueue();
+    }
+}
+
+export function isSnapshotQueuePaused(): boolean {
+    return queuePauseDepth > 0;
+}
+
+export function clearPendingSnapshotWrites(keys?: string[]): void {
+    if (!keys || keys.length === 0) {
+        pendingWritesMap.clear();
+    } else {
+        for (const key of keys) {
+            pendingWritesMap.delete(String(key || '').trim());
+        }
+    }
+    state.pendingWrites = pendingWritesMap.size;
+}
+
 async function processQueue(): Promise<void> {
-    if (isProcessingQueue) return;
+    if (isProcessingQueue || queuePauseDepth > 0) return;
     isProcessingQueue = true;
     try {
-        while (pendingWritesMap.size > 0) {
+        while (pendingWritesMap.size > 0 && queuePauseDepth === 0) {
             const entries = Array.from(pendingWritesMap.entries());
             pendingWritesMap.clear();
             for (const [key, body] of entries) {
@@ -192,16 +256,22 @@ async function processQueue(): Promise<void> {
                 let lastErr: any = null;
                 // Try up to 2 attempts for transient hiccups (connection retry, momentary lock)
                 for (let attempt = 0; attempt < 2; attempt++) {
+                    const generation = nextWriteGeneration(key);
+                    const attemptPromise = runWithKeyWriteLock(key, () => upsertSnapshot(key, body, generation));
                     try {
                         await withTimeout(
-                            upsertSnapshot(key, body),
-                            10000,
-                            `Write timeout for ${key} after 10000ms`
+                            attemptPromise,
+                            10500,
+                            `Write timeout for ${key} after 10500ms`
                         );
                         success = true;
                         break;
                     } catch (err: any) {
                         lastErr = err;
+                        // Invalidate timed-out generation before retry so late completion throws/skips safely
+                        nextWriteGeneration(key);
+                        // Avoid unhandled rejection if timed-out attempt settles later
+                        void attemptPromise.catch(() => {});
                         if (attempt === 0) {
                             await new Promise(r => setTimeout(r, 200));
                         }
@@ -233,6 +303,7 @@ async function processQueue(): Promise<void> {
 
 export function queueSnapshotWrite(storeKey: string, payload: any, options: SnapshotRedactionOptions = {}): void {
     if (!isDbEnabled() || !isDbReady()) return;
+    if (queuePauseDepth > 0) return;
     const key = String(storeKey || '').trim();
     if (!key) return;
 

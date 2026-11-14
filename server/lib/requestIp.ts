@@ -1,5 +1,6 @@
 import type { Request } from 'express';
 import net from 'net';
+import config from '../config.js';
 import { isPrivateOrLocalIp, normalizeIpAddress } from './ipGeoResolver.js';
 
 function firstHeaderValue(raw: unknown): string {
@@ -172,29 +173,42 @@ export interface ClientIpDetails {
     cfCountry: string;
 }
 
+export function canTrustForwardedHeaders(req: any): boolean {
+    const ipFromReq = normalizeIpAddress(req?.ip || '');
+    const ipFromSocket = normalizeIpAddress(req?.socket?.remoteAddress || '');
+    const upstreamIp = ipFromReq || ipFromSocket;
+    const trustProxy = config.security?.trustProxy;
+    const hasExpressProxyChain = Array.isArray(req?.ips) && req.ips.length > 0;
+    return trustProxy === true || (
+        trustProxy !== false && (
+            hasExpressProxyChain || (ipFromSocket ? isPrivateOrLocalIp(ipFromSocket) : isPrivateOrLocalIp(upstreamIp))
+        )
+    );
+}
+
 export function resolveClientIpDetails(req: any): ClientIpDetails {
     const ipFromReq = normalizeIpAddress(req?.ip || '');
     const ipFromSocket = normalizeIpAddress(req?.socket?.remoteAddress || '');
     const upstreamIp = ipFromReq || ipFromSocket;
-    const forwardedIps = collectForwardedIps(req);
     const proxyIp = upstreamIp || '';
-    const cfCountry = String(req?.headers?.['cf-ipcountry'] || '').trim().toUpperCase();
+    const canTrustForwarded = canTrustForwardedHeaders(req);
+    const forwardedIps = canTrustForwarded ? collectForwardedIps(req) : [];
+    const cfCountry = canTrustForwarded
+        ? String(req?.headers?.['cf-ipcountry'] || '').trim().toUpperCase()
+        : '';
 
-    const cloudflareResolved = resolveCloudflareClientIp(req);
-    if (cloudflareResolved?.clientIp) {
-        return {
-            clientIp: cloudflareResolved.clientIp,
-            proxyIp,
-            ipSource: cloudflareResolved.source,
-            forwardedChain: forwardedIps,
-            cfCountry,
-        };
-    }
-
-    // Trust forwarded headers when upstream is local/private,
-    // or express has already parsed proxy chain into req.ips.
-    const canTrustForwarded = isPrivateOrLocalIp(upstreamIp) || (Array.isArray(req?.ips) && req.ips.length > 0);
     if (canTrustForwarded) {
+        const cloudflareResolved = resolveCloudflareClientIp(req);
+        if (cloudflareResolved?.clientIp) {
+            return {
+                clientIp: cloudflareResolved.clientIp,
+                proxyIp,
+                ipSource: cloudflareResolved.source,
+                forwardedChain: forwardedIps,
+                cfCountry,
+            };
+        }
+
         const forwardedResolved = resolveForwardedClientIp(req);
         if (forwardedResolved?.clientIp) {
             return {

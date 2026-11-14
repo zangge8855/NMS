@@ -20,8 +20,10 @@ let lastImportMeta: ImportMeta | null = null;
 let lastTelegramBackupMeta: TelegramBackupMeta | null = null;
 const ENCRYPTED_BACKUP_FORMAT = 'nms-backup-encrypted';
 const ENCRYPTED_BACKUP_VERSION = 2;
+const SCRYPT_BACKUP_VERSION = 3;
 const BACKUP_CIPHER = 'aes-256-gcm';
 const LOCAL_BACKUP_DIRNAME = 'backups';
+const MAX_BACKUP_UNCOMPRESSED_BYTES = 128 * 1024 * 1024;
 
 function normalizeStoreKeysInput(input: unknown): string[] {
     if (typeof input === 'string') {
@@ -104,9 +106,29 @@ function ensureBackupDirExists(deps: any = {}): string {
     return dir;
 }
 
-function deriveBackupKey(deps: any = {}): Buffer {
+function resolveBackupSecret(deps: any = {}): string {
     const secret = String(deps.backupSecret || config.credentials.secret || config.jwt.secret || '').trim();
+    if (!secret) {
+        throw new Error('未配置 CREDENTIALS_SECRET，无法加密或解密系统备份');
+    }
+    return secret;
+}
+
+function deriveBackupKey(deps: any = {}, saltHex = ''): Buffer {
+    const secret = resolveBackupSecret(deps);
+    if (saltHex) {
+        return crypto.scryptSync(secret, Buffer.from(saltHex, 'hex'), 32);
+    }
     return crypto.createHash('sha256').update(secret).digest();
+}
+
+function gunzipBackupPayload(compressed: Buffer, deps: any = {}): Buffer {
+    const requestedLimit = Number(deps.maxOutputLength);
+    const maxOutputLength = Number.isFinite(requestedLimit) && requestedLimit > 0
+        ? Math.floor(requestedLimit)
+        : MAX_BACKUP_UNCOMPRESSED_BYTES;
+    const gunzipSync = deps.gunzipSync || zlib.gunzipSync;
+    return gunzipSync(compressed, { maxOutputLength });
 }
 
 function persistBackupState(deps: any = {}): void {
@@ -148,10 +170,9 @@ function normalizeBackupPayload(payload: any) {
 hydrateBackupState();
 
 function parseLegacyBackupArchive(buffer: Buffer, deps: any = {}) {
-    const gunzipSync = deps.gunzipSync || zlib.gunzipSync;
     let payload: any;
     try {
-        payload = JSON.parse(gunzipSync(buffer).toString('utf8'));
+        payload = JSON.parse(gunzipBackupPayload(buffer, deps).toString('utf8'));
     } catch {
         throw new Error('备份文件解析失败，请确认上传的是 NMS 导出的 `.nmsbak` 加密备份或旧版 `.json.gz` 备份');
     }
@@ -177,18 +198,24 @@ function parseEncryptedBackupArchive(buffer: Buffer, deps: any = {}) {
     if (!envelope || envelope.format !== ENCRYPTED_BACKUP_FORMAT) {
         return null;
     }
-    if (Number(envelope.version) !== ENCRYPTED_BACKUP_VERSION) {
+    const envelopeVersion = Number(envelope.version);
+    if (envelopeVersion !== ENCRYPTED_BACKUP_VERSION && envelopeVersion !== SCRYPT_BACKUP_VERSION) {
         throw new Error('备份版本不受支持');
     }
     if (!envelope.iv || !envelope.tag || !envelope.ciphertext) {
         throw new Error('加密备份结构无效');
     }
+    const saltHex = envelopeVersion === SCRYPT_BACKUP_VERSION ? String(envelope.salt || '').trim() : '';
+    if (envelopeVersion === SCRYPT_BACKUP_VERSION && !/^[a-f0-9]{16,128}$/i.test(saltHex)) {
+        throw new Error('加密备份结构无效');
+    }
 
+    const key = deriveBackupKey(deps, saltHex);
     let compressedPayload: Buffer;
     try {
         const decipher = crypto.createDecipheriv(
             BACKUP_CIPHER,
-            deriveBackupKey(deps),
+            key,
             Buffer.from(String(envelope.iv || ''), 'hex')
         );
         decipher.setAuthTag(Buffer.from(String(envelope.tag || ''), 'hex'));
@@ -202,7 +229,7 @@ function parseEncryptedBackupArchive(buffer: Buffer, deps: any = {}) {
 
     let payload: any;
     try {
-        payload = JSON.parse((deps.gunzipSync || zlib.gunzipSync)(compressedPayload).toString('utf8'));
+        payload = JSON.parse(gunzipBackupPayload(compressedPayload, deps).toString('utf8'));
     } catch {
         throw new Error('备份文件解密成功，但内容已损坏');
     }
@@ -220,7 +247,12 @@ function parseEncryptedBackupArchive(buffer: Buffer, deps: any = {}) {
 
 function parseBackupArchive(input: any, deps: any = {}) {
     const buffer = Buffer.isBuffer(input) ? input : Buffer.from(input || '');
-    return parseEncryptedBackupArchive(buffer, deps) || parseLegacyBackupArchive(buffer, deps);
+    const encrypted = parseEncryptedBackupArchive(buffer, deps);
+    if (encrypted) return encrypted;
+    if (deps.allowLegacyUnencrypted !== true) {
+        throw new Error('仅支持 `.nmsbak` 加密备份文件；如需恢复旧版 `.json.gz` 明文备份，请显式启用兼容选项');
+    }
+    return parseLegacyBackupArchive(buffer, deps);
 }
 
 function inspectBackupArchive(input: any, deps: any = {}) {
@@ -246,9 +278,12 @@ function inspectBackupArchive(input: any, deps: any = {}) {
     };
 }
 
-async function restoreBackupArchive(input: any, options: { keys?: string[]; filename?: string } = {}, deps: any = {}) {
-    const parsed = parseBackupArchive(input, deps);
-    const availableKeys = new Set((deps.listStoreKeys || listStoreKeys)());
+async function restoreBackupArchive(input: any, options: { keys?: string[]; filename?: string; allowLegacyUnencrypted?: boolean } = {}, deps: any = {}) {
+    const effectiveDeps = options.allowLegacyUnencrypted === true
+        ? { ...deps, allowLegacyUnencrypted: true }
+        : deps;
+    const parsed = parseBackupArchive(input, effectiveDeps);
+    const availableKeys = new Set((effectiveDeps.listStoreKeys || listStoreKeys)());
     const requestedKeys = normalizeStoreKeysInput(options.keys);
     const candidateKeys = requestedKeys.length > 0 ? requestedKeys : parsed.storeKeys;
     const restoreKeys = candidateKeys.filter((key: string) => availableKeys.has(key) && Object.prototype.hasOwnProperty.call(parsed.snapshots, key));
@@ -257,8 +292,11 @@ async function restoreBackupArchive(input: any, options: { keys?: string[]; file
         throw new Error('备份中没有可恢复的 store');
     }
 
-    const restoreFn = deps.restoreStoreSnapshots || restoreStoreSnapshots;
+    const restoreFn = effectiveDeps.restoreStoreSnapshots || restoreStoreSnapshots;
     const result = await restoreFn(parsed.snapshots, { keys: restoreKeys });
+    if (result?.rolledBack === true || Number(result?.failed || 0) > 0) {
+        throw new Error(String(result?.error || '备份恢复失败，已回滚变更'));
+    }
 
     lastImportMeta = {
         restoredAt: new Date().toISOString(),
@@ -269,10 +307,10 @@ async function restoreBackupArchive(input: any, options: { keys?: string[]; file
         restored: Number(result?.restored || 0),
         failed: Number(result?.failed || 0),
     };
-    persistBackupState(deps);
+    persistBackupState(effectiveDeps);
 
     return {
-        inspection: inspectBackupArchive(input, deps),
+        inspection: inspectBackupArchive(input, effectiveDeps),
         result,
         meta: lastImportMeta,
     };
@@ -291,12 +329,15 @@ function createBackupArchive(options: { keys?: string[] } = {}, deps: any = {}) 
     };
     const compressedPayload = zlib.gzipSync(Buffer.from(JSON.stringify(payload), 'utf8'));
     const iv = crypto.randomBytes(12);
-    const cipher = crypto.createCipheriv(BACKUP_CIPHER, deriveBackupKey(deps), iv);
+    const salt = crypto.randomBytes(16).toString('hex');
+    const cipher = crypto.createCipheriv(BACKUP_CIPHER, deriveBackupKey(deps, salt), iv);
     const encryptedPayload = Buffer.concat([cipher.update(compressedPayload), cipher.final()]);
     const authTag = cipher.getAuthTag();
     const buffer = Buffer.from(JSON.stringify({
         format: ENCRYPTED_BACKUP_FORMAT,
-        version: ENCRYPTED_BACKUP_VERSION,
+        version: SCRYPT_BACKUP_VERSION,
+        kdf: 'scrypt',
+        salt,
         createdAt,
         storeKeys,
         compression: 'gzip',
@@ -414,11 +455,12 @@ function deleteLocalBackupArchive(filename: string, deps: any = {}) {
     };
 }
 
-async function restoreLocalBackupArchive(filename: string, options: { keys?: string[] } = {}, deps: any = {}) {
+async function restoreLocalBackupArchive(filename: string, options: { keys?: string[]; allowLegacyUnencrypted?: boolean } = {}, deps: any = {}) {
     const entry = readLocalBackupArchive(filename, deps);
     return restoreBackupArchive(entry.buffer, {
         filename: entry.filename,
         keys: options.keys,
+        allowLegacyUnencrypted: options.allowLegacyUnencrypted,
     }, deps);
 }
 

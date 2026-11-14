@@ -2,15 +2,18 @@ import config from '../config.js';
 import { initDb, getDbConnectionStatus, type DbInitResult, type DbConnectionStatus } from './client.js';
 import { ensureDbSchema } from './schema.js';
 import { loadRuntimeModesFromDb } from './modeState.js';
+import { initSqliteDb, isSqliteEnabled } from './sqliteClient.js';
 
 export interface DbBootstrapResult extends DbInitResult {
     schema?: string;
     modesLoaded: boolean;
+    sqliteReady?: boolean;
     connection?: DbConnectionStatus;
     error?: string;
 }
 
 export async function bootstrapDatabase(): Promise<DbBootstrapResult> {
+    const sqliteReady = isSqliteEnabled() ? initSqliteDb() : false;
     const initialized = await initDb();
 
     if (!initialized.enabled || !initialized.ready) {
@@ -18,6 +21,7 @@ export async function bootstrapDatabase(): Promise<DbBootstrapResult> {
             ...initialized,
             schema: '',
             modesLoaded: false,
+            sqliteReady,
         };
     }
 
@@ -47,6 +51,7 @@ export async function bootstrapDatabase(): Promise<DbBootstrapResult> {
         ready: true,
         schema,
         modesLoaded,
+        sqliteReady,
         connection: getDbConnectionStatus(),
     };
 }

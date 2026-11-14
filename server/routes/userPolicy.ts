@@ -4,6 +4,7 @@ import { appendSecurityAudit } from '../lib/securityAudit.js';
 import serverStore from '../store/serverStore.js';
 import userPolicyStore, { ALLOWED_PROTOCOLS, POLICY_SCOPE_MODES } from '../store/userPolicyStore.js';
 import { updateManagedUserPolicyByEmail } from '../services/userAdminService.js';
+import { invalidatePublicSubCache } from './subscriptions.js';
 
 const router = Router();
 
@@ -188,11 +189,22 @@ router.put('/:email', async (req: Request, res: Response) => {
                     : normalizeNonNegativeInt(currentPolicy.speedLimitDown, 0),
                 trafficResetCycle: String(req.body?.trafficResetCycle || currentPolicy.trafficResetCycle || 'none').trim().toLowerCase(),
                 ipLimitPolicy: String(req.body?.ipLimitPolicy || currentPolicy.ipLimitPolicy || 'first-wins').trim().toLowerCase(),
-                inheritGroup: req.body?.inheritGroup === true,
-                overrideFields: normalizeTextList(req.body?.overrideFields),
+                inheritGroup: (
+                    Object.prototype.hasOwnProperty.call(req.body || {}, 'inheritGroup')
+                    && req.body?.inheritGroup !== undefined
+                )
+                    ? req.body?.inheritGroup === true
+                    : currentPolicy.inheritGroup === true,
+                overrideFields: (
+                    Object.prototype.hasOwnProperty.call(req.body || {}, 'overrideFields')
+                    && req.body?.overrideFields !== undefined
+                )
+                    ? normalizeTextList(req.body?.overrideFields)
+                    : (currentPolicy.overrideFields || []),
             },
             (req as any).user?.username || (req as any).user?.role || 'admin'
         );
+        invalidatePublicSubCache(result.subscriptionEmail || email);
         appendSecurityAudit('user_policy_updated', req, {
             email: result.subscriptionEmail,
             subscriptionEmail: result.subscriptionEmail,

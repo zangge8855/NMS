@@ -7,18 +7,30 @@ dotenv.config({ path: resolve(__dirname, '..', '.env') });
 
 const nodeEnv: string = process.env.NODE_ENV || 'development';
 const isProduction: boolean = nodeEnv === 'production';
+const isTest: boolean = nodeEnv === 'test';
 const DEFAULT_JWT_SECRET = 'nms-default-jwt-secret-key-32-chars-min-ok!';
 const jwtSecret: string = process.env.JWT_SECRET || DEFAULT_JWT_SECRET;
 const DEFAULT_CREDENTIALS_SECRET = 'nms-default-credentials-secret-32-chars-min-ok!';
-const credentialsSecret: string = process.env.CREDENTIALS_SECRET || (process.env.JWT_SECRET ? process.env.JWT_SECRET + '-credentials' : DEFAULT_CREDENTIALS_SECRET);
-if (!process.env.CREDENTIALS_SECRET && !isProduction) {
-    console.warn('[Config] CREDENTIALS_SECRET is not set — falling back to generated secret. Set a dedicated secret for production.');
-}
+const credentialsSecret: string = process.env.CREDENTIALS_SECRET || (isProduction ? '' : DEFAULT_CREDENTIALS_SECRET);
 const adminUsername: string = process.env.ADMIN_USERNAME || 'admin';
 const adminPassword: string = process.env.ADMIN_PASSWORD || 'admin';
-const enforceStrictSecurity: boolean = process.env.ENFORCE_STRICT_SECURITY === 'true';
+const enforceStrictSecurity: boolean = parseBoolean(process.env.ENFORCE_STRICT_SECURITY, isProduction);
 const defaultDataDir: string = resolve(__dirname, '..', 'data');
 const isDevelopment: boolean = nodeEnv === 'development';
+
+if (!isProduction && !isTest) {
+    if (!process.env.JWT_SECRET || jwtSecret === DEFAULT_JWT_SECRET || jwtSecret.length < 32) {
+        console.warn('[Config] Security warning: JWT_SECRET is missing or weak — configure a dedicated random secret (>= 32 chars) for production.');
+    }
+    if (!process.env.CREDENTIALS_SECRET) {
+        console.warn('[Config] CREDENTIALS_SECRET is not set — falling back to development secret. Set a dedicated secret for production.');
+    }
+    if (!process.env.ADMIN_PASSWORD || adminPassword === 'admin') {
+        console.warn('[Config] Security warning: ADMIN_PASSWORD uses the development default. Change ADMIN_PASSWORD before exposing the server.');
+    }
+} else if (!process.env.CREDENTIALS_SECRET && !isProduction) {
+    console.warn('[Config] CREDENTIALS_SECRET is not set — falling back to generated secret. Set a dedicated secret for production.');
+}
 
 function resolveDataDir(value?: string | null): string {
     const text = String(value || '').trim();
@@ -104,7 +116,7 @@ function isWeakJwtSecret(value: unknown): boolean {
 function isWeakCredentialsSecret(value: unknown): boolean {
     const text = String(value || '');
     if (text.length < 32) return true;
-    if (text === DEFAULT_JWT_SECRET) return true;
+    if (text === DEFAULT_JWT_SECRET || text === DEFAULT_CREDENTIALS_SECRET) return true;
     if (text === jwtSecret) return true;
     return false;
 }
@@ -202,6 +214,8 @@ export interface AppConfig {
         maxTtlDays: number;
         maxActiveTokensPerUser: number;
         publicBaseUrl: string;
+        tokenSecret: string;
+        legacySecrets: string[];
         converter: {
             baseUrl: string;
             clashConfigUrl: string;
@@ -282,7 +296,7 @@ const config: AppConfig = {
     auth: {
         adminUsername,
         adminPassword,
-        allowLegacyPasswordLogin: parseBoolean(process.env.ALLOW_LEGACY_PASSWORD_LOGIN, true),
+        allowLegacyPasswordLogin: parseBoolean(process.env.ALLOW_LEGACY_PASSWORD_LOGIN, !isProduction),
     },
     security: {
         enforceStrictSecurity,
@@ -326,6 +340,8 @@ const config: AppConfig = {
         maxTtlDays: parsePositiveInt(process.env.SUB_TOKEN_MAX_TTL_DAYS, 365),
         maxActiveTokensPerUser: parsePositiveInt(process.env.SUB_TOKEN_MAX_ACTIVE, 5),
         publicBaseUrl: parseHttpUrl(process.env.SUB_PUBLIC_BASE_URL),
+        tokenSecret: String(process.env.SUBSCRIPTION_TOKEN_SECRET || '').trim() || credentialsSecret,
+        legacySecrets: parseStringList(process.env.SUBSCRIPTION_TOKEN_LEGACY_SECRETS),
         converter: {
             baseUrl: parseHttpUrl(process.env.SUB_CONVERTER_BASE_URL),
             clashConfigUrl: parseHttpUrl(process.env.SUB_CONVERTER_CLASH_CONFIG_URL),

@@ -763,3 +763,68 @@ test('getTwoFactorStatus reports backupCodesRemaining', () => {
     assert.equal(status.enabled, true);
     assert.equal(status.backupCodesRemaining, 3);
 });
+
+test('validateSession rejects deleted users, stale tokenVersion, and role changes', () => {
+    assert.throws(
+        () => validateSession('Bearer abc', {
+            userRepository: { getById: () => null, getByUsername: () => null },
+            jwtVerify: () => ({ userId: 'missing', username: 'ghost', role: 'user' }),
+            jwtConfig: { secret: 'ignored' },
+        }),
+        (err) => err.status === 401
+    );
+
+    assert.throws(
+        () => validateSession('Bearer abc', {
+            userRepository: {
+                getById: () => ({ id: 'u1', username: 'alice', role: 'user', tokenVersion: 2 }),
+            },
+            jwtVerify: () => ({ userId: 'u1', username: 'alice', role: 'user', tokenVersion: 1 }),
+            jwtConfig: { secret: 'ignored' },
+        }),
+        (err) => err.status === 401
+    );
+
+    assert.throws(
+        () => validateSession('Bearer abc', {
+            userRepository: {
+                getById: () => ({ id: 'u1', username: 'alice', role: 'user', tokenVersion: 1 }),
+            },
+            jwtVerify: () => ({ userId: 'u1', username: 'alice', role: 'admin', tokenVersion: 1 }),
+            jwtConfig: { secret: 'ignored' },
+        }),
+        (err) => err.status === 401
+    );
+});
+
+test('completeTwoFactorLogin locks out repeated wrong TOTP attempts per user', () => {
+    const totpSecret = generateTotpSecret();
+    const repo = {
+        getById() {
+            return { id: 'admin-2fa-lockout', username: 'root', role: 'admin', email: 'root@example.com' };
+        },
+        getTwoFactor() {
+            return { enabled: true, secret: totpSecret, backupCodeHashes: [] };
+        },
+        consumeTwoFactorBackupCode() {
+            return true;
+        },
+    };
+    const deps = {
+        userRepository: repo,
+        jwtVerify() {
+            return { type: '2fa_challenge', userId: 'admin-2fa-lockout', username: 'root', role: 'admin' };
+        },
+        jwtConfig: { secret: 'ignored' },
+    };
+
+    for (let i = 0; i < 4; i += 1) {
+        const res = completeTwoFactorLogin({ challengeToken: 'fake', code: '000000' }, deps);
+        assert.equal(res.success, false);
+    }
+
+    assert.throws(
+        () => completeTwoFactorLogin({ challengeToken: 'fake', code: '000000' }, deps),
+        (err) => err.status === 429
+    );
+});

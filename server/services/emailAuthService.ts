@@ -211,6 +211,12 @@ function verifyEmailCode(payload: any = {}, deps: any = {}) {
     }
 
     if (!user.verifyCode || user.verifyCode !== code) {
+        if (user.verifyCode && typeof userRepo.recordVerifyCodeFailure === 'function') {
+            const failure = userRepo.recordVerifyCodeFailure(user.id, 5);
+            if (failure?.invalidated) {
+                throw createHttpError(429, '验证码错误次数过多，请重新发送验证码');
+            }
+        }
         throw createHttpError(400, '验证码错误');
     }
 
@@ -348,6 +354,12 @@ function resetPasswordWithCode(payload: any = {}, deps: any = {}) {
         throw createHttpError(400, '邮箱或验证码错误');
     }
     if (!user.resetCode || user.resetCode !== code) {
+        if (user.resetCode && typeof userRepo.recordResetCodeFailure === 'function') {
+            const failure = userRepo.recordResetCodeFailure(user.id, 5);
+            if (failure?.invalidated) {
+                throw createHttpError(429, '验证码错误次数过多，请重新获取验证码');
+            }
+        }
         throw createHttpError(400, '邮箱或验证码错误');
     }
     if (user.resetCodeExpiresAt && new Date(user.resetCodeExpiresAt) < new Date()) {

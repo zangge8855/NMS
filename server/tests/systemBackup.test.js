@@ -222,7 +222,7 @@ test('deleteLocalBackupArchive removes saved local backups', () => {
     }
 });
 
-test('parseBackupArchive still accepts legacy plaintext gzip backups for restore compatibility', () => {
+test('parseBackupArchive rejects legacy plaintext gzip backups unless allowLegacyUnencrypted is enabled', () => {
     const legacyPayload = {
         format: 'nms-backup',
         version: 1,
@@ -233,9 +233,65 @@ test('parseBackupArchive still accepts legacy plaintext gzip backups for restore
         },
     };
     const legacyBuffer = zlib.gzipSync(Buffer.from(JSON.stringify(legacyPayload), 'utf8'));
-    const parsed = parseBackupArchive(legacyBuffer, buildDeps());
 
+    assert.throws(
+        () => parseBackupArchive(legacyBuffer, buildDeps()),
+        /仅支持 `\.nmsbak` 加密备份文件/
+    );
+
+    const parsed = parseBackupArchive(legacyBuffer, buildDeps({ allowLegacyUnencrypted: true }));
     assert.equal(parsed.encrypted, false);
     assert.deepEqual(parsed.storeKeys, ['users']);
     assert.equal(parsed.payload.createdAt, legacyPayload.createdAt);
+});
+
+test('parseBackupArchive bounds uncompressed payload size and supports v2 & v3 encrypted archives', async () => {
+    const crypto = await import('crypto');
+    const deps = buildDeps();
+    const archive = createBackupArchive({ keys: ['users'] }, deps);
+    const parsedV3 = parseBackupArchive(archive.buffer, deps);
+    assert.equal(parsedV3.encrypted, true);
+    assert.deepEqual(parsedV3.storeKeys, ['users']);
+
+    const envelopeV3 = JSON.parse(archive.buffer.toString('utf8'));
+    assert.equal(envelopeV3.version, 3);
+    assert.equal(envelopeV3.kdf, 'scrypt');
+    assert.match(envelopeV3.salt, /^[a-f0-9]{32}$/);
+
+    // Verify bounded gunzip protects against zip bombs
+    assert.throws(
+        () => parseBackupArchive(archive.buffer, buildDeps({ maxOutputLength: 64 })),
+        /内容已损坏/
+    );
+
+    // Verify legacy v2 encrypted archive (SHA-256 key) still decrypts
+    const payload = {
+        format: 'nms-backup',
+        version: 1,
+        createdAt: '2026-03-14T00:00:00.000Z',
+        storeKeys: ['users'],
+        snapshots: { users: { users: [] } },
+    };
+    const compressed = zlib.gzipSync(Buffer.from(JSON.stringify(payload), 'utf8'));
+    const key = crypto.default.createHash('sha256').update(deps.backupSecret).digest();
+    const iv = crypto.default.randomBytes(12);
+    const cipher = crypto.default.createCipheriv('aes-256-gcm', key, iv);
+    const encrypted = Buffer.concat([cipher.update(compressed), cipher.final()]);
+    const tag = cipher.getAuthTag();
+    const v2Buffer = Buffer.from(JSON.stringify({
+        format: 'nms-backup-encrypted',
+        version: 2,
+        createdAt: payload.createdAt,
+        storeKeys: ['users'],
+        compression: 'gzip',
+        cipher: 'aes-256-gcm',
+        keyHint: 'CREDENTIALS_SECRET',
+        iv: iv.toString('hex'),
+        tag: tag.toString('hex'),
+        ciphertext: encrypted.toString('base64'),
+    }), 'utf8');
+
+    const parsedV2 = parseBackupArchive(v2Buffer, deps);
+    assert.equal(parsedV2.encrypted, true);
+    assert.equal(parsedV2.payload.createdAt, payload.createdAt);
 });

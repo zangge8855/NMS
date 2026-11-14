@@ -11,7 +11,14 @@ import clientEntitlementOverrideStore from './clientEntitlementOverrideStore.js'
 import inviteCodeStore from './inviteCodeStore.js';
 import certificateStore from './certificateStore.js';
 import { loadStoreSnapshot, writeStoreSnapshotNow } from './dbMirror.js';
-import { readSnapshot, shouldApplySnapshotPrivacyRedaction } from '../db/snapshots.js';
+import {
+    clearPendingSnapshotWrites,
+    flushSnapshotQueue,
+    pauseSnapshotQueue,
+    readSnapshot,
+    resumeSnapshotQueue,
+    shouldApplySnapshotPrivacyRedaction,
+} from '../db/snapshots.js';
 
 function safeClone<T = any>(value: T): T | null {
     try {
@@ -244,42 +251,90 @@ export async function restoreStoreSnapshots(snapshots: any = {}, options: any = 
     const items = resolveKeys(options.keys);
     const source = snapshots && typeof snapshots === 'object' && !Array.isArray(snapshots) ? snapshots : {};
     const details: any[] = [];
+    const mutated: Array<{ key: string; store: any; previousState: any }> = [];
+    let rolledBack = false;
+    let rollbackError = '';
 
-    for (const { key, store } of items) {
-        if (!Object.prototype.hasOwnProperty.call(source, key)) {
-            details.push({ key, restored: false, reason: 'snapshot-missing' });
-            continue;
-        }
+    await flushSnapshotQueue();
+    pauseSnapshotQueue();
+    clearPendingSnapshotWrites(items.map((item) => item.key));
 
-        if (typeof store?.importState !== 'function') {
-            details.push({ key, restored: false, reason: 'importState-not-implemented' });
-            continue;
-        }
-
-        try {
-            store.importState(source[key]);
-
-            if (typeof store?._save === 'function') {
-                await store._save();
-            }
-            if (typeof store?.exportState === 'function') {
-                await writeStoreSnapshotNow(key, store.exportState(), { redact: false });
+    try {
+        for (const { key, store } of items) {
+            if (!Object.prototype.hasOwnProperty.call(source, key)) {
+                details.push({ key, restored: false, reason: 'snapshot-missing' });
+                continue;
             }
 
-            details.push({ key, restored: true, reason: 'ok' });
-        } catch (error: any) {
-            details.push({
-                key,
-                restored: false,
-                reason: String(error?.message || error),
-            });
+            if (typeof store?.importState !== 'function') {
+                details.push({ key, restored: false, reason: 'importState-not-implemented' });
+                continue;
+            }
+
+            const previousState = typeof store?.exportState === 'function'
+                ? safeClone(store.exportState())
+                : null;
+
+            try {
+                store.importState(source[key]);
+                mutated.push({ key, store, previousState });
+
+                if (typeof store?._save === 'function') {
+                    await store._save();
+                }
+                if (typeof store?.exportState === 'function') {
+                    const syncResult = await writeStoreSnapshotNow(key, store.exportState(), { redact: false });
+                    if (syncResult && syncResult.success === false && !syncResult.skipped) {
+                        throw new Error(`Snapshot sync failed for ${key}`);
+                    }
+                }
+
+                details.push({ key, restored: true, reason: 'ok' });
+            } catch (error: any) {
+                rollbackError = String(error?.message || error);
+                details.push({
+                    key,
+                    restored: false,
+                    reason: rollbackError,
+                });
+                rolledBack = true;
+                break;
+            }
         }
+
+        if (rolledBack) {
+            for (let i = mutated.length - 1; i >= 0; i--) {
+                const entry = mutated[i];
+                if (entry.previousState === null || typeof entry.store?.importState !== 'function') continue;
+                try {
+                    entry.store.importState(entry.previousState);
+                    if (typeof entry.store?._save === 'function') {
+                        await entry.store._save();
+                    }
+                    if (typeof entry.store?.exportState === 'function') {
+                        await writeStoreSnapshotNow(entry.key, entry.store.exportState(), { redact: false });
+                    }
+                } catch (rbErr: any) {
+                    console.error(`[StoreRegistry] Rollback failed for ${entry.key}:`, rbErr?.message || rbErr);
+                }
+            }
+            for (const entry of details) {
+                if (entry.restored) {
+                    entry.restored = false;
+                    entry.reason = 'rolled-back';
+                }
+            }
+        }
+    } finally {
+        resumeSnapshotQueue();
     }
 
     return {
         total: details.length,
         restored: details.filter((item) => item.restored).length,
         failed: details.filter((item) => !item.restored).length,
+        rolledBack,
+        ...(rollbackError ? { error: rollbackError } : {}),
         details,
     };
 }

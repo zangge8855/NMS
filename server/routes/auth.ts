@@ -3,6 +3,7 @@ import config from '../config.js';
 import { toHttpError } from '../lib/httpError.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import { resolveClientIp } from '../lib/requestIp.js';
+import { pickLocalizedText, resolveRequestLocale } from '../lib/requestLocale.js';
 import jobStore from '../store/jobStore.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
 import {
@@ -281,6 +282,7 @@ export function getRegistrationStatus() {
  *   2. password only (向后兼容旧版单密码)
  */
 router.post('/login', (req, res) => {
+    const locale = resolveRequestLocale(req);
     const clientIp = resolveClientIp(req);
     const loginIdentifier = resolveLoginIdentifier(req.body);
     const normalizedLoginEmail = normalizeEmailInput(loginIdentifier);
@@ -294,7 +296,11 @@ router.post('/login', (req, res) => {
         appendSecurityAudit('login_rate_limited', req, auditBase);
         return res.status(429).json({
             success: false,
-            msg: `登录尝试过于频繁，请 ${LOGIN_RATE_WINDOW_MINUTES} 分钟后再试`,
+            msg: pickLocalizedText(
+                locale,
+                `登录尝试过于频繁，请 ${LOGIN_RATE_WINDOW_MINUTES} 分钟后再试`,
+                `Too many sign-in attempts. Try again in ${LOGIN_RATE_WINDOW_MINUTES} minutes.`
+            ),
         });
     }
 
@@ -309,7 +315,11 @@ router.post('/login', (req, res) => {
             });
             return res.status(429).json({
                 success: false,
-                msg: `登录尝试过于频繁，请 ${LOGIN_RATE_WINDOW_MINUTES} 分钟后再试`,
+                msg: pickLocalizedText(
+                    locale,
+                    `登录尝试过于频繁，请 ${LOGIN_RATE_WINDOW_MINUTES} 分钟后再试`,
+                    `Too many sign-in attempts. Try again in ${LOGIN_RATE_WINDOW_MINUTES} minutes.`
+                ),
             });
         }
 
@@ -320,7 +330,7 @@ router.post('/login', (req, res) => {
             });
             return res.status(403).json({
                 success: false,
-                msg: '邮箱尚未验证，请先完成邮箱验证',
+                msg: pickLocalizedText(locale, '邮箱尚未验证，请先完成邮箱验证', 'Email not verified. Verify your email address first.'),
                 needVerify: true,
                 email: result.email,
             });
@@ -333,7 +343,7 @@ router.post('/login', (req, res) => {
             });
             return res.status(200).json({
                 success: false,
-                msg: '请输入 2FA 验证码完成登录',
+                msg: pickLocalizedText(locale, '请输入 2FA 验证码完成登录', 'Enter your 2FA verification code to complete sign-in'),
                 needTwoFactor: true,
                 challengeToken: result.challengeToken,
                 email: result.email,
@@ -346,7 +356,7 @@ router.post('/login', (req, res) => {
             });
             return res.status(403).json({
                 success: false,
-                msg: '账号待审核，请等待管理员审核通过后再登录',
+                msg: pickLocalizedText(locale, '账号待审核，请等待管理员审核通过后再登录', 'Account pending approval. Wait for administrator review before signing in.'),
             });
         }
         if (result.reason === 'guest_login_forbidden') {
@@ -356,7 +366,7 @@ router.post('/login', (req, res) => {
             });
             return res.status(403).json({
                 success: false,
-                msg: '访客体验账号仅限节点订阅使用，禁止登录 Web 管理后台',
+                msg: pickLocalizedText(locale, '访客体验账号仅限节点订阅使用，禁止登录 Web 管理后台', 'Guest accounts are restricted to node subscriptions and cannot sign in to the web console.'),
             });
         }
 
@@ -364,7 +374,10 @@ router.post('/login', (req, res) => {
             ...auditBase,
             ...(result.audit || {}),
         });
-        return res.status(401).json({ success: false, msg: '用户名、邮箱或密码错误' });
+        return res.status(401).json({
+            success: false,
+            msg: pickLocalizedText(locale, '用户名、邮箱或密码错误', 'Invalid username, email, or password'),
+        });
     }
 
     req.user = {
@@ -1033,13 +1046,18 @@ router.put('/profile', authMiddleware, (req, res) => {
  * POST /api/auth/login/2fa — 完成 2FA 登录
  */
 router.post('/login/2fa', (req, res) => {
+    const locale = resolveRequestLocale(req);
     const clientIp = resolveClientIp(req);
     const rateState = getLoginRateState(clientIp, '2fa_challenge');
     if (rateState.blocked) {
         appendSecurityAudit('login_rate_limited', req, { ip: clientIp, action: '2fa_verify' });
         return res.status(429).json({
             success: false,
-            msg: `2FA 验证尝试过于频繁，请 ${LOGIN_RATE_WINDOW_MINUTES} 分钟后再试`,
+            msg: pickLocalizedText(
+                locale,
+                `2FA 验证尝试过于频繁，请 ${LOGIN_RATE_WINDOW_MINUTES} 分钟后再试`,
+                `Too many 2FA verification attempts. Try again in ${LOGIN_RATE_WINDOW_MINUTES} minutes.`
+            ),
         });
     }
 
@@ -1048,14 +1066,17 @@ router.post('/login/2fa', (req, res) => {
         if (!result.success) {
             recordLoginFailure(clientIp, '2fa_challenge');
             appendSecurityAudit('login_two_factor_failed', req, result.audit || {});
-            return res.status(401).json({ success: false, msg: '2FA 验证码不正确或已过期' });
+            return res.status(401).json({
+                success: false,
+                msg: pickLocalizedText(locale, '2FA 验证码不正确或已过期', 'Invalid or expired 2FA verification code'),
+            });
         }
         clearLoginRate(clientIp, '2fa_challenge');
         appendSecurityAudit('login_two_factor_success', req, result.audit || {});
         return res.json({ success: true, token: result.token, user: result.user });
     } catch (err) {
         recordLoginFailure(clientIp, '2fa_challenge');
-        const error = toHttpError(err, 401, '2FA 验证失败');
+        const error = toHttpError(err, 401, pickLocalizedText(locale, '2FA 验证失败', '2FA verification failed'));
         return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
@@ -1225,11 +1246,20 @@ router.post('/passkey/login-options', async (req, res) => {
 router.post('/passkey/login-verify', async (req, res) => {
     const clientIp = resolveClientIp(req);
     const { challengeSessionId, response } = req.body || {};
+    const passkeyRateState = getLoginRateState(clientIp, 'passkey');
+    if (passkeyRateState.blocked) {
+        appendSecurityAudit('login_rate_limited', req, { ip: clientIp, action: 'passkey_login' });
+        return res.status(429).json({
+            success: false,
+            msg: `Passkey 登录尝试过于频繁，请 ${LOGIN_RATE_WINDOW_MINUTES} 分钟后再试`,
+        });
+    }
 
     if (!challengeSessionId || !response || !response.id) {
         return res.status(400).json({ success: false, msg: '缺少必要参数' });
     }
 
+    let matchedUsername = '';
     try {
         const credentialId = response.id;
         const user = userStore.findUserByPasskeyId(credentialId);
@@ -1239,14 +1269,25 @@ router.post('/passkey/login-verify', async (req, res) => {
             appendSecurityAudit('login_passkey_failed', req, { reason: 'credential_not_found', credentialId });
             return res.status(401).json({ success: false, msg: '未找到匹配的 Passkey 凭据或该凭据已解绑' });
         }
+        matchedUsername = String(user.username || '').trim();
+        const userRateState = matchedUsername ? getLoginRateState(clientIp, matchedUsername) : { blocked: false };
+        if (userRateState.blocked) {
+            appendSecurityAudit('login_rate_limited', req, { ip: clientIp, username: matchedUsername, action: 'passkey_login' });
+            return res.status(429).json({
+                success: false,
+                msg: `Passkey 登录尝试过于频繁，请 ${LOGIN_RATE_WINDOW_MINUTES} 分钟后再试`,
+            });
+        }
 
         if (user.enabled === false) {
+            recordLoginFailure(clientIp, 'passkey');
             recordLoginFailure(clientIp, user.username);
             appendSecurityAudit('login_passkey_failed', req, { username: user.username, reason: 'account_disabled' });
             return res.status(403).json({ success: false, msg: '该账号已被禁用' });
         }
 
         if (user.isGuest === true || user.role === 'guest') {
+            recordLoginFailure(clientIp, 'passkey');
             recordLoginFailure(clientIp, user.username);
             appendSecurityAudit('login_passkey_failed', req, { username: user.username, reason: 'guest_account_forbidden' });
             return res.status(403).json({ success: false, msg: '访客体验账号仅限节点订阅使用，禁止登录 Web 管理后台' });
@@ -1254,12 +1295,14 @@ router.post('/passkey/login-verify', async (req, res) => {
 
         const passkey = (user.passkeys || []).find((pk: any) => pk.id === credentialId || pk.credentialID === credentialId);
         if (!passkey) {
+            recordLoginFailure(clientIp, 'passkey');
             recordLoginFailure(clientIp, user.username);
             return res.status(401).json({ success: false, msg: '凭证无效' });
         }
 
         const { newCounter } = await verifyPasskeyLogin(req, challengeSessionId, response, passkey);
         userStore.updatePasskeyCounter(user.id, passkey.id || passkey.credentialID, newCounter);
+        clearLoginRate(clientIp, 'passkey');
         clearLoginRate(clientIp, user.username);
 
         const { token, user: sanitizedUser, audit } = createDirectUserSession(user);
@@ -1278,6 +1321,9 @@ router.post('/passkey/login-verify', async (req, res) => {
         });
     } catch (err: any) {
         recordLoginFailure(clientIp, 'passkey');
+        if (matchedUsername) {
+            recordLoginFailure(clientIp, matchedUsername);
+        }
         appendSecurityAudit('login_passkey_failed', req, { reason: err?.message || 'verification_failed' });
         const error = toHttpError(err, 401, 'Passkey 验证失败');
         return res.status(error.status).json({ success: false, msg: error.message });

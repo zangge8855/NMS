@@ -19,11 +19,55 @@ function toIsoOrNull(value: unknown): string | null {
     return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
-function hashTokenSecret(secret: unknown): string {
+export function resolvePrimarySubscriptionSecret(): string {
+    return String(
+        config.subscription?.tokenSecret
+        || config.credentials?.secret
+        || config.jwt?.secret
+        || ''
+    ).trim();
+}
+
+export function resolveSubscriptionTokenSecrets(): string[] {
+    return Array.from(new Set([
+        config.subscription?.tokenSecret,
+        ...(Array.isArray(config.subscription?.legacySecrets) ? config.subscription.legacySecrets : []),
+        config.credentials?.secret,
+        ...(Array.isArray(config.credentials?.legacySecrets) ? config.credentials.legacySecrets : []),
+        config.jwt?.secret,
+    ].map((item) => String(item || '').trim()).filter(Boolean)));
+}
+
+function hashTokenSecret(secret: unknown, keySecret: string = resolvePrimarySubscriptionSecret()): string {
     return crypto
-        .createHmac('sha256', config.jwt.secret)
+        .createHmac('sha256', keySecret)
         .update(String(secret || ''))
         .digest('hex');
+}
+
+export function signLegacySubscriptionEmail(email: string, keySecret: string = resolvePrimarySubscriptionSecret()): string {
+    return crypto
+        .createHmac('sha256', keySecret)
+        .update(normalizeEmail(email))
+        .digest('hex');
+}
+
+export function verifyLegacyEmailSignature(email: string, signature: unknown): boolean {
+    const normalizedEmail = normalizeEmail(email);
+    const sigText = typeof signature === 'string' ? signature.trim() : '';
+    if (!normalizedEmail || !sigText) return false;
+    for (const candidateSecret of resolveSubscriptionTokenSecrets()) {
+        try {
+            const expected = signLegacySubscriptionEmail(normalizedEmail, candidateSecret);
+            if (sigText.length !== expected.length) continue;
+            if (crypto.timingSafeEqual(Buffer.from(sigText, 'utf8'), Buffer.from(expected, 'utf8'))) {
+                return true;
+            }
+        } catch {
+            // Try next candidate secret
+        }
+    }
+    return false;
 }
 
 function generatePublicTokenId(): string {
@@ -96,8 +140,8 @@ class SubscriptionTokenStore {
         mirrorStoreSnapshot('subscription_tokens', this.exportState());
     }
 
-    _encryptionKey(): Buffer {
-        return crypto.createHash('sha256').update(config.jwt.secret).digest();
+    _encryptionKey(keySecret: string = resolvePrimarySubscriptionSecret()): Buffer {
+        return crypto.createHash('sha256').update(keySecret).digest();
     }
 
     _encryptSecret(secret: unknown): string {
@@ -110,26 +154,29 @@ class SubscriptionTokenStore {
 
     _decryptSecret(payload: unknown): string {
         if (typeof payload !== 'string' || !payload.startsWith(`${TOKEN_ENC_PREFIX}:`)) return '';
-        try {
-            const parts = payload.split(':');
-            if (parts.length < 5) return '';
-            const ivHex = parts[2];
-            const tagHex = parts[3];
-            const dataHex = parts.slice(4).join(':');
-            const decipher = crypto.createDecipheriv(
-                TOKEN_ENC_ALGO,
-                this._encryptionKey(),
-                Buffer.from(ivHex, 'hex')
-            );
-            decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
-            const output = Buffer.concat([
-                decipher.update(Buffer.from(dataHex, 'hex')),
-                decipher.final(),
-            ]);
-            return output.toString('utf8');
-        } catch {
-            return '';
+        const parts = payload.split(':');
+        if (parts.length < 5) return '';
+        const ivHex = parts[2];
+        const tagHex = parts[3];
+        const dataHex = parts.slice(4).join(':');
+        for (const candidateSecret of resolveSubscriptionTokenSecrets()) {
+            try {
+                const decipher = crypto.createDecipheriv(
+                    TOKEN_ENC_ALGO,
+                    this._encryptionKey(candidateSecret),
+                    Buffer.from(ivHex, 'hex')
+                );
+                decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
+                const output = Buffer.concat([
+                    decipher.update(Buffer.from(dataHex, 'hex')),
+                    decipher.final(),
+                ]);
+                return output.toString('utf8');
+            } catch {
+                // Try next candidate secret.
+            }
         }
+        return '';
     }
 
     _isRevoked(record: any): boolean {
@@ -259,12 +306,20 @@ class SubscriptionTokenStore {
         if (this._isExpired(record)) return { ok: false, reason: 'expired', record };
 
         const expectedHash = record.tokenSecretHash;
-        const actualHash = hashTokenSecret(tokenSecret);
-        if (
-            typeof expectedHash !== 'string'
-            || expectedHash.length !== actualHash.length
-            || !crypto.timingSafeEqual(Buffer.from(expectedHash, 'utf8'), Buffer.from(actualHash, 'utf8'))
-        ) {
+        let matched = false;
+        if (typeof expectedHash === 'string' && expectedHash.length > 0) {
+            for (const candidateSecret of resolveSubscriptionTokenSecrets()) {
+                const actualHash = hashTokenSecret(tokenSecret, candidateSecret);
+                if (
+                    expectedHash.length === actualHash.length
+                    && crypto.timingSafeEqual(Buffer.from(expectedHash, 'utf8'), Buffer.from(actualHash, 'utf8'))
+                ) {
+                    matched = true;
+                    break;
+                }
+            }
+        }
+        if (!matched) {
             return { ok: false, reason: 'invalid-secret', record };
         }
 
@@ -450,9 +505,36 @@ class SubscriptionTokenStore {
         };
     }
 
+    rotateSecrets(): { total: number; rotated: number; skipped: number } {
+        let rotated = 0;
+        let skipped = 0;
+        for (const record of this.tokens) {
+            const plainSecret = this._decryptSecret(record.tokenSecretEnc);
+            if (!plainSecret) {
+                skipped += 1;
+                continue;
+            }
+            record.tokenSecretHash = hashTokenSecret(plainSecret);
+            record.tokenSecretEnc = this._encryptSecret(plainSecret);
+            rotated += 1;
+        }
+        if (rotated > 0) {
+            this._save();
+        }
+        return {
+            total: this.tokens.length,
+            rotated,
+            skipped,
+        };
+    }
+
     migrateLegacySigToken(email: string, signature: string, options: any = {}): any {
         const normalizedEmail = normalizeEmail(email);
-        if (!normalizedEmail || !signature) return null;
+        const sigText = typeof signature === 'string' ? signature.trim() : '';
+        if (!normalizedEmail || !sigText) return null;
+        if (!verifyLegacyEmailSignature(normalizedEmail, sigText)) {
+            return null;
+        }
         const existing = this.tokens.find((item) => (
             item.email === normalizedEmail
             && item.name === 'legacy-signature'
@@ -463,8 +545,8 @@ class SubscriptionTokenStore {
             return {
                 tokenId: existing.id,
                 publicTokenId: this._resolvePublicId(existing),
-                tokenSecret: signature,
-                token: `${this._resolvePublicId(existing)}.${signature}`,
+                tokenSecret: sigText,
+                token: `${this._resolvePublicId(existing)}.${sigText}`,
                 metadata: this._sanitize(existing),
             };
         }
@@ -476,8 +558,8 @@ class SubscriptionTokenStore {
             publicId: generatePublicTokenId(),
             email: normalizedEmail,
             name: 'legacy-signature',
-            tokenSecretHash: hashTokenSecret(signature),
-            tokenSecretEnc: this._encryptSecret(signature),
+            tokenSecretHash: hashTokenSecret(sigText),
+            tokenSecretEnc: this._encryptSecret(sigText),
             createdAt: now.toISOString(),
             createdBy: String(options.createdBy || 'system'),
             expiresAt: expiresAt.toISOString(),

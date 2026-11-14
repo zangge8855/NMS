@@ -315,6 +315,40 @@ export interface PanelClientWrapper {
     baseURL: string;
 }
 
+function mergeCookieHeader(existingCookie: string = '', incomingSetCookies: string[] | string = []): string {
+    const cookieMap = new Map<string, string>();
+    const addPair = (pairStr: string) => {
+        const trimmed = String(pairStr || '').trim();
+        if (!trimmed) return;
+        const eqIdx = trimmed.indexOf('=');
+        if (eqIdx <= 0) return;
+        const name = trimmed.slice(0, eqIdx).trim();
+        const value = trimmed.slice(eqIdx + 1).trim();
+        if (name) {
+            cookieMap.set(name, value);
+        }
+    };
+
+    for (const part of String(existingCookie || '').split(';')) {
+        addPair(part);
+    }
+    const headersList = Array.isArray(incomingSetCookies)
+        ? incomingSetCookies
+        : (incomingSetCookies ? [incomingSetCookies] : []);
+    for (const rawHeader of headersList) {
+        addPair(String(rawHeader || '').split(';')[0]);
+    }
+    return Array.from(cookieMap.entries())
+        .map(([name, value]) => `${name}=${value}`)
+        .join('; ');
+}
+
+function shouldUseStoredPanelSession(options: any = {}): boolean {
+    return options.username === undefined
+        && options.password === undefined
+        && options.apiToken === undefined;
+}
+
 /**
  * Create an axios instance configured for a specific 3x-ui panel server.
  * Handles session cookie management automatically.
@@ -324,11 +358,15 @@ export async function createPanelClient(serverId: string, options: any = {}): Pr
     if (!storedServer) {
         throw new Error('Server not found');
     }
+    const hasManualPasswordCredentials = options.username !== undefined || options.password !== undefined;
+    const useStoredSession = shouldUseStoredPanelSession(options);
     const server = {
         ...storedServer,
         username: options.username !== undefined ? String(options.username || '').trim() : storedServer.username,
         password: options.password !== undefined ? String(options.password || '') : storedServer.password,
-        apiToken: options.apiToken !== undefined ? String(options.apiToken || '').trim() : storedServer.apiToken,
+        apiToken: options.apiToken !== undefined
+            ? String(options.apiToken || '').trim()
+            : (options.forceLogin === true && hasManualPasswordCredentials ? '' : storedServer.apiToken),
     };
 
     const baseURL = `${server.url}${server.basePath === '/' ? '' : server.basePath}`;
@@ -336,6 +374,7 @@ export async function createPanelClient(serverId: string, options: any = {}): Pr
     const client = axios.create({
         baseURL,
         timeout: 30000,
+        maxRedirects: 0,
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
         },
@@ -343,8 +382,8 @@ export async function createPanelClient(serverId: string, options: any = {}): Pr
         httpsAgent: sharedHttpsAgent,
     });
 
-    // Attach session cookie if available
-    const sessionCookie = serverStore.getSession(serverId);
+    // Attach session cookie if available (only for stored server credentials)
+    const sessionCookie = useStoredSession ? serverStore.getSession(serverId) : '';
     if (sessionCookie) {
         client.defaults.headers.Cookie = sessionCookie;
     }
@@ -357,17 +396,22 @@ export async function createPanelClient(serverId: string, options: any = {}): Pr
         (response) => {
             const setCookie = response.headers['set-cookie'];
             if (setCookie) {
-                const sessionStr = setCookie
-                    .map(c => c.split(';')[0])
-                    .join('; ');
-                serverStore.setSession(serverId, sessionStr);
-                client.defaults.headers.Cookie = sessionStr;
+                const sessionStr = mergeCookieHeader(
+                    String(client.defaults.headers.Cookie || ''),
+                    setCookie
+                );
+                if (sessionStr) {
+                    client.defaults.headers.Cookie = sessionStr;
+                    if (useStoredSession) {
+                        serverStore.setSession(serverId, sessionStr);
+                    }
+                }
             }
             return response;
         },
         (error) => {
-            // If 401, clear session
-            if (error.response && error.response.status === 401) {
+            // If 401, clear session (only when using stored credentials)
+            if (useStoredSession && error.response && error.response.status === 401) {
                 serverStore.clearSession(serverId);
             }
             return Promise.reject(error);
@@ -446,6 +490,7 @@ export async function ensureAuthenticated(serverId: string, options: any = {}): 
         return ensureSuiAuthenticated(serverId, storedServer, options);
     }
     const { client, server } = await createPanelClient(serverId, options);
+    const useStoredSession = shouldUseStoredPanelSession(options);
     const hasManualPasswordCredentials = options.username !== undefined || options.password !== undefined;
     const shouldUseApiToken = String(server.apiToken || '').trim()
         && !(forceLogin && options.apiToken === undefined && hasManualPasswordCredentials);
@@ -455,7 +500,7 @@ export async function ensureAuthenticated(serverId: string, options: any = {}): 
     }
 
     // Check if current session is valid by trying to get status
-    const existingSession = serverStore.getSession(serverId);
+    const existingSession = useStoredSession ? serverStore.getSession(serverId) : '';
     if (existingSession && !forceLogin) {
         try {
             await refreshPanelCsrfToken(client, '/panel/csrf-token', { ignoreUnsupported: true });
@@ -505,7 +550,9 @@ export async function ensureAuthenticated(serverId: string, options: any = {}): 
         }
         throw createPanelAuthError('PANEL_LOGIN_FAILED', loginRes.data?.msg || 'Login failed');
     } catch (e: any) {
-        serverStore.clearSession(serverId);
+        if (useStoredSession) {
+            serverStore.clearSession(serverId);
+        }
         if (e?.isPanelAuthError) {
             throw e;
         }

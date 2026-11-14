@@ -10,6 +10,7 @@ import config from '../config.js';
 import { toHttpError } from '../lib/httpError.js';
 import { formatHostHeaderWithPort } from '../lib/ipGeoResolver.js';
 import { normalizeClientBasePath } from '../lib/clientBuild.js';
+import { resolveRequestLocale } from '../lib/requestLocale.js';
 import batchRiskTokenStore, {
     assessBatchRisk,
     buildBatchRiskOperationKey,
@@ -58,12 +59,35 @@ import {
     applySecurityBootstrap,
     getSecurityBootstrapStatus,
 } from '../lib/securityBootstrap.js';
+import { canTrustForwardedHeaders } from '../lib/requestIp.js';
 
 const router = Router();
 const backupUpload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 100 * 1024 * 1024 },
 });
+
+function handleBackupUpload(req: any, res: any, next: any) {
+    backupUpload.single('file')(req, res, (err: any) => {
+        if (!err) {
+            return next();
+        }
+        if (err?.name === 'MulterError' || err instanceof multer.MulterError) {
+            const status = err.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+            const msg = err.code === 'LIMIT_FILE_SIZE'
+                ? '备份文件过大（最大支持 100MB）'
+                : (err.message || '上传备份文件失败');
+            return res.status(status).json({
+                success: false,
+                msg,
+            });
+        }
+        return res.status(400).json({
+            success: false,
+            msg: err?.message || '上传备份文件无效',
+        });
+    });
+}
 
 function normalizeMode(value, allowed: any[] = [], fallback = '') {
     const text = String(value || '').trim().toLowerCase();
@@ -90,10 +114,14 @@ function pickFirstHeaderValue(value: unknown): string {
 }
 
 function buildSiteEntryUrl(req) {
-    const forwardedProto = pickFirstHeaderValue(req.headers['x-forwarded-proto']).toLowerCase();
-    const protocol = forwardedProto || String(req.protocol || 'http').trim().toLowerCase() || 'http';
-    const forwardedHost = pickFirstHeaderValue(req.headers['x-forwarded-host']);
-    const forwardedPort = pickFirstHeaderValue(req.headers['x-forwarded-port']);
+    const trustedForwarded = canTrustForwardedHeaders(req);
+    const forwardedProto = trustedForwarded
+        ? pickFirstHeaderValue(req.headers['x-forwarded-proto']).toLowerCase()
+        : '';
+    const rawProtocol = forwardedProto || String(req.protocol || 'http').trim().toLowerCase() || 'http';
+    const protocol = rawProtocol === 'https' ? 'https' : 'http';
+    const forwardedHost = trustedForwarded ? pickFirstHeaderValue(req.headers['x-forwarded-host']) : '';
+    const forwardedPort = trustedForwarded ? pickFirstHeaderValue(req.headers['x-forwarded-port']) : '';
     const rawHost = forwardedHost || String((typeof req.get === 'function' ? req.get('host') : '') || req.headers?.host || '').trim();
     const host = formatHostHeaderWithPort(rawHost, forwardedHost ? forwardedPort : '');
     if (!host) return '';
@@ -483,17 +511,24 @@ router.get('/backup/status', adminOnly, (req, res) => {
 });
 
 router.get('/backup/export', adminOnly, (req, res) => {
-    const keys = normalizeStoreKeys(req.query?.keys);
-    const { filename, buffer, meta } = createBackupArchive({ keys });
-    appendSecurityAudit('system_backup_exported', req, {
-        filename,
-        bytes: meta.bytes,
-        storeCount: meta.storeKeys.length,
-        encrypted: true,
-    });
-    res.setHeader('Content-Type', 'application/octet-stream');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    return res.send(buffer);
+    try {
+        const keys = normalizeStoreKeys(req.query?.keys);
+        const { filename, buffer, meta } = createBackupArchive({ keys });
+        appendSecurityAudit('system_backup_exported', req, {
+            filename,
+            bytes: meta.bytes,
+            storeCount: meta.storeKeys.length,
+            encrypted: true,
+        });
+        res.setHeader('Content-Type', 'application/octet-stream');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        return res.send(buffer);
+    } catch (error: any) {
+        return res.status(500).json({
+            success: false,
+            msg: error?.message || '导出系统备份失败',
+        });
+    }
 });
 
 router.post('/backup/local', adminOnly, (req, res) => {
@@ -634,7 +669,7 @@ router.delete('/backup/local/:filename', adminOnly, (req, res) => {
     }
 });
 
-router.post('/backup/inspect', adminOnly, backupUpload.single('file'), (req, res) => {
+router.post('/backup/inspect', adminOnly, handleBackupUpload, (req, res) => {
     if (!req.file?.buffer) {
         return res.status(400).json({
             success: false,
@@ -642,8 +677,13 @@ router.post('/backup/inspect', adminOnly, backupUpload.single('file'), (req, res
         });
     }
 
+    const allowLegacyUnencrypted = normalizeBoolean(
+        req.body?.allowLegacyUnencrypted ?? req.query?.allowLegacyUnencrypted,
+        false
+    );
+
     try {
-        const inspection = inspectBackupArchive(req.file.buffer);
+        const inspection = inspectBackupArchive(req.file.buffer, { allowLegacyUnencrypted });
         return res.json({
             success: true,
             obj: {
@@ -659,7 +699,7 @@ router.post('/backup/inspect', adminOnly, backupUpload.single('file'), (req, res
     }
 });
 
-router.post('/backup/restore', adminOnly, backupUpload.single('file'), async (req, res) => {
+router.post('/backup/restore', adminOnly, handleBackupUpload, async (req, res) => {
     if (!req.file?.buffer) {
         return res.status(400).json({
             success: false,
@@ -683,10 +723,16 @@ router.post('/backup/restore', adminOnly, backupUpload.single('file'), async (re
         });
     }
 
+    const allowLegacyUnencrypted = normalizeBoolean(
+        req.body?.allowLegacyUnencrypted ?? req.query?.allowLegacyUnencrypted,
+        false
+    );
+
     try {
         const output = await restoreBackupArchive(req.file.buffer, {
             filename: req.file.originalname,
             keys,
+            allowLegacyUnencrypted,
         });
         appendSecurityAudit('system_backup_restored', req, {
             filename: String(req.file.originalname || '').trim(),
@@ -1216,6 +1262,10 @@ router.delete('/tasks/:taskId', operatorOrAbove, (req, res) => {
     if (!task) {
         return res.status(404).json({ success: false, msg: 'Task not found' });
     }
+    const isAdminOnlyTask = task.type === 'db_backfill' || task.type === 'registered_user_notice';
+    if (req.user?.role !== 'admin' && (isAdminOnlyTask || (task.actor && task.actor !== req.user?.username))) {
+        return res.status(403).json({ success: false, msg: 'Admin privileges required to cancel this task' });
+    }
     if (task.status === TASK_STATUS.RUNNING || task.status === TASK_STATUS.PENDING) {
         const cancelled = taskQueue.cancel(req.params.taskId);
         if (cancelled) {
@@ -1228,19 +1278,30 @@ router.delete('/tasks/:taskId', operatorOrAbove, (req, res) => {
 
 // 通知接口
 router.get('/notifications', authMiddleware, (req, res) => {
+    const locale = resolveRequestLocale(req);
     const limit = Number(req.query.limit) || 50;
     const offset = Number(req.query.offset) || 0;
     const result = notificationService.getAll({ limit, offset });
+    const items = result.items.map((item) => {
+        const localized = item?.meta?.localized?.[locale];
+        if (!localized) return item;
+        return {
+            ...item,
+            title: localized.title || item.title,
+            body: localized.body || item.body,
+        };
+    });
     return res.json({
         success: true,
         obj: {
             ...result,
+            items,
             unreadCount: notificationService.unreadCount(),
         },
     });
 });
 
-router.post('/notifications/read', authMiddleware, (req, res) => {
+router.post('/notifications/read', operatorOrAbove, (req, res) => {
     const { id, all } = req.body || {};
     if (all) {
         const count = notificationService.markAllRead();
@@ -1248,7 +1309,10 @@ router.post('/notifications/read', authMiddleware, (req, res) => {
     }
     if (id) {
         const ok = notificationService.markRead(id);
-        return res.json({ success: ok, msg: ok ? 'Marked as read' : 'Notification not found' });
+        if (!ok) {
+            return res.status(404).json({ success: false, msg: 'Notification not found' });
+        }
+        return res.json({ success: true, msg: 'Marked as read' });
     }
     return res.status(400).json({ success: false, msg: 'Provide id or all=true' });
 });
@@ -1262,8 +1326,11 @@ router.post('/notifications/test-webhook', authMiddleware, adminOnly, async (req
         if (!channel) {
             return res.status(400).json({ success: false, msg: '请选择推送渠道' });
         }
+        const storedWebhook = systemSettingsStore.getWebhook();
+        const effectiveBarkKey = barkKey === '********' ? storedWebhook.barkKey : barkKey;
+        const effectiveSecret = secret === '********' ? storedWebhook.secret : secret;
         const result = await sendWebhookAlert(
-            { channel, url, barkKey, secret },
+            { channel, url, barkKey: effectiveBarkKey, secret: effectiveSecret },
             {
                 title: 'NMS 告警测试',
                 message: '这是一条来自 NMS 节点管家的测试通知，证明您的 Webhook 告警通道工作正常！',

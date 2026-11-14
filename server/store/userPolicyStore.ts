@@ -43,7 +43,7 @@ function normalizeNonNegativeInt(value: unknown, fallback: number = 0): number {
     return Math.max(0, Math.floor(parsed));
 }
 
-function sanitizePolicy(input: any = {}): any {
+function sanitizePolicy(input: any = {}, fallbackInheritGroup: boolean = false): any {
     const blockedServerIds = toUniqueStringArray(
         input.blockedServerIds || input.deniedServerIds,
         (item) => String(item || '').trim()
@@ -93,6 +93,13 @@ function sanitizePolicy(input: any = {}): any {
         protocolScopeMode = 'none';
     }
 
+    const hasInheritGroup = Boolean(
+        input
+        && typeof input === 'object'
+        && Object.prototype.hasOwnProperty.call(input, 'inheritGroup')
+        && input.inheritGroup !== undefined
+    );
+
     return {
         allowedServerIds: serverScopeMode === 'selected' ? selectedServerIds : [],
         blockedServerIds,
@@ -116,7 +123,7 @@ function sanitizePolicy(input: any = {}): any {
         group: String(input.group || '').trim(),
         comment: String(input.comment || '').trim(),
         reset: Number(input.reset) || 0,
-        inheritGroup: input.inheritGroup === true,
+        inheritGroup: hasInheritGroup ? input.inheritGroup === true : Boolean(fallbackInheritGroup),
         overrideFields,
     };
 }
@@ -209,7 +216,8 @@ class UserPolicyStore {
             throw new Error('Email is required');
         }
 
-        const policy = sanitizePolicy(policyInput);
+        const current = this.policies[normalizedEmail] || null;
+        const policy = sanitizePolicy(policyInput, current ? current.inheritGroup === true : false);
         const nowIso = new Date().toISOString();
 
         this.policies[normalizedEmail] = {

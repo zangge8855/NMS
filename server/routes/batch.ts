@@ -31,6 +31,7 @@ import {
 } from '../lib/panelApiCompat.js';
 import { invalidateServerPanelSnapshotCache } from '../lib/serverPanelSnapshotService.js';
 import { isManagedClientProtocol } from '../lib/clientProtocols.js';
+import { invalidatePublicSubCache } from './subscriptions.js';
 
 const router = Router();
 
@@ -43,6 +44,35 @@ const AUTH_PROTOCOLS = new Set(['hysteria', 'hysteria2', 'hy2']);
 const SENSITIVE_BATCH_ACTIONS = new Set(['delete', 'disable']);
 const JOB_ID_PATTERN = '[0-9a-fA-F-]{36}';
 const RETRY_GROUP_MODES = new Set(['none', 'server', 'error', 'server_error']);
+
+function invalidateBatchMutationCaches(serverId: string): void {
+    invalidateServerPanelSnapshotCache(serverId);
+    invalidatePublicSubCache();
+}
+
+function recordRetrySecurityAudit(historyItem: any, historyEntry: any, retried: any, req: any, output: any): void {
+    if (SENSITIVE_BATCH_ACTIONS.has(historyItem.action)) {
+        appendSecurityAudit('batch_sensitive_retry', req, {
+            type: historyItem.type,
+            action: historyItem.action,
+            sourceHistoryId: historyItem.id,
+            retryHistoryId: historyEntry.id,
+            total: output.summary.total,
+            failed: output.summary.failed,
+            riskLevel: retried.risk?.level || 'unknown',
+        });
+    } else if (retried.risk?.level === 'high') {
+        appendSecurityAudit('batch_high_risk_retry', req, {
+            type: historyItem.type,
+            action: historyItem.action,
+            sourceHistoryId: historyItem.id,
+            retryHistoryId: historyEntry.id,
+            total: output.summary.total,
+            failed: output.summary.failed,
+            riskLevel: retried.risk.level,
+        });
+    }
+}
 
 function toStringValue(value) {
     if (value === undefined || value === null) return '';
@@ -512,7 +542,7 @@ async function executeClientAction({ action, target, globalClient, payload, targ
             }
 
             await postAddClientCompat(client, target.inboundId, clientData);
-            invalidateServerPanelSnapshotCache(target.serverId);
+            invalidateBatchMutationCaches(target.serverId);
 
             return {
                 ...baseResult,
@@ -532,7 +562,7 @@ async function executeClientAction({ action, target, globalClient, payload, targ
                 protocol: targetProtocol,
                 clientData: target.client || globalClient || {},
             });
-            invalidateServerPanelSnapshotCache(target.serverId);
+            invalidateBatchMutationCaches(target.serverId);
 
             return {
                 ...baseResult,
@@ -570,7 +600,7 @@ async function executeClientAction({ action, target, globalClient, payload, targ
                 protocol: targetProtocol || inbound.protocol,
                 clientData: adjusted.client,
             });
-            invalidateServerPanelSnapshotCache(target.serverId);
+            invalidateBatchMutationCaches(target.serverId);
 
             return {
                 ...baseResult,
@@ -585,11 +615,17 @@ async function executeClientAction({ action, target, globalClient, payload, targ
         }
 
         let normalizedClient;
+        let resolvedIdentifier = clientIdentifier;
+        let resolvedEmail = target.email;
+        let resolvedProtocol = targetProtocol;
         if (action === 'enable' || action === 'disable') {
             const inbound = await fetchPanelInboundByIdCompat(client, target.inboundId);
             if (!inbound) throw new Error('Inbound not found');
             const sourceClient = findTargetClientInInbound(inbound, target, targetProtocol);
             if (!sourceClient) throw new Error('Client not found');
+            resolvedProtocol = targetProtocol || normalizeProtocol(inbound.protocol);
+            resolvedIdentifier = resolveClientIdentifier(sourceClient, resolvedProtocol) || clientIdentifier;
+            resolvedEmail = sourceClient.email || target.email;
             normalizedClient = {
                 ...sourceClient,
                 enable: action === 'enable',
@@ -606,14 +642,18 @@ async function executeClientAction({ action, target, globalClient, payload, targ
             }
         }
 
-        await postUpdateClientCompat(client, target.inboundId, clientIdentifier, normalizedClient, {
-            email: target.email,
-            protocol: targetProtocol,
+        await postUpdateClientCompat(client, target.inboundId, resolvedIdentifier, normalizedClient, {
+            email: resolvedEmail,
+            protocol: resolvedProtocol,
+            clientData: normalizedClient,
         });
-        invalidateServerPanelSnapshotCache(target.serverId);
+        invalidateBatchMutationCaches(target.serverId);
 
         return {
             ...baseResult,
+            clientIdentifier: resolvedIdentifier || baseResult.clientIdentifier,
+            email: resolvedEmail || baseResult.email,
+            protocol: resolvedProtocol || baseResult.protocol,
             success: true,
             msg: action === 'update'
                 ? 'Client updated'
@@ -654,6 +694,7 @@ async function executeInboundAction({ action, target, payload, targetIndex }) {
             const createdInbound = response?.data?.obj && typeof response.data.obj === 'object'
                 ? response.data.obj
                 : {};
+            invalidateBatchMutationCaches(target.serverId);
 
             return {
                 ...baseResult,
@@ -671,6 +712,7 @@ async function executeInboundAction({ action, target, payload, targetIndex }) {
 
         if (action === 'delete') {
             await postDeleteInboundCompat(client, inboundId);
+            invalidateBatchMutationCaches(target.serverId);
             return {
                 ...baseResult,
                 success: true,
@@ -680,6 +722,7 @@ async function executeInboundAction({ action, target, payload, targetIndex }) {
 
         if (action === 'resetTraffic') {
             await resetInboundTrafficCompat(client, inboundId);
+            invalidateBatchMutationCaches(target.serverId);
             return {
                 ...baseResult,
                 success: true,
@@ -706,6 +749,7 @@ async function executeInboundAction({ action, target, payload, targetIndex }) {
         } else {
             await postUpdateInboundCompat(client, inboundId, inboundData);
         }
+        invalidateBatchMutationCaches(target.serverId);
 
         return {
             ...baseResult,
@@ -1032,15 +1076,23 @@ function buildRetryRequestSnapshot(entry, options: any = {}) {
             snapshot.targets = currentTargets.filter((target) => failedKeys.has(buildClientTargetKey(target)));
         }
     } else if (entry.type === 'inbounds') {
+        const failedIndices = new Set(selectedFailed.map((item) => item.targetIndex).filter((idx) => typeof idx === 'number'));
         if (entry.action === 'add') {
             const failedServerIds = new Set(selectedFailed.map((item) => toStringValue(item.serverId)));
             if (Array.isArray(snapshot.targets) && snapshot.targets.length > 0) {
-                snapshot.targets = snapshot.targets.filter((target) => failedServerIds.has(toStringValue(target.serverId)));
+                if (failedIndices.size > 0) {
+                    snapshot.targets = snapshot.targets.filter((_target, idx) => failedIndices.has(idx));
+                } else {
+                    snapshot.targets = snapshot.targets.filter((target) => failedServerIds.has(toStringValue(target.serverId)));
+                }
             } else if (Array.isArray(snapshot.serverIds)) {
-                snapshot.serverIds = snapshot.serverIds.filter((id) => failedServerIds.has(toStringValue(id)));
+                if (failedIndices.size > 0) {
+                    snapshot.serverIds = snapshot.serverIds.filter((_id, idx) => failedIndices.has(idx));
+                } else {
+                    snapshot.serverIds = snapshot.serverIds.filter((id) => failedServerIds.has(toStringValue(id)));
+                }
             }
         } else {
-            const failedIndices = new Set(selectedFailed.map((item) => item.targetIndex).filter((idx) => typeof idx === 'number'));
             const currentTargets = Array.isArray(snapshot.targets) ? snapshot.targets : [];
             if (failedIndices.size > 0) {
                 snapshot.targets = currentTargets.filter((target, idx) => failedIndices.has(idx));
@@ -1628,27 +1680,7 @@ router.post('/history/:id/retry', async (req, res) => {
                 retryStrategy: retried.retryStrategy || null,
             }
         );
-        if (SENSITIVE_BATCH_ACTIONS.has(historyItem.action)) {
-            appendSecurityAudit('batch_sensitive_retry', req, {
-                type: historyItem.type,
-                action: historyItem.action,
-                sourceHistoryId: historyItem.id,
-                retryHistoryId: historyEntry.id,
-                total: output.summary.total,
-                failed: output.summary.failed,
-                riskLevel: retried.risk?.level || 'unknown',
-            });
-        } else if (retried.risk?.level === 'high') {
-            appendSecurityAudit('batch_high_risk_retry', req, {
-                type: historyItem.type,
-                action: historyItem.action,
-                sourceHistoryId: historyItem.id,
-                retryHistoryId: historyEntry.id,
-                total: output.summary.total,
-                failed: output.summary.failed,
-                riskLevel: retried.risk.level,
-            });
-        }
+        recordRetrySecurityAudit(historyItem, historyEntry, retried, req, output);
 
         return res.status(output.summary.failed > 0 ? 207 : 200).json({
             success: output.summary.failed === 0,
@@ -1722,17 +1754,7 @@ router.post(`/:id(${JOB_ID_PATTERN})/retry`, async (req, res) => {
                 retryStrategy: retried.retryStrategy || null,
             }
         );
-        if (retried.risk?.level === 'high') {
-            appendSecurityAudit('batch_high_risk_retry', req, {
-                type: historyItem.type,
-                action: historyItem.action,
-                sourceHistoryId: historyItem.id,
-                retryHistoryId: historyEntry.id,
-                total: retried.run.summary.total,
-                failed: retried.run.summary.failed,
-                riskLevel: retried.risk.level,
-            });
-        }
+        recordRetrySecurityAudit(historyItem, historyEntry, retried, req, retried.run);
         return res.status(retried.run.summary.failed > 0 ? 207 : 200).json({
             success: retried.run.summary.failed === 0,
             obj: {

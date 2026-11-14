@@ -8,6 +8,7 @@ import app from '../index.js';
 import { invokeApp } from './helpers/invokeApp.js';
 import certificateStore from '../store/certificateStore.js';
 import serverStore from '../store/serverStore.js';
+import userStore from '../store/userStore.js';
 import {
     generateSelfSignedCert,
     issueOrRenewCertificate,
@@ -83,26 +84,37 @@ test('GET /api/certificates/:id redacts secrets for auditor role even if request
         privateKey: '-----BEGIN PRIVATE KEY-----\nMOCK\n-----END PRIVATE KEY-----',
     });
 
+    const auditor = userStore.add({
+        username: `acme_auditor_${Date.now()}`,
+        email: `acme_auditor_${Date.now()}@example.com`,
+        password: 'AuditorPass123!',
+        role: 'auditor',
+        enabled: true,
+        emailVerified: true,
+    });
     const auditorToken = jwt.sign(
-        { userId: 'auditor-1', role: 'auditor', username: 'auditor' },
+        { userId: auditor.id, role: auditor.role, username: auditor.username, tokenVersion: 1 },
         config.jwt.secret,
         { expiresIn: '1h' }
     );
 
-    const res = await invokeApp(app, {
-        method: 'GET',
-        url: `/api/certificates/${record.id}?includeSecrets=true`,
-        headers: {
-            Authorization: `Bearer ${auditorToken}`,
-        },
-    });
+    try {
+        const res = await invokeApp(app, {
+            method: 'GET',
+            url: `/api/certificates/${record.id}?includeSecrets=true`,
+            headers: {
+                Authorization: `Bearer ${auditorToken}`,
+            },
+        });
 
-    assert.equal(res.statusCode, 200);
-    assert.equal(res.json.obj.cfApiToken, '********');
-    assert.equal(res.json.obj.privateKey, undefined);
-    assert.equal(res.json.obj.hasPrivateKey, true);
-
-    certificateStore.delete(record.id);
+        assert.equal(res.statusCode, 200);
+        assert.equal(res.json.obj.cfApiToken, '********');
+        assert.equal(res.json.obj.privateKey, undefined);
+        assert.equal(res.json.obj.hasPrivateKey, true);
+    } finally {
+        userStore.remove(auditor.id);
+        certificateStore.delete(record.id);
+    }
 });
 
 test('GET /api/certificates/:id exposes secrets for admin role when requested', async () => {
@@ -116,8 +128,15 @@ test('GET /api/certificates/:id exposes secrets for admin role when requested', 
         privateKey: '-----BEGIN PRIVATE KEY-----\nMOCK\n-----END PRIVATE KEY-----',
     });
 
+    const admin = userStore.getAll().find((item) => item.role === 'admin') || userStore.getByUsername('admin');
+    const storedAdmin = admin ? userStore.getById(admin.id) : null;
     const adminToken = jwt.sign(
-        { userId: 'admin-1', role: 'admin', username: 'admin' },
+        {
+            userId: storedAdmin.id,
+            role: storedAdmin.role,
+            username: storedAdmin.username,
+            tokenVersion: storedAdmin.tokenVersion || 1,
+        },
         config.jwt.secret,
         { expiresIn: '1h' }
     );
@@ -147,7 +166,7 @@ test('issueOrRenewCertificate requires cfApiToken for dns-cloudflare challenge',
 
     try {
         await assert.rejects(
-            () => issueOrRenewCertificate(record.id),
+            () => issueOrRenewCertificate(record.id, { allowLoopbackDirectory: true }),
             /Cloudflare API Token is required/
         );
         const failed = certificateStore.getById(record.id);
@@ -155,6 +174,46 @@ test('issueOrRenewCertificate requires cfApiToken for dns-cloudflare challenge',
     } finally {
         certificateStore.delete(record.id);
     }
+});
+
+test('ACME directory resolver and POST /api/certificates reject private/loopback SSRF URLs', async () => {
+    const { resolveAcmeDirectoryUrl } = await import('../services/acmeService.js');
+    assert.throws(
+        () => resolveAcmeDirectoryUrl('custom', 'http://127.0.0.1:8080/directory'),
+        /private|local|internal/i
+    );
+    assert.throws(
+        () => resolveAcmeDirectoryUrl('custom', 'http://169.254.169.254/latest/meta-data'),
+        /private|local/i
+    );
+
+    const storedAdmin = userStore.getByUsername(config.auth.adminUsername);
+    const adminToken = jwt.sign(
+        {
+            userId: storedAdmin.id,
+            role: storedAdmin.role,
+            username: storedAdmin.username,
+            tokenVersion: storedAdmin.tokenVersion || 1,
+        },
+        config.jwt.secret,
+        { expiresIn: '1h' }
+    );
+
+    const res = await invokeApp(app, {
+        method: 'POST',
+        url: '/api/certificates',
+        headers: {
+            Authorization: `Bearer ${adminToken}`,
+        },
+        body: {
+            domain: 'ssrf-acme.example.com',
+            provider: 'custom',
+            acmeDirectoryUrl: 'http://127.0.0.1:8080/directory',
+            challengeType: 'http',
+            issueImmediately: false,
+        },
+    });
+    assert.equal(res.statusCode, 400);
 });
 
 test('issueOrRenewCertificate executes full RFC 8555 ACME v2 HTTP-01 flow and serves challenge route', async (t) => {
@@ -279,6 +338,7 @@ test('issueOrRenewCertificate executes full RFC 8555 ACME v2 HTTP-01 flow and se
         const issued = await issueOrRenewCertificate(record.id, {
             pollIntervalMs: 10,
             dnsPropagationWaitMs: 0,
+            allowLoopbackDirectory: true,
         });
         assert.equal(issued.status, 'valid');
         assert.equal(challengeValidated, true);

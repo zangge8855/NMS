@@ -1,6 +1,8 @@
-import dns from 'node:dns/promises';
-import net from 'node:net';
-import { isReservedOrPrivateIp, stripIpv6Brackets } from './ipGeoResolver.js';
+import {
+    requestExternalWithPinnedIp,
+    resolveExternalHttpTarget,
+    type ResolvedExternalTarget,
+} from './ssrfProtection.js';
 
 const DEFAULT_WEBHOOK_TIMEOUT_MS = 10_000;
 
@@ -10,67 +12,12 @@ export interface WebhookSecurityDeps {
     timeoutMs?: number;
 }
 
-function isBlockedWebhookHostname(hostname: string): boolean {
-    const host = stripIpv6Brackets(hostname).toLowerCase();
-    if (!host) return true;
-    if (host === 'localhost' || host.endsWith('.localhost')) return true;
-    if (host.endsWith('.local')) return true;
-    if (host.endsWith('.internal')) return true;
-    if (host.endsWith('.test')) return true;
-    if (host.endsWith('.invalid')) return true;
-    if (host.endsWith('.example')) return true;
-    if (net.isIP(host) !== 0) return false;
-    if (!host.includes('.')) return true;
-    return false;
-}
-
 export async function validateWebhookTargetUrl(rawUrl: unknown, deps: WebhookSecurityDeps = {}): Promise<URL> {
-    const text = String(rawUrl || '').trim();
-    if (!text) {
-        throw new Error('Webhook URL is required');
-    }
-
-    let parsed: URL;
-    try {
-        parsed = new URL(text);
-    } catch {
-        throw new Error('Webhook URL is invalid');
-    }
-
-    if (!['http:', 'https:'].includes(parsed.protocol)) {
-        throw new Error('Webhook URL must use http or https protocol');
-    }
-
-    if (parsed.username || parsed.password) {
-        throw new Error('Webhook URL must not include embedded credentials');
-    }
-
-    const hostname = stripIpv6Brackets(parsed.hostname);
-    if (isBlockedWebhookHostname(hostname)) {
-        throw new Error('Webhook URL cannot target localhost or internal hostnames');
-    }
-
-    if (isReservedOrPrivateIp(hostname)) {
-        throw new Error('Webhook URL cannot target private or local IP addresses');
-    }
-
-    if (net.isIP(hostname) === 0) {
-        const lookup = deps.lookup || ((target: string) => dns.lookup(target, { all: true, verbatim: true }));
-        let records: Array<{ address: string }>;
-        try {
-            records = await lookup(hostname);
-        } catch {
-            throw new Error('Webhook hostname resolution failed');
-        }
-        if (!Array.isArray(records) || records.length === 0) {
-            throw new Error('Webhook hostname did not resolve to any address');
-        }
-        if (records.some((record) => isReservedOrPrivateIp(record?.address))) {
-            throw new Error('Webhook hostname resolved to a private or internal IP address');
-        }
-    }
-
-    return parsed;
+    const resolved = await resolveExternalHttpTarget(rawUrl, {
+        label: 'Webhook',
+        lookup: deps.lookup,
+    });
+    return resolved.url;
 }
 
 function buildBarkTargetUrl(urlValue: unknown, barkKeyValue: unknown, title: unknown, message: unknown): string {
@@ -98,23 +45,30 @@ function buildBarkTargetUrl(urlValue: unknown, barkKeyValue: unknown, title: unk
 export async function sendWebhookAlert(webhookConfig: any, payload: any, deps: WebhookSecurityDeps = {}) {
     const { channel, url, barkKey } = webhookConfig || {};
     const { title, message, event, timestamp } = payload || {};
-    const fetchFn = deps.fetchImpl || fetch;
+    const fetchFn = typeof deps.fetchImpl === 'function' ? deps.fetchImpl : null;
     const timeoutMs = Number.isFinite(Number(deps.timeoutMs)) && Number(deps.timeoutMs) > 0
         ? Math.floor(Number(deps.timeoutMs))
         : DEFAULT_WEBHOOK_TIMEOUT_MS;
 
     try {
         let finalUrl = String(url || '').trim();
+        let resolvedTarget: ResolvedExternalTarget;
         let requestInit: RequestInit;
 
         if (channel === 'bark') {
             finalUrl = buildBarkTargetUrl(url, barkKey, title, message);
-            const validated = await validateWebhookTargetUrl(finalUrl, deps);
-            finalUrl = validated.toString();
-            requestInit = { redirect: 'manual' };
+            resolvedTarget = await resolveExternalHttpTarget(finalUrl, {
+                label: 'Webhook',
+                lookup: deps.lookup,
+            });
+            finalUrl = resolvedTarget.url.toString();
+            requestInit = { method: 'GET', redirect: 'manual' };
         } else {
-            const validated = await validateWebhookTargetUrl(finalUrl, deps);
-            finalUrl = validated.toString();
+            resolvedTarget = await resolveExternalHttpTarget(finalUrl, {
+                label: 'Webhook',
+                lookup: deps.lookup,
+            });
+            finalUrl = resolvedTarget.url.toString();
 
             if (channel === 'discord') {
                 requestInit = {
@@ -166,12 +120,22 @@ export async function sendWebhookAlert(webhookConfig: any, payload: any, deps: W
 
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
-        let response: Response;
+        let response: { ok?: boolean; status?: number; statusText?: string; type?: string };
         try {
-            response = await fetchFn(finalUrl, {
-                ...requestInit,
-                signal: controller.signal,
-            });
+            if (fetchFn) {
+                response = await fetchFn(finalUrl, {
+                    ...requestInit,
+                    signal: controller.signal,
+                });
+            } else {
+                response = await requestExternalWithPinnedIp(resolvedTarget, {
+                    method: requestInit.method || 'GET',
+                    headers: (requestInit.headers as Record<string, string>) || {},
+                    body: typeof requestInit.body === 'string' ? requestInit.body : undefined,
+                    timeoutMs,
+                    signal: controller.signal,
+                });
+            }
         } finally {
             clearTimeout(timer);
         }

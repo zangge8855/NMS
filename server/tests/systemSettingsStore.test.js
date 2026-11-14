@@ -211,13 +211,44 @@ describe('SystemSettingsStore ordering', { concurrency: false }, () => {
         assert.equal(updated.webhook.channel, 'discord');
         assert.equal(updated.webhook.url, 'https://discord.example/api/webhooks/1/abc');
         assert.deepEqual(updated.webhook.events, { nodeOffline: true, trafficAlert: false, certExpiring: true });
+        assert.equal(updated.webhook.secret, '********');
+        assert.equal(updated.webhook.secretConfigured, true);
+        assert.equal(updated.webhook.barkKey, '');
+        assert.equal(updated.webhook.barkKeyConfigured, false);
         assert.equal(systemSettingsStore.getWebhook().secret, 's3cret');
+
+        const maskedSave = systemSettingsStore.update({
+            webhook: {
+                channel: 'bark',
+                barkKey: 'device-key-123',
+                secret: '********',
+            },
+        });
+        assert.equal(maskedSave.webhook.barkKey, '********');
+        assert.equal(maskedSave.webhook.barkKeyConfigured, true);
+        assert.equal(systemSettingsStore.getWebhook().secret, 's3cret');
+        assert.equal(systemSettingsStore.getWebhook().barkKey, 'device-key-123');
 
         const sanitized = systemSettingsStore.update({
             webhook: { channel: 'carrier-pigeon', url: 'javascript:alert(1)' },
         });
-        assert.equal(sanitized.webhook.channel, 'discord');
+        assert.equal(sanitized.webhook.channel, 'bark');
         assert.equal(sanitized.webhook.url, 'https://discord.example/api/webhooks/1/abc');
+    });
+
+    it('fails closed and does not overwrite a non-object settings file at startup', async () => {
+        const module = await import('../store/systemSettingsStore.js');
+        fs.mkdirSync(TEST_DATA_DIR, { recursive: true });
+
+        const settingsFile = path.join(TEST_DATA_DIR, 'system_settings.json');
+        fs.writeFileSync(settingsFile, '["corrupted"]');
+        try {
+            assert.throws(() => new module.SystemSettingsStore(), /expected a JSON object/);
+            assert.equal(fs.readFileSync(settingsFile, 'utf8'), '["corrupted"]');
+        } finally {
+            systemSettingsStore.settings = systemSettingsStore._normalizeSettings({});
+            systemSettingsStore._save();
+        }
     });
 
     it('rejects reserved site access paths', () => {

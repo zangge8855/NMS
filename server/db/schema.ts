@@ -43,13 +43,19 @@ export async function ensureDbSchema(): Promise<EnsureDbSchemaResult> {
             id SMALLINT PRIMARY KEY,
             read_mode TEXT NOT NULL,
             write_mode TEXT NOT NULL,
+            initialized BOOLEAN NOT NULL DEFAULT FALSE,
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
     `);
 
     await dbQuery(`
-        INSERT INTO ${s}.runtime_modes (id, read_mode, write_mode)
-        VALUES (1, 'file', 'file')
+        ALTER TABLE ${s}.runtime_modes
+        ADD COLUMN IF NOT EXISTS initialized BOOLEAN NOT NULL DEFAULT FALSE;
+    `);
+
+    await dbQuery(`
+        INSERT INTO ${s}.runtime_modes (id, read_mode, write_mode, initialized)
+        VALUES (1, 'file', 'file', FALSE)
         ON CONFLICT (id) DO NOTHING;
     `);
 

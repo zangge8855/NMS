@@ -14,7 +14,7 @@ after(() => {
     }
 });
 
-const { ensureAuthenticated } = await import('../lib/panelClient.js');
+const { ensureAuthenticated, createPanelClient } = await import('../lib/panelClient.js');
 const { default: serverStore } = await import('../store/serverStore.js');
 
 function parseCookies(header = '') {
@@ -426,4 +426,76 @@ test('ensureAuthenticated reports invalid panel API token as auth failure', asyn
             return true;
         }
     );
+});
+
+test('ensureAuthenticated preserves stored session when manual credential overrides fail', async (t) => {
+    const panel = await startFakePanel();
+    t.after(panel.close);
+
+    const sessions = mockPanelServerStore(t, {
+        id: 'srv-preserve-session',
+        url: panel.url,
+    }, '3x-ui=kept-sid');
+
+    await assert.rejects(
+        () => ensureAuthenticated('srv-preserve-session', {
+            username: 'admin',
+            password: 'wrong-override-password',
+            forceLogin: true,
+        }),
+        (error) => error.code === 'PANEL_LOGIN_FAILED'
+    );
+
+    assert.equal(sessions.get('srv-preserve-session'), '3x-ui=kept-sid');
+});
+
+test('createPanelClient merges Set-Cookie headers by name and disables automatic redirects', async (t) => {
+    const observedCookies = [];
+    const server = http.createServer((req, res) => {
+        observedCookies.push(req.headers.cookie || '');
+        if (req.url === '/step1') {
+            res.writeHead(200, {
+                'Content-Type': 'application/json',
+                'Set-Cookie': ['3x-ui=sid-primary; Path=/; HttpOnly'],
+            });
+            res.end(JSON.stringify({ success: true }));
+            return;
+        }
+        if (req.url === '/step2') {
+            res.writeHead(200, {
+                'Content-Type': 'application/json',
+                'Set-Cookie': ['lang=en-US; Path=/'],
+            });
+            res.end(JSON.stringify({ success: true }));
+            return;
+        }
+        if (req.url === '/redirect') {
+            res.writeHead(302, { Location: '/step1' });
+            res.end();
+            return;
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true }));
+    });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    t.after(() => closeServer(server));
+
+    const address = server.address();
+    const sessions = mockPanelServerStore(t, {
+        id: 'srv-cookie-merge',
+        url: `http://127.0.0.1:${address.port}`,
+    });
+
+    const { client } = await createPanelClient('srv-cookie-merge');
+    assert.equal(client.defaults.maxRedirects, 0);
+
+    await client.get('/step1');
+    await client.get('/step2');
+    await client.get('/step3');
+
+    assert.equal(sessions.get('srv-cookie-merge'), '3x-ui=sid-primary; lang=en-US');
+    assert.match(observedCookies[2], /3x-ui=sid-primary/);
+    assert.match(observedCookies[2], /lang=en-US/);
+
+    await assert.rejects(() => client.get('/redirect'));
 });

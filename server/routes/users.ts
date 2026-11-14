@@ -12,6 +12,21 @@ import { querySubscriptionAccess } from '../services/subscriptionAuditService.js
 import { enrichAuditEvents } from '../lib/auditEventEnrichment.js';
 import { resolveEffectivePolicy } from '../lib/userPolicyResolver.js';
 import { autoDeployClients } from '../services/subscriptionSyncService.js';
+import { pickLocalizedText, resolveRequestLocale } from '../lib/requestLocale.js';
+import config from '../config.js';
+import systemSettingsStore from '../store/systemSettingsStore.js';
+
+function resolveGuestPassSubscriptionBase(req: Request): string {
+    const configured = String(
+        systemSettingsStore.getSubscription()?.publicBaseUrl
+        || config.subscription?.publicBaseUrl
+        || ''
+    ).trim().replace(/\/+$/, '');
+    if (configured) {
+        return configured;
+    }
+    return `${req.protocol}://${req.get('host')}`;
+}
 
 const router = Router();
 
@@ -55,9 +70,10 @@ function mergeAuditResults(results: any[] = [], pageSize: number = 50) {
 
 // GET /api/users/:id/detail — aggregate user detail
 router.get('/:id/detail', async (req: Request, res: Response) => {
+    const locale = resolveRequestLocale(req);
     const user = userStore.getById(req.params.id);
     if (!user) {
-        return res.status(404).json({ success: false, msg: '用户不存在' });
+        return res.status(404).json({ success: false, msg: pickLocalizedText(locale, '用户不存在', 'User not found') });
     }
 
     const trackedEmails = collectUserEmails(user);
@@ -149,9 +165,10 @@ router.get('/:id/detail', async (req: Request, res: Response) => {
 
 // GET /api/users/:id/tokens — list user's subscription tokens
 router.get('/:id/tokens', (req: Request, res: Response) => {
+    const locale = resolveRequestLocale(req);
     const user = userStore.getById(req.params.id);
     if (!user) {
-        return res.status(404).json({ success: false, msg: '用户不存在' });
+        return res.status(404).json({ success: false, msg: pickLocalizedText(locale, '用户不存在', 'User not found') });
     }
     const email = normalizeEmail(user.subscriptionEmail || user.email);
     if (!email) {
@@ -163,13 +180,14 @@ router.get('/:id/tokens', (req: Request, res: Response) => {
 
 // POST /api/users/:id/tokens — issue new subscription token
 router.post('/:id/tokens', (req: Request, res: Response) => {
+    const locale = resolveRequestLocale(req);
     const user = userStore.getById(req.params.id);
     if (!user) {
-        return res.status(404).json({ success: false, msg: '用户不存在' });
+        return res.status(404).json({ success: false, msg: pickLocalizedText(locale, '用户不存在', 'User not found') });
     }
     const email = normalizeEmail(user.subscriptionEmail || user.email);
     if (!email) {
-        return res.status(400).json({ success: false, msg: '用户未配置邮箱' });
+        return res.status(400).json({ success: false, msg: pickLocalizedText(locale, '用户未配置邮箱', 'User has no email configured') });
     }
     try {
         const explicitNoExpiry = req.body?.noExpiry === true;
@@ -199,17 +217,18 @@ router.post('/:id/tokens', (req: Request, res: Response) => {
 
 // DELETE /api/users/:id/tokens/:tid — revoke token
 router.delete('/:id/tokens/:tid', (req: Request, res: Response) => {
+    const locale = resolveRequestLocale(req);
     const user = userStore.getById(req.params.id);
     if (!user) {
-        return res.status(404).json({ success: false, msg: '用户不存在' });
+        return res.status(404).json({ success: false, msg: pickLocalizedText(locale, '用户不存在', 'User not found') });
     }
     const email = normalizeEmail(user.subscriptionEmail || user.email);
     if (!email) {
-        return res.status(400).json({ success: false, msg: '用户未配置邮箱' });
+        return res.status(400).json({ success: false, msg: pickLocalizedText(locale, '用户未配置邮箱', 'User has no email configured') });
     }
     const result = subscriptionTokenStore.revoke(email, req.params.tid, 'admin-revoke');
     if (!result) {
-        return res.status(404).json({ success: false, msg: 'Token 不存在' });
+        return res.status(404).json({ success: false, msg: pickLocalizedText(locale, 'Token 不存在', 'Token not found') });
     }
     appendSecurityAudit('subscription_token_revoked', req, {
         ...buildAuditTarget(user),
@@ -225,8 +244,10 @@ router.delete('/:id/tokens/:tid', (req: Request, res: Response) => {
  * POST /api/users/guest-pass — 创建临时访客试用订阅码
  */
 router.post('/guest-pass', authMiddleware, operatorOrAbove, async (req: Request, res: Response) => {
+    const locale = resolveRequestLocale(req);
     try {
-        const { durationHours = 24, trafficLimitGb = 2, note = '访客临时体验' } = req.body || {};
+        const defaultNote = pickLocalizedText(locale, '访客临时体验', 'Guest trial');
+        const { durationHours = 24, trafficLimitGb = 2, note = defaultNote } = req.body || {};
         const hours = Math.max(1, Math.min(720, Number(durationHours) || 24));
         const limitGb = Math.max(0.5, Math.min(100, Number(trafficLimitGb) || 2));
         const randomSuffix = crypto.randomBytes(3).toString('hex');
@@ -253,7 +274,11 @@ router.post('/guest-pass', authMiddleware, operatorOrAbove, async (req: Request,
                 protocolScopeMode: 'all',
                 trafficLimitBytes: Math.floor(limitGb * 1024 * 1024 * 1024),
                 expiryTime: new Date(expiresAt).getTime(),
-                comment: `[临时访客] ${note} (${hours}小时限时 / ${limitGb}GB)`,
+                comment: pickLocalizedText(
+                    locale,
+                    `[临时访客] ${note} (${hours}小时限时 / ${limitGb}GB)`,
+                    `[Guest Pass] ${note} (${hours}h limit / ${limitGb}GB)`
+                ),
             });
             try {
                 await autoDeployClients(email, guestPolicy);
@@ -273,14 +298,15 @@ router.post('/guest-pass', authMiddleware, operatorOrAbove, async (req: Request,
         const tokenInfo = subscriptionTokenStore.issue(email, {
             createdBy: 'guest-pass',
             ttlDays: Math.max(1, Math.ceil(hours / 24)),
-            name: `访客试用 (${hours}小时)`,
+            name: pickLocalizedText(locale, `访客试用 (${hours}小时)`, `Guest trial (${hours}h)`),
         });
 
-        const subscriptionUrl = `${req.protocol}://${req.get('host')}/api/subscriptions/public/t/${tokenInfo.publicTokenId}/${tokenInfo.tokenSecret}`;
+        const baseUrl = resolveGuestPassSubscriptionBase(req);
+        const subscriptionUrl = `${baseUrl}/api/subscriptions/public/t/${tokenInfo.publicTokenId}/${tokenInfo.tokenSecret}`;
 
         return res.json({
             success: true,
-            msg: '临时访客试用码创建成功',
+            msg: pickLocalizedText(locale, '临时访客试用码创建成功', 'Temporary guest trial code created'),
             obj: {
                 user: newUser,
                 username,
@@ -295,7 +321,10 @@ router.post('/guest-pass', authMiddleware, operatorOrAbove, async (req: Request,
         });
 
     } catch (err: any) {
-        return res.status(400).json({ success: false, msg: err.message || '创建访客试用码失败' });
+        return res.status(400).json({
+            success: false,
+            msg: err.message || pickLocalizedText(locale, '创建访客试用码失败', 'Failed to create guest trial code'),
+        });
     }
 });
 

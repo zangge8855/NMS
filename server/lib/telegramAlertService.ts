@@ -1080,6 +1080,7 @@ export function createTelegramAlertService(options: any = {}) {
     let opsDigestTimer = null;
     let dailyDigestTimer = null;
     let dailyBackupTimer = null;
+    let dedupCleanupTimer: any = null;
     let lastUpdateId = 0;
     let initializedOffset = false;
     let commandsSynced = false;
@@ -2446,6 +2447,22 @@ export function createTelegramAlertService(options: any = {}) {
         });
     }
 
+    function resolveAllowedUserIds(): Set<string> {
+        return new Set(
+            String(process.env.TELEGRAM_ALLOWED_USER_IDS || '')
+                .split(',')
+                .map((item) => item.trim())
+                .filter(Boolean)
+        );
+    }
+
+    function isAuthorizedTelegramSender(from: any): boolean {
+        const allowedUserIds = resolveAllowedUserIds();
+        if (allowedUserIds.size === 0) return true;
+        const senderId = String(from?.id ?? '').trim();
+        return Boolean(senderId && allowedUserIds.has(senderId));
+    }
+
     async function processUpdates(updates: any[] = []) {
         const settings = resolveSettings();
         for (const update of Array.isArray(updates) ? updates : []) {
@@ -2453,7 +2470,11 @@ export function createTelegramAlertService(options: any = {}) {
             const message = update?.message;
             const callback = update?.callback_query;
 
-            if (message?.text && String(message?.chat?.id || '').trim() === String(settings.chatId || '').trim()) {
+            if (
+                message?.text
+                && String(message?.chat?.id || '').trim() === String(settings.chatId || '').trim()
+                && isAuthorizedTelegramSender(message?.from)
+            ) {
                 try {
                     await handleCommand(message);
                 } catch (error) {
@@ -2463,7 +2484,11 @@ export function createTelegramAlertService(options: any = {}) {
                 }
             }
 
-            if (callback && String(callback?.message?.chat?.id || '').trim() === String(settings.chatId || '').trim()) {
+            if (
+                callback
+                && String(callback?.message?.chat?.id || '').trim() === String(settings.chatId || '').trim()
+                && isAuthorizedTelegramSender(callback?.from)
+            ) {
                 try {
                     await handleCallbackQuery(callback);
                 } catch (error) {
@@ -2511,9 +2536,20 @@ export function createTelegramAlertService(options: any = {}) {
         }, delayMs);
     }
 
+    function ensureDedupCleanupTimer() {
+        if (dedupCleanupTimer) return;
+        dedupCleanupTimer = startBackgroundInterval(() => {
+            const cutoff = Date.now() - (dedupWindowMs * 2);
+            for (const [key, ts] of dedupCache.entries()) {
+                if (ts < cutoff) dedupCache.delete(key);
+            }
+        }, 10 * 60 * 1000);
+    }
+
     function start() {
         if (running) return;
         running = true;
+        ensureDedupCleanupTimer();
         void syncCommands();
         scheduleNextPoll(2000);
         schedulePeriodicDigests();
@@ -2537,6 +2573,10 @@ export function createTelegramAlertService(options: any = {}) {
         if (dailyBackupTimer) {
             clearTimeout(dailyBackupTimer);
             dailyBackupTimer = null;
+        }
+        if (dedupCleanupTimer) {
+            clearInterval(dedupCleanupTimer);
+            dedupCleanupTimer = null;
         }
         runtimeStatus.nextDailyBackupAt = '';
         for (const key of aggregateTimers.keys()) {
@@ -2638,12 +2678,7 @@ export function createTelegramAlertService(options: any = {}) {
         listSessions.reset();
     }
 
-    startBackgroundInterval(() => {
-        const cutoff = Date.now() - (dedupWindowMs * 2);
-        for (const [key, ts] of dedupCache.entries()) {
-            if (ts < cutoff) dedupCache.delete(key);
-        }
-    }, 10 * 60 * 1000);
+    ensureDedupCleanupTimer();
 
     return {
         isEnabled,
@@ -2669,6 +2704,7 @@ export function createTelegramAlertService(options: any = {}) {
         // Exposed for tests / future modules that drive callback flows
         // synchronously (e.g. write-command confirmation in Step 4).
         _handleCallbackQuery: handleCallbackQuery,
+        _processUpdates: processUpdates,
     };
 }
 

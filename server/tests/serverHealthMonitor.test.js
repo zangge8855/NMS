@@ -227,3 +227,36 @@ test('serverHealthMonitor emits a dedicated notification for confirmed DNS failu
     assert.equal(notifications[0].meta.reasonCode, 'dns_error');
     assert.deepEqual(updates, [{ id: 'srv-7', patch: { health: 'unreachable' } }]);
 });
+
+test('serverHealthMonitor emits clean English alerts for en-US locale and preserves bilingual metadata', async () => {
+    const monitor = new ServerHealthMonitor();
+    const notifications = [];
+
+    const result = await monitor.runOnce({
+        locale: 'en-US',
+        listServers: async () => [{
+            id: 'srv-en',
+            name: 'Node EN',
+            health: 'unreachable',
+        }],
+        ensureAuthenticated: async () => ({
+            get: async () => ({
+                data: {
+                    obj: {
+                        xray: { state: 'running', errorMsg: '' },
+                    },
+                },
+            }),
+        }),
+        notify: (payload) => notifications.push(payload),
+        updateServer: () => {},
+    });
+
+    assert.equal(result.summary.healthy, 1);
+    assert.equal(notifications.length, 1);
+    assert.equal(notifications[0].title, 'Node recovered: Node EN');
+    assert.doesNotMatch(notifications[0].title, /[\u4e00-\u9fff]/);
+    assert.doesNotMatch(notifications[0].body, /[\u4e00-\u9fff]/);
+    assert.equal(notifications[0].meta.localized['zh-CN'].title, '节点已恢复: Node EN');
+    assert.equal(notifications[0].meta.localized['en-US'].title, 'Node recovered: Node EN');
+});

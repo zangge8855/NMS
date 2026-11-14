@@ -1,5 +1,7 @@
 import { checkAccountPassword } from '../lib/passwordValidator.js';
 import { createHttpError } from '../lib/httpError.js';
+import { buildCsvCell } from '../lib/csv.js';
+import jobStore from '../store/jobStore.js';
 import userRepository from '../repositories/userRepository.js';
 import serverRepository from '../repositories/serverRepository.js';
 import userPolicyRepository from '../repositories/userPolicyRepository.js';
@@ -569,10 +571,6 @@ async function resyncManagedUserNodes(id: string, payload: any = {}, actor: stri
     };
 }
 
-function buildCsvCell(value: unknown): string {
-    return `"${String(value || '').replace(/"/g, '""')}"`;
-}
-
 function stripSubscriptionAliasPath(user: any): any {
     if (!user || typeof user !== 'object') return user;
     const next = { ...user };
@@ -689,16 +687,16 @@ function buildUsersCsv(deps: any = {}): string {
     const users = listUsers(deps);
     const header = 'ID,用户名,邮箱,订阅邮箱,用户分组,角色,状态,邮箱已验证,创建时间,最后登录';
     const rows = users.map((user: any) => [
-        user.id,
+        buildCsvCell(user.id || ''),
         buildCsvCell(user.username),
         buildCsvCell(user.email),
         buildCsvCell(user.subscriptionEmail),
         buildCsvCell(user.groupName || user.groupId || ''),
-        user.role,
+        buildCsvCell(user.role || ''),
         user.enabled ? '启用' : '停用',
         user.emailVerified ? '是' : '否',
-        user.createdAt || '',
-        user.lastLoginAt || '',
+        buildCsvCell(user.createdAt || ''),
+        buildCsvCell(user.lastLoginAt || ''),
     ].join(','));
 
     return '\uFEFF' + [header, ...rows].join('\n');
@@ -1212,6 +1210,56 @@ async function deleteManagedUser(id: string, deps: any = {}): Promise<any> {
         resolveUserSubscriptionEmail(targetUser),
     ].filter(Boolean)));
 
+    const allServers = serverRepo.list();
+    let preCleaned = false;
+    let clientCleanup: any = { total: 0, removed: 0, failed: 0, failedServerIds: [] as string[] };
+    let cleanupError = '';
+
+    const runRemoteCleanup = async () => {
+        const failedServerIds = new Set<string>();
+        const cleanupDetails: any[] = [];
+        for (const email of cleanupEmails) {
+            try {
+                const removal = await removeClients(email, { allServers });
+                clientCleanup.total += Number(removal?.total || 0);
+                clientCleanup.removed += Number(removal?.removed || 0);
+                clientCleanup.failed += Number(removal?.failed || 0);
+                const details = Array.isArray(removal?.details) ? removal.details : [];
+                details.forEach((detail: any) => {
+                    cleanupDetails.push({ email, ...detail });
+                    if (detail?.status === 'failed' && detail?.serverId) {
+                        failedServerIds.add(String(detail.serverId));
+                    }
+                });
+                if (Number(removal?.failed || 0) > 0) {
+                    cleanupError = `部分面板不可达或客户端删除失败，部分客户端可能残留，请手动检查`;
+                }
+            } catch (error: any) {
+                cleanupError = error.message || 'cleanup-failed';
+                clientCleanup.failed += 1;
+                allServers.forEach((srv: any) => {
+                    if (srv?.id) failedServerIds.add(String(srv.id));
+                });
+                cleanupDetails.push({
+                    email,
+                    status: 'failed',
+                    reason: error.message || 'cleanup-failed',
+                });
+            }
+        }
+        clientCleanup.failedServerIds = Array.from(failedServerIds);
+        return cleanupDetails;
+    };
+
+    let cleanupDetails: any[] = [];
+    if (deps.force === false && cleanupEmails.length > 0 && allServers.length > 0) {
+        preCleaned = true;
+        cleanupDetails = await runRemoteCleanup();
+        if (clientCleanup.failed > 0) {
+            throw createHttpError(409, cleanupError || '部分面板客户端清理失败，请先恢复节点连通性或开启强制删除');
+        }
+    }
+
     const ok = userRepo.remove(id);
     if (!ok) {
         throw createHttpError(404, '用户不存在');
@@ -1219,7 +1267,6 @@ async function deleteManagedUser(id: string, deps: any = {}): Promise<any> {
 
     let revokedTokenCount = 0;
     const removedPolicyEmails: string[] = [];
-    let cleanupError = '';
     for (const email of cleanupEmails) {
         try {
             revokedTokenCount += tokenRepo.revokeAllByEmail(email, 'user-deleted');
@@ -1230,19 +1277,33 @@ async function deleteManagedUser(id: string, deps: any = {}): Promise<any> {
         }
     }
 
-    let clientCleanup = { total: 0, removed: 0, failed: 0 };
-    const allServers = serverRepo.list();
-    for (const email of cleanupEmails) {
+    if (!preCleaned) {
+        cleanupDetails = await runRemoteCleanup();
+    }
+
+    let compensatingJobId = '';
+    if (clientCleanup.failed > 0 && cleanupEmails.length > 0) {
         try {
-            const removal = await removeClients(email, { allServers });
-            clientCleanup.total += removal.total;
-            clientCleanup.removed += removal.removed;
-            clientCleanup.failed += removal.failed;
-            if (removal.failed > 0) {
-                cleanupError = `部分面板不可达或客户端删除失败，部分客户端可能残留，请手动检查`;
-            }
-        } catch (error: any) {
-            cleanupError = error.message || 'cleanup-failed';
+            const jobRecorder = deps.jobRepository || jobStore;
+            const jobEntry = jobRecorder?.appendBatch?.({
+                action: 'delete_user_cleanup',
+                target: 'clients',
+                actor: String(deps.actor || 'system'),
+                strategy: 'compensating',
+                total: clientCleanup.total || cleanupDetails.length || allServers.length,
+                successCount: clientCleanup.removed,
+                failedCount: clientCleanup.failed,
+                failedServerIds: clientCleanup.failedServerIds,
+                retryable: clientCleanup.failedServerIds.length > 0,
+                retryPayload: {
+                    emails: cleanupEmails,
+                    serverIds: clientCleanup.failedServerIds,
+                },
+                results: cleanupDetails,
+            });
+            compensatingJobId = String(jobEntry?.id || '');
+        } catch {
+            // Best-effort compensating job recording
         }
     }
 
@@ -1253,6 +1314,7 @@ async function deleteManagedUser(id: string, deps: any = {}): Promise<any> {
         removedPolicyEmails,
         cleanupError,
         clientCleanup,
+        compensatingJobId: compensatingJobId || undefined,
     };
 }
 

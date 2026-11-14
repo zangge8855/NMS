@@ -6,6 +6,8 @@ import path from 'path';
 import jwt from 'jsonwebtoken';
 import config from '../config.js';
 import app from '../index.js';
+import userStore from '../store/userStore.js';
+import auditStore from '../store/auditStore.js';
 import { invokeApp } from './helpers/invokeApp.js';
 import { resolveIpLookupTarget } from '../routes/audit.js';
 import { runScenario } from './helpers/runScenario.js';
@@ -130,28 +132,104 @@ test('resolveIpLookupTarget handles IPv6 brackets, ports, URLs, and DNS hostname
         () => resolveIpLookupTarget('invalid.missing.example', async () => []),
         /Unable to resolve hostname/
     );
+
+    await assert.rejects(
+        () => resolveIpLookupTarget('redis.internal', async () => [{ address: '10.0.0.5', family: 4 }]),
+        /Refusing to resolve internal hostname/
+    );
+
+    await assert.rejects(
+        () => resolveIpLookupTarget('rebind.example.com', async () => [{ address: '169.254.169.254', family: 4 }]),
+        /Refusing to expose private or internal DNS resolution/
+    );
 });
 
 test('POST /api/audit/ip-lookup normalizes IPv6 literals with ports', async () => {
+    const auditor = userStore.add({
+        username: `auditor_ip_${Date.now()}`,
+        email: `auditor_ip_${Date.now()}@example.com`,
+        password: 'AuditorPass123!',
+        role: 'auditor',
+        enabled: true,
+        emailVerified: true,
+    });
     const token = jwt.sign(
-        { userId: 'auditor-ip-1', role: 'auditor', username: 'auditor' },
+        { userId: auditor.id, role: auditor.role, username: auditor.username, tokenVersion: 1 },
         config.jwt.secret,
         { expiresIn: '1h' }
     );
 
-    const res = await invokeApp(app, {
-        method: 'POST',
-        url: '/api/audit/ip-lookup',
-        headers: {
-            Authorization: `Bearer ${token}`,
-        },
-        body: {
-            ip: '[0:0:0:0:0:0:0:1]:443',
-        },
-    });
+    try {
+        const res = await invokeApp(app, {
+            method: 'POST',
+            url: '/api/audit/ip-lookup',
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+            body: {
+                ip: '[0:0:0:0:0:0:0:1]:443',
+            },
+        });
 
-    assert.equal(res.statusCode, 200);
-    assert.equal(res.json.success, true);
-    assert.equal(res.json.obj.ip, '::1');
-    assert.equal(res.json.obj.ipLocation, '内网/本地');
+        assert.equal(res.statusCode, 200);
+        assert.equal(res.json.success, true);
+        assert.equal(res.json.obj.ip, '::1');
+        assert.equal(res.json.obj.ipLocation, '内网/本地');
+    } finally {
+        userStore.remove(auditor.id);
+    }
+});
+
+test('GET /api/audit/events/export neutralizes CSV formulas and exports more than 200 rows', async () => {
+    const admin = userStore.getByUsername(config.auth.adminUsername);
+    const token = jwt.sign(
+        { userId: admin.id, role: admin.role, username: admin.username, tokenVersion: admin.tokenVersion || 1 },
+        config.jwt.secret,
+        { expiresIn: '1h' }
+    );
+    const originalEvents = [...auditStore.events];
+    const syntheticEvents = [
+        {
+            id: 'csv-inj-1',
+            ts: new Date().toISOString(),
+            eventType: '=CMD()',
+            actor: '+ADMIN',
+            ip: '198.51.100.1',
+            method: 'GET',
+            path: '@SUM(1,1)',
+            outcome: 'success',
+            targetEmail: '-bad@example.com',
+            serverId: 'srv-1',
+        },
+        ...Array.from({ length: 220 }, (_, i) => ({
+            id: `csv-row-${i}`,
+            ts: new Date().toISOString(),
+            eventType: 'login_success',
+            actor: 'alice',
+            ip: '198.51.100.2',
+            method: 'POST',
+            path: '/api/auth/login',
+            outcome: 'success',
+            targetEmail: `user${i}@example.com`,
+            serverId: 'srv-1',
+        })),
+    ];
+    auditStore.events = syntheticEvents;
+
+    try {
+        const result = await invokeApp(app, {
+            method: 'GET',
+            url: '/api/audit/events/export',
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        assert.equal(result.statusCode, 200);
+        assert.match(result.text, /"'=CMD\(\)"/);
+        assert.match(result.text, /"'\+ADMIN"/);
+        assert.match(result.text, /"'@SUM\(1,1\)"/);
+        assert.match(result.text, /"'-bad@example\.com"/);
+        const lineCount = result.text.trim().split(/\r?\n/).length;
+        assert.equal(lineCount, 222);
+    } finally {
+        auditStore.events = originalEvents;
+    }
 });

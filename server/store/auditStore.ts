@@ -47,6 +47,12 @@ function loadArray(file: string): any[] {
 // so an older snapshot wins, dropping the newest entries, and interleaved writes can
 // corrupt the file (which then loads as [] on restart, wiping audit history).
 const saveChains = new Map<string, Promise<void>>();
+const saveStatus = {
+    failureCount: 0,
+    lastError: '',
+    lastErrorAt: '',
+    lastFailedFile: '',
+};
 
 function saveArray(file: string, data: any): Promise<void> {
     // Snapshot the content synchronously so a later mutation of `data` can't change what
@@ -57,6 +63,10 @@ function saveArray(file: string, data: any): Promise<void> {
         .catch(() => {})
         .then(() => saveObjectAtomicAsync(file, content))
         .catch((err: any) => {
+            saveStatus.failureCount += 1;
+            saveStatus.lastError = String(err?.message || err || 'save failed');
+            saveStatus.lastErrorAt = new Date().toISOString();
+            saveStatus.lastFailedFile = file;
             console.error(`[AuditStore Error] Failed async save to ${file}:`, err);
         });
     saveChains.set(file, next);
@@ -321,7 +331,10 @@ class AuditStore {
 
     queryEvents(filters: any = {}): any {
         const page = toPositiveInt(filters.page, 1);
-        const pageSize = Math.min(toPositiveInt(filters.pageSize, 20), this._maxPageSize());
+        const maxAllowedPageSize = filters.forExport === true
+            ? Math.max(this._maxPageSize(), 50_000)
+            : this._maxPageSize();
+        const pageSize = Math.min(toPositiveInt(filters.pageSize, 20), maxAllowedPageSize);
         const fromIso = normalizeDateInput(filters.from);
         const toIso = normalizeDateInput(filters.to);
         const eventType = String(filters.eventType || '').trim().toLowerCase();

@@ -506,6 +506,33 @@ test('buildUsersCsv renders escaped csv rows', () => {
     assert.match(csv, /订阅邮箱/);
 });
 
+test('buildUsersCsv neutralizes formula-leading user fields', () => {
+    const csv = buildUsersCsv({
+        userRepository: {
+            list() {
+                return [{
+                    id: '=ID',
+                    username: '=HYPERLINK("http://evil","click")',
+                    email: '+evil@example.com',
+                    subscriptionEmail: '@cmd|calc',
+                    groupId: '-group',
+                    role: 'user',
+                    enabled: true,
+                    emailVerified: true,
+                    createdAt: '2026-03-09T00:00:00.000Z',
+                    lastLoginAt: '',
+                }];
+            },
+        },
+    });
+
+    assert.match(csv, /"'=ID"/);
+    assert.match(csv, /"'=HYPERLINK/);
+    assert.match(csv, /"'\+evil@example\.com"/);
+    assert.match(csv, /"'@cmd\|calc"/);
+    assert.match(csv, /"'-group"/);
+});
+
 test('setManagedUserEnabled restores clients for enabled users with policy', async () => {
     const events = [];
     const result = await setManagedUserEnabled(
@@ -1179,4 +1206,58 @@ test('deleteManagedUser revokes tokens, removes policies, and cleans up clients'
         'client:nina@example.com',
         'client:sub@example.com',
     ]);
+});
+
+test('deleteManagedUser records compensating cleanup job on remote failure and supports force=false preflight', async () => {
+    const recordedJobs = [];
+    const removedUsers = [];
+    await assert.rejects(
+        () => deleteManagedUser('u-strict', {
+            force: false,
+            userRepository: {
+                getById: () => ({ id: 'u-strict', username: 'strict', role: 'user', email: 'strict@example.com' }),
+                remove: (id) => {
+                    removedUsers.push(id);
+                    return true;
+                },
+            },
+            serverRepository: { list: () => [{ id: 'srv-offline' }] },
+            autoRemoveClients: async () => ({
+                total: 1,
+                removed: 0,
+                failed: 1,
+                details: [{ serverId: 'srv-offline', status: 'failed', reason: 'timeout' }],
+            }),
+        }),
+        /部分面板不可达或客户端删除失败/
+    );
+    assert.deepEqual(removedUsers, []);
+
+    const result = await deleteManagedUser('u-comp', {
+        actor: 'admin',
+        userRepository: {
+            getById: () => ({ id: 'u-comp', username: 'comp', role: 'user', email: 'comp@example.com' }),
+            remove: () => true,
+        },
+        userPolicyRepository: { remove: () => true },
+        subscriptionTokenRepository: { revokeAllByEmail: () => 0 },
+        serverRepository: { list: () => [{ id: 'srv-offline' }] },
+        autoRemoveClients: async () => ({
+            total: 1,
+            removed: 0,
+            failed: 1,
+            details: [{ serverId: 'srv-offline', status: 'failed', reason: 'timeout' }],
+        }),
+        jobRepository: {
+            appendBatch(payload) {
+                recordedJobs.push(payload);
+                return { id: 'job-comp-1', ...payload };
+            },
+        },
+    });
+    assert.equal(result.compensatingJobId, 'job-comp-1');
+    assert.deepEqual(result.clientCleanup.failedServerIds, ['srv-offline']);
+    assert.equal(recordedJobs.length, 1);
+    assert.equal(recordedJobs[0].action, 'delete_user_cleanup');
+    assert.deepEqual(recordedJobs[0].failedServerIds, ['srv-offline']);
 });

@@ -287,6 +287,41 @@ describe('UserStore', { concurrency: false }, () => {
         assert.ok(result, 'Should authenticate with password-only');
         assert.equal(result.role, ROLES.admin);
     });
+
+    it('should sanitize fields and strip unallowlisted keys on importState', () => {
+        const originalState = userStore.exportState();
+        try {
+            const poisoned = JSON.parse(JSON.stringify({
+                users: [
+                    {
+                        id: 'imported-u1',
+                        username: 'imported1',
+                        email: 'Imported1@Example.COM',
+                        role: 'operator',
+                        enabled: false,
+                        passwordHash: 'abc',
+                        passwordSalt: 'def',
+                        pbkdf2Iterations: 210000,
+                        isAdmin: true,
+                        arbitraryInjectedField: 'bad',
+                        passkeys: [{ id: 'pk-1', counter: 3, unexpected: 'x' }],
+                        twoFactor: { enabled: true, secret: 'SECRET', backupCodeHashes: ['h1'], extra: 'no' },
+                    },
+                ],
+            }));
+            userStore.importState(poisoned);
+            const restored = userStore.getById('imported-u1');
+            assert.ok(restored);
+            assert.equal(restored.email, 'imported1@example.com');
+            assert.equal(restored.enabled, false);
+            assert.equal(Object.prototype.hasOwnProperty.call(restored, 'isAdmin'), false);
+            assert.equal(Object.prototype.hasOwnProperty.call(restored, 'arbitraryInjectedField'), false);
+            assert.equal(Object.prototype.hasOwnProperty.call(restored.passkeys[0], 'unexpected'), false);
+            assert.equal(Object.prototype.hasOwnProperty.call(restored.twoFactor, 'extra'), false);
+        } finally {
+            userStore.importState(originalState);
+        }
+    });
 });
 
 describe('Role Definitions', () => {

@@ -1,10 +1,12 @@
 import net from 'node:net';
 import config from '../config.js';
 import { isPrivateOrLocalIp, normalizeIpAddress } from './ipGeoResolver.js';
+import { requestExternalWithPinnedIp, resolveExternalHttpTarget } from './ssrfProtection.js';
 
 const DEFAULT_TIMEOUT_MS = 3500;
 const DEFAULT_CACHE_TTL_SECONDS = 24 * 60 * 60;
 const FAILURE_CACHE_TTL_SECONDS = 30 * 60;
+const MAX_ISP_IP_CACHE_ENTRIES = 5000;
 const DEFAULT_SOURCES = [
     {
         label: '中国电信',
@@ -164,20 +166,22 @@ function cidrContains(ipValue: bigint, family: number, record: CidrRecord): bool
 
 function createDefaultFetcher() {
     return async ({ url, timeoutMs }: { url: string; timeoutMs: number }): Promise<string> => {
-        if (typeof fetch !== 'function') {
-            throw new Error('fetch-unavailable');
-        }
+        const resolved = await resolveExternalHttpTarget(url, { label: 'ISP provider URL' });
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
         try {
-            const response = await fetch(url, {
+            const response = await requestExternalWithPinnedIp(resolved, {
                 method: 'GET',
                 headers: {
                     'User-Agent': 'NMS-Audit-ISP/1.0',
                     'Accept': 'text/plain,*/*;q=0.8',
                 },
+                timeoutMs,
                 signal: controller.signal,
             });
+            if (response.type === 'opaqueredirect' || (response.status >= 300 && response.status < 400)) {
+                throw new Error('isp-provider-redirect-blocked');
+            }
             if (!response.ok) {
                 throw new Error(`isp-provider-status-${response.status}`);
             }
@@ -285,21 +289,37 @@ export function createIpIspResolver(options: IpIspResolverOptions = {}) {
         return inflight;
     }
 
+    function setCachedIsp(ip: string, label: string): void {
+        if (ipCache.has(ip)) {
+            ipCache.delete(ip);
+        } else if (ipCache.size >= MAX_ISP_IP_CACHE_ENTRIES) {
+            const oldestKey = ipCache.keys().next().value;
+            if (oldestKey !== undefined) {
+                ipCache.delete(oldestKey);
+            }
+        }
+        ipCache.set(ip, label);
+    }
+
     function resolveFromRecords(ip: unknown): string {
         const normalized = normalizeIpAddress(ip);
         if (!normalized || isPrivateOrLocalIp(normalized)) return '';
         const cached = ipCache.get(normalized);
-        if (cached !== undefined) return cached;
+        if (cached !== undefined) {
+            ipCache.delete(normalized);
+            ipCache.set(normalized, cached);
+            return cached;
+        }
 
         const { family, value } = ipToBigInt(normalized);
         if (!family || value === null) {
-            ipCache.set(normalized, '');
+            setCachedIsp(normalized, '');
             return '';
         }
 
         const match = dataset.records.find((record) => cidrContains(value, family, record));
         const label = String(match?.label || '');
-        ipCache.set(normalized, label);
+        setCachedIsp(normalized, label);
         return label;
     }
 

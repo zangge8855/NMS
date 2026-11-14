@@ -13,6 +13,12 @@ import { ensureAuthenticated } from '../lib/panelClient.js';
 import { getTlsCertPathsCompat, postUpdateInboundCompat } from '../lib/panelApiCompat.js';
 import { isSuiPanelServer } from '../lib/panelType.js';
 import { normalizeIpAddress, stripIpv6Brackets } from '../lib/ipGeoResolver.js';
+import {
+    assertSafeExternalUrlSyntax,
+    requestExternalWithPinnedIp,
+    resolveExternalHttpTarget,
+} from '../lib/ssrfProtection.js';
+import { saveObjectAtomic } from '../store/fileUtils.js';
 import { parseJsonObjectLike } from '../lib/normalize.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 
@@ -436,6 +442,7 @@ export class CloudflareDnsClient {
                 const res = await axios.get(`${this.baseUrl}/zones?name=${encodeURIComponent(candidate)}`, {
                     headers: this.getHeaders(),
                     timeout: 10000,
+                    maxRedirects: 0,
                 });
                 if (res.data?.success === false) {
                     const cfErr = res.data?.errors?.[0];
@@ -474,6 +481,7 @@ export class CloudflareDnsClient {
             {
                 headers: this.getHeaders(),
                 timeout: 10000,
+                maxRedirects: 0,
             }
         );
         const recordId = res.data?.result?.id;
@@ -489,6 +497,7 @@ export class CloudflareDnsClient {
             await axios.delete(`${this.baseUrl}/zones/${zoneId}/dns_records/${recordId}`, {
                 headers: this.getHeaders(),
                 timeout: 8000,
+                maxRedirects: 0,
             });
             return true;
         } catch {
@@ -506,6 +515,10 @@ interface StoredAcmeAccount {
 
 const memoryAcmeAccounts = new Map<string, StoredAcmeAccount>();
 
+function isProductionEnv(): boolean {
+    return config.nodeEnv === 'production' || process.env.NODE_ENV === 'production';
+}
+
 function isLoopbackDirectoryUrl(directoryUrl: string): boolean {
     try {
         const parsed = new URL(directoryUrl);
@@ -513,6 +526,60 @@ function isLoopbackDirectoryUrl(directoryUrl: string): boolean {
         return host === 'localhost' || host === '127.0.0.1' || host === '::1';
     } catch {
         return false;
+    }
+}
+
+function assertValidAcmeTargetSyntax(rawUrl: unknown, allowLoopback: boolean): string {
+    const text = String(rawUrl || '').trim();
+    if (!text) {
+        throw new Error('ACME endpoint URL is required');
+    }
+    if (allowLoopback && !isProductionEnv() && isLoopbackDirectoryUrl(text)) {
+        const parsed = new URL(text);
+        if (!['http:', 'https:'].includes(parsed.protocol)) {
+            throw new Error('ACME endpoint URL must use http or https protocol');
+        }
+        return text;
+    }
+    assertSafeExternalUrlSyntax(text, 'ACME endpoint URL');
+    return text;
+}
+
+function serializeAcmeAccountRecord(account: StoredAcmeAccount): StoredAcmeAccount {
+    return {
+        privateKeyPem: serverStore._encryptPassword(account.privateKeyPem),
+        ...(account.kid ? { kid: account.kid } : {}),
+    };
+}
+
+function deserializeAcmeAccountRecord(raw: any): StoredAcmeAccount | null {
+    if (!raw || typeof raw !== 'object' || !raw.privateKeyPem) return null;
+    const decrypted = serverStore._decryptPasswordDetailed(raw.privateKeyPem);
+    if (!decrypted.value || decrypted.status === 'unreadable') {
+        return null;
+    }
+    return {
+        privateKeyPem: decrypted.value,
+        ...(raw.kid ? { kid: String(raw.kid) } : {}),
+    };
+}
+
+function writeAcmeAccountsFile(accountsFile: string, accounts: Record<string, StoredAcmeAccount>): void {
+    fs.mkdirSync(config.dataDir, { recursive: true });
+    const serialized: Record<string, StoredAcmeAccount> = {};
+    for (const [key, value] of Object.entries(accounts || {})) {
+        const decrypted = deserializeAcmeAccountRecord(value);
+        if (decrypted) {
+            serialized[key] = serializeAcmeAccountRecord(decrypted);
+        }
+    }
+    saveObjectAtomic(accountsFile, serialized);
+    if (fs.existsSync(accountsFile)) {
+        try {
+            fs.chmodSync(accountsFile, 0o600);
+        } catch {
+            // Best-effort permission hardening on platforms that support POSIX modes.
+        }
     }
 }
 
@@ -527,10 +594,10 @@ function getOrCreateAcmeAccount(directoryUrl: string, email: string): StoredAcme
         try {
             if (fs.existsSync(accountsFile)) {
                 const raw = JSON.parse(fs.readFileSync(accountsFile, 'utf8'));
-                if (raw && typeof raw === 'object' && raw[accountKey]?.privateKeyPem) {
-                    const entry: StoredAcmeAccount = raw[accountKey];
-                    memoryAcmeAccounts.set(accountKey, entry);
-                    return entry;
+                const restored = raw && typeof raw === 'object' ? deserializeAcmeAccountRecord(raw[accountKey]) : null;
+                if (restored) {
+                    memoryAcmeAccounts.set(accountKey, restored);
+                    return restored;
                 }
             }
         } catch {
@@ -546,13 +613,12 @@ function getOrCreateAcmeAccount(directoryUrl: string, email: string): StoredAcme
 
     if (persistOnDisk) {
         try {
-            fs.mkdirSync(config.dataDir, { recursive: true });
             let existing: Record<string, StoredAcmeAccount> = {};
             if (fs.existsSync(accountsFile)) {
                 existing = JSON.parse(fs.readFileSync(accountsFile, 'utf8')) || {};
             }
-            existing[accountKey] = entry;
-            fs.writeFileSync(accountsFile, JSON.stringify(existing, null, 2), { mode: 0o600 });
+            existing[accountKey] = serializeAcmeAccountRecord(entry);
+            writeAcmeAccountsFile(accountsFile, existing);
         } catch {
             // Non-fatal: keep account key in memory for current session
         }
@@ -571,13 +637,12 @@ function saveAcmeAccountKid(directoryUrl: string, email: string, kid: string): v
 
     const accountsFile = path.join(config.dataDir, 'acme-accounts.json');
     try {
-        fs.mkdirSync(config.dataDir, { recursive: true });
         let existing: Record<string, StoredAcmeAccount> = {};
         if (fs.existsSync(accountsFile)) {
             existing = JSON.parse(fs.readFileSync(accountsFile, 'utf8')) || {};
         }
-        existing[accountKey] = current;
-        fs.writeFileSync(accountsFile, JSON.stringify(existing, null, 2), { mode: 0o600 });
+        existing[accountKey] = serializeAcmeAccountRecord(current);
+        writeAcmeAccountsFile(accountsFile, existing);
     } catch {
         // Non-fatal
     }
@@ -592,15 +657,24 @@ function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export function resolveAcmeDirectoryUrl(provider: string, explicitDirectoryUrl?: string): string {
+export function resolveAcmeDirectoryUrl(
+    provider: string,
+    explicitDirectoryUrl?: string,
+    options: { allowLoopbackDirectory?: boolean } = {}
+): string {
+    const allowLoopback = options.allowLoopbackDirectory === true && !isProductionEnv();
     const explicit = String(explicitDirectoryUrl || '').trim();
-    if (/^https?:\/\//i.test(explicit)) return explicit;
+    if (explicit) {
+        return assertValidAcmeTargetSyntax(explicit, allowLoopback);
+    }
 
     const key = String(provider || '').trim().toLowerCase();
     if (ACME_DIRECTORY_URLS[key]) return ACME_DIRECTORY_URLS[key];
 
     const envUrl = String(process.env.ACME_DIRECTORY_URL || '').trim();
-    if (/^https?:\/\//i.test(envUrl)) return envUrl;
+    if (envUrl) {
+        return assertValidAcmeTargetSyntax(envUrl, allowLoopback);
+    }
 
     return ACME_DIRECTORY_URLS.letsencrypt;
 }
@@ -614,16 +688,18 @@ interface AcmeDirectory {
 class AcmeV2Client {
     private directoryUrl: string;
     private email: string;
+    private allowLoopbackDirectory: boolean;
     private account: StoredAcmeAccount;
     private jwk: Record<string, string>;
     private thumbprint: string;
     private directory: AcmeDirectory | null = null;
     private nonce: string = '';
 
-    constructor(directoryUrl: string, email: string = '') {
-        this.directoryUrl = directoryUrl;
+    constructor(directoryUrl: string, email: string = '', options: { allowLoopbackDirectory?: boolean } = {}) {
+        this.allowLoopbackDirectory = options.allowLoopbackDirectory === true && !isProductionEnv();
+        this.directoryUrl = assertValidAcmeTargetSyntax(directoryUrl, this.allowLoopbackDirectory);
         this.email = String(email || '').trim();
-        this.account = getOrCreateAcmeAccount(directoryUrl, this.email);
+        this.account = getOrCreateAcmeAccount(this.directoryUrl, this.email);
 
         const keyObj = crypto.createPrivateKey(this.account.privateKeyPem);
         const exported = keyObj.export({ format: 'jwk' }) as Record<string, string>;
@@ -653,17 +729,76 @@ class AcmeV2Client {
         return encodeBase64Url(crypto.createHash('sha256').update(keyAuth, 'utf8').digest());
     }
 
+    private assertTargetUrl(rawUrl: unknown): string {
+        return assertValidAcmeTargetSyntax(rawUrl, this.allowLoopbackDirectory);
+    }
+
+    private async requestAcme(
+        method: 'GET' | 'HEAD' | 'POST',
+        rawUrl: unknown,
+        options: { headers?: Record<string, string>; body?: string; timeoutMs?: number } = {}
+    ): Promise<{ status: number; headers: Record<string, any>; data: any }> {
+        const safeUrl = this.assertTargetUrl(rawUrl);
+        if (this.allowLoopbackDirectory && !isProductionEnv() && isLoopbackDirectoryUrl(safeUrl)) {
+            const res = await axios.request({
+                method,
+                url: safeUrl,
+                headers: options.headers,
+                data: options.body,
+                timeout: options.timeoutMs || 20000,
+                maxRedirects: 0,
+                validateStatus: () => true,
+            });
+            if (res.status >= 300 && res.status < 400) {
+                throw new Error('ACME redirects are blocked');
+            }
+            return {
+                status: res.status,
+                headers: res.headers || {},
+                data: res.data,
+            };
+        }
+
+        const resolvedTarget = await resolveExternalHttpTarget(safeUrl, { label: 'ACME endpoint URL' });
+        const response = await requestExternalWithPinnedIp(resolvedTarget, {
+            method,
+            headers: options.headers,
+            body: options.body,
+            timeoutMs: options.timeoutMs || 20000,
+        });
+        if (response.type === 'opaqueredirect' || (response.status >= 300 && response.status < 400)) {
+            throw new Error('ACME redirects are blocked');
+        }
+        const text = await response.text();
+        let data: any = text;
+        if (method !== 'HEAD' && text && (text.trim().startsWith('{') || text.trim().startsWith('['))) {
+            try {
+                data = JSON.parse(text);
+            } catch {
+                data = text;
+            }
+        }
+        return {
+            status: response.status,
+            headers: response.headers || {},
+            data,
+        };
+    }
+
     private async init(): Promise<AcmeDirectory> {
         if (this.directory) return this.directory;
-        const dirRes = await axios.get(this.directoryUrl, { timeout: 15000 });
+        const dirRes = await this.requestAcme('GET', this.directoryUrl, { timeoutMs: 15000 });
+        if (dirRes.status >= 400) {
+            throw new Error(`Invalid ACME directory response (${dirRes.status}) from ${this.directoryUrl}`);
+        }
         const data = dirRes.data || {};
         if (!data.newNonce || !data.newAccount || !data.newOrder) {
             throw new Error(`Invalid ACME directory response from ${this.directoryUrl}`);
         }
         this.directory = {
-            newNonce: String(data.newNonce),
-            newAccount: String(data.newAccount),
-            newOrder: String(data.newOrder),
+            newNonce: this.assertTargetUrl(String(data.newNonce)),
+            newAccount: this.assertTargetUrl(String(data.newAccount)),
+            newOrder: this.assertTargetUrl(String(data.newOrder)),
         };
         if (dirRes.headers?.['replay-nonce']) {
             this.nonce = String(dirRes.headers['replay-nonce']);
@@ -678,7 +813,7 @@ class AcmeV2Client {
             return current;
         }
         const dir = await this.init();
-        const res = await axios.head(dir.newNonce, { timeout: 10000 });
+        const res = await this.requestAcme('HEAD', dir.newNonce, { timeoutMs: 10000 });
         const nextNonce = String(res.headers?.['replay-nonce'] || '');
         if (!nextNonce) {
             throw new Error('ACME server did not return Replay-Nonce');
@@ -719,16 +854,17 @@ class AcmeV2Client {
     ): Promise<{ status: number; headers: Record<string, any>; data: any }> {
         let lastError: any = null;
         for (let attempt = 0; attempt < 2; attempt += 1) {
+            const safeUrl = this.assertTargetUrl(url);
             const nonce = await this.ensureNonce();
-            const body = this.signJws(url, payload, nonce, options.useJwk === true);
+            const body = this.signJws(safeUrl, payload, nonce, options.useJwk === true);
             try {
-                const res = await axios.post(url, body, {
+                const res = await this.requestAcme('POST', safeUrl, {
                     headers: {
                         'Content-Type': 'application/jose+json',
                         ...(options.accept ? { Accept: options.accept } : {}),
                     },
-                    timeout: 20000,
-                    validateStatus: () => true,
+                    body,
+                    timeoutMs: 20000,
                 });
                 if (res.headers?.['replay-nonce']) {
                     this.nonce = String(res.headers['replay-nonce']);
@@ -942,6 +1078,7 @@ class AcmeV2Client {
 export interface IssueCertificateOptions {
     dnsPropagationWaitMs?: number;
     pollIntervalMs?: number;
+    allowLoopbackDirectory?: boolean;
 }
 
 /**
@@ -973,8 +1110,13 @@ export async function issueOrRenewCertificate(
             keyContent = generated.key;
             expiresAt = generated.expiresAt;
         } else if (challengeType === 'dns-cloudflare' || challengeType === 'http') {
-            const directoryUrl = resolveAcmeDirectoryUrl(providerKey, record.acmeDirectoryUrl);
-            const acmeClient = new AcmeV2Client(directoryUrl, record.email || '');
+            const allowLoopback = options.allowLoopbackDirectory === true;
+            const directoryUrl = resolveAcmeDirectoryUrl(providerKey, record.acmeDirectoryUrl, {
+                allowLoopbackDirectory: allowLoopback,
+            });
+            const acmeClient = new AcmeV2Client(directoryUrl, record.email || '', {
+                allowLoopbackDirectory: allowLoopback,
+            });
             const issued = await acmeClient.issueCertificate({
                 domain,
                 sans: record.sans,

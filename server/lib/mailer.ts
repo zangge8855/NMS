@@ -407,22 +407,20 @@ export function generateVerifyCode(): string {
 }
 
 /**
- * 发送邮箱验证码邮件
+ * 构建邮箱验证码邮件 HTML
  */
-export async function sendVerificationEmail(toEmail: string, code: string, username: string = ''): Promise<void> {
-    const ttl = config.registration.verifyCodeTtlMinutes;
-
-    const html = `
+export function buildVerificationEmailHtml(code: string, username: string = '', ttl: number = config.registration.verifyCodeTtlMinutes): string {
+    return `
     <div style="max-width:480px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;border-radius:16px;overflow:hidden;">
       <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);padding:32px 24px;text-align:center;">
         <h1 style="margin:0;font-size:24px;color:#fff;">NMS</h1>
         <p style="margin:8px 0 0;color:rgba(255,255,255,0.8);font-size:14px;">邮箱验证</p>
       </div>
       <div style="padding:32px 24px;">
-        <p style="margin:0 0 8px;font-size:14px;color:#94a3b8;">你好${username ? ` ${username}` : ''}，</p>
+        <p style="margin:0 0 8px;font-size:14px;color:#94a3b8;">你好${username ? ` ${escapeHtml(username)}` : ''}，</p>
         <p style="margin:0 0 24px;font-size:14px;color:#cbd5e1;">请使用以下验证码完成邮箱验证：</p>
         <div style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);border-radius:12px;padding:20px;text-align:center;margin-bottom:24px;">
-          <span style="font-size:36px;font-weight:700;letter-spacing:8px;color:#a5b4fc;">${code}</span>
+          <span style="font-size:36px;font-weight:700;letter-spacing:8px;color:#a5b4fc;">${escapeHtml(code)}</span>
         </div>
         <p style="margin:0;font-size:12px;color:#64748b;">验证码将在 ${ttl} 分钟后过期。如果你没有请求此验证，请忽略本邮件。</p>
       </div>
@@ -430,6 +428,14 @@ export async function sendVerificationEmail(toEmail: string, code: string, usern
         <p style="margin:0;font-size:11px;color:#475569;">© NMS</p>
       </div>
     </div>`;
+}
+
+/**
+ * 发送邮箱验证码邮件
+ */
+export async function sendVerificationEmail(toEmail: string, code: string, username: string = ''): Promise<void> {
+    const ttl = config.registration.verifyCodeTtlMinutes;
+    const html = buildVerificationEmailHtml(code, username, ttl);
 
     await sendTrackedEmail({
         type: 'verification',
@@ -440,21 +446,24 @@ export async function sendVerificationEmail(toEmail: string, code: string, usern
 }
 
 /**
- * 发送密码重置验证码邮件
+ * 构建密码重置验证码邮件 HTML
  */
-export async function sendPasswordResetEmail(toEmail: string, code: string, username: string = ''): Promise<void> {
-    const ttl = config.registration.passwordResetCodeTtlMinutes || config.registration.verifyCodeTtlMinutes;
-    const html = `
+export function buildPasswordResetEmailHtml(
+    code: string,
+    username: string = '',
+    ttl: number = config.registration.passwordResetCodeTtlMinutes || config.registration.verifyCodeTtlMinutes
+): string {
+    return `
     <div style="max-width:480px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;border-radius:16px;overflow:hidden;">
       <div style="background:linear-gradient(135deg,#2563eb,#7c3aed);padding:32px 24px;text-align:center;">
         <h1 style="margin:0;font-size:24px;color:#fff;">NMS</h1>
         <p style="margin:8px 0 0;color:rgba(255,255,255,0.85);font-size:14px;">密码重置</p>
       </div>
       <div style="padding:32px 24px;">
-        <p style="margin:0 0 8px;font-size:14px;color:#94a3b8;">你好${username ? ` ${username}` : ''}，</p>
+        <p style="margin:0 0 8px;font-size:14px;color:#94a3b8;">你好${username ? ` ${escapeHtml(username)}` : ''}，</p>
         <p style="margin:0 0 24px;font-size:14px;color:#cbd5e1;">你正在重置登录密码，请输入以下验证码：</p>
         <div style="background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.35);border-radius:12px;padding:20px;text-align:center;margin-bottom:24px;">
-          <span style="font-size:36px;font-weight:700;letter-spacing:8px;color:#93c5fd;">${code}</span>
+          <span style="font-size:36px;font-weight:700;letter-spacing:8px;color:#93c5fd;">${escapeHtml(code)}</span>
         </div>
         <p style="margin:0;font-size:12px;color:#64748b;">验证码将在 ${ttl} 分钟后过期。如果这不是你的操作，请尽快修改邮箱密码并联系管理员。</p>
       </div>
@@ -462,6 +471,14 @@ export async function sendPasswordResetEmail(toEmail: string, code: string, user
         <p style="margin:0;font-size:11px;color:#475569;">© NMS</p>
       </div>
     </div>`;
+}
+
+/**
+ * 发送密码重置验证码邮件
+ */
+export async function sendPasswordResetEmail(toEmail: string, code: string, username: string = ''): Promise<void> {
+    const ttl = config.registration.passwordResetCodeTtlMinutes || config.registration.verifyCodeTtlMinutes;
+    const html = buildPasswordResetEmailHtml(code, username, ttl);
 
     await sendTrackedEmail({
         type: 'password_reset',

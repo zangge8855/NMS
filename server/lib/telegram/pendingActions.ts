@@ -1,3 +1,5 @@
+import crypto from 'crypto';
+
 /**
  * In-memory store for actions awaiting Telegram inline-keyboard confirmation.
  *
@@ -15,9 +17,7 @@ const DEFAULT_TTL_MS = 60_000;
 const SWEEP_INTERVAL_MS = 30_000;
 
 function generateShortId(): string {
-    return Array.from({ length: 8 }, () =>
-        Math.floor(Math.random() * 16).toString(16)
-    ).join('');
+    return crypto.randomBytes(4).toString('hex');
 }
 
 export interface PendingActionRecord {

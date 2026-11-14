@@ -1,7 +1,15 @@
 import { isDbReady } from '../db/client.js';
 import { isSqliteReady, sqliteReadSnapshot, sqliteWriteSnapshot } from '../db/sqliteClient.js';
 import { isDbReadMode, isDbWriteMode, shouldWriteFileByMode } from '../db/runtimeModes.js';
-import { queueSnapshotWrite, readSnapshot, writeSnapshotNow, type SnapshotRedactionOptions, type WriteSnapshotResult } from '../db/snapshots.js';
+import {
+    applyPrivacyRedaction,
+    queueSnapshotWrite,
+    readSnapshot,
+    writeSnapshotNow,
+    type SnapshotRedactionOptions,
+    type WriteSnapshotResult,
+} from '../db/snapshots.js';
+import alertEngine from '../lib/alertEngine.js';
 
 function cloneJson<T = any>(value: T): T | null {
     try {
@@ -21,7 +29,11 @@ export function mirrorStoreSnapshot(storeKey: string, payload: any, options: Sna
     if (cloned === null) return;
 
     if (isSqliteReady()) {
-        sqliteWriteSnapshot(storeKey, cloned);
+        const sqliteBody = applyPrivacyRedaction(storeKey, cloned, options);
+        const sqliteOk = sqliteWriteSnapshot(storeKey, sqliteBody);
+        if (!sqliteOk) {
+            alertEngine.recordFailure(`sqlite:${storeKey}`, 'Failed to write snapshot to SQLite');
+        }
     }
 
     if (!isDbReady() || !isDbWriteMode()) return;
@@ -33,7 +45,14 @@ export async function writeStoreSnapshotNow(storeKey: string, payload: any, opti
     if (cloned === null) return { success: false, skipped: true };
 
     if (isSqliteReady()) {
-        sqliteWriteSnapshot(storeKey, cloned);
+        const sqliteBody = applyPrivacyRedaction(storeKey, cloned, options);
+        const sqliteOk = sqliteWriteSnapshot(storeKey, sqliteBody);
+        if (!sqliteOk) {
+            alertEngine.recordFailure(`sqlite:${storeKey}`, 'Failed to write snapshot to SQLite');
+            if (!isDbReady()) {
+                return { success: false };
+            }
+        }
     }
 
     if (!isDbReady()) return { success: true };

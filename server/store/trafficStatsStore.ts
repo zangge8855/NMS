@@ -538,6 +538,8 @@ class TrafficStatsStore {
     collectingPromise: Promise<any> | null;
     stateVersion: number;
     overviewCache: Map<string, any>;
+    _persistChain: Promise<void>;
+    lastSaveError: string;
 
     constructor() {
         ensureDataDir();
@@ -562,6 +564,8 @@ class TrafficStatsStore {
         this.collectingPromise = null;
         this.stateVersion = 0;
         this.overviewCache = new Map();
+        this._persistChain = Promise.resolve();
+        this.lastSaveError = '';
         this._prune();
     }
 
@@ -589,19 +593,33 @@ class TrafficStatsStore {
     }
 
     async _persist(): Promise<void> {
-        try {
+        const samplesSnapshot = JSON.parse(JSON.stringify(this.samples || []));
+        const countersSnapshot = JSON.parse(JSON.stringify(this.counters || {}));
+        const metaSnapshot = JSON.parse(JSON.stringify(this.meta || {}));
+        const writeTask = async () => {
             await Promise.all([
-                saveJsonAsync(TRAFFIC_SAMPLES_FILE, this.samples),
-                saveJsonAsync(TRAFFIC_COUNTERS_FILE, this.counters),
-                saveJsonAsync(TRAFFIC_META_FILE, this.meta),
+                saveJsonAsync(TRAFFIC_SAMPLES_FILE, samplesSnapshot),
+                saveJsonAsync(TRAFFIC_COUNTERS_FILE, countersSnapshot),
+                saveJsonAsync(TRAFFIC_META_FILE, metaSnapshot),
             ]);
-            mirrorStoreSnapshot('traffic', this.exportState(), { redact: false });
-        } catch (err) {
+            mirrorStoreSnapshot('traffic', {
+                samples: samplesSnapshot,
+                counters: countersSnapshot,
+                meta: metaSnapshot,
+            }, { redact: false });
+        };
+        const queued = this._persistChain.then(writeTask, writeTask);
+        this._persistChain = queued.catch(() => {});
+        try {
+            await queued;
+            this.lastSaveError = '';
+        } catch (err: any) {
+            this.lastSaveError = String(err?.message || err);
             console.error('[TrafficStatsStore Error] Failed async save:', err);
         }
     }
 
-    _prune(): void {
+    _prune(options: { persist?: boolean } = {}): void {
         let referenceTime = Date.now();
         if (process.env.NODE_ENV === 'test' && this.samples.length > 0) {
             let maxTs = 0;
@@ -770,7 +788,9 @@ class TrafficStatsStore {
 
         if (oldSamplesLen !== this.samples.length || countersChanged) {
             this._touchState();
-            this._persist();
+            if (options.persist !== false) {
+                void this._persist();
+            }
         }
     }
 
@@ -1411,7 +1431,7 @@ class TrafficStatsStore {
             this.meta.currentTotalsAt = previousCurrentTotalsAt;
         }
         this._touchState();
-        this._prune();
+        this._prune({ persist: false });
         await this._persist();
 
         return {

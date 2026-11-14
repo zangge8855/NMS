@@ -1,5 +1,6 @@
 import notificationService, { SEVERITY } from './notifications.js';
 import serverStore from '../store/serverStore.js';
+import { isEnglishLocale, resolveNotificationLocale, type AppLocale } from './requestLocale.js';
 import {
     collectClusterStatusSnapshot,
     HEALTHY,
@@ -29,31 +30,64 @@ function startBackgroundInterval(fn: () => void, delayMs: number): NodeJS.Timeou
     return timer;
 }
 
-function formatDurationHuman(value: unknown = 0): string {
+function formatDurationHuman(value: unknown = 0, locale: AppLocale = 'zh-CN'): string {
+    const isEn = isEnglishLocale(locale);
     const ms = Number(value || 0);
-    if (!Number.isFinite(ms) || ms <= 0) return '不足 1 分钟';
+    if (!Number.isFinite(ms) || ms <= 0) return isEn ? '< 1 min' : '不足 1 分钟';
     const minutes = Math.max(1, Math.round(ms / 60000));
     const days = Math.floor(minutes / (24 * 60));
     const hours = Math.floor((minutes % (24 * 60)) / 60);
     const remainMinutes = minutes % 60;
     const parts: string[] = [];
-    if (days > 0) parts.push(`${days} 天`);
-    if (hours > 0) parts.push(`${hours} 小时`);
-    if (remainMinutes > 0) parts.push(`${remainMinutes} 分钟`);
-    return parts.slice(0, 3).join(' ') || '不足 1 分钟';
+    if (days > 0) parts.push(isEn ? `${days}d` : `${days} 天`);
+    if (hours > 0) parts.push(isEn ? `${hours}h` : `${hours} 小时`);
+    if (remainMinutes > 0) parts.push(isEn ? `${remainMinutes}m` : `${remainMinutes} 分钟`);
+    return parts.slice(0, 3).join(' ') || (isEn ? '< 1 min' : '不足 1 分钟');
 }
 
-function buildNotificationForState(previous: any, next: any) {
+interface LocalizedCopy {
+    title: string;
+    body: string;
+}
+
+function buildHealthCopy(
+    template: { zh: LocalizedCopy; en: LocalizedCopy },
+    locale: AppLocale
+) {
+    const selected = isEnglishLocale(locale) ? template.en : template.zh;
+    return {
+        title: selected.title,
+        body: selected.body,
+        localized: {
+            'zh-CN': template.zh,
+            'en-US': template.en,
+        },
+    };
+}
+
+function buildNotificationForState(previous: any, next: any, explicitLocale?: unknown) {
+    const locale = resolveNotificationLocale(explicitLocale);
+
     if (next.health === HEALTHY && previous.health !== HEALTHY) {
         const outageStartedAt = previous.outageStartedAt || previous.checkedAt;
         const outageDurationMs = outageStartedAt && next.checkedAt
             ? Math.max(0, new Date(next.checkedAt).getTime() - new Date(outageStartedAt).getTime())
             : 0;
+        const copy = buildHealthCopy({
+            zh: {
+                title: `节点已恢复: ${next.name}`,
+                body: `节点 ${next.name} 已恢复可用状态${outageDurationMs > 0 ? `，本次异常持续约 ${formatDurationHuman(outageDurationMs, 'zh-CN')}` : ''}`,
+            },
+            en: {
+                title: `Node recovered: ${next.name}`,
+                body: `Node ${next.name} is back online${outageDurationMs > 0 ? ` (downtime ~${formatDurationHuman(outageDurationMs, 'en-US')})` : ''}`,
+            },
+        }, locale);
         return {
             type: 'server_health_recovered',
             severity: SEVERITY.INFO,
-            title: `节点已恢复: ${next.name}`,
-            body: `节点 ${next.name} 已恢复可用状态${outageDurationMs > 0 ? `，本次异常持续约 ${formatDurationHuman(outageDurationMs)}` : ''}`,
+            title: copy.title,
+            body: copy.body,
             dedupKey: `server_health:${next.serverId}:healthy`,
             meta: {
                 telegramTopics: ['system_status', 'recovery_notice'],
@@ -61,6 +95,7 @@ function buildNotificationForState(previous: any, next: any) {
                 recoveredAt: next.checkedAt || new Date().toISOString(),
                 previousReasonCode: previous.reasonCode || '',
                 previousCheckedAt: previous.checkedAt || '',
+                localized: copy.localized,
             },
         };
     }
@@ -70,108 +105,193 @@ function buildNotificationForState(previous: any, next: any) {
     }
 
     if (next.health === DEGRADED) {
-        if (next.reasonCode === STATUS_REASON.CREDENTIALS_MISSING) {
-            return {
+        const degradedTemplates: Record<string, { type: string; dedupSuffix: string; zh: LocalizedCopy; en: LocalizedCopy }> = {
+            [STATUS_REASON.CREDENTIALS_MISSING]: {
                 type: 'server_health_credentials_missing',
-                severity: SEVERITY.WARNING,
-                title: `节点凭据缺失: ${next.name}`,
-                body: `节点 ${next.name} 缺少可用的面板账号或密码，请补全后再巡检: ${next.reasonMessage}`,
-                dedupKey: `server_health:${next.serverId}:credentials_missing`,
-            };
-        }
-        if (next.reasonCode === STATUS_REASON.CREDENTIALS_UNREADABLE) {
-            return {
+                dedupSuffix: 'credentials_missing',
+                zh: {
+                    title: `节点凭据缺失: ${next.name}`,
+                    body: `节点 ${next.name} 缺少可用的面板账号或密码，请补全后再巡检: ${next.reasonMessage}`,
+                },
+                en: {
+                    title: `Node credentials missing: ${next.name}`,
+                    body: `Node ${next.name} is missing panel credentials. Complete username/password before probing: ${next.reasonMessage}`,
+                },
+            },
+            [STATUS_REASON.CREDENTIALS_UNREADABLE]: {
                 type: 'server_health_credentials_unreadable',
-                severity: SEVERITY.WARNING,
-                title: `节点凭据不可解密: ${next.name}`,
-                body: `节点 ${next.name} 的面板凭据无法解密，请确认 CREDENTIALS_SECRET 未变更并重新保存节点凭据: ${next.reasonMessage}`,
-                dedupKey: `server_health:${next.serverId}:credentials_unreadable`,
-            };
-        }
-        if (next.reasonCode === STATUS_REASON.AUTH_FAILED) {
-            return {
+                dedupSuffix: 'credentials_unreadable',
+                zh: {
+                    title: `节点凭据不可解密: ${next.name}`,
+                    body: `节点 ${next.name} 的面板凭据无法解密，请确认 CREDENTIALS_SECRET 未变更并重新保存节点凭据: ${next.reasonMessage}`,
+                },
+                en: {
+                    title: `Node credentials unreadable: ${next.name}`,
+                    body: `Node ${next.name} panel credentials cannot be decrypted. Verify CREDENTIALS_SECRET and re-save credentials: ${next.reasonMessage}`,
+                },
+            },
+            [STATUS_REASON.AUTH_FAILED]: {
                 type: 'server_health_auth_failed',
-                severity: SEVERITY.WARNING,
-                title: `节点认证失败: ${next.name}`,
-                body: `节点 ${next.name} 无法通过当前凭据登录 3x-ui: ${next.reasonMessage}`,
-                dedupKey: `server_health:${next.serverId}:auth_failed`,
-            };
-        }
-        if (next.reasonCode === STATUS_REASON.STATUS_UNSUPPORTED) {
-            return {
+                dedupSuffix: 'auth_failed',
+                zh: {
+                    title: `节点认证失败: ${next.name}`,
+                    body: `节点 ${next.name} 无法通过当前凭据登录 3x-ui: ${next.reasonMessage}`,
+                },
+                en: {
+                    title: `Node authentication failed: ${next.name}`,
+                    body: `Node ${next.name} could not sign in with current credentials: ${next.reasonMessage}`,
+                },
+            },
+            [STATUS_REASON.STATUS_UNSUPPORTED]: {
                 type: 'server_health_status_unsupported',
-                severity: SEVERITY.WARNING,
-                title: `节点接口不兼容: ${next.name}`,
-                body: `节点 ${next.name} 当前 3x-ui 版本不支持兼容的状态接口，请检查面板版本或 BasePath: ${next.reasonMessage}`,
-                dedupKey: `server_health:${next.serverId}:status_unsupported`,
-            };
-        }
-        if (next.reasonCode === STATUS_REASON.XRAY_NOT_RUNNING) {
-            return {
+                dedupSuffix: 'status_unsupported',
+                zh: {
+                    title: `节点接口不兼容: ${next.name}`,
+                    body: `节点 ${next.name} 当前 3x-ui 版本不支持兼容的状态接口，请检查面板版本或 BasePath: ${next.reasonMessage}`,
+                },
+                en: {
+                    title: `Node API incompatible: ${next.name}`,
+                    body: `Node ${next.name} panel does not support a compatible status API. Check panel version or BasePath: ${next.reasonMessage}`,
+                },
+            },
+            [STATUS_REASON.XRAY_NOT_RUNNING]: {
                 type: 'server_health_xray_not_running',
+                dedupSuffix: 'xray_not_running',
+                zh: {
+                    title: `节点状态异常: ${next.name}`,
+                    body: `节点 ${next.name} 返回异常状态: ${next.reasonMessage || 'xray not running'}`,
+                },
+                en: {
+                    title: `Node service abnormal: ${next.name}`,
+                    body: `Node ${next.name} reported an abnormal service status: ${next.reasonMessage || 'xray not running'}`,
+                },
+            },
+        };
+
+        const matched = degradedTemplates[next.reasonCode];
+        if (matched) {
+            const copy = buildHealthCopy(matched, locale);
+            return {
+                type: matched.type,
                 severity: SEVERITY.WARNING,
-                title: `节点状态异常: ${next.name}`,
-                body: `节点 ${next.name} 返回异常状态: ${next.reasonMessage || 'xray not running'}`,
-                dedupKey: `server_health:${next.serverId}:xray_not_running`,
+                title: copy.title,
+                body: copy.body,
+                dedupKey: `server_health:${next.serverId}:${matched.dedupSuffix}`,
+                meta: {
+                    localized: copy.localized,
+                },
             };
         }
+
+        const copy = buildHealthCopy({
+            zh: {
+                title: `节点检查失败: ${next.name}`,
+                body: `节点 ${next.name} 状态检查失败: ${next.reasonMessage}`,
+            },
+            en: {
+                title: `Node check failed: ${next.name}`,
+                body: `Node ${next.name} status check failed: ${next.reasonMessage}`,
+            },
+        }, locale);
         return {
             type: 'server_health_request_failed',
             severity: SEVERITY.WARNING,
-            title: `节点检查失败: ${next.name}`,
-            body: `节点 ${next.name} 状态检查失败: ${next.reasonMessage}`,
+            title: copy.title,
+            body: copy.body,
             dedupKey: `server_health:${next.serverId}:${next.reasonCode || 'panel_request_failed'}`,
             meta: {
                 telegramTopics: ['system_status'],
+                localized: copy.localized,
             },
         };
     }
 
     if (next.health === UNREACHABLE && (previous.health !== UNREACHABLE || previous.reasonCode !== next.reasonCode)) {
-        if (next.reasonCode === STATUS_REASON.DNS_ERROR) {
-            return {
+        const unreachableTemplates: Record<string, { type: string; dedupSuffix: string; zh: LocalizedCopy; en: LocalizedCopy }> = {
+            [STATUS_REASON.DNS_ERROR]: {
                 type: 'server_health_dns_error',
-                severity: SEVERITY.CRITICAL,
-                title: `节点域名解析失败: ${next.name}`,
-                body: `节点 ${next.name} 的面板地址无法完成 DNS 解析，请检查节点 URL 或 DNS 配置: ${next.reasonMessage}`,
-                dedupKey: `server_health:${next.serverId}:dns_error`,
-            };
-        }
-        if (next.reasonCode === STATUS_REASON.CONNECT_TIMEOUT) {
-            return {
+                dedupSuffix: 'dns_error',
+                zh: {
+                    title: `节点域名解析失败: ${next.name}`,
+                    body: `节点 ${next.name} 的面板地址无法完成 DNS 解析，请检查节点 URL 或 DNS 配置: ${next.reasonMessage}`,
+                },
+                en: {
+                    title: `Node DNS resolution failed: ${next.name}`,
+                    body: `Node ${next.name} hostname failed DNS resolution. Check the node URL or DNS config: ${next.reasonMessage}`,
+                },
+            },
+            [STATUS_REASON.CONNECT_TIMEOUT]: {
                 type: 'server_health_connect_timeout',
-                severity: SEVERITY.CRITICAL,
-                title: `节点连接超时: ${next.name}`,
-                body: `节点 ${next.name} 连接 3x-ui 超时，请检查网络路径、防火墙或面板负载: ${next.reasonMessage}`,
-                dedupKey: `server_health:${next.serverId}:connect_timeout`,
-            };
-        }
-        if (next.reasonCode === STATUS_REASON.CONNECTION_REFUSED) {
-            return {
+                dedupSuffix: 'connect_timeout',
+                zh: {
+                    title: `节点连接超时: ${next.name}`,
+                    body: `节点 ${next.name} 连接 3x-ui 超时，请检查网络路径、防火墙或面板负载: ${next.reasonMessage}`,
+                },
+                en: {
+                    title: `Node connection timed out: ${next.name}`,
+                    body: `Node ${next.name} timed out connecting to the panel. Check network path, firewall, or load: ${next.reasonMessage}`,
+                },
+            },
+            [STATUS_REASON.CONNECTION_REFUSED]: {
                 type: 'server_health_connection_refused',
-                severity: SEVERITY.CRITICAL,
-                title: `节点拒绝连接: ${next.name}`,
-                body: `节点 ${next.name} 拒绝了 3x-ui 连接，请确认面板端口和服务进程是否正常监听: ${next.reasonMessage}`,
-                dedupKey: `server_health:${next.serverId}:connection_refused`,
-            };
-        }
-        if (next.reasonCode === STATUS_REASON.NETWORK_ERROR) {
-            return {
+                dedupSuffix: 'connection_refused',
+                zh: {
+                    title: `节点拒绝连接: ${next.name}`,
+                    body: `节点 ${next.name} 拒绝了 3x-ui 连接，请确认面板端口和服务进程是否正常监听: ${next.reasonMessage}`,
+                },
+                en: {
+                    title: `Node connection refused: ${next.name}`,
+                    body: `Node ${next.name} refused the panel connection. Verify the port and panel process: ${next.reasonMessage}`,
+                },
+            },
+            [STATUS_REASON.NETWORK_ERROR]: {
                 type: 'server_health_network_error',
+                dedupSuffix: 'network_error',
+                zh: {
+                    title: `节点网络异常: ${next.name}`,
+                    body: `节点 ${next.name} 与 3x-ui 的网络链路异常，请检查路由、主机连通性或中间代理: ${next.reasonMessage}`,
+                },
+                en: {
+                    title: `Node network error: ${next.name}`,
+                    body: `Node ${next.name} encountered a panel network error. Check routing, host reachability, or proxy path: ${next.reasonMessage}`,
+                },
+            },
+        };
+
+        const matched = unreachableTemplates[next.reasonCode];
+        if (matched) {
+            const copy = buildHealthCopy(matched, locale);
+            return {
+                type: matched.type,
                 severity: SEVERITY.CRITICAL,
-                title: `节点网络异常: ${next.name}`,
-                body: `节点 ${next.name} 与 3x-ui 的网络链路异常，请检查路由、主机连通性或中间代理: ${next.reasonMessage}`,
-                dedupKey: `server_health:${next.serverId}:network_error`,
+                title: copy.title,
+                body: copy.body,
+                dedupKey: `server_health:${next.serverId}:${matched.dedupSuffix}`,
+                meta: {
+                    localized: copy.localized,
+                },
             };
         }
+
+        const copy = buildHealthCopy({
+            zh: {
+                title: `节点连接失败: ${next.name}`,
+                body: `节点 ${next.name} 无法连接到 3x-ui: ${next.reasonMessage}`,
+            },
+            en: {
+                title: `Node unreachable: ${next.name}`,
+                body: `Node ${next.name} could not reach the panel: ${next.reasonMessage}`,
+            },
+        }, locale);
         return {
             type: 'server_health_unreachable',
             severity: SEVERITY.CRITICAL,
-            title: `节点连接失败: ${next.name}`,
-            body: `节点 ${next.name} 无法连接到 3x-ui: ${next.reasonMessage}`,
+            title: copy.title,
+            body: copy.body,
             dedupKey: `server_health:${next.serverId}:${next.reasonCode || 'unreachable'}`,
             meta: {
                 telegramTopics: ['system_status', 'emergency_alert'],
+                localized: copy.localized,
             },
         };
     }
@@ -374,7 +494,7 @@ class ServerHealthMonitor {
             this.serverStates.set(server.id, effectiveResult);
             effectiveResults.push(effectiveResult);
 
-            const notification = buildNotificationForState(previous, effectiveResult);
+            const notification = buildNotificationForState(previous, effectiveResult, deps.locale);
             if (notification) {
                 const notificationMeta: any = notification.meta || {};
                 const defaultTopics = new Set(Array.isArray(notificationMeta.telegramTopics) ? notificationMeta.telegramTopics : []);
@@ -439,5 +559,5 @@ class ServerHealthMonitor {
 
 const serverHealthMonitor = new ServerHealthMonitor();
 
-export { ServerHealthMonitor };
+export { ServerHealthMonitor, buildNotificationForState, formatDurationHuman };
 export default serverHealthMonitor;

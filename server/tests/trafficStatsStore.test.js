@@ -1002,4 +1002,27 @@ describe('traffic stats inbound fallback', () => {
             userStore.importState(originalUsers);
         }
     });
+
+    it('serializes concurrent _persist calls so later snapshots overwrite earlier writes deterministically', async () => {
+        const store = new TrafficStatsStore();
+        store.importState({
+            samples: [{ id: 's-1', ts: '2026-03-13T01:00:00.000Z', serverId: 's1', totalBytes: 10 }],
+            counters: {},
+            meta: { lastCollectionAt: '2026-03-13T01:00:00.000Z', serverTotals: [] },
+        });
+        const firstPersist = store._persist();
+        store.importState({
+            samples: [{ id: 's-2', ts: '2026-03-13T02:00:00.000Z', serverId: 's1', totalBytes: 99 }],
+            counters: {},
+            meta: { lastCollectionAt: '2026-03-13T02:00:00.000Z', serverTotals: [] },
+        });
+        const secondPersist = store._persist();
+        await Promise.all([firstPersist, secondPersist]);
+
+        const persistedSamples = JSON.parse(
+            fs.readFileSync(path.join(TEST_DATA_DIR, 'traffic_samples.json'), 'utf8')
+        );
+        assert.equal(persistedSamples[0].id, 's-2');
+        assert.equal(persistedSamples[0].totalBytes, 99);
+    });
 });

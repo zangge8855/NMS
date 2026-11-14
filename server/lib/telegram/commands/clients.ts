@@ -105,7 +105,7 @@ export function registerClientCommands(registry: CommandRegistry, ctx: any): voi
             return {
                 text: helpers.joinHtmlMessage('NMS 客户详情', [
                     `${helpers.sectionHeader('关键信息')}\n${helpers.trimLines(rows)}`,
-                    `${helpers.sectionHeader('快捷操作')}\n• <code>/sub ${user.email || user.id}</code> 取订阅 URL`,
+                    `${helpers.sectionHeader('快捷操作')}\n• ${inlineCode(helpers, `/sub ${user.email || user.id}`)} 取订阅 URL`,
                 ], { subtitle: user.email || user.id }),
                 kind: 'client_detail',
             };

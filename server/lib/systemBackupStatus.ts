@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import config from '../config.js';
@@ -36,12 +37,10 @@ function ensureParentDir(filePath: string = ''): void {
 
 function writeBackupStatusAtomic(filePath: string, data: any): void {
     const content = JSON.stringify(data, null, 2);
-    const tempFile = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+    const tempFile = `${filePath}.${process.pid}.${crypto.randomUUID()}.tmp`;
     try {
-        fs.writeFileSync(tempFile, content, 'utf8');
+        fs.writeFileSync(tempFile, content, { encoding: 'utf8', mode: 0o600 });
         fs.renameSync(tempFile, filePath);
-    } catch {
-        fs.writeFileSync(filePath, content, 'utf8');
     } finally {
         if (fs.existsSync(tempFile)) {
             fs.rmSync(tempFile, { force: true });

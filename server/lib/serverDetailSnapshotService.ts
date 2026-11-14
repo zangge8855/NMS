@@ -136,8 +136,12 @@ async function buildServerDetailSnapshot(serverId: string, options: any = {}, de
         : null;
     const inbounds = Array.isArray(panelSnapshot?.inbounds) ? panelSnapshot.inbounds : [];
 
+    const publicServer = typeof (servers as any)._publicServer === 'function'
+        ? (servers as any)._publicServer(server)
+        : server;
+
     return {
-        server,
+        server: publicServer,
         status: statusItem?.status && typeof statusItem.status === 'object' ? statusItem.status : null,
         statusMeta: buildStatusMeta(statusItem),
         inbounds: typeof settings.sortInboundList === 'function'

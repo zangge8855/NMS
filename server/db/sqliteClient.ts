@@ -68,8 +68,9 @@ export function sqliteReadSnapshot<T = any>(storeKey: string): T | null {
         const row = stmt.get(storeKey);
         if (!row || !row.payload) return null;
         return JSON.parse(row.payload) as T;
-    } catch {
-        return null;
+    } catch (error: any) {
+        console.error(`[SQLite] Failed to read snapshot for ${storeKey}:`, error?.message || error);
+        throw error;
     }
 }
 

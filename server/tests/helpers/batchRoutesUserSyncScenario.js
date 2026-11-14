@@ -1,6 +1,7 @@
 import fs from 'fs';
 import jwt from 'jsonwebtoken';
 import app from '../../index.js';
+import userStore from '../../store/userStore.js';
 import { invokeApp } from './invokeApp.js';
 
 async function writeResult(payload) {
@@ -12,8 +13,16 @@ async function writeResult(payload) {
 }
 
 async function main() {
+    const adminUser = userStore.getById('admin-1')
+        || userStore.getByUsername('admin')
+        || userStore.getAll().find((item) => item.role === 'admin');
     const token = jwt.sign(
-        { userId: 'admin-1', username: 'admin', role: 'admin' },
+        {
+            userId: adminUser.id,
+            username: adminUser.username,
+            role: adminUser.role,
+            tokenVersion: adminUser.tokenVersion || 1,
+        },
         process.env.JWT_SECRET,
         { expiresIn: '1h' }
     );

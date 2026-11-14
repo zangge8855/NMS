@@ -1,6 +1,10 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { generateVerifyCode } from '../lib/mailer.js';
+import {
+    buildPasswordResetEmailHtml,
+    buildVerificationEmailHtml,
+    generateVerifyCode,
+} from '../lib/mailer.js';
 
 describe('generateVerifyCode', () => {
     it('returns a 6-digit numeric string', () => {
@@ -19,5 +23,16 @@ describe('generateVerifyCode', () => {
             seen.add(generateVerifyCode());
         }
         assert.ok(seen.size > 1, 'expected verification codes to vary across calls');
+    });
+
+    it('html-escapes usernames in verification and password reset emails', () => {
+        const payload = '<img src=x onerror="alert(1)">';
+        const verifyHtml = buildVerificationEmailHtml('123456', payload, 10);
+        const resetHtml = buildPasswordResetEmailHtml('654321', payload, 10);
+
+        assert.doesNotMatch(verifyHtml, /<img\s+src=x/i);
+        assert.doesNotMatch(resetHtml, /<img\s+src=x/i);
+        assert.match(verifyHtml, /&lt;img src=x onerror=&quot;alert\(1\)&quot;&gt;/);
+        assert.match(resetHtml, /&lt;img src=x onerror=&quot;alert\(1\)&quot;&gt;/);
     });
 });

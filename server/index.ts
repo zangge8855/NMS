@@ -62,9 +62,38 @@ export function createApp(options: { serveClientBuild?: boolean } = {}): Express
         hstsMaxAgeSeconds: config.security.hstsMaxAgeSeconds,
     }));
     app.use(createSearchBotProtectionMiddleware());
-    app.use(cors({
-        origin: true,
-        credentials: true,
+    app.use(cors((req, callback) => {
+        const requestOrigin = String(req.headers.origin || '').trim();
+        if (!requestOrigin) {
+            return callback(null, { origin: false, credentials: true });
+        }
+        const isProduction = process.env.NODE_ENV === 'production' || config.nodeEnv === 'production';
+        if (!isProduction) {
+            return callback(null, { origin: true, credentials: true });
+        }
+        const configuredOrigins = new Set(
+            String(process.env.CORS_ALLOWED_ORIGINS || '')
+                .split(',')
+                .map((item) => item.trim().replace(/\/+$/, '').toLowerCase())
+                .filter(Boolean)
+        );
+        const normalizedOrigin = requestOrigin.replace(/\/+$/, '').toLowerCase();
+        if (configuredOrigins.size > 0) {
+            return callback(null, {
+                origin: configuredOrigins.has(normalizedOrigin),
+                credentials: true,
+            });
+        }
+        try {
+            const originHost = new URL(requestOrigin).host.toLowerCase();
+            const requestHost = String(req.get('host') || '').trim().toLowerCase();
+            return callback(null, {
+                origin: Boolean(requestHost && originHost === requestHost),
+                credentials: true,
+            });
+        } catch {
+            return callback(null, { origin: false, credentials: true });
+        }
     }));
     app.use(cookieParser());
     app.use(express.json({ limit: '1mb', strict: false }));
@@ -163,6 +192,13 @@ export function createApp(options: { serveClientBuild?: boolean } = {}): Express
         return res.status(200).type('text/plain').send(challengeResponse);
     });
 
+    app.use('/api', (_req: Request, res: Response) => {
+        res.status(404).json({
+            success: false,
+            msg: 'API route not found',
+        });
+    });
+
     // Serve React build in production
     if (serveClientBuild) {
         registerClientBuildRoutes(app, {
@@ -178,25 +214,21 @@ export function createApp(options: { serveClientBuild?: boolean } = {}): Express
         getSiteConfig: () => systemSettingsStore.getSite(),
     }));
 
-    app.use('/api', (_req: Request, res: Response) => {
-        res.status(404).json({
-            success: false,
-            msg: 'API route not found',
-        });
-    });
-
     app.use((_req: Request, res: Response) => {
         res.status(404).type('text/plain').send('Not Found');
     });
 
     // ── Global Error Handler ───────────────────────────────────
     // eslint-disable-next-line no-unused-vars
-    app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
+    app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+        if (res.headersSent) {
+            return next(err);
+        }
         const status = err.status || err.statusCode || 500;
         const message = config.nodeEnv === 'production'
             ? '服务器内部错误'
             : (err.message || '服务器内部错误');
-        console.error(`[Error] ${req.method} ${req.originalUrl} →`, err.stack || err);
+        console.error(`[Error] ${req.method} ${redactRequestUrl(req.originalUrl)} →`, err.stack || err);
         res.status(status).json({ success: false, msg: message });
     });
 

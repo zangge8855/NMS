@@ -4,7 +4,8 @@ import { Router, type Request, type Response } from 'express';
 import { authMiddleware, adminOnly } from '../middleware/auth.js';
 import auditStore from '../store/auditStore.js';
 import { enrichAuditEvent, enrichAuditEvents } from '../lib/auditEventEnrichment.js';
-import ipGeoResolver, { normalizeIpAddress, stripIpv6Brackets } from '../lib/ipGeoResolver.js';
+import { buildCsvCell } from '../lib/csv.js';
+import ipGeoResolver, { isReservedOrPrivateIp, normalizeIpAddress, stripIpv6Brackets } from '../lib/ipGeoResolver.js';
 import ipIspResolver from '../lib/ipIspResolver.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
 
@@ -34,6 +35,16 @@ function extractLookupCandidate(rawInput: unknown): string {
     return stripIpv6Brackets(raw);
 }
 
+function isInternalLookupHostname(hostname: string): boolean {
+    const host = stripIpv6Brackets(hostname).toLowerCase();
+    if (!host) return true;
+    if (host === 'localhost' || host.endsWith('.localhost')) return true;
+    if (host.endsWith('.local') || host.endsWith('.localdomain')) return true;
+    if (host.endsWith('.internal') || host.endsWith('.arpa')) return true;
+    if (!host.includes('.')) return true;
+    return false;
+}
+
 export async function resolveIpLookupTarget(
     rawInput: unknown,
     dnsLookup: (hostname: string) => Promise<Array<{ address: string; family: number }>> = async (h) => {
@@ -59,6 +70,10 @@ export async function resolveIpLookupTarget(
         throw new Error('Invalid IP address or hostname');
     }
 
+    if (isInternalLookupHostname(candidate)) {
+        throw new Error(`Refusing to resolve internal hostname: ${candidate}`);
+    }
+
     const records = await dnsLookup(candidate).catch(() => []);
     const resolvedIps = Array.from(new Set(
         (Array.isArray(records) ? records : [])
@@ -68,6 +83,10 @@ export async function resolveIpLookupTarget(
 
     if (resolvedIps.length === 0) {
         throw new Error(`Unable to resolve hostname: ${candidate}`);
+    }
+
+    if (resolvedIps.some((ip) => isReservedOrPrivateIp(ip))) {
+        throw new Error(`Refusing to expose private or internal DNS resolution for: ${candidate}`);
     }
 
     return {
@@ -112,9 +131,14 @@ router.get('/events', async (req: Request, res: Response) => {
 
 // ── CSV export audit events ──
 router.get('/events/export', (req: Request, res: Response) => {
+    const requestedMaxRows = Number(req.query.maxRows || 50000);
+    const pageSize = Number.isFinite(requestedMaxRows) && requestedMaxRows > 0
+        ? Math.min(Math.floor(requestedMaxRows), 50000)
+        : 50000;
     const result = auditStore.queryEvents({
         page: 1,
-        pageSize: 10000,
+        pageSize,
+        forExport: true,
         from: req.query.from as string,
         to: req.query.to as string,
         eventType: req.query.eventType as string,
@@ -126,19 +150,21 @@ router.get('/events/export', (req: Request, res: Response) => {
     });
     const header = '时间,事件类型,操作者,IP,方法,路径,结果,目标邮箱,服务器 ID';
     const rows = result.items.map(e => [
-        e.ts || '',
-        `"${String(e.eventType || '').replace(/"/g, '""')}"`,
-        `"${String(e.actor || '').replace(/"/g, '""')}"`,
-        e.ip || '',
-        e.method || '',
-        `"${String(e.path || '').replace(/"/g, '""')}"`,
-        e.outcome || '',
-        `"${String(e.targetEmail || '').replace(/"/g, '""')}"`,
-        e.serverId || '',
+        buildCsvCell(e.ts || ''),
+        buildCsvCell(e.eventType || ''),
+        buildCsvCell(e.actor || ''),
+        buildCsvCell(e.ip || ''),
+        buildCsvCell(e.method || ''),
+        buildCsvCell(e.path || ''),
+        buildCsvCell(e.outcome || ''),
+        buildCsvCell(e.targetEmail || ''),
+        buildCsvCell(e.serverId || ''),
     ].join(','));
     const csv = '\uFEFF' + [header, ...rows].join('\n');
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="audit_${new Date().toISOString().slice(0,10)}.csv"`);
+    res.setHeader('X-Total-Count', String(result.total ?? result.items.length));
+    res.setHeader('X-Export-Truncated', String((result.total ?? result.items.length) > result.items.length));
     return res.send(csv);
 });
 

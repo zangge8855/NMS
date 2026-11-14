@@ -67,7 +67,9 @@ const ALLOWED_KEYS: Record<string, Set<string>> = {
         'channel',
         'url',
         'barkKey',
+        'clearBarkKey',
         'secret',
+        'clearSecret',
         'events',
     ]),
     geofiles: new Set([
@@ -88,6 +90,7 @@ const LEGACY_TECH_CAMOUFLAGE_TITLE_PATTERN = /\b(?:edge\s+precision\s+systems|ed
 const DEFAULT_DAILY_BACKUP_TIME = '09:00';
 const TELEGRAM_TOKEN_ENC_ALGO = 'aes-256-gcm';
 const TELEGRAM_TOKEN_ENC_PREFIX = 'nms-tg:v1';
+const WEBHOOK_MASKED_SENTINEL = '********';
 const MODERN_AUDIT_IP_GEO_PROVIDER = GEO_PROVIDERS.has(String(config.audit?.ipGeo?.provider || '').trim().toLowerCase())
     ? String(config.audit?.ipGeo?.provider || '').trim().toLowerCase()
     : 'ip_api';
@@ -158,8 +161,14 @@ function loadObjectDetailed(file: string): { value: any; error: Error | null } {
             };
         }
         const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            return {
+                value: {},
+                error: new Error(`Invalid settings format in ${path.basename(file)}: expected a JSON object`),
+            };
+        }
         return {
-            value: parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {},
+            value: parsed,
             error: null,
         };
     } catch (error: any) {
@@ -453,6 +462,20 @@ export class SystemSettingsStore {
         };
     }
 
+    _buildPublicWebhook(section: any = {}): any {
+        const rawBarkKey = String(section?.barkKey || '').trim();
+        const rawSecret = String(section?.secret || '').trim();
+        return {
+            channel: String(section?.channel || 'bark'),
+            url: String(section?.url || ''),
+            barkKey: rawBarkKey ? WEBHOOK_MASKED_SENTINEL : '',
+            barkKeyConfigured: Boolean(rawBarkKey),
+            secret: rawSecret ? WEBHOOK_MASKED_SENTINEL : '',
+            secretConfigured: Boolean(rawSecret),
+            events: { ...(section?.events || {}) },
+        };
+    }
+
     _defaults(): any {
         const maxConcurrency = Math.max(1, Number(config.jobs?.maxConcurrency || 10));
         const defaultConcurrency = Math.min(5, maxConcurrency);
@@ -649,11 +672,29 @@ export class SystemSettingsStore {
         for (const key of WEBHOOK_EVENT_KEYS) {
             events[key] = normalizeBoolean(inputEvents[key], fallbackEvents[key] !== false);
         }
+        let barkKey = String(fallback.barkKey ?? '').trim().slice(0, 512);
+        if (input.clearBarkKey === true) {
+            barkKey = '';
+        } else if (Object.prototype.hasOwnProperty.call(input, 'barkKey')) {
+            const candidate = String(input.barkKey ?? '').trim().slice(0, 512);
+            if (candidate !== WEBHOOK_MASKED_SENTINEL) {
+                barkKey = candidate;
+            }
+        }
+        let secret = String(fallback.secret ?? '').trim().slice(0, 512);
+        if (input.clearSecret === true) {
+            secret = '';
+        } else if (Object.prototype.hasOwnProperty.call(input, 'secret')) {
+            const candidate = String(input.secret ?? '').trim().slice(0, 512);
+            if (candidate !== WEBHOOK_MASKED_SENTINEL) {
+                secret = candidate;
+            }
+        }
         return {
             channel: WEBHOOK_CHANNELS.has(channel) ? channel : fallback.channel,
             url: normalizeHttpUrl(input.url, fallback.url),
-            barkKey: String(input.barkKey ?? fallback.barkKey ?? '').trim().slice(0, 512),
-            secret: String(input.secret ?? fallback.secret ?? '').trim().slice(0, 512),
+            barkKey,
+            secret,
             events,
         };
     }
@@ -767,6 +808,7 @@ export class SystemSettingsStore {
     getAll(): any {
         const snapshot = safeClone(this.settings) || this._normalizeSettings();
         snapshot.telegram = this._buildPublicTelegram(this.settings?.telegram || {});
+        snapshot.webhook = this._buildPublicWebhook(this.settings?.webhook || {});
         return snapshot;
     }
 
@@ -941,6 +983,10 @@ export class SystemSettingsStore {
         if (sanitizedPatch?.telegram && typeof sanitizedPatch.telegram === 'object' && !Array.isArray(sanitizedPatch.telegram)) {
             const { botTokenConfigured: _c, botTokenPreview: _p, botTokenStatus: _s, ...restTelegram } = sanitizedPatch.telegram;
             sanitizedPatch.telegram = restTelegram;
+        }
+        if (sanitizedPatch?.webhook && typeof sanitizedPatch.webhook === 'object' && !Array.isArray(sanitizedPatch.webhook)) {
+            const { secretConfigured: _sc, barkKeyConfigured: _bc, ...restWebhook } = sanitizedPatch.webhook;
+            sanitizedPatch.webhook = restWebhook;
         }
         this._assertAllowedPayload(sanitizedPatch);
         if (sanitizedPatch.site && Object.prototype.hasOwnProperty.call(sanitizedPatch.site, 'accessPath')) {

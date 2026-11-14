@@ -124,4 +124,47 @@ describe('subscription access identity helpers', () => {
         );
         assert.equal(allowed, false);
     });
+
+    it('keeps subscription tokens verifiable after JWT_SECRET rotation and rejects forged legacy signatures', async () => {
+        const config = (await import('../config.js')).default;
+        const {
+            default: subscriptionTokenStore,
+            signLegacySubscriptionEmail,
+        } = await import('../store/subscriptionTokenStore.js');
+
+        const prevJwt = config.jwt.secret;
+        const prevSub = config.subscription.tokenSecret;
+        const prevLegacy = [...(config.subscription.legacySecrets || [])];
+        const origTokens = subscriptionTokenStore.exportState();
+        const origSave = subscriptionTokenStore._save;
+        subscriptionTokenStore._save = () => {};
+
+        try {
+            config.subscription.tokenSecret = 'dedicated-sub-secret-0123456789abcdef';
+            const issued = subscriptionTokenStore.issue('rot@example.com', { name: 'rot-test' });
+            assert.equal(subscriptionTokenStore.verify('rot@example.com', issued.tokenId, issued.tokenSecret).ok, true);
+
+            // Rotating JWT_SECRET does not break tokens signed/encrypted with subscription token secret
+            config.jwt.secret = 'brand-new-jwt-secret-should-not-invalidate-sub-tokens';
+            assert.equal(subscriptionTokenStore.verify('rot@example.com', issued.tokenId, issued.tokenSecret).ok, true);
+
+            // Rotating subscription secret preserves verification via legacySecrets fallback
+            config.subscription.legacySecrets = ['dedicated-sub-secret-0123456789abcdef'];
+            config.subscription.tokenSecret = 'newer-sub-secret-0123456789abcdef0123';
+            assert.equal(subscriptionTokenStore.verify('rot@example.com', issued.tokenId, issued.tokenSecret).ok, true);
+
+            // migrateLegacySigToken rejects forged signature and accepts valid HMAC signature
+            assert.equal(subscriptionTokenStore.migrateLegacySigToken('rot@example.com', 'forged-signature'), null);
+            const validSig = signLegacySubscriptionEmail('rot@example.com');
+            const migrated = subscriptionTokenStore.migrateLegacySigToken('rot@example.com', validSig);
+            assert.ok(migrated);
+            assert.equal(migrated.tokenSecret, validSig);
+        } finally {
+            subscriptionTokenStore._save = origSave;
+            subscriptionTokenStore.importState(origTokens);
+            config.jwt.secret = prevJwt;
+            config.subscription.tokenSecret = prevSub;
+            config.subscription.legacySecrets = prevLegacy;
+        }
+    });
 });

@@ -5,6 +5,7 @@ import config from '../config.js';
 import userStore from '../store/userStore.js';
 import serverStore from '../store/serverStore.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
+import subscriptionTokenStore from '../store/subscriptionTokenStore.js';
 import {
     DEFAULT_ENV_FILE,
     collectSecurityIssues,
@@ -47,8 +48,19 @@ export function writeEnvSecurityOverrides(filePath: string = DEFAULT_ENV_FILE, u
         nextLines.push(`${key}=${quoteEnvValue(value)}`);
     }
 
-    fs.writeFileSync(targetPath, `${nextLines.join('\n').replace(/\n{3,}/g, '\n\n')}\n`, 'utf8');
-    return targetPath;
+    const tempPath = `${targetPath}.tmp-${process.pid}-${crypto.randomUUID()}`;
+    try {
+        fs.writeFileSync(tempPath, `${nextLines.join('\n').replace(/\n{3,}/g, '\n\n')}\n`, {
+            encoding: 'utf8',
+            mode: 0o600,
+        });
+        fs.renameSync(tempPath, targetPath);
+        return targetPath;
+    } finally {
+        if (fs.existsSync(tempPath)) {
+            fs.rmSync(tempPath, { force: true });
+        }
+    }
 }
 
 function buildBootstrapStats() {
@@ -93,6 +105,7 @@ function buildSignedToken(user: any): string {
         userId: normalizeText(user?.id),
         role: String(user?.role || 'admin').trim() || 'admin',
         username: normalizeText(user?.username),
+        tokenVersion: Number(user?.tokenVersion || 1),
     }, config.jwt.secret, {
         expiresIn: config.jwt.expiresIn as any,
     });
@@ -193,11 +206,28 @@ export function getSecurityBootstrapStatus(currentUser: any = {}) {
 export function applySecurityBootstrap(payload: any = {}, currentUser: any = {}) {
     const currentAdmin = resolveCurrentAdmin(currentUser);
     const nextValues = validateBootstrapPayload(payload, currentUser);
+    const previousJwtSecret = normalizeText(config.jwt?.secret || '');
+    const previousSubSecret = normalizeText(config.subscription?.tokenSecret || '');
+    const existingSubLegacy = Array.isArray(config.subscription?.legacySecrets)
+        ? config.subscription.legacySecrets.map((item: any) => normalizeText(item)).filter(Boolean)
+        : [];
+    const nextSubscriptionSecret = normalizeText(process.env.SUBSCRIPTION_TOKEN_SECRET)
+        || (previousSubSecret && previousSubSecret !== previousJwtSecret && !isWeakCredentialsSecret(previousSubSecret, nextValues.jwtSecret)
+            ? previousSubSecret
+            : nextValues.credentialsSecret);
+    const nextSubscriptionLegacySecrets = Array.from(new Set([
+        ...existingSubLegacy,
+        previousSubSecret,
+        previousJwtSecret,
+    ].filter((item) => Boolean(item) && item !== nextSubscriptionSecret)));
+
     const envUpdates = {
         JWT_SECRET: nextValues.jwtSecret,
         ADMIN_USERNAME: nextValues.adminUsername,
         ADMIN_PASSWORD: nextValues.adminPassword,
         CREDENTIALS_SECRET: nextValues.credentialsSecret,
+        SUBSCRIPTION_TOKEN_SECRET: nextSubscriptionSecret,
+        SUBSCRIPTION_TOKEN_LEGACY_SECRETS: nextSubscriptionLegacySecrets.join(','),
     };
 
     writeEnvSecurityOverrides(DEFAULT_ENV_FILE, envUpdates);
@@ -215,8 +245,14 @@ export function applySecurityBootstrap(payload: any = {}, currentUser: any = {})
     config.jwt.secret = nextValues.jwtSecret;
     process.env.JWT_SECRET = nextValues.jwtSecret;
 
+    config.subscription.tokenSecret = nextSubscriptionSecret;
+    config.subscription.legacySecrets = nextSubscriptionLegacySecrets;
+    process.env.SUBSCRIPTION_TOKEN_SECRET = nextSubscriptionSecret;
+    process.env.SUBSCRIPTION_TOKEN_LEGACY_SECRETS = nextSubscriptionLegacySecrets.join(',');
+
     const credentialRotation = rotateCredentialSecret(nextValues.credentialsSecret);
     process.env.CREDENTIALS_SECRET = config.credentials.secret;
+    const subscriptionRotation = subscriptionTokenStore.rotateSecrets();
 
     const remainingIssues = collectStrictSecurityIssues();
     if (remainingIssues.length > 0) {
@@ -238,6 +274,7 @@ export function applySecurityBootstrap(payload: any = {}, currentUser: any = {})
         user: buildSessionUser(refreshedAdmin),
         stats: buildBootstrapStats(),
         credentialRotation,
+        subscriptionRotation,
         envFile: DEFAULT_ENV_FILE,
     };
 }
