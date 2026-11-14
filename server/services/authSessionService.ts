@@ -3,6 +3,7 @@ import config from '../config.js';
 import * as mailer from '../lib/mailer.js';
 import { checkAccountPassword } from '../lib/passwordValidator.js';
 import { createHttpError } from '../lib/httpError.js';
+import { normalizeAppLocale, pickLocalizedText } from '../lib/requestLocale.js';
 import {
     buildTotpUri,
     generateBackupCodes,
@@ -268,8 +269,9 @@ function buildTwoFactorChallenge(tokenPayload: any, deps: any = {}): string {
 }
 
 function verifyTwoFactorChallenge(token: unknown, deps: any = {}): any {
+    const locale = normalizeAppLocale(deps?.locale, 'zh-CN');
     if (!token || typeof token !== 'string') {
-        throw createHttpError(400, '缺少 2FA 挑战凭证');
+        throw createHttpError(400, pickLocalizedText(locale, '缺少 2FA 挑战凭证', 'Missing 2FA challenge token'));
     }
     const jwtConfig = deps.jwtConfig || config.jwt;
     const verifier = deps.jwtVerify || jwt.verify;
@@ -283,27 +285,35 @@ function verifyTwoFactorChallenge(token: unknown, deps: any = {}): any {
         }
         return decoded;
     } catch {
-        throw createHttpError(401, '2FA 挑战凭证无效或已过期');
+        throw createHttpError(401, pickLocalizedText(locale, '2FA 挑战凭证无效或已过期', '2FA challenge token is invalid or expired'));
     }
 }
 
 function completeTwoFactorLogin(payload: any = {}, deps: any = {}): any {
+    const locale = normalizeAppLocale(deps?.locale, 'zh-CN');
     const userRepo = deps.userRepository || userRepository;
     const challenge = verifyTwoFactorChallenge(payload?.challengeToken, deps);
     const stored = userRepo.getById(challenge.userId);
-    if (!stored) throw createHttpError(401, '账号不存在');
+    if (!stored) throw createHttpError(401, pickLocalizedText(locale, '账号不存在', 'Account not found'));
     if (stored.enabled === false && stored.role !== 'admin') {
-        throw createHttpError(403, '账号已停用');
+        throw createHttpError(403, pickLocalizedText(locale, '账号已停用', 'Account has been disabled'));
     }
     if (getTwoFactorFailureState(stored.id).blocked) {
-        throw createHttpError(429, '2FA 验证尝试过于频繁，请 15 分钟后再试');
+        throw createHttpError(
+            429,
+            pickLocalizedText(
+                locale,
+                '2FA 验证尝试过于频繁，请 15 分钟后再试',
+                'Too many 2FA verification attempts, please try again in 15 minutes'
+            )
+        );
     }
 
     const config2FA = typeof userRepo.getTwoFactor === 'function'
         ? userRepo.getTwoFactor(stored.id)
         : null;
     if (!config2FA || config2FA.enabled !== true) {
-        throw createHttpError(400, '账号未启用 2FA');
+        throw createHttpError(400, pickLocalizedText(locale, '账号未启用 2FA', '2FA is not enabled for this account'));
     }
 
     const code = String(payload?.code || '').trim();
@@ -314,7 +324,14 @@ function completeTwoFactorLogin(payload: any = {}, deps: any = {}): any {
         const result = verifyBackupCode(code, config2FA.backupCodeHashes);
         if (!result.match) {
             if (recordTwoFactorFailure(stored.id)) {
-                throw createHttpError(429, '2FA 验证尝试过于频繁，请 15 分钟后再试');
+                throw createHttpError(
+                    429,
+                    pickLocalizedText(
+                        locale,
+                        '2FA 验证尝试过于频繁，请 15 分钟后再试',
+                        'Too many 2FA verification attempts, please try again in 15 minutes'
+                    )
+                );
             }
             return { success: false, reason: 'invalid_code', audit: buildAuditUser(stored, challenge) };
         }
@@ -322,7 +339,14 @@ function completeTwoFactorLogin(payload: any = {}, deps: any = {}): any {
         backupConsumed = true;
     } else if (!verifyTotp(code, config2FA.secret)) {
         if (recordTwoFactorFailure(stored.id)) {
-            throw createHttpError(429, '2FA 验证尝试过于频繁，请 15 分钟后再试');
+            throw createHttpError(
+                429,
+                pickLocalizedText(
+                    locale,
+                    '2FA 验证尝试过于频繁，请 15 分钟后再试',
+                    'Too many 2FA verification attempts, please try again in 15 minutes'
+                )
+            );
         }
         return { success: false, reason: 'invalid_code', audit: buildAuditUser(stored, challenge) };
     }
@@ -347,16 +371,17 @@ function completeTwoFactorLogin(payload: any = {}, deps: any = {}): any {
 }
 
 function beginTwoFactorEnrollment(currentUser: any, deps: any = {}) {
+    const locale = normalizeAppLocale(deps?.locale, 'zh-CN');
     const userRepo = deps.userRepository || userRepository;
     const stored = userRepo.getById(currentUser?.userId)
         || userRepo.getByUsername(currentUser?.username);
-    if (!stored) throw createHttpError(404, '账号不存在');
+    if (!stored) throw createHttpError(404, pickLocalizedText(locale, '账号不存在', 'Account not found'));
 
     const existing = typeof userRepo.getTwoFactor === 'function'
         ? userRepo.getTwoFactor(stored.id)
         : null;
     if (existing && existing.enabled) {
-        throw createHttpError(409, '当前账号已启用 2FA');
+        throw createHttpError(409, pickLocalizedText(locale, '当前账号已启用 2FA', '2FA is already enabled for this account'));
     }
 
     const secret = generateTotpSecret();
@@ -366,22 +391,25 @@ function beginTwoFactorEnrollment(currentUser: any, deps: any = {}) {
 }
 
 function enableTwoFactor(payload: any = {}, currentUser: any, deps: any = {}) {
+    const locale = normalizeAppLocale(deps?.locale, 'zh-CN');
     const userRepo = deps.userRepository || userRepository;
     const stored = userRepo.getById(currentUser?.userId)
         || userRepo.getByUsername(currentUser?.username);
-    if (!stored) throw createHttpError(404, '账号不存在');
+    if (!stored) throw createHttpError(404, pickLocalizedText(locale, '账号不存在', 'Account not found'));
 
     const existing = typeof userRepo.getTwoFactor === 'function'
         ? userRepo.getTwoFactor(stored.id)
         : null;
     if (existing && existing.enabled) {
-        throw createHttpError(409, '当前账号已启用 2FA');
+        throw createHttpError(409, pickLocalizedText(locale, '当前账号已启用 2FA', '2FA is already enabled for this account'));
     }
 
     const secret = String(payload?.secret || '').trim();
     const code = String(payload?.code || '').trim();
-    if (!secret) throw createHttpError(400, '缺少 2FA 密钥');
-    if (!verifyTotp(code, secret)) throw createHttpError(400, '验证码不正确,请重试');
+    if (!secret) throw createHttpError(400, pickLocalizedText(locale, '缺少 2FA 密钥', 'Missing 2FA secret'));
+    if (!verifyTotp(code, secret)) {
+        throw createHttpError(400, pickLocalizedText(locale, '验证码不正确,请重试', 'Verification code is incorrect, please try again'));
+    }
 
     const backupCodes = generateBackupCodes(10);
     const backupCodeHashes = backupCodes.map((code2) => hashBackupCode(code2));
@@ -395,15 +423,16 @@ function enableTwoFactor(payload: any = {}, currentUser: any, deps: any = {}) {
 }
 
 function disableTwoFactor(payload: any = {}, currentUser: any, deps: any = {}) {
+    const locale = normalizeAppLocale(deps?.locale, 'zh-CN');
     const userRepo = deps.userRepository || userRepository;
     const stored = userRepo.getById(currentUser?.userId)
         || userRepo.getByUsername(currentUser?.username);
-    if (!stored) throw createHttpError(404, '账号不存在');
+    if (!stored) throw createHttpError(404, pickLocalizedText(locale, '账号不存在', 'Account not found'));
 
     const password = typeof payload?.password === 'string' ? payload.password : '';
-    if (!password) throw createHttpError(400, '需要确认当前账号密码');
+    if (!password) throw createHttpError(400, pickLocalizedText(locale, '需要确认当前账号密码', 'Current account password is required'));
     const verified = userRepo.authenticate(stored.username, password);
-    if (!verified) throw createHttpError(401, '账号密码不正确');
+    if (!verified) throw createHttpError(401, pickLocalizedText(locale, '账号密码不正确', 'Account password is incorrect'));
 
     userRepo.clearTwoFactor(stored.id);
     return {
@@ -413,10 +442,11 @@ function disableTwoFactor(payload: any = {}, currentUser: any, deps: any = {}) {
 }
 
 function getTwoFactorStatus(currentUser: any, deps: any = {}) {
+    const locale = normalizeAppLocale(deps?.locale, 'zh-CN');
     const userRepo = deps.userRepository || userRepository;
     const stored = userRepo.getById(currentUser?.userId)
         || userRepo.getByUsername(currentUser?.username);
-    if (!stored) throw createHttpError(404, '账号不存在');
+    if (!stored) throw createHttpError(404, pickLocalizedText(locale, '账号不存在', 'Account not found'));
     const existing = typeof userRepo.getTwoFactor === 'function'
         ? userRepo.getTwoFactor(stored.id)
         : null;
@@ -428,8 +458,10 @@ function getTwoFactorStatus(currentUser: any, deps: any = {}) {
 }
 
 function validateSession(authHeader: unknown, deps: any = {}) {
+    const locale = normalizeAppLocale(deps?.locale, 'zh-CN');
+    const unauthorizedMsg = pickLocalizedText(locale, '未授权', 'Unauthorized');
     if (!authHeader || !String(authHeader).startsWith('Bearer ')) {
-        throw createHttpError(401, '未授权');
+        throw createHttpError(401, unauthorizedMsg);
     }
 
     try {
@@ -439,21 +471,21 @@ function validateSession(authHeader: unknown, deps: any = {}) {
             algorithms: ['HS256'],
         });
         if (!decoded || decoded.type || decoded.isGuest || decoded.role === 'guest') {
-            throw createHttpError(401, '未授权');
+            throw createHttpError(401, unauthorizedMsg);
         }
         const userRepo = deps.userRepository || userRepository;
         const stored = decoded.userId ? userRepo.getById(decoded.userId) : userRepo.getByUsername(decoded.username);
         if (!stored) {
-            throw createHttpError(401, '未授权');
+            throw createHttpError(401, unauthorizedMsg);
         }
         if (stored.enabled === false && stored.role !== 'admin') {
-            throw createHttpError(401, '未授权');
+            throw createHttpError(401, unauthorizedMsg);
         }
         if (decoded.role && stored.role && decoded.role !== stored.role) {
-            throw createHttpError(401, '未授权');
+            throw createHttpError(401, unauthorizedMsg);
         }
         if (Number(decoded.tokenVersion ?? 1) !== Number(stored.tokenVersion ?? 1)) {
-            throw createHttpError(401, '未授权');
+            throw createHttpError(401, unauthorizedMsg);
         }
 
         return {
@@ -461,7 +493,7 @@ function validateSession(authHeader: unknown, deps: any = {}) {
             user: buildSessionUser(stored, decoded),
         };
     } catch {
-        throw createHttpError(401, '未授权');
+        throw createHttpError(401, unauthorizedMsg);
     }
 }
 
@@ -480,13 +512,14 @@ function resolveCurrentUserRecord(currentUser: any = {}, deps: any = {}) {
 }
 
 function changeOwnPassword(payload: any = {}, currentUser: any = {}, deps: any = {}) {
+    const locale = normalizeAppLocale(deps?.locale, 'zh-CN');
     const oldPassword = String(payload?.oldPassword || '');
     const newPassword = String(payload?.newPassword || '');
     if (!oldPassword || !newPassword) {
-        throw createHttpError(400, '请提供旧密码和新密码');
+        throw createHttpError(400, pickLocalizedText(locale, '请提供旧密码和新密码', 'Current password and new password are required'));
     }
 
-    const passwordCheck = checkAccountPassword(newPassword);
+    const passwordCheck = checkAccountPassword(newPassword, locale);
     if (!passwordCheck.valid) {
         throw createHttpError(400, passwordCheck.reason);
     }
@@ -494,12 +527,12 @@ function changeOwnPassword(payload: any = {}, currentUser: any = {}, deps: any =
     const userRepo = deps.userRepository || userRepository;
     const user = resolveCurrentUserRecord(currentUser, deps);
     if (!user) {
-        throw createHttpError(400, '无法识别当前用户');
+        throw createHttpError(400, pickLocalizedText(locale, '无法识别当前用户', 'Unable to identify current user'));
     }
 
     const verified = userRepo.authenticate(user.username, oldPassword);
     if (!verified) {
-        throw createHttpError(401, '旧密码错误');
+        throw createHttpError(401, pickLocalizedText(locale, '旧密码错误', 'Current password is incorrect'));
     }
 
     userRepo.update(user.id, { password: newPassword });
@@ -509,34 +542,35 @@ function changeOwnPassword(payload: any = {}, currentUser: any = {}, deps: any =
 }
 
 function resolveOwnProfileUpdateInput(payload: any = {}, currentUser: any = {}, deps: any = {}) {
+    const locale = normalizeAppLocale(deps?.locale, 'zh-CN');
     const userRepo = deps.userRepository || userRepository;
     const user = resolveCurrentUserRecord(currentUser, deps);
     if (!user) {
-        throw createHttpError(400, '无法识别当前用户');
+        throw createHttpError(400, pickLocalizedText(locale, '无法识别当前用户', 'Unable to identify current user'));
     }
     const username = normalizeUsernameInput(payload?.username);
     const email = normalizeEmailInput(payload?.email);
     if (!username) {
-        throw createHttpError(400, '请提供用户名');
+        throw createHttpError(400, pickLocalizedText(locale, '请提供用户名', 'Username is required'));
     }
     if (!email) {
-        throw createHttpError(400, '请提供邮箱');
+        throw createHttpError(400, pickLocalizedText(locale, '请提供邮箱', 'Email is required'));
     }
     if (!isValidEmail(email)) {
-        throw createHttpError(400, '邮箱格式不正确');
+        throw createHttpError(400, pickLocalizedText(locale, '邮箱格式不正确', 'Invalid email format'));
     }
 
     const existingByUsername = typeof userRepo.getByUsername === 'function'
         ? userRepo.getByUsername(username)
         : null;
     if (existingByUsername && String(existingByUsername.id || '').trim() !== String(user.id || '').trim()) {
-        throw createHttpError(400, `用户名 "${username}" 已存在`);
+        throw createHttpError(400, pickLocalizedText(locale, `用户名 "${username}" 已存在`, `Username "${username}" already exists`));
     }
     const existingByEmail = typeof userRepo.getByEmail === 'function'
         ? userRepo.getByEmail(email)
         : null;
     if (existingByEmail && String(existingByEmail.id || '').trim() !== String(user.id || '').trim()) {
-        throw createHttpError(400, `邮箱 "${email}" 已被注册`);
+        throw createHttpError(400, pickLocalizedText(locale, `邮箱 "${email}" 已被注册`, `Email "${email}" is already registered`));
     }
 
     const previousUsername = normalizeUsernameInput(user.username);
@@ -555,6 +589,7 @@ function resolveOwnProfileUpdateInput(payload: any = {}, currentUser: any = {}, 
 }
 
 async function requestOwnProfileUpdateVerification(payload: any = {}, currentUser: any = {}, deps: any = {}): Promise<any> {
+    const locale = normalizeAppLocale(deps?.locale, 'zh-CN');
     const emailSender = deps.mailer || mailer;
     const registrationConfig = deps.registrationConfig || config.registration;
     const {
@@ -567,11 +602,11 @@ async function requestOwnProfileUpdateVerification(payload: any = {}, currentUse
     } = resolveOwnProfileUpdateInput(payload, currentUser, deps);
 
     if (username === previousUsername && email === previousEmail) {
-        throw createHttpError(400, '账号信息没有变化');
+        throw createHttpError(400, pickLocalizedText(locale, '账号信息没有变化', 'Account information has not changed'));
     }
     const targetEmail = previousEmail || email;
     if (!targetEmail) {
-        throw createHttpError(400, '请提供要绑定的邮箱');
+        throw createHttpError(400, pickLocalizedText(locale, '请提供要绑定的邮箱', 'Please provide an email address to bind'));
     }
 
     const code = emailSender.generateVerifyCode();
@@ -588,7 +623,11 @@ async function requestOwnProfileUpdateVerification(payload: any = {}, currentUse
     } catch (error: any) {
         throw createHttpError(
             503,
-            '验证码邮件发送失败，请稍后重试或联系管理员检查 SMTP 配置',
+            pickLocalizedText(
+                locale,
+                '验证码邮件发送失败，请稍后重试或联系管理员检查 SMTP 配置',
+                'Failed to send verification code email, please try again later or check SMTP configuration'
+            ),
             {
                 code: 'PROFILE_VERIFICATION_EMAIL_SEND_FAILED',
                 details: {
@@ -611,6 +650,7 @@ async function requestOwnProfileUpdateVerification(payload: any = {}, currentUse
 }
 
 function updateOwnProfile(payload: any = {}, currentUser: any = {}, deps: any = {}) {
+    const locale = normalizeAppLocale(deps?.locale, 'zh-CN');
     const {
         userRepo,
         user,
@@ -622,39 +662,46 @@ function updateOwnProfile(payload: any = {}, currentUser: any = {}, deps: any = 
     } = resolveOwnProfileUpdateInput(payload, currentUser, deps);
     const code = String(payload?.code || '').trim();
     if (!code) {
-        throw createHttpError(400, '请提供邮箱验证码');
+        throw createHttpError(400, pickLocalizedText(locale, '请提供邮箱验证码', 'Email verification code is required'));
     }
     if (username === previousUsername && email === previousEmail) {
-        throw createHttpError(400, '账号信息没有变化');
+        throw createHttpError(400, pickLocalizedText(locale, '账号信息没有变化', 'Account information has not changed'));
     }
 
     const targetEmail = previousEmail || email;
 
     if (!String(user?.profileVerifyCode || '').trim()) {
-        throw createHttpError(400, '请先发送邮箱验证码');
+        throw createHttpError(400, pickLocalizedText(locale, '请先发送邮箱验证码', 'Please send an email verification code first'));
     }
     if (String(user.profileVerifyCode).trim() !== code) {
         if (typeof userRepo.recordProfileVerifyFailure === 'function') {
             const failure = userRepo.recordProfileVerifyFailure(user.id, 5);
             if (failure?.invalidated) {
-                throw createHttpError(429, '验证码错误次数过多，请重新发送验证码');
+                throw createHttpError(
+                    429,
+                    pickLocalizedText(
+                        locale,
+                        '验证码错误次数过多，请重新发送验证码',
+                        'Too many incorrect verification code attempts, please request a new code'
+                    )
+                );
             }
         }
-        throw createHttpError(400, '验证码错误');
+        throw createHttpError(400, pickLocalizedText(locale, '验证码错误', 'Verification code is incorrect'));
     }
     if (user.profileVerifyCodeExpiresAt && new Date(user.profileVerifyCodeExpiresAt) < new Date()) {
-        throw createHttpError(400, '验证码已过期，请重新发送');
+        throw createHttpError(400, pickLocalizedText(locale, '验证码已过期，请重新发送', 'Verification code has expired, please resend'));
     }
     if (normalizeEmailInput(user.profileVerifyTargetEmail) !== targetEmail) {
-        throw createHttpError(400, '验证邮箱已变化，请重新发送验证码');
+        throw createHttpError(400, pickLocalizedText(locale, '验证邮箱已变化，请重新发送验证码', 'Verification email has changed, please resend the code'));
     }
     if (normalizeUsernameInput(user.profileVerifyUsername) !== username || normalizeEmailInput(user.profileVerifyEmail) !== email) {
-        throw createHttpError(400, '账号信息已变更，请重新发送验证码');
+        throw createHttpError(400, pickLocalizedText(locale, '账号信息已变更，请重新发送验证码', 'Account details changed, please resend the code'));
     }
 
     const updated = userRepo.update(user.id, { username, email, emailVerified: true });
     if (!updated) {
-        throw createHttpError(404, '用户不存在');
+        throw createHttpError(404, pickLocalizedText(locale, '用户不存在', 'User not found'));
     }
     userRepo.clearProfileUpdateVerification(user.id);
 

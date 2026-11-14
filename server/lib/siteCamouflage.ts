@@ -422,6 +422,9 @@ a.@media:hover img { transform: scale(1.025); }
   .@foot-inner { grid-template-columns: 1fr; }
   .@foot nav { justify-content: flex-start; }
 }
+@media (max-width: 768px) {
+  .@lang button { display: inline-flex; align-items: center; min-height: 36px; padding: 8px 12px; }
+}
 @media (max-width: 600px) {
   .@cards { grid-template-columns: 1fr; }
   .@rows li { grid-template-columns: 1fr; gap: 2px; }
@@ -474,7 +477,7 @@ const THEME_CSS: Record<string, string> = {
 }
 `,
     blog: `
-:root { --bg: #fbfbf9; --surface: #ffffff; --ink: #1f2328; --muted: #6e7681; --line: #e6e6e1; --accent: #2f6f62; --max: 880px; --radius: 6px;
+:root { --bg: #fbfbf9; --surface: #ffffff; --ink: #1f2328; --muted: #59636e; --line: #e6e6e1; --accent: #2f6f62; --max: 880px; --radius: 6px;
   --font-body: var(--font-ui); --font-display: var(--font-ui); --font-prose: var(--font-ui); }
 @media (prefers-color-scheme: dark) {
   :root { --bg: #111314; --surface: #181b1c; --ink: #e6e8e6; --muted: #9aa3a0; --line: #262a2b; --accent: #7cc4b2;

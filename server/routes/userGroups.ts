@@ -3,6 +3,7 @@ import serverStore from '../store/serverStore.js';
 import jobStore from '../store/jobStore.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import { toHttpError } from '../lib/httpError.js';
+import { pickLocalizedText, resolveRequestLocale } from '../lib/requestLocale.js';
 import {
     buildManagedUserSyncJobPayload,
     createUserGroup,
@@ -113,11 +114,12 @@ router.get('/', (_req: Request, res: Response) => {
 });
 
 router.post('/', async (req: Request, res: Response) => {
+    const locale = resolveRequestLocale(req);
     try {
         const actor = (req as any).user?.username || (req as any).user?.role || 'admin';
         const payload = normalizeGroupPayload(req.body);
         validateServerIds(payload);
-        const result = await createUserGroup(payload, actor);
+        const result = await createUserGroup(payload, actor, { locale });
         const syncHistoryIds = appendGroupSyncHistory(req, result.sync, 'group_policy_create');
         appendSecurityAudit('user_group_created', req, {
             groupId: result.group.id,
@@ -129,25 +131,30 @@ router.post('/', async (req: Request, res: Response) => {
         return res.json({
             success: true,
             msg: result.sync.failedUsers > 0
-                ? '用户分组已创建，但部分节点同步失败，可在任务历史中重试'
-                : '用户分组已创建',
+                ? pickLocalizedText(
+                    locale,
+                    '用户分组已创建，但部分节点同步失败，可在任务历史中重试',
+                    'User group created, but some nodes failed to sync (retry in task history)'
+                )
+                : pickLocalizedText(locale, '用户分组已创建', 'User group created'),
             obj: {
                 ...result,
                 syncHistoryIds,
             },
         });
     } catch (error) {
-        const httpError = toHttpError(error, 400, '创建用户分组失败');
+        const httpError = toHttpError(error, 400, pickLocalizedText(locale, '创建用户分组失败', 'Failed to create user group'));
         return res.status(httpError.status).json({ success: false, msg: httpError.message });
     }
 });
 
 router.put('/:id', async (req: Request, res: Response) => {
+    const locale = resolveRequestLocale(req);
     try {
         const actor = (req as any).user?.username || (req as any).user?.role || 'admin';
         const payload = normalizeGroupPayload(req.body);
         validateServerIds(payload);
-        const result = await updateUserGroup(req.params.id, payload, actor);
+        const result = await updateUserGroup(req.params.id, payload, actor, { locale });
         const syncHistoryIds = appendGroupSyncHistory(req, result.sync, 'group_policy_update');
         appendSecurityAudit('user_group_updated', req, {
             groupId: result.group.id,
@@ -159,23 +166,28 @@ router.put('/:id', async (req: Request, res: Response) => {
         return res.json({
             success: true,
             msg: result.sync.failedUsers > 0
-                ? '用户分组已保存，但部分节点同步失败，可在任务历史中重试'
-                : '用户分组已保存',
+                ? pickLocalizedText(
+                    locale,
+                    '用户分组已保存，但部分节点同步失败，可在任务历史中重试',
+                    'User group saved, but some nodes failed to sync (retry in task history)'
+                )
+                : pickLocalizedText(locale, '用户分组已保存', 'User group saved'),
             obj: {
                 ...result,
                 syncHistoryIds,
             },
         });
     } catch (error) {
-        const httpError = toHttpError(error, 400, '更新用户分组失败');
+        const httpError = toHttpError(error, 400, pickLocalizedText(locale, '更新用户分组失败', 'Failed to update user group'));
         return res.status(httpError.status).json({ success: false, msg: httpError.message });
     }
 });
 
 router.post('/:id/sync', async (req: Request, res: Response) => {
+    const locale = resolveRequestLocale(req);
     try {
         const actor = (req as any).user?.username || (req as any).user?.role || 'admin';
-        const sync = await syncUserGroupMembers(req.params.id, actor);
+        const sync = await syncUserGroupMembers(req.params.id, actor, { locale });
         const syncHistoryIds = appendGroupSyncHistory(req, sync, 'group_policy_sync');
         appendSecurityAudit('user_group_synced', req, {
             groupId: sync.group.id,
@@ -187,23 +199,24 @@ router.post('/:id/sync', async (req: Request, res: Response) => {
         return res.json({
             success: true,
             msg: sync.failedUsers > 0
-                ? '分组同步已完成，但部分用户存在失败项'
-                : '分组同步已完成',
+                ? pickLocalizedText(locale, '分组同步已完成，但部分用户存在失败项', 'Group sync completed with partial failures')
+                : pickLocalizedText(locale, '分组同步已完成', 'Group sync completed'),
             obj: {
                 sync,
                 syncHistoryIds,
             },
         });
     } catch (error) {
-        const httpError = toHttpError(error, 400, '同步用户分组失败');
+        const httpError = toHttpError(error, 400, pickLocalizedText(locale, '同步用户分组失败', 'Failed to sync user group'));
         return res.status(httpError.status).json({ success: false, msg: httpError.message });
     }
 });
 
 router.delete('/:id', async (req: Request, res: Response) => {
+    const locale = resolveRequestLocale(req);
     try {
         const actor = (req as any).user?.username || (req as any).user?.role || 'admin';
-        const result = await deleteUserGroup(req.params.id, actor);
+        const result = await deleteUserGroup(req.params.id, actor, { locale });
         const syncHistoryIds = appendGroupSyncHistory(req, result.sync, 'group_policy_delete');
         appendSecurityAudit('user_group_deleted', req, {
             groupId: result.group.id,
@@ -215,15 +228,15 @@ router.delete('/:id', async (req: Request, res: Response) => {
         return res.json({
             success: true,
             msg: result.sync.failedUsers > 0
-                ? '用户分组已删除，但部分成员同步失败'
-                : '用户分组已删除',
+                ? pickLocalizedText(locale, '用户分组已删除，但部分成员同步失败', 'User group deleted, but some members failed to sync')
+                : pickLocalizedText(locale, '用户分组已删除', 'User group deleted'),
             obj: {
                 ...result,
                 syncHistoryIds,
             },
         });
     } catch (error) {
-        const httpError = toHttpError(error, 400, '删除用户分组失败');
+        const httpError = toHttpError(error, 400, pickLocalizedText(locale, '删除用户分组失败', 'Failed to delete user group'));
         return res.status(httpError.status).json({ success: false, msg: httpError.message });
     }
 });

@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import { toHttpError } from '../lib/httpError.js';
+import { pickLocalizedText, resolveRequestLocale } from '../lib/requestLocale.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import { listEntitlementOverrides, updateClientEntitlement } from '../services/clientEntitlementService.js';
 
@@ -16,8 +17,14 @@ router.get('/entitlement-overrides', (req: Request, res: Response) => {
 });
 
 router.put('/entitlement', async (req: Request, res: Response) => {
+    const locale = resolveRequestLocale(req);
+    const fallbackMessage = pickLocalizedText(locale, '更新单独限定失败', 'Failed to update client entitlement');
     try {
-        const result = await updateClientEntitlement(req.body, (req as any).user?.username || 'admin');
+        const result = await updateClientEntitlement(
+            req.body,
+            (req as any).user?.username || 'admin',
+            { locale }
+        );
 
         if (result.overrideActive) {
             appendSecurityAudit('client_entitlement_overridden', req, {
@@ -42,10 +49,10 @@ router.put('/entitlement', async (req: Request, res: Response) => {
             obj: result,
         });
     } catch (error) {
-        const httpError = toHttpError(error, 502, '更新单独限定失败');
+        const httpError = toHttpError(error, 502, fallbackMessage);
         return res.status(httpError.status).json({
             success: false,
-            msg: httpError.message || '更新单独限定失败',
+            msg: httpError.message || fallbackMessage,
         });
     }
 });

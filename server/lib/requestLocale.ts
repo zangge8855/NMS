@@ -93,3 +93,19 @@ export function isEnglishLocale(locale: unknown): boolean {
 export function pickLocalizedText(locale: unknown, zhText: string, enText: string): string {
     return isEnglishLocale(locale) ? enText : zhText;
 }
+
+export function localizeUserStoreErrorMessage(message: unknown, locale: AppLocale = 'zh-CN'): string {
+    const raw = String(message || '').trim();
+    if (!raw || !isEnglishLocale(locale)) return raw;
+    if (raw === '用户名和密码不能为空') return 'Username and password are required';
+    if (raw === '用户名不能为空') return 'Username is required';
+    const invalidRole = /^无效角色:\s*(.+)$/.exec(raw);
+    if (invalidRole) return `Invalid role: ${invalidRole[1]}`;
+    const dupUsername = /^用户名 "(.+)" 已存在$/.exec(raw);
+    if (dupUsername) return `Username "${dupUsername[1]}" already exists`;
+    const dupEmail = /^邮箱 "(.+)" 已被注册$/.exec(raw);
+    if (dupEmail) return `Email "${dupEmail[1]}" is already registered`;
+    const dupSubEmail = /^订阅绑定邮箱 "(.+)" 已被其他账号占用$/.exec(raw);
+    if (dupSubEmail) return `Subscription email "${dupSubEmail[1]}" is already bound to another account`;
+    return raw;
+}

@@ -828,3 +828,56 @@ test('completeTwoFactorLogin locks out repeated wrong TOTP attempts per user', (
         (err) => err.status === 429
     );
 });
+
+test('authSessionService localizes errors for en-US while keeping zh-CN defaults', () => {
+    const baseUser = {
+        id: 'u-locale',
+        username: 'alice',
+        email: 'alice@example.com',
+        profileVerifyCode: '123456',
+        profileVerifyCodeExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+        profileVerifyTargetEmail: 'alice@example.com',
+        profileVerifyUsername: 'alice2',
+        profileVerifyEmail: 'alice2@example.com',
+    };
+    const missingUpdateRepo = {
+        getById: () => baseUser,
+        getByUsername: () => null,
+        getByEmail: () => null,
+        update: () => null,
+        clearProfileUpdateVerification: () => {},
+    };
+
+    assert.throws(
+        () => updateOwnProfile(
+            { username: 'alice2', email: 'alice2@example.com', code: '123456' },
+            { userId: 'u-locale' },
+            { userRepository: missingUpdateRepo }
+        ),
+        (err) => err.status === 404 && err.message === '用户不存在'
+    );
+
+    assert.throws(
+        () => updateOwnProfile(
+            { username: 'alice2', email: 'alice2@example.com', code: '123456' },
+            { userId: 'u-locale' },
+            { userRepository: missingUpdateRepo, locale: 'en-US' }
+        ),
+        (err) => err.status === 404 && err.message === 'User not found'
+    );
+
+    assert.throws(
+        () => changeOwnPassword(
+            { oldPassword: 'wrong', newPassword: 'NewPassword#123' },
+            { userId: 'u-locale' },
+            {
+                userRepository: {
+                    getById: () => ({ id: 'u-locale', username: 'alice' }),
+                    authenticate: () => null,
+                },
+                locale: 'en-US',
+            }
+        ),
+        (err) => err.status === 401 && err.message === 'Current password is incorrect'
+    );
+});

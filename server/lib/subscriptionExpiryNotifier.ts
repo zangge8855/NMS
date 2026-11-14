@@ -1,6 +1,7 @@
 import userStore from '../store/userStore.js';
 import userPolicyStore from '../store/userPolicyStore.js';
 import notificationService, { SEVERITY, type SeverityType } from './notifications.js';
+import { isEnglishLocale, resolveNotificationLocale, type AppLocale } from './requestLocale.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_INTERVAL_MS = 30 * 60 * 1000;
@@ -35,10 +36,10 @@ function normalizeUserList(repo: any): any[] {
     return [];
 }
 
-function formatDateTime(value: unknown): string {
-    if (!value) return '暂无';
+function formatDateTime(value: unknown, locale: AppLocale = 'zh-CN'): string {
+    if (!value) return locale === 'en-US' ? 'N/A' : '暂无';
     try {
-        return new Date(value as any).toLocaleString('zh-CN', { hour12: false });
+        return new Date(value as any).toLocaleString(locale, { hour12: false });
     } catch {
         return String(value);
     }
@@ -156,20 +157,32 @@ export function collectSubscriptionExpirySnapshot(options: any = {}): Subscripti
     };
 }
 
-function buildExpiryNotification(item: any = {}): any {
+export function buildExpiryNotification(item: any = {}, explicitLocale?: unknown): any {
+    const locale = resolveNotificationLocale(explicitLocale);
     const identity = [
         String(item.username || '').trim(),
         String(item.subscriptionEmail || item.email || '').trim(),
     ].filter(Boolean).join(' · ');
-    const displayIdentity = identity || '未知用户';
-    const expiryLabel = formatDateTime(item.expiryTime);
+    const zhIdentity = identity || '未知用户';
+    const enIdentity = identity || 'Unknown user';
+    const zhExpiryLabel = formatDateTime(item.expiryTime, 'zh-CN');
+    const enExpiryLabel = formatDateTime(item.expiryTime, 'en-US');
 
     if (item.stage === 'expired') {
+        const zhCopy = {
+            title: '用户订阅已到期',
+            body: `${zhIdentity} 已到期。到期时间: ${zhExpiryLabel}`,
+        };
+        const enCopy = {
+            title: 'User subscription expired',
+            body: `${enIdentity} has expired. Expiry time: ${enExpiryLabel}`,
+        };
+        const selected = isEnglishLocale(locale) ? enCopy : zhCopy;
         return {
             type: 'subscription_user_expired',
             severity: SEVERITY.CRITICAL,
-            title: '用户订阅已到期',
-            body: `${displayIdentity} 已到期。到期时间: ${expiryLabel}`,
+            title: selected.title,
+            body: selected.body,
             meta: {
                 targetEmail: item.subscriptionEmail || item.email || '',
                 targetUsername: item.username || '',
@@ -177,23 +190,43 @@ function buildExpiryNotification(item: any = {}): any {
                 remainingDays: 0,
                 stage: item.stage,
                 telegramTopics: ['system_status', 'emergency_alert'],
+                localized: {
+                    'zh-CN': zhCopy,
+                    'en-US': enCopy,
+                },
             },
             dedupKey: `subscription_expiry:${item.subscriptionEmail || item.email || 'unknown'}:${item.stage}:${item.expiryTime || 0}`,
         };
     }
 
+    const remainingDays = Number(item.remainingDays || 0);
+    const dayUnit = remainingDays === 1 ? 'day' : 'days';
+    const zhCopy = {
+        title: '用户订阅即将到期',
+        body: `${zhIdentity} 还有 ${remainingDays} 天到期。到期时间: ${zhExpiryLabel}`,
+    };
+    const enCopy = {
+        title: 'User subscription expiring soon',
+        body: `${enIdentity} expires in ${remainingDays} ${dayUnit}. Expiry time: ${enExpiryLabel}`,
+    };
+    const selected = isEnglishLocale(locale) ? enCopy : zhCopy;
+
     return {
         type: 'subscription_user_expiry_warning',
         severity: SEVERITY.WARNING,
-        title: '用户订阅即将到期',
-        body: `${displayIdentity} 还有 ${item.remainingDays} 天到期。到期时间: ${expiryLabel}`,
+        title: selected.title,
+        body: selected.body,
         meta: {
             targetEmail: item.subscriptionEmail || item.email || '',
             targetUsername: item.username || '',
             expiryTime: item.expiryTime || 0,
-            remainingDays: item.remainingDays || 0,
+            remainingDays,
             stage: item.stage,
             telegramTopics: ['system_status'],
+            localized: {
+                'zh-CN': zhCopy,
+                'en-US': enCopy,
+            },
         },
         dedupKey: `subscription_expiry:${item.subscriptionEmail || item.email || 'unknown'}:${item.stage}:${item.expiryTime || 0}`,
     };
@@ -205,6 +238,7 @@ export function createSubscriptionExpiryNotifier(options: any = {}) {
     const notifications = options.notificationService || notificationService;
     const userRepo = options.userStore || options.userRepository || userStore;
     const policyRepo = options.policyStore || userPolicyStore;
+    const defaultLocale = options.locale;
     const stageCache = new Map<string, string>();
     let timer: NodeJS.Timeout | null = null;
 
@@ -216,7 +250,7 @@ export function createSubscriptionExpiryNotifier(options: any = {}) {
         }
     }
 
-    function runOnce() {
+    function runOnce(runOptions: any = {}) {
         const snapshot = collectSubscriptionExpirySnapshot({
             now: now(),
             userStore: userRepo,
@@ -229,6 +263,7 @@ export function createSubscriptionExpiryNotifier(options: any = {}) {
             limit: Number.MAX_SAFE_INTEGER,
         });
         const activeKeys = new Set<string>();
+        const locale = runOptions?.locale ?? defaultLocale;
 
         snapshot.items.forEach((item) => {
             const cacheKey = String(item.subscriptionEmail || item.email || '').trim().toLowerCase();
@@ -241,7 +276,7 @@ export function createSubscriptionExpiryNotifier(options: any = {}) {
             }
 
             stageCache.set(cacheKey, nextStageToken);
-            notifications.notify(buildExpiryNotification(item));
+            notifications.notify(buildExpiryNotification(item, locale));
         });
 
         clearResolvedUsers(activeKeys);
@@ -251,7 +286,7 @@ export function createSubscriptionExpiryNotifier(options: any = {}) {
     function start() {
         if (timer) return;
         runOnce();
-        timer = startBackgroundInterval(runOnce, intervalMs);
+        timer = startBackgroundInterval(() => runOnce(), intervalMs);
     }
 
     function stop() {

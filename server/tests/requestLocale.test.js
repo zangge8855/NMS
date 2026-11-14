@@ -7,9 +7,13 @@ import {
     resolveRequestLocale,
 } from '../lib/requestLocale.js';
 import authRouter from '../routes/auth.js';
+import clientsRouter from '../routes/clients.js';
+import userGroupsRouter from '../routes/userGroups.js';
 import usersRouter from '../routes/users.js';
 import systemRouter from '../routes/system.js';
+import { authMiddleware, adminOnly } from '../middleware/auth.js';
 import userStore from '../store/userStore.js';
+import { buildExpiryNotification } from '../lib/subscriptionExpiryNotifier.js';
 import { createDirectUserSession } from '../services/authSessionService.js';
 import notificationService from '../lib/notifications.js';
 import { invokeApp } from './helpers/invokeApp.js';
@@ -28,6 +32,8 @@ describe('requestLocale & localized API responses', () => {
         const app = express();
         app.use(express.json());
         app.use('/api/auth', authRouter);
+        app.use('/api/clients', authMiddleware, adminOnly, clientsRouter);
+        app.use('/api/user-groups', authMiddleware, adminOnly, userGroupsRouter);
         app.use('/api/users', usersRouter);
         app.use('/api/system', systemRouter);
 
@@ -107,6 +113,121 @@ describe('requestLocale & localized API responses', () => {
             const matched = notifRes.json.obj.items.find((item) => item.id === note.id);
             assert.equal(matched?.title, 'Node unreachable: Edge-01');
             assert.equal(matched?.body, 'Node Edge-01 could not reach the panel: timeout');
+
+            const expiryNotice = notificationService.notify(buildExpiryNotification({
+                username: 'expired-user',
+                email: 'expired-user@example.com',
+                expiryTime: Date.now() - 60_000,
+                remainingDays: 0,
+                stage: 'expired',
+            }));
+            const notifEnRes = await invokeApp(app, {
+                method: 'GET',
+                url: '/api/system/notifications',
+                headers: {
+                    authorization: `Bearer ${session.token}`,
+                    'x-locale': 'en-US',
+                },
+            });
+            assert.equal(notifEnRes.statusCode, 200);
+            const matchedExpiry = notifEnRes.json.obj.items.find((item) => item.id === expiryNotice?.id);
+            assert.equal(matchedExpiry?.title, 'User subscription expired');
+            assert.match(matchedExpiry?.body || '', /has expired/);
+            if (expiryNotice?.id) {
+                notificationService.notifications = notificationService.notifications.filter(
+                    (item) => item.id !== expiryNotice.id
+                );
+            }
+
+            const missingAuthUserPutEn = await invokeApp(app, {
+                method: 'PUT',
+                url: '/api/auth/users/nonexistent-user-id',
+                headers: {
+                    authorization: `Bearer ${session.token}`,
+                    'x-locale': 'en-US',
+                },
+                body: { username: 'anything' },
+            });
+            assert.equal(missingAuthUserPutEn.statusCode, 404);
+            assert.equal(missingAuthUserPutEn.json.msg, 'User not found');
+
+            const missingAuthUserPutZh = await invokeApp(app, {
+                method: 'PUT',
+                url: '/api/auth/users/nonexistent-user-id',
+                headers: {
+                    authorization: `Bearer ${session.token}`,
+                    'x-locale': 'zh-CN',
+                },
+                body: { username: 'anything' },
+            });
+            assert.equal(missingAuthUserPutZh.statusCode, 404);
+            assert.equal(missingAuthUserPutZh.json.msg, '用户不存在');
+
+            const missingEntitlementServerEn = await invokeApp(app, {
+                method: 'PUT',
+                url: '/api/clients/entitlement',
+                headers: {
+                    authorization: `Bearer ${session.token}`,
+                    'x-locale': 'en-US',
+                },
+                body: {
+                    serverId: 'missing-server-id',
+                    inboundId: '1',
+                    clientIdentifier: 'missing-client',
+                    mode: 'override',
+                },
+            });
+            assert.equal(missingEntitlementServerEn.statusCode, 404);
+            assert.equal(missingEntitlementServerEn.json.msg, 'Server not found');
+
+            const missingGroupPutEn = await invokeApp(app, {
+                method: 'PUT',
+                url: '/api/user-groups/nonexistent-group-id',
+                headers: {
+                    authorization: `Bearer ${session.token}`,
+                    'x-locale': 'en-US',
+                },
+                body: {
+                    name: `temp-group-${Date.now()}`,
+                    memberUserIds: ['missing-member-id'],
+                },
+            });
+            assert.equal(missingGroupPutEn.statusCode, 404);
+            assert.equal(missingGroupPutEn.json.msg, 'User group not found');
+
+            const originalGetById = userStore.getById.bind(userStore);
+            let lookupCount = 0;
+            userStore.getById = (id) => {
+                lookupCount += 1;
+                // First lookup inside authMiddleware succeeds; second inside passkey handler sees missing user.
+                return lookupCount % 2 === 1 ? originalGetById(id) : null;
+            };
+            try {
+                const passkeyOptsEn = await invokeApp(app, {
+                    method: 'POST',
+                    url: '/api/auth/passkey/register-options',
+                    headers: {
+                        authorization: `Bearer ${session.token}`,
+                        'x-locale': 'en-US',
+                    },
+                });
+                assert.equal(passkeyOptsEn.statusCode, 404);
+                assert.equal(passkeyOptsEn.json.msg, 'User not found');
+
+                const passkeyVerifyEn = await invokeApp(app, {
+                    method: 'POST',
+                    url: '/api/auth/passkey/register-verify',
+                    headers: {
+                        authorization: `Bearer ${session.token}`,
+                        'x-locale': 'en-US',
+                    },
+                    body: {},
+                });
+                assert.equal(passkeyVerifyEn.statusCode, 404);
+                assert.equal(passkeyVerifyEn.json.msg, 'User not found');
+            } finally {
+                userStore.getById = originalGetById;
+            }
         } finally {
             userStore.remove(user.id);
             notificationService._scheduleSave = originalScheduleSave;

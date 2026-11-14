@@ -120,4 +120,46 @@ describe('clientEntitlementService', () => {
             (error) => error?.status === 400
         );
     });
+
+    it('localizes inbound client and server not-found errors for zh-CN and en-US', async () => {
+        const missingClientDeps = {
+            serverRepository: {
+                getById: () => ({ id: 'srv-1', name: 'srv-1' }),
+            },
+            userPolicyRepository: {
+                get: () => ({}),
+            },
+            overrideRepository: {},
+            listPanelInbounds: async () => ({
+                client: { post: async () => ({ data: { success: true } }) },
+                inbounds: [{
+                    id: '10',
+                    protocol: 'vless',
+                    settings: JSON.stringify({ clients: [] }),
+                }],
+            }),
+        };
+
+        await assert.rejects(
+            updateClientEntitlement({
+                serverId: 'srv-1',
+                inboundId: '10',
+                clientIdentifier: 'missing-client',
+                protocol: 'vless',
+                mode: 'override',
+            }, 'admin', missingClientDeps),
+            (error) => error?.status === 404 && error?.message === '入站用户不存在'
+        );
+
+        await assert.rejects(
+            updateClientEntitlement({
+                serverId: 'srv-1',
+                inboundId: '10',
+                clientIdentifier: 'missing-client',
+                protocol: 'vless',
+                mode: 'override',
+            }, 'admin', { ...missingClientDeps, locale: 'en-US' }),
+            (error) => error?.status === 404 && error?.message === 'Inbound client not found'
+        );
+    });
 });

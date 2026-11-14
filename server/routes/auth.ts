@@ -90,10 +90,14 @@ function resolveLoginIdentifier(body: any = {}) {
     return String(body?.identifier || body?.username || body?.email || '').trim();
 }
 
-function rejectPasswordSelfService(res) {
+function rejectPasswordSelfService(res, locale: unknown = 'zh-CN') {
     return res.status(403).json({
         success: false,
-        msg: PASSWORD_SELF_SERVICE_DISABLED_MESSAGE,
+        msg: pickLocalizedText(
+            locale,
+            PASSWORD_SELF_SERVICE_DISABLED_MESSAGE,
+            'Passwords are managed by your administrator; please contact an administrator to reset your password'
+        ),
     });
 }
 
@@ -405,7 +409,7 @@ router.post('/login', (req, res) => {
  */
 router.get('/check', (req, res) => {
     try {
-        const result = validateSession(req.headers.authorization);
+        const result = validateSession(req.headers.authorization, { locale: resolveRequestLocale(req) });
         res.json({
             success: true,
             user: result.user,
@@ -416,6 +420,7 @@ router.get('/check', (req, res) => {
 });
 
 router.get('/bootstrap', authMiddleware, anyRole, async (req, res) => {
+    const locale = resolveRequestLocale(req);
     try {
         return res.json({
             success: true,
@@ -424,7 +429,11 @@ router.get('/bootstrap', authMiddleware, anyRole, async (req, res) => {
             }),
         });
     } catch (error) {
-        const httpError = toHttpError(error, 500, '加载应用首包失败');
+        const httpError = toHttpError(
+            error,
+            500,
+            pickLocalizedText(locale, '加载应用首包失败', 'Failed to load application bootstrap payload')
+        );
         return res.status(httpError.status).json({
             success: false,
             msg: httpError.message,
@@ -445,9 +454,13 @@ router.get('/registration-status', (req, res) => {
  * POST /api/auth/register — 用户自助注册
  */
 router.post('/register', async (req, res) => {
+    const locale = resolveRequestLocale(req);
     const registrationStatus = getRegistrationStatus();
     if (!registrationStatus.enabled) {
-        return res.status(403).json({ success: false, msg: '注册功能已关闭' });
+        return res.status(403).json({
+            success: false,
+            msg: pickLocalizedText(locale, '注册功能已关闭', 'Registration is currently disabled'),
+        });
     }
 
     const clientIp = resolveClientIp(req);
@@ -455,13 +468,14 @@ router.post('/register', async (req, res) => {
         appendSecurityAudit('register_rate_limited', req, { ip: clientIp });
         return res.status(429).json({
             success: false,
-            msg: '注册尝试过于频繁，请稍后再试',
+            msg: pickLocalizedText(locale, '注册尝试过于频繁，请稍后再试', 'Too many registration attempts, please try again later'),
         });
     }
 
     try {
         const result = await registerUser(req.body, {
             inviteOnlyEnabled: registrationStatus.inviteOnlyEnabled,
+            locale,
         });
 
         if (result.requireEmailVerification !== false) {
@@ -487,15 +501,23 @@ router.post('/register', async (req, res) => {
             success: true,
             msg: result.requireEmailVerification === false
                 ? (result.subscriptionProvisioned === false
-                    ? '注册成功，现在可以直接登录。如订阅未显示，请联系管理员检查。'
-                    : '注册成功，现在可以直接登录。')
-                : '注册成功，请查收邮箱验证码。验证后需等待管理员审核通过才能登录。',
+                    ? pickLocalizedText(
+                        locale,
+                        '注册成功，现在可以直接登录。如订阅未显示，请联系管理员检查。',
+                        'Registration successful; you can sign in now. If your subscription does not appear, contact an administrator.'
+                    )
+                    : pickLocalizedText(locale, '注册成功，现在可以直接登录。', 'Registration successful; you can sign in now.'))
+                : pickLocalizedText(
+                    locale,
+                    '注册成功，请查收邮箱验证码。验证后需等待管理员审核通过才能登录。',
+                    'Registration successful. Check your email for the verification code; after verification, wait for administrator approval.'
+                ),
             email: result.user.email,
             requireEmailVerification: result.requireEmailVerification !== false,
             subscriptionProvisioned: result.subscriptionProvisioned === true,
         });
     } catch (err) {
-        const error = toHttpError(err, 400, '注册失败');
+        const error = toHttpError(err, 400, pickLocalizedText(locale, '注册失败', 'Registration failed'));
         if (error.code === 'VERIFICATION_EMAIL_SEND_FAILED') {
             appendSecurityAudit('verification_email_failed', req, {
                 ip: clientIp,
@@ -513,24 +535,28 @@ router.post('/register', async (req, res) => {
  * POST /api/auth/verify-email — 邮箱验证
  */
 router.post('/verify-email', (req, res) => {
+    const locale = resolveRequestLocale(req);
     const clientIp = resolveClientIp(req);
     if (!checkVerifyRate(clientIp)) {
         appendSecurityAudit('verify_email_rate_limited', req, { ip: clientIp });
-        return res.status(429).json({ success: false, msg: '验证尝试过于频繁，请稍后再试' });
+        return res.status(429).json({
+            success: false,
+            msg: pickLocalizedText(locale, '验证尝试过于频繁，请稍后再试', 'Too many verification attempts, please try again later'),
+        });
     }
     try {
-        const result = verifyEmailCode(req.body);
+        const result = verifyEmailCode(req.body, { locale });
         if (result.alreadyVerified) {
-            return res.json({ success: true, msg: '邮箱已验证' });
+            return res.json({ success: true, msg: pickLocalizedText(locale, '邮箱已验证', 'Email is already verified') });
         }
 
         appendSecurityAudit('email_verified', req, {
             email: result.email,
             username: result.user.username,
         });
-        res.json({ success: true, msg: '邮箱验证成功，请登录' });
+        res.json({ success: true, msg: pickLocalizedText(locale, '邮箱验证成功，请登录', 'Email verified successfully, please sign in') });
     } catch (err) {
-        const error = toHttpError(err, 400, '邮箱验证失败');
+        const error = toHttpError(err, 400, pickLocalizedText(locale, '邮箱验证失败', 'Email verification failed'));
         res.status(error.status).json({ success: false, msg: error.message });
     }
 });
@@ -539,15 +565,22 @@ router.post('/verify-email', (req, res) => {
  * POST /api/auth/resend-code — 重发验证码
  */
 router.post('/resend-code', async (req, res) => {
+    const locale = resolveRequestLocale(req);
     const clientIp = resolveClientIp(req);
     if (!checkRegisterRate(clientIp)) {
-        return res.status(429).json({ success: false, msg: '请求过于频繁，请稍后再试' });
+        return res.status(429).json({
+            success: false,
+            msg: pickLocalizedText(locale, '请求过于频繁，请稍后再试', 'Too many requests, please try again later'),
+        });
     }
 
     try {
-        const result = await resendVerificationCode(req.body);
+        const result = await resendVerificationCode(req.body, { locale });
         if (result.alreadyVerified) {
-            return res.json({ success: true, msg: '邮箱已验证，无需重发' });
+            return res.json({
+                success: true,
+                msg: pickLocalizedText(locale, '邮箱已验证，无需重发', 'Email is already verified; no need to resend'),
+            });
         }
 
         appendSecurityAudit('verification_email_sent', req, {
@@ -556,9 +589,12 @@ router.post('/resend-code', async (req, res) => {
             email: result.email,
             type: 'resend',
         });
-        return res.json({ success: true, msg: '验证码已重新发送' });
+        return res.json({
+            success: true,
+            msg: pickLocalizedText(locale, '验证码已重新发送', 'Verification code resent'),
+        });
     } catch (err) {
-        const error = toHttpError(err, 500, '验证码重发失败');
+        const error = toHttpError(err, 500, pickLocalizedText(locale, '验证码重发失败', 'Failed to resend verification code'));
         if (error.code === 'VERIFICATION_EMAIL_SEND_FAILED') {
             appendSecurityAudit('verification_email_failed', req, {
                 ip: clientIp,
@@ -576,17 +612,26 @@ router.post('/resend-code', async (req, res) => {
  * POST /api/auth/forgot-password — 发送密码重置验证码
  */
 router.post('/forgot-password', async (req, res) => {
+    const locale = resolveRequestLocale(req);
     if (!isPasswordSelfServiceEnabled()) {
-        return rejectPasswordSelfService(res);
+        return rejectPasswordSelfService(res, locale);
     }
     const clientIp = resolveClientIp(req);
     if (!checkResetRate(clientIp)) {
         appendSecurityAudit('password_reset_request_rate_limited', req, { ip: clientIp });
-        return res.status(429).json({ success: false, msg: '请求过于频繁，请稍后再试' });
+        return res.status(429).json({
+            success: false,
+            msg: pickLocalizedText(locale, '请求过于频繁，请稍后再试', 'Too many requests, please try again later'),
+        });
     }
 
+    const acceptedMessage = pickLocalizedText(
+        locale,
+        PASSWORD_RESET_REQUEST_ACCEPTED_MESSAGE,
+        'If the email is registered, a verification code has been sent'
+    );
     try {
-        const result = await requestPasswordReset(req.body);
+        const result = await requestPasswordReset(req.body, { locale });
         if (!result.hidden) {
             appendSecurityAudit('password_reset_email_sent', req, {
                 email: result.email,
@@ -597,9 +642,10 @@ router.post('/forgot-password', async (req, res) => {
                 username: result.user.username,
             });
         }
-        return res.json({ success: true, msg: PASSWORD_RESET_REQUEST_ACCEPTED_MESSAGE });
+        return res.json({ success: true, msg: acceptedMessage });
     } catch (err) {
-        const error = toHttpError(err, 500, '发送失败');
+        const fallbackError = pickLocalizedText(locale, '发送失败', 'Failed to send');
+        const error = toHttpError(err, 500, fallbackError);
         if (error.code === 'PASSWORD_RESET_EMAIL_SEND_FAILED') {
             appendSecurityAudit('password_reset_email_failed', req, {
                 email: error.details?.email || normalizeEmailInput(req.body?.email),
@@ -607,9 +653,9 @@ router.post('/forgot-password', async (req, res) => {
                 error: error.details?.error || error.message,
             });
             // Keep the public response identical so the endpoint cannot be used to enumerate emails.
-            return res.json({ success: true, msg: PASSWORD_RESET_REQUEST_ACCEPTED_MESSAGE });
+            return res.json({ success: true, msg: acceptedMessage });
         }
-        return res.status(error.status).json({ success: false, msg: error.message || '发送失败' });
+        return res.status(error.status).json({ success: false, msg: error.message || fallbackError });
     }
 });
 
@@ -617,23 +663,30 @@ router.post('/forgot-password', async (req, res) => {
  * POST /api/auth/reset-password — 使用邮箱验证码重置密码
  */
 router.post('/reset-password', (req, res) => {
+    const locale = resolveRequestLocale(req);
     if (!isPasswordSelfServiceEnabled()) {
-        return rejectPasswordSelfService(res);
+        return rejectPasswordSelfService(res, locale);
     }
     const clientIp = resolveClientIp(req);
     if (!checkVerifyRate(clientIp)) {
         appendSecurityAudit('password_reset_verify_rate_limited', req, { ip: clientIp });
-        return res.status(429).json({ success: false, msg: '重置尝试过于频繁，请稍后再试' });
+        return res.status(429).json({
+            success: false,
+            msg: pickLocalizedText(locale, '重置尝试过于频繁，请稍后再试', 'Too many reset attempts, please try again later'),
+        });
     }
     try {
-        const result = resetPasswordWithCode(req.body);
+        const result = resetPasswordWithCode(req.body, { locale });
         appendSecurityAudit('password_reset_completed', req, {
             email: result.email,
             username: result.user.username,
         });
-        return res.json({ success: true, msg: '密码重置成功，请使用新密码登录' });
+        return res.json({
+            success: true,
+            msg: pickLocalizedText(locale, '密码重置成功，请使用新密码登录', 'Password reset successful; sign in with your new password'),
+        });
     } catch (err) {
-        const error = toHttpError(err, 400, '密码重置失败');
+        const error = toHttpError(err, 400, pickLocalizedText(locale, '密码重置失败', 'Password reset failed'));
         return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
@@ -668,22 +721,25 @@ router.get('/users', authMiddleware, auditorOrAbove, (req, res) => {
  * POST /api/auth/users — 创建新用户
  */
 router.post('/users', authMiddleware, adminOnly, (req, res) => {
+    const locale = resolveRequestLocale(req);
     try {
-        const result = createManagedUser(req.body);
+        const result = createManagedUser(req.body, { locale });
         appendSecurityAudit('user_created', req, result.audit);
         res.json({ success: true, obj: result.user });
     } catch (err) {
-        const error = toHttpError(err, 400, '创建用户失败');
+        const error = toHttpError(err, 400, pickLocalizedText(locale, '创建用户失败', 'Failed to create user'));
         res.status(error.status).json({ success: false, msg: error.message });
     }
 });
 
 // ── Bulk enable/disable users ──
 router.post('/users/bulk-set-enabled', authMiddleware, adminOnly, async (req, res) => {
+    const locale = resolveRequestLocale(req);
     try {
         const result = await bulkSetUsersEnabled(
             req.body,
-            String(req.user?.username || 'admin')
+            String(req.user?.username || 'admin'),
+            { locale }
         );
         const syncHistoryIds = [];
         result.results = result.results.map((item) => {
@@ -717,9 +773,19 @@ router.post('/users/bulk-set-enabled', authMiddleware, adminOnly, async (req, re
                 viaBulkAction: true,
             }));
         });
+        const zhAction = result.enabled ? '启用' : '停用';
+        const enAction = result.enabled ? 'Enabled' : 'Disabled';
         const summaryMessage = result.partialFailureCount > 0
-            ? `已${result.enabled ? '启用' : '停用'} ${result.successCount}/${result.total} 个用户，其中 ${result.partialFailureCount} 个用户存在节点同步异常，可在任务历史中重试`
-            : `已${result.enabled ? '启用' : '停用'} ${result.successCount}/${result.total} 个用户`;
+            ? pickLocalizedText(
+                locale,
+                `已${zhAction} ${result.successCount}/${result.total} 个用户，其中 ${result.partialFailureCount} 个用户存在节点同步异常，可在任务历史中重试`,
+                `${enAction} ${result.successCount}/${result.total} users; ${result.partialFailureCount} had node sync failures (retry in task history)`
+            )
+            : pickLocalizedText(
+                locale,
+                `已${zhAction} ${result.successCount}/${result.total} 个用户`,
+                `${enAction} ${result.successCount}/${result.total} users`
+            );
         return res.json({
             success: true,
             msg: summaryMessage,
@@ -729,7 +795,7 @@ router.post('/users/bulk-set-enabled', authMiddleware, adminOnly, async (req, re
             },
         });
     } catch (err) {
-        const error = toHttpError(err, 400, '批量更新用户状态失败');
+        const error = toHttpError(err, 400, pickLocalizedText(locale, '批量更新用户状态失败', 'Failed to bulk update user status'));
         return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
@@ -746,11 +812,13 @@ router.get('/users/export', authMiddleware, adminOnly, (req, res) => {
  * PUT /api/auth/users/:id — 更新用户信息
  */
 router.put('/users/:id', authMiddleware, adminOnly, async (req, res) => {
+    const locale = resolveRequestLocale(req);
     try {
         const result = await updateManagedUser(
             req.params.id,
             req.body,
-            String(req.user?.username || 'admin')
+            String(req.user?.username || 'admin'),
+            { locale }
         );
         appendSecurityAudit('user_updated', req, buildUserAuditDetails(result.user, {
             targetUser: result.user.username,
@@ -759,7 +827,7 @@ router.put('/users/:id', authMiddleware, adminOnly, async (req, res) => {
         }));
         res.json({ success: true, obj: result.user });
     } catch (err) {
-        const error = toHttpError(err, 400, '更新用户失败');
+        const error = toHttpError(err, 400, pickLocalizedText(locale, '更新用户失败', 'Failed to update user'));
         res.status(error.status).json({ success: false, msg: error.message });
     }
 });
@@ -768,11 +836,13 @@ router.put('/users/:id', authMiddleware, adminOnly, async (req, res) => {
  * PUT /api/auth/users/:id/subscription-binding — 管理员绑定用户订阅邮箱
  */
 router.put('/users/:id/subscription-binding', authMiddleware, adminOnly, async (req, res) => {
+    const locale = resolveRequestLocale(req);
     try {
         const result = await updateUserSubscriptionBinding(
             req.params.id,
             req.body,
-            String(req.user?.username || 'admin')
+            String(req.user?.username || 'admin'),
+            { locale }
         );
         appendSecurityAudit('user_subscription_binding_updated', req, buildUserAuditDetails(result.updated, {
             targetUserId: result.target.id,
@@ -785,7 +855,7 @@ router.put('/users/:id/subscription-binding', authMiddleware, adminOnly, async (
             obj: result.updated,
         });
     } catch (err) {
-        const error = toHttpError(err, 400, '更新订阅绑定失败');
+        const error = toHttpError(err, 400, pickLocalizedText(locale, '更新订阅绑定失败', 'Failed to update subscription binding'));
         return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
@@ -794,11 +864,13 @@ router.put('/users/:id/subscription-binding', authMiddleware, adminOnly, async (
  * PUT /api/auth/users/:id/set-enabled — 启用/停用用户
  */
 router.put('/users/:id/set-enabled', authMiddleware, adminOnly, async (req, res) => {
+    const locale = resolveRequestLocale(req);
     try {
         const result = await setManagedUserEnabled(
             req.params.id,
             req.body,
-            String(req.user?.username || 'admin')
+            String(req.user?.username || 'admin'),
+            { locale }
         );
         const syncFailureCount = Number(result.clientSync?.failed || 0) + Number(result.deployment?.failed || 0);
         const syncJobPayload = buildManagedUserSyncJobPayload({
@@ -813,8 +885,16 @@ router.put('/users/:id/set-enabled', authMiddleware, adminOnly, async (req, res)
             ? appendManagedSyncHistory(req, syncJobPayload)
             : null;
         const syncMessage = syncFailureCount > 0
-            ? `用户已${result.enabled ? '启用' : '停用'}，但有 ${syncFailureCount} 项节点同步失败，可在任务历史中重试`
-            : `用户已${result.enabled ? '启用' : '停用'}`;
+            ? pickLocalizedText(
+                locale,
+                `用户已${result.enabled ? '启用' : '停用'}，但有 ${syncFailureCount} 项节点同步失败，可在任务历史中重试`,
+                `User ${result.enabled ? 'enabled' : 'disabled'}, with ${syncFailureCount} node sync failures (retry in task history)`
+            )
+            : pickLocalizedText(
+                locale,
+                `用户已${result.enabled ? '启用' : '停用'}`,
+                `User ${result.enabled ? 'enabled' : 'disabled'}`
+            );
         appendSecurityAudit(result.enabled ? 'user_enabled' : 'user_disabled', req, buildUserAuditDetails(result.updated, {
             targetUserId: result.target.id,
             targetUsername: result.target.username,
@@ -834,7 +914,7 @@ router.put('/users/:id/set-enabled', authMiddleware, adminOnly, async (req, res)
             },
         });
     } catch (err) {
-        const error = toHttpError(err, 400, '更新用户状态失败');
+        const error = toHttpError(err, 400, pickLocalizedText(locale, '更新用户状态失败', 'Failed to update user status'));
         return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
@@ -843,11 +923,13 @@ router.put('/users/:id/set-enabled', authMiddleware, adminOnly, async (req, res)
  * PUT /api/auth/users/:id/update-expiry — 更新用户所有客户端的到期时间
  */
 router.put('/users/:id/update-expiry', authMiddleware, adminOnly, async (req, res) => {
+    const locale = resolveRequestLocale(req);
     try {
         const result = await updateManagedUserExpiry(
             req.params.id,
             req.body,
-            String(req.user?.username || 'admin')
+            String(req.user?.username || 'admin'),
+            { locale }
         );
         const syncJobPayload = buildManagedUserSyncJobPayload({
             operation: 'update_expiry',
@@ -870,15 +952,19 @@ router.put('/users/:id/update-expiry', authMiddleware, adminOnly, async (req, re
         return res.json({
             success: true,
             msg: Number(result.deployment?.failed || 0) > 0
-                ? '到期时间已更新，但部分节点同步失败，可在任务历史中重试'
-                : '到期时间已更新',
+                ? pickLocalizedText(
+                    locale,
+                    '到期时间已更新，但部分节点同步失败，可在任务历史中重试',
+                    'Expiry updated, but some nodes failed to sync (retry in task history)'
+                )
+                : pickLocalizedText(locale, '到期时间已更新', 'Expiry updated'),
             obj: {
                 ...result.deployment,
                 syncHistoryId: syncHistory?.id || '',
             },
         });
     } catch (err) {
-        const error = toHttpError(err, 400, '更新到期时间失败');
+        const error = toHttpError(err, 400, pickLocalizedText(locale, '更新到期时间失败', 'Failed to update expiry'));
         return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
@@ -888,9 +974,10 @@ router.put('/users/:id/update-expiry', authMiddleware, adminOnly, async (req, re
  * 一键开通订阅：绑定订阅邮箱 + 写入节点/协议策略 + 预生成持久 token。
  */
 router.post('/users/:id/provision-subscription', authMiddleware, adminOnly, async (req, res) => {
+    const locale = resolveRequestLocale(req);
     try {
         const actor = String(req.user?.username || req.user?.role || 'admin');
-        const result = await provisionManagedUserSubscription(req.params.id, req.body, actor);
+        const result = await provisionManagedUserSubscription(req.params.id, req.body, actor, { locale });
         const { user, policy, subscription, deployment, context, target } = result;
         const syncJobPayload = buildManagedUserSyncJobPayload({
             operation: 'provision_subscription',
@@ -923,8 +1010,12 @@ router.post('/users/:id/provision-subscription', authMiddleware, adminOnly, asyn
         return res.json({
             success: true,
             msg: Number(deployment?.failed || 0) > 0
-                ? '订阅已开通，但部分节点同步失败，可在任务历史中重试'
-                : '订阅已开通',
+                ? pickLocalizedText(
+                    locale,
+                    '订阅已开通，但部分节点同步失败，可在任务历史中重试',
+                    'Subscription provisioned, but some nodes failed to sync (retry in task history)'
+                )
+                : pickLocalizedText(locale, '订阅已开通', 'Subscription provisioned'),
             obj: {
                 user,
                 policy,
@@ -934,7 +1025,7 @@ router.post('/users/:id/provision-subscription', authMiddleware, adminOnly, asyn
             },
         });
     } catch (err) {
-        const error = toHttpError(err, 400, '开通订阅失败');
+        const error = toHttpError(err, 400, pickLocalizedText(locale, '开通订阅失败', 'Failed to provision subscription'));
         return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
@@ -943,12 +1034,13 @@ router.post('/users/:id/provision-subscription', authMiddleware, adminOnly, asyn
  * PUT /api/auth/users/:id/reset-password — 管理员重置指定用户密码
  */
 router.put('/users/:id/reset-password', authMiddleware, adminOnly, (req, res) => {
+    const locale = resolveRequestLocale(req);
     try {
-        const result = adminResetUserPassword(req.params.id, req.body);
+        const result = adminResetUserPassword(req.params.id, req.body, { locale });
         appendSecurityAudit('user_password_reset_by_admin', req, buildUserAuditDetails(result.target));
-        return res.json({ success: true, msg: '密码已重置' });
+        return res.json({ success: true, msg: pickLocalizedText(locale, '密码已重置', 'Password reset') });
     } catch (err) {
-        const error = toHttpError(err, 400, '管理员重置密码失败');
+        const error = toHttpError(err, 400, pickLocalizedText(locale, '管理员重置密码失败', 'Failed to reset user password'));
         return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
@@ -957,8 +1049,9 @@ router.put('/users/:id/reset-password', authMiddleware, adminOnly, (req, res) =>
  * DELETE /api/auth/users/:id — 删除用户
  */
 router.delete('/users/:id', authMiddleware, adminOnly, async (req, res) => {
+    const locale = resolveRequestLocale(req);
     try {
-        const result = await deleteManagedUser(req.params.id);
+        const result = await deleteManagedUser(req.params.id, { locale });
         appendSecurityAudit('user_deleted', req, buildUserAuditDetails(result.targetUser, {
             targetUser: result.targetUser.username,
             cleanupEmails: result.cleanupEmails,
@@ -977,7 +1070,7 @@ router.delete('/users/:id', authMiddleware, adminOnly, async (req, res) => {
             },
         });
     } catch (err) {
-        const error = toHttpError(err, 400, '删除用户失败');
+        const error = toHttpError(err, 400, pickLocalizedText(locale, '删除用户失败', 'Failed to delete user'));
         res.status(error.status).json({ success: false, msg: error.message });
     }
 });
@@ -986,14 +1079,15 @@ router.delete('/users/:id', authMiddleware, adminOnly, async (req, res) => {
  * PUT /api/auth/change-password — 修改自己的密码
  */
 router.put('/change-password', authMiddleware, (req, res) => {
+    const locale = resolveRequestLocale(req);
     try {
-        const result = changeOwnPassword(req.body, req.user);
+        const result = changeOwnPassword(req.body, req.user, { locale });
         appendSecurityAudit('password_changed', req, buildUserAuditDetails(result.user, {
             username: result.user.username,
         }));
-        res.json({ success: true, msg: '密码修改成功' });
+        res.json({ success: true, msg: pickLocalizedText(locale, '密码修改成功', 'Password changed successfully') });
     } catch (err) {
-        const error = toHttpError(err, 400, '修改密码失败');
+        const error = toHttpError(err, 400, pickLocalizedText(locale, '修改密码失败', 'Failed to change password'));
         res.status(error.status).json({ success: false, msg: error.message });
     }
 });
@@ -1002,18 +1096,19 @@ router.put('/change-password', authMiddleware, (req, res) => {
  * POST /api/auth/profile/send-code — 发送账户资料更新验证码
  */
 router.post('/profile/send-code', authMiddleware, async (req, res) => {
+    const locale = resolveRequestLocale(req);
     try {
-        const result = await requestOwnProfileUpdateVerification(req.body, req.user);
+        const result = await requestOwnProfileUpdateVerification(req.body, req.user, { locale });
         return res.json({
             success: true,
-            msg: '验证码已发送到当前登录邮箱',
+            msg: pickLocalizedText(locale, '验证码已发送到当前登录邮箱', 'Verification code sent to your current login email'),
             obj: {
                 email: result.verificationEmail,
                 expiresAt: result.expiresAt,
             },
         });
     } catch (err) {
-        const error = toHttpError(err, 400, '发送账户验证码失败');
+        const error = toHttpError(err, 400, pickLocalizedText(locale, '发送账户验证码失败', 'Failed to send verification code'));
         return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
@@ -1022,8 +1117,9 @@ router.post('/profile/send-code', authMiddleware, async (req, res) => {
  * PUT /api/auth/profile — 修改自己的账号资料
  */
 router.put('/profile', authMiddleware, (req, res) => {
+    const locale = resolveRequestLocale(req);
     try {
-        const result = updateOwnProfile(req.body, req.user);
+        const result = updateOwnProfile(req.body, req.user, { locale });
         appendSecurityAudit('account_email_updated', req, buildUserAuditDetails(result.user, {
             username: result.user.username,
             previousUsername: result.previousUsername,
@@ -1033,11 +1129,11 @@ router.put('/profile', authMiddleware, (req, res) => {
         }));
         res.json({
             success: true,
-            msg: '账号信息已更新',
+            msg: pickLocalizedText(locale, '账号信息已更新', 'Account information updated'),
             obj: result.user,
         });
     } catch (err) {
-        const error = toHttpError(err, 400, '更新账号信息失败');
+        const error = toHttpError(err, 400, pickLocalizedText(locale, '更新账号信息失败', 'Failed to update account information'));
         res.status(error.status).json({ success: false, msg: error.message });
     }
 });
@@ -1062,7 +1158,7 @@ router.post('/login/2fa', (req, res) => {
     }
 
     try {
-        const result = completeTwoFactorLogin(req.body);
+        const result = completeTwoFactorLogin(req.body, { locale });
         if (!result.success) {
             recordLoginFailure(clientIp, '2fa_challenge');
             appendSecurityAudit('login_two_factor_failed', req, result.audit || {});
@@ -1085,10 +1181,11 @@ router.post('/login/2fa', (req, res) => {
  * GET /api/auth/2fa/status — 查询当前账号 2FA 状态
  */
 router.get('/2fa/status', authMiddleware, (req, res) => {
+    const locale = resolveRequestLocale(req);
     try {
-        return res.json({ success: true, obj: getTwoFactorStatus(req.user) });
+        return res.json({ success: true, obj: getTwoFactorStatus(req.user, { locale }) });
     } catch (err) {
-        const error = toHttpError(err, 400, '获取 2FA 状态失败');
+        const error = toHttpError(err, 400, pickLocalizedText(locale, '获取 2FA 状态失败', 'Failed to get 2FA status'));
         return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
@@ -1097,12 +1194,13 @@ router.get('/2fa/status', authMiddleware, (req, res) => {
  * POST /api/auth/2fa/setup — 生成新的 2FA 密钥(尚未启用)
  */
 router.post('/2fa/setup', authMiddleware, (req, res) => {
+    const locale = resolveRequestLocale(req);
     try {
-        const result = beginTwoFactorEnrollment(req.user);
+        const result = beginTwoFactorEnrollment(req.user, { locale });
         appendSecurityAudit('account_2fa_setup_started', req, { username: req.user?.username || '' });
         return res.json({ success: true, obj: result });
     } catch (err) {
-        const error = toHttpError(err, 400, '生成 2FA 密钥失败');
+        const error = toHttpError(err, 400, pickLocalizedText(locale, '生成 2FA 密钥失败', 'Failed to generate 2FA secret'));
         return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
@@ -1111,19 +1209,20 @@ router.post('/2fa/setup', authMiddleware, (req, res) => {
  * POST /api/auth/2fa/enable — 校验首个验证码并启用 2FA
  */
 router.post('/2fa/enable', authMiddleware, (req, res) => {
+    const locale = resolveRequestLocale(req);
     try {
-        const result = enableTwoFactor(req.body, req.user);
+        const result = enableTwoFactor(req.body, req.user, { locale });
         appendSecurityAudit('account_2fa_enabled', req, {
             username: req.user?.username || '',
             ...(result.audit || {}),
         });
         return res.json({
             success: true,
-            msg: '2FA 已启用,请妥善保存备用码',
+            msg: pickLocalizedText(locale, '2FA 已启用,请妥善保存备用码', '2FA enabled; please store your backup codes safely'),
             obj: { enabled: true, backupCodes: result.backupCodes },
         });
     } catch (err) {
-        const error = toHttpError(err, 400, '启用 2FA 失败');
+        const error = toHttpError(err, 400, pickLocalizedText(locale, '启用 2FA 失败', 'Failed to enable 2FA'));
         return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
@@ -1132,15 +1231,20 @@ router.post('/2fa/enable', authMiddleware, (req, res) => {
  * POST /api/auth/2fa/disable — 关闭 2FA
  */
 router.post('/2fa/disable', authMiddleware, (req, res) => {
+    const locale = resolveRequestLocale(req);
     try {
-        const result = disableTwoFactor(req.body, req.user);
+        const result = disableTwoFactor(req.body, req.user, { locale });
         appendSecurityAudit('account_2fa_disabled', req, {
             username: req.user?.username || '',
             ...(result.audit || {}),
         });
-        return res.json({ success: true, msg: '2FA 已关闭', obj: { enabled: false } });
+        return res.json({
+            success: true,
+            msg: pickLocalizedText(locale, '2FA 已关闭', '2FA disabled'),
+            obj: { enabled: false },
+        });
     } catch (err) {
-        const error = toHttpError(err, 400, '关闭 2FA 失败');
+        const error = toHttpError(err, 400, pickLocalizedText(locale, '关闭 2FA 失败', 'Failed to disable 2FA'));
         return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
@@ -1153,13 +1257,14 @@ router.post('/2fa/disable', authMiddleware, (req, res) => {
  * GET /api/auth/passkey/list — 获取当前登录用户的 Passkey 列表
  */
 router.get('/passkey/list', authMiddleware, (req, res) => {
+    const locale = resolveRequestLocale(req);
     try {
         const userId = req.user?.userId || req.user?.id;
         const user = userStore.getById(userId);
         const passkeys = Array.isArray(user?.passkeys) ? user.passkeys : [];
         const sanitized = passkeys.map((pk: any) => ({
             id: pk.id || pk.credentialID,
-            deviceName: pk.deviceName || pk.name || '通行密钥',
+            deviceName: pk.deviceName || pk.name || pickLocalizedText(locale, '通行密钥', 'Passkey'),
             aaguid: pk.aaguid,
             createdAt: pk.createdAt,
             lastUsedAt: pk.lastUsedAt || pk.lastUsed,
@@ -1167,7 +1272,7 @@ router.get('/passkey/list', authMiddleware, (req, res) => {
         }));
         return res.json({ success: true, obj: sanitized });
     } catch (err) {
-        const error = toHttpError(err, 400, '获取 Passkey 列表失败');
+        const error = toHttpError(err, 400, pickLocalizedText(locale, '获取 Passkey 列表失败', 'Failed to fetch passkey list'));
         return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
@@ -1176,16 +1281,17 @@ router.get('/passkey/list', authMiddleware, (req, res) => {
  * POST /api/auth/passkey/register-options — 生成 Passkey 注册挑战
  */
 router.post('/passkey/register-options', authMiddleware, async (req, res) => {
+    const locale = resolveRequestLocale(req);
     try {
         const userId = req.user?.userId || req.user?.id;
         const user = userStore.getById(userId);
         if (!user) {
-            return res.status(404).json({ success: false, msg: '用户不存在' });
+            return res.status(404).json({ success: false, msg: pickLocalizedText(locale, '用户不存在', 'User not found') });
         }
         const options = await createPasskeyRegistrationOptions(req, user);
         return res.json({ success: true, obj: options });
     } catch (err) {
-        const error = toHttpError(err, 400, '生成 Passkey 注册挑战失败');
+        const error = toHttpError(err, 400, pickLocalizedText(locale, '生成 Passkey 注册挑战失败', 'Failed to generate passkey registration options'));
         return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
@@ -1194,11 +1300,12 @@ router.post('/passkey/register-options', authMiddleware, async (req, res) => {
  * POST /api/auth/passkey/register-verify — 校验 Passkey 注册响应并绑定
  */
 router.post('/passkey/register-verify', authMiddleware, async (req, res) => {
+    const locale = resolveRequestLocale(req);
     try {
         const userId = req.user?.userId || req.user?.id;
         const user = userStore.getById(userId);
         if (!user) {
-            return res.status(404).json({ success: false, msg: '用户不存在' });
+            return res.status(404).json({ success: false, msg: pickLocalizedText(locale, '用户不存在', 'User not found') });
         }
         const passkeyData = await verifyPasskeyRegistration(req, user, req.body);
         userStore.addPasskey(user.id, passkeyData);
@@ -1209,7 +1316,7 @@ router.post('/passkey/register-verify', authMiddleware, async (req, res) => {
         });
         return res.json({
             success: true,
-            msg: 'Passkey 通行密钥已成功添加',
+            msg: pickLocalizedText(locale, 'Passkey 通行密钥已成功添加', 'Passkey added successfully'),
             obj: {
                 id: passkeyData.id,
                 deviceName: passkeyData.deviceName,
@@ -1217,7 +1324,7 @@ router.post('/passkey/register-verify', authMiddleware, async (req, res) => {
             },
         });
     } catch (err: any) {
-        const error = toHttpError(err, 400, 'Passkey 注册校验失败');
+        const error = toHttpError(err, 400, pickLocalizedText(locale, 'Passkey 注册校验失败', 'Failed to verify passkey registration'));
         return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
@@ -1226,6 +1333,7 @@ router.post('/passkey/register-verify', authMiddleware, async (req, res) => {
  * POST /api/auth/passkey/login-options — 生成 Passkey 登录挑战
  */
 router.post('/passkey/login-options', async (req, res) => {
+    const locale = resolveRequestLocale(req);
     try {
         const identifier = String(req.body?.identifier || '').trim();
         let targetUser = undefined;
@@ -1235,7 +1343,7 @@ router.post('/passkey/login-options', async (req, res) => {
         const { options, challengeSessionId } = await createPasskeyLoginOptions(req, targetUser);
         return res.json({ success: true, obj: { options, challengeSessionId } });
     } catch (err) {
-        const error = toHttpError(err, 400, '生成 Passkey 登录挑战失败');
+        const error = toHttpError(err, 400, pickLocalizedText(locale, '生成 Passkey 登录挑战失败', 'Failed to generate passkey login options'));
         return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
@@ -1244,6 +1352,7 @@ router.post('/passkey/login-options', async (req, res) => {
  * POST /api/auth/passkey/login-verify — 校验 Passkey 登录签名并签发 JWT
  */
 router.post('/passkey/login-verify', async (req, res) => {
+    const locale = resolveRequestLocale(req);
     const clientIp = resolveClientIp(req);
     const { challengeSessionId, response } = req.body || {};
     const passkeyRateState = getLoginRateState(clientIp, 'passkey');
@@ -1251,12 +1360,16 @@ router.post('/passkey/login-verify', async (req, res) => {
         appendSecurityAudit('login_rate_limited', req, { ip: clientIp, action: 'passkey_login' });
         return res.status(429).json({
             success: false,
-            msg: `Passkey 登录尝试过于频繁，请 ${LOGIN_RATE_WINDOW_MINUTES} 分钟后再试`,
+            msg: pickLocalizedText(
+                locale,
+                `Passkey 登录尝试过于频繁，请 ${LOGIN_RATE_WINDOW_MINUTES} 分钟后再试`,
+                `Too many passkey sign-in attempts. Try again in ${LOGIN_RATE_WINDOW_MINUTES} minutes.`
+            ),
         });
     }
 
     if (!challengeSessionId || !response || !response.id) {
-        return res.status(400).json({ success: false, msg: '缺少必要参数' });
+        return res.status(400).json({ success: false, msg: pickLocalizedText(locale, '缺少必要参数', 'Missing required parameters') });
     }
 
     let matchedUsername = '';
@@ -1267,7 +1380,10 @@ router.post('/passkey/login-verify', async (req, res) => {
         if (!user) {
             recordLoginFailure(clientIp, 'passkey');
             appendSecurityAudit('login_passkey_failed', req, { reason: 'credential_not_found', credentialId });
-            return res.status(401).json({ success: false, msg: '未找到匹配的 Passkey 凭据或该凭据已解绑' });
+            return res.status(401).json({
+                success: false,
+                msg: pickLocalizedText(locale, '未找到匹配的 Passkey 凭据或该凭据已解绑', 'Matching passkey credential not found or unbound'),
+            });
         }
         matchedUsername = String(user.username || '').trim();
         const userRateState = matchedUsername ? getLoginRateState(clientIp, matchedUsername) : { blocked: false };
@@ -1275,7 +1391,11 @@ router.post('/passkey/login-verify', async (req, res) => {
             appendSecurityAudit('login_rate_limited', req, { ip: clientIp, username: matchedUsername, action: 'passkey_login' });
             return res.status(429).json({
                 success: false,
-                msg: `Passkey 登录尝试过于频繁，请 ${LOGIN_RATE_WINDOW_MINUTES} 分钟后再试`,
+                msg: pickLocalizedText(
+                    locale,
+                    `Passkey 登录尝试过于频繁，请 ${LOGIN_RATE_WINDOW_MINUTES} 分钟后再试`,
+                    `Too many passkey sign-in attempts. Try again in ${LOGIN_RATE_WINDOW_MINUTES} minutes.`
+                ),
             });
         }
 
@@ -1283,21 +1403,31 @@ router.post('/passkey/login-verify', async (req, res) => {
             recordLoginFailure(clientIp, 'passkey');
             recordLoginFailure(clientIp, user.username);
             appendSecurityAudit('login_passkey_failed', req, { username: user.username, reason: 'account_disabled' });
-            return res.status(403).json({ success: false, msg: '该账号已被禁用' });
+            return res.status(403).json({
+                success: false,
+                msg: pickLocalizedText(locale, '该账号已被禁用', 'This account has been disabled'),
+            });
         }
 
         if (user.isGuest === true || user.role === 'guest') {
             recordLoginFailure(clientIp, 'passkey');
             recordLoginFailure(clientIp, user.username);
             appendSecurityAudit('login_passkey_failed', req, { username: user.username, reason: 'guest_account_forbidden' });
-            return res.status(403).json({ success: false, msg: '访客体验账号仅限节点订阅使用，禁止登录 Web 管理后台' });
+            return res.status(403).json({
+                success: false,
+                msg: pickLocalizedText(
+                    locale,
+                    '访客体验账号仅限节点订阅使用，禁止登录 Web 管理后台',
+                    'Guest accounts are restricted to node subscriptions and cannot sign in to the web console.'
+                ),
+            });
         }
 
         const passkey = (user.passkeys || []).find((pk: any) => pk.id === credentialId || pk.credentialID === credentialId);
         if (!passkey) {
             recordLoginFailure(clientIp, 'passkey');
             recordLoginFailure(clientIp, user.username);
-            return res.status(401).json({ success: false, msg: '凭证无效' });
+            return res.status(401).json({ success: false, msg: pickLocalizedText(locale, '凭证无效', 'Invalid credential') });
         }
 
         const { newCounter } = await verifyPasskeyLogin(req, challengeSessionId, response, passkey);
@@ -1315,7 +1445,7 @@ router.post('/passkey/login-verify', async (req, res) => {
 
         return res.json({
             success: true,
-            msg: 'Passkey 验证成功，登录成功',
+            msg: pickLocalizedText(locale, 'Passkey 验证成功，登录成功', 'Passkey verified; signed in successfully'),
             token,
             user: sanitizedUser,
         });
@@ -1325,7 +1455,7 @@ router.post('/passkey/login-verify', async (req, res) => {
             recordLoginFailure(clientIp, matchedUsername);
         }
         appendSecurityAudit('login_passkey_failed', req, { reason: err?.message || 'verification_failed' });
-        const error = toHttpError(err, 401, 'Passkey 验证失败');
+        const error = toHttpError(err, 401, pickLocalizedText(locale, 'Passkey 验证失败', 'Passkey verification failed'));
         return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
@@ -1334,23 +1464,27 @@ router.post('/passkey/login-verify', async (req, res) => {
  * DELETE /api/auth/passkey/:id — 删除/解绑指定的 Passkey
  */
 router.delete('/passkey/:id', authMiddleware, (req, res) => {
+    const locale = resolveRequestLocale(req);
     try {
         const passkeyId = String(req.params.id || '').trim();
         if (!passkeyId) {
-            return res.status(400).json({ success: false, msg: '缺少 Passkey ID' });
+            return res.status(400).json({ success: false, msg: pickLocalizedText(locale, '缺少 Passkey ID', 'Missing passkey ID') });
         }
         const userId = req.user?.userId || req.user?.id;
         const removed = userStore.removePasskey(userId, passkeyId);
         if (!removed) {
-            return res.status(404).json({ success: false, msg: '未找到该 Passkey 或无权删除' });
+            return res.status(404).json({
+                success: false,
+                msg: pickLocalizedText(locale, '未找到该 Passkey 或无权删除', 'Passkey not found or permission denied'),
+            });
         }
         appendSecurityAudit('passkey_deleted', req, {
             username: req.user.username,
             passkeyId,
         });
-        return res.json({ success: true, msg: 'Passkey 已解绑' });
+        return res.json({ success: true, msg: pickLocalizedText(locale, 'Passkey 已解绑', 'Passkey removed') });
     } catch (err) {
-        const error = toHttpError(err, 400, '解绑 Passkey 失败');
+        const error = toHttpError(err, 400, pickLocalizedText(locale, '解绑 Passkey 失败', 'Failed to remove passkey'));
         return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
@@ -1359,20 +1493,21 @@ router.delete('/passkey/:id', authMiddleware, (req, res) => {
  * PATCH /api/auth/passkey/:id — 重命名 Passkey 设备备注
  */
 router.patch('/passkey/:id', authMiddleware, (req, res) => {
+    const locale = resolveRequestLocale(req);
     try {
         const passkeyId = String(req.params.id || '').trim();
         const deviceName = String(req.body?.deviceName || '').trim();
         if (!passkeyId || !deviceName) {
-            return res.status(400).json({ success: false, msg: '参数不完整' });
+            return res.status(400).json({ success: false, msg: pickLocalizedText(locale, '参数不完整', 'Incomplete parameters') });
         }
         const userId = req.user?.userId || req.user?.id;
         const updated = userStore.renamePasskey(userId, passkeyId, deviceName);
         if (!updated) {
-            return res.status(404).json({ success: false, msg: '未找到该 Passkey' });
+            return res.status(404).json({ success: false, msg: pickLocalizedText(locale, '未找到该 Passkey', 'Passkey not found') });
         }
-        return res.json({ success: true, msg: 'Passkey 备注已更新' });
+        return res.json({ success: true, msg: pickLocalizedText(locale, 'Passkey 备注已更新', 'Passkey label updated') });
     } catch (err) {
-        const error = toHttpError(err, 400, '更新 Passkey 备注失败');
+        const error = toHttpError(err, 400, pickLocalizedText(locale, '更新 Passkey 备注失败', 'Failed to update passkey label'));
         return res.status(error.status).json({ success: false, msg: error.message });
     }
 });

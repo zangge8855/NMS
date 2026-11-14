@@ -148,6 +148,9 @@ describe('site camouflage renderer', () => {
             assert.match(html, /<meta name="theme-color" media="\(prefers-color-scheme:\s*dark\)"/);
             assert.match(html, /--image-scrim:/);
         }
+        const blogHtml = createSiteCamouflageHtml({ siteConfig: { camouflageTemplate: 'blog' }, requestPath: '/' });
+        assert.match(blogHtml, /--muted:\s*#59636e;/);
+        assert.match(blogHtml, /@media\s*\(max-width:\s*768px\)[^{]*\{[\s\S]*min-height:\s*36px;/);
     });
 
     it('renders artwork and favicons as svg media', () => {

@@ -1261,3 +1261,69 @@ test('deleteManagedUser records compensating cleanup job on remote failure and s
     assert.equal(recordedJobs[0].action, 'delete_user_cleanup');
     assert.deepEqual(recordedJobs[0].failedServerIds, ['srv-offline']);
 });
+
+test('userAdminService localizes user-not-found and group-membership errors for en-US while keeping zh-CN defaults', async () => {
+    const emptyUserRepo = {
+        getById: () => null,
+        remove: () => false,
+        list: () => [],
+    };
+    const missingGroup = {
+        getById: () => ({ id: 'g-1', name: 'VIP' }),
+        add: (payload) => ({ id: 'g-1', ...payload }),
+        update: () => ({ id: 'g-1', name: 'VIP' }),
+    };
+
+    const zhCases = [
+        () => resyncManagedUserNodes('missing', {}, 'admin', { userRepository: emptyUserRepo }),
+        () => updateManagedUser('missing', { username: 'next' }, 'admin', { userRepository: emptyUserRepo }),
+        () => setManagedUserEnabled('missing', { enabled: false }, 'admin', { userRepository: emptyUserRepo }),
+        () => updateManagedUserExpiry('missing', { expiryTime: 1000 }, 'admin', { userRepository: emptyUserRepo }),
+        () => provisionManagedUserSubscription('missing', {}, 'admin', { userRepository: emptyUserRepo }),
+        () => adminResetUserPassword('missing', { newPassword: 'ValidPass#123' }, { userRepository: emptyUserRepo }),
+        () => deleteManagedUser('missing', { userRepository: emptyUserRepo }),
+    ];
+
+    for (const run of zhCases) {
+        await assert.rejects(
+            async () => run(),
+            (err) => err?.status === 404 && err?.message === '用户不存在'
+        );
+    }
+
+    const enCases = [
+        () => resyncManagedUserNodes('missing', {}, 'admin', { userRepository: emptyUserRepo, locale: 'en-US' }),
+        () => updateManagedUser('missing', { username: 'next' }, 'admin', { userRepository: emptyUserRepo, locale: 'en-US' }),
+        () => setManagedUserEnabled('missing', { enabled: false }, 'admin', { userRepository: emptyUserRepo, locale: 'en-US' }),
+        () => updateManagedUserExpiry('missing', { expiryTime: 1000 }, 'admin', { userRepository: emptyUserRepo, locale: 'en-US' }),
+        () => provisionManagedUserSubscription('missing', {}, 'admin', { userRepository: emptyUserRepo, locale: 'en-US' }),
+        () => adminResetUserPassword('missing', { newPassword: 'ValidPass#123' }, { userRepository: emptyUserRepo, locale: 'en-US' }),
+        () => deleteManagedUser('missing', { userRepository: emptyUserRepo, locale: 'en-US' }),
+    ];
+
+    for (const run of enCases) {
+        await assert.rejects(
+            async () => run(),
+            (err) => err?.status === 404 && err?.message === 'User not found'
+        );
+    }
+
+    await assert.rejects(
+        () => createUserGroup(
+            { name: 'VIP', memberUserIds: ['bad-u1'] },
+            'admin',
+            { userRepository: emptyUserRepo, userGroupRepository: missingGroup }
+        ),
+        (err) => err?.status === 400 && err?.message === '用户不存在或不能加入分组: bad-u1'
+    );
+
+    await assert.rejects(
+        () => updateUserGroup(
+            'g-1',
+            { name: 'VIP', memberUserIds: ['bad-u1', 'bad-u2'] },
+            'admin',
+            { userRepository: emptyUserRepo, userGroupRepository: missingGroup, locale: 'en-US' }
+        ),
+        (err) => err?.status === 400 && err?.message === 'Users not found or cannot join group: bad-u1, bad-u2'
+    );
+});

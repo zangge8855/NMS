@@ -10,6 +10,7 @@ import systemSettingsStore from '../store/systemSettingsStore.js';
 import { derivePanelHealthFromStatus, ensureAuthenticated, fetchPanelServerStatus } from '../lib/panelClient.js';
 import { normalizePanelType } from '../lib/panelType.js';
 import { authMiddleware, adminOnly, operatorOrAbove } from '../middleware/auth.js';
+import { pickLocalizedText, resolveRequestLocale } from '../lib/requestLocale.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import config from '../config.js';
 import { normalizeBoolean as parseBoolean } from '../lib/normalize.js';
@@ -550,7 +551,8 @@ router.delete('/:id/panel-api-tokens/:tokenId', adminOnly, async (req, res) => {
 router.get('/:id', (req, res) => {
     const server = serverStore.getAll().find(s => s.id === req.params.id);
     if (!server) {
-        return res.status(404).json({ success: false, msg: '服务器不存在' });
+        const locale = resolveRequestLocale(req);
+        return res.status(404).json({ success: false, msg: pickLocalizedText(locale, '服务器不存在', 'Server not found') });
     }
     return res.json({ success: true, obj: server });
 });
@@ -818,7 +820,11 @@ router.post('/batch', operatorOrAbove, async (req, res) => {
 router.put('/:id', operatorOrAbove, async (req, res) => {
     const current = serverStore.getById(req.params.id);
     if (!current) {
-        return res.status(404).json({ success: false, msg: '节点不存在，请刷新节点列表后重试' });
+        const locale = resolveRequestLocale(req);
+        return res.status(404).json({
+            success: false,
+            msg: pickLocalizedText(locale, '节点不存在，请刷新节点列表后重试', 'Node not found; refresh the server list and try again'),
+        });
     }
 
     if (req.body.url) {
@@ -868,7 +874,11 @@ router.delete('/:id', operatorOrAbove, (req, res) => {
     const serverId = String(req.params.id || '').trim();
     const removed = serverStore.remove(serverId);
     if (!removed) {
-        return res.status(404).json({ success: false, msg: '节点不存在，请刷新节点列表后重试' });
+        const locale = resolveRequestLocale(req);
+        return res.status(404).json({
+            success: false,
+            msg: pickLocalizedText(locale, '节点不存在，请刷新节点列表后重试', 'Node not found; refresh the server list and try again'),
+        });
     }
     const actor = String(req.user?.username || req.user?.role || 'admin');
     const affectedPolicies = userPolicyStore.removeServerId(serverId, actor);

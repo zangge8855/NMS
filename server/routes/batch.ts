@@ -15,6 +15,7 @@ import batchRiskTokenStore, {
     buildBatchRiskOperationKey,
 } from '../lib/batchRiskControl.js';
 import { normalizeBoolean } from '../lib/normalize.js';
+import { pickLocalizedText, resolveRequestLocale } from '../lib/requestLocale.js';
 import { toHttpError } from '../lib/httpError.js';
 import {
     fetchPanelInboundByIdCompat,
@@ -1229,10 +1230,15 @@ async function retryHistoryItem(historyItem, req) {
     if (unredactedRequest) {
         historyItem = { ...historyItem, request: unredactedRequest };
     } else if (requestContainsRedactedSecret(historyItem.request)) {
+        const locale = resolveRequestLocale(req);
         return {
             error: {
                 status: 409,
-                msg: '该批量任务包含已脱敏的凭据（通常因服务重启导致），无法安全重试，请重新发起批量操作',
+                msg: pickLocalizedText(
+                    locale,
+                    '该批量任务包含已脱敏的凭据（通常因服务重启导致），无法安全重试，请重新发起批量操作',
+                    'This batch job contains redacted credentials (usually due to a service restart) and cannot be safely retried; please start a new batch operation'
+                ),
             },
         };
     }
@@ -1351,6 +1357,7 @@ async function retryHistoryItem(historyItem, req) {
                     .map((item) => `${toStringValue(item.serverId)}:${toStringValue(item.inboundId)}`)
             ));
             const stages = new Set(selectedTargets.map((item) => toStringValue(item.stage)));
+            const locale = resolveRequestLocale(req);
             const syncResult = await resyncManagedUserNodes(
                 retryRequest.userId,
                 {
@@ -1360,7 +1367,8 @@ async function retryHistoryItem(historyItem, req) {
                     targetServerIds,
                     targetInboundKeys,
                 },
-                String(req.user?.username || req.user?.role || 'admin')
+                String(req.user?.username || req.user?.role || 'admin'),
+                { locale }
             );
             const payload = buildManagedUserSyncJobPayload({
                 operation: retryRequest.operation,
@@ -1385,7 +1393,8 @@ async function retryHistoryItem(historyItem, req) {
         // Without this, a thrown error (e.g. resyncManagedUserNodes throwing 404 when the
         // target user was since deleted) would reject up through the bare async route
         // handler and, on Express 4, leave the HTTP request hanging forever.
-        const httpError = toHttpError(err, 400, '重试失败');
+        const locale = resolveRequestLocale(req);
+        const httpError = toHttpError(err, 400, pickLocalizedText(locale, '重试失败', 'Retry failed'));
         return {
             error: {
                 status: httpError.status,
@@ -1538,7 +1547,7 @@ router.post('/clients', async (req, res) => {
             },
         });
     } catch (err) {
-        const error = toHttpError(err, 500, '批量操作客户端失败');
+        const error = toHttpError(err, 500, pickLocalizedText(resolveRequestLocale(req), '批量操作客户端失败', 'Batch client operation failed'));
         return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
@@ -1644,7 +1653,7 @@ router.post('/inbounds', async (req, res) => {
             },
         });
     } catch (err) {
-        const error = toHttpError(err, 500, '批量操作入站失败');
+        const error = toHttpError(err, 500, pickLocalizedText(resolveRequestLocale(req), '批量操作入站失败', 'Batch inbound operation failed'));
         return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
@@ -1695,7 +1704,7 @@ router.post('/history/:id/retry', async (req, res) => {
             },
         });
     } catch (err) {
-        const error = toHttpError(err, 500, '重试失败');
+        const error = toHttpError(err, 500, pickLocalizedText(resolveRequestLocale(req), '重试失败', 'Retry failed'));
         return res.status(error.status).json({ success: false, msg: error.message });
     }
 });
@@ -1768,7 +1777,7 @@ router.post(`/:id(${JOB_ID_PATTERN})/retry`, async (req, res) => {
             },
         });
     } catch (err) {
-        const error = toHttpError(err, 500, '重试失败');
+        const error = toHttpError(err, 500, pickLocalizedText(resolveRequestLocale(req), '重试失败', 'Retry failed'));
         return res.status(error.status).json({ success: false, msg: error.message });
     }
 });

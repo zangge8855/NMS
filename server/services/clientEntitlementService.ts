@@ -9,6 +9,7 @@ import {
 } from '../lib/clientEntitlements.js';
 import { createHttpError } from '../lib/httpError.js';
 import { isManagedClientProtocol } from '../lib/clientProtocols.js';
+import { normalizeAppLocale, pickLocalizedText } from '../lib/requestLocale.js';
 import clientEntitlementOverrideRepository from '../repositories/clientEntitlementOverrideRepository.js';
 import serverRepository from '../repositories/serverRepository.js';
 import userPolicyRepository from '../repositories/userPolicyRepository.js';
@@ -24,6 +25,7 @@ function listEntitlementOverrides(filters: any = {}, deps: any = {}) {
 }
 
 async function updateClientEntitlement(payload: any = {}, actor: string = 'admin', deps: any = {}) {
+    const locale = normalizeAppLocale(deps?.locale, 'zh-CN');
     const overrideRepository = deps.overrideRepository || clientEntitlementOverrideRepository;
     const policyRepository = deps.userPolicyRepository || userPolicyRepository;
     const servers = deps.serverRepository || serverRepository;
@@ -44,18 +46,25 @@ async function updateClientEntitlement(payload: any = {}, actor: string = 'admin
 
     const server = servers.getById(serverId);
     if (!server) {
-        throw createHttpError(404, '服务器不存在');
+        throw createHttpError(404, pickLocalizedText(locale, '服务器不存在', 'Server not found'));
     }
 
     const { client, inbounds } = await listInbounds(serverId);
     const inbound = inbounds.find((item: any) => String(item?.id) === inboundId);
     if (!inbound) {
-        throw createHttpError(404, '入站不存在');
+        throw createHttpError(404, pickLocalizedText(locale, '入站不存在', 'Inbound not found'));
     }
 
     const protocol = normalizeProtocol(payload.protocol || inbound.protocol);
     if (!isManagedClientProtocol(protocol, inbound)) {
-        throw createHttpError(400, '当前入站协议不支持单独限定');
+        throw createHttpError(
+            400,
+            pickLocalizedText(
+                locale,
+                '当前入站协议不支持单独限定',
+                'Individual entitlement override is not supported for this inbound protocol'
+            )
+        );
     }
 
     const clients = parseInboundClients(inbound);
@@ -67,7 +76,7 @@ async function updateClientEntitlement(payload: any = {}, actor: string = 'admin
         return Boolean(requestedEmail) && normalizeEmail(item.email) === requestedEmail;
     });
     if (!match) {
-        throw createHttpError(404, '入站用户不存在');
+        throw createHttpError(404, pickLocalizedText(locale, '入站用户不存在', 'Inbound client not found'));
     }
 
     const clientIdentifier = resolveClientIdentifier(match, protocol);
@@ -75,7 +84,14 @@ async function updateClientEntitlement(payload: any = {}, actor: string = 'admin
     if (mode === 'follow_policy' && !email) {
         // Without an email there is no subscription policy to follow; falling
         // through would silently apply the global default policy record.
-        throw createHttpError(400, '该客户端没有邮箱标识，无法跟随订阅策略');
+        throw createHttpError(
+            400,
+            pickLocalizedText(
+                locale,
+                '该客户端没有邮箱标识，无法跟随订阅策略',
+                'This client has no email identifier and cannot follow a subscription policy'
+            )
+        );
     }
 
     const entitlement = mode === 'follow_policy'

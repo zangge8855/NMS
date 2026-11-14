@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import config from '../config.js';
+import { pickLocalizedText, resolveRequestLocale } from '../lib/requestLocale.js';
 import userStore, { ROLES } from '../store/userStore.js';
 
 /**
@@ -8,6 +9,7 @@ import userStore, { ROLES } from '../store/userStore.js';
  * 解析 Bearer token 并将用户信息附加到 req.user。
  */
 export function authMiddleware(req: Request, res: Response, next: NextFunction): void | Response {
+    const locale = resolveRequestLocale(req);
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ success: false, msg: 'No token provided' });
@@ -24,7 +26,14 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
             return res.status(401).json({ success: false, msg: 'Invalid or expired token' });
         }
         if (decoded && (decoded.isGuest || decoded.role === 'guest')) {
-            return res.status(403).json({ success: false, msg: '访客体验账号仅限节点订阅使用，禁止访问 Web 管理后台' });
+            return res.status(403).json({
+                success: false,
+                msg: pickLocalizedText(
+                    locale,
+                    '访客体验账号仅限节点订阅使用，禁止访问 Web 管理后台',
+                    'Guest trial accounts are only permitted for subscription access and cannot access the web admin panel'
+                ),
+            });
         }
         const userId = String(decoded?.userId || '').trim();
         const username = String(decoded?.username || '').trim();
@@ -33,7 +42,10 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
             return res.status(401).json({ success: false, msg: 'Invalid or expired token' });
         }
         if (stored.enabled === false && stored.role !== 'admin') {
-            return res.status(403).json({ success: false, msg: '该账号已被禁用' });
+            return res.status(403).json({
+                success: false,
+                msg: pickLocalizedText(locale, '该账号已被禁用', 'This account has been disabled'),
+            });
         }
         if (decoded?.role && stored.role && decoded.role !== stored.role) {
             return res.status(401).json({ success: false, msg: 'Invalid or expired token' });
@@ -70,9 +82,14 @@ export function requireRole(...allowedRoles: string[]) {
         }
         const userRole = (req as any).user.role || ROLES.user;
         if (!allowedRoles.includes(userRole)) {
+            const locale = resolveRequestLocale(req);
             return res.status(403).json({
                 success: false,
-                msg: `权限不足: 需要 ${allowedRoles.join(' 或 ')} 角色`,
+                msg: pickLocalizedText(
+                    locale,
+                    `权限不足: 需要 ${allowedRoles.join(' 或 ')} 角色`,
+                    `Insufficient permissions: requires ${allowedRoles.join(' or ')} role`
+                ),
             });
         }
         next();

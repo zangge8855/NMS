@@ -1,5 +1,11 @@
 import { checkAccountPassword } from '../lib/passwordValidator.js';
 import { createHttpError } from '../lib/httpError.js';
+import {
+    localizeUserStoreErrorMessage,
+    normalizeAppLocale,
+    pickLocalizedText,
+    type AppLocale,
+} from '../lib/requestLocale.js';
 import { buildCsvCell } from '../lib/csv.js';
 import jobStore from '../store/jobStore.js';
 import userRepository from '../repositories/userRepository.js';
@@ -68,18 +74,42 @@ function shouldFollowLoginEmail(target: any, payload: any = {}): boolean {
     return !currentSubscriptionEmail || currentSubscriptionEmail === currentEmail;
 }
 
-function buildSafeSubscriptionMigrationError(result: any) {
+function buildSafeSubscriptionMigrationError(result: any, locale: AppLocale = 'zh-CN') {
     const details = Array.isArray(result?.details) ? result.details : [];
     if (details.some((item: any) => item?.error === 'target-email-client-exists')) {
-        return createHttpError(409, '目标订阅邮箱在部分入站中已存在客户端，无法安全迁移');
+        return createHttpError(
+            409,
+            pickLocalizedText(
+                locale,
+                '目标订阅邮箱在部分入站中已存在客户端，无法安全迁移',
+                'Target subscription email already exists in some inbounds and cannot be safely migrated'
+            )
+        );
     }
     if (Number(result?.rollbackFailed || 0) > 0) {
-        return createHttpError(500, '订阅绑定迁移失败，且部分节点回滚失败，请先核查入站客户端');
+        return createHttpError(
+            500,
+            pickLocalizedText(
+                locale,
+                '订阅绑定迁移失败，且部分节点回滚失败，请先核查入站客户端',
+                'Subscription binding migration failed and rollback failed on some nodes; please inspect inbound clients'
+            )
+        );
     }
     if (Number(result?.failed || 0) > 0) {
-        return createHttpError(500, '订阅绑定迁移失败，已停止本次更新');
+        return createHttpError(
+            500,
+            pickLocalizedText(
+                locale,
+                '订阅绑定迁移失败，已停止本次更新',
+                'Subscription binding migration failed; update aborted'
+            )
+        );
     }
-    return createHttpError(500, '订阅绑定迁移失败');
+    return createHttpError(
+        500,
+        pickLocalizedText(locale, '订阅绑定迁移失败', 'Subscription binding migration failed')
+    );
 }
 
 function resolveUpdateManagedUserArgs(actorOrDeps: any = 'admin', deps: any = {}) {
@@ -527,14 +557,15 @@ function buildManagedUserSyncJobPayload({
 }
 
 async function resyncManagedUserNodes(id: string, payload: any = {}, actor: string = 'admin', deps: any = {}): Promise<any> {
+    const locale = normalizeAppLocale(deps?.locale, 'zh-CN');
     const userRepo = deps.userRepository || userRepository;
     const target = userRepo.getById(id);
 
     if (!target) {
-        throw createHttpError(404, '用户不存在');
+        throw createHttpError(404, pickLocalizedText(locale, '用户不存在', 'User not found'));
     }
     if (target.role === 'admin') {
-        throw createHttpError(400, '管理员账号无法执行节点同步');
+        throw createHttpError(400, pickLocalizedText(locale, '管理员账号无法执行节点同步', 'Administrator accounts cannot perform node sync'));
     }
 
     const operation = String(payload?.operation || '').trim().toLowerCase();
@@ -597,6 +628,7 @@ function listUsers(deps: any = {}) {
 }
 
 function createManagedUser(payload: any = {}, deps: any = {}) {
+    const locale = normalizeAppLocale(deps?.locale, 'zh-CN');
     const userRepo = deps.userRepository || userRepository;
     const groupRepo = deps.userGroupRepository || userGroupRepository;
     const username = String(payload?.username || '').trim();
@@ -608,31 +640,36 @@ function createManagedUser(payload: any = {}, deps: any = {}) {
         : email;
 
     if (email && !isValidEmail(email)) {
-        throw createHttpError(400, '邮箱格式不正确');
+        throw createHttpError(400, pickLocalizedText(locale, '邮箱格式不正确', 'Invalid email format'));
     }
     if (subscriptionEmail && !isValidEmail(subscriptionEmail)) {
-        throw createHttpError(400, '订阅绑定邮箱格式不正确');
+        throw createHttpError(400, pickLocalizedText(locale, '订阅绑定邮箱格式不正确', 'Invalid subscription email format'));
     }
     const groupId = String(payload?.groupId || '').trim();
     if (groupId && !groupRepo.getById(groupId)) {
-        throw createHttpError(400, '用户分组不存在');
+        throw createHttpError(400, pickLocalizedText(locale, '用户分组不存在', 'User group not found'));
     }
 
-    const passwordCheck = checkAccountPassword(password);
+    const passwordCheck = checkAccountPassword(password, locale);
     if (!passwordCheck.valid) {
         throw createHttpError(400, passwordCheck.reason);
     }
 
-    const user = userRepo.add({
-        username,
-        password,
-        role,
-        email,
-        subscriptionEmail,
-        groupId,
-        emailVerified: true,
-        enabled: true,
-    });
+    let user: any;
+    try {
+        user = userRepo.add({
+            username,
+            password,
+            role,
+            email,
+            subscriptionEmail,
+            groupId,
+            emailVerified: true,
+            enabled: true,
+        });
+    } catch (error: any) {
+        throw createHttpError(400, localizeUserStoreErrorMessage(error?.message, locale));
+    }
 
     return {
         user: stripSubscriptionAliasPath(user),
@@ -647,12 +684,13 @@ function createManagedUser(payload: any = {}, deps: any = {}) {
 }
 
 async function bulkSetUsersEnabled(payload: any = {}, actor: string = 'admin', deps: any = {}): Promise<any> {
+    const locale = normalizeAppLocale(deps?.locale, 'zh-CN');
     const userIds = Array.isArray(payload?.userIds) ? payload.userIds : [];
     const enabled = !!payload?.enabled;
     const setUserEnabled = deps.setManagedUserEnabled || setManagedUserEnabled;
 
     if (userIds.length === 0) {
-        throw createHttpError(400, '请提供用户 ID 列表');
+        throw createHttpError(400, pickLocalizedText(locale, '请提供用户 ID 列表', 'Please provide a list of user IDs'));
     }
 
     const results: any[] = [];
@@ -706,6 +744,7 @@ async function updateManagedUser(id: string, payload: any = {}, actorOrDeps: any
     const resolved = resolveUpdateManagedUserArgs(actorOrDeps, deps);
     const actor = resolved.actor;
     const runtimeDeps = resolved.deps;
+    const locale = normalizeAppLocale(runtimeDeps?.locale, 'zh-CN');
     const userRepo = runtimeDeps.userRepository || userRepository;
     const serverRepo = runtimeDeps.serverRepository || serverRepository;
     const policyRepo = runtimeDeps.userPolicyRepository || userPolicyRepository;
@@ -714,7 +753,7 @@ async function updateManagedUser(id: string, payload: any = {}, actorOrDeps: any
     const target = userRepo.getById(id);
 
     if (!target) {
-        throw createHttpError(404, '用户不存在');
+        throw createHttpError(404, pickLocalizedText(locale, '用户不存在', 'User not found'));
     }
 
     const nextData: any = {};
@@ -725,11 +764,11 @@ async function updateManagedUser(id: string, payload: any = {}, actorOrDeps: any
     if (Object.prototype.hasOwnProperty.call(payload || {}, 'username')) {
         const username = String(payload?.username || '').trim();
         if (!username) {
-            throw createHttpError(400, '用户名不能为空');
+            throw createHttpError(400, pickLocalizedText(locale, '用户名不能为空', 'Username is required'));
         }
         const existing = userRepo.getByUsername(username);
         if (existing && existing.id !== id) {
-            throw createHttpError(400, `用户名 "${username}" 已存在`);
+            throw createHttpError(400, pickLocalizedText(locale, `用户名 "${username}" 已存在`, `Username "${username}" already exists`));
         }
         nextData.username = username;
     }
@@ -737,11 +776,11 @@ async function updateManagedUser(id: string, payload: any = {}, actorOrDeps: any
     if (Object.prototype.hasOwnProperty.call(payload || {}, 'email')) {
         const email = normalizeEmailInput(payload?.email);
         if (email && !isValidEmail(email)) {
-            throw createHttpError(400, '邮箱格式不正确');
+            throw createHttpError(400, pickLocalizedText(locale, '邮箱格式不正确', 'Invalid email format'));
         }
         const existing = email ? userRepo.getByEmail(email) : null;
         if (existing && existing.id !== id) {
-            throw createHttpError(400, `邮箱 "${email}" 已被注册`);
+            throw createHttpError(400, pickLocalizedText(locale, `邮箱 "${email}" 已被注册`, `Email "${email}" is already registered`));
         }
         nextData.email = email;
     }
@@ -749,7 +788,7 @@ async function updateManagedUser(id: string, payload: any = {}, actorOrDeps: any
     if (Object.prototype.hasOwnProperty.call(payload || {}, 'role')) {
         const role = normalizeManagedRole(payload?.role);
         if (!role) {
-            throw createHttpError(400, `无效角色: ${payload?.role}`);
+            throw createHttpError(400, pickLocalizedText(locale, `无效角色: ${payload?.role}`, `Invalid role: ${payload?.role}`));
         }
         nextData.role = role;
     }
@@ -759,7 +798,7 @@ async function updateManagedUser(id: string, payload: any = {}, actorOrDeps: any
         if (groupId) {
             const group = groupRepo.getById(groupId);
             if (!group) {
-                throw createHttpError(400, '用户分组不存在');
+                throw createHttpError(400, pickLocalizedText(locale, '用户分组不存在', 'User group not found'));
             }
         }
         nextData.groupId = groupId;
@@ -767,7 +806,7 @@ async function updateManagedUser(id: string, payload: any = {}, actorOrDeps: any
 
     const password = String(payload?.password || '');
     if (password) {
-        const passwordCheck = checkAccountPassword(password);
+        const passwordCheck = checkAccountPassword(password, locale);
         if (!passwordCheck.valid) {
             throw createHttpError(400, passwordCheck.reason);
         }
@@ -778,7 +817,7 @@ async function updateManagedUser(id: string, payload: any = {}, actorOrDeps: any
     if (Object.prototype.hasOwnProperty.call(payload || {}, 'subscriptionEmail')) {
         nextSubscriptionEmail = normalizeEmailInput(payload?.subscriptionEmail);
         if (nextSubscriptionEmail && !isValidEmail(nextSubscriptionEmail)) {
-            throw createHttpError(400, '订阅绑定邮箱格式不正确');
+            throw createHttpError(400, pickLocalizedText(locale, '订阅绑定邮箱格式不正确', 'Invalid subscription email format'));
         }
         nextData.subscriptionEmail = nextSubscriptionEmail;
     } else if (shouldFollowLoginEmail(target, payload)) {
@@ -793,7 +832,14 @@ async function updateManagedUser(id: string, payload: any = {}, actorOrDeps: any
             ? userRepo.getBySubscriptionEmail(nextSubscriptionEmail)
             : null;
         if (existing && existing.id !== id) {
-            throw createHttpError(400, `订阅绑定邮箱 "${nextSubscriptionEmail}" 已被其他账号占用`);
+            throw createHttpError(
+                400,
+                pickLocalizedText(
+                    locale,
+                    `订阅绑定邮箱 "${nextSubscriptionEmail}" 已被其他账号占用`,
+                    `Subscription email "${nextSubscriptionEmail}" is already bound to another account`
+                )
+            );
         }
     }
 
@@ -833,7 +879,7 @@ async function updateManagedUser(id: string, payload: any = {}, actorOrDeps: any
             runtimeDeps
         );
         if (Number(subscriptionMigration.failed || 0) > 0 || Number(subscriptionMigration.rollbackFailed || 0) > 0) {
-            throw buildSafeSubscriptionMigrationError(subscriptionMigration);
+            throw buildSafeSubscriptionMigrationError(subscriptionMigration, locale);
         }
 
         try {
@@ -846,7 +892,10 @@ async function updateManagedUser(id: string, payload: any = {}, actorOrDeps: any
                 allServers,
                 subscriptionMigration,
             }, runtimeDeps);
-            throw createHttpError(409, error.message || '订阅策略迁移失败');
+            throw createHttpError(
+                409,
+                error.message || pickLocalizedText(locale, '订阅策略迁移失败', 'Failed to migrate subscription policy')
+            );
         }
 
         try {
@@ -860,8 +909,17 @@ async function updateManagedUser(id: string, payload: any = {}, actorOrDeps: any
                 subscriptionMigration,
                 policyMigration,
             }, runtimeDeps);
-            const suffix = rollback.ok ? '' : `；回滚异常: ${rollback.issues.join('；')}`;
-            throw createHttpError(500, `${error.message || '订阅令牌迁移失败'}${suffix}`);
+            const suffix = rollback.ok
+                ? ''
+                : pickLocalizedText(
+                    locale,
+                    `；回滚异常: ${rollback.issues.join('；')}`,
+                    `; rollback errors: ${rollback.issues.join('; ')}`
+                );
+            throw createHttpError(
+                500,
+                `${error.message || pickLocalizedText(locale, '订阅令牌迁移失败', 'Failed to migrate subscription tokens')}${suffix}`
+            );
         }
     }
 
@@ -869,6 +927,7 @@ async function updateManagedUser(id: string, payload: any = {}, actorOrDeps: any
     try {
         user = userRepo.update(id, nextData);
     } catch (error: any) {
+        const localizedError = localizeUserStoreErrorMessage(error?.message, locale);
         if (migrationNeeded) {
             const rollback = await rollbackSubscriptionEmailTransition({
                 fromEmail: currentSubscriptionEmail,
@@ -879,14 +938,23 @@ async function updateManagedUser(id: string, payload: any = {}, actorOrDeps: any
                 policyMigration,
                 tokenMigration,
             }, runtimeDeps);
-            const suffix = rollback.ok ? '' : `；回滚异常: ${rollback.issues.join('；')}`;
-            throw createHttpError(400, `${error.message || '更新用户失败'}${suffix}`);
+            const suffix = rollback.ok
+                ? ''
+                : pickLocalizedText(
+                    locale,
+                    `；回滚异常: ${rollback.issues.join('；')}`,
+                    `; rollback errors: ${rollback.issues.join('; ')}`
+                );
+            throw createHttpError(
+                400,
+                `${localizedError || pickLocalizedText(locale, '更新用户失败', 'Failed to update user')}${suffix}`
+            );
         }
-        throw createHttpError(400, error.message || '更新用户失败');
+        throw createHttpError(400, localizedError || pickLocalizedText(locale, '更新用户失败', 'Failed to update user'));
     }
 
     if (!user) {
-        throw createHttpError(404, '用户不存在');
+        throw createHttpError(404, pickLocalizedText(locale, '用户不存在', 'User not found'));
     }
 
     let groupSync = null;
@@ -943,15 +1011,16 @@ async function updateUserSubscriptionBinding(id: string, payload: any = {}, acto
 }
 
 async function setManagedUserEnabled(id: string, payload: any = {}, actor: string = 'admin', deps: any = {}): Promise<any> {
+    const locale = normalizeAppLocale(deps?.locale, 'zh-CN');
     const userRepo = deps.userRepository || userRepository;
     const ensurePersistentToken = deps.ensurePersistentSubscriptionToken || ensurePersistentSubscriptionToken;
     const target = userRepo.getById(id);
 
     if (!target) {
-        throw createHttpError(404, '用户不存在');
+        throw createHttpError(404, pickLocalizedText(locale, '用户不存在', 'User not found'));
     }
     if (target.role === 'admin') {
-        throw createHttpError(400, '管理员账号无法停用');
+        throw createHttpError(400, pickLocalizedText(locale, '管理员账号无法停用', 'Administrator accounts cannot be disabled'));
     }
 
     const enabled = !!payload?.enabled;
@@ -985,17 +1054,18 @@ async function setManagedUserEnabled(id: string, payload: any = {}, actor: strin
 }
 
 async function updateManagedUserExpiry(id: string, payload: any = {}, actor: string = 'admin', deps: any = {}): Promise<any> {
+    const locale = normalizeAppLocale(deps?.locale, 'zh-CN');
     const userRepo = deps.userRepository || userRepository;
     const policyRepo = deps.userPolicyRepository || userPolicyRepository;
     const target = userRepo.getById(id);
 
     if (!target) {
-        throw createHttpError(404, '用户不存在');
+        throw createHttpError(404, pickLocalizedText(locale, '用户不存在', 'User not found'));
     }
 
     const subscriptionEmail = resolveUserSubscriptionEmail(target);
     if (!subscriptionEmail) {
-        throw createHttpError(400, '该用户无订阅邮箱');
+        throw createHttpError(400, pickLocalizedText(locale, '该用户无订阅邮箱', 'User has no subscription email'));
     }
 
     const expiryTime = normalizeExpiryTime(payload?.expiryTime);
@@ -1029,6 +1099,7 @@ async function updateManagedUserExpiry(id: string, payload: any = {}, actor: str
 }
 
 async function updateManagedUserPolicyByEmail(email: string, payload: any = {}, actor: string = 'admin', deps: any = {}): Promise<any> {
+    const locale = normalizeAppLocale(deps?.locale, 'zh-CN');
     const userRepo = deps.userRepository || userRepository;
     const policyRepo = deps.userPolicyRepository || userPolicyRepository;
     const serverRepo = deps.serverRepository || serverRepository;
@@ -1037,7 +1108,7 @@ async function updateManagedUserPolicyByEmail(email: string, payload: any = {}, 
 
     const requestedEmail = normalizeEmailInput(email);
     if (!requestedEmail) {
-        throw createHttpError(400, '订阅邮箱不能为空');
+        throw createHttpError(400, pickLocalizedText(locale, '订阅邮箱不能为空', 'Subscription email is required'));
     }
 
     const target = userRepo.getBySubscriptionEmail(requestedEmail) || userRepo.getByEmail(requestedEmail) || null;
@@ -1129,14 +1200,15 @@ async function updateManagedUserPolicyByEmail(email: string, payload: any = {}, 
 }
 
 async function provisionManagedUserSubscription(id: string, payload: any = {}, actor: string = 'admin', deps: any = {}): Promise<any> {
+    const locale = normalizeAppLocale(deps?.locale, 'zh-CN');
     const userRepo = deps.userRepository || userRepository;
     const provisionSubscription = deps.provisionSubscriptionForUser || provisionSubscriptionForUser;
     const target = userRepo.getById(id);
     if (!target) {
-        throw createHttpError(404, '用户不存在');
+        throw createHttpError(404, pickLocalizedText(locale, '用户不存在', 'User not found'));
     }
     if (target.role === 'admin') {
-        throw createHttpError(400, '管理员账号无需开通订阅');
+        throw createHttpError(400, pickLocalizedText(locale, '管理员账号无需开通订阅', 'Administrator accounts do not require subscription provisioning'));
     }
 
     const requestedEmail = Object.prototype.hasOwnProperty.call(payload || {}, 'subscriptionEmail')
@@ -1144,10 +1216,17 @@ async function provisionManagedUserSubscription(id: string, payload: any = {}, a
         : (target.subscriptionEmail || target.email);
     const subscriptionEmail = normalizeEmailInput(requestedEmail);
     if (!subscriptionEmail) {
-        throw createHttpError(400, '订阅绑定邮箱不能为空，请先为该用户设置邮箱');
+        throw createHttpError(
+            400,
+            pickLocalizedText(
+                locale,
+                '订阅绑定邮箱不能为空，请先为该用户设置邮箱',
+                'Subscription email is required; set an email address for this user first'
+            )
+        );
     }
     if (!isValidEmail(subscriptionEmail)) {
-        throw createHttpError(400, '订阅绑定邮箱格式不正确');
+        throw createHttpError(400, pickLocalizedText(locale, '订阅绑定邮箱格式不正确', 'Invalid subscription email format'));
     }
 
     const result = await provisionSubscription(
@@ -1169,20 +1248,21 @@ async function provisionManagedUserSubscription(id: string, payload: any = {}, a
 }
 
 function adminResetUserPassword(id: string, payload: any = {}, deps: any = {}) {
+    const locale = normalizeAppLocale(deps?.locale, 'zh-CN');
     const userRepo = deps.userRepository || userRepository;
     const newPassword = String(payload?.newPassword || '');
     if (!newPassword) {
-        throw createHttpError(400, '新密码不能为空');
+        throw createHttpError(400, pickLocalizedText(locale, '新密码不能为空', 'New password is required'));
     }
 
-    const passwordCheck = checkAccountPassword(newPassword);
+    const passwordCheck = checkAccountPassword(newPassword, locale);
     if (!passwordCheck.valid) {
         throw createHttpError(400, passwordCheck.reason);
     }
 
     const target = userRepo.getById(id);
     if (!target) {
-        throw createHttpError(404, '用户不存在');
+        throw createHttpError(404, pickLocalizedText(locale, '用户不存在', 'User not found'));
     }
 
     userRepo.update(id, { password: newPassword });
@@ -1191,6 +1271,7 @@ function adminResetUserPassword(id: string, payload: any = {}, deps: any = {}) {
 }
 
 async function deleteManagedUser(id: string, deps: any = {}): Promise<any> {
+    const locale = normalizeAppLocale(deps?.locale, 'zh-CN');
     const userRepo = deps.userRepository || userRepository;
     const policyRepo = deps.userPolicyRepository || userPolicyRepository;
     const tokenRepo = deps.subscriptionTokenRepository || subscriptionTokenRepository;
@@ -1199,10 +1280,10 @@ async function deleteManagedUser(id: string, deps: any = {}): Promise<any> {
     const targetUser = userRepo.getById(id);
 
     if (!targetUser) {
-        throw createHttpError(404, '用户不存在');
+        throw createHttpError(404, pickLocalizedText(locale, '用户不存在', 'User not found'));
     }
     if (targetUser.role === 'admin') {
-        throw createHttpError(400, '管理员账号不支持在此处删除');
+        throw createHttpError(400, pickLocalizedText(locale, '管理员账号不支持在此处删除', 'Administrator accounts cannot be deleted here'));
     }
 
     const cleanupEmails = Array.from(new Set([
@@ -1232,7 +1313,11 @@ async function deleteManagedUser(id: string, deps: any = {}): Promise<any> {
                     }
                 });
                 if (Number(removal?.failed || 0) > 0) {
-                    cleanupError = `部分面板不可达或客户端删除失败，部分客户端可能残留，请手动检查`;
+                    cleanupError = pickLocalizedText(
+                        locale,
+                        '部分面板不可达或客户端删除失败，部分客户端可能残留，请手动检查',
+                        'Some panels were unreachable or client removal failed; residual clients may remain, please check manually'
+                    );
                 }
             } catch (error: any) {
                 cleanupError = error.message || 'cleanup-failed';
@@ -1256,13 +1341,20 @@ async function deleteManagedUser(id: string, deps: any = {}): Promise<any> {
         preCleaned = true;
         cleanupDetails = await runRemoteCleanup();
         if (clientCleanup.failed > 0) {
-            throw createHttpError(409, cleanupError || '部分面板客户端清理失败，请先恢复节点连通性或开启强制删除');
+            throw createHttpError(
+                409,
+                cleanupError || pickLocalizedText(
+                    locale,
+                    '部分面板客户端清理失败，请先恢复节点连通性或开启强制删除',
+                    'Panel client cleanup failed on some nodes; restore connectivity or enable force delete'
+                )
+            );
         }
     }
 
     const ok = userRepo.remove(id);
     if (!ok) {
-        throw createHttpError(404, '用户不存在');
+        throw createHttpError(404, pickLocalizedText(locale, '用户不存在', 'User not found'));
     }
 
     let revokedTokenCount = 0;
@@ -1395,6 +1487,7 @@ function setUserGroupPolicyInheritance(targetUser: any, inheritGroup: boolean, a
 }
 
 function applyUserGroupMembership(groupId: string = '', memberUserIds: any = null, actor: string = 'admin', deps: any = {}) {
+    const locale = normalizeAppLocale(deps?.locale, 'zh-CN');
     const userRepo = deps.userRepository || userRepository;
     if (!Array.isArray(memberUserIds)) {
         return {
@@ -1413,7 +1506,14 @@ function applyUserGroupMembership(groupId: string = '', memberUserIds: any = nul
     const userById = new Map(users.map((item: any) => [String(item?.id || '').trim(), item]));
     const invalidIds = desiredIds.filter((id: string) => !userById.has(id));
     if (invalidIds.length > 0) {
-        throw createHttpError(400, `用户不存在或不能加入分组: ${invalidIds.join(', ')}`);
+        throw createHttpError(
+            400,
+            pickLocalizedText(
+                locale,
+                `用户不存在或不能加入分组: ${invalidIds.join(', ')}`,
+                `Users not found or cannot join group: ${invalidIds.join(', ')}`
+            )
+        );
     }
 
     const desiredSet = new Set(desiredIds);
@@ -1563,10 +1663,11 @@ async function createUserGroup(payload: any = {}, actor: string = 'admin', deps:
 }
 
 async function syncUserGroupMembers(groupId: string = '', actor: string = 'admin', deps: any = {}): Promise<any> {
+    const locale = normalizeAppLocale(deps?.locale, 'zh-CN');
     const groupRepo = deps.userGroupRepository || userGroupRepository;
     const group = groupRepo.getById(groupId);
     if (!group) {
-        throw createHttpError(404, '用户分组不存在');
+        throw createHttpError(404, pickLocalizedText(locale, '用户分组不存在', 'User group not found'));
     }
 
     const members = summarizeGroupMembers(group.id, deps);
@@ -1577,10 +1678,11 @@ async function syncUserGroupMembers(groupId: string = '', actor: string = 'admin
 }
 
 async function updateUserGroup(id: string, payload: any = {}, actor: string = 'admin', deps: any = {}): Promise<any> {
+    const locale = normalizeAppLocale(deps?.locale, 'zh-CN');
     const groupRepo = deps.userGroupRepository || userGroupRepository;
     const updated = groupRepo.update(id, payload, actor);
     if (!updated) {
-        throw createHttpError(404, '用户分组不存在');
+        throw createHttpError(404, pickLocalizedText(locale, '用户分组不存在', 'User group not found'));
     }
     const membership = applyUserGroupMembership(updated.id, payload.memberUserIds, actor, deps);
     const sync = createEmptyGroupSyncResult(updated);
@@ -1604,11 +1706,12 @@ async function updateUserGroup(id: string, payload: any = {}, actor: string = 'a
 }
 
 async function deleteUserGroup(id: string, actor: string = 'admin', deps: any = {}): Promise<any> {
+    const locale = normalizeAppLocale(deps?.locale, 'zh-CN');
     const groupRepo = deps.userGroupRepository || userGroupRepository;
     const userRepo = deps.userRepository || userRepository;
     const group = groupRepo.getById(id);
     if (!group) {
-        throw createHttpError(404, '用户分组不存在');
+        throw createHttpError(404, pickLocalizedText(locale, '用户分组不存在', 'User group not found'));
     }
 
     const members = summarizeGroupMembers(group.id, deps);

@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
+import { pickLocalizedText, resolveRequestLocale } from '../lib/requestLocale.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import serverStore from '../store/serverStore.js';
 import userPolicyStore, { ALLOWED_PROTOCOLS, POLICY_SCOPE_MODES } from '../store/userPolicyStore.js';
@@ -161,6 +162,7 @@ router.put('/:email', async (req: Request, res: Response) => {
         protocolScopeMode = 'none';
     }
 
+    const locale = resolveRequestLocale(req);
     try {
         const result = await updateManagedUserPolicyByEmail(
             email,
@@ -202,7 +204,8 @@ router.put('/:email', async (req: Request, res: Response) => {
                     ? normalizeTextList(req.body?.overrideFields)
                     : (currentPolicy.overrideFields || []),
             },
-            (req as any).user?.username || (req as any).user?.role || 'admin'
+            (req as any).user?.username || (req as any).user?.role || 'admin',
+            { locale }
         );
         invalidatePublicSubCache(result.subscriptionEmail || email);
         appendSecurityAudit('user_policy_updated', req, {
@@ -226,8 +229,8 @@ router.put('/:email', async (req: Request, res: Response) => {
         return res.json({
             success: true,
             msg: result.partialFailure
-                ? '订阅策略已保存，但部分节点同步失败'
-                : '订阅策略已保存',
+                ? pickLocalizedText(locale, '订阅策略已保存，但部分节点同步失败', 'Subscription policy saved, but some nodes failed to sync')
+                : pickLocalizedText(locale, '订阅策略已保存', 'Subscription policy saved'),
             obj: sanitizePolicyResult(result),
         });
     } catch (error: any) {
