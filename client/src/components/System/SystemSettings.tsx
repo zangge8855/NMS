@@ -2395,7 +2395,7 @@ export default function SystemSettings() {
                                         onChange={(e) => patchField('auditIpGeo', 'cacheTtlSeconds', e.target.value)}
                                     />
                                 </div>
-                                <div className="form-group">
+                                <div className="form-group settings-field-wide">
                                     <label className="form-label">{t("pages.settings.queryEndpointLabel")}</label>
                                     <input
                                         className="form-input font-mono"
@@ -3186,7 +3186,10 @@ export default function SystemSettings() {
                                             aria-label={t("pages.settings.dataKeysCommaSeparatedLeaveBlankFor")}
                                             value={dbBackfillDraft.keysText}
                                             onChange={(event) => setDbBackfillDraft((prev) => ({ ...prev, keysText: event.target.value }))}
-                                            placeholder={(dbStatus.storeKeys || []).join(', ')}
+                                            placeholder={
+                                                (dbStatus.storeKeys || []).slice(0, 3).join(', ')
+                                                + ((dbStatus.storeKeys?.length || 0) > 3 ? ', ...' : '')
+                                            }
                                             disabled={!isAdmin}
                                         />
                                         <div className="text-xs text-muted mt-1">{t('pages.settings.optionalDbstatusStorekeysJoinNone', { keys: (dbStatus.storeKeys || []).join(', ') || t('pages.settings.na') })}</div>

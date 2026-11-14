@@ -53,7 +53,7 @@
   /* Ink */
   --text-primary: #e7eaf0;
   --text-secondary: #a8b0bf;
-  --text-muted: #808999;
+  --text-muted: #8e98aa;
   --text-inverse: #0d1016;
   --text-on-accent: #ffffff;
 
@@ -61,14 +61,14 @@
   --accent-primary: #6d7ff5;
   --accent-primary-hover: #8291ff;
   --accent-primary-active: #5a6ce6;
-  --btn-primary-bg: #485ad0;
-  --btn-primary-hover: #5163db;
-  --btn-primary-active: #4354c8;
+  --btn-primary-bg: #4654d6;
+  --btn-primary-hover: #3d4bc9;
+  --btn-primary-active: #3542b8;
   --accent-primary-bg: rgba(123, 140, 255, 0.12);
   --accent-primary-soft: rgba(123, 140, 255, 0.14);
   --accent-primary-border: rgba(123, 140, 255, 0.34);
   --accent-primary-glow: rgba(123, 140, 255, 0.22);
-  --gradient-primary: linear-gradient(180deg, #4e60d7 0%, #4354c8 100%);
+  --gradient-primary: linear-gradient(180deg, #4b59db 0%, #4250d1 100%);
   --shadow-glow-primary: 0 0 0 1px rgba(123, 140, 255, 0.3);
   --focus-ring-border: #8291ff;
   --focus-ring-shadow: 0 0 0 3px rgba(123, 140, 255, 0.26);

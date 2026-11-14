@@ -154,3 +154,37 @@ describe('Header', () => {
         window.removeEventListener('nms:page-refresh', refreshHandler);
     });
 });
+
+describe('Header search popover coordination', () => {
+    it('dispatches nms:close-popovers when opened and closes when NotificationBell opens', () => {
+        const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+        const { container } = renderWithRouter(<Header title="订阅中心" />);
+
+        const input = container.querySelector('.header-search-input') as HTMLInputElement;
+        expect(input).not.toBeNull();
+        fireEvent.focus(input);
+
+        const searchShell = container.querySelector('.header-search');
+        expect(searchShell).toHaveAttribute('data-open', 'true');
+        expect(document.querySelector('.header-search-results')).not.toBeNull();
+
+        const dispatched = dispatchSpy.mock.calls.some(([ev]) => (
+            ev instanceof CustomEvent
+            && ev.type === 'nms:close-popovers'
+            && ev.detail?.source === 'header-search'
+        ));
+        expect(dispatched).toBe(true);
+
+        fireEvent(window, new CustomEvent('nms:close-popovers', {
+            detail: { source: 'header-search' },
+        }));
+        expect(searchShell).toHaveAttribute('data-open', 'true');
+
+        fireEvent(window, new CustomEvent('nms:close-popovers', {
+            detail: { source: 'notification-bell' },
+        }));
+        expect(searchShell).toHaveAttribute('data-open', 'false');
+        expect(document.querySelector('.header-search-results')).toBeNull();
+        dispatchSpy.mockRestore();
+    });
+});

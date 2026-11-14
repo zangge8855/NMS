@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import {
+import api, {
     clearStoredToken,
     getStoredToken,
     setStoredToken,
@@ -67,5 +67,32 @@ describe('api client unauthorized handling', () => {
         };
 
         expect(shouldClearSessionOnUnauthorized(error)).toBe(true);
+    });
+});
+
+describe('api client locale interceptor', () => {
+    beforeEach(() => {
+        localStorage.clear();
+        document.documentElement.lang = 'zh-CN';
+    });
+
+    it('attaches X-Locale from active UI locale when absent and preserves explicit values', () => {
+        const handlers = (api.interceptors.request as unknown as {
+            handlers: Array<{ fulfilled?: (config: any) => any }>;
+        }).handlers;
+        const interceptor = handlers.find((item) => typeof item?.fulfilled === 'function')?.fulfilled;
+        expect(interceptor).toBeTypeOf('function');
+
+        localStorage.setItem('nms_locale', 'en-US');
+        const enConfig = interceptor!({ headers: {} });
+        expect(enConfig.headers['X-Locale']).toBe('en-US');
+
+        localStorage.removeItem('nms_locale');
+        document.documentElement.lang = 'en';
+        const docConfig = interceptor!({ headers: {} });
+        expect(docConfig.headers['X-Locale']).toBe('en-US');
+
+        const explicitConfig = interceptor!({ headers: { 'X-Locale': 'zh-CN' } });
+        expect(explicitConfig.headers['X-Locale']).toBe('zh-CN');
     });
 });

@@ -293,10 +293,21 @@ export default function Header({
     }, []);
 
     useEffect(() => {
-        const closePopoverHandler = () => setSearchOpen(false);
+        const closePopoverHandler = (event: Event) => {
+            const source = (event as CustomEvent<{ source?: string }>).detail?.source;
+            if (source === 'header-search') return;
+            setSearchOpen(false);
+        };
         window.addEventListener('nms:close-popovers', closePopoverHandler);
         return () => window.removeEventListener('nms:close-popovers', closePopoverHandler);
     }, []);
+
+    useEffect(() => {
+        if (!searchOpen) return;
+        window.dispatchEvent(new CustomEvent('nms:close-popovers', {
+            detail: { source: 'header-search' },
+        }));
+    }, [searchOpen]);
 
     useEffect(() => {
         setSearchOpen(false);

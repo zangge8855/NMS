@@ -1,4 +1,7 @@
 import axios, { type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
+import { normalizeClientLocale, resolveActiveClientLocale, type ClientLocale } from '../utils/locale';
+
+export { normalizeClientLocale, resolveActiveClientLocale, type ClientLocale };
 
 const TOKEN_KEY = 'nms_token';
 const LEGACY_TOKEN_KEY = 'xui_token';
@@ -82,11 +85,26 @@ export function shouldClearSessionOnUnauthorized(error: any): boolean {
     return true;
 }
 
-// Request interceptor: attach JWT token
+// Request interceptor: attach JWT token and active UI locale
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     const token = getStoredToken();
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+    }
+    const headers = config.headers as (Record<string, unknown> & {
+        get?: (name: string) => unknown;
+        set?: (name: string, value: string) => void;
+    }) | undefined;
+    const existingLocale = typeof headers?.get === 'function'
+        ? (headers.get('X-Locale') ?? headers.get('x-locale'))
+        : (headers?.['X-Locale'] ?? headers?.['x-locale']);
+    if (!existingLocale && headers) {
+        const activeLocale = resolveActiveClientLocale();
+        if (typeof headers.set === 'function') {
+            headers.set('X-Locale', activeLocale);
+        } else {
+            headers['X-Locale'] = activeLocale;
+        }
     }
     return config;
 });

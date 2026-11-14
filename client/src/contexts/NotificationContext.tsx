@@ -7,6 +7,13 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
 import api from '../api/client';
+import {
+    resolveLocalizedNotificationText,
+    type LocalizedNotificationCopy,
+    type LocalizableNotificationLike,
+} from '../utils/locale';
+
+export { resolveLocalizedNotificationText, type LocalizedNotificationCopy, type LocalizableNotificationLike };
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../utils/format';
 import { clearSessionSnapshot, readSessionSnapshot, SESSION_SNAPSHOT_EVENT, writeSessionSnapshot } from '../utils/sessionSnapshot';
@@ -247,7 +254,8 @@ export function NotificationProvider({ children, wsLastMessage, enabled = true }
                     : notification.severity === 'warning'
                     ? (msg: any, opts: any) => toast(msg, { ...opts, icon: '⚠️' })
                     : toast;
-                toastFn(notification.title, { duration: 5000 });
+                const localized = resolveLocalizedNotificationText(notification);
+                toastFn(localized.title, { duration: 5000 });
             }
             if (typeof newCount === 'number') {
                 liveNotificationStateRef.current.realtimeReceived = true;

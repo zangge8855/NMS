@@ -7,7 +7,11 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { HiOutlineBell, HiOutlineCheckCircle } from 'react-icons/hi2';
-import { useNotifications, type NotificationItem } from '../../contexts/NotificationContext';
+import {
+    useNotifications,
+    type NotificationItem,
+} from '../../contexts/NotificationContext';
+import { resolveLocalizedNotificationText } from '../../utils/locale';
 import { useOptionalServer } from '../../contexts/ServerContext';
 import { useI18n } from '../../contexts/LanguageContext';
 import useFloatingPanel, { type ComputePositionParams } from '../../hooks/useFloatingPanel';
@@ -28,12 +32,14 @@ function buildNotificationMetaRows(
     notification: NotificationItem = { id: '', title: '' },
     copy: Record<string, any> = {},
     serverNames: Map<string, string> = new Map(),
+    locale?: string,
 ) {
     const labels = copy.labels || {};
     const reasons = copy.reasons || {};
     const meta = notification.meta || {};
     const rows: Array<{ label: string; value: string }> = [];
-    const mentioned = `${notification.title || ''} ${notification.body || ''}`;
+    const localized = resolveLocalizedNotificationText(notification, locale);
+    const mentioned = `${localized.title} ${localized.body}`;
 
     if (meta.serverId) {
         const serverId = String(meta.serverId);
@@ -79,12 +85,13 @@ function buildNotificationMetaRows(
  * Collapse repeats of the same alert (same title, body and meta) into one entry,
  * keeping the newest occurrence and remembering every id so all can be marked read.
  */
-function groupNotifications(items: NotificationItem[] = []) {
+function groupNotifications(items: NotificationItem[] = [], locale?: string) {
     const groups: Array<{ item: NotificationItem; ids: string[]; unreadIds: string[] }> = [];
     const index = new Map<string, number>();
     for (const item of items) {
         const meta = item.meta || {};
-        const key = [item.title, item.body, meta.serverId, meta.reasonCode, meta.event].map((v) => String(v || '')).join('|');
+        const localized = resolveLocalizedNotificationText(item, locale);
+        const key = [localized.title, localized.body, meta.serverId, meta.reasonCode, meta.event].map((v) => String(v || '')).join('|');
         const existing = index.get(key);
         if (existing === undefined) {
             index.set(key, groups.length);
@@ -120,10 +127,17 @@ export default function NotificationBell() {
         }
         return map;
     }, [serverContext?.servers]);
-    const notificationGroups = React.useMemo(() => groupNotifications(notifications.slice(0, 60)).slice(0, 30), [notifications]);
+    const notificationGroups = React.useMemo(
+        () => groupNotifications(notifications.slice(0, 60), locale).slice(0, 30),
+        [notifications, locale],
+    );
 
     useEffect(() => {
-        const closePopoverHandler = () => setOpen(false);
+        const closePopoverHandler = (event: Event) => {
+            const source = (event as CustomEvent<{ source?: string }>).detail?.source;
+            if (source === 'notification-bell') return;
+            setOpen(false);
+        };
         window.addEventListener('nms:close-popovers', closePopoverHandler);
         return () => window.removeEventListener('nms:close-popovers', closePopoverHandler);
     }, []);
@@ -231,7 +245,8 @@ export default function NotificationBell() {
                         </div>
                     ) : (
                         notificationGroups.map(({ item: n, ids, unreadIds }) => {
-                            const metaRows = buildNotificationMetaRows(n, copy, serverNames);
+                            const localized = resolveLocalizedNotificationText(n, locale);
+                            const metaRows = buildNotificationMetaRows(n, copy, serverNames, locale);
                             const isUnread = unreadIds.length > 0;
                             return (
                             <div
@@ -247,11 +262,11 @@ export default function NotificationBell() {
                                 data-severity={severityTone(n.severity)}
                                 role="button"
                                 tabIndex={0}
-                                aria-label={`${copy.openItem || copy.title}: ${n.title}`}
+                                aria-label={`${copy.openItem || copy.title}: ${localized.title}`}
                             >
                                 <div className="notification-item-head">
                                     <span className={`notification-item-title${isUnread ? ' is-unread' : ''}`}>
-                                        {n.title}
+                                        {localized.title}
                                         {ids.length > 1 && (
                                             <span className="notification-item-repeat">
                                                 {String(copy.repeatCount || '×{count}').replace('{count}', String(ids.length))}
@@ -262,9 +277,9 @@ export default function NotificationBell() {
                                         {formatRelativeTime(n.createdAt, locale)}
                                     </span>
                                 </div>
-                                {n.body && (
+                                {localized.body && (
                                     <div className="notification-item-body">
-                                        {n.body}
+                                        {localized.body}
                                     </div>
                                 )}
                                 {metaRows.length > 0 && (
@@ -293,7 +308,15 @@ export default function NotificationBell() {
             <button
                 ref={triggerRef}
                 className="btn btn-secondary btn-icon notification-trigger"
-                onClick={() => setOpen((v) => !v)}
+                onClick={() => {
+                    const next = !open;
+                    if (next) {
+                        window.dispatchEvent(new CustomEvent('nms:close-popovers', {
+                            detail: { source: 'notification-bell' },
+                        }));
+                    }
+                    setOpen(next);
+                }}
                 title={copy.triggerTitle}
                 aria-label={copy.triggerTitle}
                 aria-expanded={open}
