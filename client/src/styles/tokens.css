@@ -234,6 +234,8 @@
   --z-nav: 50;
   --z-sticky: 100;
   --z-dropdown: 500;
+  --z-backdrop: 780;
+  --z-drawer: 800;
   --z-modal-backdrop: 900;
   --z-modal: 1000;
   --z-popover: 1100;

@@ -260,7 +260,7 @@
 }
 
 .cap-status-pill--success {
-  color: var(--accent-success);
+  color: var(--accent-success-hover, #63d4a2);
   background: var(--accent-success-bg);
   border-color: var(--accent-success-border, transparent);
 }
@@ -700,7 +700,8 @@
 
 .settings-toggle-collection--telegram {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  align-items: stretch;
 }
 
 .settings-toggle-copy {
@@ -2338,9 +2339,9 @@
 
 /* Server detail hero: a quiet health-tinted tile instead of a saturated gradient disc */
 :root .detail-hero-health-avatar {
-    background: color-mix(in srgb, var(--health-accent) 14%, var(--bg-card)) !important;
-    color: var(--health-accent) !important;
-    border: 1px solid color-mix(in srgb, var(--health-accent) 34%, transparent);
+    background: color-mix(in srgb, var(--health-accent, var(--accent-primary)) 14%, var(--bg-card)) !important;
+    color: var(--health-accent, var(--accent-primary)) !important;
+    border: 1px solid color-mix(in srgb, var(--health-accent, var(--accent-primary)) 34%, transparent);
     border-radius: 16px;
     box-shadow: none !important;
 }

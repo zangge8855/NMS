@@ -260,9 +260,9 @@ textarea {
   width: 28px;
   height: 28px;
   right: -14px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   background: var(--surface-panel);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--stroke-medium);
   box-shadow: var(--shadow-sm);
 }
 
@@ -1533,12 +1533,14 @@ select {
 
   .inbounds-page .inbounds-table tr.inbounds-row {
     display: grid !important;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) auto;
     grid-template-areas:
-      "expand remark check"
-      "sequence node node"
-      "status status status"
-      "actions actions actions" !important;
+      "expand remark remark check"
+      "sequence node node node"
+      "protocol protocol port port"
+      "users users traffic traffic"
+      "status status status status"
+      "actions actions actions actions" !important;
     gap: 10px 12px !important;
     min-width: 0 !important;
     padding: 14px !important;
@@ -1546,6 +1548,15 @@ select {
     border-radius: var(--radius-lg) !important;
     background: var(--surface-panel) !important;
     box-shadow: var(--shadow-sm) !important;
+  }
+
+  .inbounds-page .inbounds-table tr.inbounds-row:has(.inbounds-condensed-summary) {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "expand remark check"
+      "sequence node node"
+      "status status status"
+      "actions actions actions" !important;
   }
 
   .inbounds-page .inbounds-table tr.inbounds-row-selected {
@@ -1606,6 +1617,50 @@ select {
     padding-right: 10px !important;
   }
 
+  .inbounds-page .inbounds-table .inbounds-protocol-cell {
+    grid-area: protocol !important;
+  }
+
+  .inbounds-page .inbounds-table .inbounds-port-cell {
+    grid-area: port !important;
+  }
+
+  .inbounds-page .inbounds-table .inbounds-users-cell {
+    grid-area: users !important;
+  }
+
+  .inbounds-page .inbounds-table .inbounds-traffic-cell {
+    grid-area: traffic !important;
+  }
+
+  .inbounds-page .inbounds-table .inbounds-protocol-cell,
+  .inbounds-page .inbounds-table .inbounds-port-cell,
+  .inbounds-page .inbounds-table .inbounds-users-cell,
+  .inbounds-page .inbounds-table .inbounds-traffic-cell {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    flex-wrap: wrap !important;
+    padding: 7px 10px !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--stroke-soft) !important;
+    background: color-mix(in srgb, var(--surface-soft) 65%, transparent) !important;
+    text-align: left !important;
+  }
+
+  .inbounds-page .inbounds-table tr.inbounds-row .inbounds-traffic-stack {
+    align-items: flex-end !important;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .inbounds-page .inbounds-table tr.inbounds-row:has(.inbounds-condensed-summary) .inbounds-protocol-cell,
+  .inbounds-page .inbounds-table tr.inbounds-row:has(.inbounds-condensed-summary) .inbounds-port-cell,
+  .inbounds-page .inbounds-table tr.inbounds-row:has(.inbounds-condensed-summary) .inbounds-users-cell,
+  .inbounds-page .inbounds-table tr.inbounds-row:has(.inbounds-condensed-summary) .inbounds-traffic-cell {
+    display: none !important;
+  }
+
   .inbounds-page .inbounds-table .inbounds-status-cell-wrap {
     grid-area: status !important;
   }
@@ -1636,13 +1691,9 @@ select {
   }
 
   .inbounds-page .inbounds-table .inbounds-protocol-col,
-  .inbounds-page .inbounds-table .inbounds-protocol-cell,
   .inbounds-page .inbounds-table .inbounds-port-col,
-  .inbounds-page .inbounds-table .inbounds-port-cell,
   .inbounds-page .inbounds-table .inbounds-users-col,
-  .inbounds-page .inbounds-table .inbounds-users-cell,
-  .inbounds-page .inbounds-table .inbounds-traffic-col,
-  .inbounds-page .inbounds-table .inbounds-traffic-cell {
+  .inbounds-page .inbounds-table .inbounds-traffic-col {
     display: none !important;
   }
 }
@@ -2774,7 +2825,10 @@ select {
 @media (max-width: 1180px) {
   .page-content,
   .page-content--wide { padding-inline: 20px; }
-  .settings-nav-list--workspace { grid-template-columns: repeat(5, minmax(120px, 1fr)); overflow-x: auto; }
+  .settings-nav-list--workspace {
+    grid-template-columns: repeat(auto-fit, minmax(156px, 1fr));
+    gap: 6px;
+  }
   .servers-table { min-width: 1020px; }
   .servers-toolbar .list-toolbar-filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2787,8 +2841,8 @@ select {
 @media (max-width: 1100px) and (min-width: 769px) {
   .header-left { flex: 0 1 auto; }
   .header-title { font-size: 18px; }
-  .header-actions { max-width: 68vw; }
-  .header-search { min-width: 180px; width: 220px; }
+  .header-actions { max-width: 72vw; }
+  .header-search { min-width: 220px; width: min(268px, 27vw); }
   .node-health-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .node-health-workbench { grid-template-columns: 1fr; }
   .audit-filter-grid--events-primary { grid-template-columns: repeat(2, minmax(0, 1fr)); }

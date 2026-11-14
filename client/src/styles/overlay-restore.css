@@ -78,7 +78,7 @@
   position: fixed;
   inset: 0;
   background: var(--overlay-backdrop, rgba(3, 6, 12, 0.72));
-  z-index: calc(var(--z-toast, 1000) + 20);
+  z-index: calc(var(--z-command, 1300) + 20);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -339,7 +339,7 @@
 .security-bootstrap-overlay {
   position: fixed;
   inset: 0;
-  z-index: calc(var(--z-toast, 1000) + 10);
+  z-index: calc(var(--z-command, 1300) + 10);
   display: flex;
   align-items: stretch;
   justify-content: center;
