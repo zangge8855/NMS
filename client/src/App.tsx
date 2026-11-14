@@ -17,6 +17,7 @@ import api from './api/client';
 import useWebSocket from './hooks/useWebSocket';
 import { applyAppBootstrapSnapshots } from './utils/appBootstrap';
 import { lazyWithRetry } from './utils/lazyWithRetry';
+import { buildSiteAssetPath } from './utils/sitePath';
 
 const Login = lazyWithRetry(() => import('./components/Login/Login'), 'Login');
 const Sidebar = lazyWithRetry(() => import('./components/Layout/Sidebar'), 'Sidebar');
@@ -85,7 +86,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     };
 
     handleGoHome = () => {
-        window.location.href = '/';
+        window.location.href = buildSiteAssetPath('/');
     };
 
     handleResetAndRelogin = () => {
@@ -94,7 +95,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
             clearAppSessionState();
             sessionStorage.clear();
         } catch {}
-        window.location.href = '/login';
+        window.location.href = buildSiteAssetPath('/login');
     };
 
     handleRetry = () => {
@@ -230,6 +231,12 @@ function LazyPage({ children }: { children: ReactNode }) {
     );
 }
 
+const WS_TICKET_REFRESH_COOLDOWN_MS = 30_000;
+const WS_TICKET_EXPIRY_BUFFER_MS = 30_000;
+const WS_TICKET_DEFAULT_TTL_MS = 10 * 60_000;
+const WS_TICKET_RETRY_BASE_MS = 5_000;
+const WS_TICKET_RETRY_MAX_MS = 60_000;
+
 function getWsUrl(ticket: string | null): string | null {
     if (!ticket) return null;
     const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
@@ -245,13 +252,19 @@ function ProtectedLayout() {
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [rootWsTicket, setRootWsTicket] = useState('');
+    const rootWsTicketRef = useRef('');
+    rootWsTicketRef.current = rootWsTicket;
     const lastWsTicketFetchAtRef = useRef(0);
+    const wsTicketExpiresAtRef = useRef(0);
+    const wsTicketRetryTimerRef = useRef<number | null>(null);
+    const wsTicketRetryAttemptRef = useRef(0);
+    const wsTicketRequestRef = useRef<Promise<void> | null>(null);
+    const mountedRef = useRef(true);
     const isMobile = useMediaQuery('(max-width: 768px)');
     const rootWsUrl = useMemo(
         () => (isStaff ? getWsUrl(rootWsTicket) : null),
         [isStaff, rootWsTicket]
     );
-    const { status: rootWsStatus, lastMessage: rootWsLastMessage } = useWebSocket(rootWsUrl);
 
     useEffect(() => {
         if (!isMobile) {
@@ -315,39 +328,163 @@ function ProtectedLayout() {
         return () => window.clearTimeout(timer);
     }, [isStaff, token]);
 
-    const fetchRootWsTicket = useCallback(async ({ force = false } = {}) => {
+    const clearWsTicketRetryTimer = useCallback(() => {
+        if (wsTicketRetryTimerRef.current !== null) {
+            window.clearTimeout(wsTicketRetryTimerRef.current);
+            wsTicketRetryTimerRef.current = null;
+        }
+    }, []);
+
+    const isRootWsTicketStale = useCallback(() => {
+        if (!rootWsTicketRef.current || !wsTicketExpiresAtRef.current) return true;
+        return Date.now() >= wsTicketExpiresAtRef.current - WS_TICKET_EXPIRY_BUFFER_MS;
+    }, []);
+
+    const fetchRootWsTicket = useCallback(async ({
+        force = false,
+        invalidateExisting = false,
+    }: {
+        force?: boolean;
+        invalidateExisting?: boolean;
+    } = {}) => {
         if (!isStaff || !token) {
+            clearWsTicketRetryTimer();
+            wsTicketRetryAttemptRef.current = 0;
+            wsTicketExpiresAtRef.current = 0;
+            lastWsTicketFetchAtRef.current = 0;
+            rootWsTicketRef.current = '';
             setRootWsTicket('');
             return;
         }
+
+        if (invalidateExisting || isRootWsTicketStale()) {
+            wsTicketExpiresAtRef.current = 0;
+            rootWsTicketRef.current = '';
+            setRootWsTicket('');
+        }
+
+        if (wsTicketRequestRef.current) {
+            return wsTicketRequestRef.current;
+        }
+
         const now = Date.now();
-        if (!force && now - lastWsTicketFetchAtRef.current < 30_000) {
+        const elapsed = now - lastWsTicketFetchAtRef.current;
+        if (!force && elapsed < WS_TICKET_REFRESH_COOLDOWN_MS) {
+            if (!rootWsTicketRef.current && wsTicketRetryTimerRef.current === null && mountedRef.current) {
+                const waitMs = Math.max(500, WS_TICKET_REFRESH_COOLDOWN_MS - elapsed);
+                wsTicketRetryTimerRef.current = window.setTimeout(() => {
+                    wsTicketRetryTimerRef.current = null;
+                    if (mountedRef.current) {
+                        void fetchRootWsTicket({ force: true });
+                    }
+                }, waitMs);
+            }
             return;
         }
+
+        clearWsTicketRetryTimer();
         lastWsTicketFetchAtRef.current = now;
-        try {
-            const res = await api.post('/ws/ticket');
-            setRootWsTicket(String(res.data?.obj?.ticket || ''));
-        } catch (error: any) {
-            console.error('Failed to fetch root websocket ticket:', error?.response?.data || error?.message || error);
+
+        const request = (async () => {
+            try {
+                const res = await api.post('/ws/ticket');
+                if (!mountedRef.current) return;
+                const nextTicket = String(res.data?.obj?.ticket || '').trim();
+                const expiresAtRaw = res.data?.obj?.expiresAt;
+                const expiresInSeconds = Number(res.data?.obj?.expiresInSeconds || 0);
+                const parsedExpiresAt = expiresAtRaw ? Date.parse(String(expiresAtRaw)) : NaN;
+                const expiresAtMs = Number.isFinite(parsedExpiresAt)
+                    ? parsedExpiresAt
+                    : Date.now() + (expiresInSeconds > 0 ? expiresInSeconds * 1000 : WS_TICKET_DEFAULT_TTL_MS);
+
+                if (!nextTicket) {
+                    throw new Error('Empty websocket ticket');
+                }
+
+                wsTicketRetryAttemptRef.current = 0;
+                wsTicketExpiresAtRef.current = expiresAtMs;
+                rootWsTicketRef.current = nextTicket;
+                setRootWsTicket(nextTicket);
+            } catch (error: any) {
+                console.error('Failed to fetch root websocket ticket:', error?.response?.data || error?.message || error);
+                if (!mountedRef.current) return;
+                wsTicketExpiresAtRef.current = 0;
+                rootWsTicketRef.current = '';
+                setRootWsTicket('');
+
+                const status = Number(error?.response?.status || 0);
+                if (status === 401 || status === 403) {
+                    return;
+                }
+
+                wsTicketRetryAttemptRef.current += 1;
+                const backoffDelay = Math.min(
+                    WS_TICKET_RETRY_BASE_MS * (2 ** Math.min(wsTicketRetryAttemptRef.current - 1, 4)),
+                    WS_TICKET_RETRY_MAX_MS
+                );
+                clearWsTicketRetryTimer();
+                wsTicketRetryTimerRef.current = window.setTimeout(() => {
+                    wsTicketRetryTimerRef.current = null;
+                    if (mountedRef.current) {
+                        void fetchRootWsTicket({ force: true });
+                    }
+                }, backoffDelay);
+            } finally {
+                if (wsTicketRequestRef.current === request) {
+                    wsTicketRequestRef.current = null;
+                }
+            }
+        })();
+
+        wsTicketRequestRef.current = request;
+        return request;
+    }, [clearWsTicketRetryTimer, isRootWsTicketStale, isStaff, token]);
+
+    const handleRootWsClose = useCallback((details: { didOpen: boolean }) => {
+        if (!isStaff || !token) return;
+        const staleOrRejected = !details.didOpen || isRootWsTicketStale();
+        if (staleOrRejected) {
+            void fetchRootWsTicket({
+                force: details.didOpen && wsTicketRetryAttemptRef.current === 0,
+                invalidateExisting: true,
+            });
+            return;
         }
-    }, [isStaff, token]);
+        void fetchRootWsTicket();
+    }, [fetchRootWsTicket, isRootWsTicketStale, isStaff, token]);
+
+    const shouldReconnectRootWs = useCallback((details: { didOpen: boolean }) => {
+        if (!isStaff || !token) return false;
+        if (!details.didOpen || isRootWsTicketStale()) return false;
+        return true;
+    }, [isRootWsTicketStale, isStaff, token]);
+
+    const { lastMessage: rootWsLastMessage } = useWebSocket(rootWsUrl, {
+        onClose: handleRootWsClose,
+        shouldReconnect: shouldReconnectRootWs,
+    });
+
+    useEffect(() => {
+        mountedRef.current = true;
+        return () => {
+            mountedRef.current = false;
+            clearWsTicketRetryTimer();
+        };
+    }, [clearWsTicketRetryTimer]);
 
     useEffect(() => {
         if (!isStaff || !token) {
+            clearWsTicketRetryTimer();
+            wsTicketRetryAttemptRef.current = 0;
+            wsTicketExpiresAtRef.current = 0;
+            lastWsTicketFetchAtRef.current = 0;
+            rootWsTicketRef.current = '';
             setRootWsTicket('');
             return undefined;
         }
-        fetchRootWsTicket({ force: true });
+        void fetchRootWsTicket({ force: true });
         return undefined;
-    }, [fetchRootWsTicket, isStaff, token]);
-
-    useEffect(() => {
-        if (!isStaff || !token) return;
-        if (rootWsStatus === 'reconnecting' || rootWsStatus === 'disconnected') {
-            fetchRootWsTicket();
-        }
-    }, [fetchRootWsTicket, isStaff, rootWsStatus, token]);
+    }, [clearWsTicketRetryTimer, fetchRootWsTicket, isStaff, token]);
 
     const effectiveCollapsed = isMobile ? false : sidebarCollapsed;
     const handleCloseSidebar = useCallback(() => setSidebarOpen(false), []);
@@ -429,15 +566,14 @@ export default function App() {
         <ErrorBoundary>
         <ThemeProvider>
             <Toaster
-                position={isMobile ? 'bottom-center' : 'top-right'}
+                position={isMobile ? 'bottom-center' : 'bottom-right'}
                 containerStyle={isMobile ? {
                     bottom: 'calc(var(--mobile-bottom-nav-height, 78px) + env(safe-area-inset-bottom, 0px) + 14px)',
                     left: '12px',
                     right: '12px',
                 } : {
-                    // Keep desktop toasts below the fixed header so they never
-                    // cover the search box / language toggle / notification bell.
-                    top: 'calc(var(--header-height, 68px) + 12px)',
+                    bottom: '20px',
+                    right: '20px',
                 }}
                 toastOptions={{
                     style: {

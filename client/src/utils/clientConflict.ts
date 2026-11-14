@@ -1,16 +1,35 @@
-const UUID_PROTOCOLS: Set<string> = new Set(['vmess', 'vless']);
-const PASSWORD_PROTOCOLS: Set<string> = new Set(['trojan', 'shadowsocks']);
+import { resolveLocaleTag } from './format';
+import {
+    UUID_PROTOCOLS,
+    PASSWORD_PROTOCOLS,
+    normalizeProtocol,
+    normalizeEmail,
+    getClientIdentifier as getProtocolClientIdentifier,
+} from './protocol';
 
-const FIELD_LABELS: Record<string, string> = {
-    id: 'UUID/ID',
-    password: '密码',
-    expiryTime: '有效期',
-    totalGB: '总流量',
-    enable: '启用状态',
-    limitIp: 'IP 限制',
-    flow: '流控参数',
-    subId: '订阅标识',
-    email: '邮箱',
+const FIELD_LABELS_BY_LOCALE: Record<'zh-CN' | 'en-US', Record<string, string>> = {
+    'zh-CN': {
+        id: 'UUID/ID',
+        password: '密码',
+        expiryTime: '有效期',
+        totalGB: '总流量',
+        enable: '启用状态',
+        limitIp: 'IP 限制',
+        flow: '流控参数',
+        subId: '订阅标识',
+        email: '邮箱',
+    },
+    'en-US': {
+        id: 'UUID / ID',
+        password: 'Password',
+        expiryTime: 'Expiry Time',
+        totalGB: 'Total Traffic',
+        enable: 'Status',
+        limitIp: 'IP Limit',
+        flow: 'Flow',
+        subId: 'Subscription ID',
+        email: 'Email',
+    },
 };
 
 const TYPE_PRIORITY: Record<string, number> = {
@@ -47,23 +66,37 @@ const FIELD_TO_TYPE: Record<string, string> = {
     email: 'email_mismatch',
 };
 
-export const CONFLICT_TYPE_LABELS: Record<string, string> = {
-    credential_mismatch: '凭据不一致',
-    expiry_mismatch: '有效期不一致',
-    quota_mismatch: '流量配额不一致',
-    enable_mismatch: '启用状态不一致',
-    limit_ip_mismatch: 'IP 限制不一致',
-    flow_mismatch: 'Flow 参数不一致',
-    subid_mismatch: '订阅标识不一致',
-    email_mismatch: '邮箱不一致',
+const CONFLICT_TYPE_LABELS_BY_LOCALE: Record<'zh-CN' | 'en-US', Record<string, string>> = {
+    'zh-CN': {
+        credential_mismatch: '凭据不一致',
+        expiry_mismatch: '有效期不一致',
+        quota_mismatch: '流量配额不一致',
+        enable_mismatch: '启用状态不一致',
+        limit_ip_mismatch: 'IP 限制不一致',
+        flow_mismatch: 'Flow 参数不一致',
+        subid_mismatch: '订阅标识不一致',
+        email_mismatch: '邮箱不一致',
+    },
+    'en-US': {
+        credential_mismatch: 'Credential Mismatch',
+        expiry_mismatch: 'Expiry Mismatch',
+        quota_mismatch: 'Traffic Quota Mismatch',
+        enable_mismatch: 'Status Mismatch',
+        limit_ip_mismatch: 'IP Limit Mismatch',
+        flow_mismatch: 'Flow Mismatch',
+        subid_mismatch: 'Subscription ID Mismatch',
+        email_mismatch: 'Email Mismatch',
+    },
 };
 
-function normalizeProtocol(value: any): string {
-    return String(value || '').trim().toLowerCase();
-}
+export const CONFLICT_TYPE_LABELS: Record<string, string> = CONFLICT_TYPE_LABELS_BY_LOCALE['zh-CN'];
 
-function normalizeEmail(value: any): string {
-    return String(value || '').trim().toLowerCase();
+function resolveConflictLocale(locale?: string): 'zh-CN' | 'en-US' {
+    if (locale) return resolveLocaleTag(locale);
+    if (typeof document !== 'undefined' && document.documentElement.lang) {
+        return resolveLocaleTag(document.documentElement.lang);
+    }
+    return 'zh-CN';
 }
 
 function toNumber(value: any, fallback: number = 0): number {
@@ -112,14 +145,7 @@ function buildDistinctMap(entries: any[], fields: string[]): Record<string, any[
 }
 
 export function getClientIdentifier(entry: Record<string, any> = {}): string {
-    const protocol = normalizeProtocol(entry.protocol);
-    if (PASSWORD_PROTOCOLS.has(protocol)) {
-        return String(entry.password || entry.id || entry.email || '').trim();
-    }
-    if (UUID_PROTOCOLS.has(protocol)) {
-        return String(entry.id || entry.password || entry.email || '').trim();
-    }
-    return String(entry.id || entry.password || entry.email || '').trim();
+    return String(getProtocolClientIdentifier(entry) || '').trim();
 }
 
 export function buildClientEntryLocator(entry: Record<string, any> = {}): string {
@@ -225,7 +251,10 @@ export interface ClientConflictReport {
     groups: ConflictGroup[];
 }
 
-export function buildClientConflictReport(clients: any[] = []): ClientConflictReport {
+export function buildClientConflictReport(clients: any[] = [], locale?: string): ClientConflictReport {
+    const resolvedLocale = resolveConflictLocale(locale);
+    const fieldLabels = FIELD_LABELS_BY_LOCALE[resolvedLocale];
+    const identityPrefix = resolvedLocale === 'en-US' ? 'ID' : '标识';
     const identityGroups = new Map<string, { groupKey: string; identityType: string; identityValue: string; entries: any[] }>();
     const list = Array.isArray(clients) ? clients : [];
 
@@ -289,13 +318,13 @@ export function buildClientConflictReport(clients: any[] = []): ClientConflictRe
             identityValue: group.identityValue,
             displayIdentity: group.identityType === 'email'
                 ? group.identityValue
-                : `标识 ${group.identityValue}`,
+                : `${identityPrefix} ${group.identityValue}`,
             entryCount: group.entries.length,
             serverCount,
             conflictTypes: groupConflictTypes,
             conflictFieldLabels: Array.from(new Set(
                 protocolConflicts.flatMap((item) => item.diffFields)
-            )).map((field) => FIELD_LABELS[field] || field),
+            )).map((field) => fieldLabels[field] || field),
             severity,
             protocols: protocolConflicts
                 .sort((a, b) => b.entryCount - a.entryCount),
@@ -325,17 +354,21 @@ export function findConflictSourceEntry(protocolGroup?: { entries?: any[] } | nu
     return entries.find((item) => buildClientEntryLocator(item) === sourceKey) || null;
 }
 
-export function getConflictTypeLabels(types: string[] = []): string[] {
+export function getConflictTypeLabels(types: string[] = [], locale?: string): string[] {
+    const resolvedLocale = resolveConflictLocale(locale);
+    const typeLabels = CONFLICT_TYPE_LABELS_BY_LOCALE[resolvedLocale];
     return (Array.isArray(types) ? types : [])
-        .map((item) => CONFLICT_TYPE_LABELS[item] || item)
+        .map((item) => typeLabels[item] || item)
         .filter(Boolean);
 }
 
-export function getConflictFieldLabelsFromTypes(types: string[] = []): string[] {
+export function getConflictFieldLabelsFromTypes(types: string[] = [], locale?: string): string[] {
+    const resolvedLocale = resolveConflictLocale(locale);
+    const fieldLabels = FIELD_LABELS_BY_LOCALE[resolvedLocale];
     const fieldSet = new Set<string>();
     (Array.isArray(types) ? types : []).forEach((type) => {
         const fields = TYPE_TO_FIELD[type] || [];
-        fields.forEach((field) => fieldSet.add(FIELD_LABELS[field] || field));
+        fields.forEach((field) => fieldSet.add(fieldLabels[field] || field));
     });
     return Array.from(fieldSet.values());
 }

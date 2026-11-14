@@ -29,6 +29,10 @@ export function acquireModalStackSlot() {
         },
     };
 }
+
+export function hasOpenModal(): boolean {
+    return modalStack.length > 0;
+}
 const FOCUSABLE_SELECTOR = [
     'a[href]',
     'area[href]',
@@ -153,10 +157,23 @@ export default function ModalShell({
     const overlayPressedRef = useRef(false);
     const overlayInteractiveRef = useRef(false);
     const previousFocusRef = useRef<HTMLElement | null>(null);
+    const focusRestoredRef = useRef(false);
+    const onCloseRef = useRef(onClose);
+    onCloseRef.current = onClose;
     const startSentinelRef = useRef<HTMLDivElement | null>(null);
     const endSentinelRef = useRef<HTMLDivElement | null>(null);
     const instanceIdRef = useRef(0);
     const [shouldRender, setShouldRender] = useState(isOpen);
+
+    const restorePreviousFocus = () => {
+        if (focusRestoredRef.current) return;
+        const target = previousFocusRef.current;
+        focusRestoredRef.current = true;
+        previousFocusRef.current = null;
+        if (target && target.isConnected) {
+            target.focus?.({ preventScroll: true });
+        }
+    };
 
     // Register/unregister this modal on the shared open-modal stack while it is open.
     useEffect(() => {
@@ -181,8 +198,7 @@ export default function ModalShell({
 
         if (!shouldRender) return undefined;
         const timeoutId = window.setTimeout(() => {
-            previousFocusRef.current?.focus?.({ preventScroll: true });
-            previousFocusRef.current = null;
+            restorePreviousFocus();
             setShouldRender(false);
         }, MODAL_EXIT_DURATION_MS);
 
@@ -203,6 +219,7 @@ export default function ModalShell({
 
     useEffect(() => {
         if (!isOpen) return undefined;
+        focusRestoredRef.current = false;
         previousFocusRef.current = document.activeElement instanceof HTMLElement
             ? document.activeElement
             : null;
@@ -212,15 +229,6 @@ export default function ModalShell({
             overlayInteractiveRef.current = true;
             const dialog = getDialogElement(overlayRef.current);
             if (!dialog) return;
-            dialog.setAttribute('role', dialog.getAttribute('role') || 'dialog');
-            dialog.setAttribute('aria-modal', 'true');
-            if (ariaLabelledBy) {
-                dialog.setAttribute('aria-labelledby', ariaLabelledBy);
-                dialog.removeAttribute('aria-label');
-            } else if (ariaLabel) {
-                dialog.setAttribute('aria-label', ariaLabel);
-                dialog.removeAttribute('aria-labelledby');
-            }
             if (!dialog.hasAttribute('tabindex')) {
                 dialog.setAttribute('tabindex', '-1');
             }
@@ -236,7 +244,34 @@ export default function ModalShell({
             unlockScroll();
             restoreAppRootIsolation();
         };
+    }, [isOpen]);
+
+    useEffect(() => {
+        if (!isOpen) return undefined;
+        const syncDialogAria = () => {
+            const dialog = getDialogElement(overlayRef.current);
+            if (!dialog) return;
+            dialog.setAttribute('role', dialog.getAttribute('role') || 'dialog');
+            dialog.setAttribute('aria-modal', 'true');
+            if (ariaLabelledBy) {
+                dialog.setAttribute('aria-labelledby', ariaLabelledBy);
+                dialog.removeAttribute('aria-label');
+            } else if (ariaLabel) {
+                dialog.setAttribute('aria-label', ariaLabel);
+                dialog.removeAttribute('aria-labelledby');
+            }
+        };
+        syncDialogAria();
+        const animationFrame = window.requestAnimationFrame(syncDialogAria);
+        return () => window.cancelAnimationFrame(animationFrame);
     }, [ariaLabel, ariaLabelledBy, isOpen]);
+
+    // Ensure focus is restored even when callers conditionally unmount ModalShell
+    // before isOpen transitions cleanly through the exit timer. Declared after
+    // the isolation cleanup so #root is no longer inert when focus returns.
+    useEffect(() => () => {
+        restorePreviousFocus();
+    }, []);
 
     useEffect(() => {
         if (!isOpen) return undefined;
@@ -246,7 +281,7 @@ export default function ModalShell({
                 // alone instead of dismissing everything beneath it.
                 if (!isTopmostModal()) return;
                 event.preventDefault();
-                onClose?.();
+                onCloseRef.current?.();
             }
         };
         const handleFocusIn = (event: FocusEvent) => {
@@ -263,7 +298,7 @@ export default function ModalShell({
             document.removeEventListener('focusin', handleFocusIn);
             document.removeEventListener('keydown', handleKeyDown);
         };
-    }, [isOpen, onClose]);
+    }, [isOpen]);
 
     if (!shouldRender || typeof document === 'undefined') return null;
 

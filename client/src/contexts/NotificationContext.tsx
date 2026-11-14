@@ -8,6 +8,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
 import api from '../api/client';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../utils/format';
 import { clearSessionSnapshot, readSessionSnapshot, SESSION_SNAPSHOT_EVENT, writeSessionSnapshot } from '../utils/sessionSnapshot';
 
 export interface NotificationItem {
@@ -106,6 +107,13 @@ export function NotificationProvider({ children, wsLastMessage, enabled = true }
             notifications,
             unreadCount,
         };
+        const hasLoadedData = bootstrapRef.current != null
+            || liveNotificationStateRef.current.previewLoaded
+            || liveNotificationStateRef.current.expandedLoaded
+            || liveNotificationStateRef.current.realtimeReceived;
+        if (!hasLoadedData) {
+            return;
+        }
         writeSessionSnapshot(NOTIFICATION_SNAPSHOT_KEY, {
             notifications,
             unreadCount,
@@ -258,19 +266,43 @@ export function NotificationProvider({ children, wsLastMessage, enabled = true }
         await fetchNotifications({ limit: EXPANDED_NOTIFICATION_LIMIT });
     }, [fetchNotifications]);
 
+    const showNotificationActionError = useCallback((error: unknown, zhFallback: string, enFallback: string) => {
+        const isEn = typeof document !== 'undefined'
+            && String(document.documentElement.lang || '').toLowerCase().startsWith('en');
+        const message = getErrorMessage(error, isEn ? enFallback : zhFallback);
+        const notifyError = typeof toast.error === 'function' ? toast.error : toast;
+        notifyError(message);
+    }, []);
+
     const markRead = useCallback(async (id: string) => {
-        if (!enabled) return;
+        if (!enabled || !id) return;
         try {
             await api.post('/system/notifications/read', { id });
             liveNotificationStateRef.current.realtimeReceived = true;
+            const currentState = notificationsStateRef.current;
+            const target = currentState.notifications.find((n) => n.id === id);
+            const shouldDecrement = target ? !target.readAt : currentState.unreadCount > 0;
+            const now = new Date().toISOString();
+            const nextNotifications = currentState.notifications.map((n) => (
+                n.id === id ? { ...n, readAt: n.readAt || now } : n
+            ));
+            const nextUnreadCount = shouldDecrement
+                ? Math.max(0, currentState.unreadCount - 1)
+                : currentState.unreadCount;
+            notificationsStateRef.current = {
+                notifications: nextNotifications,
+                unreadCount: nextUnreadCount,
+            };
             setNotifications((prev) =>
-                prev.map((n) => (n.id === id ? { ...n, readAt: new Date().toISOString() } : n))
+                prev.map((n) => (n.id === id ? { ...n, readAt: n.readAt || now } : n))
             );
-            setUnreadCount((prev) => Math.max(0, prev - 1));
-        } catch {
-            // 静默失败
+            if (shouldDecrement) {
+                setUnreadCount((prev) => Math.max(0, prev - 1));
+            }
+        } catch (error) {
+            showNotificationActionError(error, '标记通知已读失败', 'Failed to mark notification as read');
         }
-    }, [enabled]);
+    }, [enabled, showNotificationActionError]);
 
     const markAllRead = useCallback(async () => {
         if (!enabled) return;
@@ -278,12 +310,19 @@ export function NotificationProvider({ children, wsLastMessage, enabled = true }
             await api.post('/system/notifications/read', { all: true });
             liveNotificationStateRef.current.realtimeReceived = true;
             const now = new Date().toISOString();
+            notificationsStateRef.current = {
+                notifications: notificationsStateRef.current.notifications.map((n) => ({
+                    ...n,
+                    readAt: n.readAt || now,
+                })),
+                unreadCount: 0,
+            };
             setNotifications((prev) => prev.map((n) => ({ ...n, readAt: n.readAt || now })));
             setUnreadCount(0);
-        } catch {
-            // 静默失败
+        } catch (error) {
+            showNotificationActionError(error, '全部标记已读失败', 'Failed to mark all notifications as read');
         }
-    }, [enabled]);
+    }, [enabled, showNotificationActionError]);
 
     return (
         <NotificationContext.Provider value={{

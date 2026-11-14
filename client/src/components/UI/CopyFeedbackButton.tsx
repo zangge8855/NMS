@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, type ReactNode } from 'react';
 import { HiOutlineCheck, HiOutlineClipboardDocument } from 'react-icons/hi2';
 import toast from 'react-hot-toast';
+import { useI18n } from '../../contexts/LanguageContext';
 import { copyToClipboard } from '../../utils/format';
 
 const FEEDBACK_RESET_MS = 1400;
@@ -36,6 +37,7 @@ export default function CopyFeedbackButton({
     onCopied,
     onError,
 }: CopyFeedbackButtonProps) {
+    const { t } = useI18n();
     const [copied, setCopied] = useState(false);
     const timeoutRef = useRef<number | null>(null);
 
@@ -45,18 +47,27 @@ export default function CopyFeedbackButton({
         }
     }, []);
 
+    const notifyCopyError = (error?: any) => {
+        setCopied(false);
+        toast.error(errorText || t('comp.common.copyFailed'));
+        onError?.(error);
+    };
+
     const handleCopy = async () => {
         if (disabled) return;
 
         const resolvedText = typeof text === 'function' ? text() : text;
         if (!String(resolvedText || '').trim()) {
-            if (errorText) toast.error(errorText);
-            onError?.();
+            notifyCopyError();
             return;
         }
 
         try {
-            await copyToClipboard(String(resolvedText));
+            const copiedOk = await copyToClipboard(String(resolvedText));
+            if (!copiedOk) {
+                notifyCopyError(new Error('Clipboard copy failed'));
+                return;
+            }
             if (timeoutRef.current) {
                 window.clearTimeout(timeoutRef.current);
             }
@@ -69,10 +80,7 @@ export default function CopyFeedbackButton({
             }
             onCopied?.(String(resolvedText));
         } catch (error) {
-            if (errorText) {
-                toast.error(errorText);
-            }
-            onError?.(error);
+            notifyCopyError(error);
         }
     };
 

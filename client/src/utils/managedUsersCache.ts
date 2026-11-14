@@ -1,4 +1,4 @@
-import { readSessionSnapshot, writeSessionSnapshot } from './sessionSnapshot';
+import { clearSessionSnapshot, readSessionSnapshot, writeSessionSnapshot } from './sessionSnapshot';
 
 const DEFAULT_TTL_MS = 30_000;
 const SNAPSHOT_KEY = 'managed_users_v1';
@@ -9,6 +9,7 @@ let cachedAtMs = 0;
 let pendingPromise: Promise<any> | null = null;
 let snapshotHydrated = false;
 let cachedSource = 'snapshot';
+let cacheGeneration = 0;
 
 const STAFF_ROLES = new Set(['admin', 'operator', 'auditor']);
 
@@ -65,8 +66,12 @@ export async function fetchManagedUsers(api: any, options: FetchManagedUsersOpti
             : pendingPromise;
     }
 
+    const requestGeneration = cacheGeneration;
     const request = api.get('/auth/users')
         .then(async (response: any) => {
+            if (requestGeneration !== cacheGeneration) {
+                return [];
+            }
             let combined = Array.isArray(response?.data?.obj) ? [...response.data.obj] : [];
             const totalPages = Math.min(20, Number(response?.data?.totalPages || 1));
             const pageSize = Number(response?.data?.pageSize || 50);
@@ -78,6 +83,9 @@ export async function fetchManagedUsers(api: any, options: FetchManagedUsersOpti
                     );
                 }
                 const extraPages = await Promise.all(pagePromises);
+                if (requestGeneration !== cacheGeneration) {
+                    return [];
+                }
                 for (const extra of extraPages) {
                     if (Array.isArray(extra?.data?.obj)) {
                         combined = combined.concat(extra.data.obj);
@@ -85,6 +93,9 @@ export async function fetchManagedUsers(api: any, options: FetchManagedUsersOpti
                 }
             }
             const nextUsers = normalizeCachedUsers(combined);
+            if (requestGeneration !== cacheGeneration) {
+                return [];
+            }
             cachedUsers = nextUsers;
             cachedAtMs = Date.now();
             cachedSource = 'live';
@@ -117,9 +128,11 @@ export function getManagedUsersSnapshotMeta(): { users: any[]; source: string } 
 }
 
 export function invalidateManagedUsersCache(): void {
+    cacheGeneration += 1;
     cachedUsers = null;
     cachedAtMs = 0;
     pendingPromise = null;
     snapshotHydrated = false;
     cachedSource = 'snapshot';
+    clearSessionSnapshot(SNAPSHOT_KEY);
 }

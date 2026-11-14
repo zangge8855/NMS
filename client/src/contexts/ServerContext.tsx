@@ -89,9 +89,9 @@ export function ServerProvider({ children, enabled = true }: ServerProviderProps
     const [activeServerId, setActiveServerId] = useState<string | null>(
         () => !enabled
             ? null
-            : bootstrapRef.current?.activeServerId
-            || getStoredActiveServerId()
-            || (bootstrapRef.current?.servers?.length ? 'global' : null)
+            : bootstrapRef.current
+            ? (bootstrapRef.current.activeServerId ?? (bootstrapRef.current.servers?.length ? 'global' : null))
+            : getStoredActiveServerId()
     );
     const [loading, setLoading] = useState<boolean>(() => (enabled ? bootstrapRef.current == null : false));
     const serversStateRef = useRef<ServerNode[]>(enabled ? (bootstrapRef.current?.servers || []) : []);
@@ -111,7 +111,7 @@ export function ServerProvider({ children, enabled = true }: ServerProviderProps
             return [];
         }
         const force = options.force === true;
-        const preserveCurrent = options.preserveCurrent === true || (options.preserveCurrent == null && servers.length > 0);
+        const preserveCurrent = options.preserveCurrent === true || (options.preserveCurrent == null && serversStateRef.current.length > 0);
         const hasCachedServers = Array.isArray(serversStateRef.current);
         const ageMs = Date.now() - Number(lastFetchedAtRef.current || 0);
 
@@ -147,8 +147,8 @@ export function ServerProvider({ children, enabled = true }: ServerProviderProps
                 if (!preserveCurrent) {
                     serversStateRef.current = [];
                     setServers([]);
-                    setActiveServerId('global');
-                    persistActiveServerId('global');
+                    setActiveServerId(null);
+                    persistActiveServerId(null);
                 }
                 throw err;
             })
@@ -169,7 +169,7 @@ export function ServerProvider({ children, enabled = true }: ServerProviderProps
                 setLoading(false);
             }
         }
-    }, [enabled, servers.length]);
+    }, [enabled]);
 
     useEffect(() => {
         if (!enabled) {
@@ -190,6 +190,8 @@ export function ServerProvider({ children, enabled = true }: ServerProviderProps
             if (!detail || detail.key !== SERVER_CONTEXT_SNAPSHOT_KEY || detail.source !== 'app-bootstrap') return;
             const snapshot = readServerContextSnapshot();
             if (!snapshot) return;
+            bootstrapRef.current = snapshot;
+            serversStateRef.current = snapshot.servers;
             setServers(snapshot.servers);
             setActiveServerId(() => {
                 const nextId = resolvePreferredServerId(snapshot.servers);
@@ -209,6 +211,9 @@ export function ServerProvider({ children, enabled = true }: ServerProviderProps
 
     useEffect(() => {
         if (!enabled) return;
+        if (bootstrapRef.current == null && lastFetchedAtRef.current <= 0) {
+            return;
+        }
         writeSessionSnapshot(SERVER_CONTEXT_SNAPSHOT_KEY, {
             servers,
             activeServerId,
@@ -256,8 +261,10 @@ export function ServerProvider({ children, enabled = true }: ServerProviderProps
         if (res.data.success) {
             invalidateServerPanelDataCache();
             if (activeServerId === id) {
-                setActiveServerId('global');
-                persistActiveServerId('global');
+                const remaining = serversStateRef.current.filter((item) => item.id !== id);
+                const nextId = resolvePreferredServerId(remaining);
+                setActiveServerId(nextId);
+                persistActiveServerId(nextId);
             }
             await fetchServers({ force: true });
         }

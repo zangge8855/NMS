@@ -108,4 +108,23 @@ describe('ServerContext', () => {
         });
         expect(api.get).not.toHaveBeenCalled();
     });
+
+    it('keeps activeServerId null and avoids refetch storms when server fetch fails or returns empty', async () => {
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        (api.get as any).mockRejectedValueOnce(new Error('Server down'));
+
+        render(
+            <ServerProvider>
+                <ServerContextConsumer />
+            </ServerProvider>
+        );
+
+        await waitFor(() => {
+            expect(api.get).toHaveBeenCalledTimes(1);
+            expect(screen.getByTestId('active-server')).toHaveTextContent('none');
+            expect(screen.getByTestId('server-count')).toHaveTextContent('0');
+        });
+        expect(window.localStorage.getItem('nms_active_server')).toBeNull();
+        consoleSpy.mockRestore();
+    });
 });

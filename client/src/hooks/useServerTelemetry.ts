@@ -157,10 +157,14 @@ export default function useServerTelemetry(options: UseServerTelemetryOptions = 
         const timer = window.setInterval(() => {
             refreshIfVisible();
         }, refreshIntervalMs);
-        window.addEventListener('visibilitychange', refreshIfVisible);
+        if (typeof document !== 'undefined') {
+            document.addEventListener('visibilitychange', refreshIfVisible);
+        }
         return () => {
             window.clearInterval(timer);
-            window.removeEventListener('visibilitychange', refreshIfVisible);
+            if (typeof document !== 'undefined') {
+                document.removeEventListener('visibilitychange', refreshIfVisible);
+            }
         };
     }, [enabled, refresh, refreshIntervalMs]);
 

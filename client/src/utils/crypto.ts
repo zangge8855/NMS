@@ -2,7 +2,12 @@
  * Shared cryptographic utilities for generating secure passwords and tokens.
  */
 
-const UUID_HEX = '0123456789abcdef';
+function requireWebCrypto(): Crypto {
+    if (!globalThis.crypto?.getRandomValues) {
+        throw new Error('Web Crypto API is unavailable');
+    }
+    return globalThis.crypto;
+}
 
 /**
  * Generate a cryptographically secure password that meets the password policy
@@ -17,7 +22,7 @@ export function generateSecurePassword(length: number = 16): string {
     const allChars = groups.join('');
     const size = Math.max(8, Number(length) || 16);
 
-    const bytes = crypto.getRandomValues(new Uint8Array(size + 8));
+    const bytes = requireWebCrypto().getRandomValues(new Uint8Array(size + 8));
     // Ensure at least one char from each of the first 3 required groups
     const requiredGroups = [upper, lower, digits];
     const chars = requiredGroups.map((group, index) => group[bytes[index] % group.length]);
@@ -39,13 +44,15 @@ export function generateSecurePassword(length: number = 16): string {
  * Generate a UUID v4 locally using the Web Crypto API.
  */
 export function generateUuidLocal(): string {
-    if (globalThis.crypto?.randomUUID) {
-        return globalThis.crypto.randomUUID();
+    const cryptoApi = globalThis.crypto;
+    if (cryptoApi?.randomUUID) {
+        return cryptoApi.randomUUID();
     }
-    const raw = Array.from({ length: 32 }, () => UUID_HEX[Math.floor(Math.random() * UUID_HEX.length)]);
-    raw[12] = '4';
-    raw[16] = UUID_HEX[(parseInt(raw[16], 16) & 0x3) | 0x8];
-    return `${raw.slice(0, 8).join('')}-${raw.slice(8, 12).join('')}-${raw.slice(12, 16).join('')}-${raw.slice(16, 20).join('')}-${raw.slice(20, 32).join('')}`;
+    const bytes = requireWebCrypto().getRandomValues(new Uint8Array(16));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
 }
 
 /**
@@ -53,10 +60,7 @@ export function generateUuidLocal(): string {
  */
 export function generateHexToken(byteLength: number = 8): string {
     const size = Math.max(1, Number(byteLength) || 8);
-    if (globalThis.crypto?.getRandomValues) {
-        return Array.from(globalThis.crypto.getRandomValues(new Uint8Array(size)))
-            .map((byte) => byte.toString(16).padStart(2, '0'))
-            .join('');
-    }
-    return Array.from({ length: size * 2 }, () => UUID_HEX[Math.floor(Math.random() * UUID_HEX.length)]).join('');
+    return Array.from(requireWebCrypto().getRandomValues(new Uint8Array(size)))
+        .map((byte) => byte.toString(16).padStart(2, '0'))
+        .join('');
 }

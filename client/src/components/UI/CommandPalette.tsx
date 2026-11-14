@@ -22,8 +22,17 @@ import {
 import { getSearchableNavItems } from '../Layout/navConfig';
 import { getManagedUsersSnapshotMeta } from '../../utils/managedUsersCache';
 import { SESSION_SNAPSHOT_EVENT } from '../../utils/sessionSnapshot';
+import useMediaQuery from '../../hooks/useMediaQuery';
+import { acquireModalStackSlot, hasOpenModal } from './ModalShell';
 
 const MANAGED_USERS_SNAPSHOT_KEY = 'managed_users_v1';
+const BLOCKING_OVERLAY_SELECTOR = '.modal-overlay, .expandable-qr-overlay, .security-bootstrap-overlay';
+
+function hasBlockingOverlayOpen(): boolean {
+    if (hasOpenModal()) return true;
+    if (typeof document === 'undefined') return false;
+    return Boolean(document.querySelector(BLOCKING_OVERLAY_SELECTOR));
+}
 
 export interface CommandItem {
     id: string;
@@ -48,6 +57,8 @@ function getCommandCopy(locale = 'zh-CN') {
             quickLaunchBadge: 'NMS Quick Launch',
             paletteTitle: 'Command Palette',
             searchPlaceholder: 'Type a command, page, node, or user...',
+            searchPlaceholderCompact: 'Search command, node, user...',
+            clearSearch: 'Clear search',
             actions: 'Quick Actions',
             pages: 'Navigation',
             users: 'Users',
@@ -74,6 +85,8 @@ function getCommandCopy(locale = 'zh-CN') {
         quickLaunchBadge: 'NMS 快捷启动',
         paletteTitle: '全局命令面板',
         searchPlaceholder: '输入命令、页面、节点或用户进行搜索...',
+        searchPlaceholderCompact: '搜索命令、页面或节点...',
+        clearSearch: '清空搜索',
         actions: '快捷操作',
         pages: '系统页面',
         users: '用户管理',
@@ -103,6 +116,11 @@ export default function CommandPalette() {
     const [highlightedIndex, setHighlightedIndex] = useState(0);
     const inputRef = useRef<HTMLInputElement | null>(null);
     const listRef = useRef<HTMLDivElement | null>(null);
+    const modalRef = useRef<HTMLDivElement | null>(null);
+    const previousFocusRef = useRef<HTMLElement | null>(null);
+    const shouldRestoreFocusRef = useRef(true);
+    const modalSlotRef = useRef<{ isTopmost: () => boolean; release: () => void } | null>(null);
+    const isCompactViewport = useMediaQuery('(max-width: 480px)');
 
     const { servers = [], activeServerId } = useServer();
     const { user, logout } = useAuth();
@@ -146,6 +164,7 @@ export default function CommandPalette() {
 
         const handleKeyDown = (e: KeyboardEvent) => {
             if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+                if (!isOpen && hasBlockingOverlayOpen()) return;
                 if (e.defaultPrevented && !e.shiftKey) return;
                 if (isEditableTarget(e.target) && !isOpen) return;
                 e.preventDefault();
@@ -153,6 +172,7 @@ export default function CommandPalette() {
                 return;
             }
             if (e.key === 'Escape' && isOpen) {
+                if (modalSlotRef.current && !modalSlotRef.current.isTopmost()) return;
                 e.preventDefault();
                 e.stopPropagation();
                 e.stopImmediatePropagation?.();
@@ -161,6 +181,7 @@ export default function CommandPalette() {
         };
 
         const handleCustomOpen = () => {
+            if (hasBlockingOverlayOpen()) return;
             setIsOpen(true);
         };
 
@@ -172,15 +193,45 @@ export default function CommandPalette() {
         };
     }, [isOpen]);
 
-    // Focus input when opened
+    // Manage focus, focus trap, and modal stack slot when opened/closed
     useEffect(() => {
-        if (isOpen) {
-            setSearchTerm('');
-            setHighlightedIndex(0);
-            setTimeout(() => {
-                inputRef.current?.focus();
-            }, 50);
-        }
+        if (!isOpen) return undefined;
+
+        previousFocusRef.current = document.activeElement instanceof HTMLElement
+            ? document.activeElement
+            : null;
+        shouldRestoreFocusRef.current = true;
+
+        const slot = acquireModalStackSlot();
+        modalSlotRef.current = slot;
+
+        setSearchTerm('');
+        setHighlightedIndex(0);
+        const focusTimer = window.setTimeout(() => {
+            inputRef.current?.focus();
+        }, 50);
+
+        const handleFocusIn = (event: FocusEvent) => {
+            if (!slot.isTopmost()) return;
+            const container = modalRef.current;
+            if (!container || container.contains(event.target as Node)) return;
+            inputRef.current?.focus();
+        };
+        document.addEventListener('focusin', handleFocusIn);
+
+        return () => {
+            window.clearTimeout(focusTimer);
+            document.removeEventListener('focusin', handleFocusIn);
+            slot.release();
+            if (modalSlotRef.current === slot) {
+                modalSlotRef.current = null;
+            }
+            const restoreTarget = previousFocusRef.current;
+            previousFocusRef.current = null;
+            if (shouldRestoreFocusRef.current && restoreTarget && restoreTarget.isConnected) {
+                restoreTarget.focus?.({ preventScroll: true });
+            }
+        };
     }, [isOpen]);
 
     // Build all available command items
@@ -380,6 +431,7 @@ export default function CommandPalette() {
 
     // Execute item
     const executeItem = useCallback((item: CommandItem) => {
+        shouldRestoreFocusRef.current = false;
         setIsOpen(false);
         if (item.action) {
             try { item.action(); } catch { /* swallow action errors */ }
@@ -391,11 +443,13 @@ export default function CommandPalette() {
     // Keyboard navigation
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'ArrowDown') {
+            if (filteredItems.length === 0) return;
             e.preventDefault();
-            setHighlightedIndex((prev) => (prev + 1) % Math.max(1, filteredItems.length));
+            setHighlightedIndex((prev) => (prev + 1) % filteredItems.length);
         } else if (e.key === 'ArrowUp') {
+            if (filteredItems.length === 0) return;
             e.preventDefault();
-            setHighlightedIndex((prev) => (prev - 1 + filteredItems.length) % Math.max(1, filteredItems.length));
+            setHighlightedIndex((prev) => (prev - 1 + filteredItems.length) % filteredItems.length);
         } else if (e.key === 'Enter') {
             e.preventDefault();
             const selected = filteredItems[highlightedIndex];
@@ -405,9 +459,29 @@ export default function CommandPalette() {
         }
     };
 
+    const handleModalKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+        if (e.key !== 'Tab' || !modalRef.current) return;
+        const focusable = Array.from(
+            modalRef.current.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])')
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+        }
+    };
+
     if (!isOpen) return null;
 
     let globalItemIndex = 0;
+    const activeOptionId = filteredItems[highlightedIndex]
+        ? `command-palette-option-${filteredItems[highlightedIndex].id}`
+        : undefined;
 
     return createPortal(
         <div
@@ -419,27 +493,37 @@ export default function CommandPalette() {
             role="dialog"
             aria-label={copy.paletteTitle}
         >
-            <div className="command-palette-modal">
+            <div
+                ref={modalRef}
+                className="command-palette-modal"
+                onKeyDown={handleModalKeyDown}
+            >
                 <div className="command-palette-search-box">
                     <HiOutlineMagnifyingGlass className="command-palette-search-icon" />
                     <input
                         ref={inputRef}
                         type="text"
                         className="command-palette-input"
-                        placeholder={copy.searchPlaceholder}
+                        placeholder={isCompactViewport ? copy.searchPlaceholderCompact : copy.searchPlaceholder}
                         value={searchTerm}
                         onChange={(e) => {
                             setSearchTerm(e.target.value);
                             setHighlightedIndex(0);
                         }}
                         onKeyDown={handleKeyDown}
+                        role="combobox"
+                        aria-autocomplete="list"
+                        aria-expanded={filteredItems.length > 0}
+                        aria-controls={filteredItems.length > 0 ? 'command-palette-listbox' : undefined}
+                        aria-activedescendant={activeOptionId}
+                        aria-label={copy.paletteTitle}
                         autoComplete="off"
                         spellCheck={false}
                     />
                     {searchTerm && (
                         <button
                             type="button"
-                            aria-label="Clear search"
+                            aria-label={copy.clearSearch}
                             className="command-palette-clear-btn"
                             onClick={() => {
                                 setSearchTerm('');
@@ -452,51 +536,61 @@ export default function CommandPalette() {
                     <kbd className="command-palette-kbd">ESC</kbd>
                 </div>
 
-                <div className="command-palette-results" ref={listRef}>
+                <div
+                    className="command-palette-results"
+                    ref={listRef}
+                    id={filteredItems.length > 0 ? 'command-palette-listbox' : undefined}
+                    role={filteredItems.length > 0 ? 'listbox' : undefined}
+                    aria-label={filteredItems.length > 0 ? copy.paletteTitle : undefined}
+                >
                     {filteredItems.length === 0 ? (
                         <div className="command-palette-empty">
                             <HiOutlineCommandLine className="command-palette-empty-icon" />
                             <p>{copy.noResults}</p>
                         </div>
                     ) : (
-                        groupedItems.map((group) => (
-                            <div key={group.section} className="command-palette-group">
-                                <div className="command-palette-group-title">{group.section}</div>
-                                <div className="command-palette-group-items">
-                                    {group.items.map((item) => {
-                                        const currentIndex = globalItemIndex++;
-                                        const isHighlighted = currentIndex === highlightedIndex;
-                                        const IconComponent = item.icon || HiOutlineCommandLine;
+                        groupedItems.map((group, groupIndex) => {
+                            const groupLabelId = `command-palette-group-${groupIndex}`;
+                            return (
+                                <div key={group.section} className="command-palette-group" role="group" aria-labelledby={groupLabelId}>
+                                    <div id={groupLabelId} className="command-palette-group-title">{group.section}</div>
+                                    <div className="command-palette-group-items" role="none">
+                                        {group.items.map((item) => {
+                                            const currentIndex = globalItemIndex++;
+                                            const isHighlighted = currentIndex === highlightedIndex;
+                                            const IconComponent = item.icon || HiOutlineCommandLine;
 
-                                        return (
-                                            <div
-                                                key={item.id}
-                                                className={`command-palette-item ${isHighlighted ? 'is-highlighted' : ''}`}
-                                                onClick={() => executeItem(item)}
-                                                onMouseEnter={() => setHighlightedIndex(currentIndex)}
-                                                role="option"
-                                                aria-selected={isHighlighted}
-                                            >
-                                                <div className="command-palette-item-icon">
-                                                    <IconComponent />
-                                                </div>
-                                                <div className="command-palette-item-content">
-                                                    <div className="command-palette-item-label">{item.label}</div>
-                                                    {item.description && (
-                                                        <div className="command-palette-item-desc">{item.description}</div>
+                                            return (
+                                                <div
+                                                    key={item.id}
+                                                    id={`command-palette-option-${item.id}`}
+                                                    className={`command-palette-item ${isHighlighted ? 'is-highlighted' : ''}`}
+                                                    onClick={() => executeItem(item)}
+                                                    onMouseEnter={() => setHighlightedIndex(currentIndex)}
+                                                    role="option"
+                                                    aria-selected={isHighlighted}
+                                                >
+                                                    <div className="command-palette-item-icon">
+                                                        <IconComponent />
+                                                    </div>
+                                                    <div className="command-palette-item-content">
+                                                        <div className="command-palette-item-label">{item.label}</div>
+                                                        {item.description && (
+                                                            <div className="command-palette-item-desc">{item.description}</div>
+                                                        )}
+                                                    </div>
+                                                    {isHighlighted && (
+                                                        <div className="command-palette-item-enter">
+                                                            <span>↵</span>
+                                                        </div>
                                                     )}
                                                 </div>
-                                                {isHighlighted && (
-                                                    <div className="command-palette-item-enter">
-                                                        <span>↵</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        })}
+                                    </div>
                                 </div>
-                            </div>
-                        ))
+                            );
+                        })
                     )}
                 </div>
 

@@ -38,6 +38,10 @@ export default function ExpandableQRCode({
     const [expanded, setExpanded] = useState(false);
     const [copied, setCopied] = useState(false);
     const timeoutRef = useRef<number | null>(null);
+    const triggerRef = useRef<HTMLButtonElement | null>(null);
+    const overlayRef = useRef<HTMLDivElement | null>(null);
+    const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+    const previousFocusRef = useRef<HTMLElement | null>(null);
 
     useEffect(() => {
         return () => {
@@ -54,16 +58,65 @@ export default function ExpandableQRCode({
     // collapses only the QR layer instead of also dismissing the host modal.
     useEffect(() => {
         if (!expanded) return undefined;
+        previousFocusRef.current = document.activeElement instanceof HTMLElement
+            ? document.activeElement
+            : triggerRef.current;
+
         const slot = acquireModalStackSlot();
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key !== 'Escape' || !slot.isTopmost()) return;
-            event.preventDefault();
-            close();
+        const getOverlayFocusable = (): HTMLElement[] => {
+            const overlay = overlayRef.current;
+            if (!overlay) return [];
+            return Array.from(
+                overlay.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])')
+            );
         };
+
+        const animationFrame = window.requestAnimationFrame(() => {
+            (closeButtonRef.current || overlayRef.current)?.focus?.({ preventScroll: true });
+        });
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (!slot.isTopmost()) return;
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                close();
+                return;
+            }
+            if (event.key === 'Tab') {
+                const focusable = getOverlayFocusable();
+                if (focusable.length === 0) return;
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                if (event.shiftKey && document.activeElement === first) {
+                    event.preventDefault();
+                    last.focus();
+                } else if (!event.shiftKey && document.activeElement === last) {
+                    event.preventDefault();
+                    first.focus();
+                }
+            }
+        };
+
+        const handleFocusIn = (event: FocusEvent) => {
+            if (!slot.isTopmost()) return;
+            const overlay = overlayRef.current;
+            if (!overlay || overlay.contains(event.target as Node)) return;
+            const focusable = getOverlayFocusable();
+            (focusable[0] || closeButtonRef.current || overlay)?.focus?.({ preventScroll: true });
+        };
+
         document.addEventListener('keydown', handleKeyDown);
+        document.addEventListener('focusin', handleFocusIn);
         return () => {
+            window.cancelAnimationFrame(animationFrame);
             document.removeEventListener('keydown', handleKeyDown);
+            document.removeEventListener('focusin', handleFocusIn);
             slot.release();
+            const restoreTarget = previousFocusRef.current || triggerRef.current;
+            previousFocusRef.current = null;
+            if (restoreTarget && restoreTarget.isConnected) {
+                restoreTarget.focus?.({ preventScroll: true });
+            }
         };
     }, [expanded, close]);
 
@@ -83,6 +136,7 @@ export default function ExpandableQRCode({
             }
         } catch {
             setCopied(false);
+            toast.error(t('comp.common.copyFailed'));
         }
     };
 
@@ -106,6 +160,7 @@ export default function ExpandableQRCode({
     return (
         <>
             <button
+                ref={triggerRef}
                 type="button"
                 className={['expandable-qr-trigger', className].filter(Boolean).join(' ')}
                 onClick={() => setExpanded(true)}
@@ -124,6 +179,7 @@ export default function ExpandableQRCode({
 
             {expanded && createPortal(
                 <div
+                    ref={overlayRef}
                     className="expandable-qr-overlay"
                     role="dialog"
                     aria-modal="true"
@@ -135,6 +191,7 @@ export default function ExpandableQRCode({
                 >
                     <div className="expandable-qr-card">
                         <button
+                            ref={closeButtonRef}
                             type="button"
                             className="expandable-qr-close"
                             onClick={close}

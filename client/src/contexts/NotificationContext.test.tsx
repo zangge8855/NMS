@@ -13,18 +13,28 @@ vi.mock('../api/client', () => ({
 }));
 
 vi.mock('react-hot-toast', () => ({
-    default: vi.fn(),
+    default: Object.assign(vi.fn(), {
+        error: vi.fn(),
+    }),
     error: vi.fn(),
 }));
 
+import toast from 'react-hot-toast';
+
 function NotificationConsumer() {
-    const { notifications, unreadCount, ensureExpandedNotifications } = useNotifications();
+    const { notifications, unreadCount, ensureExpandedNotifications, markRead, markAllRead } = useNotifications();
     return (
         <div>
             <div data-testid="notification-count">{unreadCount}</div>
             <div data-testid="notification-items">{notifications.length}</div>
             <button type="button" onClick={() => ensureExpandedNotifications()}>
                 expand
+            </button>
+            <button type="button" onClick={() => void markRead('n1')}>
+                mark-n1
+            </button>
+            <button type="button" onClick={() => void markAllRead()}>
+                mark-all
             </button>
         </div>
     );
@@ -35,6 +45,8 @@ describe('NotificationContext', () => {
         window.sessionStorage.clear();
         (api.get as any).mockReset();
         (api.post as any).mockReset();
+        (toast as any).mockReset?.();
+        (toast.error as any).mockReset?.();
     });
 
     it('renders the cached notification snapshot before the live preview request finishes', async () => {
@@ -221,5 +233,58 @@ describe('NotificationContext', () => {
             expect(screen.getByTestId('notification-items')).toHaveTextContent('0');
         });
         expect(api.get).not.toHaveBeenCalled();
+    });
+
+    it('does not persist a fake empty snapshot before the initial fetch settles', async () => {
+        (api.get as any).mockReturnValue(new Promise(() => {}));
+
+        render(
+            <NotificationProvider wsLastMessage={null}>
+                <NotificationConsumer />
+            </NotificationProvider>
+        );
+
+        await waitFor(() => {
+            expect(api.get).toHaveBeenCalledWith('/system/notifications?limit=1');
+        });
+
+        expect(window.sessionStorage.getItem('nms_session_snapshot:notification_center_bootstrap_v1')).toBeNull();
+    });
+
+    it('decrements unreadCount only once per unread item and toasts errors on markRead failure', async () => {
+        const user = userEvent.setup();
+        (api.get as any).mockResolvedValueOnce({
+            data: {
+                obj: {
+                    items: [{ id: 'n1', title: 'Alert 1', readAt: null }],
+                    unreadCount: 2,
+                },
+            },
+        });
+        (api.post as any)
+            .mockResolvedValueOnce({ data: { success: true } })
+            .mockResolvedValueOnce({ data: { success: true } })
+            .mockRejectedValueOnce(new Error('Network down'));
+
+        render(
+            <NotificationProvider wsLastMessage={null}>
+                <NotificationConsumer />
+            </NotificationProvider>
+        );
+
+        await waitFor(() => {
+            expect(screen.getByTestId('notification-count')).toHaveTextContent('2');
+        });
+
+        await user.click(screen.getByRole('button', { name: 'mark-n1' }));
+        expect(screen.getByTestId('notification-count')).toHaveTextContent('1');
+
+        // Re-clicking an already-read notification must not decrement unreadCount again.
+        await user.click(screen.getByRole('button', { name: 'mark-n1' }));
+        expect(screen.getByTestId('notification-count')).toHaveTextContent('1');
+
+        await user.click(screen.getByRole('button', { name: 'mark-all' }));
+        expect(screen.getByTestId('notification-count')).toHaveTextContent('1');
+        expect(toast.error).toHaveBeenCalledTimes(1);
     });
 });

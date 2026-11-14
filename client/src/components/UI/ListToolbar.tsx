@@ -112,6 +112,7 @@ export function ListPagination({
                         value={pageSize}
                         onChange={handleSizeChange}
                         disabled={loading}
+                        aria-label={t('comp.common.pageSize')}
                     >
                         {pageSizeOptions.map((option) => (
                             <option key={option} value={option}>{option}</option>

@@ -194,28 +194,34 @@ export function getProtocolColor(protocol?: string | null): string {
  * Copy text to clipboard.
  */
 export async function copyToClipboard(text: string): Promise<boolean> {
-    try {
-        await navigator.clipboard.writeText(text);
-        return true;
-    } catch {
-        // Fallback for non-secure contexts where navigator.clipboard is unavailable.
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        let ok = false;
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
         try {
-            // execCommand returns false (or throws) when the copy is blocked; surface that
-            // so callers don't show a false "copied" confirmation.
-            ok = document.execCommand('copy');
+            await navigator.clipboard.writeText(text);
+            return true;
         } catch {
-            ok = false;
+            // Fall through to execCommand fallback
         }
-        document.body.removeChild(ta);
-        return ok;
     }
+    if (typeof document === 'undefined' || !document.body) {
+        return false;
+    }
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    let ok = false;
+    try {
+        ta.select();
+        // execCommand returns false (or throws) when the copy is blocked; surface that
+        // so callers don't show a false "copied" confirmation.
+        ok = typeof document.execCommand === 'function' ? Boolean(document.execCommand('copy')) : false;
+    } catch {
+        ok = false;
+    } finally {
+        document.body.removeChild(ta);
+    }
+    return ok;
 }
 
 /**

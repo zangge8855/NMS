@@ -43,6 +43,13 @@ export default function ActionsDropdown({
         setIsOpen(false);
     };
 
+    const getEnabledMenuItems = useCallback((): HTMLButtonElement[] => {
+        if (!panelRef.current) return [];
+        return Array.from(
+            panelRef.current.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not([disabled])')
+        );
+    }, []);
+
     useEffect(() => {
         if (!isOpen) return undefined;
 
@@ -56,19 +63,56 @@ export default function ActionsDropdown({
             setIsOpen(false);
         };
 
+        const handleClosePopovers = () => {
+            setIsOpen(false);
+        };
+
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
+                event.preventDefault();
                 setIsOpen(false);
+                triggerRef.current?.focus?.({ preventScroll: true });
+                return;
+            }
+            if (event.key === 'Tab') {
+                setIsOpen(false);
+                return;
+            }
+            if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+                return;
+            }
+            const items = getEnabledMenuItems();
+            if (items.length === 0) return;
+            event.preventDefault();
+            const activeIdx = items.indexOf(document.activeElement as HTMLButtonElement);
+            if (event.key === 'Home') {
+                items[0].focus();
+                return;
+            }
+            if (event.key === 'End') {
+                items[items.length - 1].focus();
+                return;
+            }
+            if (event.key === 'ArrowDown') {
+                const nextIdx = activeIdx === -1 ? 0 : (activeIdx + 1) % items.length;
+                items[nextIdx].focus();
+                return;
+            }
+            if (event.key === 'ArrowUp') {
+                const prevIdx = activeIdx === -1 ? items.length - 1 : (activeIdx - 1 + items.length) % items.length;
+                items[prevIdx].focus();
             }
         };
 
         document.addEventListener('pointerdown', handleOutsideClick);
         document.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('nms:close-popovers', handleClosePopovers);
         return () => {
             document.removeEventListener('pointerdown', handleOutsideClick);
             document.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('nms:close-popovers', handleClosePopovers);
         };
-    }, [isOpen]);
+    }, [getEnabledMenuItems, isOpen]);
 
     const computePosition = useCallback(({ anchorRect, panelRect, viewport }: ComputePositionParams) => {
         const gap = 6;
@@ -111,12 +155,31 @@ export default function ActionsDropdown({
 
     if (visibleActions.length === 0) return null;
 
+    const handleTriggerKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
+        if (isOpen) return;
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault();
+            const openToEnd = event.key === 'ArrowUp';
+            setIsOpen(true);
+            window.requestAnimationFrame(() => {
+                const items = getEnabledMenuItems();
+                if (items.length > 0) {
+                    (openToEnd ? items[items.length - 1] : items[0]).focus();
+                }
+            });
+        }
+    };
+
     const renderedTrigger = trigger ? (
         React.cloneElement(trigger, {
             ref: triggerRef,
             onClick: (e: React.MouseEvent) => {
                 if (trigger.props.onClick) trigger.props.onClick(e);
                 toggleOpen(e);
+            },
+            onKeyDown: (e: React.KeyboardEvent<HTMLElement>) => {
+                if (trigger.props.onKeyDown) trigger.props.onKeyDown(e);
+                handleTriggerKeyDown(e);
             },
             'aria-expanded': isOpen,
             'aria-haspopup': 'true',
@@ -127,6 +190,7 @@ export default function ActionsDropdown({
             type="button"
             className="btn btn-secondary btn-sm btn-icon actions-dropdown-trigger"
             onClick={toggleOpen}
+            onKeyDown={handleTriggerKeyDown}
             aria-expanded={isOpen}
             aria-haspopup="true"
             aria-label={t('comp.common.actionsMenu')}

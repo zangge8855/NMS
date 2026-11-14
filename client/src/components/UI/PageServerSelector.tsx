@@ -1,4 +1,5 @@
 import React from 'react';
+import { useI18n } from '../../contexts/LanguageContext';
 
 function getServerLabel(server: any): string {
     return String(server?.name || server?.url || server?.id || '').trim();
@@ -23,6 +24,8 @@ export default function PageServerSelector({
     disabled = false,
     className = '',
 }: PageServerSelectorProps) {
+    const { t } = useI18n();
+    const resolvedPlaceholder = placeholder || t('shell.selectServer');
     const serverList = (Array.isArray(servers) ? servers : [])
         .map((server) => ({
             ...server,
@@ -38,8 +41,9 @@ export default function PageServerSelector({
                 value={value || ''}
                 onChange={(event) => onChange?.(event.target.value)}
                 disabled={disabled || serverList.length === 0}
+                aria-label={label ? undefined : resolvedPlaceholder}
             >
-                <option value="">{placeholder || 'Select server'}</option>
+                <option value="">{resolvedPlaceholder}</option>
                 {serverList.map((server) => (
                     <option key={server.id} value={server.id}>
                         {getServerLabel(server)}

@@ -20,6 +20,7 @@ import { getNavItemForPath, getSearchableNavItems } from './navConfig';
 import useFloatingPanel, { type ComputePositionParams } from '../../hooks/useFloatingPanel';
 import { getManagedUsersSnapshotMeta } from '../../utils/managedUsersCache';
 import { SESSION_SNAPSHOT_EVENT } from '../../utils/sessionSnapshot';
+import { hasOpenModal } from '../UI/ModalShell';
 
 const MAX_SEARCH_RESULTS = 10;
 const MANAGED_USERS_SNAPSHOT_KEY = 'managed_users_v1';
@@ -323,6 +324,9 @@ export default function Header({
             const isShortcut = (event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === 'k';
             if (!isShortcut) return;
             if (isEditableShortcutTarget(event.target)) return;
+            if (hasOpenModal() || document.querySelector('.modal-overlay, .expandable-qr-overlay, .security-bootstrap-overlay, .command-palette-backdrop')) {
+                return;
+            }
             event.preventDefault();
             setSearchOpen(true);
             requestAnimationFrame(() => inputRef.current?.focus());
