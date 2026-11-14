@@ -712,6 +712,46 @@ describe('public token verification', () => {
         assert.equal(verification.ok, true);
         assert.equal(verification.email, targetEmail);
     });
+
+    it('accepts email-less /public/t/:tokenId/:token verification for tokens issued under legacy jwt.secret after secret upgrade', async () => {
+        const { default: config } = await import('../config.js');
+        const prevJwt = config.jwt.secret;
+        const prevCred = config.credentials.secret;
+        const prevSub = config.subscription.tokenSecret;
+        const prevLegacy = config.subscription.legacySecrets;
+        const origSave = subscriptionTokenStore._save;
+        const origTokens = subscriptionTokenStore.exportState();
+
+        subscriptionTokenStore._save = () => {};
+        try {
+            config.jwt.secret = 'route-legacy-jwt-secret-1234567890abcdef';
+            config.credentials.secret = '';
+            config.subscription.tokenSecret = '';
+            config.subscription.legacySecrets = [];
+
+            const issued = subscriptionTokenStore.issue('legacy-public-route@example.com', {
+                name: 'pre-upgrade-public-token',
+                noExpiry: true,
+                ignoreActiveLimit: true,
+                createdBy: 'test',
+            });
+
+            config.credentials.secret = 'route-upgraded-credentials-secret-123456789';
+            config.subscription.tokenSecret = 'route-upgraded-credentials-secret-123456789';
+
+            const verification = verifyPublicTokenRequest('', issued.publicTokenId, issued.tokenSecret);
+            assert.equal(verification.ok, true);
+            assert.equal(verification.reason, 'ok');
+            assert.equal(verification.email, 'legacy-public-route@example.com');
+        } finally {
+            subscriptionTokenStore._save = origSave;
+            subscriptionTokenStore.importState(origTokens);
+            config.jwt.secret = prevJwt;
+            config.credentials.secret = prevCred;
+            config.subscription.tokenSecret = prevSub;
+            config.subscription.legacySecrets = prevLegacy;
+        }
+    });
 });
 
 describe('mihomo config generation', () => {

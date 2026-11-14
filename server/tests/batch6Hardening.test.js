@@ -332,3 +332,70 @@ test('telegram hardening escapes HTML in /client /sub hints, clears dedup interv
         else process.env.TELEGRAM_ALLOWED_USER_IDS = prevAllowed;
     }
 });
+
+test('GET /api/subscriptions/public/t/:tokenId/:token accepts pre-upgrade jwt.secret tokens without logging subscription_public_denied', async (t) => {
+    const { default: config } = await import('../config.js');
+    const { default: subscriptionTokenStore } = await import('../store/subscriptionTokenStore.js');
+    const { default: userPolicyStore } = await import('../store/userPolicyStore.js');
+    const { default: userStore } = await import('../store/userStore.js');
+    const { invalidatePublicSubCache } = await import('../routes/subscriptions.js');
+
+    const prevJwt = config.jwt.secret;
+    const prevCred = config.credentials.secret;
+    const prevSub = config.subscription.tokenSecret;
+    const prevLegacy = config.subscription.legacySecrets;
+    const origSave = subscriptionTokenStore._save;
+    const origTokens = subscriptionTokenStore.exportState();
+
+    subscriptionTokenStore._save = () => {};
+    invalidatePublicSubCache();
+
+    try {
+        config.jwt.secret = 'http-legacy-jwt-secret-1234567890abcdef';
+        config.credentials.secret = '';
+        config.subscription.tokenSecret = '';
+        config.subscription.legacySecrets = [];
+
+        const email = 'http-upgrade-sub@example.com';
+        const issued = subscriptionTokenStore.issue(email, {
+            name: 'pre-upgrade-http-token',
+            noExpiry: true,
+            ignoreActiveLimit: true,
+            createdBy: 'test',
+        });
+
+        // Simulate NMS upgrade introducing a separate subscription/credentials secret.
+        config.credentials.secret = 'http-upgraded-credentials-secret-123456789';
+        config.subscription.tokenSecret = 'http-upgraded-credentials-secret-123456789';
+
+        t.mock.method(userStore, 'getBySubscriptionEmail', () => null);
+        t.mock.method(userStore, 'getByEmail', () => null);
+        t.mock.method(userPolicyStore, 'get', () => ({ serverScopeMode: 'none' }));
+
+        const deniedBefore = auditStore.queryEvents({ eventType: 'subscription_public_denied', pageSize: 1 }).total;
+        const okRes = await invokeApp(app, {
+            method: 'GET',
+            url: `/api/subscriptions/public/t/${encodeURIComponent(issued.publicTokenId)}/${encodeURIComponent(issued.tokenSecret)}`,
+        });
+        assert.equal(okRes.statusCode, 200);
+        assert.equal(okRes.headers['x-subscription-token-id'], issued.publicTokenId);
+        const deniedAfterOk = auditStore.queryEvents({ eventType: 'subscription_public_denied', pageSize: 1 }).total;
+        assert.equal(deniedAfterOk, deniedBefore);
+
+        const badRes = await invokeApp(app, {
+            method: 'GET',
+            url: `/api/subscriptions/public/t/${encodeURIComponent(issued.publicTokenId)}/wrong-secret-value`,
+        });
+        assert.equal(badRes.statusCode, 401);
+        const deniedAfterBad = auditStore.queryEvents({ eventType: 'subscription_public_denied', pageSize: 1 }).total;
+        assert.equal(deniedAfterBad, deniedBefore + 1);
+    } finally {
+        invalidatePublicSubCache();
+        subscriptionTokenStore._save = origSave;
+        subscriptionTokenStore.importState(origTokens);
+        config.jwt.secret = prevJwt;
+        config.credentials.secret = prevCred;
+        config.subscription.tokenSecret = prevSub;
+        config.subscription.legacySecrets = prevLegacy;
+    }
+});

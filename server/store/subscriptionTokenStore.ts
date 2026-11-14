@@ -29,12 +29,14 @@ export function resolvePrimarySubscriptionSecret(): string {
 }
 
 export function resolveSubscriptionTokenSecrets(): string[] {
+    const jwtSecret = String(config.jwt?.secret || '').trim();
     return Array.from(new Set([
         config.subscription?.tokenSecret,
         ...(Array.isArray(config.subscription?.legacySecrets) ? config.subscription.legacySecrets : []),
         config.credentials?.secret,
         ...(Array.isArray(config.credentials?.legacySecrets) ? config.credentials.legacySecrets : []),
-        config.jwt?.secret,
+        jwtSecret,
+        jwtSecret ? `${jwtSecret}-credentials` : '',
     ].map((item) => String(item || '').trim()).filter(Boolean)));
 }
 
@@ -43,6 +45,24 @@ function hashTokenSecret(secret: unknown, keySecret: string = resolvePrimarySubs
         .createHmac('sha256', keySecret)
         .update(String(secret || ''))
         .digest('hex');
+}
+
+function matchesTokenSecretHash(expectedHash: unknown, tokenSecret: unknown): boolean {
+    if (typeof expectedHash !== 'string' || expectedHash.length === 0) {
+        return false;
+    }
+    const expectedBuf = Buffer.from(expectedHash, 'utf8');
+    for (const candidateSecret of resolveSubscriptionTokenSecrets()) {
+        const actualHash = hashTokenSecret(tokenSecret, candidateSecret);
+        const actualBuf = Buffer.from(actualHash, 'utf8');
+        if (
+            expectedBuf.length === actualBuf.length
+            && crypto.timingSafeEqual(expectedBuf, actualBuf)
+        ) {
+            return true;
+        }
+    }
+    return false;
 }
 
 export function signLegacySubscriptionEmail(email: string, keySecret: string = resolvePrimarySubscriptionSecret()): string {
@@ -305,21 +325,7 @@ class SubscriptionTokenStore {
         if (this._isRevoked(record)) return { ok: false, reason: 'revoked', record };
         if (this._isExpired(record)) return { ok: false, reason: 'expired', record };
 
-        const expectedHash = record.tokenSecretHash;
-        let matched = false;
-        if (typeof expectedHash === 'string' && expectedHash.length > 0) {
-            for (const candidateSecret of resolveSubscriptionTokenSecrets()) {
-                const actualHash = hashTokenSecret(tokenSecret, candidateSecret);
-                if (
-                    expectedHash.length === actualHash.length
-                    && crypto.timingSafeEqual(Buffer.from(expectedHash, 'utf8'), Buffer.from(actualHash, 'utf8'))
-                ) {
-                    matched = true;
-                    break;
-                }
-            }
-        }
-        if (!matched) {
+        if (!matchesTokenSecretHash(record.tokenSecretHash, tokenSecret)) {
             return { ok: false, reason: 'invalid-secret', record };
         }
 
@@ -442,13 +448,7 @@ class SubscriptionTokenStore {
         if (this._isRevoked(record)) return { ok: false, reason: 'revoked', record, email: record.email };
         if (this._isExpired(record)) return { ok: false, reason: 'expired', record, email: record.email };
 
-        const expectedHash = record.tokenSecretHash;
-        const actualHash = hashTokenSecret(tokenSecret);
-        if (
-            typeof expectedHash !== 'string'
-            || expectedHash.length !== actualHash.length
-            || !crypto.timingSafeEqual(Buffer.from(expectedHash, 'utf8'), Buffer.from(actualHash, 'utf8'))
-        ) {
+        if (!matchesTokenSecretHash(record.tokenSecretHash, tokenSecret)) {
             return { ok: false, reason: 'invalid-secret', record, email: record.email };
         }
 

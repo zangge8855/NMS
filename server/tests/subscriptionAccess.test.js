@@ -167,4 +167,114 @@ describe('subscription access identity helpers', () => {
             config.subscription.legacySecrets = prevLegacy;
         }
     });
+
+    it('verifies public token IDs created with pre-upgrade jwt.secret or derived -credentials secret and decrypts legacy server credentials', async () => {
+        const { default: config } = await import('../config.js');
+        const { default: subscriptionTokenStore } = await import('../store/subscriptionTokenStore.js');
+        const { default: serverStore } = await import('../store/serverStore.js');
+
+        const prevJwt = config.jwt.secret;
+        const prevCred = config.credentials.secret;
+        const prevCredLegacy = config.credentials.legacySecrets;
+        const prevSub = config.subscription.tokenSecret;
+        const prevLegacy = config.subscription.legacySecrets;
+        const origSave = subscriptionTokenStore._save;
+        const origTokens = subscriptionTokenStore.exportState();
+
+        subscriptionTokenStore._save = () => {};
+        try {
+            const legacyJwtSecret = 'legacy-jwt-secret-upgrade-check-123456';
+            config.jwt.secret = legacyJwtSecret;
+            config.credentials.secret = '';
+            config.credentials.legacySecrets = [];
+            config.subscription.tokenSecret = '';
+            config.subscription.legacySecrets = [];
+
+            // Pre-upgrade token hashed with config.jwt.secret
+            const legacyJwtIssued = subscriptionTokenStore.issue('upgrade-jwt@example.com', {
+                name: 'pre-93ad836-jwt',
+                noExpiry: true,
+                ignoreActiveLimit: true,
+                createdBy: 'test',
+            });
+
+            // Legacy token / credential hashed or encrypted with `${jwtSecret}-credentials`
+            config.credentials.secret = `${legacyJwtSecret}-credentials`;
+            config.subscription.tokenSecret = `${legacyJwtSecret}-credentials`;
+            const legacyDerivedIssued = subscriptionTokenStore.issue('upgrade-derived@example.com', {
+                name: 'pre-93ad836-derived',
+                noExpiry: true,
+                ignoreActiveLimit: true,
+                createdBy: 'test',
+            });
+            const legacyEncryptedPassword = serverStore._encryptPassword('panel-secret-pass');
+
+            // Simulate post-upgrade dedicated CREDENTIALS_SECRET
+            const upgradedSecret = 'new-prod-credentials-secret-upgrade-check-987654';
+            config.credentials.secret = upgradedSecret;
+            config.subscription.tokenSecret = upgradedSecret;
+
+            const verifyJwt = subscriptionTokenStore.verifyByTokenId(
+                legacyJwtIssued.publicTokenId,
+                legacyJwtIssued.tokenSecret
+            );
+            assert.equal(verifyJwt.ok, true);
+            assert.equal(verifyJwt.reason, 'ok');
+            assert.equal(verifyJwt.email, 'upgrade-jwt@example.com');
+
+            const verifyInternalId = subscriptionTokenStore.verifyByTokenId(
+                legacyJwtIssued.tokenId,
+                legacyJwtIssued.tokenSecret
+            );
+            assert.equal(verifyInternalId.ok, true);
+
+            const verifyDerived = subscriptionTokenStore.verifyByTokenId(
+                legacyDerivedIssued.publicTokenId,
+                legacyDerivedIssued.tokenSecret
+            );
+            assert.equal(verifyDerived.ok, true);
+            assert.equal(verifyDerived.email, 'upgrade-derived@example.com');
+
+            assert.equal(
+                subscriptionTokenStore.verifyByTokenId(legacyJwtIssued.publicTokenId, 'wrong-secret').reason,
+                'invalid-secret'
+            );
+            assert.equal(
+                subscriptionTokenStore.verifyByTokenId('nonexistent-public-id', legacyJwtIssued.tokenSecret).reason,
+                'not-found'
+            );
+
+            // Decrypt legacy panel password encrypted with `${jwtSecret}-credentials`
+            const decryptedLegacy = serverStore._decryptPasswordDetailed(legacyEncryptedPassword);
+            assert.equal(decryptedLegacy.status, 'ok');
+            assert.equal(decryptedLegacy.value, 'panel-secret-pass');
+
+            subscriptionTokenStore.revoke('upgrade-jwt@example.com', legacyJwtIssued.metadata.id);
+            assert.equal(
+                subscriptionTokenStore.verifyByTokenId(legacyJwtIssued.publicTokenId, legacyJwtIssued.tokenSecret).reason,
+                'revoked'
+            );
+
+            const expiringIssued = subscriptionTokenStore.issue('upgrade-exp@example.com', {
+                name: 'expiring-token',
+                ttlDays: 1,
+                ignoreActiveLimit: true,
+                createdBy: 'test',
+            });
+            const rawRecord = subscriptionTokenStore.getTokenByPublicId(expiringIssued.publicTokenId);
+            rawRecord.expiresAt = new Date(Date.now() - 60_000).toISOString();
+            assert.equal(
+                subscriptionTokenStore.verifyByTokenId(expiringIssued.publicTokenId, expiringIssued.tokenSecret).reason,
+                'expired'
+            );
+        } finally {
+            subscriptionTokenStore._save = origSave;
+            subscriptionTokenStore.importState(origTokens);
+            config.jwt.secret = prevJwt;
+            config.credentials.secret = prevCred;
+            config.credentials.legacySecrets = prevCredLegacy;
+            config.subscription.tokenSecret = prevSub;
+            config.subscription.legacySecrets = prevLegacy;
+        }
+    });
 });

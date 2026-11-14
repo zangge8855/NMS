@@ -84,7 +84,13 @@ class ServerStore {
             ? config.credentials.legacySecrets
             : [];
         const jwtSecret = String(config.jwt?.secret || '').trim();
-        const all = [primary, ...legacy, jwtSecret, ...BUILTIN_LEGACY_CREDENTIAL_SECRETS]
+        const all = [
+            primary,
+            ...legacy,
+            jwtSecret,
+            jwtSecret ? `${jwtSecret}-credentials` : '',
+            ...BUILTIN_LEGACY_CREDENTIAL_SECRETS,
+        ]
             .map((item) => String(item || '').trim())
             .filter(Boolean);
         return Array.from(new Set(all));
