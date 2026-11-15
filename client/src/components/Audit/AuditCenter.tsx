@@ -2170,7 +2170,7 @@ export default function AuditCenter() {
                                     resolveServerName={resolveServerName}
                                 />
                             ) : (
-                                <div className="table-container">
+                                <div className="table-container" role="region" aria-label={locale === 'en-US' ? 'Data table' : '数据表格'} tabIndex={0}>
                                     <table className="table audit-events-table">
                                         <thead>
                                             <tr>
@@ -2920,7 +2920,7 @@ export default function AuditCenter() {
                         ) : isCompactLayout ? (
                             <AuditAccessMobileList items={accessData.items} copy={copy} locale={locale} />
                         ) : (
-                            <div className="table-container">
+                            <div className="table-container" role="region" aria-label={locale === 'en-US' ? 'Data table' : '数据表格'} tabIndex={0}>
                                 <table className="table audit-subscriptions-table">
                                     <thead>
                                         <tr>

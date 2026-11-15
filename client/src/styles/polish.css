@@ -725,6 +725,17 @@ body {
   border-left: 1px solid var(--border-color);
 }
 
+@media (max-width: 640px) {
+  :root .dashboard-traffic-window-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :root .dashboard-traffic-window-grid > .dashboard-stat-card + .dashboard-stat-card {
+    border-left: none;
+    border-top: 1px solid var(--border-color);
+  }
+}
+
 /* Users table: long group badges ellipsize instead of spilling over */
 :root .users-identity-copy {
   min-width: 0;
@@ -1176,13 +1187,18 @@ body {
 }
 
 @media (max-width: 768px) {
-  /* Mobile drawer collapse button was oversized */
+  :root .sidebar:not(.open) {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  /* Keep drawer collapse button touch-friendly on mobile */
   :root .sidebar.open .sidebar-toggle,
   :root .sidebar .sidebar-toggle {
-    width: 32px;
-    height: 32px;
-    min-width: 32px;
-    border-radius: 8px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    border-radius: 10px;
   }
 
   /* Modal forms: even field rhythm */
@@ -2557,6 +2573,19 @@ body {
   border-color: rgba(96, 165, 250, 0.35) !important;
 }
 
+/* Log pane stays dark in light mode; prevent secondary buttons from inheriting light-ink over white fill */
+:root .log-pane .btn-secondary {
+  color: #e2e8f0 !important;
+  background: rgba(30, 41, 59, 0.92) !important;
+  border-color: rgba(148, 163, 184, 0.34) !important;
+}
+
+:root .log-pane .btn-secondary:hover:not(:disabled) {
+  color: #ffffff !important;
+  background: rgba(51, 65, 85, 0.96) !important;
+  border-color: rgba(148, 163, 184, 0.52) !important;
+}
+
 /* Keyboard focus visibility across light and dark modes */
 :root :is(
   .btn,
@@ -2830,6 +2859,32 @@ body {
     height: auto !important;
     padding-block: 8px !important;
     padding-inline: 12px !important;
+  }
+
+  :root .header-search {
+    min-width: 44px !important;
+    width: 44px !important;
+    min-height: 44px !important;
+    height: 44px !important;
+  }
+
+  :root .header-search:focus-within,
+  :root .header-search[data-open="true"] {
+    width: auto !important;
+    min-height: 44px !important;
+    height: 44px !important;
+  }
+
+  :root .header-search .header-search-input,
+  :root .header-primary-actions .btn,
+  :root .node-health-toolbar :is(.form-input, .btn) {
+    min-height: 44px !important;
+  }
+
+  :root .header-primary-actions .btn {
+    min-width: 44px !important;
+    width: 44px !important;
+    height: 44px !important;
   }
 
   :root :is(.inbounds-refresh-btn, .inbounds-refresh, .actions-dropdown-trigger) {

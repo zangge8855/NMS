@@ -41,8 +41,15 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
     const { unreadCount } = useNotifications();
     const [navFlyout, setNavFlyout] = useState<NavFlyoutState | null>(null);
     const location = useLocation();
+    const asideRef = useRef<HTMLElement | null>(null);
     const navFlyoutRef = useRef<HTMLDivElement | null>(null);
     const navFlyoutAnchorRef = useRef<HTMLElement | null>(null);
+
+    useEffect(() => {
+        if (asideRef.current) {
+            asideRef.current.toggleAttribute('inert', Boolean(isMobile && !open));
+        }
+    }, [isMobile, open]);
     const isGlobalView = activeServerId === 'global';
     const isAdmin = user?.role === 'admin';
     const role = user?.role || (isAdmin ? 'admin' : 'user');
@@ -130,7 +137,11 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
 
     return (
         <>
-        <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${open ? 'open' : ''}`}>
+        <aside
+            ref={asideRef}
+            className={`sidebar ${collapsed ? 'collapsed' : ''} ${open ? 'open' : ''}`}
+            aria-hidden={isMobile && !open ? true : undefined}
+        >
             <div className="sidebar-logo">
                 <div className="sidebar-logo-icon sidebar-logo-icon-custom">
                     <img src={logoSrc} alt="NMS" className="sidebar-logo-image" />

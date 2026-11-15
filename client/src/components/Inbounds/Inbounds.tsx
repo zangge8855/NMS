@@ -1523,7 +1523,7 @@ export default function Inbounds() {
                         />
                     </div>
                 ) : (
-                    <div className="table-container">
+                    <div className="table-container" role="region" aria-label={t('comp.common.dataTable')} tabIndex={0}>
                         <table className="table inbounds-table">
                             <thead>
                                 <tr>

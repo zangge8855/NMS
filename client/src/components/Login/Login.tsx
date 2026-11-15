@@ -540,7 +540,7 @@ export default function Login() {
                 </button>
             </div>
 
-            <div className={`login-shell login-shell--${mode}`}>
+            <main className={`login-shell login-shell--${mode}`}>
                 <div className="login-card-column">
                         <div className={`login-card login-card--${mode}`}>
                         <div className="login-brand-row">
@@ -552,11 +552,13 @@ export default function Login() {
                                 ) : null}
                             </div>
                         </div>
-                        {(!registrationEnabled || (mode !== MODE_LOGIN && mode !== MODE_REGISTER)) && mode !== MODE_VERIFY && mode !== MODE_FORGOT && mode !== MODE_TWO_FACTOR && (
+                        {(!registrationEnabled || (mode !== MODE_LOGIN && mode !== MODE_REGISTER)) && mode !== MODE_VERIFY && mode !== MODE_FORGOT && mode !== MODE_TWO_FACTOR ? (
                             <div className="login-form-heading">
                                 <h1>{modeTitle}</h1>
                             </div>
-                        )}
+                        ) : (mode === MODE_LOGIN || mode === MODE_REGISTER) ? (
+                            <h1 className="sr-only">{modeTitle}</h1>
+                        ) : null}
 
                         {registrationEnabled && (mode === MODE_LOGIN || mode === MODE_REGISTER) && (
                             <div className="auth-tabs" role="tablist" aria-label={t('pages.login.title')}>
@@ -808,7 +810,7 @@ export default function Login() {
                             <form onSubmit={handleVerify} className="auth-form">
                                 <div className="verify-header">
                                     <HiOutlineShieldCheck className="verify-icon" />
-                                    <h2>{t('pages.login.verifyTitle')}</h2>
+                                    <h1>{t('pages.login.verifyTitle')}</h1>
                                     <p className="text-muted text-sm">
                                         {t('pages.login.verifySentTo', { email: verifyEmail })}
                                     </p>
@@ -861,7 +863,7 @@ export default function Login() {
                             <form onSubmit={handleResetPassword} className="auth-form">
                                 <div className="verify-header">
                                     <HiOutlineShieldCheck className="verify-icon" />
-                                    <h2>{t('pages.login.forgotTitle')}</h2>
+                                    <h1>{t('pages.login.forgotTitle')}</h1>
                                     <p className="text-muted text-sm">
                                         {t('pages.login.forgotSubtitle')}
                                     </p>
@@ -999,7 +1001,7 @@ export default function Login() {
                             <form onSubmit={handleTwoFactorLogin} className="auth-form">
                                 <div className="verify-header">
                                     <HiOutlineShieldCheck className="verify-icon" />
-                                    <h2>{t('pages.login.twoFactorTitle')}</h2>
+                                    <h1>{t('pages.login.twoFactorTitle')}</h1>
                                     <p className="text-muted text-sm">
                                         {twoFactorUseBackup ? t('pages.login.twoFactorBackupSubtitle') : t('pages.login.twoFactorSubtitle')}
                                     </p>
@@ -1079,7 +1081,7 @@ export default function Login() {
                         )}
                     </div>
                 </div>
-            </div>
+            </main>
         </div>
     );
 }

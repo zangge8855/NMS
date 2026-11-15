@@ -4227,6 +4227,7 @@ input[type="radio"]:focus-visible {
   filter: drop-shadow(0 0 12px var(--accent-primary-glow));
 }
 
+.verify-header h1,
 .verify-header h2 {
   font-size: 20px;
   font-weight: 700;

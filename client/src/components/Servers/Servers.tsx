@@ -1161,7 +1161,7 @@ export default function Servers() {
                         {filteredServers.map((server, index) => renderMobileServerCard(server, index))}
                     </div>
                 ) : (
-                    <div className="table-container">
+                    <div className="table-container" role="region" aria-label={t('comp.common.dataTable')} tabIndex={0}>
                         <table className="table servers-table">
                             <thead>
                                 <tr>
