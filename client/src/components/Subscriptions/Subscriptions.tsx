@@ -652,12 +652,25 @@ export default function Subscriptions() {
         }
     };
 
+    const syncFromQueryRef = useRef(syncFromQuery);
+    syncFromQueryRef.current = syncFromQuery;
+    const loadUsersRef = useRef(loadUsers);
+    loadUsersRef.current = loadUsers;
+    const loadSubscriptionRef = useRef(loadSubscription);
+    loadSubscriptionRef.current = loadSubscription;
+
     useEffect(() => {
-        syncFromQuery();
+        if (searchParams || isAdmin) {
+            syncFromQueryRef.current();
+        }
     }, [searchParams, isAdmin]);
 
     useEffect(() => {
-        loadUsers({
+        if (!isAdmin) {
+            loadUsersRef.current({ preserveCurrent: false });
+            return;
+        }
+        loadUsersRef.current({
             preserveCurrent: bootstrapRef.current != null
                 && (bootstrapRef.current.users.length > 0 || bootstrapRef.current.usersAccessDenied === true),
         });
@@ -665,9 +678,9 @@ export default function Subscriptions() {
 
     useEffect(() => {
         const handlePageRefresh = () => {
-            loadUsers({ preserveCurrent: true });
+            loadUsersRef.current({ preserveCurrent: true });
             if (normalizedEmailRef.current) {
-                loadSubscription(normalizedEmailRef.current, {
+                loadSubscriptionRef.current(normalizedEmailRef.current, {
                     preserveCurrent: true,
                     serverId: selectedServerIdRef.current,
                 });
@@ -675,7 +688,7 @@ export default function Subscriptions() {
         };
         window.addEventListener('nms:page-refresh', handlePageRefresh);
         return () => window.removeEventListener('nms:page-refresh', handlePageRefresh);
-    }, [isAdmin]);
+    }, []);
 
     useEffect(() => {
         if (!isUserOnly) return;
@@ -701,7 +714,7 @@ export default function Subscriptions() {
             }
             setLoading(false);
         }
-        loadSubscription(deferredEmail, {
+        loadSubscriptionRef.current(deferredEmail, {
             preserveCurrent: canUseSnapshot,
             serverId: selectedServerId,
         });
@@ -910,7 +923,7 @@ export default function Subscriptions() {
                             )}
                             <div className="subscription-user-address-main">
                                 <div className="subscription-url-dock">
-                                    <input
+                                    <input name="subscriptionsActiveProfileUrlDisplay"
                                         className="form-input font-mono text-xs subscription-url-input"
                                         value={activeProfileUrlDisplay}
                                         readOnly
@@ -1039,8 +1052,8 @@ export default function Subscriptions() {
                         filters={(
                             <>
                                 <div className="form-group subscriptions-toolbar-field">
-                                    <label className="form-label">{ui.userEmail}</label>
-                                    <input
+                                    <label htmlFor="subscriptions-user-example-com" className="form-label">{ui.userEmail}</label>
+                                    <input id="subscriptions-user-example-com" name="subscriptionsUserExampleCom"
                                         type="email"
                                         className="form-input"
                                         placeholder="user@example.com"
@@ -1056,8 +1069,8 @@ export default function Subscriptions() {
                                     </datalist>
                                 </div>
                                 <div className="form-group subscriptions-toolbar-field subscriptions-toolbar-field-sm">
-                                    <label className="form-label">{ui.scope}</label>
-                                    <select
+                                    <label htmlFor="subscriptions-selected-server-id" className="form-label">{ui.scope}</label>
+                                    <select id="subscriptions-selected-server-id" name="subscriptionsSelectedServerId"
                                         className="form-select"
                                         aria-label={ui.scope}
                                         value={selectedServerId}
@@ -1254,7 +1267,7 @@ export default function Subscriptions() {
                                                         </div>
                                                     )}
                                                     <div className="subscription-link-grid">
-                                                        <input
+                                                        <input name="subscriptionsActiveProfileUrlDisplay2"
                                                             className="form-input font-mono text-xs subscription-url-input"
                                                             value={activeProfileUrlDisplay}
                                                             readOnly

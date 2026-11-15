@@ -165,7 +165,7 @@ function buildMaintenanceSnapshot(server: any) {
         checkedAt,
         status: {
             cpu: 0,
-            mem: { current: 0, total: 1 },
+            mem: { current: 0, total: 0 },
             uptime: 0,
             xray: {},
             netTraffic: {},
@@ -300,7 +300,7 @@ export async function collectServerStatusSnapshot(server: any, options: any = {}
             checkedAt,
             status: {
                 cpu: status?.cpu ?? 0,
-                mem: status?.mem ?? { current: 0, total: 1 },
+                mem: status?.mem ?? { current: 0, total: 0 },
                 uptime: status?.uptime ?? 0,
                 xray: status?.xray ?? {},
                 netTraffic: status?.netTraffic ?? {},
@@ -330,7 +330,7 @@ export async function collectServerStatusSnapshot(server: any, options: any = {}
             checkedAt,
             status: {
                 cpu: 0,
-                mem: { current: 0, total: 1 },
+                mem: { current: 0, total: 0 },
                 uptime: 0,
                 xray: {},
                 netTraffic: {},

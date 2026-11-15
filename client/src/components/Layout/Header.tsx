@@ -430,7 +430,7 @@ export default function Header({
         anchorRef: searchRef,
         panelRef: searchResultsRef,
         computePosition: computeSearchResultsPosition,
-        deps: [filteredItems.length, searchTerm],
+        repositionKey: `${filteredItems.length}:${searchTerm}`,
     });
 
     const searchResults = searchOpen && typeof document !== 'undefined'
@@ -501,7 +501,7 @@ export default function Header({
                         role="search"
                     >
                         <HiOutlineMagnifyingGlass className="header-search-icon" aria-hidden="true" />
-                        <input
+                        <input name="headerSearchTerm"
                             ref={inputRef}
                             placeholder={t(isStaff ? 'shell.searchPlaceholder' : 'shell.userSearchPlaceholder')}
                             className="header-search-input"

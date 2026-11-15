@@ -96,7 +96,7 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
         anchorRef: navFlyoutAnchorRef,
         panelRef: navFlyoutRef,
         computePosition: computeNavFlyoutPosition,
-        deps: [navFlyout?.id],
+        repositionKey: navFlyout?.id ?? '',
     });
 
     const openNavFlyout = (id: string, label: string, target: HTMLElement) => {
@@ -181,6 +181,7 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
                                                 onClose?.();
                                             }}
                                             data-tooltip={item.label}
+                                            aria-label={collapsed && item.path === '/audit' && unreadCount > 0 ? `${item.label} (${unreadCount})` : undefined}
                                             {...getNavFlyoutProps(item.path, item.label)}
                                             className={({ isActive }) =>
                                                 `nav-item ${isActive ? 'active' : ''}`
@@ -191,8 +192,12 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
                                                     {isActive && <div className="active-glow" />}
                                                     <span className="nav-item-icon"><item.icon /></span>
                                                     <span className="nav-label">{item.label}</span>
-                                                    {item.path === '/audit' && unreadCount > 0 && !collapsed && (
-                                                        <span className="nav-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
+                                                    {item.path === '/audit' && unreadCount > 0 && (
+                                                        collapsed ? (
+                                                            <span className="nav-badge-dot" aria-hidden="true" />
+                                                        ) : (
+                                                            <span className="nav-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
+                                                        )
                                                     )}
                                                 </>
                                             )}

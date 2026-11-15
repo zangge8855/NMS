@@ -108,7 +108,7 @@ export function ListPagination({
             {showSizeControl && (
                 <div className="page-pagination-size flex items-center gap-2">
                     <span className="text-sm text-muted">{t('comp.common.pageSize')}</span>
-                    <select
+                    <select name="listToolbarCommonPageSize"
                         className="form-select form-select-sm"
                         value={pageSize}
                         onChange={handleSizeChange}
@@ -143,7 +143,7 @@ export function ListPagination({
                         {resolvedNextLabel}
                     </button>
                     {showJumpControl && (
-                        <input
+                        <input name="listToolbarCommonJumpTo"
                             type="number"
                             min={1}
                             max={normalizedTotalPages}

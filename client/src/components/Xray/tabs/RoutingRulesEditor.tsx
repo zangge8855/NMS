@@ -168,8 +168,8 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
             ) : (
                 <div className="visual-routing-container">
                     <div className="form-group mb-6">
-                        <label className="form-label">{locale === 'en-US' ? 'Domain Strategy' : '域名解析策略 (domainStrategy)'}</label>
-                        <select
+                        <label htmlFor="routing-rules-editor-config-domain-strategy" className="form-label">{locale === 'en-US' ? 'Domain Strategy' : '域名解析策略 (domainStrategy)'}</label>
+                        <select id="routing-rules-editor-config-domain-strategy" name="routingRulesEditorConfigDomainStrategy"
                             className="form-select"
                             value={config.domainStrategy || 'AsIs'}
                             onChange={(e) => setConfig({ ...config, domainStrategy: e.target.value })}
@@ -182,7 +182,7 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
 
                     <div className="rules-list mb-6">
                         <div className="flex items-center justify-between mb-3">
-                            <label className="form-label mb-0">{locale === 'en-US' ? 'Rules' : '路由规则列表'}</label>
+                            <span className="form-label mb-0">{locale === 'en-US' ? 'Rules' : '路由规则列表'}</span>
                             <button type="button" className="btn btn-sm btn-secondary" onClick={addRule}>
                                 <HiOutlinePlus className="mr-1" /> {locale === 'en-US' ? 'Add Rule' : '添加规则'}
                             </button>
@@ -198,8 +198,8 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
                                     <div key={index} className="p-4 bg-[var(--surface-panel-soft)] border border-[var(--border-color)] rounded-lg relative">
                                         <div className="flex flex-col sm:flex-row sm:items-end gap-3 mb-3">
                                             <div className="flex-1 min-w-0">
-                                                <label className="block text-xs text-muted mb-1">{locale === 'en-US' ? 'Outbound Tag' : '目标出站 (outboundTag)'}</label>
-                                                <input
+                                                <label htmlFor={`routing-rules-editor-e-g-block-direct-proxy-${index}`} className="block text-xs text-muted mb-1">{locale === 'en-US' ? 'Outbound Tag' : '目标出站 (outboundTag)'}</label>
+                                                <input id={`routing-rules-editor-e-g-block-direct-proxy-${index}`} name={`routingRulesEditorEGBlockDirectProxy-${index}`}
                                                     type="text"
                                                     className="form-input form-input-sm"
                                                     value={rule.outboundTag || ''}
@@ -243,8 +243,8 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
                                         </div>
                                         <div className="flex flex-col sm:flex-row gap-3 mb-3">
                                             <div className="flex-1 min-w-0">
-                                                <label className="block text-xs text-muted mb-1">{locale === 'en-US' ? 'Domains (Comma separated)' : '域名匹配 (domain) - 逗号分隔'}</label>
-                                                <input
+                                                <label htmlFor={`routing-rules-editor-e-g-geosite-google-domain-example-c-${index}`} className="block text-xs text-muted mb-1">{locale === 'en-US' ? 'Domains (Comma separated)' : '域名匹配 (domain) - 逗号分隔'}</label>
+                                                <input id={`routing-rules-editor-e-g-geosite-google-domain-example-c-${index}`} name={`routingRulesEditorEGGeositeGoogleDomainExampleC-${index}`}
                                                     type="text"
                                                     className="form-input form-input-sm"
                                                     value={getRuleArrayInput(rule, index, 'domain')}
@@ -254,8 +254,8 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
                                                 />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <label className="block text-xs text-muted mb-1">{locale === 'en-US' ? 'IPs (Comma separated)' : 'IP 匹配 (ip) - 逗号分隔'}</label>
-                                                <input
+                                                <label htmlFor={`routing-rules-editor-e-g-geoip-cn-8-8-8-8-${index}`} className="block text-xs text-muted mb-1">{locale === 'en-US' ? 'IPs (Comma separated)' : 'IP 匹配 (ip) - 逗号分隔'}</label>
+                                                <input id={`routing-rules-editor-e-g-geoip-cn-8-8-8-8-${index}`} name={`routingRulesEditorEGGeoipCn8888-${index}`}
                                                     type="text"
                                                     className="form-input form-input-sm"
                                                     value={getRuleArrayInput(rule, index, 'ip')}
@@ -267,8 +267,8 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
                                         </div>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                                             <div>
-                                                <label className="block text-xs text-muted mb-1">{locale === 'en-US' ? 'Inbound Tags (inboundTag)' : '入站标签 (inboundTag)'}</label>
-                                                <input
+                                                <label htmlFor={`routing-rules-editor-e-g-inbound-443-${index}`} className="block text-xs text-muted mb-1">{locale === 'en-US' ? 'Inbound Tags (inboundTag)' : '入站标签 (inboundTag)'}</label>
+                                                <input id={`routing-rules-editor-e-g-inbound-443-${index}`} name={`routingRulesEditorEGInbound443-${index}`}
                                                     type="text"
                                                     className="form-input form-input-sm"
                                                     value={getRuleArrayInput(rule, index, 'inboundTag')}
@@ -278,8 +278,8 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
                                                 />
                                             </div>
                                             <div>
-                                                <label className="block text-xs text-muted mb-1">{locale === 'en-US' ? 'Protocols (protocol)' : '协议匹配 (protocol)'}</label>
-                                                <input
+                                                <label htmlFor={`routing-rules-editor-e-g-bittorrent-tls-http-${index}`} className="block text-xs text-muted mb-1">{locale === 'en-US' ? 'Protocols (protocol)' : '协议匹配 (protocol)'}</label>
+                                                <input id={`routing-rules-editor-e-g-bittorrent-tls-http-${index}`} name={`routingRulesEditorEGBittorrentTlsHttp-${index}`}
                                                     type="text"
                                                     className="form-input form-input-sm"
                                                     value={getRuleArrayInput(rule, index, 'protocol')}
@@ -289,8 +289,8 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
                                                 />
                                             </div>
                                             <div>
-                                                <label className="block text-xs text-muted mb-1">{locale === 'en-US' ? 'Ports (port)' : '端口范围 (port)'}</label>
-                                                <input
+                                                <label htmlFor={`routing-rules-editor-e-g-53-443-1000-2000-${index}`} className="block text-xs text-muted mb-1">{locale === 'en-US' ? 'Ports (port)' : '端口范围 (port)'}</label>
+                                                <input id={`routing-rules-editor-e-g-53-443-1000-2000-${index}`} name={`routingRulesEditorEG5344310002000-${index}`}
                                                     type="text"
                                                     className="form-input form-input-sm"
                                                     value={rule.port || ''}
@@ -299,8 +299,8 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
                                                 />
                                             </div>
                                             <div>
-                                                <label className="block text-xs text-muted mb-1">{locale === 'en-US' ? 'Network (network)' : '传输协议 (network)'}</label>
-                                                <select
+                                                <label htmlFor={`routing-rules-editor-network-${index}`} className="block text-xs text-muted mb-1">{locale === 'en-US' ? 'Network (network)' : '传输协议 (network)'}</label>
+                                                <select id={`routing-rules-editor-network-${index}`} name={`routingRulesEditorNetwork-${index}`}
                                                     className="form-select form-select-sm"
                                                     value={rule.network || ''}
                                                     onChange={(e) => updateRule(index, 'network', e.target.value)}

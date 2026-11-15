@@ -309,6 +309,11 @@ export default function ServerDetail() {
         }
     };
 
+    const fetchSnapshotRef = useRef(fetchSnapshot);
+    fetchSnapshotRef.current = fetchSnapshot;
+    const fetchAuditRef = useRef(fetchAudit);
+    fetchAuditRef.current = fetchAudit;
+
     useEffect(() => {
         auditRequestIdRef.current += 1;
         clientIpRequestIdRef.current += 1;
@@ -329,22 +334,23 @@ export default function ServerDetail() {
         setIsNotFound(false);
         setAuditError('');
         closeClientIpModal();
-        fetchSnapshot({ preserveCurrent: snapshot?.server != null });
+        fetchSnapshotRef.current({ preserveCurrent: snapshot?.server != null });
     }, [serverId]);
 
     useEffect(() => {
-        if (activeTab === 'onlines') fetchSnapshot({ preserveCurrent: true, force: true });
-        if (activeTab === 'audit') fetchAudit();
+        if (!serverId) return;
+        if (activeTab === 'onlines') fetchSnapshotRef.current({ preserveCurrent: true, force: true });
+        if (activeTab === 'audit') fetchAuditRef.current();
     }, [activeTab, serverId]);
 
     useEffect(() => {
         const handlePageRefresh = () => {
-            fetchSnapshot({ preserveCurrent: true, force: true });
-            if (activeTab === 'audit') fetchAudit();
+            fetchSnapshotRef.current({ preserveCurrent: true, force: true });
+            if (activeTab === 'audit') fetchAuditRef.current();
         };
         window.addEventListener('nms:page-refresh', handlePageRefresh);
         return () => window.removeEventListener('nms:page-refresh', handlePageRefresh);
-    }, [activeTab, serverId]);
+    }, [activeTab]);
 
     useEffect(() => {
         const nextTab = getServerDetailTab(searchParams);
@@ -692,7 +698,7 @@ export default function ServerDetail() {
                         {activeTab === 'overview' && (
                             <div>
                                 <div className="card mb-4">
-                                    <h4 className="card-title mb-3">{t('pages.serverDetail.serverInfo')}</h4>
+                                    <h2 className="card-title mb-3">{t('pages.serverDetail.serverInfo')}</h2>
                                     <div className="grid grid-cols-2 gap-4 text-sm server-detail-overview-grid">
                                         <div><span className="text-muted">{t('pages.serverDetail.infoLabels.name')}</span> {server.name}</div>
                                         <div><span className="text-muted">{t('pages.serverDetail.infoLabels.url')}</span> <span className="font-mono">{server.url}</span></div>
@@ -710,7 +716,7 @@ export default function ServerDetail() {
                                 </div>
                                 {status && (
                                     <div className="card">
-                                        <h4 className="card-title mb-3">{t(isSui ? 'pages.serverDetail.singboxStatus' : 'pages.serverDetail.xrayStatus')}</h4>
+                                        <h2 className="card-title mb-3">{t(isSui ? 'pages.serverDetail.singboxStatus' : 'pages.serverDetail.xrayStatus')}</h2>
                                         <div className="grid grid-cols-2 gap-4 text-sm server-detail-overview-grid">
                                             <div><span className="text-muted">{t(isSui ? 'pages.serverDetail.panelVersion' : 'pages.serverDetail.xrayLabels.version')}</span> {status.xray?.version || '-'}</div>
                                             <div><span className="text-muted">{t('pages.serverDetail.xrayLabels.uptime')}</span> {formatUptime(status.uptime, locale)}</div>
@@ -742,7 +748,7 @@ export default function ServerDetail() {
                                 ) : isCompactLayout ? (
                                     <ServerDetailInboundMobileList inbounds={inbounds} />
                                 ) : (
-                                    <div className="table-container">
+                                    <div className="table-container" role="region" aria-label={t('comp.common.dataTable')} tabIndex={0}>
                                         <table className="table server-detail-inbounds-table">
                                             <thead>
                                                 <tr>
@@ -818,7 +824,7 @@ export default function ServerDetail() {
                                         locale={locale}
                                     />
                                 ) : (
-                                    <div className="table-container">
+                                    <div className="table-container" role="region" aria-label={t('pages.serverDetail.onlineUsers')} tabIndex={0}>
                                         <table className="table server-detail-online-table">
                                             <thead><tr><th className="table-cell-center server-detail-sequence-column">#</th><th>{t('pages.serverDetail.onlineCols.user')}</th><th className="table-cell-right server-detail-sessions-column">{t('pages.serverDetail.onlineCols.sessions')}</th><th>{t('pages.serverDetail.onlineCols.lastOnline')}</th><th className="table-cell-actions server-detail-online-actions-column">{t('pages.serverDetail.onlineCols.actions')}</th></tr></thead>
                                             <tbody>

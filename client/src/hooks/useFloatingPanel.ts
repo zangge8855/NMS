@@ -22,7 +22,7 @@ export interface UseFloatingPanelOptions {
     anchorRef: RefObject<HTMLElement | null>;
     panelRef: RefObject<HTMLElement | null>;
     computePosition: (params: ComputePositionParams) => CSSProperties;
-    deps?: any[];
+    repositionKey?: string | number | boolean;
 }
 
 export default function useFloatingPanel({
@@ -30,7 +30,7 @@ export default function useFloatingPanel({
     anchorRef,
     panelRef,
     computePosition,
-    deps = [],
+    repositionKey = '',
 }: UseFloatingPanelOptions): { panelStyle: CSSProperties; isReady: boolean } {
     const [panelStyle, setPanelStyle] = useState<CSSProperties>(HIDDEN_STYLE);
     const [isReady, setIsReady] = useState<boolean>(false);
@@ -87,7 +87,7 @@ export default function useFloatingPanel({
             setPanelStyle(HIDDEN_STYLE);
             setIsReady(false);
         };
-    }, [open, anchorRef, panelRef, computePosition, ...deps]);
+    }, [open, anchorRef, panelRef, computePosition, repositionKey]);
 
     return { panelStyle, isReady };
 }

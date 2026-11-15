@@ -462,6 +462,8 @@ export default function Capabilities({ serverId = '', embedded = false }: Capabi
             }
         }
     };
+    const fetchCapabilitiesRef = useRef(fetchCapabilities);
+    fetchCapabilitiesRef.current = fetchCapabilities;
 
     useEffect(() => {
         if (!hasTargetServer) {
@@ -473,18 +475,18 @@ export default function Capabilities({ serverId = '', embedded = false }: Capabi
         const snapshot = readCapabilitiesSnapshot(targetServerId);
         setData(snapshot);
         setLoading(snapshot == null);
-        fetchCapabilities({ preserveCurrent: snapshot != null });
+        fetchCapabilitiesRef.current({ preserveCurrent: snapshot != null });
     }, [targetServerId, hasTargetServer]);
 
     useEffect(() => {
         const handlePageRefresh = () => {
             if (hasTargetServer) {
-                fetchCapabilities({ preserveCurrent: true });
+                fetchCapabilitiesRef.current({ preserveCurrent: true });
             }
         };
         window.addEventListener('nms:page-refresh', handlePageRefresh);
         return () => window.removeEventListener('nms:page-refresh', handlePageRefresh);
-    }, [hasTargetServer, targetServerId]);
+    }, [hasTargetServer]);
 
     useEffect(() => {
         if (!hasTargetServer || !data) return;

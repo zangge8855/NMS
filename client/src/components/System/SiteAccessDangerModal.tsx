@@ -56,7 +56,7 @@ export default function SiteAccessDangerModal({
                             </div>
                         </div>
                         <label className="site-danger-check">
-                            <input
+                            <input name="siteAccessDangerModalField"
                                 type="checkbox"
                                 checked={acknowledged}
                                 onChange={(event) => setAcknowledged(event.target.checked)}
@@ -65,7 +65,7 @@ export default function SiteAccessDangerModal({
                         </label>
                         <label className="form-group mb-0">
                             <span className="form-label">{t('comp.siteAccessDanger.typePath')}</span>
-                            <input
+                            <input name="siteAccessDangerModalTypedPath"
                                 className="form-input font-mono"
                                 value={typedPath}
                                 onChange={(event) => setTypedPath(event.target.value)}

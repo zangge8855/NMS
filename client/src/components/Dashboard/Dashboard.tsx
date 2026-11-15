@@ -1073,7 +1073,7 @@ export default function Dashboard() {
         return () => clearInterval(interval);
     }, [activeServerId, autoRefresh, fetchGlobalData, fetchSingleData, hydrateGlobalPresence, wsStatus]);
 
-    const refresh = () => {
+    const refresh = useCallback(() => {
         if (activeServerId !== 'global') {
             return fetchSingleData({ force: true });
         }
@@ -1081,7 +1081,7 @@ export default function Dashboard() {
             return hydrateGlobalPresence({ force: true });
         }
         return fetchGlobalData({ force: true });
-    };
+    }, [activeServerId, fetchGlobalData, fetchSingleData, hydrateGlobalPresence, wsStatus]);
 
     useEffect(() => {
         const handlePageRefresh = (event) => {
@@ -1090,7 +1090,7 @@ export default function Dashboard() {
         };
         window.addEventListener('nms:page-refresh', handlePageRefresh);
         return () => window.removeEventListener('nms:page-refresh', handlePageRefresh);
-    }, [activeServerId, fetchGlobalData, fetchSingleData, hydrateGlobalPresence, wsStatus]);
+    }, [refresh]);
 
     const toggleAutoRefresh = () => {
         const next = !autoRefresh;
@@ -1302,7 +1302,7 @@ export default function Dashboard() {
                                         keyPrefix="global-online"
                                     />
                                 ) : (
-                                    <div className="table-container table-scroll table-scroll-lg overflow-x-auto">
+                                    <div className="table-container table-scroll table-scroll-lg overflow-x-auto" role="region" aria-label={t('pages.dashboardGlobal.onlineDetailTitle')} tabIndex={0}>
                                         <table className="table dashboard-online-table">
                                             <thead>
                                                 <tr>
@@ -1472,7 +1472,7 @@ export default function Dashboard() {
                                     keyPrefix="single-online"
                                 />
                             ) : (
-                                <div className="table-container table-scroll table-scroll-md overflow-x-auto">
+                                <div className="table-container table-scroll table-scroll-md overflow-x-auto" role="region" aria-label={t('pages.dashboardHero.kpiOnlineUsers')} tabIndex={0}>
                                     <table className="table dashboard-online-table">
                                         <thead>
                                             <tr>
@@ -1528,7 +1528,7 @@ export default function Dashboard() {
                     ) : isCompactLayout ? (
                         <InboundSummaryMobileList inbounds={inbounds} loading={loading} t={t} />
                     ) : (
-                        <div className="table-container border-none overflow-x-auto">
+                        <div className="table-container border-none overflow-x-auto" role="region" aria-label={t('pages.dashboardNode.inboundsTitle')} tabIndex={0}>
                             <table className="table dashboard-inbound-summary-table">
                                 <thead>
                                     <tr>

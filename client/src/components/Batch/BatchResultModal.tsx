@@ -95,7 +95,7 @@ export default function BatchResultModal({ isOpen, onClose, title = null, data =
                             />
                         </div>
                     ) : (
-                        <div className="table-container table-scroll table-scroll-md batch-result-table">
+                        <div className="table-container table-scroll table-scroll-md batch-result-table" role="region" aria-label={resolvedTitle} tabIndex={0}>
                             <table className="table batch-result-detail-table">
                                 <thead>
                                     <tr>

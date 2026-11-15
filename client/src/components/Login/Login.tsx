@@ -1009,8 +1009,8 @@ export default function Login() {
 
                                 {!twoFactorUseBackup ? (
                                     <div className="form-group">
-                                        <label className="form-label">{t('pages.login.twoFactorCode')}</label>
-                                        <input
+                                        <label htmlFor="login-login-two-factor-code" className="form-label">{t('pages.login.twoFactorCode')}</label>
+                                        <input id="login-login-two-factor-code" name="loginLoginTwoFactorCode"
                                             type="text"
                                             className="form-input verify-code-input"
                                             placeholder={t('pages.login.twoFactorCodePlaceholder')}
@@ -1025,10 +1025,10 @@ export default function Login() {
                                     </div>
                                 ) : (
                                     <div className="form-group">
-                                        <label className="form-label">{t('pages.login.twoFactorBackupCode')}</label>
+                                        <label htmlFor="login-login-two-factor-backup-code" className="form-label">{t('pages.login.twoFactorBackupCode')}</label>
                                         <div className="input-icon-wrapper">
                                             <HiOutlineLockClosed className="input-icon" />
-                                            <input
+                                            <input id="login-login-two-factor-backup-code" name="loginLoginTwoFactorBackupCode"
                                                 type="text"
                                                 className="form-input input-with-icon font-mono"
                                                 placeholder={t('pages.login.twoFactorBackupPlaceholder')}

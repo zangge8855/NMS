@@ -501,7 +501,7 @@ export default function CommandPalette() {
             >
                 <div className="command-palette-search-box">
                     <HiOutlineMagnifyingGlass className="command-palette-search-icon" />
-                    <input
+                    <input name="commandPaletteSearchPlaceholderCompact"
                         ref={inputRef}
                         type="text"
                         className="command-palette-input"

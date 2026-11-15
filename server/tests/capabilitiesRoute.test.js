@@ -1,6 +1,10 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildCapabilitiesPayload, detectToolCapabilities } from '../routes/capabilities.js';
+import {
+    buildCapabilitiesPayload,
+    detectToolCapabilities,
+    resolveCapabilityProbeErrorStatus,
+} from '../routes/capabilities.js';
 
 describe('capabilities payload alignment', () => {
     it('canonicalizes legacy inbound protocol names in the response payload', () => {
@@ -127,5 +131,20 @@ describe('capabilities payload alignment', () => {
         assert.equal(enPayload.tools.uuid.uiActionLabel, 'Node Console');
         assert.equal(enPayload.systemModules.find((item) => item.key === 'xrayVersion')?.uiActionLabel, 'Node Console');
         assert.equal(enPayload.systemModules.find((item) => item.key === 'databaseManagement')?.uiActionLabel, 'Node Console');
+    });
+
+    it('maps capability probe failures to accurate upstream HTTP status codes', () => {
+        assert.equal(resolveCapabilityProbeErrorStatus(new Error('Server not found: node-x')), 404);
+
+        const refused = Object.assign(new Error('connect ECONNREFUSED 127.0.0.1:2053'), { code: 'ECONNREFUSED' });
+        assert.equal(resolveCapabilityProbeErrorStatus(refused), 503);
+
+        const authErr = Object.assign(new Error('Panel login failed'), {
+            isPanelAuthError: true,
+            code: 'PANEL_LOGIN_FAILED',
+        });
+        assert.equal(resolveCapabilityProbeErrorStatus(authErr), 502);
+
+        assert.equal(resolveCapabilityProbeErrorStatus(new Error('unexpected bug')), 500);
     });
 });

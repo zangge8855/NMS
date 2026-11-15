@@ -316,7 +316,7 @@ export default function AccountCenter() {
                                 />
                             </div>
                             <div className="form-group mb-0">
-                                <label className="form-label">{copy.role}</label>
+                                <span className="form-label">{copy.role}</span>
                                 <div className="account-role-row">
                                     <span className={`badge ${user?.role === 'admin' ? 'badge-warning' : 'badge-neutral'}`}>{roleLabel}</span>
                                     <span className={`badge ${user?.emailVerified ? 'badge-success' : 'badge-neutral'}`}>
@@ -383,7 +383,13 @@ export default function AccountCenter() {
                             compact divider
                             title={copy.passwordTitle}
                         />
-                        <div className="account-password-grid">
+                        <form
+                            className="account-password-grid"
+                            onSubmit={(event) => {
+                                event.preventDefault();
+                                handleChangePassword();
+                            }}
+                        >
                             <div className="form-group mb-0">
                                 <label className="form-label" htmlFor="account-current-password">{copy.currentPassword}</label>
                                 <div className="input-icon-wrapper">
@@ -456,15 +462,14 @@ export default function AccountCenter() {
                             </div>
                             <div className="account-password-submit">
                                 <button
-                                    type="button"
+                                    type="submit"
                                     className="btn btn-primary btn-sm"
-                                    onClick={handleChangePassword}
                                     disabled={passwordSaving || !oldPassword || !newPassword || !confirmPassword}
                                 >
                                     {passwordSaving ? <span className="spinner" /> : copy.changePassword}
                                 </button>
                             </div>
-                        </div>
+                        </form>
                         <div className="account-card-note">{getPasswordPolicyHint(locale)}</div>
                     </div>
 

@@ -164,9 +164,12 @@ export default function SecurityBootstrapWizard() {
         }
     };
 
+    const loadStatusRef = useRef(loadStatus);
+    loadStatusRef.current = loadStatus;
+
     useEffect(() => {
         if (user?.role !== 'admin') return undefined;
-        loadStatus();
+        loadStatusRef.current();
         return undefined;
     }, [user?.role]);
 
@@ -314,7 +317,7 @@ export default function SecurityBootstrapWizard() {
                 <form className="security-bootstrap-form" onSubmit={handleSubmit}>
                     <label className="security-bootstrap-field">
                         <span className="security-bootstrap-label">{copy.adminUsername}</span>
-                        <input
+                        <input name="securityBootstrapWizardAdminUsername"
                             className="form-input"
                             value={draft.adminUsername}
                             onChange={(event) => setDraft((current) => ({ ...current, adminUsername: event.target.value }))}
@@ -325,7 +328,7 @@ export default function SecurityBootstrapWizard() {
                     <label className="security-bootstrap-field">
                         <span className="security-bootstrap-label">{copy.adminPassword}</span>
                         <div className="input-icon-wrapper">
-                            <input
+                            <input name="securityBootstrapWizardAdminPassword"
                                 className="form-input input-with-trailing-action"
                                 type={showAdminPassword ? 'text' : 'password'}
                                 value={draft.adminPassword}
@@ -347,7 +350,7 @@ export default function SecurityBootstrapWizard() {
                     <label className="security-bootstrap-field">
                         <span className="security-bootstrap-label">{copy.confirmPassword}</span>
                         <div className="input-icon-wrapper">
-                            <input
+                            <input name="securityBootstrapWizardConfirmPassword"
                                 className="form-input input-with-trailing-action"
                                 type={showConfirmPassword ? 'text' : 'password'}
                                 value={draft.confirmPassword}
@@ -369,7 +372,7 @@ export default function SecurityBootstrapWizard() {
                     <label className="security-bootstrap-field">
                         <span className="security-bootstrap-label">{copy.jwtSecret}</span>
                         <div className="security-bootstrap-inline">
-                            <input
+                            <input name="securityBootstrapWizardJwtSecret"
                                 className="form-input font-mono"
                                 value={draft.jwtSecret}
                                 onChange={(event) => setDraft((current) => ({ ...current, jwtSecret: event.target.value }))}
@@ -389,7 +392,7 @@ export default function SecurityBootstrapWizard() {
                     <label className="security-bootstrap-field">
                         <span className="security-bootstrap-label">{copy.credentialsSecret}</span>
                         <div className="security-bootstrap-inline">
-                            <input
+                            <input name="securityBootstrapWizardCredentialsSecret"
                                 className="form-input font-mono"
                                 value={draft.credentialsSecret}
                                 onChange={(event) => setDraft((current) => ({ ...current, credentialsSecret: event.target.value }))}

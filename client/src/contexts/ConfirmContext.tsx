@@ -92,10 +92,12 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                             )}
                             {requireText && (
                                 <div className="confirm-modal-type-gate">
-                                    <label className="form-label">
+                                    <label className="form-label" htmlFor="confirm-modal-type-input">
                                         {t('comp.common.typeToConfirmBefore')} <code className="confirm-modal-type-target">{requireText}</code> {t('comp.common.typeToConfirmAfter')}
                                     </label>
                                     <input
+                                        id="confirm-modal-type-input"
+                                        name="confirmTypeText"
                                         autoFocus
                                         className="form-input"
                                         value={typedText}

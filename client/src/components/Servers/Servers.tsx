@@ -903,7 +903,7 @@ export default function Servers() {
             >
                 <div className="servers-mobile-card-top">
                     <label className="servers-mobile-check" onClick={(e) => e.stopPropagation()}>
-                        <input
+                        <input name="serversField"
                             type="checkbox"
                             aria-label={t('pages.servers.selectServer', { name: server.name || server.id })}
                             className="checkbox"
@@ -1036,31 +1036,31 @@ export default function Servers() {
                     className="servers-toolbar glass-panel mb-6"
                     filters={(
                         <>
-                            <input
+                            <input name="serversSearchKeyword"
                                 className="form-input servers-filter-search"
                                 aria-label={uiText.searchPlaceholder}
                                 placeholder={uiText.searchPlaceholder}
                                 value={searchKeyword}
                                 onChange={(e) => setSearchKeyword(e.target.value)}
                             />
-                            <select className="form-select servers-filter-select" aria-label={uiText.allGroups} value={filterGroup} onChange={(e) => setFilterGroup(e.target.value)}>
+                            <select name="serversFilterGroup" className="form-select servers-filter-select" aria-label={uiText.allGroups} value={filterGroup} onChange={(e) => setFilterGroup(e.target.value)}>
                                 <option value="all">{uiText.allGroups}</option>
                                 {groupOptions.map((group) => <option key={group} value={group}>{group}</option>)}
                             </select>
-                            <select className="form-select servers-filter-select" aria-label={uiText.allStatus} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                            <select name="serversStatusFilter" className="form-select servers-filter-select" aria-label={uiText.allStatus} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
                                 <option value="all">{uiText.allStatus}</option>
                                 <option value="online">{uiText.statusOnline}</option>
                                 <option value="offline">{uiText.statusOffline}</option>
                                 <option value="maintenance">{uiText.statusMaintenance}</option>
                                 <option value="unknown">{uiText.statusUnknown}</option>
                             </select>
-                            <select className="form-select servers-filter-select" aria-label={uiText.allCredentials} value={credentialFilter} onChange={(e) => setCredentialFilter(e.target.value)}>
+                            <select name="serversCredentialFilter" className="form-select servers-filter-select" aria-label={uiText.allCredentials} value={credentialFilter} onChange={(e) => setCredentialFilter(e.target.value)}>
                                 <option value="all">{uiText.allCredentials}</option>
                                 <option value="configured">{uiText.credentialReady}</option>
                                 <option value="missing">{uiText.credentialMissing}</option>
                                 <option value="unreadable">{uiText.credentialBroken}</option>
                             </select>
-                            <select className="form-select servers-filter-select" aria-label={uiText.allLatency} value={latencyFilter} onChange={(e) => setLatencyFilter(e.target.value)}>
+                            <select name="serversLatencyFilter" className="form-select servers-filter-select" aria-label={uiText.allLatency} value={latencyFilter} onChange={(e) => setLatencyFilter(e.target.value)}>
                                 <option value="all">{uiText.allLatency}</option>
                                 <option value="slow">{uiText.latencySlow}</option>
                                 <option value="critical">{uiText.latencyCritical}</option>
@@ -1217,7 +1217,7 @@ export default function Servers() {
                                     aria-busy={rowBusy}
                                 >
                                     <td className="table-cell-center mobile-checkbox-cell" data-label="" onClick={(e) => e.stopPropagation()}>
-                                        <input
+                                        <input name={`serversField2-${index}`}
                                             type="checkbox"
                                             aria-label={t('pages.servers.selectServer', { name: server.name || server.id })}
                                             className="checkbox"
@@ -1406,19 +1406,19 @@ export default function Servers() {
                                         onChange={(panelType) => setForm({ ...form, panelType })}
                                     />
                                     <div className="form-group">
-                                        <label className="form-label">{t('comp.servers.serverName')}</label>
-                                        <input className="form-input" placeholder={t('comp.servers.serverNamePlaceholder')}
+                                        <label htmlFor="servers-servers-server-name" className="form-label">{t('comp.servers.serverName')}</label>
+                                        <input id="servers-servers-server-name" name="serversServersServerName" className="form-input" placeholder={t('comp.servers.serverNamePlaceholder')}
                                             value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">{t('comp.servers.panelUrl')} *</label>
-                                        <input className="form-input" placeholder={t(isSuiServer(form) ? 'comp.servers.panelUrlPlaceholderSui' : 'comp.servers.panelUrlPlaceholder')}
+                                        <label htmlFor="servers-servers-panel-url" className="form-label">{t('comp.servers.panelUrl')} *</label>
+                                        <input id="servers-servers-panel-url" name="serversServersPanelUrl" className="form-input" placeholder={t(isSuiServer(form) ? 'comp.servers.panelUrlPlaceholderSui' : 'comp.servers.panelUrlPlaceholder')}
                                             value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} required />
                                     </div>
                                     <div className="grid-auto-220">
                                         <div className="form-group">
-                                            <label className="form-label">{t('comp.servers.nodeGroup')}</label>
-                                            <input
+                                            <label htmlFor="servers-servers-node-group" className="form-label">{t('comp.servers.nodeGroup')}</label>
+                                            <input id="servers-servers-node-group" name="serversServersNodeGroup"
                                                 className="form-input"
                                                 placeholder={t('comp.servers.nodeGroupPlaceholder')}
                                                 value={form.group}
@@ -1426,8 +1426,8 @@ export default function Servers() {
                                             />
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">{t('comp.servers.tagsCommaSeparated')}</label>
-                                            <input
+                                            <label htmlFor="servers-hk-core-vip" className="form-label">{t('comp.servers.tagsCommaSeparated')}</label>
+                                            <input id="servers-hk-core-vip" name="serversHkCoreVip"
                                                 className="form-input"
                                                 placeholder="hk, core, vip"
                                                 value={form.tags}
@@ -1437,14 +1437,14 @@ export default function Servers() {
                                     </div>
                                     <div className="grid-auto-220">
                                         <div className="form-group">
-                                            <label className="form-label">{t('comp.servers.username')}</label>
-                                            <input className="form-input" placeholder="admin"
+                                            <label htmlFor="servers-admin" className="form-label">{t('comp.servers.username')}</label>
+                                            <input id="servers-admin" name="serversAdmin" className="form-input" placeholder="admin"
                                                 value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">{t('comp.servers.password')}</label>
+                                            <label htmlFor="servers-servers-password" className="form-label">{t('comp.servers.password')}</label>
                                             <div className="input-icon-wrapper">
-                                                <input
+                                                <input id="servers-servers-password" name="serversServersPassword"
                                                     className="form-input input-with-trailing-action"
                                                     type={showFormPassword ? 'text' : 'password'}
                                                     placeholder={t('comp.servers.password')}
@@ -1464,9 +1464,9 @@ export default function Servers() {
                                         </div>
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">API Token</label>
+                                        <label htmlFor="servers-servers-token-keep-placeholder" className="form-label">API Token</label>
                                         <div className="input-icon-wrapper">
-                                            <input
+                                            <input id="servers-servers-token-keep-placeholder" name="serversServersTokenKeepPlaceholder"
                                                 className="form-input input-with-trailing-action"
                                                 type={showFormApiToken ? 'text' : 'password'}
                                                 placeholder={editingId ? t('comp.servers.tokenKeepPlaceholder') : t('comp.servers.tokenPlaceholder')}
@@ -1515,8 +1515,8 @@ export default function Servers() {
                                         />
                                         <div className="grid-auto-220">
                                             <div className="form-group">
-                                                <label className="form-label">{t('comp.servers.sharedUsername')}</label>
-                                                <input
+                                                <label htmlFor="servers-root" className="form-label">{t('comp.servers.sharedUsername')}</label>
+                                                <input id="servers-root" name="serversRoot"
                                                     className="form-input"
                                                     placeholder="root"
                                                     value={batchForm.username}
@@ -1524,9 +1524,9 @@ export default function Servers() {
                                                 />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">{t('comp.servers.sharedPassword')}</label>
+                                                <label htmlFor="servers-servers-shared-password" className="form-label">{t('comp.servers.sharedPassword')}</label>
                                                 <div className="input-icon-wrapper">
-                                                    <input
+                                                    <input id="servers-servers-shared-password" name="serversServersSharedPassword"
                                                         className="form-input input-with-trailing-action"
                                                         type={showBatchFormPassword ? 'text' : 'password'}
                                                         placeholder={t('comp.servers.password')}
@@ -1546,9 +1546,9 @@ export default function Servers() {
                                             </div>
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">{t('comp.servers.sharedApiToken')}</label>
+                                            <label htmlFor="servers-servers-shared-api-token" className="form-label">{t('comp.servers.sharedApiToken')}</label>
                                             <div className="input-icon-wrapper">
-                                                <input
+                                                <input id="servers-servers-shared-api-token" name="serversServersSharedApiToken"
                                                     className="form-input input-with-trailing-action"
                                                     type={showBatchFormApiToken ? 'text' : 'password'}
                                                     placeholder={t('comp.servers.sharedTokenPlaceholder')}
@@ -1570,8 +1570,8 @@ export default function Servers() {
                                             <div className="text-xs text-muted mt-1">{t('comp.servers.batchCredentialHint')}</div>
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">{t('comp.servers.defaultGroup')}</label>
-                                            <input
+                                            <label htmlFor="servers-servers-default-group" className="form-label">{t('comp.servers.defaultGroup')}</label>
+                                            <input id="servers-servers-default-group" name="serversServersDefaultGroup"
                                                 className="form-input"
                                                 placeholder={t('comp.servers.nodeGroupPlaceholder')}
                                                 value={batchForm.group}
@@ -1581,7 +1581,7 @@ export default function Servers() {
 
                                         <div className="form-group mt-3 mb-0">
                                             <label className="form-check-label w-fit">
-                                                <input
+                                                <input name="serversField3"
                                                     type="checkbox"
                                                     checked={batchForm.testConnection}
                                                     onChange={(e) => setBatchForm((prev) => ({ ...prev, testConnection: e.target.checked }))}
@@ -1591,8 +1591,8 @@ export default function Servers() {
                                         </div>
 
                                         <div className="form-group mt-4">
-                                            <label className="form-label">{t('comp.servers.serverList')} *</label>
-                                            <textarea
+                                            <label htmlFor="servers-servers-server-list" className="form-label">{t('comp.servers.serverList')} *</label>
+                                            <textarea id="servers-servers-server-list" name="serversServersServerList"
                                                 rows={9}
                                                 placeholder={t('comp.servers.batchListPlaceholder')}
                                                 value={batchForm.entries}
@@ -1610,7 +1610,7 @@ export default function Servers() {
                                                 <span className="badge badge-success">{t('comp.servers.success')} {batchResult.summary?.success || 0}</span>
                                                 <span className="badge badge-danger">{t('comp.servers.failed')} {batchResult.summary?.failed || 0}</span>
                                             </div>
-                                            <div className="table-container table-scroll table-scroll-sm">
+                                            <div className="table-container table-scroll table-scroll-sm" role="region" aria-label={t('comp.servers.batchAddTitle')} tabIndex={0}>
                                                 <table className="table servers-batch-result-table">
                                                     <thead>
                                                         <tr>
@@ -1674,8 +1674,8 @@ export default function Servers() {
                                         <div className="badge badge-danger mb-3 w-fit">{credentialRepair.reason}</div>
                                     )}
                                     <div className="form-group">
-                                        <label className="form-label">{t('comp.servers.xuiUsername')}</label>
-                                        <input
+                                        <label htmlFor="servers-root-2" className="form-label">{t('comp.servers.xuiUsername')}</label>
+                                        <input id="servers-root-2" name="serversRoot2"
                                             className="form-input"
                                             value={credentialRepair.username}
                                             onChange={(e) => setCredentialRepair((prev) => ({ ...prev, username: e.target.value }))}
@@ -1683,9 +1683,9 @@ export default function Servers() {
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">{t('comp.servers.xuiPassword')}</label>
+                                        <label htmlFor="servers-servers-xui-password" className="form-label">{t('comp.servers.xuiPassword')}</label>
                                         <div className="input-icon-wrapper">
-                                            <input
+                                            <input id="servers-servers-xui-password" name="serversServersXuiPassword"
                                                 className="form-input input-with-trailing-action"
                                                 type={showRepairPassword ? 'text' : 'password'}
                                                 value={credentialRepair.password}
@@ -1704,9 +1704,9 @@ export default function Servers() {
                                         </div>
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">API Token</label>
+                                        <label htmlFor="servers-credential-repair-api-token" className="form-label">API Token</label>
                                         <div className="input-icon-wrapper">
-                                            <input
+                                            <input id="servers-credential-repair-api-token" name="serversCredentialRepairApiToken"
                                                 className="form-input input-with-trailing-action"
                                                 type={showRepairApiToken ? 'text' : 'password'}
                                                 value={credentialRepair.apiToken}
@@ -1729,7 +1729,7 @@ export default function Servers() {
                                     </div>
                                     {selectedIds.size > 1 && (
                                         <label className="form-check-label w-fit mt-2">
-                                            <input
+                                            <input name="serversField4"
                                                 type="checkbox"
                                                 checked={credentialRepair.applyToSelected}
                                                 onChange={(e) => setCredentialRepair((prev) => ({ ...prev, applyToSelected: e.target.checked }))}

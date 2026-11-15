@@ -36,7 +36,7 @@ export default function PageServerSelector({
     return (
         <label className={['page-server-selector', className].filter(Boolean).join(' ')}>
             {label ? <span className="page-server-selector-label">{label}</span> : null}
-            <select
+            <select name="pageServerSelectorValue"
                 className="form-select page-server-selector-control"
                 value={value || ''}
                 onChange={(event) => onChange?.(event.target.value)}

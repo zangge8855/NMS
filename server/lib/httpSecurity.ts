@@ -79,7 +79,8 @@ export function createSecurityHeadersMiddleware(options: SecurityHeadersOptions 
         // No inline scripts: the theme bootstrap is /theme-init.js and the base path
         // is passed through <meta name="nms-site-base-path">.
         "script-src 'self'",
-        "connect-src 'self' ws://localhost:* wss://localhost:* ws://127.0.0.1:* wss://127.0.0.1:* ws://[::1]:* wss://[::1]:* https://ipwho.is",
+        // Avoid bracketed IPv6 host-sources ([::1]) which Chromium's CSP parser rejects as invalid syntax.
+        "connect-src 'self' ws://localhost:* wss://localhost:* ws://127.0.0.1:* wss://127.0.0.1:* https://ipwho.is",
     ].join('; ');
 
     return (req: Request, res: Response, next: NextFunction): void => {

@@ -113,7 +113,7 @@ export default function XrayJsonEditor({
                 <div className="text-xs text-tertiary">{hint}</div>
             ) : null}
 
-            <textarea
+            <textarea name="xrayJsonEditorField"
                 className="form-textarea font-mono text-sm w-full"
                 rows={20}
                 spellCheck={false}

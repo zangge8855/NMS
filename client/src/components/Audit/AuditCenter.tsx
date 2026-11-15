@@ -1355,14 +1355,32 @@ export default function AuditCenter() {
         };
     }, [accessData, accessSummary, accessUserWindows]);
 
+    const snapshotFilterStateRef = useRef({
+        accessFilters,
+        accessPage,
+        eventFilters,
+        eventsPage,
+        selectedServerId,
+        selectedUser,
+    });
+    snapshotFilterStateRef.current = {
+        accessFilters,
+        accessPage,
+        eventFilters,
+        eventsPage,
+        selectedServerId,
+        selectedUser,
+    };
+
     useEffect(() => {
         const handleSnapshotUpdate = (event) => {
             if (event?.detail?.source !== 'app-bootstrap' || event?.detail?.action !== 'write') {
                 return;
             }
+            const snapshotFilters = snapshotFilterStateRef.current;
 
             if (event.detail.key === AUDIT_EVENTS_SNAPSHOT_KEY) {
-                if (!hasDefaultEventFilters(eventFilters, eventsPage)) return;
+                if (!hasDefaultEventFilters(snapshotFilters.eventFilters, snapshotFilters.eventsPage)) return;
                 const snapshot = readAuditEventsSnapshot();
                 if (!snapshot) return;
                 const snapshotIssuedAtMs = toSnapshotIssuedAtMs(snapshot.issuedAt);
@@ -1403,10 +1421,10 @@ export default function AuditCenter() {
                 setTrafficOverview(nextTrafficOverview);
                 setTrafficWindows(snapshot.trafficWindows || buildEmptyTrafficWindows());
                 setTrafficStatus(normalizeTrafficStatus(snapshot.trafficStatus, nextTrafficOverview || snapshot.trafficOverview));
-                if (!selectedUser && nextTrafficOverview?.topUsers?.length > 0) {
+                if (!snapshotFilters.selectedUser && nextTrafficOverview?.topUsers?.length > 0) {
                     setSelectedUser(nextTrafficOverview.topUsers[0].email);
                 }
-                if (!selectedServerId && nextTrafficOverview?.topServers?.length > 0) {
+                if (!snapshotFilters.selectedServerId && nextTrafficOverview?.topServers?.length > 0) {
                     setSelectedServerId(nextTrafficOverview.topServers[0].serverId);
                 }
                 setTrafficLoading(false);
@@ -1414,7 +1432,7 @@ export default function AuditCenter() {
             }
 
             if (event.detail.key === AUDIT_ACCESS_SNAPSHOT_KEY) {
-                if (countActiveFilters(accessFilters) > 0 || Number(accessPage || 1) !== 1) return;
+                if (countActiveFilters(snapshotFilters.accessFilters) > 0 || Number(snapshotFilters.accessPage || 1) !== 1) return;
                 const snapshot = readAuditAccessSnapshot();
                 if (!snapshot) return;
                 const snapshotIssuedAtMs = toSnapshotIssuedAtMs(snapshot.issuedAt);
@@ -1440,20 +1458,7 @@ export default function AuditCenter() {
 
         window.addEventListener(SESSION_SNAPSHOT_EVENT, handleSnapshotUpdate);
         return () => window.removeEventListener(SESSION_SNAPSHOT_EVENT, handleSnapshotUpdate);
-    }, [
-        accessFilters.email,
-        accessFilters.from,
-        accessFilters.ip,
-        accessFilters.serverId,
-        accessFilters.status,
-        accessFilters.to,
-        accessFilters.tokenId,
-        accessPage,
-        eventFilters,
-        eventsPage,
-        selectedServerId,
-        selectedUser,
-    ]);
+    }, []);
 
     const fetchEvents = async (targetPage = eventsPage, filters = eventFilters) => {
         const requestId = ++eventsRequestIdRef.current;
@@ -1478,8 +1483,10 @@ export default function AuditCenter() {
         }
     };
 
-    const fetchTrafficOverview = async (force = false, windowKey = selectedTrafficWindowRef.current) => {
+    const fetchTrafficOverview = async (force = false, windowKey = selectedTrafficWindowRef.current, rangeOptions: any = {}) => {
         const normalizedWindowKey = normalizeTrafficWindowKey(windowKey);
+        const rangeFrom = rangeOptions.from ?? customFromDate;
+        const rangeTo = rangeOptions.to ?? customToDate;
         setTrafficLoading(true);
         setTrafficStatus((current) => ({
             ...current,
@@ -1488,8 +1495,8 @@ export default function AuditCenter() {
         try {
             const params = new URLSearchParams();
             if (normalizedWindowKey === 'custom') {
-                const fromIso = dateInputToIso(customFromDate, 'start');
-                const toIso = dateInputToIso(customToDate, 'end');
+                const fromIso = dateInputToIso(rangeFrom, 'start');
+                const toIso = dateInputToIso(rangeTo, 'end');
                 if (fromIso) params.append('from', fromIso);
                 if (toIso) params.append('to', toIso);
             } else {
@@ -1543,22 +1550,25 @@ export default function AuditCenter() {
         setTrafficLoading(false);
     };
 
-    const fetchUserTrend = async (email, windowKey = selectedTrafficWindowRef.current) => {
+    const fetchUserTrend = async (email, windowKey = selectedTrafficWindowRef.current, rangeOptions: any = {}) => {
         if (!email) {
             setUserTrend({ points: [], granularity: 'hour' });
             return;
         }
+        const rangeFrom = rangeOptions.from ?? customFromDate;
+        const rangeTo = rangeOptions.to ?? customToDate;
+        const granularityValue = rangeOptions.granularity ?? trafficGranularity;
         try {
             const params = new URLSearchParams();
             if (windowKey === 'custom') {
-                const fromIso = dateInputToIso(customFromDate, 'start');
-                const toIso = dateInputToIso(customToDate, 'end');
+                const fromIso = dateInputToIso(rangeFrom, 'start');
+                const toIso = dateInputToIso(rangeTo, 'end');
                 if (fromIso) params.append('from', fromIso);
                 if (toIso) params.append('to', toIso);
             } else {
                 params.append('window', resolveTrafficWindowQuery(windowKey));
             }
-            params.append('granularity', trafficGranularity);
+            params.append('granularity', granularityValue);
             params.append('includeBreakdown', 'true');
             const res = await api.get(`/traffic/users/${encodeURIComponent(email)}/trend?${params.toString()}`);
             if (email === selectedUserRef.current && normalizeTrafficWindowKey(windowKey) === selectedTrafficWindowRef.current) {
@@ -1569,22 +1579,25 @@ export default function AuditCenter() {
         }
     };
 
-    const fetchServerTrend = async (serverId, windowKey = selectedTrafficWindowRef.current) => {
+    const fetchServerTrend = async (serverId, windowKey = selectedTrafficWindowRef.current, rangeOptions: any = {}) => {
         if (!serverId) {
             setServerTrend({ points: [], granularity: 'hour' });
             return;
         }
+        const rangeFrom = rangeOptions.from ?? customFromDate;
+        const rangeTo = rangeOptions.to ?? customToDate;
+        const granularityValue = rangeOptions.granularity ?? trafficGranularity;
         try {
             const params = new URLSearchParams();
             if (windowKey === 'custom') {
-                const fromIso = dateInputToIso(customFromDate, 'start');
-                const toIso = dateInputToIso(customToDate, 'end');
+                const fromIso = dateInputToIso(rangeFrom, 'start');
+                const toIso = dateInputToIso(rangeTo, 'end');
                 if (fromIso) params.append('from', fromIso);
                 if (toIso) params.append('to', toIso);
             } else {
                 params.append('window', resolveTrafficWindowQuery(windowKey));
             }
-            params.append('granularity', trafficGranularity);
+            params.append('granularity', granularityValue);
             const res = await api.get(`/traffic/servers/${encodeURIComponent(serverId)}/trend?${params.toString()}`);
             if (serverId === selectedServerIdRef.current && normalizeTrafficWindowKey(windowKey) === selectedTrafficWindowRef.current) {
                 setServerTrend(res.data?.obj || { points: [], granularity: 'hour' });
@@ -1645,19 +1658,7 @@ export default function AuditCenter() {
         writeSessionSnapshot(AUDIT_EVENTS_SNAPSHOT_KEY, {
             eventsData,
         });
-    }, [
-        eventFilters.actor,
-        eventFilters.eventType,
-        eventFilters.from,
-        eventFilters.outcome,
-        eventFilters.q,
-        eventFilters.serverId,
-        eventFilters.targetEmail,
-        eventFilters.to,
-        eventsData,
-        eventsLoading,
-        eventsPage,
-    ]);
+    }, [eventFilters, eventsData, eventsLoading, eventsPage]);
 
     useEffect(() => {
         if (!trafficOverview && !Object.values(trafficWindows || {}).some(Boolean)) return;
@@ -1681,18 +1682,7 @@ export default function AuditCenter() {
             accessSummary,
             accessUserWindows,
         });
-    }, [
-        accessData,
-        accessFilters.email,
-        accessFilters.from,
-        accessFilters.ip,
-        accessFilters.serverId,
-        accessFilters.status,
-        accessFilters.to,
-        accessFilters.tokenId,
-        accessSummary,
-        accessUserWindows,
-    ]);
+    }, [accessData, accessFilters, accessSummary, accessUserWindows]);
 
     const handleExportAuditCSV = async () => {
         if (exportingAuditCsv) return;
@@ -1755,22 +1745,6 @@ export default function AuditCenter() {
         fetchEvents(1, nextFilters);
     };
 
-    useEffect(() => {
-        if (tab === 'events') {
-            fetchEvents(1);
-        } else if (tab === 'traffic') {
-            const cachedOverview = resolveTrafficOverviewForWindow(
-                selectedTrafficWindow,
-                trafficStateRef.current?.trafficOverview,
-                trafficStateRef.current?.trafficWindows
-            );
-            setTrafficOverview(cachedOverview);
-            fetchTrafficOverview(false, selectedTrafficWindow);
-        } else if (tab === 'subscriptions') {
-            fetchAccess(1);
-        }
-    }, [selectedTrafficWindow, tab, customFromDate, customToDate]);
-
     liveActionsRef.current = {
         tab,
         eventsPage,
@@ -1783,6 +1757,25 @@ export default function AuditCenter() {
         fetchServerTrend,
         fetchAccess,
     };
+
+    useEffect(() => {
+        if (tab === 'events') {
+            liveActionsRef.current.fetchEvents(1);
+        } else if (tab === 'traffic') {
+            const cachedOverview = resolveTrafficOverviewForWindow(
+                selectedTrafficWindow,
+                trafficStateRef.current?.trafficOverview,
+                trafficStateRef.current?.trafficWindows
+            );
+            setTrafficOverview(cachedOverview);
+            liveActionsRef.current.fetchTrafficOverview(false, selectedTrafficWindow, {
+                from: customFromDate,
+                to: customToDate,
+            });
+        } else if (tab === 'subscriptions') {
+            liveActionsRef.current.fetchAccess(1);
+        }
+    }, [selectedTrafficWindow, tab, customFromDate, customToDate]);
 
     useEffect(() => {
         const handlePageRefresh = () => {
@@ -1807,12 +1800,20 @@ export default function AuditCenter() {
 
     useEffect(() => {
         if (tab !== 'traffic') return;
-        fetchUserTrend(selectedUser, selectedTrafficWindow);
+        liveActionsRef.current.fetchUserTrend(selectedUser, selectedTrafficWindow, {
+            from: customFromDate,
+            to: customToDate,
+            granularity: trafficGranularity,
+        });
     }, [selectedTrafficWindow, selectedUser, tab, trafficGranularity, customFromDate, customToDate]);
 
     useEffect(() => {
         if (tab !== 'traffic') return;
-        fetchServerTrend(selectedServerId, selectedTrafficWindow);
+        liveActionsRef.current.fetchServerTrend(selectedServerId, selectedTrafficWindow, {
+            from: customFromDate,
+            to: customToDate,
+            granularity: trafficGranularity,
+        });
     }, [selectedServerId, selectedTrafficWindow, tab, trafficGranularity, customFromDate, customToDate]);
 
     useEffect(() => {
@@ -2054,7 +2055,7 @@ export default function AuditCenter() {
                                     <div className="audit-filter-grid audit-filter-grid--events-primary">
                                         <label className="audit-filter-field">
                                             <span className="audit-filter-field-label">{copy.filters.keyword}</span>
-                                            <input
+                                            <input name="auditCenterFiltersKeyword"
                                                 className="form-input"
                                                 aria-label={copy.filters.keyword}
                                                 placeholder={copy.filters.keywordPlaceholder}
@@ -2064,7 +2065,7 @@ export default function AuditCenter() {
                                         </label>
                                         <label className="audit-filter-field">
                                             <span className="audit-filter-field-label">{copy.tables.result}</span>
-                                            <select
+                                            <select name="auditCenterFiltersAllResults"
                                                 className="form-select"
                                                 aria-label={copy.filters.allResults}
                                                 value={eventFilters.outcome}
@@ -2078,7 +2079,7 @@ export default function AuditCenter() {
                                         </label>
                                         <label className="audit-filter-field">
                                             <span className="audit-filter-field-label">{copy.filters.fromDate}</span>
-                                            <input
+                                            <input name="auditCenterFiltersFromDate"
                                                 className="form-input"
                                                 type="date"
                                                 aria-label={copy.filters.fromDate}
@@ -2088,7 +2089,7 @@ export default function AuditCenter() {
                                         </label>
                                         <label className="audit-filter-field">
                                             <span className="audit-filter-field-label">{copy.filters.toDate}</span>
-                                            <input
+                                            <input name="auditCenterFiltersToDate"
                                                 className="form-input"
                                                 type="date"
                                                 aria-label={copy.filters.toDate}
@@ -2099,28 +2100,28 @@ export default function AuditCenter() {
                                     </div>
                                     {showAdvancedEventFilters && (
                                         <div className="audit-filter-grid audit-filter-grid--events-secondary">
-                                            <input
+                                            <input name="auditCenterFiltersEventType"
                                                 className="form-input"
                                                 aria-label={copy.filters.eventType}
                                                 placeholder={copy.filters.eventType}
                                                 value={eventFilters.eventType}
                                                 onChange={(e) => setEventFilters((prev) => ({ ...prev, eventType: e.target.value }))}
                                             />
-                                            <input
+                                            <input name="auditCenterFiltersActor"
                                                 className="form-input"
                                                 aria-label={copy.filters.actor}
                                                 placeholder={copy.filters.actor}
                                                 value={eventFilters.actor}
                                                 onChange={(e) => setEventFilters((prev) => ({ ...prev, actor: e.target.value }))}
                                             />
-                                            <input
+                                            <input name="auditCenterFiltersUserOrEmail"
                                                 className="form-input"
                                                 aria-label={copy.filters.userOrEmail}
                                                 placeholder={copy.filters.userOrEmail}
                                                 value={eventFilters.targetEmail}
                                                 onChange={(e) => setEventFilters((prev) => ({ ...prev, targetEmail: e.target.value }))}
                                             />
-                                            <input
+                                            <input name="auditCenterFiltersServerId"
                                                 className="form-input"
                                                 aria-label={copy.filters.serverId}
                                                 placeholder={copy.filters.serverId}
@@ -2277,7 +2278,7 @@ export default function AuditCenter() {
                                         <div className="audit-traffic-custom-range">
                                             <div className="audit-traffic-window-bar">
                                                 <span className="audit-traffic-window-label">{copy.filters.fromDate}</span>
-                                                <input
+                                                <input name="auditCenterFiltersFromDate2"
                                                     className="form-input form-input-sm"
                                                     type="date"
                                                     aria-label={copy.filters.fromDate}
@@ -2288,7 +2289,7 @@ export default function AuditCenter() {
                                             <span className="audit-traffic-custom-range-separator">-</span>
                                             <div className="audit-traffic-window-bar">
                                                 <span className="audit-traffic-window-label">{copy.filters.toDate}</span>
-                                                <input
+                                                <input name="auditCenterFiltersToDate2"
                                                     className="form-input form-input-sm"
                                                     type="date"
                                                     aria-label={copy.filters.toDate}
@@ -2302,7 +2303,7 @@ export default function AuditCenter() {
                                         <span className="audit-traffic-sample-label">{copy.traffic.recentSample}</span>
                                         <span className="audit-traffic-sample-value">{formatDateTime(trafficStatus?.sampledAt, locale)}</span>
                                     </div>
-                                    <select
+                                    <select name="auditCenterFiltersAutoGranularity"
                                         className="form-select w-130"
                                         aria-label={copy.filters.autoGranularity}
                                         value={trafficGranularity}
@@ -2393,7 +2394,7 @@ export default function AuditCenter() {
                                     title={copy.traffic.userTrend}
                                     subtitle={trafficWindowCopy.userTrendScope}
                                     actions={(
-                                        <select
+                                        <select name="auditCenterTrafficSelectUser"
                                             className="form-select w-220"
                                             aria-label={copy.traffic.selectUser}
                                             value={selectedUser}
@@ -2443,7 +2444,7 @@ export default function AuditCenter() {
                                     title={copy.traffic.serverTrend}
                                     subtitle={trafficWindowCopy.serverTrendScope}
                                     actions={(
-                                        <select
+                                        <select name="auditCenterTrafficSelectServer"
                                             className="form-select w-220"
                                             aria-label={copy.traffic.selectServer}
                                             value={selectedServerId}
@@ -2545,7 +2546,7 @@ export default function AuditCenter() {
                                         })}
                                     </div>
                                 ) : (
-                                    <div className="table-container audit-inbound-breakdown-table-container audit-scrollable">
+                                    <div className="table-container audit-inbound-breakdown-table-container audit-scrollable" role="region" aria-label={copy.tables.inbound} tabIndex={0}>
                                         <table className="table audit-inbound-breakdown-table">
                                             <thead>
                                                 <tr>
@@ -2616,7 +2617,7 @@ export default function AuditCenter() {
                                         />
                                     </div>
                                 ) : (
-                                    <div className="table-container audit-scrollable">
+                                    <div className="table-container audit-scrollable" role="region" aria-label={copy.traffic.topUsers} tabIndex={0}>
                                         <table className="table audit-leaderboard-table audit-top-users-table">
                                             <thead>
                                                 <tr>
@@ -2679,7 +2680,7 @@ export default function AuditCenter() {
                                         />
                                     </div>
                                 ) : (
-                                    <div className="table-container audit-scrollable">
+                                    <div className="table-container audit-scrollable" role="region" aria-label={copy.traffic.topServers} tabIndex={0}>
                                         <table className="table audit-leaderboard-table audit-top-servers-table">
                                             <thead>
                                                 <tr>
@@ -2795,7 +2796,7 @@ export default function AuditCenter() {
                             <div className="audit-filter-grid audit-filter-grid--subscriptions">
                                 <label className="audit-filter-field">
                                     <span className="audit-filter-field-label">{copy.filters.fromDate}</span>
-                                    <input
+                                    <input name="auditCenterFiltersFromDate3"
                                         className="form-input"
                                         type="date"
                                         aria-label={copy.filters.fromDate}
@@ -2805,7 +2806,7 @@ export default function AuditCenter() {
                                 </label>
                                 <label className="audit-filter-field">
                                     <span className="audit-filter-field-label">{copy.filters.toDate}</span>
-                                    <input
+                                    <input name="auditCenterFiltersToDate3"
                                         className="form-input"
                                         type="date"
                                         aria-label={copy.filters.toDate}
@@ -2813,14 +2814,14 @@ export default function AuditCenter() {
                                         onChange={(e) => setAccessFilters((prev) => ({ ...prev, to: e.target.value }))}
                                     />
                                 </label>
-                                <input
+                                <input name="auditCenterFiltersUserEmailFilter"
                                     className="form-input"
                                     aria-label={copy.filters.userEmailFilter}
                                     placeholder={copy.filters.userEmailFilter}
                                     value={accessFilters.email}
                                     onChange={(e) => setAccessFilters((prev) => ({ ...prev, email: e.target.value }))}
                                 />
-                                <select
+                                <select name="auditCenterFiltersAllStatus"
                                     className="form-select"
                                     aria-label={copy.filters.allStatus}
                                     value={accessFilters.status}
@@ -2832,21 +2833,21 @@ export default function AuditCenter() {
                                     <option value="expired">{copy.filters.expired}</option>
                                     <option value="revoked">{copy.filters.revoked}</option>
                                 </select>
-                                <input
+                                <input name="auditCenterFiltersRealIp"
                                     className="form-input"
                                     aria-label={copy.filters.realIp}
                                     placeholder={copy.filters.realIp}
                                     value={accessFilters.ip}
                                     onChange={(e) => setAccessFilters((prev) => ({ ...prev, ip: e.target.value }))}
                                 />
-                                <input
+                                <input name="auditCenterFiltersTokenId"
                                     className="form-input"
                                     aria-label={copy.filters.tokenId}
                                     placeholder={copy.filters.tokenId}
                                     value={accessFilters.tokenId}
                                     onChange={(e) => setAccessFilters((prev) => ({ ...prev, tokenId: e.target.value }))}
                                 />
-                                <input
+                                <input name="auditCenterFiltersServerId2"
                                     className="form-input"
                                     aria-label={copy.filters.serverId}
                                     placeholder={copy.filters.serverId}

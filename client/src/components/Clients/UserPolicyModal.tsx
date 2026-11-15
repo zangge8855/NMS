@@ -202,7 +202,7 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                                     <div className="flex items-center justify-between mb-3">
                                         <span className="card-title">{t('comp.userPolicy.serversTitle')}</span>
                                         <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                            <input
+                                            <input name="userPolicyModalField"
                                                 type="checkbox"
                                                 checked={noServerLimit}
                                                 onChange={(e) => setNoServerLimit(e.target.checked)}
@@ -213,7 +213,7 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                                     <div className="flex flex-wrap gap-2">
                                         {servers.map((server) => (
                                             <label key={server.id} className="badge badge-neutral flex items-center gap-2 cursor-pointer">
-                                                <input
+                                                <input name="userPolicyModalField2"
                                                     type="checkbox"
                                                     disabled={noServerLimit}
                                                     checked={selectedServerIds.includes(server.id)}
@@ -232,7 +232,7 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                                     <div className="flex items-center justify-between mb-3">
                                         <span className="card-title">{t('comp.userPolicy.protocolsTitle')}</span>
                                         <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                            <input
+                                            <input name="userPolicyModalField3"
                                                 type="checkbox"
                                                 checked={noProtocolLimit}
                                                 onChange={(e) => setNoProtocolLimit(e.target.checked)}
@@ -243,7 +243,7 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                                     <div className="flex flex-wrap gap-2">
                                         {PROTOCOL_OPTIONS.map((item) => (
                                             <label key={item.key} className="badge badge-neutral flex items-center gap-2 cursor-pointer">
-                                                <input
+                                                <input name="userPolicyModalField4"
                                                     type="checkbox"
                                                     disabled={noProtocolLimit}
                                                     checked={selectedProtocols.includes(item.key)}
@@ -258,8 +258,8 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                                 <div className="card mt-4">
                                     <div className="card-title mb-3">{t('comp.userPolicy.quotasTitle')}</div>
                                     <div className="form-group">
-                                        <label className="form-label">{t('comp.userPolicy.limitIp')}</label>
-                                        <input
+                                        <label htmlFor="user-policy-modal-user-policy-limit-ip" className="form-label">{t('comp.userPolicy.limitIp')}</label>
+                                        <input id="user-policy-modal-user-policy-limit-ip" name="userPolicyModalUserPolicyLimitIp"
                                             className="form-input"
                                             type="number"
                                             min={0}
@@ -269,9 +269,9 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                                         <div className="text-xs text-muted mt-1">{t('comp.userPolicy.limitIpHelp')}</div>
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">{t('comp.userPolicy.trafficLimit')}</label>
+                                        <label htmlFor="user-policy-modal-user-policy-traffic-limit" className="form-label">{t('comp.userPolicy.trafficLimit')}</label>
                                         <div className="flex items-center gap-2">
-                                            <input
+                                            <input id="user-policy-modal-user-policy-traffic-limit" name="userPolicyModalUserPolicyTrafficLimit"
                                                 className="form-input"
                                                 type="number"
                                                 min={0}
@@ -285,9 +285,9 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="form-group">
-                                            <label className="form-label">{t('comp.userPolicy.speedUp')}</label>
+                                            <label htmlFor="user-policy-modal-user-policy-speed-up" className="form-label">{t('comp.userPolicy.speedUp')}</label>
                                             <div className="flex items-center gap-2">
-                                                <input
+                                                <input id="user-policy-modal-user-policy-speed-up" name="userPolicyModalUserPolicySpeedUp"
                                                     className="form-input"
                                                     type="number"
                                                     min={0}
@@ -299,9 +299,9 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                                             <div className="text-xs text-muted mt-1">{t('comp.userPolicy.speedHelp')}</div>
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">{t('comp.userPolicy.speedDown')}</label>
+                                            <label htmlFor="user-policy-modal-user-policy-speed-down" className="form-label">{t('comp.userPolicy.speedDown')}</label>
                                             <div className="flex items-center gap-2">
-                                                <input
+                                                <input id="user-policy-modal-user-policy-speed-down" name="userPolicyModalUserPolicySpeedDown"
                                                     className="form-input"
                                                     type="number"
                                                     min={0}

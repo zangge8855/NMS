@@ -421,18 +421,21 @@ export default function Inbounds() {
         setInbounds(sortVisibleInbounds(allResults, nextOrderMap, nextServerOrder));
         setLoading(false);
     };
+    const fetchAllInboundsRef = useRef(fetchAllInbounds);
+    fetchAllInboundsRef.current = fetchAllInbounds;
 
     useEffect(() => {
-        fetchAllInbounds({ preserveCurrent: bootstrapRef.current?.inbounds?.length > 0 });
+        if (!Array.isArray(servers)) return;
+        fetchAllInboundsRef.current({ preserveCurrent: bootstrapRef.current?.inbounds?.length > 0 });
     }, [servers]);
 
     useEffect(() => {
         const handlePageRefresh = () => {
-            fetchAllInbounds({ preserveCurrent: true, force: true });
+            fetchAllInboundsRef.current({ preserveCurrent: true, force: true });
         };
         window.addEventListener('nms:page-refresh', handlePageRefresh);
         return () => window.removeEventListener('nms:page-refresh', handlePageRefresh);
-    }, [servers]);
+    }, []);
 
     useEffect(() => {
         writeSessionSnapshot(INBOUNDS_SNAPSHOT_KEY, {
@@ -454,7 +457,7 @@ export default function Inbounds() {
     }, [resolvedActiveFilterServerId]);
 
     useEffect(() => {
-        setInbounds((prev) => sortVisibleInbounds(prev, inboundOrder));
+        setInbounds((prev) => sortInboundsByOrder(prev, inboundOrder, { serverOrder }));
     }, [inboundOrder, serverOrder]);
 
     useEffect(() => {
@@ -1277,7 +1280,7 @@ export default function Inbounds() {
                     <article key={`${clientIdentifier || cl.email || 'client'}-${idx}`} className={`inbounds-client-mobile-card${isClientSelected ? ' is-selected' : ''}`}>
                         <div className="inbounds-client-mobile-head">
                             <label className="inbounds-client-mobile-check">
-                                <input
+                                <input name={`inboundsField-${idx}`}
                                     type="checkbox"
                                     aria-label={t('pages.inbounds.selectClient', { name: cl.email || clientIdentifier || idx + 1 })}
                                     checked={isClientSelected}
@@ -1444,7 +1447,7 @@ export default function Inbounds() {
                     className="inbounds-toolbar glass-panel mb-6"
                     filters={(
                         <>
-                        <select
+                        <select name="inboundsFilterServerId"
                             className="form-select inbounds-filter-select"
                             aria-label={locale === 'en-US' ? 'Filter by server' : '按节点筛选'}
                             value={filterServerId}
@@ -1528,7 +1531,7 @@ export default function Inbounds() {
                             <thead>
                                 <tr>
                                     <th className="cell-checkbox">
-                                        <input
+                                        <input name="inboundsInboundsSelectAllRows"
                                             type="checkbox"
                                             aria-label={t('pages.inbounds.selectAllRows')}
                                             checked={filteredInbounds.length > 0 && selectedVisibleCount === filteredInbounds.length}
@@ -1611,7 +1614,7 @@ export default function Inbounds() {
                                                 onClick={() => setExpandedId(isExpanded ? null : ib.uiKey)}
                                             >
                                                 <td data-label="" onClick={e => e.stopPropagation()} className="text-center mobile-checkbox-cell">
-                                                    <input
+                                                    <input name={`inboundsField2-${index}`}
                                                         type="checkbox"
                                                         aria-label={t('pages.inbounds.selectInboundRow', { name: ib.remark || ib.port || ib.id })}
                                                         checked={isSelected}
@@ -1638,7 +1641,7 @@ export default function Inbounds() {
                                                 >
                                                     <div className="inbounds-sequence-cell">
                                                         {canAdjustOrder ? (
-                                                            <input
+                                                            <input name={`inboundsField3-${index}`}
                                                                 type="number"
                                                                 min="1"
                                                                 inputMode="numeric"
@@ -1846,12 +1849,12 @@ export default function Inbounds() {
                                                                 )}
                                                             </div>
                                                             {isCompactLayout ? renderMobileClientCards(ib, clients) : (
-                                                            <div className="table-container">
+                                                            <div className="table-container" role="region" aria-label={t('comp.common.dataTable')} tabIndex={0}>
                                                                 <table className="table w-full text-xs inbounds-clients-table">
                                                                 <thead>
                                                                     <tr>
                                                                         <th className="cell-checkbox">
-                                                                            <input
+                                                                            <input name={`inboundsInboundsSelectAllClients-${index}`}
                                                                                 type="checkbox"
                                                                                 aria-label={t('pages.inbounds.selectAllClients')}
                                                                                 checked={allInboundClientsSelected}
@@ -1892,7 +1895,7 @@ export default function Inbounds() {
                                                                         return (
                                                                         <tr key={idx}>
                                                                             <td data-label="" onClick={(e) => e.stopPropagation()} className="text-center mobile-checkbox-cell">
-                                                                                <input
+                                                                                <input name={`inboundsField4-${idx}`}
                                                                                     type="checkbox"
                                                                                     aria-label={t('pages.inbounds.selectClient', { name: cl.email || clientIdentifier || idx + 1 })}
                                                                                     checked={isClientSelected}
@@ -2090,8 +2093,8 @@ export default function Inbounds() {
                                         <div>{deepCopy.selectedUsers}: <strong>{clientAdjustTarget.clients.length}</strong></div>
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">{deepCopy.expiryDelta}</label>
-                                        <input
+                                        <label htmlFor="inbounds-expiry-delta" className="form-label">{deepCopy.expiryDelta}</label>
+                                        <input id="inbounds-expiry-delta" name="inboundsExpiryDelta"
                                             type="number"
                                             className="form-input"
                                             step="1"
@@ -2102,9 +2105,9 @@ export default function Inbounds() {
                                         <p className="text-xs text-muted mt-1">{deepCopy.expiryHint}</p>
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">{deepCopy.trafficDelta}</label>
+                                        <label htmlFor="inbounds-traffic-delta" className="form-label">{deepCopy.trafficDelta}</label>
                                         <div className="flex items-center gap-2">
-                                            <input
+                                            <input id="inbounds-traffic-delta" name="inboundsTrafficDelta"
                                                 type="number"
                                                 className="form-input"
                                                 step="0.5"
@@ -2146,8 +2149,8 @@ export default function Inbounds() {
                                     </div>
                                     <div className="grid-auto-280-tight">
                                         <div className="form-group mb-0">
-                                            <label className="form-label">{t('comp.users.provisionExpiryLabel')}</label>
-                                            <input
+                                            <label htmlFor="inbounds-users-provision-expiry-label" className="form-label">{t('comp.users.provisionExpiryLabel')}</label>
+                                            <input id="inbounds-users-provision-expiry-label" name="inboundsUsersProvisionExpiryLabel"
                                                 type="datetime-local"
                                                 className="form-input"
                                                 value={entitlementExpiryDate}
@@ -2156,8 +2159,8 @@ export default function Inbounds() {
                                             <p className="text-xs text-muted mt-1">{t('comp.users.provisionExpiryHint')}</p>
                                         </div>
                                         <div className="form-group mb-0">
-                                            <label className="form-label">{t('comp.users.provisionIpLimitLabel')}</label>
-                                            <input
+                                            <label htmlFor="inbounds-users-provision-ip-limit-label" className="form-label">{t('comp.users.provisionIpLimitLabel')}</label>
+                                            <input id="inbounds-users-provision-ip-limit-label" name="inboundsUsersProvisionIpLimitLabel"
                                                 type="number"
                                                 className="form-input"
                                                 min={0}
@@ -2167,9 +2170,9 @@ export default function Inbounds() {
                                             <p className="text-xs text-muted mt-1">{t('comp.users.provisionIpLimitHint')}</p>
                                         </div>
                                         <div className="form-group mb-0">
-                                            <label className="form-label">{t('comp.users.provisionTrafficLimitLabel')}</label>
+                                            <label htmlFor="inbounds-users-provision-traffic-limit-label" className="form-label">{t('comp.users.provisionTrafficLimitLabel')}</label>
                                             <div className="flex items-center gap-2">
-                                                <input
+                                                <input id="inbounds-users-provision-traffic-limit-label" name="inboundsUsersProvisionTrafficLimitLabel"
                                                     type="number"
                                                     className="form-input"
                                                     min={0}
@@ -2182,8 +2185,8 @@ export default function Inbounds() {
                                             <p className="text-xs text-muted mt-1">{t('comp.users.provisionTrafficLimitHint')}</p>
                                         </div>
                                         <div className="form-group mb-0">
-                                            <label className="form-label">{t('comp.users.provisionResetLabel')}</label>
-                                            <input
+                                            <label htmlFor="inbounds-users-provision-reset-label" className="form-label">{t('comp.users.provisionResetLabel')}</label>
+                                            <input id="inbounds-users-provision-reset-label" name="inboundsUsersProvisionResetLabel"
                                                 type="number"
                                                 className="form-input"
                                                 min={0}
@@ -2193,8 +2196,8 @@ export default function Inbounds() {
                                             <p className="text-xs text-muted mt-1">{t('comp.users.provisionResetHint')}</p>
                                         </div>
                                         <div className="form-group mb-0">
-                                            <label className="form-label">{t('comp.users.provisionSpeedLimitUpLabel')}</label>
-                                            <input
+                                            <label htmlFor="inbounds-users-provision-speed-limit-up-label" className="form-label">{t('comp.users.provisionSpeedLimitUpLabel')}</label>
+                                            <input id="inbounds-users-provision-speed-limit-up-label" name="inboundsUsersProvisionSpeedLimitUpLabel"
                                                 type="number"
                                                 className="form-input"
                                                 min={0}
@@ -2204,8 +2207,8 @@ export default function Inbounds() {
                                             <p className="text-xs text-muted mt-1">{t('comp.users.provisionSpeedLimitUpHint')}</p>
                                         </div>
                                         <div className="form-group mb-0">
-                                            <label className="form-label">{t('comp.users.provisionSpeedLimitDownLabel')}</label>
-                                            <input
+                                            <label htmlFor="inbounds-users-provision-speed-limit-down-label" className="form-label">{t('comp.users.provisionSpeedLimitDownLabel')}</label>
+                                            <input id="inbounds-users-provision-speed-limit-down-label" name="inboundsUsersProvisionSpeedLimitDownLabel"
                                                 type="number"
                                                 className="form-input"
                                                 min={0}
@@ -2215,8 +2218,8 @@ export default function Inbounds() {
                                             <p className="text-xs text-muted mt-1">{t('comp.users.provisionSpeedLimitDownHint')}</p>
                                         </div>
                                         <div className="form-group mb-0">
-                                            <label className="form-label">{t('comp.users.provisionTgIdLabel')}</label>
-                                            <input
+                                            <label htmlFor="inbounds-users-provision-tg-id-label" className="form-label">{t('comp.users.provisionTgIdLabel')}</label>
+                                            <input id="inbounds-users-provision-tg-id-label" name="inboundsUsersProvisionTgIdLabel"
                                                 type="number"
                                                 className="form-input"
                                                 min={0}
@@ -2226,8 +2229,8 @@ export default function Inbounds() {
                                             <p className="text-xs text-muted mt-1">{t('comp.users.provisionTgIdHint')}</p>
                                         </div>
                                         <div className="form-group mb-0">
-                                            <label className="form-label">{t('comp.users.provisionGroupLabel')}</label>
-                                            <input
+                                            <label htmlFor="inbounds-users-provision-group-label" className="form-label">{t('comp.users.provisionGroupLabel')}</label>
+                                            <input id="inbounds-users-provision-group-label" name="inboundsUsersProvisionGroupLabel"
                                                 type="text"
                                                 className="form-input"
                                                 value={entitlementGroup}
@@ -2238,8 +2241,8 @@ export default function Inbounds() {
                                         </div>
                                     </div>
                                     <div className="form-group mt-4">
-                                        <label className="form-label">{t('comp.users.provisionCommentLabel')}</label>
-                                        <input
+                                        <label htmlFor="inbounds-users-provision-comment-label" className="form-label">{t('comp.users.provisionCommentLabel')}</label>
+                                        <input id="inbounds-users-provision-comment-label" name="inboundsUsersProvisionCommentLabel"
                                             type="text"
                                             className="form-input"
                                             value={entitlementComment}

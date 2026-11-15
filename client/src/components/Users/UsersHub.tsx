@@ -710,19 +710,25 @@ export default function UsersHub() {
         setGroupsLoading(false);
     };
 
+    const fetchDataRef = useRef(fetchData);
+    fetchDataRef.current = fetchData;
+    const fetchGroupsRef = useRef(fetchGroups);
+    fetchGroupsRef.current = fetchGroups;
+
     useEffect(() => {
-        fetchData();
-        fetchGroups();
+        if (serverInventoryKey === undefined) return;
+        fetchDataRef.current();
+        fetchGroupsRef.current();
     }, [serverInventoryKey]);
 
     useEffect(() => {
         const handlePageRefresh = (event) => {
             event.preventDefault();
-            fetchData({ forceUsers: true, forceStats: true });
+            fetchDataRef.current({ forceUsers: true, forceStats: true });
         };
         window.addEventListener('nms:page-refresh', handlePageRefresh);
         return () => window.removeEventListener('nms:page-refresh', handlePageRefresh);
-    }, [serverInventoryKey]);
+    }, []);
 
     useEffect(() => {
         const hasStatsSnapshot = (
@@ -1174,7 +1180,7 @@ export default function UsersHub() {
             >
                 <div className="users-mobile-card-head">
                     <label className="users-mobile-check">
-                        <input
+                        <input name="usersHubField"
                             type="checkbox"
                             aria-label={t('pages.usersHub.selectUser', { name: user.username || user.email || user.id })}
                             checked={selectedIds.has(user.id)}
@@ -1926,17 +1932,20 @@ export default function UsersHub() {
         }
     };
 
+    const openEditModalRef = useRef(openEditModal);
+    openEditModalRef.current = openEditModal;
+
     // Auto-open edit modal from URL query param
     useEffect(() => {
         const editId = searchParams.get('edit');
         if (editId && users.length > 0 && !loading) {
             const targetUser = users.find(u => u.id === editId);
             if (targetUser) {
-                openEditModal(targetUser);
+                openEditModalRef.current(targetUser);
                 setSearchParams({}, { replace: true });
             }
         }
-    }, [users, loading, searchParams]);
+    }, [users, loading, searchParams, setSearchParams]);
 
     const openGuestModal = () => {
         setGuestResult(null);
@@ -2004,7 +2013,7 @@ export default function UsersHub() {
                         <div className="users-filter-composite">
                             <div className="account-search-shell flex-1 max-w-sm">
                                 <HiOutlineMagnifyingGlass className="account-search-icon" />
-                                <input
+                                <input name="usersHubToolbarSearchPlaceholder"
                                     className="form-input account-search-input"
                                     aria-label={t('pages.usersHub.toolbar.searchPlaceholder')}
                                     placeholder={t('pages.usersHub.toolbar.searchPlaceholder')}
@@ -2124,7 +2133,7 @@ export default function UsersHub() {
                     <div className="users-mobile-list">
                         <div className="users-mobile-list-head glass-panel">
                             <label className="users-mobile-list-toggle">
-                                <input
+                                <input name="usersHubUsersHubSelectAllRows"
                                     type="checkbox"
                                     aria-label={t('pages.usersHub.selectAllRows')}
                                     checked={enrichedUsers.length > 0 && selectedUsers.length === enrichedUsers.length}
@@ -2196,7 +2205,7 @@ export default function UsersHub() {
                             <thead>
                                 <tr>
                                     <th className="users-select-column">
-                                        <input
+                                        <input name="usersHubUsersHubSelectAllRows2"
                                             type="checkbox"
                                             aria-label={t('pages.usersHub.selectAllRows')}
                                             checked={enrichedUsers.length > 0 && selectedUsers.length === enrichedUsers.length}
@@ -2283,7 +2292,7 @@ export default function UsersHub() {
                                             onClick={selectedIds.size > 0 ? () => toggleSelect(user.id) : undefined}
                                         >
                                                 <td className="mobile-checkbox-cell users-select-cell" data-label="" onClick={(e) => e.stopPropagation()}>
-                                                    <input
+                                                    <input name={`usersHubField2-${index}`}
                                                         type="checkbox"
                                                         aria-label={t('pages.usersHub.selectUser', { name: user.username || user.email || user.id })}
                                                         checked={selectedIds.has(user.id)}
@@ -2477,20 +2486,20 @@ export default function UsersHub() {
                             <div className="modal-body">
                                 <div className="grid-auto-280-tight">
                                     <div className="form-group">
-                                        <label className="form-label">{t('pages.usersHub.groups.modal.nameLabel')}</label>
-                                        <input className="form-input" value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder={t('pages.usersHub.groups.modal.namePlaceholder')} />
+                                        <label htmlFor="users-hub-modal-name-label" className="form-label">{t('pages.usersHub.groups.modal.nameLabel')}</label>
+                                        <input id="users-hub-modal-name-label" name="usersHubModalNameLabel" className="form-input" value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder={t('pages.usersHub.groups.modal.namePlaceholder')} />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">{t('pages.usersHub.groups.modal.statusLabel')}</label>
-                                        <select className="form-select" value={groupEnabled ? 'enabled' : 'disabled'} onChange={(e) => setGroupEnabled(e.target.value === 'enabled')}>
+                                        <label htmlFor="users-hub-modal-status-label" className="form-label">{t('pages.usersHub.groups.modal.statusLabel')}</label>
+                                        <select id="users-hub-modal-status-label" name="usersHubModalStatusLabel" className="form-select" value={groupEnabled ? 'enabled' : 'disabled'} onChange={(e) => setGroupEnabled(e.target.value === 'enabled')}>
                                             <option value="enabled">{t('pages.usersHub.groups.modal.statusEnable')}</option>
                                             <option value="disabled">{t('pages.usersHub.groups.modal.statusDisable')}</option>
                                         </select>
                                     </div>
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">{t('pages.usersHub.groups.modal.descriptionLabel')}</label>
-                                    <input className="form-input" value={groupDescription} onChange={(e) => setGroupDescription(e.target.value)} placeholder={t('pages.usersHub.groups.modal.descriptionPlaceholder')} />
+                                    <label htmlFor="users-hub-modal-description-label" className="form-label">{t('pages.usersHub.groups.modal.descriptionLabel')}</label>
+                                    <input id="users-hub-modal-description-label" name="usersHubModalDescriptionLabel" className="form-input" value={groupDescription} onChange={(e) => setGroupDescription(e.target.value)} placeholder={t('pages.usersHub.groups.modal.descriptionPlaceholder')} />
                                 </div>
 
                                 <div className="mb-3">
@@ -2506,7 +2515,7 @@ export default function UsersHub() {
                                             <EmptyState title={t('pages.usersHub.groups.modal.noAvailableInbounds')} size="compact" />
                                         ) : allInbounds.map((inbound) => (
                                             <label key={inbound.key} className="list-selection-item">
-                                                <input
+                                                <input name="usersHubField3"
                                                     type="checkbox"
                                                     checked={groupAllowedInboundKeys.includes(inbound.key)}
                                                     onChange={(e) => toggleGroupAllowedInbound(inbound.key, e.target.checked)}
@@ -2531,7 +2540,7 @@ export default function UsersHub() {
                                         <span className="badge badge-info">{t('pages.usersHub.groups.modal.selectedCount', { count: groupMemberIds.length })}</span>
                                     </div>
                                     <div className="flex items-center gap-2 mb-2">
-                                        <input
+                                        <input name="usersHubGroupMemberQuery"
                                             className="form-input"
                                             value={groupMemberQuery}
                                             onChange={(e) => setGroupMemberQuery(e.target.value)}
@@ -2559,7 +2568,7 @@ export default function UsersHub() {
                                             const movingFromOtherGroup = currentGroupName && String(user.groupId || '') !== String(editingGroup?.id || '');
                                             return (
                                                 <label key={user.id} className="list-selection-item">
-                                                    <input
+                                                    <input name="usersHubField4"
                                                         type="checkbox"
                                                         checked={groupMemberIds.includes(user.id)}
                                                         onChange={(e) => toggleGroupMember(user.id, e.target.checked)}
@@ -2583,13 +2592,13 @@ export default function UsersHub() {
                                     <div className="text-sm font-medium mb-2">{t('pages.usersHub.groups.modal.limitsLabel')}</div>
                                     <div className="grid-auto-280-tight">
                                         <div className="form-group mb-0">
-                                            <label className="form-label">{t('pages.usersHub.groups.modal.limitIpLabel')}</label>
-                                            <input className="form-input" type="number" min={0} value={groupLimitIp} onChange={(e) => setGroupLimitIp(e.target.value)} />
+                                            <label htmlFor="users-hub-modal-limit-ip-label" className="form-label">{t('pages.usersHub.groups.modal.limitIpLabel')}</label>
+                                            <input id="users-hub-modal-limit-ip-label" name="usersHubModalLimitIpLabel" className="form-input" type="number" min={0} value={groupLimitIp} onChange={(e) => setGroupLimitIp(e.target.value)} />
                                         </div>
                                         <div className="form-group mb-0">
-                                            <label className="form-label">{t('pages.usersHub.groups.modal.limitTrafficLabel')}</label>
+                                            <label htmlFor="users-hub-modal-limit-traffic-label" className="form-label">{t('pages.usersHub.groups.modal.limitTrafficLabel')}</label>
                                             <div className="flex items-center gap-2">
-                                                <input className="form-input" type="number" min={0} step="0.5" value={groupTrafficLimitGb} onChange={(e) => setGroupTrafficLimitGb(e.target.value)} />
+                                                <input id="users-hub-modal-limit-traffic-label" name="usersHubModalLimitTrafficLabel" className="form-input" type="number" min={0} step="0.5" value={groupTrafficLimitGb} onChange={(e) => setGroupTrafficLimitGb(e.target.value)} />
                                                 <span className="text-sm text-muted">GB</span>
                                             </div>
                                         </div>
@@ -2619,8 +2628,8 @@ export default function UsersHub() {
                             <div className="modal-body">
                                 <div className="page-field-grid">
                                     <div className="form-group">
-                                    <label className="form-label">{t('pages.usersHub.createModal.username')}</label>
-                                    <input
+                                    <label htmlFor="users-hub-create-modal-username" className="form-label">{t('pages.usersHub.createModal.username')}</label>
+                                    <input id="users-hub-create-modal-username" name="usersHubCreateModalUsername"
                                         className="form-input"
                                         value={createUsername}
                                         onChange={(e) => setCreateUsername(e.target.value)}
@@ -2629,8 +2638,8 @@ export default function UsersHub() {
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">{t('pages.usersHub.createModal.email')}</label>
-                                    <input
+                                    <label htmlFor="users-hub-create-modal-email" className="form-label">{t('pages.usersHub.createModal.email')}</label>
+                                    <input id="users-hub-create-modal-email" name="usersHubCreateModalEmail"
                                         type="email"
                                         className="form-input"
                                         value={createEmail}
@@ -2639,8 +2648,8 @@ export default function UsersHub() {
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">{t('pages.usersHub.createModal.userGroup')}</label>
-                                    <select
+                                    <label htmlFor="users-hub-create-modal-user-group" className="form-label">{t('pages.usersHub.createModal.userGroup')}</label>
+                                    <select id="users-hub-create-modal-user-group" name="usersHubCreateModalUserGroup"
                                         className="form-select"
                                         value={createGroupId}
                                         onChange={(e) => setCreateGroupId(e.target.value)}
@@ -2652,8 +2661,8 @@ export default function UsersHub() {
                                     </select>
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">{locale === 'en-US' ? 'Account Role' : '账号角色'}</label>
-                                    <select
+                                    <label htmlFor="users-hub-shell-role-user" className="form-label">{locale === 'en-US' ? 'Account Role' : '账号角色'}</label>
+                                    <select id="users-hub-shell-role-user" name="usersHubShellRoleUser"
                                         className="form-select"
                                         value={createRole}
                                         onChange={(e) => setCreateRole(e.target.value as any)}
@@ -2665,9 +2674,9 @@ export default function UsersHub() {
                                     </select>
                                 </div>
                                 <div className="form-group page-field-wide">
-                                    <label className="form-label">{t('pages.usersHub.createModal.initialPassword')}</label>
+                                    <label htmlFor="users-hub-create-modal-initial-password" className="form-label">{t('pages.usersHub.createModal.initialPassword')}</label>
                                     <div className="password-field">
-                                        <input
+                                        <input id="users-hub-create-modal-initial-password" name="usersHubCreateModalInitialPassword"
                                             type={showCreatePassword ? 'text' : 'password'}
                                             className="form-input font-mono"
                                             value={createPassword}
@@ -2715,7 +2724,7 @@ export default function UsersHub() {
                                 </div>
                                 <div className="form-group mt-4">
                                     <label className="form-check-label">
-                                        <input
+                                        <input name="usersHubField5"
                                             type="checkbox"
                                             checked={createProvisionAfterCreate}
                                             onChange={(e) => setCreateProvisionAfterCreate(e.target.checked)}
@@ -2747,16 +2756,16 @@ export default function UsersHub() {
                             <div className="modal-body">
                                 <div className="page-field-grid">
                                     <div className="form-group">
-                                    <label className="form-label">{t('comp.users.editUsername')}</label>
-                                    <input
+                                    <label htmlFor="users-hub-users-edit-username" className="form-label">{t('comp.users.editUsername')}</label>
+                                    <input id="users-hub-users-edit-username" name="usersHubUsersEditUsername"
                                         className="form-input"
                                         value={editUsername}
                                         onChange={(e) => setEditUsername(e.target.value)}
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">{t('comp.users.editEmail')}</label>
-                                    <input
+                                    <label htmlFor="users-hub-users-edit-email" className="form-label">{t('comp.users.editEmail')}</label>
+                                    <input id="users-hub-users-edit-email" name="usersHubUsersEditEmail"
                                         type="email"
                                         className="form-input"
                                         value={editEmail}
@@ -2764,8 +2773,8 @@ export default function UsersHub() {
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">{t('comp.users.provisionEmailLabel')}</label>
-                                    <input
+                                    <label htmlFor="users-hub-users-provision-email-label" className="form-label">{t('comp.users.provisionEmailLabel')}</label>
+                                    <input id="users-hub-users-provision-email-label" name="usersHubUsersProvisionEmailLabel"
                                         type="email"
                                         className="form-input"
                                         value={editSubscriptionEmail}
@@ -2779,8 +2788,8 @@ export default function UsersHub() {
                                     </p>
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">{t('comp.users.editGroup')}</label>
-                                    <select
+                                    <label htmlFor="users-hub-users-edit-group" className="form-label">{t('comp.users.editGroup')}</label>
+                                    <select id="users-hub-users-edit-group" name="usersHubUsersEditGroup"
                                         className="form-select"
                                         value={editGroupId}
                                         onChange={(e) => {
@@ -2796,7 +2805,7 @@ export default function UsersHub() {
                                     </select>
                                     {editGroupId && (
                                         <label className="badge badge-info flex items-center gap-2 cursor-pointer mt-2">
-                                            <input
+                                            <input name="usersHubField6"
                                                 type="checkbox"
                                                 checked={editInheritGroup}
                                                 onChange={(e) => setEditInheritGroup(e.target.checked)}
@@ -2806,7 +2815,7 @@ export default function UsersHub() {
                                     )}
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">{t('comp.users.editStatus')}</label>
+                                    <span className="form-label">{t('comp.users.editStatus')}</span>
                                     <div className="users-edit-status-toggle" role="group" aria-label={t('comp.users.editStatus')}>
                                         <button
                                             type="button"
@@ -2832,9 +2841,9 @@ export default function UsersHub() {
                                     </p>
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">{t('comp.users.editPassword')}</label>
+                                    <label htmlFor="users-hub-users-edit-password" className="form-label">{t('comp.users.editPassword')}</label>
                                     <div className="flex gap-2">
-                                        <input
+                                        <input id="users-hub-users-edit-password" name="usersHubUsersEditPassword"
                                             type={showEditPassword ? 'text' : 'password'}
                                             className="form-input font-mono"
                                             value={editPassword}
@@ -2865,7 +2874,7 @@ export default function UsersHub() {
                                 </div>
                                 <div className="form-group">
                                     <div className="flex items-center justify-between mb-1">
-                                        <label className="form-label mb-0">{t('comp.users.provisionExpiryLabel')}</label>
+                                        <label htmlFor="users-hub-users-provision-expiry-label" className="form-label mb-0">{t('comp.users.provisionExpiryLabel')}</label>
                                         <div className="flex items-center gap-1 flex-wrap">
                                             {EXPIRY_PRESET_DAYS.map((days) => (
                                                 <button
@@ -2891,7 +2900,7 @@ export default function UsersHub() {
                                             </button>
                                         </div>
                                     </div>
-                                    <input
+                                    <input id="users-hub-users-provision-expiry-label" name="usersHubUsersProvisionExpiryLabel"
                                         type="datetime-local"
                                         className="form-input"
                                         value={editExpiryDate}
@@ -2901,7 +2910,7 @@ export default function UsersHub() {
                                 </div>
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">{t('comp.users.editPolicy')}</label>
+                                    <span className="form-label">{t('comp.users.editPolicy')}</span>
                                     {editPolicyLoading ? (
                                         <div className="text-center p-4"><span className="spinner" /></div>
                                     ) : editPolicyError ? (
@@ -2930,7 +2939,7 @@ export default function UsersHub() {
                                                 <div className="flex items-center justify-between mb-2">
                                                     <span className="text-sm font-medium">{t('comp.users.editServerAccess')}</span>
                                                     <label className="flex items-center gap-2 text-xs cursor-pointer">
-                                                        <input
+                                                        <input name="usersHubField7"
                                                             type="checkbox"
                                                             checked={editNoServerLimit}
                                                             onChange={(e) => setEditNoServerLimit(e.target.checked)}
@@ -2941,7 +2950,7 @@ export default function UsersHub() {
                                                 <div className="flex flex-wrap gap-2">
                                                     {servers.map((s) => (
                                                         <label key={s.id} className="badge badge-neutral flex items-center gap-2 cursor-pointer text-xs">
-                                                            <input
+                                                            <input name="usersHubField8"
                                                                 type="checkbox"
                                                                 disabled={editNoServerLimit}
                                                                 checked={editServerIds.includes(s.id)}
@@ -2962,7 +2971,7 @@ export default function UsersHub() {
                                                 <div className="flex items-center justify-between mb-2">
                                                     <span className="text-sm font-medium">{t('comp.users.editProtocolAccess')}</span>
                                                     <label className="flex items-center gap-2 text-xs cursor-pointer">
-                                                        <input
+                                                        <input name="usersHubField9"
                                                             type="checkbox"
                                                             checked={editNoProtocolLimit}
                                                             onChange={(e) => setEditNoProtocolLimit(e.target.checked)}
@@ -2973,7 +2982,7 @@ export default function UsersHub() {
                                                 <div className="flex flex-wrap gap-2">
                                                     {PROTOCOL_OPTIONS.map((p) => (
                                                         <label key={p.key} className="badge badge-neutral flex items-center gap-2 cursor-pointer text-xs">
-                                                            <input
+                                                            <input name="usersHubField10"
                                                                 type="checkbox"
                                                                 disabled={editNoProtocolLimit}
                                                                 checked={editProtocols.includes(p.key)}
@@ -2995,8 +3004,8 @@ export default function UsersHub() {
                                                 <div className="text-xs text-muted mb-3">{t('comp.users.editLimitDesc')}</div>
                                                 <div className="grid-auto-280-tight">
                                                     <div className="form-group mb-0">
-                                                        <label className="form-label">{t('comp.users.provisionIpLimitLabel')}</label>
-                                                        <input
+                                                        <label htmlFor="users-hub-users-provision-ip-limit-label" className="form-label">{t('comp.users.provisionIpLimitLabel')}</label>
+                                                        <input id="users-hub-users-provision-ip-limit-label" name="usersHubUsersProvisionIpLimitLabel"
                                                             type="number"
                                                             className="form-input"
                                                             min={0}
@@ -3006,9 +3015,9 @@ export default function UsersHub() {
                                                         <p className="text-muted text-sm mt-1">{t('comp.users.provisionIpLimitHint')}</p>
                                                     </div>
                                                     <div className="form-group mb-0">
-                                                        <label className="form-label">{t('comp.users.provisionTrafficLimitLabel')}</label>
+                                                        <label htmlFor="users-hub-users-provision-traffic-limit-label" className="form-label">{t('comp.users.provisionTrafficLimitLabel')}</label>
                                                         <div className="flex items-center gap-2">
-                                                            <input
+                                                            <input id="users-hub-users-provision-traffic-limit-label" name="usersHubUsersProvisionTrafficLimitLabel"
                                                                 type="number"
                                                                 className="form-input"
                                                                 min={0}
@@ -3021,8 +3030,8 @@ export default function UsersHub() {
                                                         <p className="text-muted text-sm mt-1">{t('comp.users.provisionTrafficLimitHint')}</p>
                                                     </div>
                                                     <div className="form-group mb-0">
-                                                        <label className="form-label">{t('comp.users.provisionSpeedLimitUpLabel')}</label>
-                                                        <input
+                                                        <label htmlFor="users-hub-users-provision-speed-limit-up-label" className="form-label">{t('comp.users.provisionSpeedLimitUpLabel')}</label>
+                                                        <input id="users-hub-users-provision-speed-limit-up-label" name="usersHubUsersProvisionSpeedLimitUpLabel"
                                                             type="number"
                                                             className="form-input"
                                                             min={0}
@@ -3032,8 +3041,8 @@ export default function UsersHub() {
                                                         <p className="text-muted text-sm mt-1">{t('comp.users.provisionSpeedLimitUpHint')}</p>
                                                     </div>
                                                     <div className="form-group mb-0">
-                                                        <label className="form-label">{t('comp.users.provisionSpeedLimitDownLabel')}</label>
-                                                        <input
+                                                        <label htmlFor="users-hub-users-provision-speed-limit-down-label" className="form-label">{t('comp.users.provisionSpeedLimitDownLabel')}</label>
+                                                        <input id="users-hub-users-provision-speed-limit-down-label" name="usersHubUsersProvisionSpeedLimitDownLabel"
                                                             type="number"
                                                             className="form-input"
                                                             min={0}
@@ -3043,8 +3052,8 @@ export default function UsersHub() {
                                                         <p className="text-muted text-sm mt-1">{t('comp.users.provisionSpeedLimitDownHint')}</p>
                                                     </div>
                                                     <div className="form-group mb-0">
-                                                        <label className="form-label">{t('comp.users.provisionTgIdLabel')}</label>
-                                                        <input
+                                                        <label htmlFor="users-hub-users-provision-tg-id-label" className="form-label">{t('comp.users.provisionTgIdLabel')}</label>
+                                                        <input id="users-hub-users-provision-tg-id-label" name="usersHubUsersProvisionTgIdLabel"
                                                             type="number"
                                                             className="form-input"
                                                             min={0}
@@ -3054,8 +3063,8 @@ export default function UsersHub() {
                                                         <p className="text-muted text-sm mt-1">{t('comp.users.provisionTgIdHint')}</p>
                                                     </div>
                                                     <div className="form-group mb-0">
-                                                        <label className="form-label">{t('comp.users.provisionResetLabel')}</label>
-                                                        <input
+                                                        <label htmlFor="users-hub-users-provision-reset-label" className="form-label">{t('comp.users.provisionResetLabel')}</label>
+                                                        <input id="users-hub-users-provision-reset-label" name="usersHubUsersProvisionResetLabel"
                                                             type="number"
                                                             className="form-input"
                                                             min={0}
@@ -3065,8 +3074,8 @@ export default function UsersHub() {
                                                         <p className="text-muted text-sm mt-1">{t('comp.users.provisionResetHint')}</p>
                                                     </div>
                                                     <div className="form-group mb-0">
-                                                        <label className="form-label">{t('comp.users.provisionGroupLabel')}</label>
-                                                        <input
+                                                        <label htmlFor="users-hub-users-provision-group-label" className="form-label">{t('comp.users.provisionGroupLabel')}</label>
+                                                        <input id="users-hub-users-provision-group-label" name="usersHubUsersProvisionGroupLabel"
                                                             type="text"
                                                             className="form-input"
                                                             value={editGroup}
@@ -3075,8 +3084,8 @@ export default function UsersHub() {
                                                         <p className="text-muted text-sm mt-1">{t('comp.users.provisionGroupHint')}</p>
                                                     </div>
                                                     <div className="form-group mb-0">
-                                                        <label className="form-label">{t('comp.users.provisionCommentLabel')}</label>
-                                                        <input
+                                                        <label htmlFor="users-hub-users-provision-comment-label" className="form-label">{t('comp.users.provisionCommentLabel')}</label>
+                                                        <input id="users-hub-users-provision-comment-label" name="usersHubUsersProvisionCommentLabel"
                                                             type="text"
                                                             className="form-input"
                                                             value={editComment}
@@ -3116,8 +3125,8 @@ export default function UsersHub() {
                                 ) : (
                                     <>
                                         <div className="form-group">
-                                            <label className="form-label">{t('comp.users.provisionEmailLabel')}</label>
-                                            <input
+                                            <label htmlFor="users-hub-users-provision-email-label-2" className="form-label">{t('comp.users.provisionEmailLabel')}</label>
+                                            <input id="users-hub-users-provision-email-label-2" name="usersHubUsersProvisionEmailLabel2"
                                                 type="email"
                                                 className="form-input"
                                                 value={provisionEmail}
@@ -3132,7 +3141,7 @@ export default function UsersHub() {
                                             <div className="grid-auto-280-tight">
                                                 <div className="form-group mb-0">
                                                     <div className="flex items-center justify-between mb-1">
-                                                        <label className="form-label mb-0">{t('comp.users.provisionExpiryLabel')}</label>
+                                                        <label htmlFor="users-hub-users-provision-expiry-label-2" className="form-label mb-0">{t('comp.users.provisionExpiryLabel')}</label>
                                                         <div className="flex items-center gap-1 flex-wrap">
                                                             {EXPIRY_PRESET_DAYS.map((days) => (
                                                                 <button
@@ -3158,7 +3167,7 @@ export default function UsersHub() {
                                                             </button>
                                                         </div>
                                                     </div>
-                                                    <input
+                                                    <input id="users-hub-users-provision-expiry-label-2" name="usersHubUsersProvisionExpiryLabel2"
                                                         type="datetime-local"
                                                         className="form-input"
                                                         value={provisionExpiryDate}
@@ -3191,8 +3200,8 @@ export default function UsersHub() {
                                                     )}
                                                 </div>
                                                 <div className="form-group mb-0">
-                                                    <label className="form-label">{t('comp.users.provisionIpLimitLabel')}</label>
-                                                    <input
+                                                    <label htmlFor="users-hub-users-provision-ip-limit-label-2" className="form-label">{t('comp.users.provisionIpLimitLabel')}</label>
+                                                    <input id="users-hub-users-provision-ip-limit-label-2" name="usersHubUsersProvisionIpLimitLabel2"
                                                         type="number"
                                                         className="form-input"
                                                         min={0}
@@ -3202,9 +3211,9 @@ export default function UsersHub() {
                                                     <p className="text-xs text-muted mt-1">{t('comp.users.provisionIpLimitHint')}</p>
                                                 </div>
                                                 <div className="form-group mb-0">
-                                                    <label className="form-label">{t('comp.users.provisionTrafficLimitLabel')}</label>
+                                                    <label htmlFor="users-hub-users-provision-traffic-limit-label-2" className="form-label">{t('comp.users.provisionTrafficLimitLabel')}</label>
                                                     <div className="flex items-center gap-2">
-                                                        <input
+                                                        <input id="users-hub-users-provision-traffic-limit-label-2" name="usersHubUsersProvisionTrafficLimitLabel2"
                                                             type="number"
                                                             className="form-input"
                                                             min={0}
@@ -3217,8 +3226,8 @@ export default function UsersHub() {
                                                     <p className="text-xs text-muted mt-1">{t('comp.users.provisionTrafficLimitHint')}</p>
                                                 </div>
                                                 <div className="form-group mb-0">
-                                                    <label className="form-label">{t('comp.users.provisionSpeedLimitUpLabel')}</label>
-                                                    <input
+                                                    <label htmlFor="users-hub-users-provision-speed-limit-up-label-2" className="form-label">{t('comp.users.provisionSpeedLimitUpLabel')}</label>
+                                                    <input id="users-hub-users-provision-speed-limit-up-label-2" name="usersHubUsersProvisionSpeedLimitUpLabel2"
                                                         type="number"
                                                         className="form-input"
                                                         min={0}
@@ -3228,8 +3237,8 @@ export default function UsersHub() {
                                                     <p className="text-xs text-muted mt-1">{t('comp.users.provisionSpeedLimitUpHint')}</p>
                                                 </div>
                                                 <div className="form-group mb-0">
-                                                    <label className="form-label">{t('comp.users.provisionSpeedLimitDownLabel')}</label>
-                                                    <input
+                                                    <label htmlFor="users-hub-users-provision-speed-limit-down-label-2" className="form-label">{t('comp.users.provisionSpeedLimitDownLabel')}</label>
+                                                    <input id="users-hub-users-provision-speed-limit-down-label-2" name="usersHubUsersProvisionSpeedLimitDownLabel2"
                                                         type="number"
                                                         className="form-input"
                                                         min={0}
@@ -3239,8 +3248,8 @@ export default function UsersHub() {
                                                     <p className="text-xs text-muted mt-1">{t('comp.users.provisionSpeedLimitDownHint')}</p>
                                                 </div>
                                                 <div className="form-group mb-0">
-                                                    <label className="form-label">{t('comp.users.provisionTgIdLabel')}</label>
-                                                    <input
+                                                    <label htmlFor="users-hub-users-provision-tg-id-label-2" className="form-label">{t('comp.users.provisionTgIdLabel')}</label>
+                                                    <input id="users-hub-users-provision-tg-id-label-2" name="usersHubUsersProvisionTgIdLabel2"
                                                         type="number"
                                                         className="form-input"
                                                         min={0}
@@ -3250,8 +3259,8 @@ export default function UsersHub() {
                                                     <p className="text-xs text-muted mt-1">{t('comp.users.provisionTgIdHint')}</p>
                                                 </div>
                                                 <div className="form-group mb-0">
-                                                    <label className="form-label">{t('comp.users.provisionResetLabel')}</label>
-                                                    <input
+                                                    <label htmlFor="users-hub-users-provision-reset-label-2" className="form-label">{t('comp.users.provisionResetLabel')}</label>
+                                                    <input id="users-hub-users-provision-reset-label-2" name="usersHubUsersProvisionResetLabel2"
                                                         type="number"
                                                         className="form-input"
                                                         min={0}
@@ -3261,8 +3270,8 @@ export default function UsersHub() {
                                                     <p className="text-xs text-muted mt-1">{t('comp.users.provisionResetHint')}</p>
                                                 </div>
                                                 <div className="form-group mb-0">
-                                                    <label className="form-label">{t('comp.users.provisionGroupLabel')}</label>
-                                                    <input
+                                                    <label htmlFor="users-hub-users-provision-group-label-2" className="form-label">{t('comp.users.provisionGroupLabel')}</label>
+                                                    <input id="users-hub-users-provision-group-label-2" name="usersHubUsersProvisionGroupLabel2"
                                                         type="text"
                                                         className="form-input"
                                                         value={provisionGroup}
@@ -3271,8 +3280,8 @@ export default function UsersHub() {
                                                     <p className="text-xs text-muted mt-1">{t('comp.users.provisionGroupHint')}</p>
                                                 </div>
                                                 <div className="form-group mb-0">
-                                                    <label className="form-label">{t('comp.users.provisionCommentLabel')}</label>
-                                                    <input
+                                                    <label htmlFor="users-hub-users-provision-comment-label-2" className="form-label">{t('comp.users.provisionCommentLabel')}</label>
+                                                    <input id="users-hub-users-provision-comment-label-2" name="usersHubUsersProvisionCommentLabel2"
                                                         type="text"
                                                         className="form-input"
                                                         value={provisionComment}
@@ -3284,7 +3293,7 @@ export default function UsersHub() {
                                         </div>
 
                                         <div className="form-group">
-                                            <label className="form-label">
+                                            <label htmlFor="users-hub-users-provision-inbound-label" className="form-label">
                                                 {t('comp.users.provisionInboundLabel')}
                                                 <span className="text-muted text-xs ml-2">
                                                     {t('comp.users.provisionInboundSelected', { count: provisionSelectedInboundKeys.size, total: allInbounds.length })}
@@ -3319,7 +3328,7 @@ export default function UsersHub() {
                                                             key={ib.key}
                                                             className={`list-selection-item ${checked ? 'is-selected' : ''}`}
                                                         >
-                                                            <input
+                                                            <input id="users-hub-users-provision-inbound-label" name="usersHubUsersProvisionInboundLabel"
                                                                 type="checkbox"
                                                                 checked={checked}
                                                                 onChange={(e) => {
@@ -3367,7 +3376,7 @@ export default function UsersHub() {
                                         <div className="flex flex-col gap-2">
                                             {provisionLinks.map((item) => (
                                                 <div key={item.key} className="flex gap-2">
-                                                    <input className="form-input font-mono text-xs" value={item.url} readOnly />
+                                                    <input name="usersHubItemUrl" className="form-input font-mono text-xs" value={item.url} readOnly />
                                                     <button
                                                         type="button"
                                                         className="btn btn-secondary btn-sm"
@@ -3438,8 +3447,8 @@ export default function UsersHub() {
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div className="form-group">
-                                            <label className="form-label">{locale === 'en-US' ? 'Valid Duration' : '有效时长'}</label>
-                                            <select
+                                            <label htmlFor="users-hub-guest-duration" className="form-label">{locale === 'en-US' ? 'Valid Duration' : '有效时长'}</label>
+                                            <select id="users-hub-guest-duration" name="usersHubGuestDuration"
                                                 className="form-select"
                                                 value={guestDuration}
                                                 onChange={(e) => setGuestDuration(Number(e.target.value))}
@@ -3451,8 +3460,8 @@ export default function UsersHub() {
                                             </select>
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">{locale === 'en-US' ? 'Traffic Quota (GB)' : '流量限额 (GB)'}</label>
-                                            <select
+                                            <label htmlFor="users-hub-guest-traffic-gb" className="form-label">{locale === 'en-US' ? 'Traffic Quota (GB)' : '流量限额 (GB)'}</label>
+                                            <select id="users-hub-guest-traffic-gb" name="usersHubGuestTrafficGb"
                                                 className="form-select"
                                                 value={guestTrafficGb}
                                                 onChange={(e) => setGuestTrafficGb(Number(e.target.value))}
@@ -3467,8 +3476,8 @@ export default function UsersHub() {
                                     </div>
 
                                     <div className="form-group">
-                                        <label className="form-label">{locale === 'en-US' ? 'Remarks / Note' : '备注说明'}</label>
-                                        <input
+                                        <label htmlFor="users-hub-guest-note" className="form-label">{locale === 'en-US' ? 'Remarks / Note' : '备注说明'}</label>
+                                        <input id="users-hub-guest-note" name="usersHubGuestNote"
                                             type="text"
                                             className="form-input"
                                             value={guestNote}
@@ -3514,7 +3523,7 @@ export default function UsersHub() {
                                             <div className="space-y-1.5 pt-1">
                                                 <div className="text-muted font-semibold">{locale === 'en-US' ? 'One-Click Subscription URL' : '一键订阅链接'}</div>
                                                 <div className="flex gap-2">
-                                                    <input className="form-input font-mono text-xs" value={guestResult.subscriptionUrl} readOnly />
+                                                    <input name="usersHubGuestResultSubscriptionUrl" className="form-input font-mono text-xs" value={guestResult.subscriptionUrl} readOnly />
                                                     <button
                                                         type="button"
                                                         className="btn btn-secondary btn-sm shrink-0"

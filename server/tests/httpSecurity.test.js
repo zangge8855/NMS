@@ -40,8 +40,9 @@ describe('createSecurityHeadersMiddleware', () => {
         );
 
         assert.match(headers['Content-Security-Policy'], /frame-ancestors 'none'/);
-        assert.match(headers['Content-Security-Policy'], /ws:\/\/\[::1\]:\*/);
-        assert.match(headers['Content-Security-Policy'], /wss:\/\/\[::1\]:\*/);
+        assert.match(headers['Content-Security-Policy'], /ws:\/\/localhost:\*/);
+        assert.match(headers['Content-Security-Policy'], /wss:\/\/127\.0\.0\.1:\*/);
+        assert.doesNotMatch(headers['Content-Security-Policy'], /\[::1\]/);
         assert.match(headers['Content-Security-Policy'], /script-src 'self'(;|$)/);
         assert.doesNotMatch(headers['Content-Security-Policy'], /script-src[^;]*'unsafe-inline'/);
         assert.equal(headers['X-Frame-Options'], 'DENY');

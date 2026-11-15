@@ -493,20 +493,20 @@ export default function Tasks({ embedded = false }) {
                                 </span>
                             </div>
                             <div className="audit-filter-grid audit-filter-grid--tasks">
-                                <select className={filterSelectClassName} aria-label={copy.allTypes} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+                                <select name="tasksAllTypes" className={filterSelectClassName} aria-label={copy.allTypes} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
                                     <option value="all">{copy.allTypes}</option>
                                     {typeOptions.map((x) => <option key={x} value={x}>{formatTaskTypeLabel(x, locale)}</option>)}
                                 </select>
-                                <select className={filterSelectClassName} aria-label={copy.allActions} value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
+                                <select name="tasksAllActions" className={filterSelectClassName} aria-label={copy.allActions} value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
                                     <option value="all">{copy.allActions}</option>
                                     {actionOptions.map((x) => <option key={x} value={x}>{formatTaskActionLabel(x, locale)}</option>)}
                                 </select>
-                                <select className={filterSelectClassName} aria-label={copy.allServers} value={serverFilter} onChange={(e) => setServerFilter(e.target.value)}>
+                                <select name="tasksAllServers" className={filterSelectClassName} aria-label={copy.allServers} value={serverFilter} onChange={(e) => setServerFilter(e.target.value)}>
                                     <option value="all">{copy.allServers}</option>
                                     {serverOptions.map((x) => <option key={x} value={x}>{x}</option>)}
                                 </select>
                                 <label className="toolbar-checkbox">
-                                    <input
+                                    <input name="tasksField"
                                         type="checkbox"
                                         checked={failedOnlyFilter}
                                         onChange={(e) => setFailedOnlyFilter(e.target.checked)}
@@ -514,7 +514,7 @@ export default function Tasks({ embedded = false }) {
                                     />
                                     {copy.failedOnly}
                                 </label>
-                                <select className={filterSelectClassName} aria-label={locale === 'en-US' ? 'Retry grouping' : '失败重试分组'} value={retryGroupBy} onChange={(e) => setRetryGroupBy(e.target.value)}>
+                                <select name="tasksRetryGroupBy" className={filterSelectClassName} aria-label={locale === 'en-US' ? 'Retry grouping' : '失败重试分组'} value={retryGroupBy} onChange={(e) => setRetryGroupBy(e.target.value)}>
                                     <option value="none">{formatRetryGroupLabel('none', locale)}</option>
                                     <option value="server">{formatRetryGroupLabel('server', locale)}</option>
                                     <option value="error">{formatRetryGroupLabel('error', locale)}</option>
@@ -528,20 +528,20 @@ export default function Tasks({ embedded = false }) {
                             filters={(
                                 <>
                             {/* Keep native controls on the shared form surface and focus ring rules. */}
-                            <select className={`${filterSelectClassName} w-140`} aria-label={copy.allTypes} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+                            <select name="tasksAllTypes2" className={`${filterSelectClassName} w-140`} aria-label={copy.allTypes} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
                                 <option value="all">{copy.allTypes}</option>
                                 {typeOptions.map((x) => <option key={x} value={x}>{formatTaskTypeLabel(x, locale)}</option>)}
                             </select>
-                            <select className={`${filterSelectClassName} w-140`} aria-label={copy.allActions} value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
+                            <select name="tasksAllActions2" className={`${filterSelectClassName} w-140`} aria-label={copy.allActions} value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
                                 <option value="all">{copy.allActions}</option>
                                 {actionOptions.map((x) => <option key={x} value={x}>{formatTaskActionLabel(x, locale)}</option>)}
                             </select>
-                            <select className={`${filterSelectClassName} w-180`} aria-label={copy.allServers} value={serverFilter} onChange={(e) => setServerFilter(e.target.value)}>
+                            <select name="tasksAllServers2" className={`${filterSelectClassName} w-180`} aria-label={copy.allServers} value={serverFilter} onChange={(e) => setServerFilter(e.target.value)}>
                                 <option value="all">{copy.allServers}</option>
                                 {serverOptions.map((x) => <option key={x} value={x}>{x}</option>)}
                             </select>
                             <label className="toolbar-checkbox">
-                                <input
+                                <input name="tasksField2"
                                     type="checkbox"
                                     checked={failedOnlyFilter}
                                     onChange={(e) => setFailedOnlyFilter(e.target.checked)}
@@ -549,7 +549,7 @@ export default function Tasks({ embedded = false }) {
                                 />
                                 {copy.failedOnly}
                             </label>
-                            <select className={`${filterSelectClassName} w-180`} aria-label={locale === 'en-US' ? 'Retry grouping' : '失败重试分组'} value={retryGroupBy} onChange={(e) => setRetryGroupBy(e.target.value)}>
+                            <select name="tasksRetryGroupBy2" className={`${filterSelectClassName} w-180`} aria-label={locale === 'en-US' ? 'Retry grouping' : '失败重试分组'} value={retryGroupBy} onChange={(e) => setRetryGroupBy(e.target.value)}>
                                 <option value="none">{formatRetryGroupLabel('none', locale)}</option>
                                 <option value="server">{formatRetryGroupLabel('server', locale)}</option>
                                 <option value="error">{formatRetryGroupLabel('error', locale)}</option>

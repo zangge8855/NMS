@@ -1054,6 +1054,22 @@ body {
   background: rgba(220, 38, 38, 0.08);
 }
 
+:root .sidebar.collapsed .nav-item {
+  position: relative;
+}
+
+:root .nav-badge-dot {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--accent-danger);
+  box-shadow: 0 0 0 2px var(--bg-sidebar);
+  pointer-events: none;
+}
+
 :root[data-theme="light"] .sidebar-user-badge {
   color: var(--accent-primary-hover);
 }
@@ -2910,6 +2926,25 @@ body {
     min-height: 40px !important;
     height: auto !important;
     padding: 8px 14px !important;
+  }
+
+  :root .log-pane .btn-secondary {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    padding-inline: 14px !important;
+  }
+}
+
+@media (max-width: 400px) {
+  :root .dashboard-hero-kpi,
+  :root .dashboard-hero-kpi:first-child {
+    padding-inline: 9px;
+  }
+
+  :root .dashboard-hero-kpi-meta {
+    font-size: 9.5px;
+    line-height: 1.35;
+    letter-spacing: -0.015em;
   }
 }
 

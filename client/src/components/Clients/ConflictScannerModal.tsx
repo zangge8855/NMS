@@ -96,7 +96,7 @@ export default function ConflictScannerModal({
     const [scanning, setScanning] = useState(false);
     const [resolvingKey, setResolvingKey] = useState('');
 
-    const conflictGroups = report?.groups || [];
+    const conflictGroups = useMemo(() => report?.groups || [], [report]);
 
     const summary = useMemo(() => {
         const base = report?.summary || { conflictGroups: 0, high: 0, medium: 0 };
@@ -302,7 +302,7 @@ export default function ConflictScannerModal({
                                                     </div>
 
                                                     <div className="grid-auto-220 mb-3 conflict-resolution-row">
-                                                        <select
+                                                        <select name="conflictScannerModalSelectedSourceKey"
                                                             className="form-select"
                                                             value={selectedSourceKey}
                                                             onChange={(e) => {

@@ -1007,14 +1007,25 @@ export default function UserDetail() {
         }
     };
 
+    const fetchActionsRef = useRef({
+        fetchDetail,
+        fetchClients,
+        loadSubscription,
+    });
+    fetchActionsRef.current = {
+        fetchDetail,
+        fetchClients,
+        loadSubscription,
+    };
+
     useEffect(() => {
         const handlePageRefresh = () => {
-            fetchDetail({ preserveCurrent: true });
-            fetchClients({ preserveCurrent: true, force: true });
+            fetchActionsRef.current.fetchDetail({ preserveCurrent: true });
+            fetchActionsRef.current.fetchClients({ preserveCurrent: true, force: true });
         };
         window.addEventListener('nms:page-refresh', handlePageRefresh);
         return () => window.removeEventListener('nms:page-refresh', handlePageRefresh);
-    }, [userId, servers]);
+    }, []);
 
     const submitClientAdjust = async (event) => {
         event.preventDefault();
@@ -1097,7 +1108,7 @@ export default function UserDetail() {
         clientRequestIdRef.current += 1;
         subscriptionRequestIdRef.current += 1;
         clientIpRequestIdRef.current += 1;
-        fetchDetail({ preserveCurrent: snapshot?.detail != null });
+        fetchActionsRef.current.fetchDetail({ preserveCurrent: snapshot?.detail != null });
     }, [userId]);
 
     useEffect(() => {
@@ -1111,8 +1122,12 @@ export default function UserDetail() {
         };
     }, []);
 
+    const clientResetKey = detail
+        ? `${detail.user?.id || ''}|${detail.user?.email || ''}|${detail.user?.subscriptionEmail || ''}|${serverInventoryKey || ''}`
+        : '';
+
     useEffect(() => {
-        if (!detail) return;
+        if (!clientResetKey) return;
         if (preserveBootstrapClientsRef.current) {
             preserveBootstrapClientsRef.current = false;
             return;
@@ -1123,7 +1138,7 @@ export default function UserDetail() {
         liveTrafficSnapshotRef.current = null;
         lastClientFetchAtRef.current = 0;
         clientRequestIdRef.current += 1;
-    }, [detail?.user?.id, detail?.user?.email, detail?.user?.subscriptionEmail, serverInventoryKey]);
+    }, [clientResetKey]);
 
     useEffect(() => {
         const normalizedUserId = String(userId || '').trim();
@@ -1145,20 +1160,20 @@ export default function UserDetail() {
 
     useEffect(() => {
         if (!detail) return;
-        if (serversLoading) return;
+        if (serversLoading || serverInventoryKey == null) return;
         if (!clientsFetched && !clientsLoading && (activeTab === 'overview' || activeTab === 'clients')) {
-            fetchClients();
+            fetchActionsRef.current.fetchClients();
         }
     }, [detail, activeTab, clientsFetched, clientsLoading, serversLoading, serverInventoryKey]);
 
     useEffect(() => {
         if (!detail) return undefined;
-        if (serversLoading) return undefined;
+        if (serversLoading || serverInventoryKey == null) return undefined;
         if (activeTab !== 'overview' && activeTab !== 'clients') return undefined;
         if (!clientsFetched || clientsLoading) return undefined;
 
         if (lastClientFetchAtRef.current === 0) {
-            fetchClients({
+            fetchActionsRef.current.fetchClients({
                 background: true,
                 force: true,
                 preserveCurrent: true,
@@ -1167,7 +1182,7 @@ export default function UserDetail() {
 
         const timer = window.setInterval(() => (
             document.visibilityState === 'visible'
-                ? fetchClients({
+                ? fetchActionsRef.current.fetchClients({
                     background: true,
                     force: true,
                     preserveCurrent: true,
@@ -1177,7 +1192,7 @@ export default function UserDetail() {
 
         const handleVisibilityChange = () => {
             if (document.visibilityState !== 'visible') return;
-            fetchClients({
+            fetchActionsRef.current.fetchClients({
                 background: true,
                 force: true,
                 preserveCurrent: true,
@@ -1194,13 +1209,13 @@ export default function UserDetail() {
     useEffect(() => {
         if (!detail) return;
         if (!subscriptionFetched && !subscriptionLoading && activeTab === 'subscription') {
-            loadSubscription({ quiet: true });
+            fetchActionsRef.current.loadSubscription({ quiet: true });
         }
     }, [detail, activeTab, subscriptionFetched, subscriptionLoading]);
 
     const user = detail?.user;
-    const recentAudit = detail?.recentAudit?.items || [];
-    const subscriptionAccess = detail?.subscriptionAccess?.items || [];
+    const recentAudit = useMemo(() => detail?.recentAudit?.items || [], [detail]);
+    const subscriptionAccess = useMemo(() => detail?.subscriptionAccess?.items || [], [detail]);
     const clientsPanelLoading = !!detail && clientData.length === 0 && (clientsLoading || (serversLoading && !clientsFetched));
     const clientSummaryLoading = clientsPanelLoading && (activeTab === 'overview' || activeTab === 'clients');
 
@@ -1769,7 +1784,7 @@ export default function UserDetail() {
                                                 </div>
 
                                                 <div className="subscription-link-grid subscription-link-grid--compact">
-                                                    <input
+                                                    <input name="userDetailActiveSubscriptionProfileUrl"
                                                         className="form-input font-mono subscription-url-input"
                                                         value={activeSubscriptionProfile?.url || ''}
                                                         readOnly
@@ -1943,7 +1958,7 @@ export default function UserDetail() {
                                         })}
                                     </div>
                                 ) : (
-                                    <div className="table-container">
+                                    <div className="table-container" role="region" aria-label={t('comp.common.dataTable')} tabIndex={0}>
                                         <table className="table user-detail-clients-table">
                                             <thead>
                                                 <tr>
@@ -2056,7 +2071,7 @@ export default function UserDetail() {
                                 </div>
                                 <div className="form-group">
                                     <div className="flex items-center justify-between mb-1">
-                                        <label className="form-label mb-0">{t('comp.users.expiryDaysDelta')}</label>
+                                        <label htmlFor="user-detail-users-expiry-days-delta" className="form-label mb-0">{t('comp.users.expiryDaysDelta')}</label>
                                         <div className="flex items-center gap-1 flex-wrap">
                                             {[
                                                 { label: locale === 'en-US' ? '+7d' : '+7天', days: '7' },
@@ -2083,7 +2098,7 @@ export default function UserDetail() {
                                             </button>
                                         </div>
                                     </div>
-                                    <input
+                                    <input id="user-detail-users-expiry-days-delta" name="userDetailUsersExpiryDaysDelta"
                                         type="number"
                                         className="form-input"
                                         step="1"
@@ -2093,9 +2108,9 @@ export default function UserDetail() {
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">{t('comp.users.trafficDelta')}</label>
+                                    <label htmlFor="user-detail-users-traffic-delta" className="form-label">{t('comp.users.trafficDelta')}</label>
                                     <div className="flex items-center gap-2">
-                                        <input
+                                        <input id="user-detail-users-traffic-delta" name="userDetailUsersTrafficDelta"
                                             type="number"
                                             className="form-input"
                                             step="0.5"

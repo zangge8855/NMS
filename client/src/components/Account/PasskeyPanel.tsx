@@ -236,10 +236,10 @@ export default function PasskeyPanel({ locale = 'zh-CN' }: PasskeyPanelProps) {
         <div className="card account-twofactor-card">
             <div className="account-twofactor-head">
                 <div className="account-twofactor-copy">
-                    <h3 className="account-twofactor-title">
+                    <h2 className="account-twofactor-title">
                         <HiOutlineKey />
                         {copy.title}
-                    </h3>
+                    </h2>
                     <p className="account-twofactor-subtitle">
                         {copy.subtitle}
                     </p>

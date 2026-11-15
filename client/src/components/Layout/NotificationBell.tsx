@@ -198,7 +198,7 @@ export default function NotificationBell() {
         anchorRef: triggerRef,
         panelRef: dropdownRef,
         computePosition: computeDropdownPosition,
-        deps: [notifications.length, unreadCount],
+        repositionKey: `${notifications.length}:${unreadCount}`,
     });
 
     const activateNotification = (unreadIds: string[] = []) => {

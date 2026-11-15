@@ -94,18 +94,18 @@ export default function SubscriptionClientLinks({
                 copyAddress: '复制上面的地址导入就行。',
             }
     ), [locale]);
-    const quickActions = Array.isArray(bundle?.importActions)
+    const quickActions = useMemo(() => (Array.isArray(bundle?.importActions)
         ? bundle.importActions.filter((item) => (
             String(item?.href || '').trim()
             || (Array.isArray(item?.actions) && item.actions.some((action) => String(action?.href || '').trim()))
         ))
-        : [];
-    const toolSites = Array.isArray(bundle?.toolSites)
+        : []), [bundle]);
+    const toolSites = useMemo(() => (Array.isArray(bundle?.toolSites)
         ? bundle.toolSites.filter((item) => (
             String(item?.url || '').trim()
             || (Array.isArray(item?.links) && item.links.some((link) => String(link?.url || '').trim()))
         ))
-        : [];
+        : []), [bundle]);
     const toolLookup = useMemo(() => buildToolLookup(toolSites), [toolSites]);
     const quickActionLookup = useMemo(() => buildQuickActionLookup(quickActions), [quickActions]);
     const profileLookup = useMemo(

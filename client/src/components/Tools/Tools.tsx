@@ -454,7 +454,7 @@ export default function Tools() {
         setResults(snapshot?.results || {});
         setTools(snapshot?.tools || []);
         setCatalogLoading(snapshot == null);
-        fetchCatalog({ preserveCurrent: snapshot != null });
+        fetchCatalogRef.current({ preserveCurrent: snapshot != null });
     }, [targetServerId, hasTargetServer]);
 
     useEffect(() => {
@@ -1011,10 +1011,21 @@ export default function Tools() {
                                 )}
                             />
 
+                            <form
+                                className="space-y-4"
+                                onSubmit={(event) => {
+                                    event.preventDefault();
+                                    if (canManageCertificates && !issuingCert) {
+                                        handleIssueCertificate();
+                                    }
+                                }}
+                            >
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 <div className="form-group">
-                                    <label className="form-label font-semibold">{copy.ssl.domainLabel}</label>
+                                    <label className="form-label font-semibold" htmlFor="tools-ssl-domain">{copy.ssl.domainLabel}</label>
                                     <input
+                                        id="tools-ssl-domain"
+                                        name="sslDomain"
                                         type="text"
                                         className="form-input"
                                         placeholder={copy.ssl.domainPlaceholder}
@@ -1025,8 +1036,10 @@ export default function Tools() {
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label font-semibold">{copy.ssl.sansLabel}</label>
+                                    <label className="form-label font-semibold" htmlFor="tools-ssl-sans">{copy.ssl.sansLabel}</label>
                                     <input
+                                        id="tools-ssl-sans"
+                                        name="sslSans"
                                         type="text"
                                         className="form-input font-mono text-sm"
                                         placeholder={copy.ssl.sansPlaceholder}
@@ -1037,8 +1050,10 @@ export default function Tools() {
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label font-semibold">{copy.ssl.providerLabel}</label>
+                                    <label className="form-label font-semibold" htmlFor="tools-ssl-provider">{copy.ssl.providerLabel}</label>
                                     <select
+                                        id="tools-ssl-provider"
+                                        name="sslProvider"
                                         className="form-input"
                                         value={sslProvider}
                                         onChange={(e) => {
@@ -1059,8 +1074,10 @@ export default function Tools() {
                                     </select>
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label font-semibold">{copy.ssl.challengeLabel}</label>
+                                    <label className="form-label font-semibold" htmlFor="tools-ssl-challenge">{copy.ssl.challengeLabel}</label>
                                     <select
+                                        id="tools-ssl-challenge"
+                                        name="sslChallengeType"
                                         className="form-input"
                                         value={sslProvider === 'selfsigned' ? 'manual' : sslChallengeType}
                                         disabled={sslProvider === 'selfsigned'}
@@ -1073,8 +1090,10 @@ export default function Tools() {
                                 </div>
                                 {sslProvider === 'custom' && (
                                     <div className="form-group">
-                                        <label className="form-label font-semibold">{copy.ssl.directoryLabel}</label>
+                                        <label className="form-label font-semibold" htmlFor="tools-ssl-directory">{copy.ssl.directoryLabel}</label>
                                         <input
+                                            id="tools-ssl-directory"
+                                            name="sslAcmeDirectoryUrl"
                                             type="url"
                                             className="form-input font-mono text-sm"
                                             placeholder={copy.ssl.directoryPlaceholder}
@@ -1088,6 +1107,7 @@ export default function Tools() {
                                     <div className="input-icon-wrapper">
                                         <input
                                             id="tools-cf-token"
+                                            name="cfToken"
                                             type={showCfToken ? 'text' : 'password'}
                                             className="form-input input-with-trailing-action"
                                             placeholder={copy.ssl.tokenPlaceholder}
@@ -1113,6 +1133,7 @@ export default function Tools() {
                                     <label className="form-label font-semibold" htmlFor="tools-cf-email">{copy.ssl.emailLabel}</label>
                                     <input
                                         id="tools-cf-email"
+                                        name="cfEmail"
                                         type="email"
                                         className="form-input"
                                         placeholder={copy.ssl.emailPlaceholder || 'admin@example.com'}
@@ -1148,9 +1169,8 @@ export default function Tools() {
                             {canManageCertificates && (
                                 <div className="flex flex-wrap gap-3">
                                     <button
-                                        type="button"
+                                        type="submit"
                                         className="btn btn-primary"
-                                        onClick={handleIssueCertificate}
                                         disabled={issuingCert}
                                     >
                                         {issuingCert ? <span className="spinner" /> : <HiOutlineShieldCheck />}
@@ -1158,6 +1178,7 @@ export default function Tools() {
                                     </button>
                                 </div>
                             )}
+                            </form>
 
                             <div className="pt-4 border-t border-stroke-soft space-y-3">
                                 {certificates.length === 0 && !certsLoading ? (
@@ -1274,10 +1295,12 @@ export default function Tools() {
                                 divider
                             />
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="form-group">
-                                    <label className="form-label font-semibold">{copy.ssl.certPathLabel}</label>
+                                    <label className="form-label font-semibold" htmlFor="tools-ssl-cert-path">{copy.ssl.certPathLabel}</label>
                                     <input
+                                        id="tools-ssl-cert-path"
+                                        name="sslCertPath"
                                         type="text"
                                         className="form-input font-mono text-sm"
                                         value={sslCertPath}
@@ -1285,8 +1308,10 @@ export default function Tools() {
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label font-semibold">{copy.ssl.keyPathLabel}</label>
+                                    <label className="form-label font-semibold" htmlFor="tools-ssl-key-path">{copy.ssl.keyPathLabel}</label>
                                     <input
+                                        id="tools-ssl-key-path"
+                                        name="sslKeyPath"
                                         type="text"
                                         className="form-input font-mono text-sm"
                                         value={sslKeyPath}
@@ -1297,7 +1322,7 @@ export default function Tools() {
 
                             <div className="space-y-3 pt-2">
                                 <div className="flex flex-wrap justify-between items-center gap-2">
-                                    <label className="form-label font-semibold">{copy.ssl.scriptTitle}</label>
+                                    <div className="form-label font-semibold mb-0">{copy.ssl.scriptTitle}</div>
                                     <button
                                         type="button"
                                         className="btn btn-primary btn-sm"
@@ -1324,7 +1349,7 @@ export default function Tools() {
                         />
 
                         <div className="flex flex-col sm:flex-row gap-3">
-                            <input
+                            <input name="toolsIpTitle"
                                 type="text"
                                 className="form-input flex-1 min-w-0 font-mono text-sm"
                                 aria-label={copy.ip.title}

@@ -2037,7 +2037,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                     <h3 className="modal-title">{editingInbound ? t('comp.inbounds.modalEditTitle') : t('comp.inbounds.modalBatchAddTitle')}</h3>
                     <div className="flex items-center gap-4">
                         <label className="flex items-center gap-2 cursor-pointer text-sm text-secondary">
-                            <input
+                            <input name="inboundModalField"
                                 type="checkbox"
                                 checked={isAdvanced}
                                 onChange={e => handleToggleAdvanced(e.target.checked)}
@@ -2055,10 +2055,10 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                         {/* Target Servers */}
                         {!editingInbound && servers.length > 0 && (
                             <div className="form-group mb-6 p-4 rounded-lg bg-surface-soft border border-stroke-soft">
-                                <label className="form-label mb-2 block">{t('comp.inbounds.deployTargets', { selected: selectedServerIds.length, total: servers.length })}</label>
+                                <span className="form-label mb-2 block">{t('comp.inbounds.deployTargets', { selected: selectedServerIds.length, total: servers.length })}</span>
                                 <div className="flex flex-wrap gap-4">
                                     <label className="flex items-center gap-2 cursor-pointer badge badge-neutral">
-                                        <input
+                                        <input name="inboundModalField2"
                                             type="checkbox"
                                             checked={selectedServerIds.length === servers.length}
                                             onChange={(e) => {
@@ -2071,7 +2071,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     </label>
                                     {servers.map(s => (
                                         <label key={s.id} className="flex items-center gap-2 cursor-pointer badge badge-neutral">
-                                            <input
+                                            <input name="inboundModalField3"
                                                 type="checkbox"
                                                 checked={selectedServerIds.includes(s.id)}
                                                 onChange={(e) => {
@@ -2085,7 +2085,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     ))}
                                 </div>
                                 <label className="mt-3 flex items-start gap-2 cursor-pointer text-sm text-secondary">
-                                    <input
+                                    <input name="inboundModalField4"
                                         type="checkbox"
                                         checked={syncExistingSubscriptions}
                                         onChange={(e) => setSyncExistingSubscriptions(e.target.checked)}
@@ -2098,12 +2098,12 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                         {/* Basic Info */}
                         <div className="grid grid-cols-2 gap-4 mb-4">
                             <div className="form-group">
-                                <label className="form-label">{t('comp.inbounds.labelRemark')}</label>
-                                <input className="form-input" value={remark} onChange={e => setRemark(e.target.value)} placeholder="Name" />
+                                <label htmlFor="inbound-modal-name" className="form-label">{t('comp.inbounds.labelRemark')}</label>
+                                <input id="inbound-modal-name" name="inboundModalName" className="form-input" value={remark} onChange={e => setRemark(e.target.value)} placeholder="Name" />
                             </div>
                             <div className="form-group">
-                                <label className="form-label">{t('comp.inbounds.labelProtocol')}</label>
-                                <select
+                                <label htmlFor="inbound-modal-inbounds-label-protocol" className="form-label">{t('comp.inbounds.labelProtocol')}</label>
+                                <select id="inbound-modal-inbounds-label-protocol" name="inboundModalInboundsLabelProtocol"
                                     className="form-select"
                                     value={protocol}
                                     onChange={(e) => {
@@ -2119,12 +2119,12 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                 </select>
                             </div>
                             <div className="form-group">
-                                <label className="form-label">{t('comp.inbounds.labelPort')}</label>
-                                <input className="form-input" type="number" value={port} onChange={e => setPort(e.target.value)} required />
+                                <label htmlFor="inbound-modal-inbounds-label-port" className="form-label">{t('comp.inbounds.labelPort')}</label>
+                                <input id="inbound-modal-inbounds-label-port" name="inboundModalInboundsLabelPort" className="form-input" type="number" value={port} onChange={e => setPort(e.target.value)} required />
                             </div>
                             <div className="form-group">
-                                <label className="form-label">{t('comp.inbounds.labelListen')}</label>
-                                <input
+                                <label htmlFor="inbound-modal-inbounds-label-listen" className="form-label">{t('comp.inbounds.labelListen')}</label>
+                                <input id="inbound-modal-inbounds-label-listen" name="inboundModalInboundsLabelListen"
                                     className="form-input"
                                     value={listen}
                                     onChange={e => setListen(e.target.value)}
@@ -2132,29 +2132,29 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                 />
                             </div>
                             <div className="form-group">
-                                <label className="form-label">{t('comp.inbounds.labelTrafficGb')}</label>
-                                <input className="form-input" type="number" value={totalGB} onChange={e => setTotalGB(e.target.value)} placeholder={t('comp.inbounds.unlimitedPlaceholder')} />
+                                <label htmlFor="inbound-modal-inbounds-label-traffic-gb" className="form-label">{t('comp.inbounds.labelTrafficGb')}</label>
+                                <input id="inbound-modal-inbounds-label-traffic-gb" name="inboundModalInboundsLabelTrafficGb" className="form-input" type="number" value={totalGB} onChange={e => setTotalGB(e.target.value)} placeholder={t('comp.inbounds.unlimitedPlaceholder')} />
                             </div>
                             <div className="form-group">
-                                <label className="form-label">{t('comp.inbounds.labelTrafficReset')}</label>
-                                <select className="form-select" value={trafficReset} onChange={(e) => setTrafficReset(e.target.value)}>
+                                <label htmlFor="inbound-modal-inbounds-label-traffic-reset" className="form-label">{t('comp.inbounds.labelTrafficReset')}</label>
+                                <select id="inbound-modal-inbounds-label-traffic-reset" name="inboundModalInboundsLabelTrafficReset" className="form-select" value={trafficReset} onChange={(e) => setTrafficReset(e.target.value)}>
                                     {TRAFFIC_RESET_OPTIONS.map((item) => (
                                         <option key={item} value={item}>{(TRAFFIC_RESET_LABELS[locale] || TRAFFIC_RESET_LABELS['en-US'])[item] || item}</option>
                                     ))}
                                 </select>
                             </div>
                             <div className="form-group">
-                                <label className="form-label">{t('comp.inbounds.labelExpiryMode')}</label>
-                                <select className="form-select" value={expiryMode} onChange={(e) => setExpiryMode(e.target.value)}>
+                                <label htmlFor="inbound-modal-inbounds-label-expiry-mode" className="form-label">{t('comp.inbounds.labelExpiryMode')}</label>
+                                <select id="inbound-modal-inbounds-label-expiry-mode" name="inboundModalInboundsLabelExpiryMode" className="form-select" value={expiryMode} onChange={(e) => setExpiryMode(e.target.value)}>
                                     <option value="never">{t('comp.inbounds.expiryNever')}</option>
                                     <option value="datetime">{t('comp.inbounds.expiryDatetime')}</option>
                                     <option value="days">{t('comp.inbounds.expiryDays')}</option>
                                 </select>
                             </div>
                             <div className="form-group">
-                                <label className="form-label">{t('comp.inbounds.labelExpiryParam')}</label>
+                                <span className="form-label">{t('comp.inbounds.labelExpiryParam')}</span>
                                 {expiryMode === 'datetime' && (
-                                    <input
+                                    <input name="inboundModalExpiryDateTime"
                                         className="form-input"
                                         type="datetime-local"
                                         value={expiryDateTime}
@@ -2162,7 +2162,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     />
                                 )}
                                 {expiryMode === 'days' && (
-                                    <input
+                                    <input name="inboundModalExpiryAfterDays"
                                         className="form-input"
                                         type="number"
                                         min={1}
@@ -2172,12 +2172,12 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     />
                                 )}
                                 {expiryMode === 'never' && (
-                                    <input className="form-input" value={t('comp.inbounds.expiryNever')} readOnly />
+                                    <input name="inboundModalInboundsExpiryNever" className="form-input" value={t('comp.inbounds.expiryNever')} readOnly />
                                 )}
                             </div>
                             <div className="form-group inbound-inline-checkbox-group">
                                 <label className="inbound-inline-checkbox-label">
-                                    <input type="checkbox" checked={inboundEnabled} onChange={(e) => setInboundEnabled(e.target.checked)} />
+                                    <input name="inboundModalField5" type="checkbox" checked={inboundEnabled} onChange={(e) => setInboundEnabled(e.target.checked)} />
                                     {t('comp.inbounds.enableInbound')}
                                 </label>
                             </div>
@@ -2187,16 +2187,16 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                         {isAdvanced ? (
                             <>
                                 <div className="form-group">
-                                    <label className="form-label">{t('comp.inbounds.labelSettings')}</label>
-                                    <textarea className="form-textarea font-mono text-sm" rows={6} value={settings} onChange={e => setSettings(e.target.value)} />
+                                    <label htmlFor="inbound-modal-inbounds-label-settings" className="form-label">{t('comp.inbounds.labelSettings')}</label>
+                                    <textarea id="inbound-modal-inbounds-label-settings" name="inboundModalInboundsLabelSettings" className="form-textarea font-mono text-sm" rows={6} value={settings} onChange={e => setSettings(e.target.value)} />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">{t('comp.inbounds.labelStream')}</label>
-                                    <textarea className="form-textarea font-mono text-sm" rows={8} value={streamSettings} onChange={e => setStreamSettings(e.target.value)} />
+                                    <label htmlFor="inbound-modal-inbounds-label-stream" className="form-label">{t('comp.inbounds.labelStream')}</label>
+                                    <textarea id="inbound-modal-inbounds-label-stream" name="inboundModalInboundsLabelStream" className="form-textarea font-mono text-sm" rows={8} value={streamSettings} onChange={e => setStreamSettings(e.target.value)} />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">Sniffing</label>
-                                    <textarea className="form-textarea font-mono text-sm" rows={4} value={sniffing} onChange={e => setSniffing(e.target.value)} />
+                                    <label htmlFor="inbound-modal-sniffing" className="form-label">Sniffing</label>
+                                    <textarea id="inbound-modal-sniffing" name="inboundModalSniffing" className="form-textarea font-mono text-sm" rows={4} value={sniffing} onChange={e => setSniffing(e.target.value)} />
                                 </div>
                             </>
                         ) : (
@@ -2206,8 +2206,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         <h4 className="text-secondary text-sm font-bold mb-3">{deepCopy.vlessParams}</h4>
                                         <div className="grid grid-cols-2 gap-4 mb-3">
                                             <div className="form-group">
-                                                <label className="form-label">Authentication</label>
-                                                <select
+                                                <label htmlFor="inbound-modal-settings-obj-selected-auth" className="form-label">Authentication</label>
+                                                <select id="inbound-modal-settings-obj-selected-auth" name="inboundModalSettingsObjSelectedAuth"
                                                     className="form-select"
                                                     value={String(settingsObj?.selectedAuth || '')}
                                                     onChange={(e) => updateSettingsJson((draft) => {
@@ -2220,8 +2220,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </select>
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Flow</label>
-                                                <select
+                                                <label htmlFor="inbound-modal-primary-client-flow" className="form-label">Flow</label>
+                                                <select id="inbound-modal-primary-client-flow" name="inboundModalPrimaryClientFlow"
                                                     className="form-select"
                                                     value={String(primaryClient?.flow || '')}
                                                     onChange={(e) => updateSettingsJson((draft) => {
@@ -2240,9 +2240,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
 
                                         <div className="grid grid-cols-2 gap-4 mb-3">
                                             <div className="form-group">
-                                                <label className="form-label">UUID</label>
+                                                <label htmlFor="inbound-modal-primary-client-id" className="form-label">UUID</label>
                                                 <div className="flex gap-2">
-                                                    <input
+                                                    <input id="inbound-modal-primary-client-id" name="inboundModalPrimaryClientId"
                                                         className="form-input font-mono"
                                                         value={String(primaryClient?.id || '')}
                                                         onChange={(e) => updateSettingsJson((draft) => {
@@ -2263,8 +2263,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </div>
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Email</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-primary-client-email" className="form-label">Email</label>
+                                                <input id="inbound-modal-primary-client-email" name="inboundModalPrimaryClientEmail"
                                                     className="form-input"
                                                     value={String(primaryClient?.email || '')}
                                                     onChange={(e) => updateSettingsJson((draft) => {
@@ -2277,8 +2277,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
 
                                         <div className="grid grid-cols-2 gap-4 mb-3">
                                             <div className="form-group">
-                                                <label className="form-label">Decryption</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-dec" className="form-label">Decryption</label>
+                                                <input id="inbound-modal-dec" name="inboundModalDec"
                                                     className="form-input"
                                                     value={String(settingsObj?.decryption || '')}
                                                     onChange={(e) => updateSettingsJson((draft) => {
@@ -2287,8 +2287,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Encryption</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-enc" className="form-label">Encryption</label>
+                                                <input id="inbound-modal-enc" name="inboundModalEnc"
                                                     className="form-input"
                                                     value={String(settingsObj?.encryption || '')}
                                                     onChange={(e) => updateSettingsJson((draft) => {
@@ -2298,7 +2298,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </div>
                                         </div>
                                         <div className="form-group mb-3">
-                                            <label className="form-label">{deepCopy.authKey}</label>
+                                            <span className="form-label">{deepCopy.authKey}</span>
                                             <div className="flex gap-2">
                                                 <button
                                                     type="button"
@@ -2320,7 +2320,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         {simpleStream.network === 'tcp' && !String(settingsObj?.selectedAuth || '').trim() && (
                                             <div className="mb-3">
                                                 <div className="flex items-center justify-between mb-2">
-                                                    <label className="form-label">Fallbacks</label>
+                                                    <span className="form-label">Fallbacks</span>
                                                     <button
                                                         type="button"
                                                         className="btn btn-secondary btn-sm"
@@ -2352,8 +2352,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         </div>
                                                         <div className="grid grid-cols-2 gap-3">
                                                             <div className="form-group">
-                                                                <label className="form-label">SNI</label>
-                                                                <input
+                                                                <label htmlFor={`inbound-modal-fallback-name-${index}`} className="form-label">SNI</label>
+                                                                <input id={`inbound-modal-fallback-name-${index}`} name={`inboundModalFallbackName-${index}`}
                                                                     className="form-input"
                                                                     value={String(fallback?.name || '')}
                                                                     onChange={(e) => updateSettingsJson((draft) => {
@@ -2364,8 +2364,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                                 />
                                                             </div>
                                                             <div className="form-group">
-                                                                <label className="form-label">ALPN</label>
-                                                                <input
+                                                                <label htmlFor={`inbound-modal-fallback-alpn-${index}`} className="form-label">ALPN</label>
+                                                                <input id={`inbound-modal-fallback-alpn-${index}`} name={`inboundModalFallbackAlpn-${index}`}
                                                                     className="form-input"
                                                                     value={String(fallback?.alpn || '')}
                                                                     onChange={(e) => updateSettingsJson((draft) => {
@@ -2376,8 +2376,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                                 />
                                                             </div>
                                                             <div className="form-group">
-                                                                <label className="form-label">Path</label>
-                                                                <input
+                                                                <label htmlFor={`inbound-modal-fallback-path-${index}`} className="form-label">Path</label>
+                                                                <input id={`inbound-modal-fallback-path-${index}`} name={`inboundModalFallbackPath-${index}`}
                                                                     className="form-input"
                                                                     value={String(fallback?.path || '')}
                                                                     onChange={(e) => updateSettingsJson((draft) => {
@@ -2388,8 +2388,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                                 />
                                                             </div>
                                                             <div className="form-group">
-                                                                <label className="form-label">Dest</label>
-                                                                <input
+                                                                <label htmlFor={`inbound-modal-fallback-dest-${index}`} className="form-label">Dest</label>
+                                                                <input id={`inbound-modal-fallback-dest-${index}`} name={`inboundModalFallbackDest-${index}`}
                                                                     className="form-input"
                                                                     value={String(fallback?.dest || '')}
                                                                     onChange={(e) => updateSettingsJson((draft) => {
@@ -2400,8 +2400,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                                 />
                                                             </div>
                                                             <div className="form-group">
-                                                                <label className="form-label">xVer</label>
-                                                                <input
+                                                                <label htmlFor={`inbound-modal-x-ver-${index}`} className="form-label">xVer</label>
+                                                                <input id={`inbound-modal-x-ver-${index}`} name={`inboundModalXVer-${index}`}
                                                                     className="form-input"
                                                                     type="number"
                                                                     min={0}
@@ -2432,7 +2432,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         {(primaryClient?.flow === 'xtls-rprx-vision' || primaryClient?.flow === 'xtls-rprx-vision-udp443') && (
                                             <div>
                                                 <div className="flex items-center justify-between mb-2">
-                                                    <label className="form-label">Vision Seed</label>
+                                                    <span className="form-label">Vision Seed</span>
                                                     <div className="flex gap-2">
                                                         <button
                                                             type="button"
@@ -2461,7 +2461,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </div>
                                                 <div className="grid grid-cols-4 gap-2">
                                                     {vlessTestseed.map((seed, idx) => (
-                                                        <input
+                                                        <input name={`inboundModalField6-${idx}`}
                                                             key={`vless-seed-${idx}`}
                                                             className="form-input"
                                                             type="number"
@@ -2497,8 +2497,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         <h4 className="text-secondary text-sm font-bold mb-3">{deepCopy.hysteria2Params}</h4>
                                         <div className="grid grid-cols-2 gap-4 mb-3">
                                             <div className="form-group">
-                                                <label className="form-label">{deepCopy.uploadBandwidth}</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-upload-bandwidth" className="form-label">{deepCopy.uploadBandwidth}</label>
+                                                <input id="inbound-modal-upload-bandwidth" name="inboundModalUploadBandwidth"
                                                     className="form-input"
                                                     type="number"
                                                     min={0}
@@ -2517,8 +2517,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 <div className="text-xs text-muted mt-1">{deepCopy.unlimitedRecommended}</div>
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">{deepCopy.downloadBandwidth}</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-download-bandwidth" className="form-label">{deepCopy.downloadBandwidth}</label>
+                                                <input id="inbound-modal-download-bandwidth" name="inboundModalDownloadBandwidth"
                                                     className="form-input"
                                                     type="number"
                                                     min={0}
@@ -2539,8 +2539,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         </div>
                                         <div className="grid grid-cols-2 gap-4 mb-3">
                                             <div className="form-group">
-                                                <label className="form-label">{deepCopy.obfsType}</label>
-                                                <select
+                                                <label htmlFor="inbound-modal-obfs-type" className="form-label">{deepCopy.obfsType}</label>
+                                                <select id="inbound-modal-obfs-type" name="inboundModalObfsType"
                                                     className="form-select"
                                                     value={String(settingsObj?.obfs?.type || '')}
                                                     onChange={(e) => updateSettingsJson((draft) => {
@@ -2553,8 +2553,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </select>
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">{deepCopy.obfsPassword}</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-obfs-password" className="form-label">{deepCopy.obfsPassword}</label>
+                                                <input id="inbound-modal-obfs-password" name="inboundModalObfsPassword"
                                                     className="form-input font-mono"
                                                     value={String(settingsObj?.obfs?.password || '')}
                                                     placeholder={deepCopy.optionalClientMatch}
@@ -2567,7 +2567,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         </div>
                                         <div className="form-group mb-3">
                                             <label className="flex items-center gap-2 cursor-pointer text-sm">
-                                                <input
+                                                <input name="inboundModalField7"
                                                     type="checkbox"
                                                     checked={Boolean(settingsObj?.ignore_client_bandwidth)}
                                                     onChange={(e) => updateSettingsJson((draft) => {
@@ -2578,9 +2578,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </label>
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">{deepCopy.clientPassword}</label>
+                                            <label htmlFor="inbound-modal-client-password" className="form-label">{deepCopy.clientPassword}</label>
                                             <div className="flex gap-2">
-                                                <input
+                                                <input id="inbound-modal-client-password" name="inboundModalClientPassword"
                                                     className="form-input font-mono"
                                                     value={String(primaryClient?.password || '')}
                                                     onChange={(e) => updateSettingsJson((draft) => {
@@ -2613,8 +2613,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         <h4 className="text-secondary text-sm font-bold mb-3">{deepCopy.wireguardParams}</h4>
                                         <div className="grid grid-cols-2 gap-4 mb-3">
                                             <div className="form-group">
-                                                <label className="form-label">MTU</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-mtu" className="form-label">MTU</label>
+                                                <input id="inbound-modal-mtu" name="inboundModalMtu"
                                                     className="form-input"
                                                     type="number"
                                                     min={576}
@@ -2634,7 +2634,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </div>
                                             <div className="form-group">
                                                 <label className="flex items-center gap-2 cursor-pointer pt-6 text-sm">
-                                                    <input
+                                                    <input name="inboundModalField8"
                                                         type="checkbox"
                                                         checked={Boolean(settingsObj?.noKernelTun)}
                                                         onChange={(e) => updateSettingsJson((draft) => {
@@ -2646,9 +2646,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </div>
                                         </div>
                                         <div className="form-group mb-3">
-                                            <label className="form-label">{deepCopy.serverKey}</label>
+                                            <label htmlFor="inbound-modal-server-key" className="form-label">{deepCopy.serverKey}</label>
                                             <div className="flex gap-2">
-                                                <input
+                                                <input id="inbound-modal-server-key" name="inboundModalServerKey"
                                                     className="form-input font-mono"
                                                     value={String(settingsObj?.secretKey || '')}
                                                     onChange={(e) => updateSettingsJson((draft) => {
@@ -2691,8 +2691,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </div>
                                             <div className="grid grid-cols-3 gap-3 mb-2">
                                                 <div className="form-group">
-                                                    <label className="form-label text-xs">Jc (Junk Count)</label>
-                                                    <input
+                                                    <label htmlFor="inbound-modal-jc-junk-count" className="form-label text-xs">Jc (Junk Count)</label>
+                                                    <input id="inbound-modal-jc-junk-count" name="inboundModalJcJunkCount"
                                                         className="form-input text-xs"
                                                         type="number"
                                                         min={0}
@@ -2703,8 +2703,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     />
                                                 </div>
                                                 <div className="form-group">
-                                                    <label className="form-label text-xs">Jmin (Min Bytes)</label>
-                                                    <input
+                                                    <label htmlFor="inbound-modal-jmin-min-bytes" className="form-label text-xs">Jmin (Min Bytes)</label>
+                                                    <input id="inbound-modal-jmin-min-bytes" name="inboundModalJminMinBytes"
                                                         className="form-input text-xs"
                                                         type="number"
                                                         min={0}
@@ -2715,8 +2715,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     />
                                                 </div>
                                                 <div className="form-group">
-                                                    <label className="form-label text-xs">Jmax (Max Bytes)</label>
-                                                    <input
+                                                    <label htmlFor="inbound-modal-jmax-max-bytes" className="form-label text-xs">Jmax (Max Bytes)</label>
+                                                    <input id="inbound-modal-jmax-max-bytes" name="inboundModalJmaxMaxBytes"
                                                         className="form-input text-xs"
                                                         type="number"
                                                         min={0}
@@ -2729,8 +2729,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </div>
                                             <div className="grid grid-cols-2 gap-3 mb-2">
                                                 <div className="form-group">
-                                                    <label className="form-label text-xs">S1 (Init Response Junk)</label>
-                                                    <input
+                                                    <label htmlFor="inbound-modal-s1-init-response-junk" className="form-label text-xs">S1 (Init Response Junk)</label>
+                                                    <input id="inbound-modal-s1-init-response-junk" name="inboundModalS1InitResponseJunk"
                                                         className="form-input text-xs"
                                                         type="number"
                                                         min={0}
@@ -2741,8 +2741,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     />
                                                 </div>
                                                 <div className="form-group">
-                                                    <label className="form-label text-xs">S2 (Cookie Junk)</label>
-                                                    <input
+                                                    <label htmlFor="inbound-modal-s2-cookie-junk" className="form-label text-xs">S2 (Cookie Junk)</label>
+                                                    <input id="inbound-modal-s2-cookie-junk" name="inboundModalS2CookieJunk"
                                                         className="form-input text-xs"
                                                         type="number"
                                                         min={0}
@@ -2755,8 +2755,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </div>
                                             <div className="grid grid-cols-4 gap-2 mb-2">
                                                 <div className="form-group">
-                                                    <label className="form-label text-xs">H1</label>
-                                                    <input
+                                                    <label htmlFor="inbound-modal-settings-obj-h1" className="form-label text-xs">H1</label>
+                                                    <input id="inbound-modal-settings-obj-h1" name="inboundModalSettingsObjH1"
                                                         className="form-input text-xs font-mono"
                                                         type="number"
                                                         value={settingsObj?.h1 ?? 1}
@@ -2765,8 +2765,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     />
                                                 </div>
                                                 <div className="form-group">
-                                                    <label className="form-label text-xs">H2</label>
-                                                    <input
+                                                    <label htmlFor="inbound-modal-settings-obj-h2" className="form-label text-xs">H2</label>
+                                                    <input id="inbound-modal-settings-obj-h2" name="inboundModalSettingsObjH2"
                                                         className="form-input text-xs font-mono"
                                                         type="number"
                                                         value={settingsObj?.h2 ?? 2}
@@ -2775,8 +2775,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     />
                                                 </div>
                                                 <div className="form-group">
-                                                    <label className="form-label text-xs">H3</label>
-                                                    <input
+                                                    <label htmlFor="inbound-modal-settings-obj-h3" className="form-label text-xs">H3</label>
+                                                    <input id="inbound-modal-settings-obj-h3" name="inboundModalSettingsObjH3"
                                                         className="form-input text-xs font-mono"
                                                         type="number"
                                                         value={settingsObj?.h3 ?? 3}
@@ -2785,8 +2785,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     />
                                                 </div>
                                                 <div className="form-group">
-                                                    <label className="form-label text-xs">H4</label>
-                                                    <input
+                                                    <label htmlFor="inbound-modal-settings-obj-h4" className="form-label text-xs">H4</label>
+                                                    <input id="inbound-modal-settings-obj-h4" name="inboundModalSettingsObjH4"
                                                         className="form-input text-xs font-mono"
                                                         type="number"
                                                         value={settingsObj?.h4 ?? 4}
@@ -2796,8 +2796,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </div>
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label text-xs">Reserved [b0, b1, b2]</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-0-0-0" className="form-label text-xs">Reserved [b0, b1, b2]</label>
+                                                <input id="inbound-modal-0-0-0" name="inboundModal000"
                                                     className="form-input text-xs font-mono"
                                                     value={(Array.isArray(settingsObj?.reserved) ? settingsObj.reserved : [0, 0, 0]).join(', ')}
                                                     onChange={(e) => updateSettingsJson((draft) => {
@@ -2814,7 +2814,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
 
                                         <div className="form-group">
                                             <div className="flex items-center justify-between mb-2">
-                                                <label className="form-label">{deepCopy.peers}</label>
+                                                <span className="form-label">{deepCopy.peers}</span>
                                                 <button
                                                     type="button"
                                                     className="btn btn-secondary btn-xs"
@@ -2849,8 +2849,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     </div>
                                                     <div className="grid grid-cols-1 gap-2">
                                                         <div className="form-group">
-                                                            <label className="form-label text-xs">PublicKey</label>
-                                                            <input
+                                                            <label htmlFor={`inbound-modal-peer-public-key-${peerIdx}`} className="form-label text-xs">PublicKey</label>
+                                                            <input id={`inbound-modal-peer-public-key-${peerIdx}`} name={`inboundModalPeerPublicKey-${peerIdx}`}
                                                                 className="form-input font-mono"
                                                                 value={String(peer?.publicKey || '')}
                                                                 onChange={(e) => updateSettingsJson((draft) => {
@@ -2860,8 +2860,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         </div>
                                                         <div className="grid grid-cols-2 gap-2">
                                                             <div className="form-group">
-                                                                <label className="form-label text-xs">{deepCopy.allowedIps}</label>
-                                                                <input
+                                                                <label htmlFor={`inbound-modal-allowed-ips-${peerIdx}`} className="form-label text-xs">{deepCopy.allowedIps}</label>
+                                                                <input id={`inbound-modal-allowed-ips-${peerIdx}`} name={`inboundModalAllowedIps-${peerIdx}`}
                                                                     className="form-input font-mono"
                                                                     value={(Array.isArray(peer?.allowedIPs) ? peer.allowedIPs : ['0.0.0.0/0']).join(', ')}
                                                                     onChange={(e) => updateSettingsJson((draft) => {
@@ -2873,8 +2873,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                                 />
                                                             </div>
                                                             <div className="form-group">
-                                                                <label className="form-label text-xs">{deepCopy.keepAlive}</label>
-                                                                <input
+                                                                <label htmlFor={`inbound-modal-keep-alive-${peerIdx}`} className="form-label text-xs">{deepCopy.keepAlive}</label>
+                                                                <input id={`inbound-modal-keep-alive-${peerIdx}`} name={`inboundModalKeepAlive-${peerIdx}`}
                                                                     className="form-input"
                                                                     type="number"
                                                                     min={0}
@@ -2894,8 +2894,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         </div>
                                                         <div className="grid grid-cols-2 gap-2">
                                                             <div className="form-group">
-                                                                <label className="form-label text-xs">{deepCopy.preSharedKey}</label>
-                                                                <input
+                                                                <label htmlFor={`inbound-modal-pre-shared-key-${peerIdx}`} className="form-label text-xs">{deepCopy.preSharedKey}</label>
+                                                                <input id={`inbound-modal-pre-shared-key-${peerIdx}`} name={`inboundModalPreSharedKey-${peerIdx}`}
                                                                     className="form-input font-mono"
                                                                     value={String(peer?.preSharedKey || '')}
                                                                     onChange={(e) => updateSettingsJson((draft) => {
@@ -2904,8 +2904,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                                 />
                                                             </div>
                                                             <div className="form-group">
-                                                                <label className="form-label text-xs">Reserved (peer.reserved)</label>
-                                                                <input
+                                                                <label htmlFor={`inbound-modal-0-0-0-2-${peerIdx}`} className="form-label text-xs">Reserved (peer.reserved)</label>
+                                                                <input id={`inbound-modal-0-0-0-2-${peerIdx}`} name={`inboundModal0002-${peerIdx}`}
                                                                     className="form-input font-mono text-xs"
                                                                     value={(Array.isArray(peer?.reserved) ? peer.reserved : [0, 0, 0]).join(', ')}
                                                                     onChange={(e) => updateSettingsJson((draft) => {
@@ -2933,8 +2933,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     <div className="border border-stroke-soft rounded-lg p-4 mb-4">
                                         <h4 className="text-secondary text-sm font-bold mb-3">{deepCopy.mtprotoParams}</h4>
                                         <div className="form-group mb-3">
-                                            <label className="form-label">{deepCopy.fakeTlsDomain}</label>
-                                            <input
+                                            <label htmlFor="inbound-modal-fake-tls-domain" className="form-label">{deepCopy.fakeTlsDomain}</label>
+                                            <input id="inbound-modal-fake-tls-domain" name="inboundModalFakeTlsDomain"
                                                 className="form-input font-mono"
                                                 value={String(settingsObj?.fakeTlsDomain || DEFAULT_MTPROTO_FAKE_TLS_DOMAIN)}
                                                 onChange={(e) => updateSettingsJson((draft) => {
@@ -2944,9 +2944,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             />
                                         </div>
                                         <div className="form-group mb-3">
-                                            <label className="form-label">{deepCopy.mtprotoSecret}</label>
+                                            <label htmlFor="inbound-modal-mtproto-secret" className="form-label">{deepCopy.mtprotoSecret}</label>
                                             <div className="flex gap-2">
-                                                <input
+                                                <input id="inbound-modal-mtproto-secret" name="inboundModalMtprotoSecret"
                                                     className="form-input font-mono text-xs"
                                                     value={String(settingsObj?.secret || '')}
                                                     onChange={(e) => updateSettingsJson((draft) => {
@@ -2966,7 +2966,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         </div>
                                         {settingsObj?.secret && (
                                             <div className="form-group p-3 rounded-md bg-surface-subtle border border-stroke-soft">
-                                                <label className="form-label text-xs font-semibold mb-1">{deepCopy.mtprotoPreview}</label>
+                                                <span className="form-label text-xs font-semibold mb-1">{deepCopy.mtprotoPreview}</span>
                                                 <div className="flex items-center gap-2">
                                                     <code className="text-xs font-mono break-all flex-1 select-all">
                                                         {`tg://proxy?server=${(!listen || listen === '0.0.0.0' || listen === '::') ? 'YOUR_SERVER_IP' : listen.replace(/^\[(.*)\]$/, '$1')}&port=${port || 'PORT'}&secret=${settingsObj.secret}`}
@@ -2999,8 +2999,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         <h4 className="text-secondary text-sm font-bold mb-3">{deepCopy.tunnelParams}</h4>
                                         <div className="grid grid-cols-2 gap-4 mb-3">
                                             <div className="form-group">
-                                                <label className="form-label">{deepCopy.targetAddress}</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-target-address" className="form-label">{deepCopy.targetAddress}</label>
+                                                <input id="inbound-modal-target-address" name="inboundModalTargetAddress"
                                                     className="form-input"
                                                     value={String(settingsObj?.address || '')}
                                                     placeholder={deepCopy.targetAddressPlaceholder}
@@ -3010,8 +3010,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">{deepCopy.targetPort}</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-target-port" className="form-label">{deepCopy.targetPort}</label>
+                                                <input id="inbound-modal-target-port" name="inboundModalTargetPort"
                                                     className="form-input"
                                                     type="number"
                                                     min={1}
@@ -3032,8 +3032,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         </div>
                                         <div className="grid grid-cols-2 gap-4 mb-3">
                                             <div className="form-group">
-                                                <label className="form-label">{deepCopy.network}</label>
-                                                <select
+                                                <label htmlFor="inbound-modal-network" className="form-label">{deepCopy.network}</label>
+                                                <select id="inbound-modal-network" name="inboundModalNetwork"
                                                     className="form-select"
                                                     value={String(settingsObj?.network || 'tcp,udp')}
                                                     onChange={(e) => updateSettingsJson((draft) => {
@@ -3046,8 +3046,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </select>
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">{deepCopy.timeout}</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-timeout" className="form-label">{deepCopy.timeout}</label>
+                                                <input id="inbound-modal-timeout" name="inboundModalTimeout"
                                                     className="form-input"
                                                     type="number"
                                                     min={0}
@@ -3068,7 +3068,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="form-group">
                                                 <label className="flex items-center gap-2 cursor-pointer text-sm">
-                                                    <input
+                                                    <input name="inboundModalField9"
                                                         type="checkbox"
                                                         checked={Boolean(settingsObj?.followRedirect)}
                                                         onChange={(e) => updateSettingsJson((draft) => {
@@ -3079,8 +3079,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </label>
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">{deepCopy.userLevel}</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-user-level" className="form-label">{deepCopy.userLevel}</label>
+                                                <input id="inbound-modal-user-level" name="inboundModalUserLevel"
                                                     className="form-input"
                                                     type="number"
                                                     min={0}
@@ -3104,8 +3104,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                 <h4 className="text-secondary text-sm font-bold mb-4">{deepCopy.transport}</h4>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="form-group">
-                                        <label className="form-label">{t('comp.inbounds.labelNetwork')}</label>
-                                        <select className="form-select" value={simpleStream.network} onChange={e => setSimpleStream({ ...simpleStream, network: e.target.value })}>
+                                        <label htmlFor="inbound-modal-inbounds-label-network" className="form-label">{t('comp.inbounds.labelNetwork')}</label>
+                                        <select id="inbound-modal-inbounds-label-network" name="inboundModalInboundsLabelNetwork" className="form-select" value={simpleStream.network} onChange={e => setSimpleStream({ ...simpleStream, network: e.target.value })}>
                                             {networkOptions.map((item) => (
                                                 <option key={item} value={item}>
                                                     {NETWORK_LABELS[item] || item.toUpperCase()}
@@ -3114,8 +3114,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         </select>
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">{t('comp.inbounds.labelSecurity')}</label>
-                                        <select className="form-select" value={simpleStream.security} onChange={e => setSimpleStream({ ...simpleStream, security: e.target.value })}>
+                                        <label htmlFor="inbound-modal-inbounds-label-security" className="form-label">{t('comp.inbounds.labelSecurity')}</label>
+                                        <select id="inbound-modal-inbounds-label-security" name="inboundModalInboundsLabelSecurity" className="form-select" value={simpleStream.security} onChange={e => setSimpleStream({ ...simpleStream, security: e.target.value })}>
                                             {securityOptions.map((item) => (
                                                 <option key={item} value={item}>
                                                     {SECURITY_LABELS[item] || item.toUpperCase()}
@@ -3129,7 +3129,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     <div className="flex items-center justify-between mb-2">
                                         <h4 className="text-secondary text-sm font-bold">{deepCopy.sniffing}</h4>
                                         <label className="flex items-center gap-2 cursor-pointer text-sm">
-                                            <input
+                                            <input name="inboundModalField10"
                                                 type="checkbox"
                                                 checked={!!sniffingObj.enabled}
                                                 onChange={(e) => updateSniffingJson((s) => {
@@ -3141,11 +3141,11 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="form-group">
-                                            <label className="form-label">{t('comp.inbounds.labelDestOverride')}</label>
+                                            <label htmlFor="inbound-modal-inbounds-label-dest-override" className="form-label">{t('comp.inbounds.labelDestOverride')}</label>
                                             <div className="flex flex-wrap gap-2">
                                                 {['http', 'tls', 'quic', 'fakedns'].map(p => (
                                                     <label key={p} className="badge badge-neutral flex items-center gap-1 cursor-pointer">
-                                                        <input
+                                                        <input id="inbound-modal-inbounds-label-dest-override" name="inboundModalInboundsLabelDestOverride"
                                                             type="checkbox"
                                                             checked={Array.isArray(sniffingObj.destOverride) && sniffingObj.destOverride.includes(p)}
                                                             onChange={(e) => updateSniffingJson((s) => {
@@ -3164,7 +3164,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         </div>
                                         <div className="flex flex-col gap-2">
                                             <label className="flex items-center gap-2 cursor-pointer text-sm mt-6">
-                                                <input
+                                                <input name="inboundModalField11"
                                                     type="checkbox"
                                                     checked={!!sniffingObj.routeOnly}
                                                     onChange={(e) => updateSniffingJson((s) => {
@@ -3174,7 +3174,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 {deepCopy.routeOnly}
                                             </label>
                                             <label className="flex items-center gap-2 cursor-pointer text-sm">
-                                                <input
+                                                <input name="inboundModalField12"
                                                     type="checkbox"
                                                     checked={!!sniffingObj.metadataOnly}
                                                     onChange={(e) => updateSniffingJson((s) => {
@@ -3192,8 +3192,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     <div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="form-group">
-                                                <label className="form-label">TCP Header Type</label>
-                                                <select
+                                                <label htmlFor="inbound-modal-tcp-header-type" className="form-label">TCP Header Type</label>
+                                                <select id="inbound-modal-tcp-header-type" name="inboundModalTcpHeaderType"
                                                     className="form-select"
                                                     value={simpleStream.tcpHeaderType}
                                                     onChange={e => setSimpleStream({ ...simpleStream, tcpHeaderType: e.target.value })}
@@ -3204,9 +3204,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </select>
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">{deepCopy.tcpAdvanced}</label>
+                                                <label htmlFor="inbound-modal-tcp-advanced" className="form-label">{deepCopy.tcpAdvanced}</label>
                                                 <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
-                                                    <input
+                                                    <input id="inbound-modal-tcp-advanced" name="inboundModalTcpAdvanced"
                                                         type="checkbox"
                                                         checked={!!simpleStream.tcpAcceptProxyProtocol}
                                                         onChange={e => setSimpleStream({ ...simpleStream, tcpAcceptProxyProtocol: e.target.checked })}
@@ -3220,8 +3220,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             <div className="mt-3 border border-stroke-soft rounded-lg p-3">
                                                 <div className="grid grid-cols-2 gap-3">
                                                     <div className="form-group">
-                                                        <label className="form-label">Request Version</label>
-                                                        <input
+                                                        <label htmlFor="inbound-modal-request-version" className="form-label">Request Version</label>
+                                                        <input id="inbound-modal-request-version" name="inboundModalRequestVersion"
                                                             className="form-input"
                                                             value={String(streamObj?.tcpSettings?.header?.request?.version || '1.1')}
                                                             onChange={(e) => updateStreamJson((draft) => {
@@ -3233,8 +3233,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         />
                                                     </div>
                                                     <div className="form-group">
-                                                        <label className="form-label">Request Method</label>
-                                                        <input
+                                                        <label htmlFor="inbound-modal-request-method" className="form-label">Request Method</label>
+                                                        <input id="inbound-modal-request-method" name="inboundModalRequestMethod"
                                                             className="form-input"
                                                             value={String(streamObj?.tcpSettings?.header?.request?.method || 'GET')}
                                                             onChange={(e) => updateStreamJson((draft) => {
@@ -3246,8 +3246,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         />
                                                     </div>
                                                     <div className="form-group">
-                                                        <label className="form-label">{deepCopy.requestPath}</label>
-                                                        <input
+                                                        <label htmlFor="inbound-modal-request-path" className="form-label">{deepCopy.requestPath}</label>
+                                                        <input id="inbound-modal-request-path" name="inboundModalRequestPath"
                                                             className="form-input"
                                                             value={Array.isArray(streamObj?.tcpSettings?.header?.request?.path)
                                                                 ? streamObj.tcpSettings.header.request.path.join(',')
@@ -3267,8 +3267,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         />
                                                     </div>
                                                     <div className="form-group">
-                                                        <label className="form-label">Request Host</label>
-                                                        <input
+                                                        <label htmlFor="inbound-modal-request-host" className="form-label">Request Host</label>
+                                                        <input id="inbound-modal-request-host" name="inboundModalRequestHost"
                                                             className="form-input"
                                                             value={String(streamObj?.tcpSettings?.header?.request?.headers?.Host?.[0] || '')}
                                                             onChange={(e) => updateStreamJson((draft) => {
@@ -3281,8 +3281,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         />
                                                     </div>
                                                     <div className="form-group">
-                                                        <label className="form-label">Response Version</label>
-                                                        <input
+                                                        <label htmlFor="inbound-modal-response-version" className="form-label">Response Version</label>
+                                                        <input id="inbound-modal-response-version" name="inboundModalResponseVersion"
                                                             className="form-input"
                                                             value={String(streamObj?.tcpSettings?.header?.response?.version || '1.1')}
                                                             onChange={(e) => updateStreamJson((draft) => {
@@ -3294,8 +3294,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         />
                                                     </div>
                                                     <div className="form-group">
-                                                        <label className="form-label">Response Status</label>
-                                                        <input
+                                                        <label htmlFor="inbound-modal-response-status" className="form-label">Response Status</label>
+                                                        <input id="inbound-modal-response-status" name="inboundModalResponseStatus"
                                                             className="form-input"
                                                             value={String(streamObj?.tcpSettings?.header?.response?.status || '200')}
                                                             onChange={(e) => updateStreamJson((draft) => {
@@ -3307,8 +3307,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                         />
                                                     </div>
                                                     <div className="form-group">
-                                                        <label className="form-label">Response Reason</label>
-                                                        <input
+                                                        <label htmlFor="inbound-modal-response-reason" className="form-label">Response Reason</label>
+                                                        <input id="inbound-modal-response-reason" name="inboundModalResponseReason"
                                                             className="form-input"
                                                             value={String(streamObj?.tcpSettings?.header?.response?.reason || 'OK')}
                                                             onChange={(e) => updateStreamJson((draft) => {
@@ -3328,8 +3328,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                 {simpleStream.network === 'kcp' && (
                                     <div className="grid grid-cols-3 gap-4">
                                         <div className="form-group">
-                                            <label className="form-label">MTU</label>
-                                            <input
+                                            <label htmlFor="inbound-modal-kcp-mtu" className="form-label">MTU</label>
+                                            <input id="inbound-modal-kcp-mtu" name="inboundModalKcpMtu"
                                                 className="form-input"
                                                 type="number"
                                                 min={576}
@@ -3340,8 +3340,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             />
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">TTI (ms)</label>
-                                            <input
+                                            <label htmlFor="inbound-modal-kcp-tti" className="form-label">TTI (ms)</label>
+                                            <input id="inbound-modal-kcp-tti" name="inboundModalKcpTti"
                                                 className="form-input"
                                                 type="number"
                                                 min={10}
@@ -3352,8 +3352,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             />
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">Uplink (MB/s)</label>
-                                            <input
+                                            <label htmlFor="inbound-modal-kcp-uplink-capacity" className="form-label">Uplink (MB/s)</label>
+                                            <input id="inbound-modal-kcp-uplink-capacity" name="inboundModalKcpUplinkCapacity"
                                                 className="form-input"
                                                 type="number"
                                                 min={0}
@@ -3363,8 +3363,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             />
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">Downlink (MB/s)</label>
-                                            <input
+                                            <label htmlFor="inbound-modal-kcp-downlink-capacity" className="form-label">Downlink (MB/s)</label>
+                                            <input id="inbound-modal-kcp-downlink-capacity" name="inboundModalKcpDownlinkCapacity"
                                                 className="form-input"
                                                 type="number"
                                                 min={0}
@@ -3374,8 +3374,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             />
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">Read Buffer (MB)</label>
-                                            <input
+                                            <label htmlFor="inbound-modal-kcp-read-buffer-size" className="form-label">Read Buffer (MB)</label>
+                                            <input id="inbound-modal-kcp-read-buffer-size" name="inboundModalKcpReadBufferSize"
                                                 className="form-input"
                                                 type="number"
                                                 min={0}
@@ -3385,8 +3385,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             />
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">Write Buffer (MB)</label>
-                                            <input
+                                            <label htmlFor="inbound-modal-kcp-write-buffer-size" className="form-label">Write Buffer (MB)</label>
+                                            <input id="inbound-modal-kcp-write-buffer-size" name="inboundModalKcpWriteBufferSize"
                                                 className="form-input"
                                                 type="number"
                                                 min={0}
@@ -3396,9 +3396,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             />
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">Congestion</label>
+                                            <label htmlFor="inbound-modal-kcp-congestion" className="form-label">Congestion</label>
                                             <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
-                                                <input
+                                                <input id="inbound-modal-kcp-congestion" name="inboundModalKcpCongestion"
                                                     type="checkbox"
                                                     checked={!!simpleStream.kcpCongestion}
                                                     onChange={e => setSimpleStream({ ...simpleStream, kcpCongestion: e.target.checked })}
@@ -3413,17 +3413,17 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     <div>
                                         <div className="grid grid-cols-3 gap-4">
                                             <div className="form-group">
-                                                <label className="form-label">WS Path</label>
-                                                <input className="form-input" value={simpleStream.wsPath} onChange={e => setSimpleStream({ ...simpleStream, wsPath: e.target.value })} />
+                                                <label htmlFor="inbound-modal-ws-path" className="form-label">WS Path</label>
+                                                <input id="inbound-modal-ws-path" name="inboundModalWsPath" className="form-input" value={simpleStream.wsPath} onChange={e => setSimpleStream({ ...simpleStream, wsPath: e.target.value })} />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">WS Host</label>
-                                                <input className="form-input" value={simpleStream.wsHost} onChange={e => setSimpleStream({ ...simpleStream, wsHost: e.target.value })} placeholder="Optional" />
+                                                <label htmlFor="inbound-modal-optional" className="form-label">WS Host</label>
+                                                <input id="inbound-modal-optional" name="inboundModalOptional" className="form-input" value={simpleStream.wsHost} onChange={e => setSimpleStream({ ...simpleStream, wsHost: e.target.value })} placeholder="Optional" />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">{deepCopy.wsAdvanced}</label>
+                                                <label htmlFor="inbound-modal-ws-advanced" className="form-label">{deepCopy.wsAdvanced}</label>
                                                 <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
-                                                    <input
+                                                    <input id="inbound-modal-ws-advanced" name="inboundModalWsAdvanced"
                                                         type="checkbox"
                                                         checked={!!simpleStream.wsAcceptProxyProtocol}
                                                         onChange={e => setSimpleStream({ ...simpleStream, wsAcceptProxyProtocol: e.target.checked })}
@@ -3434,8 +3434,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         </div>
                                         <div className="grid grid-cols-2 gap-4 mt-2">
                                             <div className="form-group">
-                                                <label className="form-label">Heartbeat Period</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-ws-settings-heartbeat-period" className="form-label">Heartbeat Period</label>
+                                                <input id="inbound-modal-ws-settings-heartbeat-period" name="inboundModalWsSettingsHeartbeatPeriod"
                                                     className="form-input"
                                                     type="number"
                                                     min={0}
@@ -3455,8 +3455,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">WS Headers (JSON)</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-ws-headers-json" className="form-label">WS Headers (JSON)</label>
+                                                <input id="inbound-modal-ws-headers-json" name="inboundModalWsHeadersJson"
                                                     className="form-input font-mono text-xs"
                                                     value={JSON.stringify(streamObj?.wsSettings?.headers || {})}
                                                     onChange={(e) => {
@@ -3477,16 +3477,16 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                 {simpleStream.network === 'grpc' && (
                                     <div className="grid grid-cols-3 gap-4">
                                         <div className="form-group">
-                                            <label className="form-label">gRPC Service Name</label>
-                                            <input
+                                            <label htmlFor="inbound-modal-grpc-service-name" className="form-label">gRPC Service Name</label>
+                                            <input id="inbound-modal-grpc-service-name" name="inboundModalGrpcServiceName"
                                                 className="form-input"
                                                 value={simpleStream.grpcServiceName}
                                                 onChange={e => setSimpleStream({ ...simpleStream, grpcServiceName: e.target.value })}
                                             />
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">gRPC Authority</label>
-                                            <input
+                                            <label htmlFor="inbound-modal-optional-2" className="form-label">gRPC Authority</label>
+                                            <input id="inbound-modal-optional-2" name="inboundModalOptional2"
                                                 className="form-input"
                                                 value={simpleStream.grpcAuthority}
                                                 onChange={e => setSimpleStream({ ...simpleStream, grpcAuthority: e.target.value })}
@@ -3494,9 +3494,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             />
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">Multi Mode</label>
+                                            <label htmlFor="inbound-modal-grpc-setting" className="form-label">Multi Mode</label>
                                             <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
-                                                <input
+                                                <input id="inbound-modal-grpc-setting" name="inboundModalGrpcSetting"
                                                     type="checkbox"
                                                     checked={!!streamObj?.grpcSettings?.multiMode}
                                                     onChange={(e) => updateStreamJson((draft) => {
@@ -3514,17 +3514,17 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     <div>
                                         <div className="grid grid-cols-3 gap-4">
                                             <div className="form-group">
-                                                <label className="form-label">HTTPUpgrade Path</label>
-                                                <input className="form-input" value={simpleStream.httpupgradePath} onChange={e => setSimpleStream({ ...simpleStream, httpupgradePath: e.target.value })} />
+                                                <label htmlFor="inbound-modal-httpupgrade-path" className="form-label">HTTPUpgrade Path</label>
+                                                <input id="inbound-modal-httpupgrade-path" name="inboundModalHttpupgradePath" className="form-input" value={simpleStream.httpupgradePath} onChange={e => setSimpleStream({ ...simpleStream, httpupgradePath: e.target.value })} />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">HTTPUpgrade Host</label>
-                                                <input className="form-input" value={simpleStream.httpupgradeHost} onChange={e => setSimpleStream({ ...simpleStream, httpupgradeHost: e.target.value })} placeholder="Optional" />
+                                                <label htmlFor="inbound-modal-optional-3" className="form-label">HTTPUpgrade Host</label>
+                                                <input id="inbound-modal-optional-3" name="inboundModalOptional3" className="form-input" value={simpleStream.httpupgradeHost} onChange={e => setSimpleStream({ ...simpleStream, httpupgradeHost: e.target.value })} placeholder="Optional" />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">{deepCopy.httpUpgradeAdvanced}</label>
+                                                <label htmlFor="inbound-modal-http-upgrade-advanced" className="form-label">{deepCopy.httpUpgradeAdvanced}</label>
                                                 <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
-                                                    <input
+                                                    <input id="inbound-modal-http-upgrade-advanced" name="inboundModalHttpUpgradeAdvanced"
                                                         type="checkbox"
                                                         checked={!!simpleStream.httpupgradeAcceptProxyProtocol}
                                                         onChange={e => setSimpleStream({ ...simpleStream, httpupgradeAcceptProxyProtocol: e.target.checked })}
@@ -3534,8 +3534,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </div>
                                         </div>
                                         <div className="form-group mt-2">
-                                            <label className="form-label">HTTPUpgrade Headers (JSON)</label>
-                                            <input
+                                            <label htmlFor="inbound-modal-httpupgrade-headers-json" className="form-label">HTTPUpgrade Headers (JSON)</label>
+                                            <input id="inbound-modal-httpupgrade-headers-json" name="inboundModalHttpupgradeHeadersJson"
                                                 className="form-input font-mono text-xs"
                                                 value={JSON.stringify(streamObj?.httpupgradeSettings?.headers || {})}
                                                 onChange={(e) => {
@@ -3554,16 +3554,16 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     <div>
                                         <div className="grid grid-cols-3 gap-4">
                                             <div className="form-group">
-                                                <label className="form-label">XHTTP Path</label>
-                                                <input className="form-input" value={simpleStream.xhttpPath} onChange={e => setSimpleStream({ ...simpleStream, xhttpPath: e.target.value })} />
+                                                <label htmlFor="inbound-modal-xhttp-path" className="form-label">XHTTP Path</label>
+                                                <input id="inbound-modal-xhttp-path" name="inboundModalXhttpPath" className="form-input" value={simpleStream.xhttpPath} onChange={e => setSimpleStream({ ...simpleStream, xhttpPath: e.target.value })} />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">XHTTP Host</label>
-                                                <input className="form-input" value={simpleStream.xhttpHost} onChange={e => setSimpleStream({ ...simpleStream, xhttpHost: e.target.value })} placeholder="Optional" />
+                                                <label htmlFor="inbound-modal-optional-4" className="form-label">XHTTP Host</label>
+                                                <input id="inbound-modal-optional-4" name="inboundModalOptional4" className="form-input" value={simpleStream.xhttpHost} onChange={e => setSimpleStream({ ...simpleStream, xhttpHost: e.target.value })} placeholder="Optional" />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">XHTTP Mode</label>
-                                                <select className="form-select" value={simpleStream.xhttpMode} onChange={e => setSimpleStream({ ...simpleStream, xhttpMode: e.target.value })}>
+                                                <label htmlFor="inbound-modal-xhttp-mode" className="form-label">XHTTP Mode</label>
+                                                <select id="inbound-modal-xhttp-mode" name="inboundModalXhttpMode" className="form-select" value={simpleStream.xhttpMode} onChange={e => setSimpleStream({ ...simpleStream, xhttpMode: e.target.value })}>
                                                     <option value="auto">auto</option>
                                                     <option value="packet-up">packet-up</option>
                                                     <option value="stream-up">stream-up</option>
@@ -3573,8 +3573,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         </div>
                                         <div className="grid grid-cols-3 gap-4 mt-2">
                                             <div className="form-group">
-                                                <label className="form-label">Max Buffered Upload</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-xhttp-settings-sc-max-buffered-posts" className="form-label">Max Buffered Upload</label>
+                                                <input id="inbound-modal-xhttp-settings-sc-max-buffered-posts" name="inboundModalXhttpSettingsScMaxBufferedPosts"
                                                     className="form-input"
                                                     type="number"
                                                     min={0}
@@ -3594,8 +3594,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Max Upload Size(Byte)</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-xhttp-settings-sc-max-each-post-bytes" className="form-label">Max Upload Size(Byte)</label>
+                                                <input id="inbound-modal-xhttp-settings-sc-max-each-post-bytes" name="inboundModalXhttpSettingsScMaxEachPostBytes"
                                                     className="form-input"
                                                     value={String(streamObj?.xhttpSettings?.scMaxEachPostBytes || '1000000')}
                                                     onChange={(e) => updateStreamJson((draft) => {
@@ -3605,8 +3605,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Stream-Up Server</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-xhttp-settings-sc-stream-up-server-secs" className="form-label">Stream-Up Server</label>
+                                                <input id="inbound-modal-xhttp-settings-sc-stream-up-server-secs" name="inboundModalXhttpSettingsScStreamUpServerSecs"
                                                     className="form-input"
                                                     value={String(streamObj?.xhttpSettings?.scStreamUpServerSecs || '20-80')}
                                                     onChange={(e) => updateStreamJson((draft) => {
@@ -3616,8 +3616,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Padding Bytes</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-xhttp-settings-x-padding-bytes" className="form-label">Padding Bytes</label>
+                                                <input id="inbound-modal-xhttp-settings-x-padding-bytes" name="inboundModalXhttpSettingsXPaddingBytes"
                                                     className="form-input"
                                                     value={String(streamObj?.xhttpSettings?.xPaddingBytes || '100-1000')}
                                                     onChange={(e) => updateStreamJson((draft) => {
@@ -3627,9 +3627,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">No SSE Header</label>
+                                                <label htmlFor="inbound-modal-no-sse-header" className="form-label">No SSE Header</label>
                                                 <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
-                                                    <input
+                                                    <input id="inbound-modal-no-sse-header" name="inboundModalNoSseHeader"
                                                         type="checkbox"
                                                         checked={!!streamObj?.xhttpSettings?.noSSEHeader}
                                                         onChange={(e) => updateStreamJson((draft) => {
@@ -3641,9 +3641,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </label>
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Padding Obfs Mode</label>
+                                                <label htmlFor="inbound-modal-padding-obfs-mode" className="form-label">Padding Obfs Mode</label>
                                                 <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
-                                                    <input
+                                                    <input id="inbound-modal-padding-obfs-mode" name="inboundModalPaddingObfsMode"
                                                         type="checkbox"
                                                         checked={!!streamObj?.xhttpSettings?.xPaddingObfsMode}
                                                         onChange={(e) => updateStreamJson((draft) => {
@@ -3657,8 +3657,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         </div>
                                         <div className="grid grid-cols-3 gap-4 mt-2">
                                             <div className="form-group">
-                                                <label className="form-label">Padding Key</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-xhttp-settings-x-padding-key" className="form-label">Padding Key</label>
+                                                <input id="inbound-modal-xhttp-settings-x-padding-key" name="inboundModalXhttpSettingsXPaddingKey"
                                                     className="form-input"
                                                     value={String(streamObj?.xhttpSettings?.xPaddingKey || '')}
                                                     onChange={(e) => updateStreamJson((draft) => {
@@ -3668,8 +3668,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Padding Header</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-xhttp-settings-x-padding-header" className="form-label">Padding Header</label>
+                                                <input id="inbound-modal-xhttp-settings-x-padding-header" name="inboundModalXhttpSettingsXPaddingHeader"
                                                     className="form-input"
                                                     value={String(streamObj?.xhttpSettings?.xPaddingHeader || '')}
                                                     onChange={(e) => updateStreamJson((draft) => {
@@ -3679,8 +3679,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Padding Placement</label>
-                                                <select
+                                                <label htmlFor="inbound-modal-xhttp-settings-x-padding-placement" className="form-label">Padding Placement</label>
+                                                <select id="inbound-modal-xhttp-settings-x-padding-placement" name="inboundModalXhttpSettingsXPaddingPlacement"
                                                     className="form-select"
                                                     value={String(streamObj?.xhttpSettings?.xPaddingPlacement || '')}
                                                     onChange={(e) => updateStreamJson((draft) => {
@@ -3696,8 +3696,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </select>
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Padding Method</label>
-                                                <select
+                                                <label htmlFor="inbound-modal-xhttp-settings-x-padding-method" className="form-label">Padding Method</label>
+                                                <select id="inbound-modal-xhttp-settings-x-padding-method" name="inboundModalXhttpSettingsXPaddingMethod"
                                                     className="form-select"
                                                     value={String(streamObj?.xhttpSettings?.xPaddingMethod || '')}
                                                     onChange={(e) => updateStreamJson((draft) => {
@@ -3713,8 +3713,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </select>
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Uplink HTTP Method</label>
-                                                <select
+                                                <label htmlFor="inbound-modal-xhttp-settings-uplink-httpmethod" className="form-label">Uplink HTTP Method</label>
+                                                <select id="inbound-modal-xhttp-settings-uplink-httpmethod" name="inboundModalXhttpSettingsUplinkHttpmethod"
                                                     className="form-select"
                                                     value={String(streamObj?.xhttpSettings?.uplinkHTTPMethod || '')}
                                                     onChange={(e) => updateStreamJson((draft) => {
@@ -3730,8 +3730,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </select>
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Session Placement</label>
-                                                <select
+                                                <label htmlFor="inbound-modal-xhttp-settings-session-placement" className="form-label">Session Placement</label>
+                                                <select id="inbound-modal-xhttp-settings-session-placement" name="inboundModalXhttpSettingsSessionPlacement"
                                                     className="form-select"
                                                     value={String(streamObj?.xhttpSettings?.sessionPlacement || '')}
                                                     onChange={(e) => updateStreamJson((draft) => {
@@ -3747,8 +3747,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </select>
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Session Key</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-xhttp-settings-session-key" className="form-label">Session Key</label>
+                                                <input id="inbound-modal-xhttp-settings-session-key" name="inboundModalXhttpSettingsSessionKey"
                                                     className="form-input"
                                                     value={String(streamObj?.xhttpSettings?.sessionKey || '')}
                                                     onChange={(e) => updateStreamJson((draft) => {
@@ -3758,8 +3758,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Sequence Placement</label>
-                                                <select
+                                                <label htmlFor="inbound-modal-xhttp-settings-seq-placement" className="form-label">Sequence Placement</label>
+                                                <select id="inbound-modal-xhttp-settings-seq-placement" name="inboundModalXhttpSettingsSeqPlacement"
                                                     className="form-select"
                                                     value={String(streamObj?.xhttpSettings?.seqPlacement || '')}
                                                     onChange={(e) => updateStreamJson((draft) => {
@@ -3775,8 +3775,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </select>
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Sequence Key</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-xhttp-settings-seq-key" className="form-label">Sequence Key</label>
+                                                <input id="inbound-modal-xhttp-settings-seq-key" name="inboundModalXhttpSettingsSeqKey"
                                                     className="form-input"
                                                     value={String(streamObj?.xhttpSettings?.seqKey || '')}
                                                     onChange={(e) => updateStreamJson((draft) => {
@@ -3786,8 +3786,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Uplink Data Placement</label>
-                                                <select
+                                                <label htmlFor="inbound-modal-xhttp-settings-uplink-data-placement" className="form-label">Uplink Data Placement</label>
+                                                <select id="inbound-modal-xhttp-settings-uplink-data-placement" name="inboundModalXhttpSettingsUplinkDataPlacement"
                                                     className="form-select"
                                                     value={String(streamObj?.xhttpSettings?.uplinkDataPlacement || '')}
                                                     onChange={(e) => updateStreamJson((draft) => {
@@ -3803,8 +3803,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </select>
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Uplink Data Key</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-xhttp-settings-uplink-data-key" className="form-label">Uplink Data Key</label>
+                                                <input id="inbound-modal-xhttp-settings-uplink-data-key" name="inboundModalXhttpSettingsUplinkDataKey"
                                                     className="form-input"
                                                     value={String(streamObj?.xhttpSettings?.uplinkDataKey || '')}
                                                     onChange={(e) => updateStreamJson((draft) => {
@@ -3814,8 +3814,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Uplink Chunk Size</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-xhttp-settings-uplink-chunk-size" className="form-label">Uplink Chunk Size</label>
+                                                <input id="inbound-modal-xhttp-settings-uplink-chunk-size" name="inboundModalXhttpSettingsUplinkChunkSize"
                                                     className="form-input"
                                                     type="number"
                                                     min={0}
@@ -3836,8 +3836,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </div>
                                         </div>
                                         <div className="form-group mt-2">
-                                            <label className="form-label">XHTTP Headers (JSON)</label>
-                                            <input
+                                            <label htmlFor="inbound-modal-xhttp-headers-json" className="form-label">XHTTP Headers (JSON)</label>
+                                            <input id="inbound-modal-xhttp-headers-json" name="inboundModalXhttpHeadersJson"
                                                 className="form-input font-mono text-xs"
                                                 value={JSON.stringify(streamObj?.xhttpSettings?.headers || {})}
                                                 onChange={(e) => {
@@ -3856,8 +3856,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     <div>
                                         <div className="grid grid-cols-3 gap-4">
                                             <div className="form-group">
-                                                <label className="form-label">TLS SNI (serverName)</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-tls-sni" className="form-label">TLS SNI (serverName)</label>
+                                                <input id="inbound-modal-tls-sni" name="inboundModalTlsSni"
                                                     className="form-input"
                                                     value={simpleStream.tlsSni}
                                                     onChange={e => setSimpleStream({ ...simpleStream, tlsSni: e.target.value })}
@@ -3865,8 +3865,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Fingerprint</label>
-                                                <select className="form-select" value={simpleStream.tlsFingerprint} onChange={e => setSimpleStream({ ...simpleStream, tlsFingerprint: e.target.value })}>
+                                                <label htmlFor="inbound-modal-tls-fingerprint" className="form-label">Fingerprint</label>
+                                                <select id="inbound-modal-tls-fingerprint" name="inboundModalTlsFingerprint" className="form-select" value={simpleStream.tlsFingerprint} onChange={e => setSimpleStream({ ...simpleStream, tlsFingerprint: e.target.value })}>
                                                     {!FINGERPRINT_OPTIONS.includes(simpleStream.tlsFingerprint) && simpleStream.tlsFingerprint && (
                                                         <option value={simpleStream.tlsFingerprint}>{simpleStream.tlsFingerprint}</option>
                                                     )}
@@ -3876,8 +3876,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </select>
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">ALPN</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-h2-http-1-1" className="form-label">ALPN</label>
+                                                <input id="inbound-modal-h2-http-1-1" name="inboundModalH2Http11"
                                                     className="form-input"
                                                     value={simpleStream.tlsAlpn}
                                                     onChange={e => setSimpleStream({ ...simpleStream, tlsAlpn: e.target.value })}
@@ -3887,8 +3887,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         </div>
                                         <div className="grid grid-cols-3 gap-4 mt-2">
                                             <div className="form-group">
-                                                <label className="form-label">Min Version</label>
-                                                <select
+                                                <label htmlFor="inbound-modal-tls-settings-min-version" className="form-label">Min Version</label>
+                                                <select id="inbound-modal-tls-settings-min-version" name="inboundModalTlsSettingsMinVersion"
                                                     className="form-select"
                                                     value={String(streamObj?.tlsSettings?.minVersion || '1.2')}
                                                     onChange={(e) => updateStreamJson((draft) => {
@@ -3902,8 +3902,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </select>
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Max Version</label>
-                                                <select
+                                                <label htmlFor="inbound-modal-tls-settings-max-version" className="form-label">Max Version</label>
+                                                <select id="inbound-modal-tls-settings-max-version" name="inboundModalTlsSettingsMaxVersion"
                                                     className="form-select"
                                                     value={String(streamObj?.tlsSettings?.maxVersion || '1.3')}
                                                     onChange={(e) => updateStreamJson((draft) => {
@@ -3917,8 +3917,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </select>
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Cipher Suites</label>
-                                                <select
+                                                <label htmlFor="inbound-modal-tls-settings-cipher-suites" className="form-label">Cipher Suites</label>
+                                                <select id="inbound-modal-tls-settings-cipher-suites" name="inboundModalTlsSettingsCipherSuites"
                                                     className="form-select"
                                                     value={String(streamObj?.tlsSettings?.cipherSuites || '')}
                                                     onChange={(e) => updateStreamJson((draft) => {
@@ -3936,9 +3936,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         </div>
                                         <div className="grid grid-cols-3 gap-4 mt-2">
                                             <div className="form-group">
-                                                <label className="form-label">Reject Unknown SNI</label>
+                                                <label htmlFor="inbound-modal-reject-unknown-sni" className="form-label">Reject Unknown SNI</label>
                                                 <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
-                                                    <input
+                                                    <input id="inbound-modal-reject-unknown-sni" name="inboundModalRejectUnknownSni"
                                                         type="checkbox"
                                                         checked={!!streamObj?.tlsSettings?.rejectUnknownSni}
                                                         onChange={(e) => updateStreamJson((draft) => {
@@ -3950,9 +3950,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </label>
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Disable System Root</label>
+                                                <label htmlFor="inbound-modal-disable-system-root" className="form-label">Disable System Root</label>
                                                 <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
-                                                    <input
+                                                    <input id="inbound-modal-disable-system-root" name="inboundModalDisableSystemRoot"
                                                         type="checkbox"
                                                         checked={!!streamObj?.tlsSettings?.disableSystemRoot}
                                                         onChange={(e) => updateStreamJson((draft) => {
@@ -3964,9 +3964,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </label>
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Session Resumption</label>
+                                                <label htmlFor="inbound-modal-session-resumption" className="form-label">Session Resumption</label>
                                                 <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
-                                                    <input
+                                                    <input id="inbound-modal-session-resumption" name="inboundModalSessionResumption"
                                                         type="checkbox"
                                                         checked={!!streamObj?.tlsSettings?.enableSessionResumption}
                                                         onChange={(e) => updateStreamJson((draft) => {
@@ -3980,8 +3980,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         </div>
                                         <div className="grid grid-cols-2 gap-4 mt-2">
                                             <div className="form-group">
-                                                <label className="form-label">ECH Server Keys</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-tls-settings-ech-server-keys" className="form-label">ECH Server Keys</label>
+                                                <input id="inbound-modal-tls-settings-ech-server-keys" name="inboundModalTlsSettingsEchServerKeys"
                                                     className="form-input"
                                                     value={String(streamObj?.tlsSettings?.echServerKeys || '')}
                                                     onChange={(e) => updateStreamJson((draft) => {
@@ -3991,8 +3991,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">ECH Config List</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-settings-ech-config-list" className="form-label">ECH Config List</label>
+                                                <input id="inbound-modal-settings-ech-config-list" name="inboundModalSettingsEchConfigList"
                                                     className="form-input"
                                                     value={String(streamObj?.tlsSettings?.settings?.echConfigList || '')}
                                                     onChange={(e) => updateStreamJson((draft) => {
@@ -4003,8 +4003,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">ECH Force Query</label>
-                                                <select
+                                                <label htmlFor="inbound-modal-tls-settings-ech-force-query" className="form-label">ECH Force Query</label>
+                                                <select id="inbound-modal-tls-settings-ech-force-query" name="inboundModalTlsSettingsEchForceQuery"
                                                     className="form-select"
                                                     value={String(streamObj?.tlsSettings?.echForceQuery || 'none')}
                                                     onChange={(e) => updateStreamJson((draft) => {
@@ -4019,18 +4019,18 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </div>
                                         </div>
                                         <div className="form-group mt-2">
-                                            <label className="form-label">{deepCopy.echActions}</label>
+                                            <span className="form-label">{deepCopy.echActions}</span>
                                             <div className="flex gap-2">
                                                 <button type="button" className="btn btn-secondary btn-sm" onClick={generateEchCert}>{deepCopy.generate}</button>
                                                 <button type="button" className="btn btn-secondary btn-sm" onClick={clearEchCert}>{deepCopy.clear}</button>
                                             </div>
                                         </div>
                                         <div className="border border-stroke-soft rounded-lg p-3 mt-2">
-                                            <label className="form-label mb-2 block">{deepCopy.certificateFirst}</label>
+                                            <span className="form-label mb-2 block">{deepCopy.certificateFirst}</span>
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="form-group">
-                                                    <label className="form-label">{deepCopy.certificatePath}</label>
-                                                    <input
+                                                    <label htmlFor="inbound-modal-certificate-path" className="form-label">{deepCopy.certificatePath}</label>
+                                                    <input id="inbound-modal-certificate-path" name="inboundModalCertificatePath"
                                                         className="form-input"
                                                         value={String(streamObj?.tlsSettings?.certificates?.[0]?.certificateFile || '')}
                                                         onChange={(e) => updateStreamJson((draft) => {
@@ -4043,8 +4043,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     />
                                                 </div>
                                                 <div className="form-group">
-                                                    <label className="form-label">{deepCopy.privateKeyPath}</label>
-                                                    <input
+                                                    <label htmlFor="inbound-modal-private-key-path" className="form-label">{deepCopy.privateKeyPath}</label>
+                                                    <input id="inbound-modal-private-key-path" name="inboundModalPrivateKeyPath"
                                                         className="form-input"
                                                         value={String(streamObj?.tlsSettings?.certificates?.[0]?.keyFile || '')}
                                                         onChange={(e) => updateStreamJson((draft) => {
@@ -4059,8 +4059,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </div>
                                             <div className="flex gap-4 mt-2">
                                                 <div className="form-group flex-1">
-                                                    <label className="form-label">{deepCopy.certificateUsage}</label>
-                                                    <select className="form-select"
+                                                    <label htmlFor="inbound-modal-certificate-usage" className="form-label">{deepCopy.certificateUsage}</label>
+                                                    <select id="inbound-modal-certificate-usage" name="inboundModalCertificateUsage" className="form-select"
                                                         value={String(streamObj?.tlsSettings?.certificates?.[0]?.usage || 'encipherment')}
                                                         onChange={(e) => updateStreamJson((draft) => {
                                                             draft.tlsSettings = draft.tlsSettings || {};
@@ -4077,7 +4077,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </div>
                                                 <div className="flex items-center gap-4">
                                                     <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
-                                                        <input
+                                                        <input name="inboundModalField13"
                                                             type="checkbox"
                                                             checked={!!streamObj?.tlsSettings?.certificates?.[0]?.oneTimeLoading}
                                                             onChange={(e) => updateStreamJson((draft) => {
@@ -4092,7 +4092,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     </label>
                                                     {String(streamObj?.tlsSettings?.certificates?.[0]?.usage || 'encipherment') === 'issue' && (
                                                         <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
-                                                            <input
+                                                            <input name="inboundModalField14"
                                                                 type="checkbox"
                                                                 checked={!!streamObj?.tlsSettings?.certificates?.[0]?.buildChain}
                                                                 onChange={(e) => updateStreamJson((draft) => {
@@ -4115,7 +4115,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                 {simpleStream.security === 'reality' && (
                                     <div className="border-t border-stroke-soft pt-4 mt-2">
                                         <div className="flex justify-between items-center mb-2">
-                                            <label className="form-label">Reality Settings</label>
+                                            <span className="form-label">Reality Settings</span>
                                             <div className="flex gap-2">
                                                 <button type="button" className="btn btn-secondary btn-sm" onClick={generateMlkemKeys} title="ML-KEM-768 Post-Quantum Key">{deepCopy.genMlkemCert}</button>
                                                 <button type="button" className="btn btn-primary btn-sm" onClick={generateRealityKeys}>{deepCopy.generateKeys}</button>
@@ -4124,9 +4124,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
 
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="form-group">
-                                                <label className="form-label">Show</label>
+                                                <label htmlFor="inbound-modal-reality-show" className="form-label">Show</label>
                                                 <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
-                                                    <input
+                                                    <input id="inbound-modal-reality-show" name="inboundModalRealityShow"
                                                         type="checkbox"
                                                         checked={!!simpleStream.realityShow}
                                                         onChange={e => setSimpleStream({ ...simpleStream, realityShow: e.target.checked })}
@@ -4135,8 +4135,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </label>
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Xver</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-reali" className="form-label">Xver</label>
+                                                <input id="inbound-modal-reali" name="inboundModalReali"
                                                     className="form-input"
                                                     type="number"
                                                     min={0}
@@ -4149,16 +4149,16 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         </div>
 
                                         <div className="form-group">
-                                            <label className="form-label">{deepCopy.targetWebsite}</label>
-                                            <input className="form-input" value={simpleStream.realityDest} onChange={e => setSimpleStream({ ...simpleStream, realityDest: e.target.value })} />
+                                            <label htmlFor="inbound-modal-target-website" className="form-label">{deepCopy.targetWebsite}</label>
+                                            <input id="inbound-modal-target-website" name="inboundModalTargetWebsite" className="form-input" value={simpleStream.realityDest} onChange={e => setSimpleStream({ ...simpleStream, realityDest: e.target.value })} />
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">SNI (ServerName)</label>
-                                            <input className="form-input" value={simpleStream.realitySNI} onChange={e => setSimpleStream({ ...simpleStream, realitySNI: e.target.value })} />
+                                            <label htmlFor="inbound-modal-reality-sni" className="form-label">SNI (ServerName)</label>
+                                            <input id="inbound-modal-reality-sni" name="inboundModalRealitySni" className="form-input" value={simpleStream.realitySNI} onChange={e => setSimpleStream({ ...simpleStream, realitySNI: e.target.value })} />
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">Reality Settings ServerName</label>
-                                            <input
+                                            <label htmlFor="inbound-modal-settings-server-name" className="form-label">Reality Settings ServerName</label>
+                                            <input id="inbound-modal-settings-server-name" name="inboundModalSettingsServerName"
                                                 className="form-input"
                                                 value={String(streamObj?.realitySettings?.settings?.serverName || '')}
                                                 onChange={(e) => updateStreamJson((draft) => {
@@ -4170,30 +4170,30 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             />
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">ShortId</label>
+                                            <label htmlFor="inbound-modal-reality-short-id" className="form-label">ShortId</label>
                                             <div className="flex gap-2">
-                                                <input className="form-input" value={simpleStream.realityShortId} onChange={e => setSimpleStream({ ...simpleStream, realityShortId: e.target.value })} />
+                                                <input id="inbound-modal-reality-short-id" name="inboundModalRealityShortId" className="form-input" value={simpleStream.realityShortId} onChange={e => setSimpleStream({ ...simpleStream, realityShortId: e.target.value })} />
                                                 <button type="button" className="btn btn-secondary btn-sm" onClick={generateShortId}>{deepCopy.generate}</button>
                                             </div>
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">PrivateKey</label>
-                                            <input className="form-input font-mono text-xs" value={simpleStream.realityPrivateKey} onChange={e => setSimpleStream({ ...simpleStream, realityPrivateKey: e.target.value })} />
+                                            <label htmlFor="inbound-modal-reality-private-key" className="form-label">PrivateKey</label>
+                                            <input id="inbound-modal-reality-private-key" name="inboundModalRealityPrivateKey" className="form-input font-mono text-xs" value={simpleStream.realityPrivateKey} onChange={e => setSimpleStream({ ...simpleStream, realityPrivateKey: e.target.value })} />
                                             <div className="text-xs text-muted mt-1">
                                                 {deepCopy.realityPrivateKeyHint}
                                             </div>
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">PublicKey</label>
-                                            <input className="form-input font-mono text-xs" value={simpleStream.realityPublicKey} onChange={e => setSimpleStream({ ...simpleStream, realityPublicKey: e.target.value })} />
+                                            <label htmlFor="inbound-modal-reality-public-key" className="form-label">PublicKey</label>
+                                            <input id="inbound-modal-reality-public-key" name="inboundModalRealityPublicKey" className="form-input font-mono text-xs" value={simpleStream.realityPublicKey} onChange={e => setSimpleStream({ ...simpleStream, realityPublicKey: e.target.value })} />
                                             <div className="text-xs text-muted mt-1">
                                                 {deepCopy.realityPublicKeyHint}
                                             </div>
                                         </div>
                                         <div className="grid grid-cols-3 gap-4">
                                             <div className="form-group">
-                                                <label className="form-label">Min Client Ver</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-optional-5" className="form-label">Min Client Ver</label>
+                                                <input id="inbound-modal-optional-5" name="inboundModalOptional5"
                                                     className="form-input"
                                                     value={simpleStream.realityMinClientVer}
                                                     onChange={e => setSimpleStream({ ...simpleStream, realityMinClientVer: e.target.value })}
@@ -4201,8 +4201,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Max Client Ver</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-optional-6" className="form-label">Max Client Ver</label>
+                                                <input id="inbound-modal-optional-6" name="inboundModalOptional6"
                                                     className="form-input"
                                                     value={simpleStream.realityMaxClientVer}
                                                     onChange={e => setSimpleStream({ ...simpleStream, realityMaxClientVer: e.target.value })}
@@ -4210,8 +4210,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Max TimeDiff</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-reality-max-timediff" className="form-label">Max TimeDiff</label>
+                                                <input id="inbound-modal-reality-max-timediff" name="inboundModalRealityMaxTimediff"
                                                     className="form-input"
                                                     type="number"
                                                     min={0}
@@ -4223,8 +4223,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         </div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="form-group">
-                                                <label className="form-label">Fingerprint (fp)</label>
-                                                <select className="form-select" value={simpleStream.realityFingerprint} onChange={e => setSimpleStream({ ...simpleStream, realityFingerprint: e.target.value })}>
+                                                <label htmlFor="inbound-modal-reality-fingerprint" className="form-label">Fingerprint (fp)</label>
+                                                <select id="inbound-modal-reality-fingerprint" name="inboundModalRealityFingerprint" className="form-select" value={simpleStream.realityFingerprint} onChange={e => setSimpleStream({ ...simpleStream, realityFingerprint: e.target.value })}>
                                                     {!FINGERPRINT_OPTIONS.includes(simpleStream.realityFingerprint) && simpleStream.realityFingerprint && (
                                                         <option value={simpleStream.realityFingerprint}>{simpleStream.realityFingerprint}</option>
                                                     )}
@@ -4234,14 +4234,14 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 </select>
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">SpiderX (spx)</label>
-                                                <input className="form-input" value={simpleStream.realitySpiderX} onChange={e => setSimpleStream({ ...simpleStream, realitySpiderX: e.target.value })} />
+                                                <label htmlFor="inbound-modal-reality-spider-x" className="form-label">SpiderX (spx)</label>
+                                                <input id="inbound-modal-reality-spider-x" name="inboundModalRealitySpiderX" className="form-input" value={simpleStream.realitySpiderX} onChange={e => setSimpleStream({ ...simpleStream, realitySpiderX: e.target.value })} />
                                             </div>
                                         </div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="form-group">
-                                                <label className="form-label">mldsa65 Seed</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-optional-7" className="form-label">mldsa65 Seed</label>
+                                                <input id="inbound-modal-optional-7" name="inboundModalOptional7"
                                                     className="form-input"
                                                     value={simpleStream.realityMldsa65Seed}
                                                     onChange={e => setSimpleStream({ ...simpleStream, realityMldsa65Seed: e.target.value })}
@@ -4249,8 +4249,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                 />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">mldsa65 Verify</label>
-                                                <input
+                                                <label htmlFor="inbound-modal-optional-8" className="form-label">mldsa65 Verify</label>
+                                                <input id="inbound-modal-optional-8" name="inboundModalOptional8"
                                                     className="form-input"
                                                     value={simpleStream.realityMldsa65Verify}
                                                     onChange={e => setSimpleStream({ ...simpleStream, realityMldsa65Verify: e.target.value })}
@@ -4259,7 +4259,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             </div>
                                         </div>
                                         <div className="form-group mt-2">
-                                            <label className="form-label">{deepCopy.mldsaActions}</label>
+                                            <span className="form-label">{deepCopy.mldsaActions}</span>
                                             <div className="flex gap-2">
                                                 <button type="button" className="btn btn-secondary btn-sm" onClick={generateMldsa65Seed}>{deepCopy.generate}</button>
                                                 <button type="button" className="btn btn-secondary btn-sm" onClick={clearMldsa65Seed}>{deepCopy.clear}</button>
@@ -4299,7 +4299,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         )}
                                         {(Array.isArray(streamObj?.externalProxy) ? streamObj.externalProxy : []).map((row, index) => (
                                             <div key={`external-proxy-${index}`} className="grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-3 mb-2">
-                                                <select
+                                                <select name={`inboundModalExternalP-${index}`}
                                                     className="form-select"
                                                     value={String(row?.forceTls || 'same')}
                                                     onChange={(e) => updateStreamJson((draft) => {
@@ -4312,7 +4312,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     <option value="none">none</option>
                                                     <option value="tls">tls</option>
                                                 </select>
-                                                <input
+                                                <input name={`inboundModalDest-${index}`}
                                                     className="form-input"
                                                     value={String(row?.dest || '')}
                                                     onChange={(e) => updateStreamJson((draft) => {
@@ -4322,7 +4322,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     })}
                                                     placeholder="dest"
                                                 />
-                                                <input
+                                                <input name={`inboundModalPort-${index}`}
                                                     className="form-input"
                                                     type="number"
                                                     min={1}
@@ -4344,7 +4344,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     }}
                                                     placeholder="port"
                                                 />
-                                                <input
+                                                <input name={`inboundModalRemark-${index}`}
                                                     className="form-input"
                                                     value={String(row?.remark || '')}
                                                     onChange={(e) => updateStreamJson((draft) => {
@@ -4373,7 +4373,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     <div className="border-t border-stroke-soft pt-4 mt-4">
                                         <h4 className="text-secondary text-sm font-bold mb-2">Sockopt</h4>
                                         <label className="badge badge-neutral flex items-center gap-2 cursor-pointer mb-3 w-fit">
-                                            <input
+                                            <input name="inboundModalField15"
                                                 type="checkbox"
                                                 checked={!!streamObj?.sockopt}
                                                 onChange={(e) => updateStreamJson((draft) => {
@@ -4407,64 +4407,64 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         {!!streamObj?.sockopt && (
                                             <div className="grid grid-cols-3 gap-4">
                                                 <div className="form-group">
-                                                    <label className="form-label">Route Mark</label>
-                                                    <input className="form-input" type="number" min={0} value={streamObj?.sockopt?.mark ?? 0} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.mark = parseOptionalNumberInput(e.target.value); })} onBlur={(e) => { if (e.target.value === '') updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.mark = 0; }); }} />
+                                                    <label htmlFor="inbound-modal-sockopt" className="form-label">Route Mark</label>
+                                                    <input id="inbound-modal-sockopt" name="inboundModalSockopt" className="form-input" type="number" min={0} value={streamObj?.sockopt?.mark ?? 0} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.mark = parseOptionalNumberInput(e.target.value); })} onBlur={(e) => { if (e.target.value === '') updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.mark = 0; }); }} />
                                                 </div>
                                                 <div className="form-group">
-                                                    <label className="form-label">TCP KeepAlive Interval</label>
-                                                    <input className="form-input" type="number" min={0} value={streamObj?.sockopt?.tcpKeepAliveInterval ?? 0} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpKeepAliveInterval = parseOptionalNumberInput(e.target.value); })} onBlur={(e) => { if (e.target.value === '') updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpKeepAliveInterval = 0; }); }} />
+                                                    <label htmlFor="inbound-modal-sockopt-2" className="form-label">TCP KeepAlive Interval</label>
+                                                    <input id="inbound-modal-sockopt-2" name="inboundModalSockopt2" className="form-input" type="number" min={0} value={streamObj?.sockopt?.tcpKeepAliveInterval ?? 0} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpKeepAliveInterval = parseOptionalNumberInput(e.target.value); })} onBlur={(e) => { if (e.target.value === '') updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpKeepAliveInterval = 0; }); }} />
                                                 </div>
                                                 <div className="form-group">
-                                                    <label className="form-label">TCP KeepAlive Idle</label>
-                                                    <input className="form-input" type="number" min={0} value={streamObj?.sockopt?.tcpKeepAliveIdle ?? 0} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpKeepAliveIdle = parseOptionalNumberInput(e.target.value); })} onBlur={(e) => { if (e.target.value === '') updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpKeepAliveIdle = 0; }); }} />
+                                                    <label htmlFor="inbound-modal-sockopt-3" className="form-label">TCP KeepAlive Idle</label>
+                                                    <input id="inbound-modal-sockopt-3" name="inboundModalSockopt3" className="form-input" type="number" min={0} value={streamObj?.sockopt?.tcpKeepAliveIdle ?? 0} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpKeepAliveIdle = parseOptionalNumberInput(e.target.value); })} onBlur={(e) => { if (e.target.value === '') updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpKeepAliveIdle = 0; }); }} />
                                                 </div>
                                                 <div className="form-group">
-                                                    <label className="form-label">TCP Max Seg</label>
-                                                    <input className="form-input" type="number" min={0} value={streamObj?.sockopt?.tcpMaxSeg ?? 0} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpMaxSeg = parseOptionalNumberInput(e.target.value); })} onBlur={(e) => { if (e.target.value === '') updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpMaxSeg = 0; }); }} />
+                                                    <label htmlFor="inbound-modal-sockopt-4" className="form-label">TCP Max Seg</label>
+                                                    <input id="inbound-modal-sockopt-4" name="inboundModalSockopt4" className="form-input" type="number" min={0} value={streamObj?.sockopt?.tcpMaxSeg ?? 0} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpMaxSeg = parseOptionalNumberInput(e.target.value); })} onBlur={(e) => { if (e.target.value === '') updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpMaxSeg = 0; }); }} />
                                                 </div>
                                                 <div className="form-group">
-                                                    <label className="form-label">TCP User Timeout</label>
-                                                    <input className="form-input" type="number" min={0} value={streamObj?.sockopt?.tcpUserTimeout ?? 0} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpUserTimeout = parseOptionalNumberInput(e.target.value); })} onBlur={(e) => { if (e.target.value === '') updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpUserTimeout = 0; }); }} />
+                                                    <label htmlFor="inbound-modal-sockopt-5" className="form-label">TCP User Timeout</label>
+                                                    <input id="inbound-modal-sockopt-5" name="inboundModalSockopt5" className="form-input" type="number" min={0} value={streamObj?.sockopt?.tcpUserTimeout ?? 0} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpUserTimeout = parseOptionalNumberInput(e.target.value); })} onBlur={(e) => { if (e.target.value === '') updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpUserTimeout = 0; }); }} />
                                                 </div>
                                                 <div className="form-group">
-                                                    <label className="form-label">TCP Window Clamp</label>
-                                                    <input className="form-input" type="number" min={0} value={streamObj?.sockopt?.tcpWindowClamp ?? 0} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpWindowClamp = parseOptionalNumberInput(e.target.value); })} onBlur={(e) => { if (e.target.value === '') updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpWindowClamp = 0; }); }} />
+                                                    <label htmlFor="inbound-modal-sockopt-6" className="form-label">TCP Window Clamp</label>
+                                                    <input id="inbound-modal-sockopt-6" name="inboundModalSockopt6" className="form-input" type="number" min={0} value={streamObj?.sockopt?.tcpWindowClamp ?? 0} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpWindowClamp = parseOptionalNumberInput(e.target.value); })} onBlur={(e) => { if (e.target.value === '') updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpWindowClamp = 0; }); }} />
                                                 </div>
                                                 <div className="form-group">
-                                                    <label className="form-label">Domain Strategy</label>
-                                                    <select className="form-select" value={String(streamObj?.sockopt?.domainStrategy || 'UseIP')} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.domainStrategy = e.target.value; })}>
+                                                    <label htmlFor="inbound-modal-sockopt-7" className="form-label">Domain Strategy</label>
+                                                    <select id="inbound-modal-sockopt-7" name="inboundModalSockopt7" className="form-select" value={String(streamObj?.sockopt?.domainStrategy || 'UseIP')} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.domainStrategy = e.target.value; })}>
                                                         {SOCKOPT_DOMAIN_STRATEGY_OPTIONS.map((item) => (
                                                             <option key={item} value={item}>{item}</option>
                                                         ))}
                                                     </select>
                                                 </div>
                                                 <div className="form-group">
-                                                    <label className="form-label">TCP Congestion</label>
-                                                    <select className="form-select" value={String(streamObj?.sockopt?.tcpcongestion || 'bbr')} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpcongestion = e.target.value; })}>
+                                                    <label htmlFor="inbound-modal-sockopt-8" className="form-label">TCP Congestion</label>
+                                                    <select id="inbound-modal-sockopt-8" name="inboundModalSockopt8" className="form-select" value={String(streamObj?.sockopt?.tcpcongestion || 'bbr')} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tcpcongestion = e.target.value; })}>
                                                         {SOCKOPT_TCP_CONGESTION_OPTIONS.map((item) => (
                                                             <option key={item} value={item}>{item}</option>
                                                         ))}
                                                     </select>
                                                 </div>
                                                 <div className="form-group">
-                                                    <label className="form-label">TProxy</label>
-                                                    <select className="form-select" value={String(streamObj?.sockopt?.tproxy || 'off')} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tproxy = e.target.value; })}>
+                                                    <label htmlFor="inbound-modal-sockopt-9" className="form-label">TProxy</label>
+                                                    <select id="inbound-modal-sockopt-9" name="inboundModalSockopt9" className="form-select" value={String(streamObj?.sockopt?.tproxy || 'off')} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.tproxy = e.target.value; })}>
                                                         {SOCKOPT_TPROXY_OPTIONS.map((item) => (
                                                             <option key={item} value={item}>{item}</option>
                                                         ))}
                                                     </select>
                                                 </div>
                                                 <div className="form-group">
-                                                    <label className="form-label">Dialer Proxy</label>
-                                                    <input className="form-input" value={String(streamObj?.sockopt?.dialerProxy || '')} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.dialerProxy = e.target.value; })} />
+                                                    <label htmlFor="inbound-modal-sockopt-10" className="form-label">Dialer Proxy</label>
+                                                    <input id="inbound-modal-sockopt-10" name="inboundModalSockopt10" className="form-input" value={String(streamObj?.sockopt?.dialerProxy || '')} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.dialerProxy = e.target.value; })} />
                                                 </div>
                                                 <div className="form-group">
-                                                    <label className="form-label">Interface Name</label>
-                                                    <input className="form-input" value={String(streamObj?.sockopt?.interface || '')} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.interface = e.target.value; })} />
+                                                    <label htmlFor="inbound-modal-sockopt-11" className="form-label">Interface Name</label>
+                                                    <input id="inbound-modal-sockopt-11" name="inboundModalSockopt11" className="form-input" value={String(streamObj?.sockopt?.interface || '')} onChange={(e) => updateStreamJson((draft) => { draft.sockopt = draft.sockopt || {}; draft.sockopt.interface = e.target.value; })} />
                                                 </div>
                                                 <div className="form-group">
-                                                    <label className="form-label">{deepCopy.trustedXff}</label>
-                                                    <input
+                                                    <label htmlFor="inbound-modal-trusted-xff" className="form-label">{deepCopy.trustedXff}</label>
+                                                    <input id="inbound-modal-trusted-xff" name="inboundModalTrustedXff"
                                                         className="form-input"
                                                         value={Array.isArray(streamObj?.sockopt?.trustedXForwardedFor) ? streamObj.sockopt.trustedXForwardedFor.join(',') : ''}
                                                         onChange={(e) => updateStreamJson((draft) => {
@@ -4477,7 +4477,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     />
                                                 </div>
                                                 <div className="form-group">
-                                                    <label className="form-label">Sockopt Flags</label>
+                                                    <label htmlFor="inbound-modal-sockopt-flags" className="form-label">Sockopt Flags</label>
                                                     <div className="flex flex-wrap gap-2">
                                                         {[
                                                             ['acceptProxyProtocol', 'Accept Proxy'],
@@ -4487,7 +4487,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                             ['V6Only', 'V6Only'],
                                                         ].map(([key, label]) => (
                                                             <label key={key} className="badge badge-neutral flex items-center gap-1 cursor-pointer">
-                                                                <input
+                                                                <input id="inbound-modal-sockopt-flags" name="inboundModalSockoptFlags"
                                                                     type="checkbox"
                                                                     checked={!!streamObj?.sockopt?.[key]}
                                                                     onChange={(e) => updateStreamJson((draft) => {
@@ -4529,7 +4529,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         )}
                                         {(Array.isArray(streamObj?.finalmask?.udp) ? streamObj.finalmask.udp : []).map((mask, index) => (
                                             <div key={`udp-mask-${index}`} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-3 mb-2">
-                                                <input
+                                                <input name={`inboundModalType-${index}`}
                                                     className="form-input"
                                                     value={String(mask?.type || '')}
                                                     onChange={(e) => updateStreamJson((draft) => {
@@ -4540,7 +4540,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     })}
                                                     placeholder="type"
                                                 />
-                                                <input
+                                                <input name={`inboundModalSettings-${index}`}
                                                     className="form-input"
                                                     value={String(mask?.settings?.password || mask?.settings?.domain || mask?.settings?.ip || '')}
                                                     onChange={(e) => updateStreamJson((draft) => {
@@ -4555,7 +4555,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     })}
                                                     placeholder="settings"
                                                 />
-                                                <input
+                                                <input name={`inboundModalSettingsId-${index}`}
                                                     className="form-input"
                                                     type="number"
                                                     min={0}

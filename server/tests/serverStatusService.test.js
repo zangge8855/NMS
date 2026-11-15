@@ -27,6 +27,7 @@ test('collectServerStatusSnapshot classifies DNS failures with a dedicated reaso
     assert.equal(result.health, 'unreachable');
     assert.equal(result.reasonCode, 'dns_error');
     assert.equal(result.retryable, true);
+    assert.equal(result.status.mem.total, 0);
     assert.equal(typeof result.latencyMs, 'number');
 });
 

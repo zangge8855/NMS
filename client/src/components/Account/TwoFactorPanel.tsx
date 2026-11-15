@@ -167,9 +167,9 @@ export default function TwoFactorPanel({ locale = 'zh-CN' }: TwoFactorPanelProps
         <div className="card account-twofactor-card">
             <div className="account-twofactor-head">
                 <div className="account-twofactor-copy">
-                    <h3 className="account-twofactor-title">
+                    <h2 className="account-twofactor-title">
                         <HiOutlineShieldCheck /> {copy.title}
-                    </h3>
+                    </h2>
                     <p className="account-twofactor-subtitle">{copy.subtitle}</p>
                 </div>
                 <span className={`badge ${enabled ? 'badge-success' : 'badge-neutral'}`}>
@@ -193,11 +193,21 @@ export default function TwoFactorPanel({ locale = 'zh-CN' }: TwoFactorPanelProps
             ) : null}
 
             {enabled && disableMode ? (
-                <div className="account-twofactor-section">
+                <form
+                    className="account-twofactor-section"
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        if (disablePassword && !busy) {
+                            confirmDisable();
+                        }
+                    }}
+                >
                     <div className="account-twofactor-warn">{copy.disableConfirm}</div>
                     <div className="form-group mb-0">
                         <div className="input-icon-wrapper">
                             <input
+                                id="twofactor-disable-password"
+                                name="twofactorDisablePassword"
                                 type={showDisablePassword ? 'text' : 'password'}
                                 className="form-input input-with-trailing-action"
                                 placeholder={copy.currentPassword}
@@ -206,12 +216,6 @@ export default function TwoFactorPanel({ locale = 'zh-CN' }: TwoFactorPanelProps
                                 onChange={(e) => setDisablePassword(e.target.value)}
                                 disabled={busy}
                                 autoComplete="current-password"
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                        if (e.nativeEvent?.isComposing || e.keyCode === 229) return;
-                                        if (disablePassword) confirmDisable();
-                                    }
-                                }}
                             />
                             <button
                                 type="button"
@@ -227,14 +231,14 @@ export default function TwoFactorPanel({ locale = 'zh-CN' }: TwoFactorPanelProps
                         </div>
                     </div>
                     <div className="account-twofactor-actions">
-                        <button type="button" className="btn btn-danger btn-sm" onClick={confirmDisable} disabled={busy || !disablePassword}>
+                        <button type="submit" className="btn btn-danger btn-sm" disabled={busy || !disablePassword}>
                             {busy ? <span className="spinner" /> : copy.disable}
                         </button>
                         <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setDisableMode(false); setDisablePassword(''); }} disabled={busy}>
                             {copy.cancel}
                         </button>
                     </div>
-                </div>
+                </form>
             ) : null}
 
             {!enabled && !enrollment ? (

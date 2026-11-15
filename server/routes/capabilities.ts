@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
-import { ensureAuthenticated } from '../lib/panelClient.js';
+import { classifyPanelError, ensureAuthenticated } from '../lib/panelClient.js';
 import { buildProtocolSummary, canonicalizeProtocolList } from '../lib/protocolCatalog.js';
 import { PANEL_TYPE_3XUI, PANEL_TYPE_SUI } from '../lib/panelType.js';
 import { isSuiPanelContext } from '../lib/clientProtocols.js';
@@ -1122,6 +1122,26 @@ function buildCapabilitiesPayload({
     };
 }
 
+function resolveCapabilityProbeErrorStatus(error: any): number {
+    if (String(error?.message || '').toLowerCase().includes('server not found')) {
+        return 404;
+    }
+    const classification = classifyPanelError(error, { context: 'capabilities' });
+    if (classification.health === 'unreachable') {
+        return 503;
+    }
+    if (
+        error?.isPanelAuthError
+        || error?.isAxiosError
+        || Boolean(error?.response)
+        || Boolean(error?.request)
+        || ['auth_failed', 'credentials_missing', 'credentials_unreadable', 'status_unsupported'].includes(classification.reasonCode)
+    ) {
+        return 502;
+    }
+    return 500;
+}
+
 router.use(authMiddleware);
 
 router.get('/:serverId', async (req: Request, res: Response) => {
@@ -1151,13 +1171,14 @@ router.get('/:serverId', async (req: Request, res: Response) => {
             }),
         });
     } catch (error: any) {
-        if (String(error.message || '').toLowerCase().includes('server not found')) {
+        const statusCode = resolveCapabilityProbeErrorStatus(error);
+        if (statusCode === 404) {
             return res.status(404).json({
                 success: false,
                 msg: pickLocalizedText(locale, '节点不存在，请刷新节点列表后重试', 'Node not found. Refresh the node list and try again.'),
             });
         }
-        return res.status(500).json({
+        return res.status(statusCode).json({
             success: false,
             msg: pickLocalizedText(locale, '节点能力探测失败，请确认节点在线并重试', 'Failed to probe node capabilities. Ensure the node is online and try again.'),
         });
@@ -1168,4 +1189,5 @@ export default router;
 export {
     buildCapabilitiesPayload,
     detectToolCapabilities,
+    resolveCapabilityProbeErrorStatus,
 };

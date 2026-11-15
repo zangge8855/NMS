@@ -611,7 +611,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                     main={(
                         <>
                             <HiOutlineFunnel className="text-muted" />
-                            <select
+                            <select name="logsLevelFilter"
                                 className={`${filterSelectClassName} w-120`}
                                 aria-label={locale === 'en-US' ? 'Log level' : '日志级别'}
                                 value={levelFilter}
@@ -620,7 +620,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                 {logLevels.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
                             </select>
 
-                            <select
+                            <select name="logsCount"
                                 className={`${filterSelectClassName} w-120`}
                                 aria-label={locale === 'en-US' ? 'Line count' : '显示行数'}
                                 value={count}
@@ -633,7 +633,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                             </select>
 
                             {lockedSourceMode === 'auto' && (
-                                <select
+                                <select name="logsSelectedSource"
                                     className={`${filterSelectClassName} w-140`}
                                     aria-label={locale === 'en-US' ? 'Log source' : '日志来源'}
                                     value={selectedSource}
@@ -645,7 +645,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                 </select>
                             )}
 
-                            <input
+                            <input name="logsLogsKeywordPlaceholder"
                                 className={keywordInputClassName}
                                 aria-label={t('pages.logs.keywordPlaceholder')}
                                 placeholder={t('pages.logs.keywordPlaceholder')}
@@ -742,7 +742,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                     key={server.id}
                                     className={`flex items-center gap-4 server-chip ${selectedServerIds.includes(server.id) ? 'active' : ''}`}
                                 >
-                                    <input
+                                    <input name="logsField"
                                         type="checkbox"
                                         checked={selectedServerIds.includes(server.id)}
                                         onChange={() => toggleServer(server.id)}

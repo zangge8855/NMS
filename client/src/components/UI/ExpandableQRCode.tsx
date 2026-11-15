@@ -105,6 +105,7 @@ export default function ExpandableQRCode({
             (focusable[0] || closeButtonRef.current || overlay)?.focus?.({ preventScroll: true });
         };
 
+        const restoreTrigger = triggerRef.current;
         document.addEventListener('keydown', handleKeyDown);
         document.addEventListener('focusin', handleFocusIn);
         return () => {
@@ -112,7 +113,7 @@ export default function ExpandableQRCode({
             document.removeEventListener('keydown', handleKeyDown);
             document.removeEventListener('focusin', handleFocusIn);
             slot.release();
-            const restoreTarget = previousFocusRef.current || triggerRef.current;
+            const restoreTarget = previousFocusRef.current || restoreTrigger;
             previousFocusRef.current = null;
             if (restoreTarget && restoreTarget.isConnected) {
                 restoreTarget.focus?.({ preventScroll: true });

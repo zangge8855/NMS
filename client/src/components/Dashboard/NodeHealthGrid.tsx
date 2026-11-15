@@ -379,7 +379,7 @@ export default function NodeHealthGrid({ servers, serverStatuses, trendHistory =
             setPinging(false);
         }
     };
-    const safeServers = Array.isArray(servers) ? servers : [];
+    const safeServers = useMemo(() => (Array.isArray(servers) ? servers : []), [servers]);
     const hasStatuses = Boolean(serverStatuses && Object.keys(serverStatuses).length > 0);
     const entries = useMemo(() => (
         safeServers.map((server) => {
@@ -475,7 +475,7 @@ export default function NodeHealthGrid({ servers, serverStatuses, trendHistory =
                 </div>
 
                 <div className="node-health-toolbar">
-                    <input
+                    <input name="nodeHealthGridSearchPlaceholder"
                         className="form-input node-health-search"
                         value={query}
                         onChange={(event) => setQuery(event.target.value)}

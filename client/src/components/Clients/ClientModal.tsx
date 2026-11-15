@@ -703,7 +703,7 @@ export default function ClientModal({
                                 </div>
                                 <div className="flex flex-wrap gap-2 mb-3">
                                     <label className="badge badge-neutral flex items-center gap-2 cursor-pointer">
-                                        <input
+                                        <input name="clientModalField"
                                             type="checkbox"
                                             checked={availableServers.length > 0 && selectedServerIds.length === availableServers.length}
                                             onChange={(e) => {
@@ -720,7 +720,7 @@ export default function ClientModal({
                                     </label>
                                     {availableServers.map((item) => (
                                         <label key={item.id} className="badge badge-neutral flex items-center gap-2 cursor-pointer">
-                                            <input
+                                            <input name="clientModalField2"
                                                 type="checkbox"
                                             checked={selectedServerIds.includes(item.id)}
                                             onChange={(e) => {
@@ -753,7 +753,7 @@ export default function ClientModal({
                                 </div>
                                 <div className="flex flex-wrap gap-2 mb-2">
                                     <label className="badge badge-neutral flex items-center gap-2 cursor-pointer">
-                                        <input
+                                        <input name="clientModalField3"
                                             type="checkbox"
                                             checked={visibleTargets.length > 0 && filteredTargets.length === visibleTargets.length}
                                             onChange={(e) => {
@@ -782,7 +782,7 @@ export default function ClientModal({
                                                         className="flex items-center gap-2 cursor-pointer"
                                                         title={`[${target.serverName}] ${target.remark} (${target.protocol}:${target.port})`}
                                                     >
-                                                        <input
+                                                        <input name="clientModalField4"
                                                             type="checkbox"
                                                             checked={checked}
                                                             onChange={(e) => {
@@ -819,15 +819,15 @@ export default function ClientModal({
                         )}
 
                         <div className="form-group">
-                            <label className="form-label">Email</label>
-                            <input className="form-input" value={email} onChange={e => setEmail(e.target.value)} required />
+                            <label htmlFor="client-modal-email" className="form-label">Email</label>
+                            <input id="client-modal-email" name="clientModalEmail" className="form-input" value={email} onChange={e => setEmail(e.target.value)} required />
                         </div>
 
                         {requiresUuidCredential && (
                             <div className="form-group">
-                                <label className="form-label">UUID</label>
+                                <label htmlFor="client-modal-uuid" className="form-label">UUID</label>
                                 <div className="flex gap-2">
-                                    <input className="form-input font-mono" value={uuid} onChange={e => setUuid(e.target.value)} required={requiresUuidCredential} />
+                                    <input id="client-modal-uuid" name="clientModalUuid" className="form-input font-mono" value={uuid} onChange={e => setUuid(e.target.value)} required={requiresUuidCredential} />
                                     <button type="button" className="btn btn-secondary btn-icon" onClick={generateUUID} title={t('comp.clients.genUuidTitle')} aria-label={t('comp.clients.genUuidTitle')}>
                                         <HiOutlineArrowPath />
                                     </button>
@@ -837,9 +837,9 @@ export default function ClientModal({
 
                         {requiresPasswordCredential && (
                             <div className="form-group">
-                                <label className="form-label">{t('comp.clients.passwordLabel')}</label>
+                                <label htmlFor="client-modal-clients-password-label" className="form-label">{t('comp.clients.passwordLabel')}</label>
                                 <div className="flex gap-2">
-                                    <input className="form-input font-mono" value={password} onChange={e => setPassword(e.target.value)} required={requiresPasswordCredential} />
+                                    <input id="client-modal-clients-password-label" name="clientModalClientsPasswordLabel" className="form-input font-mono" value={password} onChange={e => setPassword(e.target.value)} required={requiresPasswordCredential} />
                                     <button
                                         type="button"
                                         className="btn btn-secondary btn-icon"
@@ -860,9 +860,9 @@ export default function ClientModal({
                         )}
 
                         <div className="form-group">
-                            <label className="form-label">{t('comp.clients.subIdLabel')}</label>
+                            <label htmlFor="client-modal-clients-sub-id-label" className="form-label">{t('comp.clients.subIdLabel')}</label>
                             <div className="flex gap-2">
-                                <input
+                                <input id="client-modal-clients-sub-id-label" name="clientModalClientsSubIdLabel"
                                     className="form-input font-mono text-xs text-muted"
                                     value={subId || `(${t('comp.clients.autoGenerated')})`}
                                     readOnly
@@ -886,8 +886,8 @@ export default function ClientModal({
 
                         {isFlowSupported ? (
                             <div className="form-group">
-                                <label className="form-label">{t('comp.clients.flowLabel')}</label>
-                                <select className="form-select" value={flow} onChange={e => setFlow(e.target.value)}>
+                                <label htmlFor="client-modal-clients-flow-label" className="form-label">{t('comp.clients.flowLabel')}</label>
+                                <select id="client-modal-clients-flow-label" name="clientModalClientsFlowLabel" className="form-select" value={flow} onChange={e => setFlow(e.target.value)}>
                                     {flowOptions.map((item) => (
                                         <option key={item || '__empty'} value={item}>
                                             {item ? item : t('comp.clients.notSet')}
@@ -897,25 +897,25 @@ export default function ClientModal({
                             </div>
                         ) : (
                             <div className="form-group">
-                                <label className="form-label">{t('comp.clients.flowLabel')}</label>
-                                <input className="form-input" value={t('comp.clients.flowUnsupported')} disabled />
+                                <label htmlFor="client-modal-clients-flow-label-2" className="form-label">{t('comp.clients.flowLabel')}</label>
+                                <input id="client-modal-clients-flow-label-2" name="clientModalClientsFlowLabel2" className="form-input" value={t('comp.clients.flowUnsupported')} disabled />
                             </div>
                         )}
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="form-group">
-                                <label className="form-label">{t('comp.clients.trafficLimitGb')}</label>
-                                <input className="form-input" type="number" value={totalGB} onChange={e => setTotalGB(e.target.value)} placeholder={t('comp.clients.unlimitedZero')} />
+                                <label htmlFor="client-modal-clients-traffic-limit-gb" className="form-label">{t('comp.clients.trafficLimitGb')}</label>
+                                <input id="client-modal-clients-traffic-limit-gb" name="clientModalClientsTrafficLimitGb" className="form-input" type="number" value={totalGB} onChange={e => setTotalGB(e.target.value)} placeholder={t('comp.clients.unlimitedZero')} />
                             </div>
                             <div className="form-group">
-                                <label className="form-label">{t('comp.clients.expiryPolicy')}</label>
-                                <select className="form-select mb-2" value={expiryMode} onChange={(e) => setExpiryMode(e.target.value)}>
+                                <label htmlFor="client-modal-clients-expiry-policy" className="form-label">{t('comp.clients.expiryPolicy')}</label>
+                                <select id="client-modal-clients-expiry-policy" name="clientModalClientsExpiryPolicy" className="form-select mb-2" value={expiryMode} onChange={(e) => setExpiryMode(e.target.value)}>
                                     <option value="never">{t('comp.clients.expiryNever')}</option>
                                     <option value="datetime">{t('comp.clients.expiryDatetime')}</option>
                                     <option value="days">{t('comp.clients.expiryDays')}</option>
                                 </select>
                                 {expiryMode === 'datetime' && (
-                                    <input
+                                    <input name="clientModalExpiryDateTime"
                                         className="form-input"
                                         type="datetime-local"
                                         value={expiryDateTime}
@@ -923,7 +923,7 @@ export default function ClientModal({
                                     />
                                 )}
                                 {expiryMode === 'days' && (
-                                    <input
+                                    <input name="clientModalExpiryAfterDays"
                                         className="form-input"
                                         type="number"
                                         min={1}
@@ -937,12 +937,12 @@ export default function ClientModal({
 
                         <div className="grid grid-cols-2 gap-4 mb-4">
                             <div className="form-group">
-                                <label className="form-label">{t('comp.clients.ipLimit')}</label>
-                                <input className="form-input" type="number" value={limitIp} onChange={e => setLimitIp(e.target.value)} />
+                                <label htmlFor="client-modal-clients-ip-limit" className="form-label">{t('comp.clients.ipLimit')}</label>
+                                <input id="client-modal-clients-ip-limit" name="clientModalClientsIpLimit" className="form-input" type="number" value={limitIp} onChange={e => setLimitIp(e.target.value)} />
                             </div>
                             <div className="form-group flex items-center pt-4">
                                 <label className="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" checked={enable} onChange={e => setEnable(e.target.checked)} />
+                                    <input name="clientModalField5" type="checkbox" checked={enable} onChange={e => setEnable(e.target.checked)} />
                                     {t('comp.clients.enableUser')}
                                 </label>
                             </div>
@@ -950,21 +950,21 @@ export default function ClientModal({
 
                         <div className="grid grid-cols-2 gap-4 mb-4">
                             <div className="form-group">
-                                <label className="form-label">{locale === 'en-US' ? 'Upload Speed Limit (KB/s)' : '上行限速 (KB/s)'}</label>
-                                <input className="form-input" type="number" min={0} value={speedLimitUp} onChange={e => setSpeedLimitUp(e.target.value)} />
+                                <label htmlFor="client-modal-speed-limit-up" className="form-label">{locale === 'en-US' ? 'Upload Speed Limit (KB/s)' : '上行限速 (KB/s)'}</label>
+                                <input id="client-modal-speed-limit-up" name="clientModalSpeedLimitUp" className="form-input" type="number" min={0} value={speedLimitUp} onChange={e => setSpeedLimitUp(e.target.value)} />
                                 <div className="text-xs text-muted mt-1">{locale === 'en-US' ? '0 = Unlimited' : '0 为不限速'}</div>
                             </div>
                             <div className="form-group">
-                                <label className="form-label">{locale === 'en-US' ? 'Download Speed Limit (KB/s)' : '下行限速 (KB/s)'}</label>
-                                <input className="form-input" type="number" min={0} value={speedLimitDown} onChange={e => setSpeedLimitDown(e.target.value)} />
+                                <label htmlFor="client-modal-speed-limit-down" className="form-label">{locale === 'en-US' ? 'Download Speed Limit (KB/s)' : '下行限速 (KB/s)'}</label>
+                                <input id="client-modal-speed-limit-down" name="clientModalSpeedLimitDown" className="form-input" type="number" min={0} value={speedLimitDown} onChange={e => setSpeedLimitDown(e.target.value)} />
                                 <div className="text-xs text-muted mt-1">{locale === 'en-US' ? '0 = Unlimited' : '0 为不限速'}</div>
                             </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4 mb-4">
                             <div className="form-group">
-                                <label className="form-label">Telegram ID</label>
-                                <input
+                                <label htmlFor="client-modal-clients-telegram-placeholder" className="form-label">Telegram ID</label>
+                                <input id="client-modal-clients-telegram-placeholder" name="clientModalClientsTelegramPlaceholder"
                                     className="form-input"
                                     inputMode="numeric"
                                     pattern="[0-9-]*"
@@ -975,8 +975,8 @@ export default function ClientModal({
                                 <div className="text-xs text-muted mt-1">{t('comp.clients.telegramHint')}</div>
                             </div>
                             <div className="form-group">
-                                <label className="form-label">{t('comp.clients.trafficResetPeriod')}</label>
-                                <select
+                                <label htmlFor="client-modal-clients-traffic-reset-period" className="form-label">{t('comp.clients.trafficResetPeriod')}</label>
+                                <select id="client-modal-clients-traffic-reset-period" name="clientModalClientsTrafficResetPeriod"
                                     className="form-select"
                                     value={reset}
                                     onChange={e => setReset(Number(e.target.value))}
@@ -992,8 +992,8 @@ export default function ClientModal({
                         </div>
 
                         <div className="form-group mb-4">
-                            <label className="form-label">{t('comp.clients.commentLabel')}</label>
-                            <textarea
+                            <label htmlFor="client-modal-clients-comment-label" className="form-label">{t('comp.clients.commentLabel')}</label>
+                            <textarea id="client-modal-clients-comment-label" name="clientModalClientsCommentLabel"
                                 className="form-textarea"
                                 rows={2}
                                 value={comment}

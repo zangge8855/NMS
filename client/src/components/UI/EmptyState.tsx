@@ -52,7 +52,7 @@ export default function EmptyState({
                 </div>
             )}
             <div className="empty-state-body">
-                <h3 className="empty-state-title">{resolvedTitle}</h3>
+                <h2 className="empty-state-title">{resolvedTitle}</h2>
                 {subtitle && <p className="empty-state-sub">{subtitle}</p>}
             </div>
             {action && <div className="empty-state-action mt-4">{action}</div>}

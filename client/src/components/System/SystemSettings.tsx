@@ -402,7 +402,7 @@ function SettingsToggleCard({
                         {checked ? activeLabel : inactiveLabel}
                     </span>
                 ) : null}
-                <input
+                <input name="systemSettingsField"
                     type="checkbox"
                     aria-label={label}
                     className="settings-toggle-input"
@@ -918,6 +918,27 @@ export default function SystemSettings() {
         });
     };
 
+    const tRef = useRef(t);
+    tRef.current = t;
+    const lazyActionsRef = useRef({
+        fetchSettings,
+        fetchDbStatus,
+        fetchEmailStatus,
+        fetchBackupStatus,
+        fetchMonitorStatus,
+        fetchRegistrationRuntime,
+        fetchInviteCodes,
+    });
+    lazyActionsRef.current = {
+        fetchSettings,
+        fetchDbStatus,
+        fetchEmailStatus,
+        fetchBackupStatus,
+        fetchMonitorStatus,
+        fetchRegistrationRuntime,
+        fetchInviteCodes,
+    };
+
     useEffect(() => {
         if (!isAdmin) {
             setLoading(false);
@@ -925,7 +946,7 @@ export default function SystemSettings() {
         }
         if (lazyLoadRef.current.settings) return;
         lazyLoadRef.current.settings = true;
-        fetchSettings({ preserveCurrent: settingsBootstrapRef.current?.settings != null });
+        lazyActionsRef.current.fetchSettings({ preserveCurrent: settingsBootstrapRef.current?.settings != null });
     }, [isAdmin]);
 
     useEffect(() => {
@@ -947,32 +968,32 @@ export default function SystemSettings() {
         const ensureDbStatus = () => {
             if (lazyLoadRef.current.dbStatus) return;
             lazyLoadRef.current.dbStatus = true;
-            fetchDbStatus({ quiet: true });
+            lazyActionsRef.current.fetchDbStatus({ quiet: true });
         };
         const ensureEmailStatus = () => {
             if (lazyLoadRef.current.emailStatus) return;
             lazyLoadRef.current.emailStatus = true;
-            fetchEmailStatus({ quiet: true });
+            lazyActionsRef.current.fetchEmailStatus({ quiet: true });
         };
         const ensureBackupStatus = () => {
             if (lazyLoadRef.current.backupStatus) return;
             lazyLoadRef.current.backupStatus = true;
-            fetchBackupStatus({ quiet: true });
+            lazyActionsRef.current.fetchBackupStatus({ quiet: true });
         };
         const ensureMonitorStatus = () => {
             if (lazyLoadRef.current.monitorStatus) return;
             lazyLoadRef.current.monitorStatus = true;
-            fetchMonitorStatus({ quiet: true });
+            lazyActionsRef.current.fetchMonitorStatus({ quiet: true });
         };
         const ensureRegistrationRuntime = () => {
             if (lazyLoadRef.current.registrationRuntime) return;
             lazyLoadRef.current.registrationRuntime = true;
-            fetchRegistrationRuntime();
+            lazyActionsRef.current.fetchRegistrationRuntime();
         };
         const ensureInviteCodes = () => {
             if (lazyLoadRef.current.inviteCodes) return;
             lazyLoadRef.current.inviteCodes = true;
-            fetchInviteCodes({ quiet: true });
+            lazyActionsRef.current.fetchInviteCodes({ quiet: true });
         };
 
         if (activeWorkspaceSectionId === 'status') {
@@ -1006,37 +1027,37 @@ export default function SystemSettings() {
         if (!isAdmin) return undefined;
         const handlePageRefresh = (event) => {
             event.preventDefault();
-            fetchSettings({ preserveCurrent: true });
+            lazyActionsRef.current.fetchSettings({ preserveCurrent: true });
 
             if (activeWorkspaceSectionId === 'status') {
-                fetchRegistrationRuntime();
-                fetchDbStatus();
-                fetchEmailStatus();
-                fetchBackupStatus();
-                fetchMonitorStatus();
+                lazyActionsRef.current.fetchRegistrationRuntime();
+                lazyActionsRef.current.fetchDbStatus();
+                lazyActionsRef.current.fetchEmailStatus();
+                lazyActionsRef.current.fetchBackupStatus();
+                lazyActionsRef.current.fetchMonitorStatus();
                 return;
             }
 
             if (activeWorkspaceSectionId === 'access') {
-                fetchRegistrationRuntime();
-                fetchInviteCodes();
+                lazyActionsRef.current.fetchRegistrationRuntime();
+                lazyActionsRef.current.fetchInviteCodes();
                 return;
             }
 
             if (activeWorkspaceSectionId === 'backup') {
-                fetchDbStatus();
-                fetchBackupStatus();
+                lazyActionsRef.current.fetchDbStatus();
+                lazyActionsRef.current.fetchBackupStatus();
                 return;
             }
 
             if (activeWorkspaceSectionId === 'operations') {
-                fetchEmailStatus();
-                fetchMonitorStatus();
+                lazyActionsRef.current.fetchEmailStatus();
+                lazyActionsRef.current.fetchMonitorStatus();
             }
         };
         window.addEventListener('nms:page-refresh', handlePageRefresh);
         return () => window.removeEventListener('nms:page-refresh', handlePageRefresh);
-    }, [activeWorkspaceSectionId, isAdmin, settings]);
+    }, [activeWorkspaceSectionId, isAdmin]);
 
     useEffect(() => {
         if (searchParams.get('tab') !== 'console') return;
@@ -1066,7 +1087,7 @@ export default function SystemSettings() {
             } catch (error) {
                 if (!active) return;
                 setNoticePreview(null);
-                setNoticePreviewError(error.response?.data?.msg || error.message || t('pages.settings.failedToLoadEmailPreview'));
+                setNoticePreviewError(error.response?.data?.msg || error.message || tRef.current('pages.settings.failedToLoadEmailPreview'));
             }
             if (active) setNoticePreviewLoading(false);
         }, 240);
@@ -1220,6 +1241,9 @@ export default function SystemSettings() {
         await performSettingsSave();
     };
 
+    const saveSettingsRef = useRef(saveSettings);
+    saveSettingsRef.current = saveSettings;
+
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if ((e.ctrlKey || e.metaKey) && e.key === 's') {
@@ -1227,13 +1251,13 @@ export default function SystemSettings() {
                 if (dangerConfirmOpen || backupRestoreModalOpen) return;
                 if (typeof document !== 'undefined' && document.querySelector('[role="dialog"], .modal-overlay')) return;
                 if (hasPendingChanges && !saving && !loading && isAdmin) {
-                    saveSettings();
+                    saveSettingsRef.current();
                 }
             }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [hasPendingChanges, saving, loading, isAdmin, saveSettings, dangerConfirmOpen, backupRestoreModalOpen]);
+    }, [hasPendingChanges, saving, loading, isAdmin, dangerConfirmOpen, backupRestoreModalOpen]);
 
     const createInviteCode = async () => {
         if (!isAdmin) return;
@@ -1817,9 +1841,9 @@ export default function SystemSettings() {
                                     <div className="settings-form-cluster-title">{t("pages.settings.accessPath")}</div>
                                 </div>
                                 <div className="form-group mb-0">
-                                    <label className="form-label">{t("pages.settings.homePageAccessPath")}</label>
+                                    <label htmlFor="system-settings-settings-home-page-access-path" className="form-label">{t("pages.settings.homePageAccessPath")}</label>
                                     <div className="settings-inline-action-row">
-                                        <input
+                                        <input id="system-settings-settings-home-page-access-path" name="systemSettingsSettingsHomePageAccessPath"
                                             className="form-input font-mono"
                                             aria-label={t("pages.settings.homePageAccessPath")}
                                             placeholder="/"
@@ -1836,8 +1860,8 @@ export default function SystemSettings() {
                                     </div>
                                 </div>
                                 <div className="form-group mb-0">
-                                    <label className="form-label">{t("pages.settings.generatedAccessUrl")}</label>
-                                    <input className="form-input font-mono" aria-label={t("pages.settings.generatedAccessUrl")} value={siteEntryPreview} readOnly />
+                                    <label htmlFor="system-settings-settings-generated-access-url" className="form-label">{t("pages.settings.generatedAccessUrl")}</label>
+                                    <input id="system-settings-settings-generated-access-url" name="systemSettingsSettingsGeneratedAccessUrl" className="form-input font-mono" aria-label={t("pages.settings.generatedAccessUrl")} value={siteEntryPreview} readOnly />
                                 </div>
                             </div>
                             <div className="settings-form-cluster settings-form-cluster--camouflage">
@@ -1847,8 +1871,8 @@ export default function SystemSettings() {
                                 </div>
                                 <div className="settings-field-grid settings-field-grid--compact">
                                     <div className="form-group mb-0">
-                                        <label className="form-label">{t("pages.settings.camouflageTemplateLabel")}</label>
-                                        <select
+                                        <label htmlFor="system-settings-settings-camouflage-template-label" className="form-label">{t("pages.settings.camouflageTemplateLabel")}</label>
+                                        <select id="system-settings-settings-camouflage-template-label" name="systemSettingsSettingsCamouflageTemplateLabel"
                                             className="form-select"
                                             aria-label={t("pages.settings.camouflageTemplateLabel")}
                                             value={draft.site.camouflageTemplate}
@@ -1860,8 +1884,8 @@ export default function SystemSettings() {
                                         </select>
                                     </div>
                                     <div className="form-group mb-0">
-                                        <label className="form-label">{t("pages.settings.camouflageTitleLabel")}</label>
-                                        <input
+                                        <label htmlFor="system-settings-city-field-notes" className="form-label">{t("pages.settings.camouflageTitleLabel")}</label>
+                                        <input id="system-settings-city-field-notes" name="systemSettingsCityFieldNotes"
                                             className="form-input"
                                             aria-label={t("pages.settings.camouflageTitleLabel")}
                                             value={draft.site.camouflageTitle}
@@ -2036,8 +2060,8 @@ export default function SystemSettings() {
                                         </div>
                                         <div className="settings-field-grid settings-field-grid--compact settings-field-grid--invite-generate">
                                             <div className="form-group mb-0">
-                                                <label className="form-label">{t("pages.settings.theQuantityGeneratedThisTime")}</label>
-                                                <input
+                                                <label htmlFor="system-settings-settings-the-quantity-generated-this-tim" className="form-label">{t("pages.settings.theQuantityGeneratedThisTime")}</label>
+                                                <input id="system-settings-settings-the-quantity-generated-this-tim" name="systemSettingsSettingsTheQuantityGeneratedThisTim"
                                                     className="form-input"
                                                     aria-label={t("pages.settings.theQuantityGeneratedThisTime")}
                                                     type="number"
@@ -2051,8 +2075,8 @@ export default function SystemSettings() {
                                                 />
                                             </div>
                                             <div className="form-group mb-0">
-                                                <label className="form-label">{t("pages.settings.theNumberOfTimesEachInvitationCodeC")}</label>
-                                                <input
+                                                <label htmlFor="system-settings-settings-the-number-of-times-each-invita" className="form-label">{t("pages.settings.theNumberOfTimesEachInvitationCodeC")}</label>
+                                                <input id="system-settings-settings-the-number-of-times-each-invita" name="systemSettingsSettingsTheNumberOfTimesEachInvita"
                                                     className="form-input"
                                                     aria-label={t("pages.settings.theNumberOfTimesEachInvitationCodeC")}
                                                     type="number"
@@ -2066,8 +2090,8 @@ export default function SystemSettings() {
                                                 />
                                             </div>
                                             <div className="form-group mb-0">
-                                                <label className="form-label">{t("pages.settings.openingTimeDays")}</label>
-                                                <input
+                                                <label htmlFor="system-settings-settings-opening-time-days" className="form-label">{t("pages.settings.openingTimeDays")}</label>
+                                                <input id="system-settings-settings-opening-time-days" name="systemSettingsSettingsOpeningTimeDays"
                                                     className="form-input"
                                                     aria-label={t("pages.settings.openingTimeDays")}
                                                     type="number"
@@ -2100,8 +2124,8 @@ export default function SystemSettings() {
                                         </div>
                                         <div className="settings-field-grid settings-field-grid--compact settings-field-grid--invite-email">
                                             <div className="form-group mb-0">
-                                                <label className="form-label">{t("pages.settings.targetEmailLabel")}</label>
-                                                <input
+                                                <label htmlFor="system-settings-invitee-example-com" className="form-label">{t("pages.settings.targetEmailLabel")}</label>
+                                                <input id="system-settings-invitee-example-com" name="systemSettingsInviteeExampleCom"
                                                     className="form-input"
                                                     type="email"
                                                     placeholder="invitee@example.com"
@@ -2113,8 +2137,8 @@ export default function SystemSettings() {
                                                 />
                                             </div>
                                             <div className="form-group mb-0">
-                                                <label className="form-label">{t("pages.settings.openingTimeDays")}</label>
-                                                <input
+                                                <label htmlFor="system-settings-settings-opening-time-days-2" className="form-label">{t("pages.settings.openingTimeDays")}</label>
+                                                <input id="system-settings-settings-opening-time-days-2" name="systemSettingsSettingsOpeningTimeDays2"
                                                     className="form-input"
                                                     aria-label={t("pages.settings.openingTimeDays")}
                                                     type="number"
@@ -2326,24 +2350,24 @@ export default function SystemSettings() {
                             </div>
                             <div className="settings-field-grid settings-field-grid--compact">
                                 <div className="form-group">
-                                    <label className="form-label">{t("pages.settings.mediumRiskThreshold")}</label>
-                                    <input className="form-input" aria-label={t("pages.settings.mediumRiskThreshold")} type="number" min={1} value={draft.security.mediumRiskMinTargets} onChange={(e) => patchField('security', 'mediumRiskMinTargets', e.target.value)} />
+                                    <label htmlFor="system-settings-settings-medium-risk-threshold" className="form-label">{t("pages.settings.mediumRiskThreshold")}</label>
+                                    <input id="system-settings-settings-medium-risk-threshold" name="systemSettingsSettingsMediumRiskThreshold" className="form-input" aria-label={t("pages.settings.mediumRiskThreshold")} type="number" min={1} value={draft.security.mediumRiskMinTargets} onChange={(e) => patchField('security', 'mediumRiskMinTargets', e.target.value)} />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">{t("pages.settings.highRiskThreshold")}</label>
-                                    <input className="form-input" aria-label={t("pages.settings.highRiskThreshold")} type="number" min={1} value={draft.security.highRiskMinTargets} onChange={(e) => patchField('security', 'highRiskMinTargets', e.target.value)} />
+                                    <label htmlFor="system-settings-settings-high-risk-threshold" className="form-label">{t("pages.settings.highRiskThreshold")}</label>
+                                    <input id="system-settings-settings-high-risk-threshold" name="systemSettingsSettingsHighRiskThreshold" className="form-input" aria-label={t("pages.settings.highRiskThreshold")} type="number" min={1} value={draft.security.highRiskMinTargets} onChange={(e) => patchField('security', 'highRiskMinTargets', e.target.value)} />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">{t("pages.settings.confirmTokenTtl")}</label>
-                                    <input className="form-input" aria-label={t("pages.settings.confirmTokenTtl")} type="number" min={30} value={draft.security.riskTokenTtlSeconds} onChange={(e) => patchField('security', 'riskTokenTtlSeconds', e.target.value)} />
+                                    <label htmlFor="system-settings-settings-confirm-token-ttl" className="form-label">{t("pages.settings.confirmTokenTtl")}</label>
+                                    <input id="system-settings-settings-confirm-token-ttl" name="systemSettingsSettingsConfirmTokenTtl" className="form-input" aria-label={t("pages.settings.confirmTokenTtl")} type="number" min={30} value={draft.security.riskTokenTtlSeconds} onChange={(e) => patchField('security', 'riskTokenTtlSeconds', e.target.value)} />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">{t("pages.settings.auditRetentionDays")}</label>
-                                    <input className="form-input" aria-label={t("pages.settings.auditRetentionDays")} type="number" min={1} value={draft.audit.retentionDays} onChange={(e) => patchField('audit', 'retentionDays', e.target.value)} />
+                                    <label htmlFor="system-settings-settings-audit-retention-days" className="form-label">{t("pages.settings.auditRetentionDays")}</label>
+                                    <input id="system-settings-settings-audit-retention-days" name="systemSettingsSettingsAuditRetentionDays" className="form-input" aria-label={t("pages.settings.auditRetentionDays")} type="number" min={1} value={draft.audit.retentionDays} onChange={(e) => patchField('audit', 'retentionDays', e.target.value)} />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">{t("pages.settings.auditMaxPageSize")}</label>
-                                    <input className="form-input" aria-label={t("pages.settings.auditMaxPageSize")} type="number" min={20} value={draft.audit.maxPageSize} onChange={(e) => patchField('audit', 'maxPageSize', e.target.value)} />
+                                    <label htmlFor="system-settings-settings-audit-max-page-size" className="form-label">{t("pages.settings.auditMaxPageSize")}</label>
+                                    <input id="system-settings-settings-audit-max-page-size" name="systemSettingsSettingsAuditMaxPageSize" className="form-input" aria-label={t("pages.settings.auditMaxPageSize")} type="number" min={20} value={draft.audit.maxPageSize} onChange={(e) => patchField('audit', 'maxPageSize', e.target.value)} />
                                 </div>
                             </div>
                         </div>
@@ -2364,8 +2388,8 @@ export default function SystemSettings() {
                             </div>
                             <div className="settings-field-grid settings-field-grid--compact">
                                 <div className="form-group">
-                                    <label className="form-label">Provider</label>
-                                    <input
+                                    <label htmlFor="system-settings-provider" className="form-label">Provider</label>
+                                    <input id="system-settings-provider" name="systemSettingsProvider"
                                         className="form-input"
                                         aria-label="Provider"
                                         value={draft.auditIpGeo.provider}
@@ -2374,8 +2398,8 @@ export default function SystemSettings() {
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">{t("pages.settings.timeoutMsLabel")}</label>
-                                    <input
+                                    <label htmlFor="system-settings-settings-timeout-ms-label" className="form-label">{t("pages.settings.timeoutMsLabel")}</label>
+                                    <input id="system-settings-settings-timeout-ms-label" name="systemSettingsSettingsTimeoutMsLabel"
                                         className="form-input"
                                         aria-label={t("pages.settings.timeoutMsLabel")}
                                         type="number"
@@ -2385,8 +2409,8 @@ export default function SystemSettings() {
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">{t("pages.settings.cacheTtlSeconds")}</label>
-                                    <input
+                                    <label htmlFor="system-settings-settings-cache-ttl-seconds" className="form-label">{t("pages.settings.cacheTtlSeconds")}</label>
+                                    <input id="system-settings-settings-cache-ttl-seconds" name="systemSettingsSettingsCacheTtlSeconds"
                                         className="form-input"
                                         aria-label={t("pages.settings.cacheTtlSeconds")}
                                         type="number"
@@ -2396,8 +2420,8 @@ export default function SystemSettings() {
                                     />
                                 </div>
                                 <div className="form-group settings-field-wide">
-                                    <label className="form-label">{t("pages.settings.queryEndpointLabel")}</label>
-                                    <input
+                                    <label htmlFor="system-settings-http-ip-api-com-json-ip-fields-status-co" className="form-label">{t("pages.settings.queryEndpointLabel")}</label>
+                                    <input id="system-settings-http-ip-api-com-json-ip-fields-status-co" name="systemSettingsHttpIpApiComJsonIpFieldsStatusCo"
                                         className="form-input font-mono"
                                         aria-label={t("pages.settings.queryEndpointLabel")}
                                         value={draft.auditIpGeo.endpoint}
@@ -2538,7 +2562,8 @@ export default function SystemSettings() {
                             </button>
                         )}
                     />
-                    <div className="grid-auto-220 items-start">
+                    <form onSubmit={(event) => event.preventDefault()}>
+                        <div className="grid-auto-220 items-start">
                         <div className="form-group">
                             <label className="form-label" htmlFor="telegram-chat-id">{t("pages.settings.chatIdGroupId")}</label>
                             <div className="settings-sensitive-field">
@@ -2709,6 +2734,7 @@ export default function SystemSettings() {
                             inactiveLabel={t("pages.settings.doNotPush")}
                         />
                     </div>
+                    </form>
                 </div>
 
                 {/* Multi-Channel Webhook Notifications */}
@@ -2730,112 +2756,125 @@ export default function SystemSettings() {
                         )}
                     />
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="form-group">
-                            <label className="form-label font-semibold">{t('pages.settings.webhookChannel')}</label>
-                            <select
-                                className="form-select"
-                                value={draft.webhook.channel}
-                                onChange={(e) => patchField('webhook', 'channel', e.target.value)}
-                            >
-                                <option value="bark">{t('pages.settings.webhookChannelBark')}</option>
-                                <option value="discord">{t('pages.settings.webhookChannelDiscord')}</option>
-                                <option value="feishu">{t('pages.settings.webhookChannelFeishu')}</option>
-                                <option value="wechat">{t('pages.settings.webhookChannelWechat')}</option>
-                                <option value="custom">{t('pages.settings.webhookChannelCustom')}</option>
-                            </select>
+                    <form onSubmit={(event) => event.preventDefault()}>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="form-group">
+                                <label className="form-label font-semibold" htmlFor="settings-webhook-channel">{t('pages.settings.webhookChannel')}</label>
+                                <select
+                                    id="settings-webhook-channel"
+                                    name="webhookChannel"
+                                    className="form-select"
+                                    value={draft.webhook.channel}
+                                    onChange={(e) => patchField('webhook', 'channel', e.target.value)}
+                                >
+                                    <option value="bark">{t('pages.settings.webhookChannelBark')}</option>
+                                    <option value="discord">{t('pages.settings.webhookChannelDiscord')}</option>
+                                    <option value="feishu">{t('pages.settings.webhookChannelFeishu')}</option>
+                                    <option value="wechat">{t('pages.settings.webhookChannelWechat')}</option>
+                                    <option value="custom">{t('pages.settings.webhookChannelCustom')}</option>
+                                </select>
+                            </div>
+
+                            {draft.webhook.channel === 'bark' ? (
+                                <div className="form-group">
+                                    <label className="form-label font-semibold" htmlFor="settings-webhook-bark-key">Bark Device Key</label>
+                                    <input
+                                        id="settings-webhook-bark-key"
+                                        name="webhookBarkKey"
+                                        type="text"
+                                        className="form-input font-mono"
+                                        placeholder={t('pages.settings.barkKeyPlaceholder')}
+                                        value={draft.webhook.barkKey}
+                                        onChange={(e) => patchField('webhook', 'barkKey', e.target.value)}
+                                    />
+                                    <div className="text-xs text-muted mt-1">{t('pages.settings.barkKeyHint')}</div>
+                                </div>
+                            ) : (
+                                <div className="form-group">
+                                    <label className="form-label font-semibold" htmlFor="settings-webhook-url">Webhook URL</label>
+                                    <input
+                                        id="settings-webhook-url"
+                                        name="webhookUrl"
+                                        type="text"
+                                        className="form-input font-mono text-xs"
+                                        placeholder={
+                                            draft.webhook.channel === 'discord'
+                                                ? 'https://discord.com/api/webhooks/...'
+                                                : draft.webhook.channel === 'wechat'
+                                                    ? 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=...'
+                                                    : draft.webhook.channel === 'custom'
+                                                        ? 'https://example.com/webhook'
+                                                        : 'https://open.feishu.cn/open-apis/bot/v2/hook/...'
+                                        }
+                                        value={draft.webhook.url}
+                                        onChange={(e) => patchField('webhook', 'url', e.target.value)}
+                                    />
+                                </div>
+                            )}
                         </div>
 
-                        {draft.webhook.channel === 'bark' ? (
-                            <div className="form-group">
-                                <label className="form-label font-semibold">Bark Device Key</label>
-                                <input
-                                    type="text"
-                                    className="form-input font-mono"
-                                    placeholder={t('pages.settings.barkKeyPlaceholder')}
-                                    value={draft.webhook.barkKey}
-                                    onChange={(e) => patchField('webhook', 'barkKey', e.target.value)}
-                                />
-                                <div className="text-xs text-muted mt-1">{t('pages.settings.barkKeyHint')}</div>
-                            </div>
-                        ) : (
-                            <div className="form-group">
-                                <label className="form-label font-semibold">Webhook URL</label>
-                                <input
-                                    type="text"
-                                    className="form-input font-mono text-xs"
-                                    placeholder={
-                                        draft.webhook.channel === 'discord'
-                                            ? 'https://discord.com/api/webhooks/...'
-                                            : draft.webhook.channel === 'wechat'
-                                                ? 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=...'
-                                                : draft.webhook.channel === 'custom'
-                                                    ? 'https://example.com/webhook'
-                                                    : 'https://open.feishu.cn/open-apis/bot/v2/hook/...'
-                                    }
-                                    value={draft.webhook.url}
-                                    onChange={(e) => patchField('webhook', 'url', e.target.value)}
-                                />
+                        {draft.webhook.channel === 'custom' && (
+                            <div className="form-group mt-2">
+                                <label className="form-label font-semibold" htmlFor="settings-webhook-secret">{t('pages.settings.webhookSecret')}</label>
+                                <div className="input-icon-wrapper">
+                                    <input
+                                        id="settings-webhook-secret"
+                                        name="webhookSecret"
+                                        type={showWebhookSecret ? 'text' : 'password'}
+                                        className="form-input font-mono input-with-trailing-action"
+                                        value={draft.webhook.secret}
+                                        onChange={(e) => patchField('webhook', 'secret', e.target.value)}
+                                        placeholder="X-NMS-Signature token"
+                                    />
+                                    <button
+                                        type="button"
+                                        className="input-trailing-action-btn"
+                                        onClick={() => setShowWebhookSecret((prev) => !prev)}
+                                        aria-pressed={showWebhookSecret}
+                                        aria-label={t(showWebhookSecret ? 'comp.common.hidePassword' : 'comp.common.showPassword')}
+                                    >
+                                        {showWebhookSecret ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
+                                    </button>
+                                </div>
                             </div>
                         )}
-                    </div>
 
-                    {draft.webhook.channel === 'custom' && (
-                        <div className="form-group mt-2">
-                            <label className="form-label font-semibold">{t('pages.settings.webhookSecret')}</label>
-                            <div className="input-icon-wrapper">
-                                <input
-                                    type={showWebhookSecret ? 'text' : 'password'}
-                                    className="form-input font-mono input-with-trailing-action"
-                                    value={draft.webhook.secret}
-                                    onChange={(e) => patchField('webhook', 'secret', e.target.value)}
-                                    placeholder="X-NMS-Signature token"
-                                />
-                                <button
-                                    type="button"
-                                    className="input-trailing-action-btn"
-                                    onClick={() => setShowWebhookSecret((prev) => !prev)}
-                                    aria-pressed={showWebhookSecret}
-                                    aria-label={t(showWebhookSecret ? 'comp.common.hidePassword' : 'comp.common.showPassword')}
-                                >
-                                    {showWebhookSecret ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
-                                </button>
+                        <div className="form-group mt-4" role="group" aria-labelledby="settings-webhook-events-heading">
+                            <span id="settings-webhook-events-heading" className="form-label font-semibold">{t('pages.settings.webhookEvents')}</span>
+                            <div className="settings-checkbox-group">
+                                <label className="form-check-label" htmlFor="webhook-event-node-offline">
+                                    <input
+                                        id="webhook-event-node-offline"
+                                        name="webhookEventNodeOffline"
+                                        type="checkbox"
+                                        checked={draft.webhook.events.nodeOffline}
+                                        onChange={(e) => patchField('webhook', 'events', { ...draft.webhook.events, nodeOffline: e.target.checked })}
+                                    />
+                                    <span>{t('pages.settings.eventNodeOffline')}</span>
+                                </label>
+                                <label className="form-check-label" htmlFor="webhook-event-traffic-alert">
+                                    <input
+                                        id="webhook-event-traffic-alert"
+                                        name="webhookEventTrafficAlert"
+                                        type="checkbox"
+                                        checked={draft.webhook.events.trafficAlert}
+                                        onChange={(e) => patchField('webhook', 'events', { ...draft.webhook.events, trafficAlert: e.target.checked })}
+                                    />
+                                    <span>{t('pages.settings.eventTrafficAlert')}</span>
+                                </label>
+                                <label className="form-check-label" htmlFor="webhook-event-cert-expiring">
+                                    <input
+                                        id="webhook-event-cert-expiring"
+                                        name="webhookEventCertExpiring"
+                                        type="checkbox"
+                                        checked={draft.webhook.events.certExpiring}
+                                        onChange={(e) => patchField('webhook', 'events', { ...draft.webhook.events, certExpiring: e.target.checked })}
+                                    />
+                                    <span>{t('pages.settings.eventCertExpiring')}</span>
+                                </label>
                             </div>
                         </div>
-                    )}
-
-                    <div className="form-group mt-4">
-                        <label className="form-label font-semibold">{t('pages.settings.webhookEvents')}</label>
-                        <div className="settings-checkbox-group">
-                            <label className="form-check-label" htmlFor="webhook-event-node-offline">
-                                <input
-                                    id="webhook-event-node-offline"
-                                    type="checkbox"
-                                    checked={draft.webhook.events.nodeOffline}
-                                    onChange={(e) => patchField('webhook', 'events', { ...draft.webhook.events, nodeOffline: e.target.checked })}
-                                />
-                                <span>{t('pages.settings.eventNodeOffline')}</span>
-                            </label>
-                            <label className="form-check-label" htmlFor="webhook-event-traffic-alert">
-                                <input
-                                    id="webhook-event-traffic-alert"
-                                    type="checkbox"
-                                    checked={draft.webhook.events.trafficAlert}
-                                    onChange={(e) => patchField('webhook', 'events', { ...draft.webhook.events, trafficAlert: e.target.checked })}
-                                />
-                                <span>{t('pages.settings.eventTrafficAlert')}</span>
-                            </label>
-                            <label className="form-check-label" htmlFor="webhook-event-cert-expiring">
-                                <input
-                                    id="webhook-event-cert-expiring"
-                                    type="checkbox"
-                                    checked={draft.webhook.events.certExpiring}
-                                    onChange={(e) => patchField('webhook', 'events', { ...draft.webhook.events, certExpiring: e.target.checked })}
-                                />
-                                <span>{t('pages.settings.eventCertExpiring')}</span>
-                            </label>
-                        </div>
-                    </div>
+                    </form>
                 </div>
             </div>
         </div>
@@ -3118,13 +3157,13 @@ export default function SystemSettings() {
                         <div className={compactLayout ? 'settings-section-stack' : 'settings-grid settings-db-grid'}>
                             <div className="card p-3 settings-mini-card settings-db-control-card">
                                 <div className="settings-db-card-head">
-                                    <h4 className="text-base font-semibold">{t("pages.settings.switchReadAndWriteMode")}</h4>
+                                    <h3 className="text-base font-semibold">{t("pages.settings.switchReadAndWriteMode")}</h3>
                                     <div className="settings-panel-subtitle">{t("pages.settings.firstConfirmTheCurrentConnectionSta")}</div>
                                 </div>
                                 <div className="settings-db-card-body">
                                     <div className="form-group">
-                                        <label className="form-label">{t("pages.settings.readMode")}</label>
-                                        <select
+                                        <label htmlFor="system-settings-settings-read-mode" className="form-label">{t("pages.settings.readMode")}</label>
+                                        <select id="system-settings-settings-read-mode" name="systemSettingsSettingsReadMode"
                                             className="form-select"
                                             value={dbModeDraft.readMode}
                                             onChange={(event) => setDbModeDraft((prev) => ({ ...prev, readMode: event.target.value }))}
@@ -3136,8 +3175,8 @@ export default function SystemSettings() {
                                         </select>
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">{t("pages.settings.writeMode")}</label>
-                                        <select
+                                        <label htmlFor="system-settings-settings-write-mode" className="form-label">{t("pages.settings.writeMode")}</label>
+                                        <select id="system-settings-settings-write-mode" name="systemSettingsSettingsWriteMode"
                                             className="form-select"
                                             value={dbModeDraft.writeMode}
                                             onChange={(event) => setDbModeDraft((prev) => ({ ...prev, writeMode: event.target.value }))}
@@ -3150,7 +3189,7 @@ export default function SystemSettings() {
                                     </div>
                                     <div className="settings-db-inline-options">
                                         <label className="form-check-label flex items-start gap-2 cursor-pointer text-sm leading-snug">
-                                            <input
+                                            <input name="systemSettingsSettingsSynchronouslyLoadIntoTheMem"
                                                 type="checkbox"
                                                 aria-label={t("pages.settings.synchronouslyLoadIntoTheMemoryCache")}
                                                 checked={dbModeDraft.hydrateOnReadDb}
@@ -3175,13 +3214,13 @@ export default function SystemSettings() {
 
                             <div className="card p-3 settings-mini-card settings-db-control-card">
                                 <div className="settings-db-card-head">
-                                    <h4 className="text-base font-semibold">{t("pages.settings.storeBackfillToDatabase")}</h4>
+                                    <h3 className="text-base font-semibold">{t("pages.settings.storeBackfillToDatabase")}</h3>
                                     <div className="settings-panel-subtitle">{t("pages.settings.pressTheDataKeyToSelectTheBackfillR")}</div>
                                 </div>
                                 <div className="settings-db-card-body">
                                     <div className="form-group">
-                                        <label className="form-label">{t("pages.settings.dataKeysCommaSeparatedLeaveBlankFor")}</label>
-                                        <input
+                                        <label htmlFor="system-settings-settings-data-keys-comma-separated-leave" className="form-label">{t("pages.settings.dataKeysCommaSeparatedLeaveBlankFor")}</label>
+                                        <input id="system-settings-settings-data-keys-comma-separated-leave" name="systemSettingsSettingsDataKeysCommaSeparatedLeave"
                                             className="form-input"
                                             aria-label={t("pages.settings.dataKeysCommaSeparatedLeaveBlankFor")}
                                             value={dbBackfillDraft.keysText}
@@ -3196,7 +3235,7 @@ export default function SystemSettings() {
                                     </div>
                                     <div className="settings-db-inline-options">
                                         <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
-                                            <input
+                                            <input name="systemSettingsSettingsPreviewOnly"
                                                 type="checkbox"
                                                 aria-label={t("pages.settings.previewOnly")}
                                                 checked={dbBackfillDraft.dryRun}
@@ -3204,7 +3243,7 @@ export default function SystemSettings() {
                                                 disabled={!isAdmin}
                                             />{t("pages.settings.previewOnly")}</label>
                                         <label className="badge badge-neutral flex items-center gap-2 cursor-pointer w-fit">
-                                            <input
+                                            <input name="systemSettingsSettingsDesensitizedWriting"
                                                 type="checkbox"
                                                 aria-label={t("pages.settings.desensitizedWriting")}
                                                 checked={dbBackfillDraft.redact}
@@ -3672,8 +3711,8 @@ export default function SystemSettings() {
                                 </div>
                                 <div className="grid-auto-220">
                                     <div className="form-group">
-                                        <label className="form-label">{t("pages.settings.noticeSubjectLabel")}</label>
-                                        <input
+                                        <label htmlFor="system-settings-settings-notice-subject-label" className="form-label">{t("pages.settings.noticeSubjectLabel")}</label>
+                                        <input id="system-settings-settings-notice-subject-label" name="systemSettingsSettingsNoticeSubjectLabel"
                                             className="form-input"
                                             value={noticeDraft.subject}
                                             onChange={(event) => setNoticeDraft((prev) => ({ ...prev, subject: event.target.value }))}
@@ -3681,8 +3720,8 @@ export default function SystemSettings() {
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">{t("pages.settings.sendScopeLabel")}</label>
-                                        <select
+                                        <label htmlFor="system-settings-settings-send-scope-label" className="form-label">{t("pages.settings.sendScopeLabel")}</label>
+                                        <select id="system-settings-settings-send-scope-label" name="systemSettingsSettingsSendScopeLabel"
                                             className="form-select"
                                             value={noticeDraft.scope}
                                             onChange={(event) => setNoticeDraft((prev) => ({ ...prev, scope: event.target.value }))}
@@ -3693,8 +3732,8 @@ export default function SystemSettings() {
                                     </div>
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">{t("pages.settings.noticeContentLabel")}</label>
-                                    <textarea
+                                    <label htmlFor="system-settings-settings-notice-content-label" className="form-label">{t("pages.settings.noticeContentLabel")}</label>
+                                    <textarea id="system-settings-settings-notice-content-label" name="systemSettingsSettingsNoticeContentLabel"
                                         rows={8}
                                         className="form-textarea"
                                         value={noticeDraft.message}
@@ -3704,8 +3743,8 @@ export default function SystemSettings() {
                                 </div>
                                 <div className="grid-auto-220">
                                     <div className="form-group">
-                                        <label className="form-label">{t("pages.settings.buttonUrlLabel")}</label>
-                                        <input
+                                        <label htmlFor="system-settings-https-example-com-subscription" className="form-label">{t("pages.settings.buttonUrlLabel")}</label>
+                                        <input id="system-settings-https-example-com-subscription" name="systemSettingsHttpsExampleComSubscription"
                                             className="form-input"
                                             value={noticeDraft.actionUrl}
                                             onChange={(event) => setNoticeDraft((prev) => ({ ...prev, actionUrl: event.target.value }))}
@@ -3713,8 +3752,8 @@ export default function SystemSettings() {
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">{t("pages.settings.buttonTextLabel")}</label>
-                                        <input
+                                        <label htmlFor="system-settings-settings-button-text-label" className="form-label">{t("pages.settings.buttonTextLabel")}</label>
+                                        <input id="system-settings-settings-button-text-label" name="systemSettingsSettingsButtonTextLabel"
                                             className="form-input"
                                             value={noticeDraft.actionLabel}
                                             onChange={(event) => setNoticeDraft((prev) => ({ ...prev, actionLabel: event.target.value }))}
@@ -3723,7 +3762,7 @@ export default function SystemSettings() {
                                     </div>
                                 </div>
                                 <label className="form-check-label w-fit mt-2">
-                                    <input
+                                    <input name="systemSettingsSettingsIncludeDisabledOption"
                                         type="checkbox"
                                         aria-label={t("pages.settings.includeDisabledOption")}
                                         checked={noticeDraft.includeDisabled}
@@ -3836,7 +3875,7 @@ export default function SystemSettings() {
                                 setSelectedBackupFile(event.dataTransfer?.files?.[0] || null);
                             }}
                         >
-                            <input
+                            <input name="systemSettingsField2"
                                 type="file"
                                 accept=".nmsbak,.gz,.json.gz,application/octet-stream,application/gzip"
                                 onChange={(event) => setSelectedBackupFile(event.target.files?.[0] || null)}
@@ -3897,7 +3936,7 @@ export default function SystemSettings() {
                         )}
 
                         <label className="settings-restore-checkbox">
-                            <input
+                            <input name="systemSettingsSettingsConfirmRestoreWarningCheckbo"
                                 type="checkbox"
                                 aria-label={t("pages.settings.confirmRestoreWarningCheckbox")}
                                 checked={backupRestoreConfirmed}
