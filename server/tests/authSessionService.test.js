@@ -14,7 +14,7 @@ import {
 } from '../services/authSessionService.js';
 import { generateTotp, generateTotpSecret } from '../lib/totp.js';
 
-test('createLoginSession supports legacy admin password login', () => {
+test('createLoginSession supports legacy admin password login', async () => {
     const repo = {
         authenticate() {
             return null;
@@ -30,7 +30,7 @@ test('createLoginSession supports legacy admin password login', () => {
         },
     };
 
-    const result = createLoginSession(
+    const result = await createLoginSession(
         { username: '', password: 'secret' },
         {
             userRepository: repo,
@@ -49,7 +49,7 @@ test('createLoginSession supports legacy admin password login', () => {
     assert.equal(result.audit.email, 'admin@example.com');
 });
 
-test('createLoginSession returns verify state for unverified users', () => {
+test('createLoginSession returns verify state for unverified users', async () => {
     const repo = {
         authenticate() {
             return { id: 'user-1', username: 'alice', role: 'user' };
@@ -67,7 +67,7 @@ test('createLoginSession returns verify state for unverified users', () => {
         },
     };
 
-    const result = createLoginSession(
+    const result = await createLoginSession(
         { username: 'alice', password: 'pass' },
         { userRepository: repo }
     );
@@ -78,7 +78,7 @@ test('createLoginSession returns verify state for unverified users', () => {
     assert.equal(result.audit.email, 'alice@example.com');
 });
 
-test('createLoginSession accepts a registered email as the login identifier', () => {
+test('createLoginSession accepts a registered email as the login identifier', async () => {
     const repo = {
         authenticate(identifier, password) {
             assert.equal(identifier, 'alice@example.com');
@@ -99,7 +99,7 @@ test('createLoginSession accepts a registered email as the login identifier', ()
         },
     };
 
-    const result = createLoginSession(
+    const result = await createLoginSession(
         { identifier: 'alice@example.com', password: 'pass' },
         {
             userRepository: repo,
@@ -116,7 +116,7 @@ test('createLoginSession accepts a registered email as the login identifier', ()
     assert.equal(result.user.email, 'alice@example.com');
 });
 
-test('createLoginSession returns disabled users with audit metadata', () => {
+test('createLoginSession returns disabled users with audit metadata', async () => {
     const repo = {
         authenticate() {
             return { id: 'user-4', username: 'dave', role: 'user' };
@@ -134,7 +134,7 @@ test('createLoginSession returns disabled users with audit metadata', () => {
         },
     };
 
-    const result = createLoginSession(
+    const result = await createLoginSession(
         { username: 'dave', password: 'pass' },
         { userRepository: repo }
     );
@@ -144,7 +144,7 @@ test('createLoginSession returns disabled users with audit metadata', () => {
     assert.equal(result.audit.subscriptionEmail, 'sub-dave@example.com');
 });
 
-test('createLoginSession returns audit metadata for invalid password of known user', () => {
+test('createLoginSession returns audit metadata for invalid password of known user', async () => {
     const repo = {
         authenticate() {
             return null;
@@ -164,7 +164,7 @@ test('createLoginSession returns audit metadata for invalid password of known us
         },
     };
 
-    const result = createLoginSession(
+    const result = await createLoginSession(
         { username: 'eve', password: 'wrong' },
         { userRepository: repo, authConfig: { allowLegacyPasswordLogin: false, adminPassword: 'ignored' } }
     );
@@ -174,7 +174,7 @@ test('createLoginSession returns audit metadata for invalid password of known us
     assert.equal(result.audit.username, 'eve');
 });
 
-test('createLoginSession returns audit metadata for invalid password of known email login', () => {
+test('createLoginSession returns audit metadata for invalid password of known email login', async () => {
     const repo = {
         authenticate() {
             return null;
@@ -198,7 +198,7 @@ test('createLoginSession returns audit metadata for invalid password of known em
         },
     };
 
-    const result = createLoginSession(
+    const result = await createLoginSession(
         { identifier: 'eve@example.com', password: 'wrong' },
         { userRepository: repo, authConfig: { allowLegacyPasswordLogin: false, adminPassword: 'ignored' } }
     );
@@ -235,7 +235,7 @@ test('validateSession returns normalized session user', () => {
     assert.equal(result.user.subscriptionEmail, 'sub@example.com');
 });
 
-test('changeOwnPassword rejects incorrect old password', () => {
+test('changeOwnPassword rejects incorrect old password', async () => {
     const repo = {
         getById() {
             return { id: 'user-3', username: 'carol' };
@@ -245,7 +245,7 @@ test('changeOwnPassword rejects incorrect old password', () => {
         },
     };
 
-    assert.throws(
+    await assert.rejects(
         () => changeOwnPassword(
             { oldPassword: 'wrong', newPassword: 'NewPass123!' },
             { userId: 'user-3' },
@@ -259,7 +259,7 @@ test('changeOwnPassword rejects incorrect old password', () => {
     );
 });
 
-test('changeOwnPassword updates password when old password is correct', () => {
+test('changeOwnPassword updates password when old password is correct', async () => {
     let updatedPayload = null;
     const repo = {
         getById(id) {
@@ -276,7 +276,7 @@ test('changeOwnPassword updates password when old password is correct', () => {
         },
     };
 
-    const result = changeOwnPassword(
+    const result = await changeOwnPassword(
         { oldPassword: 'OldPass123!', newPassword: 'NewPass123!' },
         { userId: 'user-6' },
         { userRepository: repo }
@@ -553,7 +553,7 @@ test('updateOwnProfile rejects updates without a verified current-email code', (
     );
 });
 
-test('createLoginSession returns a 2FA challenge when the user has 2FA enabled', () => {
+test('createLoginSession returns a 2FA challenge when the user has 2FA enabled', async () => {
     const totpSecret = generateTotpSecret();
     const repo = {
         authenticate() {
@@ -581,7 +581,7 @@ test('createLoginSession returns a 2FA challenge when the user has 2FA enabled',
         },
     };
 
-    const result = createLoginSession(
+    const result = await createLoginSession(
         { username: 'root', password: 'irrelevant' },
         {
             userRepository: repo,
@@ -636,6 +636,66 @@ test('completeTwoFactorLogin succeeds with a valid TOTP code', () => {
     assert.equal(result.success, true);
     assert.equal(result.token, 'session:admin-2fa');
     assert.equal(result.audit.twoFactor, true);
+});
+
+test('completeTwoFactorLogin accepts each TOTP time step only once', () => {
+    const totpSecret = generateTotpSecret();
+    const code = generateTotp(totpSecret, Date.now());
+    let lastUsedStep = 0;
+    const recorded = [];
+    const repo = {
+        getById() {
+            return { id: 'admin-2fa-replay', username: 'root', role: 'admin', email: 'root@example.com' };
+        },
+        getTwoFactor() {
+            return { enabled: true, secret: totpSecret, backupCodeHashes: [], lastUsedStep };
+        },
+        recordTwoFactorStep(_id, step) {
+            recorded.push(step);
+            lastUsedStep = step;
+            return true;
+        },
+        consumeTwoFactorBackupCode() {
+            return true;
+        },
+    };
+    const deps = {
+        userRepository: repo,
+        jwtSign(payload) {
+            return `session:${payload.userId}`;
+        },
+        jwtVerify() {
+            return { type: '2fa_challenge', userId: 'admin-2fa-replay', username: 'root', role: 'admin' };
+        },
+        jwtConfig: { secret: 'ignored', expiresIn: '1d' },
+    };
+
+    const first = completeTwoFactorLogin({ challengeToken: 'fake', code }, deps);
+    assert.equal(first.success, true);
+    assert.equal(recorded.length, 1);
+
+    const replay = completeTwoFactorLogin({ challengeToken: 'fake', code }, deps);
+    assert.equal(replay.success, false);
+    assert.equal(replay.reason, 'invalid_code');
+    assert.equal(replay.replayed, true);
+    assert.equal(recorded.length, 1);
+});
+
+test('enableTwoFactor marks the enrollment code as used', () => {
+    const totpSecret = generateTotpSecret();
+    const code = generateTotp(totpSecret, Date.now());
+    let saved = null;
+    const repo = {
+        getById: () => ({ id: 'admin-2fa-enroll', username: 'root', role: 'admin' }),
+        getByUsername: () => ({ id: 'admin-2fa-enroll', username: 'root', role: 'admin' }),
+        getTwoFactor: () => null,
+        setTwoFactor(_id, payload) {
+            saved = payload;
+            return true;
+        },
+    };
+    enableTwoFactor({ secret: totpSecret, code }, { userId: 'admin-2fa-enroll', username: 'root' }, { userRepository: repo });
+    assert.ok(Number(saved.lastUsedStep) > 0);
 });
 
 test('completeTwoFactorLogin rejects wrong codes without throwing', () => {
@@ -698,7 +758,7 @@ test('enableTwoFactor stores hashed backup codes after verifying the first TOTP'
     assert.ok(saved && saved.backupCodeHashes.length === 10);
 });
 
-test('disableTwoFactor requires the current password', () => {
+test('disableTwoFactor requires the current password', async () => {
     const repo = {
         getById() {
             return { id: 'admin-2fa', username: 'root', role: 'admin' };
@@ -714,7 +774,7 @@ test('disableTwoFactor requires the current password', () => {
         },
     };
 
-    assert.throws(
+    await assert.rejects(
         () => disableTwoFactor({ password: 'badpass' }, { userId: 'admin-2fa', username: 'root' }, { userRepository: repo }),
         (error) => {
             assert.equal(error.status, 401);
@@ -722,7 +782,7 @@ test('disableTwoFactor requires the current password', () => {
         }
     );
 
-    const ok = disableTwoFactor({ password: 'goodpass' }, { userId: 'admin-2fa', username: 'root' }, { userRepository: repo });
+    const ok = await disableTwoFactor({ password: 'goodpass' }, { userId: 'admin-2fa', username: 'root' }, { userRepository: repo });
     assert.equal(ok.enabled, false);
 });
 
@@ -829,7 +889,7 @@ test('completeTwoFactorLogin locks out repeated wrong TOTP attempts per user', (
     );
 });
 
-test('authSessionService localizes errors for en-US while keeping zh-CN defaults', () => {
+test('authSessionService localizes errors for en-US while keeping zh-CN defaults', async () => {
     const baseUser = {
         id: 'u-locale',
         username: 'alice',
@@ -866,7 +926,7 @@ test('authSessionService localizes errors for en-US while keeping zh-CN defaults
         (err) => err.status === 404 && err.message === 'User not found'
     );
 
-    assert.throws(
+    await assert.rejects(
         () => changeOwnPassword(
             { oldPassword: 'wrong', newPassword: 'NewPassword#123' },
             { userId: 'u-locale' },

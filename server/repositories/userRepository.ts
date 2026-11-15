@@ -105,6 +105,10 @@ const userRepository = {
     consumeTwoFactorBackupCode(id: string, remainingHashes: string[]): boolean {
         return userStore.consumeTwoFactorBackupCode(id, remainingHashes);
     },
+
+    recordTwoFactorStep(id: string, step: number): boolean {
+        return userStore.recordTwoFactorStep(id, step);
+    },
 };
 
 export default userRepository;

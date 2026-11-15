@@ -5,24 +5,31 @@ import auditStore from '../store/auditStore.js';
 import { resolveClientIp } from './requestIp.js';
 import notificationService, { SEVERITY } from './notifications.js';
 import { enrichAuditEvent } from './auditEventEnrichment.js';
+import { RotatingLineWriter } from './rotatingLogWriter.js';
 
 const AUDIT_FILE = path.join(config.dataDir, 'security_audit.log');
 
-// Persistent write stream for audit log — avoids blocking the event loop on
-// every appendSecurityAudit call. The stream is created lazily so the data
-// directory can be ensured first.
-let auditStream: fs.WriteStream | null = null;
-function getAuditStream(): fs.WriteStream {
-    if (!auditStream) {
+// Persistent, size-rotated write stream for the audit log — avoids blocking the
+// event loop on every appendSecurityAudit call and keeps disk usage bounded
+// (security_audit.log + security_audit.log.1 … .N).
+let auditWriter: RotatingLineWriter | null = null;
+function getAuditWriter(): RotatingLineWriter {
+    if (!auditWriter) {
         ensureAuditDir();
-        auditStream = fs.createWriteStream(AUDIT_FILE, { flags: 'a' });
-        auditStream.on('error', (err) => {
-            console.error('[SecurityAudit] write stream error:', err);
-            // Discard broken stream so the next call creates a fresh one.
-            auditStream = null;
+        auditWriter = new RotatingLineWriter({
+            file: AUDIT_FILE,
+            maxBytes: config.audit.logMaxBytes,
+            maxFiles: config.audit.logMaxFiles,
+            onError: (err) => console.error('[SecurityAudit] write stream error:', err),
         });
     }
-    return auditStream;
+    return auditWriter;
+}
+
+export function closeSecurityAuditLog(): Promise<void> {
+    const writer = auditWriter;
+    auditWriter = null;
+    return writer ? writer.close() : Promise.resolve();
 }
 
 const LOGIN_PATTERN_WINDOW_MS = 5 * 60 * 1000;
@@ -32,6 +39,7 @@ const LOGIN_PATTERN_EVENTS = new Set<string>([
     'login_denied_email_unverified',
     'login_denied_user_disabled',
     'login_rate_limited',
+    'login_account_locked',
 ]);
 const ACCESS_PATTERN_EVENTS = new Set<string>([
     'subscription_public_denied',
@@ -298,6 +306,14 @@ function buildAuditNotification(entry: any = {}): any {
             dedupKey: `security:${eventKey}:${ip}:${String(details.username || details.email || '-').trim().toLowerCase()}`,
             telegramTopics: loginPattern?.suspectedBruteforce ? ['security_audit', 'emergency_alert'] : ['security_audit'],
         },
+        login_account_locked: {
+            type: 'security_attack_login_account_locked',
+            severity: SEVERITY.CRITICAL,
+            title: '账号登录已临时锁定',
+            body: `账号 ${String(details.username || details.email || actor || '-').trim() || '-'} 在 ${Number(details.windowMinutes || 15)} 分钟内密码错误次数过多，已临时锁定（最后来源 IP ${ip}）。如非本人操作，可能存在分布式爆破。`,
+            dedupKey: `security:${eventKey}:${String(details.username || details.email || '-').trim().toLowerCase()}`,
+            telegramTopics: ['security_audit', 'emergency_alert'],
+        },
         login_rate_limited: {
             type: 'security_attack_login_rate_limited',
             severity: SEVERITY.CRITICAL,
@@ -418,7 +434,7 @@ export function appendSecurityAudit(event: string, req: any, details: any = {}, 
             path: req?.originalUrl || null,
             details: safeDetails,
         };
-        getAuditStream().write(`${JSON.stringify(entry)}\n`);
+        getAuditWriter().write(`${JSON.stringify(entry)}\n`);
 
         const storedEntry = auditStore.appendEvent({
             event,

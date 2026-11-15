@@ -1,42 +1,74 @@
-import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, resolve, isAbsolute } from 'path';
+import {
+    ensureGeneratedSecrets,
+    isKnownPublicSecret,
+    loadLayeredEnv,
+    resolveDataDirFrom,
+} from './lib/runtimeEnv.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: resolve(__dirname, '..', '.env') });
+const repoRoot = resolve(__dirname, '..');
+
+// Precedence: process env > ${DATA_DIR}/runtime.env > repo .env (see lib/runtimeEnv.ts).
+loadLayeredEnv({ rootDir: repoRoot });
 
 const nodeEnv: string = process.env.NODE_ENV || 'development';
 const isProduction: boolean = nodeEnv === 'production';
 const isTest: boolean = nodeEnv === 'test';
-const DEFAULT_JWT_SECRET = 'nms-default-jwt-secret-key-32-chars-min-ok!';
-const jwtSecret: string = process.env.JWT_SECRET || DEFAULT_JWT_SECRET;
-const DEFAULT_CREDENTIALS_SECRET = 'nms-default-credentials-secret-32-chars-min-ok!';
-const credentialsSecret: string = process.env.CREDENTIALS_SECRET || (isProduction ? '' : DEFAULT_CREDENTIALS_SECRET);
+const runningUnderTestRunner: boolean = isTest || Boolean(process.env.NODE_TEST_CONTEXT);
+const defaultDataDir: string = resolve(repoRoot, 'data');
+const effectiveDataDir: string = resolveDataDirFrom(process.env.DATA_DIR, repoRoot);
+
+if (runningUnderTestRunner && resolve(effectiveDataDir) === resolve(defaultDataDir)) {
+    throw new Error(
+        `Refusing to run tests against the repository data directory (${defaultDataDir}). `
+        + 'Run the suite through "npm test" (which isolates DATA_DIR) or point DATA_DIR at a temporary directory.'
+    );
+}
+
+// Never fall back to a constant secret: a missing JWT_SECRET / CREDENTIALS_SECRET
+// is generated once and persisted to ${DATA_DIR}/runtime.env.
+const generatedSecrets = ensureGeneratedSecrets(effectiveDataDir);
+if (generatedSecrets.persistedTo) {
+    console.warn(
+        `[Config] Generated ${generatedSecrets.generated.join(' and ')} and saved to ${generatedSecrets.persistedTo}. `
+        + 'Back this file up with the data directory: without CREDENTIALS_SECRET, stored node credentials and encrypted backups cannot be decrypted.'
+    );
+}
+
+const jwtSecret: string = String(process.env.JWT_SECRET || '').trim();
+const credentialsSecret: string = String(process.env.CREDENTIALS_SECRET || '').trim();
 const adminUsername: string = process.env.ADMIN_USERNAME || 'admin';
 const adminPassword: string = process.env.ADMIN_PASSWORD || 'admin';
 const enforceStrictSecurity: boolean = parseBoolean(process.env.ENFORCE_STRICT_SECURITY, isProduction);
-const defaultDataDir: string = resolve(__dirname, '..', 'data');
 const isDevelopment: boolean = nodeEnv === 'development';
 
+// Publicly known secrets are refused in production regardless of ENFORCE_STRICT_SECURITY:
+// anyone could forge admin sessions or decrypt stored credentials with them.
+if (isProduction && isKnownPublicSecret(jwtSecret)) {
+    throw new Error('JWT_SECRET is set to a value published in the NMS source code. Remove it (NMS will generate one) or set a private random secret.');
+}
+if (isProduction && isKnownPublicSecret(credentialsSecret)) {
+    throw new Error('CREDENTIALS_SECRET is set to a value published in the NMS source code. Set a private random secret.');
+}
+
 if (!isProduction && !isTest) {
-    if (!process.env.JWT_SECRET || jwtSecret === DEFAULT_JWT_SECRET || jwtSecret.length < 32) {
-        console.warn('[Config] Security warning: JWT_SECRET is missing or weak — configure a dedicated random secret (>= 32 chars) for production.');
-    }
-    if (!process.env.CREDENTIALS_SECRET) {
-        console.warn('[Config] CREDENTIALS_SECRET is not set — falling back to development secret. Set a dedicated secret for production.');
+    if (jwtSecret.length < 32 || isKnownPublicSecret(jwtSecret)) {
+        console.warn('[Config] Security warning: JWT_SECRET is weak — configure a dedicated random secret (>= 32 chars).');
     }
     if (!process.env.ADMIN_PASSWORD || adminPassword === 'admin') {
         console.warn('[Config] Security warning: ADMIN_PASSWORD uses the development default. Change ADMIN_PASSWORD before exposing the server.');
     }
-} else if (!process.env.CREDENTIALS_SECRET && !isProduction) {
-    console.warn('[Config] CREDENTIALS_SECRET is not set — falling back to generated secret. Set a dedicated secret for production.');
+} else if (isProduction && !enforceStrictSecurity) {
+    console.warn('[Config] Security warning: ENFORCE_STRICT_SECURITY is disabled in production. Weak admin credentials will not be rejected at startup.');
 }
 
 function resolveDataDir(value?: string | null): string {
     const text = String(value || '').trim();
     if (!text) return defaultDataDir;
     if (isAbsolute(text)) return text;
-    return resolve(__dirname, '..', text);
+    return resolve(repoRoot, text);
 }
 
 function parsePositiveInt(value: unknown, fallback: number): number {
@@ -110,13 +142,13 @@ function parseStoreWriteMode(value: unknown, fallback: string = 'file'): string 
 
 function isWeakJwtSecret(value: unknown): boolean {
     const text = String(value || '');
-    return text.length < 32 || text === DEFAULT_JWT_SECRET;
+    return text.length < 32 || isKnownPublicSecret(text);
 }
 
 function isWeakCredentialsSecret(value: unknown): boolean {
     const text = String(value || '');
     if (text.length < 32) return true;
-    if (text === DEFAULT_JWT_SECRET || text === DEFAULT_CREDENTIALS_SECRET) return true;
+    if (isKnownPublicSecret(text)) return true;
     if (text === jwtSecret) return true;
     return false;
 }
@@ -152,10 +184,6 @@ if (enforceStrictSecurity && isWeakAdminPassword(adminPassword)) {
 
 if (enforceStrictSecurity && isWeakAdminUsername(adminUsername)) {
     throw new Error('Unsafe ADMIN_USERNAME. Set a non-default admin username before startup.');
-}
-
-if (enforceStrictSecurity && !process.env.CREDENTIALS_SECRET) {
-    throw new Error('Unsafe CREDENTIALS_SECRET. Set a dedicated secret (length >= 32) before startup.');
 }
 
 if (enforceStrictSecurity && isWeakCredentialsSecret(credentialsSecret)) {
@@ -216,6 +244,7 @@ export interface AppConfig {
         publicBaseUrl: string;
         tokenSecret: string;
         legacySecrets: string[];
+        legacySignatureEnabled: boolean;
         converter: {
             baseUrl: string;
             clashConfigUrl: string;
@@ -226,6 +255,10 @@ export interface AppConfig {
     audit: {
         retentionDays: number;
         maxPageSize: number;
+        maxEvents: number;
+        maxSubscriptionAccessRecords: number;
+        logMaxBytes: number;
+        logMaxFiles: number;
         ipGeo: {
             enabled: boolean;
             provider: string;
@@ -265,6 +298,7 @@ export interface AppConfig {
         schema: string;
         poolMax: number;
         sslMode: string;
+        sslCaFile: string;
         migrationAuto: boolean;
         storeReadMode: string;
         storeWriteMode: string;
@@ -342,6 +376,9 @@ const config: AppConfig = {
         publicBaseUrl: parseHttpUrl(process.env.SUB_PUBLIC_BASE_URL),
         tokenSecret: String(process.env.SUBSCRIPTION_TOKEN_SECRET || '').trim() || credentialsSecret,
         legacySecrets: parseStringList(process.env.SUBSCRIPTION_TOKEN_LEGACY_SECRETS),
+        // The pre-token `/public/:email/:sig` URL never expires and cannot be revoked
+        // per link. It stays off unless an operator still has clients on it.
+        legacySignatureEnabled: parseBoolean(process.env.SUB_LEGACY_SIGNATURE_ENABLED, false),
         converter: {
             baseUrl: parseHttpUrl(process.env.SUB_CONVERTER_BASE_URL),
             clashConfigUrl: parseHttpUrl(process.env.SUB_CONVERTER_CLASH_CONFIG_URL),
@@ -352,6 +389,12 @@ const config: AppConfig = {
     audit: {
         retentionDays: parsePositiveInt(process.env.AUDIT_RETENTION_DAYS, 365),
         maxPageSize: parsePositiveInt(process.env.AUDIT_MAX_PAGE_SIZE, 200),
+        // Hard caps so a flood of (e.g. public subscription) events cannot grow the
+        // JSON stores and their full-file rewrites without bound.
+        maxEvents: parsePositiveInt(process.env.AUDIT_MAX_EVENTS, 50_000),
+        maxSubscriptionAccessRecords: parsePositiveInt(process.env.AUDIT_MAX_SUBSCRIPTION_ACCESS_RECORDS, 100_000),
+        logMaxBytes: parsePositiveInt(process.env.AUDIT_LOG_MAX_MB, 20) * 1024 * 1024,
+        logMaxFiles: parsePositiveInt(process.env.AUDIT_LOG_MAX_FILES, 5),
         ipGeo: {
             enabled: parseBoolean(process.env.AUDIT_IP_GEO_ENABLED, false),
             provider: String(process.env.AUDIT_IP_GEO_PROVIDER || 'ip_api').trim().toLowerCase() || 'ip_api',
@@ -391,6 +434,7 @@ const config: AppConfig = {
         schema: String(process.env.DB_SCHEMA || 'nms').trim() || 'nms',
         poolMax: parsePositiveInt(process.env.DB_POOL_MAX, 10),
         sslMode: String(process.env.DB_SSL_MODE || 'disable').trim().toLowerCase() || 'disable',
+        sslCaFile: String(process.env.DB_SSL_CA_FILE || '').trim(),
         migrationAuto: parseBoolean(process.env.DB_MIGRATION_AUTO, true),
         storeReadMode: parseStoreReadMode(process.env.STORE_READ_MODE, 'file'),
         storeWriteMode: parseStoreWriteMode(process.env.STORE_WRITE_MODE, 'file'),
@@ -408,7 +452,8 @@ const config: AppConfig = {
         auditEvents: parseStringList(process.env.TELEGRAM_AUDIT_EVENTS),
         dedupWindowMs: parsePositiveInt(process.env.TELEGRAM_ALERT_DEDUP_MS, 2 * 60 * 1000),
     },
-    port: parseInt(String(process.env.PORT || ''), 10) || 3000,
+    // 3001 matches the Docker image, PM2 ecosystem file, docs and the Vite dev proxy.
+    port: parseInt(String(process.env.PORT || ''), 10) || 3001,
     host: String(process.env.HOST || process.env.LISTEN_HOST || '::').trim() || '::',
     nodeEnv,
     // Path to store server registry

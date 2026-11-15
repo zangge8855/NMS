@@ -1,18 +1,18 @@
 import fs from 'fs';
 import os from 'os';
-import dotenv from 'dotenv';
-import { fileURLToPath } from 'url';
-import { dirname, isAbsolute, relative, resolve } from 'path';
+import { isAbsolute, relative, resolve } from 'path';
 import { resolveClientBuildPaths } from './clientBuild.js';
+import {
+    DEFAULT_ENV_FILE as RUNTIME_DEFAULT_ENV_FILE,
+    REPO_ROOT as RUNTIME_REPO_ROOT,
+    isKnownPublicSecret,
+    loadLayeredEnv,
+    type LayeredEnvResult,
+} from './runtimeEnv.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-export const REPO_ROOT = resolve(__dirname, '..', '..');
-export const DEFAULT_ENV_FILE = resolve(REPO_ROOT, '.env');
+export const REPO_ROOT = RUNTIME_REPO_ROOT;
+export const DEFAULT_ENV_FILE = RUNTIME_DEFAULT_ENV_FILE;
 export const DEFAULT_LOGS_DIR = resolve(REPO_ROOT, 'logs');
-export const DEFAULT_JWT_SECRET = 'default-secret-change-me';
-const DEV_FALLBACK_JWT_SECRET = 'nms-default-jwt-secret-key-32-chars-min-ok!';
-const DEV_FALLBACK_CREDENTIALS_SECRET = 'nms-default-credentials-secret-32-chars-min-ok!';
 const CORE_RUNTIME_FILES = [
     { key: 'users', file: 'users.json' },
     { key: 'servers', file: 'servers.json' },
@@ -51,8 +51,11 @@ export function resolveDataDir(value: unknown, rootDir: string = REPO_ROOT): str
     return resolve(rootDir, text);
 }
 
-export function loadRuntimeEnv(envFile: string = DEFAULT_ENV_FILE): dotenv.DotenvConfigOutput {
-    return dotenv.config({ path: envFile });
+/**
+ * Load process env > ${DATA_DIR}/runtime.env > repo .env (see runtimeEnv.ts).
+ */
+export function loadRuntimeEnv(envFile: string = DEFAULT_ENV_FILE, rootDir: string = REPO_ROOT): LayeredEnvResult {
+    return loadLayeredEnv({ envFile, rootDir });
 }
 
 export function shouldServeClientBuild(env: Record<string, any> = process.env): boolean {
@@ -62,7 +65,7 @@ export function shouldServeClientBuild(env: Record<string, any> = process.env): 
 
 export function isWeakJwtSecret(value: unknown): boolean {
     const text = String(value || '');
-    return text.length < 32 || text === DEFAULT_JWT_SECRET || text === DEV_FALLBACK_JWT_SECRET;
+    return text.length < 32 || isKnownPublicSecret(text);
 }
 
 export function isWeakAdminPassword(value: unknown): boolean {
@@ -89,7 +92,7 @@ export function isWeakAdminUsername(value: unknown): boolean {
 export function isWeakCredentialsSecret(value: unknown, jwtSecret: unknown): boolean {
     const text = String(value || '');
     if (text.length < 32) return true;
-    if (text === DEFAULT_JWT_SECRET || text === DEV_FALLBACK_JWT_SECRET || text === DEV_FALLBACK_CREDENTIALS_SECRET) return true;
+    if (isKnownPublicSecret(text)) return true;
     if (text === String(jwtSecret || '')) return true;
     return false;
 }
@@ -106,7 +109,7 @@ export function collectSecurityIssues(env: Record<string, any> = process.env): S
     if (!enforceStrictSecurity) return [];
 
     const issues: SecurityIssue[] = [];
-    const jwtSecret = env.JWT_SECRET || DEFAULT_JWT_SECRET;
+    const jwtSecret = String(env.JWT_SECRET || '');
     const adminUsername = env.ADMIN_USERNAME || 'admin';
     const adminPassword = env.ADMIN_PASSWORD || 'admin';
     const credentialsSecret = env.CREDENTIALS_SECRET || '';
@@ -163,7 +166,9 @@ export function collectStartupIssues(env: Record<string, any> = process.env, opt
     if (includeEnvFileNotice && securityIssues.length > 0 && !fs.existsSync(envFile)) {
         issues.push({
             code: 'missing_env_file',
-            message: `No .env file was found at ${envFile}. Copy .env.example and set the production values, or inject the same variables through PM2/systemd.`,
+            message: `No .env file was found at ${envFile}, and the settings below are not provided as environment variables either. `
+                + 'Copy .env.example to .env, or set them through Docker --env-file, PM2, or systemd. '
+                + `JWT_SECRET and CREDENTIALS_SECRET may be left unset: NMS then generates them into ${resolve(dataDir, 'runtime.env')}.`,
         });
     }
 

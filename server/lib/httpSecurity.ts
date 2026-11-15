@@ -74,8 +74,11 @@ export function createSecurityHeadersMiddleware(options: SecurityHeadersOptions 
         "form-action 'self'",
         "img-src 'self' data: blob:",
         "font-src 'self' data:",
+        // Inline styles stay allowed: React style props and the theme bootstrap set them.
         "style-src 'self' 'unsafe-inline'",
-        "script-src 'self' 'unsafe-inline'",
+        // No inline scripts: the theme bootstrap is /theme-init.js and the base path
+        // is passed through <meta name="nms-site-base-path">.
+        "script-src 'self'",
         "connect-src 'self' ws://localhost:* wss://localhost:* ws://127.0.0.1:* wss://127.0.0.1:* ws://[::1]:* wss://[::1]:* https://ipwho.is",
     ].join('; ');
 

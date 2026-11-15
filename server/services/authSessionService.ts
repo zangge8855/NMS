@@ -4,13 +4,14 @@ import * as mailer from '../lib/mailer.js';
 import { checkAccountPassword } from '../lib/passwordValidator.js';
 import { createHttpError } from '../lib/httpError.js';
 import { normalizeAppLocale, pickLocalizedText } from '../lib/requestLocale.js';
+import { timingSafeStringEqual } from '../lib/safeCompare.js';
 import {
     buildTotpUri,
+    findTotpCounter,
     generateBackupCodes,
     generateTotpSecret,
     hashBackupCode,
     verifyBackupCode,
-    verifyTotp,
 } from '../lib/totp.js';
 import userRepository from '../repositories/userRepository.js';
 import { isValidEmail, normalizeEmailInput } from './emailAuthService.js';
@@ -133,12 +134,12 @@ function buildExpiryIso(ttlMinutes: unknown): string {
     return new Date(Date.now() + Number(ttlMinutes || 0) * 60 * 1000).toISOString();
 }
 
-function createLoginSession(payload: any = {}, deps: any = {}): any {
+async function createLoginSession(payload: any = {}, deps: any = {}): Promise<any> {
     const userRepo = deps.userRepository || userRepository;
     const authConfig = deps.authConfig || config.auth;
     const loginIdentifier = resolveLoginIdentifier(payload);
     const password = typeof payload?.password === 'string' ? payload.password : '';
-    const user = userRepo.authenticate(loginIdentifier, password);
+    const user = await userRepo.authenticate(loginIdentifier, password);
 
     if (!user) {
         const existingUser = loginIdentifier ? findUserByLoginIdentifier(userRepo, loginIdentifier) : null;
@@ -152,7 +153,11 @@ function createLoginSession(payload: any = {}, deps: any = {}): any {
             || loginIdentifier === legacyUsername
             || (legacyEmail && normalizedIdentifierEmail === legacyEmail);
 
-        if (identifierMatchesLegacy && authConfig.allowLegacyPasswordLogin === true && password === authConfig.adminPassword) {
+        if (
+            identifierMatchesLegacy
+            && authConfig.allowLegacyPasswordLogin === true
+            && timingSafeStringEqual(password, authConfig.adminPassword)
+        ) {
             const tokenPayload: any = {
                 role: 'admin',
                 username: legacyUsername || 'admin',
@@ -337,18 +342,32 @@ function completeTwoFactorLogin(payload: any = {}, deps: any = {}): any {
         }
         userRepo.consumeTwoFactorBackupCode(stored.id, result.remaining);
         backupConsumed = true;
-    } else if (!verifyTotp(code, config2FA.secret)) {
-        if (recordTwoFactorFailure(stored.id)) {
-            throw createHttpError(
-                429,
-                pickLocalizedText(
-                    locale,
-                    '2FA 验证尝试过于频繁，请 15 分钟后再试',
-                    'Too many 2FA verification attempts, please try again in 15 minutes'
-                )
-            );
+    } else {
+        // A TOTP code stays valid for its whole drift window; accept each time
+        // step at most once so an observed code cannot be replayed.
+        const step = findTotpCounter(code, config2FA.secret);
+        const lastUsedStep = Math.max(0, Number(config2FA.lastUsedStep || 0));
+        if (step === null || step <= lastUsedStep) {
+            if (recordTwoFactorFailure(stored.id)) {
+                throw createHttpError(
+                    429,
+                    pickLocalizedText(
+                        locale,
+                        '2FA 验证尝试过于频繁，请 15 分钟后再试',
+                        'Too many 2FA verification attempts, please try again in 15 minutes'
+                    )
+                );
+            }
+            return {
+                success: false,
+                reason: 'invalid_code',
+                ...(step !== null ? { replayed: true } : {}),
+                audit: buildAuditUser(stored, challenge),
+            };
         }
-        return { success: false, reason: 'invalid_code', audit: buildAuditUser(stored, challenge) };
+        if (typeof userRepo.recordTwoFactorStep === 'function') {
+            userRepo.recordTwoFactorStep(stored.id, step);
+        }
     }
 
     clearTwoFactorFailures(stored.id);
@@ -407,13 +426,15 @@ function enableTwoFactor(payload: any = {}, currentUser: any, deps: any = {}) {
     const secret = String(payload?.secret || '').trim();
     const code = String(payload?.code || '').trim();
     if (!secret) throw createHttpError(400, pickLocalizedText(locale, '缺少 2FA 密钥', 'Missing 2FA secret'));
-    if (!verifyTotp(code, secret)) {
+    const enrollmentStep = findTotpCounter(code, secret);
+    if (enrollmentStep === null) {
         throw createHttpError(400, pickLocalizedText(locale, '验证码不正确,请重试', 'Verification code is incorrect, please try again'));
     }
 
     const backupCodes = generateBackupCodes(10);
     const backupCodeHashes = backupCodes.map((code2) => hashBackupCode(code2));
-    userRepo.setTwoFactor(stored.id, { secret, backupCodeHashes });
+    // The enrollment code counts as used: it must not also complete a login.
+    userRepo.setTwoFactor(stored.id, { secret, backupCodeHashes, lastUsedStep: enrollmentStep });
 
     return {
         enabled: true,
@@ -422,7 +443,7 @@ function enableTwoFactor(payload: any = {}, currentUser: any, deps: any = {}) {
     };
 }
 
-function disableTwoFactor(payload: any = {}, currentUser: any, deps: any = {}) {
+async function disableTwoFactor(payload: any = {}, currentUser: any, deps: any = {}) {
     const locale = normalizeAppLocale(deps?.locale, 'zh-CN');
     const userRepo = deps.userRepository || userRepository;
     const stored = userRepo.getById(currentUser?.userId)
@@ -431,7 +452,7 @@ function disableTwoFactor(payload: any = {}, currentUser: any, deps: any = {}) {
 
     const password = typeof payload?.password === 'string' ? payload.password : '';
     if (!password) throw createHttpError(400, pickLocalizedText(locale, '需要确认当前账号密码', 'Current account password is required'));
-    const verified = userRepo.authenticate(stored.username, password);
+    const verified = await userRepo.authenticate(stored.username, password);
     if (!verified) throw createHttpError(401, pickLocalizedText(locale, '账号密码不正确', 'Account password is incorrect'));
 
     userRepo.clearTwoFactor(stored.id);
@@ -511,7 +532,7 @@ function resolveCurrentUserRecord(currentUser: any = {}, deps: any = {}) {
     return null;
 }
 
-function changeOwnPassword(payload: any = {}, currentUser: any = {}, deps: any = {}) {
+async function changeOwnPassword(payload: any = {}, currentUser: any = {}, deps: any = {}) {
     const locale = normalizeAppLocale(deps?.locale, 'zh-CN');
     const oldPassword = String(payload?.oldPassword || '');
     const newPassword = String(payload?.newPassword || '');
@@ -530,7 +551,7 @@ function changeOwnPassword(payload: any = {}, currentUser: any = {}, deps: any =
         throw createHttpError(400, pickLocalizedText(locale, '无法识别当前用户', 'Unable to identify current user'));
     }
 
-    const verified = userRepo.authenticate(user.username, oldPassword);
+    const verified = await userRepo.authenticate(user.username, oldPassword);
     if (!verified) {
         throw createHttpError(401, pickLocalizedText(locale, '旧密码错误', 'Current password is incorrect'));
     }

@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import config from '../config.js';
 import { mirrorStoreSnapshot } from './dbMirror.js';
 import { saveObjectAtomic } from './fileUtils.js';
+import { KNOWN_PUBLIC_SECRETS, isKnownPublicSecret } from '../lib/runtimeEnv.js';
 
 const TOKENS_FILE = path.join(config.dataDir, 'subscription_tokens.json');
 const TOKEN_ENC_PREFIX = 'subtok:v1';
@@ -28,6 +29,13 @@ export function resolvePrimarySubscriptionSecret(): string {
     ).trim();
 }
 
+/**
+ * Candidate keys for matching stored token hashes and decrypting stored token
+ * secrets. Including old or even publicly known keys here is safe: a token hash
+ * is HMAC(key, randomTokenSecret), so knowing the key does not let anyone
+ * produce a matching token. It keeps tokens issued before a secret change (or
+ * before the built-in fallback secrets were removed) working.
+ */
 export function resolveSubscriptionTokenSecrets(): string[] {
     const jwtSecret = String(config.jwt?.secret || '').trim();
     return Array.from(new Set([
@@ -37,7 +45,24 @@ export function resolveSubscriptionTokenSecrets(): string[] {
         ...(Array.isArray(config.credentials?.legacySecrets) ? config.credentials.legacySecrets : []),
         jwtSecret,
         jwtSecret ? `${jwtSecret}-credentials` : '',
+        ...KNOWN_PUBLIC_SECRETS,
+        ...KNOWN_PUBLIC_SECRETS.map((item) => `${item}-credentials`),
     ].map((item) => String(item || '').trim()).filter(Boolean)));
+}
+
+function isPublicDerivedSecret(value: string): boolean {
+    if (isKnownPublicSecret(value)) return true;
+    return value.endsWith('-credentials') && isKnownPublicSecret(value.slice(0, -'-credentials'.length));
+}
+
+/**
+ * Candidate keys for the legacy email signature, HMAC(key, email). Unlike a
+ * token hash, this signature is computable by anyone who knows the key, so a
+ * publicly known key would let anyone mint a valid subscription URL for any
+ * email. Only private keys are accepted.
+ */
+export function resolveLegacySignatureSecrets(): string[] {
+    return resolveSubscriptionTokenSecrets().filter((item) => !isPublicDerivedSecret(item));
 }
 
 function hashTokenSecret(secret: unknown, keySecret: string = resolvePrimarySubscriptionSecret()): string {
@@ -76,7 +101,7 @@ export function verifyLegacyEmailSignature(email: string, signature: unknown): b
     const normalizedEmail = normalizeEmail(email);
     const sigText = typeof signature === 'string' ? signature.trim() : '';
     if (!normalizedEmail || !sigText) return false;
-    for (const candidateSecret of resolveSubscriptionTokenSecrets()) {
+    for (const candidateSecret of resolveLegacySignatureSecrets()) {
         try {
             const expected = signLegacySubscriptionEmail(normalizedEmail, candidateSecret);
             if (sigText.length !== expected.length) continue;

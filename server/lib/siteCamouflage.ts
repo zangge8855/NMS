@@ -28,7 +28,8 @@ const FORBIDDEN_TECH_TITLE_PATTERN = /(?:edge\s+precision\s+systems|edge\s+preci
 export const CAMOUFLAGE_TEMPLATE_IDS = Object.freeze(['corporate', 'nginx', 'blog'] as const);
 export const CAMOUFLAGE_RESPONSE_CACHE_CONTROL = 'public, max-age=86400';
 const CAMOUFLAGE_PAGE_CACHE_CONTROL = 'public, max-age=600';
-const CAMOUFLAGE_CONTENT_SECURITY_POLICY = "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+// The CSP is built after LANGUAGE_SCRIPT (below) so the inline script can be
+// allowed by its hash instead of 'unsafe-inline'.
 
 // ── small utilities ─────────────────────────────────────────
 
@@ -654,6 +655,17 @@ const LANGUAGE_SCRIPT = `(() => {
     try { window.localStorage.setItem(key, lang); } catch (error) {}
   }));
 })();`;
+
+const LANGUAGE_SCRIPT_HASH = `sha256-${crypto.createHash('sha256').update(LANGUAGE_SCRIPT, 'utf8').digest('base64')}`;
+export const CAMOUFLAGE_CONTENT_SECURITY_POLICY = [
+    "default-src 'none'",
+    "img-src 'self' data:",
+    "style-src 'unsafe-inline'",
+    `script-src '${LANGUAGE_SCRIPT_HASH}'`,
+    "base-uri 'none'",
+    "form-action 'none'",
+    "frame-ancestors 'none'",
+].join('; ');
 
 interface PageSpec {
     title: Bilingual | null;

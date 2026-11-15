@@ -19,9 +19,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
 
+      # Install exactly what the lockfile pins (a lockfile-less `npm install`
+      # of this workspace also trips npm 10's "reading 'edgesOut'" bug).
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+
+      - name: Typecheck server
+        run: npm run typecheck --workspace=server
 
       # The e2e tests assert that the server serves the built admin page.
       - name: Build client
@@ -29,6 +35,9 @@ jobs:
 
       - name: Run server tests
         run: npm test --workspace=server
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
 
   client:
     runs-on: ubuntu-latest
@@ -40,11 +49,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Lint client
+      # ESLint (hooks/a11y/React rules on JS and TS/TSX) followed by tsc --noEmit.
+      - name: Lint and typecheck client
         run: npm run lint --workspace=client
 
       - name: Run client tests
@@ -52,4 +63,3 @@ jobs:
 
       - name: Build client
         run: npm run build --workspace=client
-

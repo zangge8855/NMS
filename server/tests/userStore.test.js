@@ -55,24 +55,24 @@ describe('UserStore', { concurrency: false }, () => {
         assert.ok(admin, 'Should have an admin user');
     });
 
-    it('should authenticate with the default admin password', () => {
+    it('should authenticate with the default admin password', async () => {
         const users = userStore.getAll();
         const admin = users.find(u => u.role === ROLES.admin);
         assert.ok(admin, 'Should have an admin user');
-        const result = userStore.authenticate(admin.username, runtimeConfig.auth.adminPassword);
+        const result = await userStore.authenticate(admin.username, runtimeConfig.auth.adminPassword);
         assert.ok(result, 'Should authenticate successfully');
         assert.equal(result.role, ROLES.admin);
         assert.equal(result.username, admin.username);
     });
 
-    it('should reject wrong password', () => {
-        const result = userStore.authenticate('cluster-admin-test', 'wrong-password');
+    it('should reject wrong password', async () => {
+        const result = await userStore.authenticate('cluster-admin-test', 'wrong-password');
         assert.equal(result, null, 'Should fail authentication');
     });
 
-    it('should reject auth when password is missing', () => {
-        assert.equal(userStore.authenticate('cluster-admin-test'), null);
-        assert.equal(userStore.authenticate('cluster-admin-test', null), null);
+    it('should reject auth when password is missing', async () => {
+        assert.equal(await userStore.authenticate('cluster-admin-test'), null);
+        assert.equal(await userStore.authenticate('cluster-admin-test', null), null);
     });
 
     it('should create a new user', () => {
@@ -151,13 +151,13 @@ describe('UserStore', { concurrency: false }, () => {
         );
     });
 
-    it('should authenticate the new user', () => {
-        const result = userStore.authenticate('user1', 'Pass1234!');
+    it('should authenticate the new user', async () => {
+        const result = await userStore.authenticate('user1', 'Pass1234!');
         assert.ok(result, 'Should authenticate');
         assert.equal(result.role, ROLES.user);
     });
 
-    it('should authenticate a user with the registered email address', () => {
+    it('should authenticate a user with the registered email address', async () => {
         const created = userStore.add({
             username: 'mailuser',
             email: 'mailuser@example.com',
@@ -165,7 +165,7 @@ describe('UserStore', { concurrency: false }, () => {
             role: ROLES.user,
         });
 
-        const result = userStore.authenticate('mailuser@example.com', 'Pass1234!');
+        const result = await userStore.authenticate('mailuser@example.com', 'Pass1234!');
         assert.ok(result, 'Should authenticate with email');
         assert.equal(result.username, created.username);
         assert.equal(result.role, ROLES.user);
@@ -218,11 +218,11 @@ describe('UserStore', { concurrency: false }, () => {
         assert.equal(removed, true);
     });
 
-    it('should update user password', () => {
+    it('should update user password', async () => {
         const users = userStore.getAll();
         const usr = users.find(u => u.username === 'user1');
         userStore.update(usr.id, { password: 'NewPass789!' });
-        const result = userStore.authenticate('user1', 'NewPass789!');
+        const result = await userStore.authenticate('user1', 'NewPass789!');
         assert.ok(result, 'Should auth with new password');
     });
 
@@ -282,8 +282,8 @@ describe('UserStore', { concurrency: false }, () => {
         assert.equal(userStore.getByUsername('user1'), null);
     });
 
-    it('should support backward-compatible password-only auth', () => {
-        const result = userStore.authenticate('', runtimeConfig.auth.adminPassword);
+    it('should support backward-compatible password-only auth', async () => {
+        const result = await userStore.authenticate('', runtimeConfig.auth.adminPassword);
         assert.ok(result, 'Should authenticate with password-only');
         assert.equal(result.role, ROLES.admin);
     });

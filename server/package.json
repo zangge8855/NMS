@@ -14,7 +14,8 @@
     "review:fake-panel": "node --import tsx scripts/review_fake_panel.js",
     "review:seed": "node --import tsx scripts/seed_review_harness.js",
     "review:server": "node --import tsx scripts/review_server.js",
-    "test": "node --import tsx --test --test-concurrency=1"
+    "test": "node --import tsx --import ./tests/setup/isolateDataDir.js --test --test-concurrency=1",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@simplewebauthn/server": "^13.3.2",
@@ -26,7 +27,7 @@
     "express-rate-limit": "^7.5.0",
     "form-data": "^4.0.6",
     "jsonwebtoken": "^9.0.2",
-    "multer": "^2.2.0",
+    "multer": "^2.5.0",
     "nodemailer": "^10.1.7",
     "pg": "^8.13.1",
     "tsx": "^4.20.0",

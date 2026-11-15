@@ -1,8 +1,0 @@
-{
-  "name": "NMS",
-  "description": "Next-generation multi-node 3x-ui cluster management panel",
-  "requestFramePermissions": [],
-  "majorCapabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
-  ]
-}

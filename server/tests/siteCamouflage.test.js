@@ -1,5 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import {
     CAMOUFLAGE_TEMPLATE_IDS,
     createCamouflageAssetMiddleware,
@@ -220,6 +221,31 @@ describe('camouflage middleware', () => {
             assert.equal(probe.headers.has('Access-Control-Allow-Credentials'), false);
             assert.match(probe.headers.get('Content-Security-Policy'), /default-src 'none'/);
         }
+    });
+
+    it('allows the camouflage language script by hash instead of unsafe-inline', () => {
+        const middleware = createCamouflageNotFoundMiddleware({
+            getSiteConfig: () => ({
+                accessPath: '/portal',
+                camouflageEnabled: true,
+                camouflageTemplate: 'nginx',
+                camouflageTitle: 'Sunday City Pages',
+            }),
+        });
+        const probe = createResponseRecorder();
+        middleware({ method: 'GET', path: '/wp-login.php', headers: { host: '203.0.113.7' } }, probe.res, () => {
+            throw new Error('next should not be called');
+        });
+        const csp = probe.headers.get('Content-Security-Policy');
+        const hashMatch = /script-src 'sha256-([A-Za-z0-9+/=]+)'/.exec(csp);
+        assert.ok(hashMatch, csp);
+        assert.doesNotMatch(csp, /script-src[^;]*'unsafe-inline'/);
+
+        const html = String(probe.calls[2][1]);
+        const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((match) => match[1]);
+        assert.equal(scripts.length, 1);
+        const digest = crypto.createHash('sha256').update(scripts[0], 'utf8').digest('base64');
+        assert.equal(digest, hashMatch[1], 'the CSP hash matches the inline script byte-for-byte');
     });
 
     it('answers non-GET requests with the 404 page', () => {

@@ -5,11 +5,17 @@ import config from '../config.js';
 import systemSettingsStore from './systemSettingsStore.js';
 import userStore from './userStore.js';
 import { mirrorStoreSnapshot } from './dbMirror.js';
-import { saveObjectAtomic, saveObjectAtomicAsync } from './fileUtils.js';
+import { saveObjectAtomicAsync } from './fileUtils.js';
 import { resolveClientIp } from '../lib/requestIp.js';
 
 const AUDIT_EVENTS_FILE = path.join(config.dataDir, 'audit_events.json');
 const SUB_ACCESS_FILE = path.join(config.dataDir, 'subscription_access_logs.json');
+
+// Appends only mark the store dirty; one coalesced flush per window rewrites each
+// file at most once, instead of serializing the whole array on every event.
+const FLUSH_DELAY_MS = 1000;
+// Retention pruning walks both arrays; doing it on every append is O(n) per event.
+const PRUNE_INTERVAL_MS = 60 * 1000;
 
 const REDACTED_KEYS = new Set<string>([
     'password',
@@ -189,12 +195,69 @@ function resolveAccessUserInfo(email: unknown): { subscriptionEmail: string; use
 class AuditStore {
     events: any[];
     subscriptionAccess: any[];
+    _dirtyEvents = false;
+    _dirtySubscriptionAccess = false;
+    _flushTimer: ReturnType<typeof setTimeout> | null = null;
+    _lastPruneAt = 0;
 
     constructor() {
         ensureDataDir();
         this.events = loadArray(AUDIT_EVENTS_FILE);
         this.subscriptionAccess = loadArray(SUB_ACCESS_FILE);
-        this._pruneExpired();
+        this._enforceCaps();
+        this._pruneExpired(true);
+    }
+
+    _maxEvents(): number {
+        return toPositiveInt(config.audit?.maxEvents, 50_000);
+    }
+
+    _maxSubscriptionAccessRecords(): number {
+        return toPositiveInt(config.audit?.maxSubscriptionAccessRecords, 100_000);
+    }
+
+    // Arrays are newest-first, so truncating drops the oldest records.
+    _enforceCaps(): void {
+        const maxEvents = this._maxEvents();
+        if (this.events.length > maxEvents) {
+            this.events.length = maxEvents;
+            this._markDirty('events');
+        }
+        const maxAccess = this._maxSubscriptionAccessRecords();
+        if (this.subscriptionAccess.length > maxAccess) {
+            this.subscriptionAccess.length = maxAccess;
+            this._markDirty('subscriptionAccess');
+        }
+    }
+
+    _markDirty(kind: 'events' | 'subscriptionAccess'): void {
+        if (kind === 'events') this._dirtyEvents = true;
+        else this._dirtySubscriptionAccess = true;
+        if (this._flushTimer) return;
+        this._flushTimer = setTimeout(() => {
+            this._flushTimer = null;
+            void this.flush();
+        }, FLUSH_DELAY_MS);
+        this._flushTimer.unref?.();
+    }
+
+    /** Persists pending changes now. Safe to call repeatedly (no-op when clean). */
+    flush(): Promise<void> {
+        if (this._flushTimer) {
+            clearTimeout(this._flushTimer);
+            this._flushTimer = null;
+        }
+        const pending: Promise<void>[] = [];
+        if (this._dirtyEvents) {
+            this._dirtyEvents = false;
+            pending.push(saveArray(AUDIT_EVENTS_FILE, this.events));
+        }
+        if (this._dirtySubscriptionAccess) {
+            this._dirtySubscriptionAccess = false;
+            pending.push(saveArray(SUB_ACCESS_FILE, this.subscriptionAccess));
+        }
+        if (pending.length > 0) this._mirrorSnapshot();
+        return Promise.all(pending).then(() => undefined);
     }
 
     _retentionMs(): number {
@@ -210,8 +273,11 @@ class AuditStore {
         mirrorStoreSnapshot('audit', this.exportState(), { redact: false });
     }
 
-    _pruneExpired(): void {
-        const cutoff = Date.now() - this._retentionMs();
+    _pruneExpired(force = false): void {
+        const now = Date.now();
+        if (!force && now - this._lastPruneAt < PRUNE_INTERVAL_MS) return;
+        this._lastPruneAt = now;
+        const cutoff = now - this._retentionMs();
 
         const oldEventLen = this.events.length;
         this.events = this.events.filter((item) => {
@@ -219,8 +285,7 @@ class AuditStore {
             return Number.isFinite(ts) && ts >= cutoff;
         });
         if (this.events.length !== oldEventLen) {
-            saveArray(AUDIT_EVENTS_FILE, this.events);
-            this._mirrorSnapshot();
+            this._markDirty('events');
         }
 
         const oldAccessLen = this.subscriptionAccess.length;
@@ -229,8 +294,7 @@ class AuditStore {
             return Number.isFinite(ts) && ts >= cutoff;
         });
         if (this.subscriptionAccess.length !== oldAccessLen) {
-            saveArray(SUB_ACCESS_FILE, this.subscriptionAccess);
-            this._mirrorSnapshot();
+            this._markDirty('subscriptionAccess');
         }
     }
 
@@ -285,8 +349,8 @@ class AuditStore {
         };
 
         this.events.unshift(entry);
-        saveArray(AUDIT_EVENTS_FILE, this.events);
-        this._mirrorSnapshot();
+        this._markDirty('events');
+        this._enforceCaps();
         return entry;
     }
 
@@ -324,8 +388,8 @@ class AuditStore {
             format: String(format || 'encoded').trim().toLowerCase(),
         };
         this.subscriptionAccess.unshift(entry);
-        saveArray(SUB_ACCESS_FILE, this.subscriptionAccess);
-        this._mirrorSnapshot();
+        this._markDirty('subscriptionAccess');
+        this._enforceCaps();
         return entry;
     }
 
@@ -564,14 +628,14 @@ class AuditStore {
 
     clearEvents(): void {
         this.events = [];
-        saveArray(AUDIT_EVENTS_FILE, this.events);
-        this._mirrorSnapshot();
+        this._dirtyEvents = true;
+        void this.flush();
     }
 
     clearSubscriptionAccess(): void {
         this.subscriptionAccess = [];
-        saveArray(SUB_ACCESS_FILE, this.subscriptionAccess);
-        this._mirrorSnapshot();
+        this._dirtySubscriptionAccess = true;
+        void this.flush();
     }
 
     importState(snapshot: any = {}): void {
@@ -580,14 +644,15 @@ class AuditStore {
         }
         this.events = snapshot.events;
         this.subscriptionAccess = snapshot.subscriptionAccess;
-        this._pruneExpired();
+        // Prune first: it builds fresh arrays, so the cap never truncates the caller's snapshot.
+        this._pruneExpired(true);
+        this._enforceCaps();
     }
 
-    _save(): Promise<[void, void]> {
-        const p1 = saveArray(AUDIT_EVENTS_FILE, this.events);
-        const p2 = saveArray(SUB_ACCESS_FILE, this.subscriptionAccess);
-        this._mirrorSnapshot();
-        return Promise.all([p1, p2]);
+    _save(): Promise<void> {
+        this._dirtyEvents = true;
+        this._dirtySubscriptionAccess = true;
+        return this.flush();
     }
 }
 

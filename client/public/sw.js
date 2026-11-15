@@ -1,4 +1,7 @@
-const CACHE_NAME = 'nms-shell-v3';
+const CACHE_PREFIX = 'nms-shell-';
+const CACHE_NAME = `${CACHE_PREFIX}v4`;
+// Hashed build assets accumulate across deployments; keep only the newest ones.
+const MAX_RUNTIME_ENTRIES = 80;
 // The app can be served below a custom access path, so every cached URL is
 // resolved against this worker's registration scope instead of the origin root.
 const SCOPE_URL = new URL(self.registration.scope);
@@ -8,7 +11,10 @@ const STATIC_ASSETS = [
     SHELL_URL,
     `${SCOPE_PATH}manifest.json`,
     `${SCOPE_PATH}nms-logo.png`,
+    `${SCOPE_PATH}theme-init.js`,
 ];
+const PROTECTED_URLS = new Set(STATIC_ASSETS.map((item) => new URL(item, self.location.origin).href));
+const STATIC_FILE_PATTERN = /\.(?:js|css|woff2?|png|svg|ico|webp|json)$/i;
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
@@ -21,52 +27,69 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
     event.waitUntil(
-        caches.keys().then((keys) => {
-            return Promise.all(
-                keys.map((key) => {
-                    if (key !== CACHE_NAME && key.startsWith('nms-shell-')) {
-                        return caches.delete(key);
-                    }
-                })
-            );
-        }).then(() => self.clients.claim())
+        caches.keys()
+            .then((keys) => Promise.all(
+                keys
+                    .filter((key) => key !== CACHE_NAME && key.startsWith(CACHE_PREFIX))
+                    .map((key) => caches.delete(key))
+            ))
+            .then(() => caches.open(CACHE_NAME))
+            .then((cache) => trimCache(cache))
+            .then(() => self.clients.claim())
     );
 });
 
-self.addEventListener('fetch', (event) => {
-    const url = new URL(event.request.url);
+// Cache keys come back in insertion order, so the first removable entries are the oldest.
+async function trimCache(cache) {
+    const keys = await cache.keys();
+    const removable = keys.filter((request) => !PROTECTED_URLS.has(request.url));
+    const excess = removable.length - MAX_RUNTIME_ENTRIES;
+    for (let index = 0; index < excess; index += 1) {
+        await cache.delete(removable[index]);
+    }
+}
 
-    // Skip non-GET requests, API requests, and WebSockets
-    if (event.request.method !== 'GET' || url.pathname.startsWith('/api') || url.pathname.startsWith('/ws')) {
+function storeResponse(request, response) {
+    if (!response || response.status !== 200 || response.type !== 'basic') return;
+    const clone = response.clone();
+    caches.open(CACHE_NAME)
+        .then((cache) => cache.put(request, clone).then(() => trimCache(cache)))
+        .catch(() => {});
+}
+
+function isBypassedPath(pathname) {
+    return pathname.startsWith('/api')
+        || pathname.startsWith('/ws')
+        || pathname.startsWith(`${SCOPE_PATH}api/`)
+        || pathname.startsWith(`${SCOPE_PATH}ws/`);
+}
+
+self.addEventListener('fetch', (event) => {
+    const request = event.request;
+    const url = new URL(request.url);
+
+    // Leave non-GET, cross-origin, API and WebSocket traffic to the browser.
+    if (request.method !== 'GET' || url.origin !== self.location.origin || isBypassedPath(url.pathname)) {
         return;
     }
 
-    // Network first with cache fallback for HTML navigations
-    if (event.request.mode === 'navigate') {
+    // Network first with cache fallback for HTML navigations.
+    if (request.mode === 'navigate') {
         event.respondWith(
-            fetch(event.request).catch(() => {
-                return caches.match(SHELL_URL).then((cached) => cached || caches.match(event.request));
+            fetch(request).catch(() => {
+                return caches.match(SHELL_URL).then((cached) => cached || caches.match(request));
             })
         );
         return;
     }
 
-    // Cache first, fallback to network for static assets (fonts, images, js, css)
-    if (
-        url.pathname.endsWith('.js') ||
-        url.pathname.endsWith('.css') ||
-        url.pathname.endsWith('.woff2') ||
-        url.pathname.endsWith('.png') ||
-        url.pathname.endsWith('.svg')
-    ) {
+    // Content-hashed build output never changes: cache first.
+    if (url.pathname.startsWith(`${SCOPE_PATH}assets/`)) {
         event.respondWith(
-            caches.match(event.request).then((cached) => {
+            caches.match(request).then((cached) => {
                 if (cached) return cached;
-                return fetch(event.request).then((response) => {
-                    if (response.status === 200) {
-                        const clone = response.clone();
-                        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-                    }
+                return fetch(request).then((response) => {
+                    storeResponse(request, response);
                     return response;
                 });
             })
@@ -74,6 +97,16 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Default network fetch
-    event.respondWith(fetch(event.request));
+    // Un-hashed static files (theme-init.js, logo, manifest) can change between
+    // releases: network first, cached copy only when offline.
+    if (STATIC_FILE_PATTERN.test(url.pathname)) {
+        event.respondWith(
+            fetch(request)
+                .then((response) => {
+                    storeResponse(request, response);
+                    return response;
+                })
+                .catch(() => caches.match(request).then((cached) => cached || Response.error()))
+        );
+    }
 });

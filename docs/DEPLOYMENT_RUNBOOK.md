@@ -21,10 +21,11 @@ This runbook is for single-host deployments, PM2-managed processes, Docker packa
 
 ### Preflight Checklist
 
-- `.env` exists and all default passwords or secrets have been replaced
-- `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `JWT_SECRET`, and `CREDENTIALS_SECRET` are set
+- Configuration is provided either in `.env` or as real environment variables (Docker `--env-file`, PM2, systemd), and no default password or secret is left in place
+- `ADMIN_USERNAME` and `ADMIN_PASSWORD` are set
+- `JWT_SECRET` and `CREDENTIALS_SECRET` are either set to two different random values (32+ characters) or left empty so NMS generates them into `${DATA_DIR}/runtime.env` on first start (see [Security Behaviour](#security-behaviour))
 - `TRUST_PROXY` matches the deployment topology if NMS sits behind a private reverse proxy
-- The target host has Node.js `20+` or Docker installed
+- The target host has Node.js `22` (the version CI and the Docker image use) or Docker installed
 - The reverse proxy is ready to forward `Upgrade` and `Connection` headers
 - A backup plan exists for `data/`, `.env`, and any PostgreSQL database used by the deployment
 
@@ -114,6 +115,33 @@ docker run -d \
   ghcr.io/<your-github-user-or-org>/nms:latest
 ```
 
+The image defines a `HEALTHCHECK` that calls `GET /api/health` every 30 seconds (40-second start period, 3 retries), so `docker ps` and orchestrators report the container as `healthy`/`unhealthy`.
+
+### Security Behaviour
+
+**Secrets and configuration precedence.** Values are read from the process environment first, then `${DATA_DIR}/runtime.env`, then the repository `.env`. When `JWT_SECRET` or `CREDENTIALS_SECRET` is missing, NMS generates a random value on first start and stores it in `${DATA_DIR}/runtime.env`. Back that file up together with `data/`: losing it signs everyone out and makes stored node credentials and encrypted backups unreadable. In production NMS refuses to start if either secret is set to one of the defaults older releases published in the source code; those values are kept only to decrypt data written by older releases so it can be re-encrypted.
+
+**Strict mode.** `ENFORCE_STRICT_SECURITY` defaults to `true` in production and makes startup refuse weak admin credentials and secrets.
+
+**Legacy subscription links.** Pre-token links (`/api/subscriptions/public/<email>/<signature>`) never expire and cannot be revoked per link, so they are disabled unless `SUB_LEGACY_SIGNATURE_ENABLED=true`. Enable it only while migrating old clients.
+
+**PostgreSQL TLS.** `DB_SSL_MODE` accepts `disable` (default), `require` (encrypted, certificate not checked) and `verify-full` (encrypted and verified, recommended). Use `DB_SSL_CA_FILE` for a private CA bundle.
+
+**Node control proxy (`/api/panel/:serverId/...`) by role.**
+
+| Role | Access |
+|------|--------|
+| admin | Everything |
+| operator | Everything except panel settings (including panel API tokens), panel users and sessions, and node database export/import |
+| auditor | Read-only allowlist: list/get/status/log queries; any change is refused |
+| user / guest | No access |
+
+**Login protection.** Failed password sign-ins are counted per account + IP (20), per account (50) and per IP (100) within 15 minutes; reaching any limit blocks further attempts for 15 minutes. The per-account limit means someone who knows a username can lock that account out for 15 minutes, which is recorded as the `login_account_locked` audit event (critical alert). Counters are in memory, so a restart clears them. TOTP codes are accepted only once per 30-second step.
+
+**Audit storage limits.** `audit_events.json` keeps at most `AUDIT_MAX_EVENTS` records (default 50000) and `subscription_access_logs.json` at most `AUDIT_MAX_SUBSCRIPTION_ACCESS_RECORDS` (default 100000), on top of `AUDIT_RETENTION_DAYS`; the oldest records are dropped first. Writes are batched at most once per second. `security_audit.log` rotates at `AUDIT_LOG_MAX_MB` (default 20) and keeps `AUDIT_LOG_MAX_FILES` old files (default 5).
+
+**Content Security Policy.** The admin page allows scripts from its own origin only (`script-src 'self'`). If you add a reverse-proxy rule that injects inline scripts (analytics, banners), the browser will block them.
+
 ### Reverse Proxy Requirements
 
 The proxy must handle:
@@ -184,6 +212,8 @@ NMS is easier to operate in production because it already includes:
 
 - Verify `ADMIN_USERNAME` and `ADMIN_PASSWORD`
 - Confirm cookies are not blocked by the browser or proxy
+- "Too many sign-in attempts" means a login limit was hit (see [Security Behaviour](#security-behaviour)); wait 15 minutes or restart NMS to clear the in-memory counters
+- Everyone was signed out after a redeploy: `${DATA_DIR}/runtime.env` (the generated `JWT_SECRET`) was not persisted; mount `data/` as a volume
 
 #### Blank frontend
 
@@ -228,10 +258,11 @@ NMS is easier to operate in production because it already includes:
 
 ### 上线前检查
 
-- 已创建 `.env`，并替换掉所有默认口令和默认密钥
-- 已设置 `ADMIN_USERNAME`、`ADMIN_PASSWORD`、`JWT_SECRET`、`CREDENTIALS_SECRET`
+- 配置通过 `.env` 或真实环境变量（Docker `--env-file`、PM2、systemd）提供，且没有保留任何默认口令或默认密钥
+- 已设置 `ADMIN_USERNAME`、`ADMIN_PASSWORD`
+- `JWT_SECRET` 与 `CREDENTIALS_SECRET` 要么设置为两个不同的随机值（至少 32 位），要么留空，由 NMS 首次启动时生成并写入 `${DATA_DIR}/runtime.env`（见[安全行为](#安全行为)）
 - 如果部署在私网反向代理后方，`TRUST_PROXY` 已与真实代理拓扑一致
-- 目标机器已安装 Node.js `20+` 或 Docker
+- 目标机器已安装 Node.js `22`（CI 与 Docker 镜像使用的版本）或 Docker
 - 反向代理已经支持 `Upgrade` 与 `Connection` 头
 - 已准备 `data/`、`.env` 和 PostgreSQL 的备份方案
 
@@ -300,6 +331,33 @@ docker run -d \
   -v /opt/nms/logs:/app/logs \
   ghcr.io/<your-github-user-or-org>/nms:latest
 ```
+
+镜像内置 `HEALTHCHECK`：每 30 秒请求一次 `GET /api/health`（启动宽限 40 秒，重试 3 次），`docker ps` 与编排系统会据此显示 `healthy` / `unhealthy`。
+
+### 安全行为
+
+**密钥与配置优先级。** 依次读取进程环境变量、`${DATA_DIR}/runtime.env`、仓库根目录 `.env`。若未设置 `JWT_SECRET` 或 `CREDENTIALS_SECRET`，NMS 会在首次启动时生成随机值并写入 `${DATA_DIR}/runtime.env`。请把这个文件和 `data/` 一起备份：丢失后所有人会被登出，已保存的节点凭据和加密备份也将无法解密。生产环境下，若任一密钥被设置为旧版本源码中公开的默认值，NMS 将拒绝启动；这些默认值只保留用于解密旧版本写入的数据，以便重新加密。
+
+**严格模式。** 生产环境下 `ENFORCE_STRICT_SECURITY` 默认为 `true`，启动时会拒绝弱管理员口令和弱密钥。
+
+**旧版订阅链接。** 旧版无 Token 链接（`/api/subscriptions/public/<email>/<signature>`）永不过期且无法单独吊销，默认关闭；仅在迁移旧客户端期间设置 `SUB_LEGACY_SIGNATURE_ENABLED=true`。
+
+**PostgreSQL TLS。** `DB_SSL_MODE` 可选 `disable`（默认）、`require`（加密但不校验证书）、`verify-full`（加密并校验，推荐）。私有 CA 用 `DB_SSL_CA_FILE` 指定证书文件。
+
+**节点控制代理（`/api/panel/:serverId/...`）角色权限。**
+
+| 角色 | 权限 |
+|------|------|
+| admin | 全部 |
+| operator | 除面板设置（含面板 API Token）、面板用户与会话、节点数据库导出/导入外的全部操作 |
+| auditor | 只读白名单：列表、详情、状态与日志查询；任何修改都会被拒绝 |
+| user / guest | 无权访问 |
+
+**登录保护。** 15 分钟内，密码登录失败按「账号 + IP」（20 次）、「账号」（50 次）、「IP」（100 次）分别计数，任一达到上限即禁止登录 15 分钟。账号维度的限制意味着知道用户名的人可以让该账号被锁 15 分钟，此时会记录 `login_account_locked` 审计事件（严重告警）。计数保存在内存中，重启即清零。TOTP 验证码在每个 30 秒步长内只能使用一次。
+
+**审计存储上限。** 在 `AUDIT_RETENTION_DAYS` 之外，`audit_events.json` 最多保留 `AUDIT_MAX_EVENTS` 条（默认 50000），`subscription_access_logs.json` 最多保留 `AUDIT_MAX_SUBSCRIPTION_ACCESS_RECORDS` 条（默认 100000），超出时优先丢弃最旧记录；写盘合并为每秒最多一次。`security_audit.log` 达到 `AUDIT_LOG_MAX_MB`（默认 20）后轮转，保留 `AUDIT_LOG_MAX_FILES` 个历史文件（默认 5）。
+
+**内容安全策略（CSP）。** 管理页面只允许加载同源脚本（`script-src 'self'`）。如果在反向代理上注入内联脚本（统计、横幅等），浏览器会将其拦截。
 
 ### 反向代理要求
 
@@ -370,6 +428,8 @@ NMS 自带了一些生产环境里很实用的能力:
 
 - 检查 `ADMIN_USERNAME` 与 `ADMIN_PASSWORD`
 - 确认浏览器或代理没有拦截 Cookie
+- 提示「登录尝试过于频繁」说明触发了登录限制（见[安全行为](#安全行为)）；等待 15 分钟或重启 NMS 清空内存计数
+- 重新部署后所有人被登出：`${DATA_DIR}/runtime.env`（自动生成的 `JWT_SECRET`）没有持久化，请把 `data/` 挂载为持久卷
 
 #### 前端空白
 

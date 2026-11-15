@@ -30,6 +30,10 @@ import { getStoreModes } from './db/runtimeModes.js';
 import { closeDb } from './db/client.js';
 import { backfillStoresToDatabase, hydrateStoresFromDatabase } from './store/storeRegistry.js';
 import systemSettingsStore from './store/systemSettingsStore.js';
+import auditStore from './store/auditStore.js';
+import { closeSecurityAuditLog } from './lib/securityAudit.js';
+import { pickRequestText } from './lib/requestLocale.js';
+import { createResponseMessageLocalizer } from './lib/responseMessageLocalizer.js';
 import { registerClientBuildRoutes } from './lib/clientBuild.js';
 import { createCamouflageAssetMiddleware } from './lib/siteCamouflage.js';
 import { createCamouflageNotFoundMiddleware } from './middleware/siteCamouflage.js';
@@ -138,7 +142,10 @@ export function createApp(options: { serveClientBuild?: boolean } = {}): Express
         max: config.nodeEnv === 'development' ? 5000 : 1200,
         standardHeaders: 'draft-7',
         legacyHeaders: false,
-        message: { success: false, msg: '请求过于频繁，请稍后再试' },
+        message: (req: Request) => ({
+            success: false,
+            msg: pickRequestText(req, '请求过于频繁，请稍后再试', 'Too many requests. Please try again later.'),
+        }),
         skip: (req: Request) => {
             const path = String(req.path || '');
             return path.startsWith('/subscriptions/public/')
@@ -146,6 +153,8 @@ export function createApp(options: { serveClientBuild?: boolean } = {}): Express
                 || path.startsWith('/auth/check');
         },
     });
+    // Translate known store/library error messages for en-US clients.
+    app.use('/api', createResponseMessageLocalizer());
     app.use('/api', apiLimiter);
 
     // ── Public subscription rate limiter ────────────────────────
@@ -262,7 +271,13 @@ function setupGracefulShutdown(httpServer: HttpServer) {
         subscriptionExpiryNotifier.stop();
 
         const flushAndExit = (code: number) => {
-            flushSnapshotQueue()
+            // Audit writes are coalesced on a timer; persist anything still pending
+            // before the DB snapshot queue drains.
+            auditStore.flush()
+                .catch(() => {})
+                .then(() => closeSecurityAuditLog())
+                .catch(() => {})
+                .then(() => flushSnapshotQueue())
                 .catch(() => {})
                 .then(() => closeDb())
                 .catch(() => {})

@@ -3,6 +3,7 @@ import config from '../config.js';
 import { toHttpError } from '../lib/httpError.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import { resolveClientIp } from '../lib/requestIp.js';
+import { LoginThrottle } from '../lib/loginThrottle.js';
 import { pickLocalizedText, resolveRequestLocale } from '../lib/requestLocale.js';
 import jobStore from '../store/jobStore.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
@@ -66,19 +67,27 @@ function startCleanupInterval(fn, delayMs) {
 // --- Simple in-memory rate limiter for login ---
 const LOGIN_RATE_WINDOW = config.nodeEnv === 'development' ? 3 * 60 * 1000 : 15 * 60 * 1000;
 const LOGIN_RATE_WINDOW_MINUTES = Math.max(1, Math.round(LOGIN_RATE_WINDOW / 60_000));
-const LOGIN_RATE_MAX = config.nodeEnv === 'development' ? 300 : 20;
+const isDevelopment = config.nodeEnv === 'development';
+const LOGIN_RATE_MAX = isDevelopment ? 300 : 20;
+// Failures against one account from any number of addresses (slows distributed
+// guessing). Kept well above the per-address limit because a block here also
+// locks the real user out for one window.
+const LOGIN_ACCOUNT_RATE_MAX = isDevelopment ? 1000 : 50;
+// Failures from one address across all accounts (slows credential stuffing).
+const LOGIN_IP_RATE_MAX = isDevelopment ? 3000 : 100;
 const LOGIN_RATE_MAP_LIMIT = 10000;
-const loginAttempts = new Map(); // `${ip}|${username}` -> { count, firstAttempt, blockedUntil }
+// `${ip}|${identifier}` → failures for one account from one address.
+const loginPairThrottle = new LoginThrottle({ windowMs: LOGIN_RATE_WINDOW, maxFailures: LOGIN_RATE_MAX, maxEntries: LOGIN_RATE_MAP_LIMIT });
+const loginAccountThrottle = new LoginThrottle({ windowMs: LOGIN_RATE_WINDOW, maxFailures: LOGIN_ACCOUNT_RATE_MAX, maxEntries: LOGIN_RATE_MAP_LIMIT });
+const loginIpThrottle = new LoginThrottle({ windowMs: LOGIN_RATE_WINDOW, maxFailures: LOGIN_IP_RATE_MAX, maxEntries: LOGIN_RATE_MAP_LIMIT });
 const PASSWORD_SELF_SERVICE_DISABLED_MESSAGE = '密码由管理员统一维护，请联系管理员重置';
 const PASSWORD_RESET_REQUEST_ACCEPTED_MESSAGE = '如果邮箱已注册，验证码已发送，请查收邮箱';
 
 startCleanupInterval(() => {
     const now = Date.now();
-    for (const [ip, data] of loginAttempts) {
-        if ((data.blockedUntil && data.blockedUntil <= now) || (now - data.firstAttempt > LOGIN_RATE_WINDOW)) {
-            loginAttempts.delete(ip);
-        }
-    }
+    loginPairThrottle.sweep(now);
+    loginAccountThrottle.sweep(now);
+    loginIpThrottle.sweep(now);
 }, 60_000);
 
 function normalizeRateUsername(username) {
@@ -128,44 +137,48 @@ function appendManagedSyncHistory(req, payload: any = {}) {
     });
 }
 
+function buildLoginIpKey(ip) {
+    return String(ip || 'unknown');
+}
+
+/** Address + account, and address-wide, buckets (password, 2FA and passkey flows). */
 function getLoginRateState(ip, username = '') {
-    const key = buildLoginRateKey(ip, username);
     const now = Date.now();
-    const data = loginAttempts.get(key);
-    if (!data) {
-        return { blocked: false, retryAfterMs: 0 };
-    }
-    if (data.blockedUntil && data.blockedUntil > now) {
-        return { blocked: true, retryAfterMs: data.blockedUntil - now };
-    }
-    if (now - data.firstAttempt > LOGIN_RATE_WINDOW) {
-        loginAttempts.delete(key);
-        return { blocked: false, retryAfterMs: 0 };
-    }
-    return { blocked: false, retryAfterMs: 0 };
+    const pair = loginPairThrottle.state(buildLoginRateKey(ip, username), now);
+    const address = loginIpThrottle.state(buildLoginIpKey(ip), now);
+    return {
+        blocked: pair.blocked || address.blocked,
+        retryAfterMs: Math.max(pair.retryAfterMs, address.retryAfterMs),
+    };
 }
 
 function recordLoginFailure(ip, username = '') {
-    const key = buildLoginRateKey(ip, username);
     const now = Date.now();
-    const data = loginAttempts.get(key);
-    if (!data || now - data.firstAttempt > LOGIN_RATE_WINDOW) {
-        if (loginAttempts.size >= LOGIN_RATE_MAP_LIMIT) return;
-        loginAttempts.set(key, { count: 1, firstAttempt: now, blockedUntil: 0 });
-        return;
-    }
-    data.count += 1;
-    if (data.count >= LOGIN_RATE_MAX) {
-        data.blockedUntil = now + LOGIN_RATE_WINDOW;
-    }
+    loginPairThrottle.recordFailure(buildLoginRateKey(ip, username), now);
+    loginIpThrottle.recordFailure(buildLoginIpKey(ip), now);
 }
 
 function clearLoginRate(ip, username = '') {
-    loginAttempts.delete(buildLoginRateKey(ip, username));
+    loginPairThrottle.clear(buildLoginRateKey(ip, username));
     // Also clear fallback bucket to avoid stale lock from legacy-password login attempts.
     if (normalizeRateUsername(username) !== '*') {
-        loginAttempts.delete(buildLoginRateKey(ip, ''));
+        loginPairThrottle.clear(buildLoginRateKey(ip, ''));
     }
+    // The address-wide bucket is deliberately kept: one valid account must not
+    // reset the counter for guesses against other accounts.
+}
+
+/** Account-wide bucket, applied to password sign-in only (passkeys cannot be guessed). */
+function getAccountLoginRateState(username = '') {
+    return loginAccountThrottle.state(normalizeRateUsername(username));
+}
+
+function recordAccountLoginFailure(username = '') {
+    return loginAccountThrottle.recordFailure(normalizeRateUsername(username));
+}
+
+function clearAccountLoginRate(username = '') {
+    loginAccountThrottle.clear(normalizeRateUsername(username));
 }
 
 // --- Register rate limiter ---
@@ -285,7 +298,7 @@ export function getRegistrationStatus() {
  *   1. username/email + password (新版多用户)
  *   2. password only (向后兼容旧版单密码)
  */
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
     const locale = resolveRequestLocale(req);
     const clientIp = resolveClientIp(req);
     const loginIdentifier = resolveLoginIdentifier(req.body);
@@ -296,8 +309,12 @@ router.post('/login', (req, res) => {
         ...(normalizedLoginEmail && isValidEmail(normalizedLoginEmail) ? { email: normalizedLoginEmail } : {}),
     };
     const rateState = getLoginRateState(clientIp, loginIdentifier);
-    if (rateState.blocked) {
-        appendSecurityAudit('login_rate_limited', req, auditBase);
+    const accountRateState = getAccountLoginRateState(loginIdentifier);
+    if (rateState.blocked || accountRateState.blocked) {
+        appendSecurityAudit('login_rate_limited', req, {
+            ...auditBase,
+            ...(accountRateState.blocked ? { scope: 'account' } : {}),
+        });
         return res.status(429).json({
             success: false,
             msg: pickLocalizedText(
@@ -308,11 +325,27 @@ router.post('/login', (req, res) => {
         });
     }
 
-    const result = createLoginSession(req.body);
+    let result;
+    try {
+        result = await createLoginSession(req.body);
+    } catch (error) {
+        console.error('[Auth] Login failed unexpectedly:', error);
+        return res.status(500).json({
+            success: false,
+            msg: pickLocalizedText(locale, '登录失败，请稍后再试', 'Sign-in failed. Please try again later.'),
+        });
+    }
     if (!result.success) {
         recordLoginFailure(clientIp, loginIdentifier);
+        if (result.reason === 'invalid_credentials' && recordAccountLoginFailure(loginIdentifier)) {
+            appendSecurityAudit('login_account_locked', req, {
+                ...auditBase,
+                ...(result.audit || {}),
+                windowMinutes: LOGIN_RATE_WINDOW_MINUTES,
+            });
+        }
         const failState = getLoginRateState(clientIp, loginIdentifier);
-        if (failState.blocked) {
+        if (failState.blocked || getAccountLoginRateState(loginIdentifier).blocked) {
             appendSecurityAudit('login_rate_limited', req, {
                 ...auditBase,
                 ...(result.audit || {}),
@@ -395,7 +428,10 @@ router.post('/login', (req, res) => {
         result.audit?.username,
         result.audit?.email,
     ].map((value) => String(value || '').trim()).filter(Boolean));
-    clearIdentifiers.forEach((value) => clearLoginRate(clientIp, value));
+    clearIdentifiers.forEach((value) => {
+        clearLoginRate(clientIp, value);
+        clearAccountLoginRate(value);
+    });
     res.json({
         success: true,
         token: result.token,
@@ -1078,10 +1114,10 @@ router.delete('/users/:id', authMiddleware, adminOnly, async (req, res) => {
 /**
  * PUT /api/auth/change-password — 修改自己的密码
  */
-router.put('/change-password', authMiddleware, (req, res) => {
+router.put('/change-password', authMiddleware, async (req, res) => {
     const locale = resolveRequestLocale(req);
     try {
-        const result = changeOwnPassword(req.body, req.user, { locale });
+        const result = await changeOwnPassword(req.body, req.user, { locale });
         appendSecurityAudit('password_changed', req, buildUserAuditDetails(result.user, {
             username: result.user.username,
         }));
@@ -1230,10 +1266,10 @@ router.post('/2fa/enable', authMiddleware, (req, res) => {
 /**
  * POST /api/auth/2fa/disable — 关闭 2FA
  */
-router.post('/2fa/disable', authMiddleware, (req, res) => {
+router.post('/2fa/disable', authMiddleware, async (req, res) => {
     const locale = resolveRequestLocale(req);
     try {
-        const result = disableTwoFactor(req.body, req.user, { locale });
+        const result = await disableTwoFactor(req.body, req.user, { locale });
         appendSecurityAudit('account_2fa_disabled', req, {
             username: req.user?.username || '',
             ...(result.audit || {}),

@@ -5,13 +5,17 @@ import config from '../config.js';
 import { mirrorStoreSnapshot } from './dbMirror.js';
 import { saveObjectAtomic } from './fileUtils.js';
 import { normalizePanelType } from '../lib/panelType.js';
+import { KNOWN_PUBLIC_SECRETS } from '../lib/runtimeEnv.js';
 
 const SERVERS_FILE = path.join(config.dataDir, 'servers.json');
 const PASSWORD_ENC_PREFIX = 'enc:v1';
 const PASSWORD_ENC_ALGO = 'aes-256-gcm';
+// Decrypt-only: data written under the fallback secrets that earlier releases
+// shipped must stay readable so it can be re-encrypted with the real key.
+// Encryption always uses the first (primary) secret.
 const BUILTIN_LEGACY_CREDENTIAL_SECRETS = [
-    // Backward compatibility for very early local installs.
-    'default-secret-change-me',
+    ...KNOWN_PUBLIC_SECRETS,
+    ...KNOWN_PUBLIC_SECRETS.map((item) => `${item}-credentials`),
 ];
 const ALLOWED_ENVIRONMENTS = new Set([
     'production',

@@ -11,7 +11,6 @@ import {
 import { ensureAuthenticated } from '../lib/panelClient.js';
 import serverStore from '../store/serverStore.js';
 import subscriptionTokenStore, {
-    signLegacySubscriptionEmail,
     verifyLegacyEmailSignature,
 } from '../store/subscriptionTokenStore.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
@@ -39,6 +38,7 @@ import {
 } from '../services/subscriptionAuditService.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
 import { rotateManagedSubscriptionCredentials } from '../services/subscriptionSyncService.js';
+import { pickRequestText } from '../lib/requestLocale.js';
 
 const router = Router();
 
@@ -55,7 +55,7 @@ function ensureEmailAccess(req, res, next) {
     if (!allowed) {
         return res.status(403).json({
             success: false,
-            msg: '权限不足: 只能查看自己的订阅链接',
+            msg: pickRequestText(req, '权限不足: 只能查看自己的订阅链接', 'Permission denied: you can only view your own subscription links'),
         });
     }
     next();
@@ -180,10 +180,6 @@ function normalizePolicyScopeMode(mode, selectedItems: any[] = []) {
     if (!POLICY_SCOPE_SET.has(text)) return fallback;
     if (text === 'selected' && !hasSelected) return 'none';
     return text;
-}
-
-function signEmail(email) {
-    return signLegacySubscriptionEmail(email);
 }
 
 function verifyEmailSig(email, sig) {
@@ -3565,13 +3561,6 @@ function buildTokenPublicBase(req, email, rawToken) {
     return `${base}/api/subscriptions/public/t/${encodeURIComponent(tokenId)}/${encodeURIComponent(tokenSecret)}`;
 }
 
-function buildLegacyPublicBase(req, email) {
-    const base = resolvePublicBase(req);
-    const sig = signEmail(email);
-    if (!base) return '';
-    return `${base}/api/subscriptions/public/${encodeURIComponent(email)}/${sig}`;
-}
-
 function buildSubscriptionUrls(publicBase, mode, serverId, options: any = {}) {
     const base = String(publicBase || '').trim();
     if (!base) {
@@ -4119,6 +4108,12 @@ router.get('/public/:email/:tokenId/:token', async (req, res, next) => {
 
 router.get('/public/:email/:sig', async (req, res, next) => {
     try {
+        if (config.subscription.legacySignatureEnabled !== true) {
+            // Legacy links are permanent and not individually revocable, so they are
+            // off by default (SUB_LEGACY_SIGNATURE_ENABLED). No audit write here: this
+            // path is unauthenticated and must not grow the audit store per request.
+            return res.status(410).send('legacy subscription links are disabled; request a new subscription link');
+        }
         const email = normalizeEmail(req.params.email);
         const sig = String(req.params.sig || '');
         const mode = normalizeMode(req.query.mode);
@@ -4279,7 +4274,7 @@ router.get('/users', authMiddleware, auditorOrAbove, async (req, res, next) => {
             : allServers;
 
         if (requestedServerId && targetServers.length === 0) {
-            return res.status(404).json({ success: false, msg: '节点不存在，请刷新节点列表后重试' });
+            return res.status(404).json({ success: false, msg: pickRequestText(req, '节点不存在，请刷新节点列表后重试', 'Node not found. Refresh the node list and try again.') });
         }
 
         const emails = new Set<string>();
@@ -4601,7 +4596,7 @@ router.get('/:email/raw', authMiddleware, ensureEmailAccess, async (req, res, ne
         const serverId = normalizeServerId(req.query.serverId);
         const { links, serverNotFound, inactiveReason } = await buildMergedLinksByEmail(email, { mode, serverId });
         if (serverNotFound) {
-            return res.status(404).json({ success: false, msg: '节点不存在，请刷新节点列表后重试' });
+            return res.status(404).json({ success: false, msg: pickRequestText(req, '节点不存在，请刷新节点列表后重试', 'Node not found. Refresh the node list and try again.') });
         }
         if (links.length === 0) {
             return res.status(410).json({
@@ -4647,7 +4642,7 @@ router.get('/:email', authMiddleware, ensureEmailAccess, async (req, res, next) 
         } = await buildMergedLinksByEmail(email, { mode, serverId });
 
         if (serverNotFound) {
-            return res.status(404).json({ success: false, msg: '节点不存在，请刷新节点列表后重试' });
+            return res.status(404).json({ success: false, msg: pickRequestText(req, '节点不存在，请刷新节点列表后重试', 'Node not found. Refresh the node list and try again.') });
         }
 
         const { raw, encoded } = buildSubscriptionPayload(links);
