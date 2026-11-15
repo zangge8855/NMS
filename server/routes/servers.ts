@@ -10,7 +10,7 @@ import systemSettingsStore from '../store/systemSettingsStore.js';
 import { derivePanelHealthFromStatus, ensureAuthenticated, fetchPanelServerStatus } from '../lib/panelClient.js';
 import { normalizePanelType } from '../lib/panelType.js';
 import { authMiddleware, adminOnly, operatorOrAbove } from '../middleware/auth.js';
-import { pickLocalizedText, resolveRequestLocale } from '../lib/requestLocale.js';
+import { pickLocalizedText, resolveRequestLocale, pickRequestText } from '../lib/requestLocale.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import config from '../config.js';
 import { normalizeBoolean as parseBoolean } from '../lib/normalize.js';
@@ -250,7 +250,7 @@ function sendPanelTokenRouteError(res, error, fallbackMessage) {
     if (isUnsupportedPanelSettingEndpoint(error)) {
         return res.status(501).json({
             success: false,
-            msg: '当前节点面板不支持通过 NMS 管理 API Token',
+            msg: pickRequestText(res.req, '当前节点面板不支持通过 NMS 管理 API Token', 'This node panel does not support managing API tokens through NMS'),
         });
     }
     if (error?.response) {
@@ -404,7 +404,7 @@ router.get('/:id/logs', async (req, res) => {
     if (!server) {
         return res.status(404).json({
             success: false,
-            msg: '节点不存在，请刷新节点列表后重试',
+            msg: pickRequestText(req, '节点不存在，请刷新节点列表后重试', 'Node not found. Refresh the node list and try again.'),
         });
     }
 
@@ -669,7 +669,7 @@ router.post('/batch', operatorOrAbove, async (req, res) => {
             results.push({
                 line,
                 success: false,
-                msg: '缺少面板地址(url)',
+                msg: pickRequestText(req, '缺少面板地址(url)', 'Panel address (url) is required'),
             });
             continue;
         }
@@ -679,7 +679,7 @@ router.post('/batch', operatorOrAbove, async (req, res) => {
                 line,
                 success: false,
                 url: rawUrl,
-                msg: '缺少用户名/密码或 API Token',
+                msg: pickRequestText(req, '缺少用户名/密码或 API Token', 'Username/password or API token is required'),
             });
             continue;
         }
@@ -713,7 +713,7 @@ router.post('/batch', operatorOrAbove, async (req, res) => {
                 name: normalizedName,
                 url: normalizedUrl,
                 basePath: normalizedBasePath,
-                msg: '服务器已存在(同 URL + BasePath + 用户名)',
+                msg: pickRequestText(req, '服务器已存在(同 URL + BasePath + 用户名)', 'Server already exists (same URL + base path + username)'),
             });
             continue;
         }
@@ -805,7 +805,7 @@ router.post('/batch', operatorOrAbove, async (req, res) => {
 
     return res.json({
         success: true,
-        msg: `批量添加完成: ${summary.success}/${summary.total} 成功`,
+        msg: pickRequestText(req, `批量添加完成: ${summary.success}/${summary.total} 成功`, `Batch add finished: ${summary.success}/${summary.total} succeeded`),
         obj: {
             summary,
             results,
@@ -970,14 +970,14 @@ router.post('/:id/test', operatorOrAbove, async (req, res) => {
             return res.status(400).json({
                 success: false,
                 code: e.code,
-                msg: '节点凭据不可用，请重新输入并保存面板管理用户名/密码或 API Token',
+                msg: pickRequestText(req, '节点凭据不可用，请重新输入并保存面板管理用户名/密码或 API Token', 'Node credentials are unavailable. Re-enter and save the panel username/password or API token.'),
             });
         }
         if (e?.code === 'PANEL_LOGIN_FAILED') {
             return res.status(401).json({
                 success: false,
                 code: e.code,
-                msg: '节点认证失败，请检查并重新保存面板用户名/密码',
+                msg: pickRequestText(req, '节点认证失败，请检查并重新保存面板用户名/密码', 'Node authentication failed. Check and re-save the panel username/password.'),
             });
         }
         appendSecurityAudit('server_test_failed', req, {
@@ -987,7 +987,7 @@ router.post('/:id/test', operatorOrAbove, async (req, res) => {
         res.status(500).json({
             success: false,
             code: e?.code || 'PANEL_CONNECTION_FAILED',
-            msg: '节点面板连接失败，请检查面板地址、端口和网络访问策略',
+            msg: pickRequestText(req, '节点面板连接失败，请检查面板地址、端口和网络访问策略', 'Could not connect to the node panel. Check the panel address, port and network access policy.'),
         });
     }
 });
@@ -1021,7 +1021,7 @@ router.patch('/batch', operatorOrAbove, (req, res) => {
                 evictServerDashboardCaches(updated.id);
                 evictServerStatusCaches(updated.id);
             } else {
-                results.failed.push({ id, msg: '节点不存在，请刷新节点列表后重试' });
+                results.failed.push({ id, msg: pickRequestText(req, '节点不存在，请刷新节点列表后重试', 'Node not found. Refresh the node list and try again.') });
             }
         } catch (err) {
             results.failed.push({ id, msg: String(err?.message || err) });

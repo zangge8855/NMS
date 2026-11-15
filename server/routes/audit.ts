@@ -8,6 +8,7 @@ import { buildCsvCell } from '../lib/csv.js';
 import ipGeoResolver, { isReservedOrPrivateIp, normalizeIpAddress, stripIpv6Brackets } from '../lib/ipGeoResolver.js';
 import ipIspResolver from '../lib/ipIspResolver.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
+import { pickRequestText } from '../lib/requestLocale.js';
 
 function extractLookupCandidate(rawInput: unknown): string {
     const raw = String(rawInput || '').trim();
@@ -218,14 +219,14 @@ router.post('/ip-lookup', async (req: Request, res: Response) => {
     });
 });
 
-router.delete('/events', adminOnly, (_req: Request, res: Response) => {
+router.delete('/events', adminOnly, (req: Request, res: Response) => {
     auditStore.clearEvents();
-    return res.json({ success: true, msg: '操作审计日志已清空' });
+    return res.json({ success: true, msg: pickRequestText(req, '操作审计日志已清空', 'Operation audit log cleared') });
 });
 
-router.delete('/subscription-access', adminOnly, (_req: Request, res: Response) => {
+router.delete('/subscription-access', adminOnly, (req: Request, res: Response) => {
     auditStore.clearSubscriptionAccess();
-    return res.json({ success: true, msg: '订阅访问日志已清空' });
+    return res.json({ success: true, msg: pickRequestText(req, '订阅访问日志已清空', 'Subscription access log cleared') });
 });
 
 export default router;

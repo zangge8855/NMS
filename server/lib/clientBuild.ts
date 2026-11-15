@@ -18,8 +18,8 @@ export const CLIENT_STATIC_OPTIONS = {
             res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
             res.setHeader('Pragma', 'no-cache');
             res.setHeader('Expires', '0');
-        } else if (/[\\/](?:sw\.js|manifest\.json)$/.test(filePath)) {
-            // The service worker and manifest are not content-hashed; always revalidate them.
+        } else if (/[\\/](?:sw\.js|manifest\.json|theme-init\.js)$/.test(filePath)) {
+            // These files are not content-hashed; always revalidate them.
             res.setHeader('Cache-Control', 'no-cache');
         } else if (/[\\/]assets[\\/]/.test(filePath)) {
             res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
@@ -89,17 +89,32 @@ export function rewriteClientAssetPaths(html: string, basePath: unknown = '/'): 
         .replace(/((?:href)=["'])\.\/nms-logo\.png/g, `$1${logoPath}`)
         .replace(/((?:href)=["'])nms-logo\.png/g, `$1${logoPath}`)
         .replace(/((?:href)=["'])(?:\.\/|\/)?manifest\.json/g, `$1${manifestPath}`)
-        .replace(/((?:href)=["'])\/nms-logo\.png/g, `$1${logoPath}`);
+        .replace(/((?:href)=["'])\/nms-logo\.png/g, `$1${logoPath}`)
+        .replace(/((?:src)=["'])(?:\.\/|\/)?theme-init\.js/g, `$1${assetRoot}/theme-init.js`);
 }
 
+function escapeHtmlAttribute(value: string): string {
+    return value
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+// The base path travels as a meta tag (read by /theme-init.js) rather than an inline
+// <script>, so the panel CSP can use script-src 'self' without 'unsafe-inline'.
+// It is placed first in <head> so it precedes the theme-init script that reads it.
 export function injectClientBasePath(html: string, basePath: unknown = '/'): string {
     const normalizedBasePath = normalizeClientBasePath(basePath, '/');
     const withAssetPaths = rewriteClientAssetPaths(html, normalizedBasePath);
-    const snippet = `<script>window.__NMS_SITE_BASE_PATH__=${JSON.stringify(normalizedBasePath)};</script>`;
-    if (!withAssetPaths.includes('</head>')) {
+    const snippet = `<meta name="nms-site-base-path" content="${escapeHtmlAttribute(normalizedBasePath)}" />`;
+    const headOpen = /<head(\s[^>]*)?>/i.exec(withAssetPaths);
+    if (!headOpen) {
         return `${snippet}${withAssetPaths}`;
     }
-    return withAssetPaths.replace('</head>', `${snippet}</head>`);
+    const insertAt = headOpen.index + headOpen[0].length;
+    return `${withAssetPaths.slice(0, insertAt)}${snippet}${withAssetPaths.slice(insertAt)}`;
 }
 
 export interface ClientStaticHandlerOptions {

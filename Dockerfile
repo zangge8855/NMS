@@ -23,7 +23,9 @@ RUN npm ci --omit=dev --workspace=server \
     && mkdir -p server/node_modules
 
 FROM node:22-slim AS runtime
-ENV NODE_ENV=production
+ENV NODE_ENV=production \
+    PORT=3001 \
+    DATA_DIR=/app/data
 WORKDIR /app
 
 RUN apt-get update \
@@ -40,7 +42,15 @@ RUN mkdir -p /app/data /app/logs \
 
 VOLUME ["/app/data", "/app/logs"]
 
-EXPOSE 3000
+EXPOSE 3001
 USER node
-CMD ["node", "server/index.js"]
+
+# Node 22 ships fetch, so the slim image needs no curl/wget for the probe.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+    CMD ["node", "-e", "fetch('http://127.0.0.1:' + (process.env.PORT || 3001) + '/api/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+
+# start_production.js runs the startup preflight (weak credentials, unreadable
+# data files, missing client build) and generates/persists JWT_SECRET and
+# CREDENTIALS_SECRET into /app/data/runtime.env when they are not provided.
+CMD ["node", "server/scripts/start_production.js"]
 

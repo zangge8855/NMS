@@ -49,7 +49,7 @@ It is built for operators who want a practical deployment path: start with file-
 
 Prerequisites:
 
-- Node.js `20+`, or Docker if you prefer container delivery
+- Node.js `22`, or Docker if you prefer container delivery
 - A local `.env` copied from `.env.example`
 - Production values for `JWT_SECRET`, `ADMIN_PASSWORD`, `ADMIN_USERNAME`, and `CREDENTIALS_SECRET`
 - The production startup preflight now stops early if `.env` is unsafe or `client/dist` is missing
@@ -143,10 +143,14 @@ data/     Default file-backed storage (100% backward compatible)
 
 ### Key Environment Variables
 
-- `JWT_SECRET`: JWT signing secret; use a strong random value
+- `JWT_SECRET`: JWT signing secret; use a strong random value, or leave it empty to have one generated into `${DATA_DIR}/runtime.env`
 - `ADMIN_USERNAME`: admin login name; avoid defaults
 - `ADMIN_PASSWORD`: admin password; production should use a strong multi-class password
-- `CREDENTIALS_SECRET`: dedicated encryption secret for stored node credentials
+- `CREDENTIALS_SECRET`: dedicated encryption secret for stored node credentials; generated into `${DATA_DIR}/runtime.env` when empty
+- `ENFORCE_STRICT_SECURITY`: refuse to start with weak admin credentials or secrets; defaults to `true` in production
+- `SUB_LEGACY_SIGNATURE_ENABLED`: re-enable old non-expiring `/public/<email>/<signature>` subscription links; defaults to `false`
+- `DB_SSL_MODE` / `DB_SSL_CA_FILE`: PostgreSQL TLS (`disable`, `require`, `verify-full`) and an optional CA bundle
+- `AUDIT_RETENTION_DAYS`, `AUDIT_MAX_EVENTS`, `AUDIT_MAX_SUBSCRIPTION_ACCESS_RECORDS`, `AUDIT_LOG_MAX_MB`, `AUDIT_LOG_MAX_FILES`: audit storage limits and log rotation
 - `TRUST_PROXY`: trusted reverse-proxy sources for `X-Forwarded-*`; defaults to `loopback`
 - `SECURITY_HSTS_ENABLED`: controls the `Strict-Transport-Security` header; defaults to enabled in production and disabled elsewhere
 - `SECURITY_HSTS_MAX_AGE_SECONDS`: HSTS max-age; defaults to `15552000`
@@ -159,6 +163,7 @@ data/     Default file-backed storage (100% backward compatible)
 ### Documentation Map
 
 - [Deployment Runbook](docs/DEPLOYMENT_RUNBOOK.md)
+- [Testing](docs/TESTING.md)
 - [User Guide](docs/USER_GUIDE.md)
 - [Architecture Overview](docs/ARCHITECTURE_OVERVIEW.md)
 - [DB Integration Guide](docs/DB_INTEGRATION_DEV.md)
@@ -176,6 +181,9 @@ data/     Default file-backed storage (100% backward compatible)
 - Never commit real admin passwords, SMTP credentials, database secrets, or panel endpoints
 - Keep `.env`, `data/*.json`, `logs/`, `client/dist/`, and `server/dist/` out of Git; only examples and `.gitkeep` belong in the repository
 - Production deployments should use HTTPS, strong secrets, and regular backups
+- Back up `${DATA_DIR}/runtime.env` together with `data/`; it holds any generated secrets, and losing it makes stored node credentials and encrypted backups unreadable
+- Configuration precedence is: process environment, then `${DATA_DIR}/runtime.env`, then `.env`
+- Repeated failed sign-ins temporarily block an account, an IP, or the pair for 15 minutes; node-control proxy access is limited by role (see the [runbook](docs/DEPLOYMENT_RUNBOOK.md#security-behaviour))
 
 ## 中文
 
@@ -232,7 +240,7 @@ NMS 是一套面向 3x-ui（Xray）与 s-ui（sing-box）运维场景的双语�
 
 前置要求:
 
-- Node.js `20+`，或者使用 Docker
+- Node.js `22`，或者使用 Docker
 - 基于 `.env.example` 复制出本地 `.env`
 - 在生产环境中配置好 `JWT_SECRET`、`ADMIN_PASSWORD`、`ADMIN_USERNAME`、`CREDENTIALS_SECRET`
 - 生产启动前会先做 preflight；如果 `.env` 不安全或 `client/dist` 缺失，会直接给出明确报错
@@ -328,10 +336,14 @@ data/     默认文件存储目录 (100% 向下兼容)
 
 ### 关键环境变量
 
-- `JWT_SECRET`: JWT 签名密钥，必须使用足够强的随机值
+- `JWT_SECRET`: JWT 签名密钥，必须使用足够强的随机值；留空时自动生成并写入 `${DATA_DIR}/runtime.env`
 - `ADMIN_USERNAME`: 管理员账号，建议不要使用默认值
 - `ADMIN_PASSWORD`: 管理员密码，生产环境应满足多类字符复杂度
-- `CREDENTIALS_SECRET`: 节点凭据加密密钥，建议与 JWT 密钥分离
+- `CREDENTIALS_SECRET`: 节点凭据加密密钥，必须与 JWT 密钥分离；留空时自动生成并写入 `${DATA_DIR}/runtime.env`
+- `ENFORCE_STRICT_SECURITY`: 管理员口令或密钥过弱时拒绝启动；生产环境默认 `true`
+- `SUB_LEGACY_SIGNATURE_ENABLED`: 重新启用旧版永不过期的 `/public/<email>/<signature>` 订阅链接；默认 `false`
+- `DB_SSL_MODE` / `DB_SSL_CA_FILE`: PostgreSQL TLS 模式（`disable`、`require`、`verify-full`）与可选 CA 证书文件
+- `AUDIT_RETENTION_DAYS`、`AUDIT_MAX_EVENTS`、`AUDIT_MAX_SUBSCRIPTION_ACCESS_RECORDS`、`AUDIT_LOG_MAX_MB`、`AUDIT_LOG_MAX_FILES`: 审计存储上限与日志轮转
 - `TRUST_PROXY`: 可信反向代理来源，用于接收 `X-Forwarded-*`；默认只信任 `loopback`
 - `SECURITY_HSTS_ENABLED`: 控制 `Strict-Transport-Security` 响应头；默认生产环境启用，其他环境关闭
 - `SECURITY_HSTS_MAX_AGE_SECONDS`: HSTS max-age，默认 `15552000`
@@ -344,6 +356,7 @@ data/     默认文件存储目录 (100% 向下兼容)
 ### 文档索引
 
 - [部署 Runbook](docs/DEPLOYMENT_RUNBOOK.md)
+- [测试说明](docs/TESTING.md)
 - [使用说明](docs/USER_GUIDE.md)
 - [架构总览](docs/ARCHITECTURE_OVERVIEW.md)
 - [数据库接入指南](docs/DB_INTEGRATION_DEV.md)
@@ -362,3 +375,6 @@ data/     默认文件存储目录 (100% 向下兼容)
 - `.env`、`data/*.json`、`logs/`、`client/dist/`、`server/dist/` 这类运行数据和构建产物应始终留在 Git 之外
 - 提交前建议额外清理 `client/node_modules/.vite`、临时测试数据目录和本地导出的备份文件
 - 生产环境建议启用 HTTPS、强密钥和定期备份
+- 请把 `${DATA_DIR}/runtime.env` 与 `data/` 一起备份：自动生成的密钥保存在这里，丢失后已保存的节点凭据和加密备份将无法解密
+- 配置优先级：进程环境变量 > `${DATA_DIR}/runtime.env` > `.env`
+- 连续登录失败会让账号、IP 或二者组合被临时禁止登录 15 分钟；节点控制代理按角色限制权限（详见 [Runbook](docs/DEPLOYMENT_RUNBOOK.md#安全行为)）

@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import config from '../config.js';
 import { mirrorStoreSnapshot } from './dbMirror.js';
 import { saveObjectAtomic } from './fileUtils.js';
+import { KNOWN_PUBLIC_SECRETS } from '../lib/runtimeEnv.js';
 
 const SETTINGS_FILE = path.join(config.dataDir, 'system_settings.json');
 
@@ -359,7 +360,11 @@ export class SystemSettingsStore {
             ? config.credentials.legacySecrets
             : [];
         const jwtSecret = String(config.jwt?.secret || '').trim();
-        return Array.from(new Set([primary, ...legacy, jwtSecret].map((item) => String(item || '').trim()).filter(Boolean)));
+        // The known public secrets are decrypt-only fallbacks for tokens written by
+        // older releases; encryption always uses the primary secret.
+        return Array.from(new Set([primary, ...legacy, jwtSecret, ...KNOWN_PUBLIC_SECRETS]
+            .map((item) => String(item || '').trim())
+            .filter(Boolean)));
     }
 
     _credentialKeyFromSecret(secret: unknown): Buffer {

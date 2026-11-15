@@ -38,6 +38,13 @@ import {
 import { invalidateServerPanelSnapshotCache } from '../lib/serverPanelSnapshotService.js';
 import { enrichClientIpPayload } from '../lib/clientIpEnrichment.js';
 import { invalidatePublicSubCache } from './subscriptions.js';
+import { pickLocalizedText, resolveRequestLocale, pickRequestText } from '../lib/requestLocale.js';
+import type { AppLocale } from '../lib/requestLocale.js';
+import {
+    evaluateProxyAccess,
+    isMutatingProxyRequest,
+    type ProxyAccessDenyReason,
+} from '../lib/proxyAccessPolicy.js';
 
 const router = Router();
 const upload = multer({
@@ -87,28 +94,26 @@ function isAllowedPanelPath(rawPath: unknown): boolean {
     );
 }
 
-function isReadOnlyProxyPost(method: string, canonicalPath: string): boolean {
-    return method === 'POST' && (
-        canonicalPath === '/panel/api/clients/onlinesByGuid'
-        || canonicalPath === '/panel/api/clients/onlinesByNode'
-        || canonicalPath === '/panel/api/clients/onlines'
-        || canonicalPath === '/panel/api/inbounds/onlines'
-        || canonicalPath.startsWith('/panel/api/inbounds/clientIps/')
-        || canonicalPath.startsWith('/panel/api/clients/ips/')
-        || canonicalPath.startsWith('/panel/api/server/logs/')
-        || canonicalPath.startsWith('/panel/api/server/xraylogs/')
-        || canonicalPath.startsWith('/panel/api/inbounds/getClientTraffics/')
+function proxyAccessDeniedMessage(locale: AppLocale, reason: ProxyAccessDenyReason | undefined): string {
+    if (reason === 'admin_only_endpoint') {
+        return pickLocalizedText(
+            locale,
+            '权限不足: 面板设置、API 令牌、面板用户和数据库导入导出仅限管理员',
+            'Insufficient permissions: panel settings, API tokens, panel users and database import/export are restricted to administrators'
+        );
+    }
+    if (reason === 'auditor_read_only') {
+        return pickLocalizedText(
+            locale,
+            '权限不足: 审计员角色仅限只读查询',
+            'Insufficient permissions: the auditor role is limited to read-only queries'
+        );
+    }
+    return pickLocalizedText(
+        locale,
+        '权限不足: 当前角色无法访问节点控制代理',
+        'Insufficient permissions: your role cannot access the node control proxy'
     );
-}
-
-function isMutatingProxyRequest(method: string, canonicalPath: string): boolean {
-    if (method === 'PUT' || method === 'PATCH' || method === 'DELETE') {
-        return true;
-    }
-    if (method === 'POST') {
-        return !isReadOnlyProxyPost(method, canonicalPath);
-    }
-    return false;
 }
 
 function safeDecodePathSegment(value: unknown = ''): string {
@@ -376,11 +381,12 @@ router.all('/:serverId/*', upload.any(), async (req: Request, res: Response) => 
         });
     }
 
+    const locale = resolveRequestLocale(req);
     const userRole = (req as any).user?.role;
-    if (userRole === ROLES.user) {
+    if (userRole !== ROLES.admin && userRole !== ROLES.operator && userRole !== ROLES.auditor) {
         return res.status(403).json({
             success: false,
-            msg: '权限不足: 普通用户无法访问节点控制代理',
+            msg: proxyAccessDeniedMessage(locale, 'role_not_permitted'),
         });
     }
 
@@ -393,37 +399,13 @@ router.all('/:serverId/*', upload.any(), async (req: Request, res: Response) => 
 
     const decodedPanelPath = decodePathIteratively(panelPath) || panelPath;
     const canonicalPath = path.posix.normalize(decodedPanelPath);
-    const isReadOnlyPost = isReadOnlyProxyPost(method, canonicalPath);
 
-    if (userRole === ROLES.auditor) {
-        const isBinaryDbExport = (
-            canonicalPath === '/panel/api/server/database/export'
-            || canonicalPath === '/panel/api/server/getDb'
-            || canonicalPath === '/sui/getdb'
-        );
-        const isSensitivePath = (
-            canonicalPath === '/panel/api/setting/apiTokens'
-            || canonicalPath.startsWith('/panel/api/setting/apiTokens/')
-            || canonicalPath === '/panel/setting/apiTokens'
-            || canonicalPath.startsWith('/panel/setting/apiTokens/')
-            || canonicalPath === '/sui/tokens'
-            || canonicalPath.startsWith('/sui/tokens/')
-            || canonicalPath === '/sui/users'
-            || canonicalPath.startsWith('/sui/users/')
-            || canonicalPath === '/sui/sessions'
-            || canonicalPath.startsWith('/sui/sessions/')
-            || canonicalPath === '/sui/settings'
-            || canonicalPath.startsWith('/sui/settings/')
-            || canonicalPath === '/sui/load'
-            || canonicalPath.startsWith('/sui/load/')
-            || canonicalPath.startsWith('/sub/')
-        );
-        if (isBinaryDbExport || isSensitivePath || (method !== 'GET' && !isReadOnlyPost)) {
-            return res.status(403).json({
-                success: false,
-                msg: '权限不足: 审计员角色仅限只读查询',
-            });
-        }
+    const access = evaluateProxyAccess(userRole, method, canonicalPath, req.body);
+    if (!access.allowed) {
+        return res.status(403).json({
+            success: false,
+            msg: proxyAccessDeniedMessage(locale, access.reason),
+        });
     }
 
     const serverRecord = serverStore.getById(serverId);
@@ -432,7 +414,7 @@ router.all('/:serverId/*', upload.any(), async (req: Request, res: Response) => 
     if (panelPath.startsWith(SUI_NATIVE_PREFIX) && serverRecord && !isSuiServer) {
         return res.status(400).json({
             success: false,
-            msg: '该接口仅适用于 s-ui 节点',
+            msg: pickLocalizedText(locale, '该接口仅适用于 s-ui 节点', 'This endpoint is only available on s-ui nodes'),
         });
     }
 
@@ -520,7 +502,7 @@ router.all('/:serverId/*', upload.any(), async (req: Request, res: Response) => 
         if (error?.message === 'Server not found') {
             return res.status(404).json({
                 success: false,
-                msg: '节点不存在，请刷新节点列表后重试',
+                msg: pickRequestText(req, '节点不存在，请刷新节点列表后重试', 'Node not found. Refresh the node list and try again.'),
             });
         }
 
@@ -528,14 +510,14 @@ router.all('/:serverId/*', upload.any(), async (req: Request, res: Response) => 
             return res.status(400).json({
                 success: false,
                 code: error.code,
-                msg: `节点凭据不可用，请在“服务器管理”中重新输入并保存 ${panelLabel} 凭据`,
+                msg: pickRequestText(req, `节点凭据不可用，请在“服务器管理”中重新输入并保存 ${panelLabel} 凭据`, `Node credentials are unavailable. Re-enter and save the ${panelLabel} credentials under Server Management.`),
             });
         }
         if (error?.code === 'PANEL_LOGIN_FAILED') {
             return res.status(401).json({
                 success: false,
                 code: error.code,
-                msg: `${panelLabel} 认证失败: ${error.message || '用户名或密码错误'}`,
+                msg: pickRequestText(req, `${panelLabel} 认证失败: ${error.message || '用户名或密码错误'}`, `${panelLabel} authentication failed: ${error.message || 'invalid username or password'}`),
             });
         }
 

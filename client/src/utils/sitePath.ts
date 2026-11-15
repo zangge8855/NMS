@@ -4,9 +4,17 @@ declare global {
     }
 }
 
+function readBasePathMeta(): string {
+    if (typeof document === 'undefined') return '';
+    const meta = document.querySelector('meta[name="nms-site-base-path"]');
+    return meta?.getAttribute('content') || '';
+}
+
 export function resolveSiteBasePath(): string {
     if (typeof window === 'undefined') return '/';
-    const raw = String(window.__NMS_SITE_BASE_PATH__ || '/').trim();
+    // /theme-init.js copies the server-injected meta tag into the global; read the
+    // meta directly as a fallback in case that script failed to load.
+    const raw = String(window.__NMS_SITE_BASE_PATH__ || readBasePathMeta() || '/').trim();
     if (!raw || /[\s?#]/.test(raw)) return '/';
 
     const segments = raw

@@ -42,7 +42,7 @@ describe('createClientBuildFallbackHandler', () => {
 
         assert.equal(calls[0][0], 'type');
         assert.equal(calls[0][1], 'html');
-        assert.match(calls[1][1], /window\.__NMS_SITE_BASE_PATH__="\/portal"/);
+        assert.match(calls[1][1], /<meta name="nms-site-base-path" content="\/portal" \/>/);
     });
 
     it('returns a 503 text response when the client build is missing', () => {
@@ -120,7 +120,7 @@ describe('createClientBuildFallbackHandler', () => {
             ['type', 'text/plain'],
             ['send', DEFAULT_MISSING_CLIENT_BUILD_MESSAGE],
             ['type', 'html'],
-            ['send', '<html><head><script>window.__NMS_SITE_BASE_PATH__="/";</script></head><body></body></html>'],
+            ['send', '<html><head><meta name="nms-site-base-path" content="/" /></head><body></body></html>'],
         ]);
     });
 
@@ -198,10 +198,18 @@ describe('client build helpers', () => {
         assert.equal(shouldServeCamouflageRequest({ method: 'POST', path: '/' }), false);
     });
 
-    it('injects the base-path bootstrap script into index html', () => {
-        const output = injectClientBasePath('<html><head></head><body></body></html>', '/nms');
-        assert.match(output, /window\.__NMS_SITE_BASE_PATH__="\/nms"/);
-        assert.match(output, /<\/script><\/head>/);
+    it('injects the base path as a meta tag ahead of head scripts (no inline script)', () => {
+        const output = injectClientBasePath(
+            '<html><head lang="x"><script src="/theme-init.js"></script></head><body></body></html>',
+            '/nms'
+        );
+        assert.match(output, /<head lang="x"><meta name="nms-site-base-path" content="\/nms" \/><script src="\/nms\/theme-init\.js"><\/script>/);
+        assert.doesNotMatch(output, /<script>/);
+    });
+
+    it('keeps the theme bootstrap at the root when no access path is set', () => {
+        const output = injectClientBasePath('<head><script src="/theme-init.js"></script></head>', '/');
+        assert.match(output, /<meta name="nms-site-base-path" content="\/" \/><script src="\/theme-init\.js">/);
     });
 
     it('rewrites client asset urls under a non-root access path', () => {

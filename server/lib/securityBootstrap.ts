@@ -1,5 +1,4 @@
 import crypto from 'crypto';
-import fs from 'fs';
 import jwt from 'jsonwebtoken';
 import config from '../config.js';
 import userStore from '../store/userStore.js';
@@ -7,60 +6,31 @@ import serverStore from '../store/serverStore.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
 import subscriptionTokenStore from '../store/subscriptionTokenStore.js';
 import {
-    DEFAULT_ENV_FILE,
     collectSecurityIssues,
     isWeakAdminPassword,
     isWeakAdminUsername,
     isWeakCredentialsSecret,
     isWeakJwtSecret,
 } from './startupPreflight.js';
+import { runtimeEnvFilePath, writeEnvFile } from './runtimeEnv.js';
 
 function normalizeText(value: unknown): string {
     return String(value || '').trim();
 }
 
-function quoteEnvValue(value: unknown): string {
-    const text = String(value ?? '');
-    if (!text) return '""';
-    return /^[A-Za-z0-9_./:@+-]+$/.test(text) ? text : JSON.stringify(text);
+/**
+ * The wizard persists to ${DATA_DIR}/runtime.env rather than the repo .env:
+ * the data directory is writable and persistent in every supported deployment
+ * (in Docker the repo root is read-only for the `node` user and not a volume),
+ * and runtime.env takes precedence over the repo .env on the next start.
+ */
+export function resolveSecurityEnvFile(): string {
+    return runtimeEnvFilePath(config.dataDir);
 }
 
-export function writeEnvSecurityOverrides(filePath: string = DEFAULT_ENV_FILE, updates: Record<string, any> = {}): string {
-    const targetPath = String(filePath || DEFAULT_ENV_FILE).trim() || DEFAULT_ENV_FILE;
-    const source = fs.existsSync(targetPath) ? fs.readFileSync(targetPath, 'utf8') : '';
-    const lines = source ? source.split(/\r?\n/) : [];
-    const pending = new Map<string, any>(Object.entries(updates));
-    const nextLines = lines.map((line) => {
-        const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=.*$/);
-        if (!match) return line;
-        const key = match[1];
-        if (!pending.has(key)) return line;
-        const nextValue = pending.get(key);
-        pending.delete(key);
-        return `${key}=${quoteEnvValue(nextValue)}`;
-    });
-
-    if (nextLines.length > 0 && nextLines[nextLines.length - 1].trim() !== '') {
-        nextLines.push('');
-    }
-
-    for (const [key, value] of pending.entries()) {
-        nextLines.push(`${key}=${quoteEnvValue(value)}`);
-    }
-
-    const tempPath = `${targetPath}.tmp-${process.pid}-${crypto.randomUUID()}`;
-    try {
-        fs.writeFileSync(tempPath, `${nextLines.join('\n').replace(/\n{3,}/g, '\n\n')}\n`, {
-            encoding: 'utf8',
-            mode: 0o600,
-        });
-        fs.renameSync(tempPath, targetPath);
-        return targetPath;
-    } finally {
-        if (fs.existsSync(tempPath)) {
-            fs.rmSync(tempPath, { force: true });
-        }
-    }
+export function writeEnvSecurityOverrides(filePath: string = resolveSecurityEnvFile(), updates: Record<string, any> = {}): string {
+    const targetPath = String(filePath || '').trim() || resolveSecurityEnvFile();
+    return writeEnvFile(targetPath, updates);
 }
 
 function buildBootstrapStats() {
@@ -199,7 +169,7 @@ export function getSecurityBootstrapStatus(currentUser: any = {}) {
             username: normalizeText(currentAdmin.username),
         },
         stats: buildBootstrapStats(),
-        envFile: DEFAULT_ENV_FILE,
+        envFile: resolveSecurityEnvFile(),
     };
 }
 
@@ -230,7 +200,8 @@ export function applySecurityBootstrap(payload: any = {}, currentUser: any = {})
         SUBSCRIPTION_TOKEN_LEGACY_SECRETS: nextSubscriptionLegacySecrets.join(','),
     };
 
-    writeEnvSecurityOverrides(DEFAULT_ENV_FILE, envUpdates);
+    const envFile = resolveSecurityEnvFile();
+    writeEnvSecurityOverrides(envFile, envUpdates);
 
     const updatedAdmin = userStore.update(currentAdmin.id, {
         username: nextValues.adminUsername,
@@ -259,7 +230,7 @@ export function applySecurityBootstrap(payload: any = {}, currentUser: any = {})
         throw new Error('安全启动向导仍存在未解决项，请检查输入值');
     }
 
-    writeEnvSecurityOverrides(DEFAULT_ENV_FILE, {
+    writeEnvSecurityOverrides(envFile, {
         ...envUpdates,
         CREDENTIALS_LEGACY_SECRETS: Array.isArray(config.credentials?.legacySecrets)
             ? config.credentials.legacySecrets.join(',')
@@ -275,7 +246,7 @@ export function applySecurityBootstrap(payload: any = {}, currentUser: any = {})
         stats: buildBootstrapStats(),
         credentialRotation,
         subscriptionRotation,
-        envFile: DEFAULT_ENV_FILE,
+        envFile: resolveSecurityEnvFile(),
     };
 }
 

@@ -17,22 +17,7 @@
     <link rel="icon" type="image/png" href="/nms-logo.png" />
     <link rel="apple-touch-icon" href="/nms-logo.png" />
     <title>NMS</title>
-    <script>
-      (() => {
-        let stored = 'auto';
-        try {
-          const val = window.localStorage.getItem('nms_theme');
-          if (val === 'light' || val === 'dark' || val === 'auto') stored = val;
-        } catch {}
-        const systemLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
-        const theme = stored === 'auto' ? (systemLight ? 'light' : 'dark') : stored;
-        const root = document.documentElement;
-        root.dataset.theme = theme;
-        root.dataset.themeMode = stored;
-        root.style.colorScheme = theme;
-        root.style.backgroundColor = theme === 'light' ? '#f3f4f7' : '#0d1016';
-      })();
-    </script>
+    <script src="/theme-init.js"></script>
   </head>
   <body>
     <div id="root"></div>

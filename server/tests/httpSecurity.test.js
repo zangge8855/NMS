@@ -42,6 +42,8 @@ describe('createSecurityHeadersMiddleware', () => {
         assert.match(headers['Content-Security-Policy'], /frame-ancestors 'none'/);
         assert.match(headers['Content-Security-Policy'], /ws:\/\/\[::1\]:\*/);
         assert.match(headers['Content-Security-Policy'], /wss:\/\/\[::1\]:\*/);
+        assert.match(headers['Content-Security-Policy'], /script-src 'self'(;|$)/);
+        assert.doesNotMatch(headers['Content-Security-Policy'], /script-src[^;]*'unsafe-inline'/);
         assert.equal(headers['X-Frame-Options'], 'DENY');
         assert.equal(headers['X-Content-Type-Options'], 'nosniff');
         assert.equal(headers['Referrer-Policy'], 'no-referrer');

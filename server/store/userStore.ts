@@ -1,9 +1,12 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { promisify } from 'util';
 import config from '../config.js';
+import { timingSafeStringEqual } from '../lib/safeCompare.js';
 import { checkAccountPassword } from '../lib/passwordValidator.js';
 import { validateSubscriptionAliasPath } from '../lib/subscriptionAlias.js';
+import { isWeakAdminPassword } from '../lib/startupPreflight.js';
 import { mirrorStoreSnapshot } from './dbMirror.js';
 import { saveObjectAtomic } from './fileUtils.js';
 import type { User, SanitizedUser } from '../types/index.js';
@@ -46,12 +49,28 @@ function hashPassword(password: string, salt?: string): { hash: string; salt: st
     return { hash, salt, iterations: PBKDF2_ITERATIONS };
 }
 
-function verifyPassword(password: string | Buffer, hash: string, salt: string, iterations: number = 0): boolean {
-    const iter = Number(iterations) > 0 ? Number(iterations) : PBKDF2_LEGACY_ITERATIONS;
-    const result = crypto.pbkdf2Sync(password, salt, iter, 64, 'sha512').toString('hex');
-    if (result.length !== hash.length) return false;
-    return crypto.timingSafeEqual(Buffer.from(result, 'hex'), Buffer.from(hash, 'hex'));
+const pbkdf2Async = promisify(crypto.pbkdf2);
+
+// Login runs PBKDF2 on libuv's thread pool so a burst of sign-in attempts
+// cannot stall the event loop for every other request.
+async function hashPasswordAsync(password: string): Promise<{ hash: string; salt: string; iterations: number }> {
+    const salt = crypto.randomBytes(16).toString('hex');
+    const hash = (await pbkdf2Async(password, salt, PBKDF2_ITERATIONS, 64, 'sha512')).toString('hex');
+    return { hash, salt, iterations: PBKDF2_ITERATIONS };
 }
+
+async function verifyPasswordAsync(password: string | Buffer, hash: string, salt: string, iterations: number = 0): Promise<boolean> {
+    const iter = Number(iterations) > 0 ? Number(iterations) : PBKDF2_LEGACY_ITERATIONS;
+    const result = (await pbkdf2Async(password, String(salt || ''), iter, 64, 'sha512')).toString('hex');
+    const expected = String(hash || '');
+    if (result.length !== expected.length) return false;
+    return crypto.timingSafeEqual(Buffer.from(result, 'hex'), Buffer.from(expected, 'hex'));
+}
+
+// Unknown accounts still pay for one PBKDF2 run so response time does not
+// reveal which usernames exist.
+const DUMMY_PASSWORD_SALT = crypto.randomBytes(16).toString('hex');
+const DUMMY_PASSWORD_HASH = '0'.repeat(128);
 
 function normalizeEmailValue(value: unknown): string {
     return String(value || '').trim().toLowerCase();
@@ -158,6 +177,14 @@ class UserStore {
         if (!hasAdmin) {
             const adminUsername = String(config.auth.adminUsername || 'admin').trim() || 'admin';
             const adminPassword = config.auth.adminPassword;
+            // Even with ENFORCE_STRICT_SECURITY=false, production must not bootstrap
+            // an internet-facing admin account with a guessable password such as admin/admin.
+            if (config.nodeEnv === 'production' && isWeakAdminPassword(adminPassword)) {
+                throw new Error(
+                    'Refusing to create the initial admin account with a weak ADMIN_PASSWORD in production. '
+                    + 'Set ADMIN_PASSWORD (at least 8 characters spanning 3 of: lowercase, uppercase, digits, symbols) and restart.'
+                );
+            }
             const { hash, salt, iterations } = hashPassword(adminPassword);
             this.users.push({
                 id: crypto.randomUUID(),
@@ -256,12 +283,17 @@ class UserStore {
      * 验证用户凭据
      * @returns 用户对象 (不含密码) 或 null
      */
-    authenticate(identifier: string, password: string): { id: string; username: string; role: string } | null {
+    async authenticate(identifier: string, password: string): Promise<{ id: string; username: string; role: string } | null> {
         const normalizedIdentifier = normalizeUsernameValue(identifier);
         const hasPassword = typeof password === 'string' || Buffer.isBuffer(password);
 
         // 兼容旧版单密码登录: 无用户名时用 config.auth.adminPassword
-        if (config.auth.allowLegacyPasswordLogin && !normalizedIdentifier && hasPassword && password === config.auth.adminPassword) {
+        if (
+            config.auth.allowLegacyPasswordLogin
+            && !normalizedIdentifier
+            && typeof password === 'string'
+            && timingSafeStringEqual(password, config.auth.adminPassword)
+        ) {
             const admin = this.users.find(u => u.role === ROLES.admin);
             if (admin) {
                 admin.lastLoginAt = new Date().toISOString();
@@ -273,15 +305,23 @@ class UserStore {
         if (!hasPassword) return null;
 
         const user = this.getByLoginIdentifier(normalizedIdentifier);
-        if (!user) return null;
-        if (!verifyPassword(password, user.passwordHash, user.passwordSalt, user.pbkdf2Iterations)) return null;
+        if (!user) {
+            await verifyPasswordAsync(password, DUMMY_PASSWORD_HASH, DUMMY_PASSWORD_SALT, PBKDF2_ITERATIONS);
+            return null;
+        }
+        const storedHash = user.passwordHash;
+        const verified = await verifyPasswordAsync(password, storedHash, user.passwordSalt, user.pbkdf2Iterations);
+        // The password may have been changed while PBKDF2 was running.
+        if (!verified || user.passwordHash !== storedHash) return null;
         user.lastLoginAt = new Date().toISOString();
         // Auto-upgrade hash to current iteration count on successful login
         if (!user.pbkdf2Iterations || user.pbkdf2Iterations < PBKDF2_ITERATIONS) {
-            const { hash, salt, iterations } = hashPassword(password);
-            user.passwordHash = hash;
-            user.passwordSalt = salt;
-            user.pbkdf2Iterations = iterations;
+            const { hash, salt, iterations } = await hashPasswordAsync(String(password));
+            if (user.passwordHash === storedHash) {
+                user.passwordHash = hash;
+                user.passwordSalt = salt;
+                user.pbkdf2Iterations = iterations;
+            }
         }
         this._save();
         return { id: user.id, username: user.username, role: user.role };
@@ -633,7 +673,10 @@ class UserStore {
     }
 
     /** 启用/更新二步验证 */
-    setTwoFactor(id: string, { secret, backupCodeHashes }: { secret: string; backupCodeHashes?: string[] }): boolean {
+    setTwoFactor(
+        id: string,
+        { secret, backupCodeHashes, lastUsedStep = 0 }: { secret: string; backupCodeHashes?: string[]; lastUsedStep?: number }
+    ): boolean {
         const idx = this.users.findIndex(u => u.id === id);
         if (idx === -1) return false;
         const trimmedSecret = String(secret || '').trim();
@@ -643,7 +686,23 @@ class UserStore {
             secret: trimmedSecret,
             backupCodeHashes: Array.isArray(backupCodeHashes) ? backupCodeHashes.slice() : [],
             enabledAt: new Date().toISOString(),
+            lastUsedStep: Math.max(0, Math.floor(Number(lastUsedStep) || 0)),
         };
+        this._save();
+        return true;
+    }
+
+    /**
+     * Remember the newest TOTP time step accepted for this account so the same
+     * code cannot be replayed within its validity window.
+     */
+    recordTwoFactorStep(id: string, step: number): boolean {
+        const idx = this.users.findIndex(u => u.id === id);
+        if (idx === -1 || !this.users[idx].twoFactor) return false;
+        const next = Math.max(0, Math.floor(Number(step) || 0));
+        const current = Math.max(0, Math.floor(Number(this.users[idx].twoFactor.lastUsedStep) || 0));
+        if (next <= current) return false;
+        this.users[idx].twoFactor.lastUsedStep = next;
         this._save();
         return true;
     }
@@ -667,6 +726,7 @@ class UserStore {
             secret: String(user.twoFactor.secret || ''),
             backupCodeHashes: Array.isArray(user.twoFactor.backupCodeHashes) ? user.twoFactor.backupCodeHashes.slice() : [],
             enabledAt: user.twoFactor.enabledAt || '',
+            lastUsedStep: Math.max(0, Math.floor(Number(user.twoFactor.lastUsedStep) || 0)),
         };
     }
 
@@ -801,6 +861,7 @@ class UserStore {
                                 .filter(Boolean)
                             : [],
                         enabledAt: String(item.twoFactor.enabledAt || '').trim().slice(0, 64),
+                        lastUsedStep: Math.max(0, Math.floor(Number(item.twoFactor.lastUsedStep) || 0)),
                     }
                     : null;
                 const passkeys = Array.isArray(item.passkeys)

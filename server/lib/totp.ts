@@ -85,24 +85,35 @@ export function generateTotp(secretBase32: string, atTimestampMs: number = Date.
     return hotp(secretBuffer, counter, digits);
 }
 
-export function verifyTotp(token: unknown, secretBase32: string, atTimestampMs: number = Date.now(), options: TotpOptions = {}): boolean {
+/**
+ * Return the time-step counter the token matches (within the drift window), or
+ * null. Callers that must reject replays store the last accepted counter and
+ * only accept a strictly greater one (RFC 6238 §5.2).
+ */
+export function findTotpCounter(token: unknown, secretBase32: string, atTimestampMs: number = Date.now(), options: TotpOptions = {}): number | null {
     const cleaned = String(token || '').trim().replace(/\s+/g, '');
-    if (!/^\d+$/.test(cleaned)) return false;
+    if (!/^\d+$/.test(cleaned)) return null;
     const secretBuffer = base32Decode(secretBase32);
-    if (secretBuffer.length === 0) return false;
+    if (secretBuffer.length === 0) return null;
     const stepSeconds = Number(options.stepSeconds) || DEFAULT_STEP_SECONDS;
     const digits = Number(options.digits) || DEFAULT_DIGITS;
     const window = Number.isFinite(Number(options.window)) ? Number(options.window) : DEFAULT_WINDOW;
     const baseCounter = counterForTime(Math.floor(atTimestampMs / 1000), stepSeconds);
 
+    let matched: number | null = null;
+    // Check every candidate (no early exit) so timing does not reveal the drift.
     for (let drift = -window; drift <= window; drift += 1) {
         const expected = hotp(secretBuffer, baseCounter + drift, digits);
         if (expected.length === cleaned.length
             && crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(cleaned))) {
-            return true;
+            matched = baseCounter + drift;
         }
     }
-    return false;
+    return matched;
+}
+
+export function verifyTotp(token: unknown, secretBase32: string, atTimestampMs: number = Date.now(), options: TotpOptions = {}): boolean {
+    return findTotpCounter(token, secretBase32, atTimestampMs, options) !== null;
 }
 
 export interface BuildTotpUriOptions {

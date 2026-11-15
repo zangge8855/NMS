@@ -1,3 +1,4 @@
+import fs from 'fs';
 import config from '../config.js';
 import type { Pool, PoolConfig, QueryResult, QueryResultRow } from 'pg';
 
@@ -7,15 +8,43 @@ let initError: any = null;
 let initialized: boolean = false;
 let ready: boolean = false;
 
-function toSslOption(): boolean | { rejectUnauthorized: boolean } {
-    const mode = String(config.db?.sslMode || '').trim().toLowerCase();
-    if (!mode || mode === 'disable' || mode === 'false' || mode === 'off') return false;
-    if (mode === 'require') {
-        return {
-            rejectUnauthorized: false,
-        };
+type SslOption = false | { rejectUnauthorized: boolean; ca?: string; checkServerIdentity?: () => undefined };
+
+let warnedUnverifiedSsl = false;
+
+/**
+ * Map DB_SSL_MODE onto the pg TLS options, following libpq semantics:
+ *   disable                      → plaintext
+ *   require / prefer / allow     → encrypted, server certificate NOT verified
+ *   verify-ca                    → encrypted, chain verified, hostname not checked
+ *   verify-full / true / on      → encrypted, chain and hostname verified
+ * An unknown value fails closed to verify-full instead of silently disabling TLS.
+ * DB_SSL_CA_FILE supplies the CA bundle for a private certificate authority.
+ */
+export function toSslOption(
+    mode: unknown = config.db?.sslMode,
+    caFile: unknown = config.db?.sslCaFile,
+): SslOption {
+    const normalized = String(mode || '').trim().toLowerCase();
+    if (!normalized || normalized === 'disable' || normalized === 'false' || normalized === 'off') return false;
+
+    if (normalized === 'require' || normalized === 'prefer' || normalized === 'allow') {
+        if (!warnedUnverifiedSsl) {
+            warnedUnverifiedSsl = true;
+            console.warn(`[DB] DB_SSL_MODE=${normalized} encrypts traffic but does not verify the server certificate. Use verify-full (with DB_SSL_CA_FILE for a private CA) to prevent man-in-the-middle attacks.`);
+        }
+        return { rejectUnauthorized: false };
     }
-    return false;
+
+    const option: Exclude<SslOption, false> = { rejectUnauthorized: true };
+    const caPath = String(caFile || '').trim();
+    if (caPath) {
+        option.ca = fs.readFileSync(caPath, 'utf8');
+    }
+    if (normalized === 'verify-ca') {
+        option.checkServerIdentity = () => undefined;
+    }
+    return option;
 }
 
 async function loadPoolCtor(): Promise<typeof Pool> {

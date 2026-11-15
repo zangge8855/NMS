@@ -20,6 +20,7 @@ const DEFAULT_AUDIT_EVENT_RULES = {
     login_denied_email_unverified: { severity: 'warning', label: '未验证邮箱尝试登录' },
     login_denied_user_disabled: { severity: 'warning', label: '停用账号尝试登录' },
     login_rate_limited: { severity: 'critical', label: '登录频率限制' },
+    login_account_locked: { severity: 'critical', label: '账号登录临时锁定' },
     password_reset_request_rate_limited: { severity: 'critical', label: '重置密码请求频率限制' },
     register_rate_limited: { severity: 'critical', label: '注册频率限制' },
     subscription_public_denied: { severity: 'warning', label: '公开订阅访问被拒绝' },

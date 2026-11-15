@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { toHttpError } from '../lib/httpError.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
+import { pickRequestText } from '../lib/requestLocale.js';
 import {
     getXrayConfig,
     updateXrayConfigSection,
@@ -62,7 +63,7 @@ router.put('/:serverId/:section', async (req: Request, res: Response) => {
     if (!SUPPORTED_WRITE_SECTIONS.has(section)) {
         return res.status(400).json({
             success: false,
-            msg: `不支持的 Xray 配置段: ${section}`,
+            msg: pickRequestText(req, `不支持的 Xray 配置段: ${section}`, `Unsupported Xray config section: ${section}`),
         });
     }
 

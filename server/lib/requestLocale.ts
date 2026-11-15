@@ -94,6 +94,15 @@ export function pickLocalizedText(locale: unknown, zhText: string, enText: strin
     return isEnglishLocale(locale) ? enText : zhText;
 }
 
+/** Shorthand for `pickLocalizedText(resolveRequestLocale(req), zh, en)` in route handlers. */
+export function pickRequestText(
+    req: Partial<Pick<Request, 'headers' | 'query'>> | null | undefined,
+    zhText: string,
+    enText: string,
+): string {
+    return pickLocalizedText(resolveRequestLocale(req), zhText, enText);
+}
+
 export function localizeUserStoreErrorMessage(message: unknown, locale: AppLocale = 'zh-CN'): string {
     const raw = String(message || '').trim();
     if (!raw || !isEnglishLocale(locale)) return raw;

@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
 import trafficStatsStore, { buildCalendarTrafficWindowRange } from '../store/trafficStatsStore.js';
 import serverStore from '../store/serverStore.js';
+import { pickRequestText } from '../lib/requestLocale.js';
 
 const router = Router();
 const CALENDAR_WINDOW_KEYS = new Set(['today', 'this_week', 'this_month']);
@@ -145,7 +146,7 @@ router.get('/servers/:serverId/trend', async (req: Request, res: Response) => {
     if (!serverStore.getAll().some((item: any) => item.id === serverId)) {
         return res.status(404).json({
             success: false,
-            msg: '节点不存在，请刷新节点列表后重试',
+            msg: pickRequestText(req, '节点不存在，请刷新节点列表后重试', 'Node not found. Refresh the node list and try again.'),
         });
     }
     const forceRefresh = normalizeBoolean(req.query.refresh, false);

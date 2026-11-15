@@ -10,7 +10,7 @@ import config from '../config.js';
 import { toHttpError } from '../lib/httpError.js';
 import { formatHostHeaderWithPort } from '../lib/ipGeoResolver.js';
 import { normalizeClientBasePath } from '../lib/clientBuild.js';
-import { resolveRequestLocale } from '../lib/requestLocale.js';
+import { resolveRequestLocale, pickRequestText } from '../lib/requestLocale.js';
 import batchRiskTokenStore, {
     assessBatchRisk,
     buildBatchRiskOperationKey,
@@ -172,7 +172,7 @@ router.post('/security/bootstrap', adminOnly, (req, res) => {
         });
         return res.json({
             success: true,
-            msg: '安全启动向导已完成',
+            msg: pickRequestText(req, '安全启动向导已完成', 'Security setup wizard completed'),
             obj: result,
         });
     } catch (error) {
@@ -223,7 +223,7 @@ router.post('/invite-codes/send', adminOnly, async (req, res) => {
     if (!getEmailStatus().configured) {
         return res.status(400).json({
             success: false,
-            msg: 'SMTP 未配置，无法发送邀请码邮件',
+            msg: pickRequestText(req, 'SMTP 未配置，无法发送邀请码邮件', 'SMTP is not configured; the invite code email cannot be sent'),
         });
     }
 
@@ -247,7 +247,7 @@ router.post('/invite-codes/send', adminOnly, async (req, res) => {
 
         return res.json({
             success: true,
-            msg: `邀请码已发送至 ${result.recipientEmail}`,
+            msg: pickRequestText(req, `邀请码已发送至 ${result.recipientEmail}`, `Invite code sent to ${result.recipientEmail}`),
             obj: {
                 recipientEmail: result.recipientEmail,
                 registrationUrl: result.registrationUrl,
@@ -283,7 +283,7 @@ router.delete('/invite-codes/:id', adminOnly, (req, res) => {
         }, { outcome: 'success' });
         return res.json({
             success: true,
-            msg: '邀请码已撤销',
+            msg: pickRequestText(req, '邀请码已撤销', 'Invite code revoked'),
             obj: revoked,
         });
     } catch (error) {
@@ -367,19 +367,19 @@ router.post('/email/notice-users', adminOnly, async (req, res) => {
     if (!subject) {
         return res.status(400).json({
             success: false,
-            msg: '通知主题不能为空',
+            msg: pickRequestText(req, '通知主题不能为空', 'Notification subject is required'),
         });
     }
     if (!message) {
         return res.status(400).json({
             success: false,
-            msg: '通知内容不能为空',
+            msg: pickRequestText(req, '通知内容不能为空', 'Notification content is required'),
         });
     }
     if (!getEmailStatus().configured) {
         return res.status(400).json({
             success: false,
-            msg: 'SMTP 未配置，无法发送变更通知',
+            msg: pickRequestText(req, 'SMTP 未配置，无法发送变更通知', 'SMTP is not configured; the change notice cannot be sent'),
         });
     }
 
@@ -388,7 +388,7 @@ router.post('/email/notice-users', adminOnly, async (req, res) => {
     if (preview.recipients.length === 0) {
         return res.status(400).json({
             success: false,
-            msg: '没有可发送的已注册用户邮箱',
+            msg: pickRequestText(req, '没有可发送的已注册用户邮箱', 'No registered user email addresses to send to'),
             obj: {
                 recipientCount: 0,
                 skippedCount: preview.skipped.length,
@@ -492,7 +492,7 @@ router.post('/email/notice-users', adminOnly, async (req, res) => {
 
     return res.json({
         success: true,
-        msg: `通知发送任务已创建，目标 ${preview.recipients.length} 位用户`,
+        msg: pickRequestText(req, `通知发送任务已创建，目标 ${preview.recipients.length} 位用户`, `Notification task created for ${preview.recipients.length} user(s)`),
         obj: {
             taskId,
             recipientCount: preview.recipients.length,
@@ -543,7 +543,7 @@ router.post('/backup/local', adminOnly, (req, res) => {
         });
         return res.json({
             success: true,
-            msg: '加密备份已保存到服务器本机',
+            msg: pickRequestText(req, '加密备份已保存到服务器本机', 'Encrypted backup saved on this server'),
             obj: {
                 ...output.meta,
                 filePath: output.meta.filePath,
@@ -577,7 +577,7 @@ router.post('/backup/telegram', adminOnly, async (req, res) => {
         });
         return res.json({
             success: true,
-            msg: '加密备份已发送到 Telegram',
+            msg: pickRequestText(req, '加密备份已发送到 Telegram', 'Encrypted backup sent to Telegram'),
             obj: output,
         });
     } catch (error) {
@@ -624,7 +624,7 @@ router.post('/backup/local/:filename/restore', adminOnly, async (req, res) => {
     } catch {
         return res.status(400).json({
             success: false,
-            msg: '恢复范围参数无效',
+            msg: pickRequestText(req, '恢复范围参数无效', 'Invalid restore scope'),
         });
     }
 
@@ -639,7 +639,7 @@ router.post('/backup/local/:filename/restore', adminOnly, async (req, res) => {
         });
         return res.json({
             success: true,
-            msg: '本机加密备份已恢复',
+            msg: pickRequestText(req, '本机加密备份已恢复', 'Local encrypted backup restored'),
             obj: output,
         });
     } catch (error) {
@@ -658,7 +658,7 @@ router.delete('/backup/local/:filename', adminOnly, (req, res) => {
         });
         return res.json({
             success: true,
-            msg: '本机备份已删除',
+            msg: pickRequestText(req, '本机备份已删除', 'Local backup deleted'),
             obj: output,
         });
     } catch (error) {
@@ -673,7 +673,7 @@ router.post('/backup/inspect', adminOnly, handleBackupUpload, (req, res) => {
     if (!req.file?.buffer) {
         return res.status(400).json({
             success: false,
-            msg: '请上传备份文件',
+            msg: pickRequestText(req, '请上传备份文件', 'Please upload a backup file'),
         });
     }
 
@@ -703,7 +703,7 @@ router.post('/backup/restore', adminOnly, handleBackupUpload, async (req, res) =
     if (!req.file?.buffer) {
         return res.status(400).json({
             success: false,
-            msg: '请上传备份文件',
+            msg: pickRequestText(req, '请上传备份文件', 'Please upload a backup file'),
         });
     }
 
@@ -719,7 +719,7 @@ router.post('/backup/restore', adminOnly, handleBackupUpload, async (req, res) =
     } catch {
         return res.status(400).json({
             success: false,
-            msg: '恢复范围参数无效',
+            msg: pickRequestText(req, '恢复范围参数无效', 'Invalid restore scope'),
         });
     }
 
@@ -743,7 +743,7 @@ router.post('/backup/restore', adminOnly, handleBackupUpload, async (req, res) =
         });
         return res.json({
             success: true,
-            msg: '备份已恢复',
+            msg: pickRequestText(req, '备份已恢复', 'Backup restored'),
             obj: output,
         });
     } catch (error) {
@@ -835,7 +835,7 @@ router.post('/telegram/test', adminOnly, async (req, res) => {
         });
         return res.json({
             success: true,
-            msg: 'Telegram 测试通知已发送',
+            msg: pickRequestText(req, 'Telegram 测试通知已发送', 'Telegram test notification sent'),
             obj: telegramAlertService.getStatus(),
         });
     } catch (error) {
@@ -928,19 +928,19 @@ router.put('/inbounds/order', operatorOrAbove, (req, res) => {
     if (!serverId) {
         return res.status(400).json({
             success: false,
-            msg: '请选择需要调整的节点',
+            msg: pickRequestText(req, '请选择需要调整的节点', 'Select the nodes to reorder'),
         });
     }
     if (!serverStore.getById(serverId)) {
         return res.status(404).json({
             success: false,
-            msg: '节点不存在，请刷新节点列表后重试',
+            msg: pickRequestText(req, '节点不存在，请刷新节点列表后重试', 'Node not found. Refresh the node list and try again.'),
         });
     }
     if (!inboundIds) {
         return res.status(400).json({
             success: false,
-            msg: '请选择需要排序的入站列表',
+            msg: pickRequestText(req, '请选择需要排序的入站列表', 'Select the inbound list to reorder'),
         });
     }
 
@@ -1222,7 +1222,7 @@ router.post('/db/backfill', adminOnly, async (req, res) => {
 
         return res.json({
             success: true,
-            msg: '回填任务已启动',
+            msg: pickRequestText(req, '回填任务已启动', 'Backfill task started'),
             obj: { taskId, async: true, status: TASK_STATUS.PENDING },
         });
     }
@@ -1324,7 +1324,7 @@ router.post('/notifications/test-webhook', authMiddleware, adminOnly, async (req
     try {
         const { channel, url, barkKey, secret } = req.body || {};
         if (!channel) {
-            return res.status(400).json({ success: false, msg: '请选择推送渠道' });
+            return res.status(400).json({ success: false, msg: pickRequestText(req, '请选择推送渠道', 'Select a delivery channel') });
         }
         const storedWebhook = systemSettingsStore.getWebhook();
         const effectiveBarkKey = barkKey === '********' ? storedWebhook.barkKey : barkKey;
