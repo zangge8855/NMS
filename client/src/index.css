@@ -181,7 +181,6 @@
 }
 
 html {
-  font-size: 14px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -197,6 +196,7 @@ html:lang(zh-Hans) {
 
 body {
   font-family: var(--font-family);
+  font-size: 0.875rem;
   background: var(--bg-secondary);
   color: var(--text-primary);
   line-height: 1.6;
@@ -2825,12 +2825,7 @@ input[type="radio"]:focus {
   /* ── Mobile: Tabs scrollable ── */
   .tabs {
     -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
     padding-bottom: 4px;
-  }
-
-  .tabs::-webkit-scrollbar {
-    display: none;
   }
 
   .tab {
@@ -3791,21 +3786,32 @@ input[type="radio"]:focus-visible {
   background: var(--bg-glass);
 }
 
-.log-container::-webkit-scrollbar {
-  width: 6px;
+.log-container {
+  --scrollbar-thumb: #6f7f98;
+  --scrollbar-track: transparent;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  scrollbar-width: auto;
 }
 
-.log-container::-webkit-scrollbar-track {
-  background: transparent;
-}
+@supports not (scrollbar-color: auto) {
+  .log-container::-webkit-scrollbar {
+    width: 10px;
+  }
 
-.log-container::-webkit-scrollbar-thumb {
-  background: var(--border-color);
-  border-radius: 3px;
-}
+  .log-container::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
 
-.log-container::-webkit-scrollbar-thumb:hover {
-  background: var(--border-highlight);
+  .log-container::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  .log-container::-webkit-scrollbar-thumb:hover {
+    background: #8fa1bc;
+  }
 }
 
 /* ============================================
@@ -3829,7 +3835,6 @@ input[type="radio"]:focus-visible {
    Light Theme — CSS Variable Overrides
    ============================================ */
 [data-theme="light"] {
-  color-scheme: light;
   /* Backgrounds */
   --bg-primary: #fbfbfc;
   --bg-secondary: #ffffff;
@@ -4014,18 +4019,7 @@ input[type="radio"]:focus-visible {
   border-color: var(--accent-primary);
 }
 
-/* Light theme scrollbar */
-[data-theme="light"] ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.02);
-}
-
-[data-theme="light"] ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.12);
-}
-
-[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.2);
-}
+/* Accessible scrollbar variables and fallbacks are centralized in tokens.css */
 
 /* --- Login Page (base animations & glow) --- */
 .login-bg-glow {
@@ -4888,8 +4882,6 @@ input[type="radio"]:focus-visible {
 /* Dark theme variables are now defined in index.css (single source of truth) */
 
 [data-theme="light"] {
-  color-scheme: light;
-
   --bg-primary: #ffffff;
   --bg-secondary: #fcfcfc;
   --bg-tertiary: #f5f5f5;
@@ -4937,10 +4929,6 @@ input[type="radio"]:focus-visible {
   --shadow-2xl: 0 16px 48px rgba(0, 0, 0, 0.1);
   --shadow-glow: 0 8px 20px -12px color-mix(in srgb, var(--accent-primary) 15%, transparent);
   --shadow-glow-primary: 0 12px 28px -16px color-mix(in srgb, var(--accent-primary) 20%, transparent);
-}
-
-html {
-  font-size: 14px;
 }
 
 button,
@@ -17431,22 +17419,19 @@ input[type="radio"]:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    scroll-behavior: auto !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-
   .login-bg-glow,
-  .spinning,
-  .spinner,
-  .skeleton,
   .server-chevron,
   .ws-status-chip[data-status="connected"] .ws-status-icon {
-    animation: none !important;
+    animation: none;
+  }
+
+  .spinning,
+  .spinner {
+    animation-duration: 6s;
+  }
+
+  .skeleton {
+    animation: none;
   }
 }
 

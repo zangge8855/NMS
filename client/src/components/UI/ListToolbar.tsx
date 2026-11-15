@@ -89,6 +89,7 @@ export function ListPagination({
 
     const handleJumpKey = (event: React.KeyboardEvent<HTMLInputElement>) => {
         if (event.key !== 'Enter') return;
+        if (event.nativeEvent?.isComposing || event.keyCode === 229) return;
         const raw = Number(event.currentTarget.value);
         const next = Math.min(normalizedTotalPages, Math.max(1, Math.floor(raw)));
         if (Number.isFinite(next) && next !== normalizedPage) {

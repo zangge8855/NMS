@@ -496,10 +496,20 @@ function ProtectedLayout() {
         setSidebarCollapsed((current) => !current);
     }, [isMobile]);
 
+    const skipToContentLabel = getLocaleMessage(
+        typeof document !== 'undefined' && String(document.documentElement.lang || '').toLowerCase().startsWith('en')
+            ? 'en-US'
+            : 'zh-CN',
+        'shell.skipToContent'
+    );
+
     return (
         <ServerProvider enabled={isStaff}>
         <NotificationProvider enabled={isStaff} wsLastMessage={isStaff ? rootWsLastMessage : null}>
             <div className="app-layout">
+                <a href="#main-content" className="skip-link">
+                    {skipToContentLabel}
+                </a>
                 <div
                     className={`sidebar-backdrop ${sidebarOpen ? 'show' : ''}`}
                     onClick={handleCloseSidebar}
@@ -514,7 +524,7 @@ function ProtectedLayout() {
                         onToggle={handleToggleSidebar}
                     />
                 </Suspense>
-                <main className={`main-content ${effectiveCollapsed ? 'collapsed' : ''}`}>
+                <main id="main-content" tabIndex={-1} className={`main-content ${effectiveCollapsed ? 'collapsed' : ''}`}>
                     <div className="main-scroll-region">
                         <Routes>
                             <Route path="/" element={isStaff ? <LazyPage><Dashboard /></LazyPage> : <Navigate to="/subscriptions" replace />} />

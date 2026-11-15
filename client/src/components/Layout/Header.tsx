@@ -382,6 +382,7 @@ export default function Header({
             return;
         }
         if (event.key === 'Enter') {
+            if (event.nativeEvent?.isComposing || event.keyCode === 229) return;
             event.preventDefault();
             if (filteredItems[highlightedIndex]) {
                 handleSelect(filteredItems[highlightedIndex]);
@@ -497,10 +498,7 @@ export default function Header({
                         data-open={searchOpen ? 'true' : 'false'}
                         ref={searchRef}
                         onClick={openSearch}
-                        role="combobox"
-                        aria-expanded={searchOpen}
-                        aria-haspopup="listbox"
-                        aria-controls={searchOpen ? searchResultsId : undefined}
+                        role="search"
                     >
                         <HiOutlineMagnifyingGlass className="header-search-icon" aria-hidden="true" />
                         <input
@@ -514,6 +512,9 @@ export default function Header({
                             }}
                             onFocus={() => setSearchOpen(true)}
                             onKeyDown={handleSearchKeyDown}
+                            role="combobox"
+                            aria-expanded={searchOpen}
+                            aria-haspopup="listbox"
                             aria-label={t('shell.searchAriaLabel')}
                             aria-autocomplete="list"
                             aria-controls={searchOpen ? searchResultsId : undefined}

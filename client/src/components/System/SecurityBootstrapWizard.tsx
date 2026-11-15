@@ -337,10 +337,10 @@ export default function SecurityBootstrapWizard() {
                                 type="button"
                                 className="input-trailing-action-btn"
                                 onClick={() => setShowAdminPassword((prev) => !prev)}
-                                tabIndex={-1}
+                                aria-pressed={showAdminPassword}
                                 aria-label={t(showAdminPassword ? 'comp.common.hidePassword' : 'comp.common.showPassword')}
                             >
-                                {showAdminPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                {showAdminPassword ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
                             </button>
                         </div>
                     </label>
@@ -359,10 +359,10 @@ export default function SecurityBootstrapWizard() {
                                 type="button"
                                 className="input-trailing-action-btn"
                                 onClick={() => setShowConfirmPassword((prev) => !prev)}
-                                tabIndex={-1}
+                                aria-pressed={showConfirmPassword}
                                 aria-label={t(showConfirmPassword ? 'comp.common.hidePassword' : 'comp.common.showPassword')}
                             >
-                                {showConfirmPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                {showConfirmPassword ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
                             </button>
                         </div>
                     </label>

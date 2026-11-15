@@ -42,9 +42,19 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         const root = document.documentElement;
         const { body } = document;
 
+        const nextMetaScheme = mode === 'auto' ? 'light dark' : mode;
+        const metaColorScheme = document.querySelector('meta[name="color-scheme"]');
+        if (metaColorScheme) {
+            metaColorScheme.setAttribute('content', nextMetaScheme);
+        }
+
         root.setAttribute('data-theme', resolvedTheme);
         root.setAttribute('data-theme-mode', mode);
-        root.style.colorScheme = resolvedTheme;
+        if (mode === 'auto') {
+            root.style.removeProperty('color-scheme');
+        } else {
+            root.style.colorScheme = mode;
+        }
         // index.html paints an inline background before CSS loads; drop it so
         // the stylesheet's --bg-primary follows later theme switches.
         root.style.removeProperty('background-color');
@@ -90,6 +100,22 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         } catch {
             return undefined;
         }
+    }, []);
+
+    // Sync color-scheme overrides updated from other browser tabs
+    useEffect(() => {
+        if (typeof window === 'undefined') return undefined;
+        const handleStorage = (event: StorageEvent) => {
+            if (event.key !== STORAGE_KEY) return;
+            const val = event.newValue;
+            if (val === 'light' || val === 'dark' || val === 'auto') {
+                setModeState(val);
+            } else if (val === null) {
+                setModeState('auto');
+            }
+        };
+        window.addEventListener('storage', handleStorage);
+        return () => window.removeEventListener('storage', handleStorage);
     }, []);
 
     const setMode = useCallback((targetMode?: 'auto' | 'light' | 'dark') => {

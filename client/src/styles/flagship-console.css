@@ -2106,24 +2106,7 @@ main .servers-mobile-tags .badge-info {
   }
 }
 
-/* --- Custom Sleek Scrollbar --- */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.2);
-  border-radius: 9999px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.35);
-}
+/* Scrollbar tokens and accessible fallbacks live in tokens.css */
 
 /* ==========================================================================
    Command Palette (Cmd+K / Ctrl+K)
@@ -3655,24 +3638,7 @@ input:focus {
   border-top: 1px solid var(--border-color);
 }
 
-/* --- Slim Minimalist Scrollbars --- */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.22);
-  border-radius: 9999px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.45);
-}
+/* Scrollbar tokens and accessible fallbacks live in tokens.css */
 
 /* --- Flagship Refined Audit & Management Console Polish --- */
 .audit-nav {

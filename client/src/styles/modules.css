@@ -2379,15 +2379,11 @@
     }
 }
 
-/* Xray tab strip scrolls horizontally instead of pushing the page wider on narrow screens */
+/* Xray tab strip wraps/scrolls cleanly on narrow screens */
 :root .xray-tabs {
     max-width: 100%;
     overflow-x: auto;
-    scrollbar-width: none;
-}
-
-:root .xray-tabs::-webkit-scrollbar {
-    display: none;
+    scrollbar-width: auto;
 }
 
 :root .xray-tabs > .tab {

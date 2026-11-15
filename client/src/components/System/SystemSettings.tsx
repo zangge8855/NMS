@@ -2585,10 +2585,10 @@ export default function SystemSettings() {
                                     type="button"
                                     className="input-trailing-action-btn"
                                     onClick={() => setShowTelegramToken((prev) => !prev)}
-                                    tabIndex={-1}
+                                    aria-pressed={showTelegramToken}
                                     aria-label={t(showTelegramToken ? 'comp.common.hidePassword' : 'comp.common.showPassword')}
                                 >
-                                    {showTelegramToken ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                    {showTelegramToken ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
                                 </button>
                             </div>
                             <div className="flex items-center gap-2 flex-wrap mt-1">
@@ -2795,10 +2795,10 @@ export default function SystemSettings() {
                                     type="button"
                                     className="input-trailing-action-btn"
                                     onClick={() => setShowWebhookSecret((prev) => !prev)}
-                                    tabIndex={-1}
+                                    aria-pressed={showWebhookSecret}
                                     aria-label={t(showWebhookSecret ? 'comp.common.hidePassword' : 'comp.common.showPassword')}
                                 >
-                                    {showWebhookSecret ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                    {showWebhookSecret ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
                                 </button>
                             </div>
                         </div>

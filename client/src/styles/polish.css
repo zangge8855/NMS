@@ -22,9 +22,16 @@
 }
 
 body {
+  font-size: 0.875rem;
+  line-height: 1.55;
+  text-align: start;
   background: var(--bg-canvas);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+:root {
+  accent-color: var(--accent-primary);
 }
 
 /* --------------------------------------------------------------------------
@@ -56,11 +63,11 @@ body {
    -------------------------------------------------------------------------- */
 :root select.form-select,
 :root select.form-input {
-  height: var(--control-h);
   min-height: var(--control-h);
-  padding-top: 0;
-  padding-bottom: 0;
-  line-height: calc(var(--control-h) - 2px);
+  height: auto;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  line-height: 1.4;
   box-sizing: border-box;
 }
 
@@ -73,6 +80,17 @@ body {
 :root .form-select,
 :root .form-textarea {
   border-radius: 8px;
+}
+
+:root textarea.form-textarea,
+:root textarea.form-input {
+  resize: vertical;
+}
+
+/* Post-interaction validity indication (never premature on load, excludes ranges/checks) */
+:root :is(input.form-input:not([type="range"]):not([type="checkbox"]):not([type="radio"]), select.form-select, select.form-input, textarea.form-textarea):user-invalid {
+  border-color: var(--accent-danger);
+  box-shadow: 0 0 0 3px var(--accent-danger-bg);
 }
 
 /* Node selector + action button used on Tools / Xray / Logs */
@@ -327,7 +345,7 @@ body {
 :root .dashboard-stat-card-value,
 :root .dashboard-stat-card-value-text {
   font-family: var(--font-figure);
-  font-size: clamp(1.6rem, 2.2vw, 2rem);
+  font-size: clamp(1.375rem, 0.9rem + 1.25vw, 1.75rem);
   font-weight: 650;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.025em;
@@ -448,14 +466,14 @@ body {
 
 :root .auth-tab {
   flex: 1;
-  height: 34px;
-  padding: 0 14px;
+  min-height: 2.125rem;
+  padding: 6px 14px;
   border: none;
   border-radius: 7px;
   background: transparent;
   box-shadow: none;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 600;
 }
 
@@ -478,7 +496,9 @@ body {
 }
 
 :root .auth-form > .btn.w-full {
-  height: 42px;
+  min-height: 2.625rem;
+  height: auto;
+  padding-block: 10px;
 }
 
 /* --------------------------------------------------------------------------
@@ -1519,15 +1539,15 @@ body {
 :root .btn-sm,
 :root select.form-select-sm,
 :root input.form-input-sm:not([type="checkbox"]):not([type="radio"]) {
-  height: var(--control-h-sm);
   min-height: var(--control-h-sm);
+  height: auto;
 }
 
 :root .btn-xs {
-  height: var(--control-h-xs);
   min-height: var(--control-h-xs);
-  padding: 0 8px;
-  font-size: 11.5px;
+  height: auto;
+  padding: 4px 8px;
+  font-size: 0.75rem;
 }
 
 :root .btn-icon:not(.btn-sm):not(.btn-xs):not(.inbounds-sequence-btn) {
@@ -2580,17 +2600,14 @@ body {
   column-gap: 4px;
 }
 
-:root :is(.tabs, .audit-tabs, .users-tabs, .xray-tabs, .user-detail-tabs .tabs)::-webkit-scrollbar {
-  display: none;
-}
-
 :root :is(.tabs, .audit-tabs, .users-tabs, .xray-tabs, .user-detail-tabs .tabs) > :is(.tab, .audit-tab, .users-tab) {
+  position: relative;
   flex: 0 0 auto;
   max-width: 100%;
-  min-height: 36px;
-  padding: 0 14px;
+  min-height: 2.25rem;
+  padding: 6px 14px;
   border-radius: 7px;
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 550;
   border: 1px solid transparent !important;
   background: transparent !important;
@@ -2666,9 +2683,10 @@ body {
 @media (min-width: 769px) {
   :root .page-toolbar-actions :is(.btn-sm, select.form-select, select.form-input, input.form-input) {
     min-height: var(--control-h) !important;
-    height: var(--control-h) !important;
+    height: auto !important;
+    padding-block: 6px !important;
     padding-inline: 12px !important;
-    font-size: 12.5px !important;
+    font-size: 0.8125rem !important;
   }
 }
 
@@ -2698,9 +2716,10 @@ body {
 }
 
 :root .modal-body {
-  scrollbar-width: thin;
-  scrollbar-color: var(--stroke-medium) transparent;
+  scrollbar-width: auto;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
   scrollbar-gutter: stable;
+  overscroll-behavior: contain;
 }
 
 :root .modal-header {
@@ -2795,40 +2814,325 @@ body {
     padding-bottom: calc(var(--mobile-bottom-nav-height) + 72px);
   }
 
-  :root .header-controls :is(.theme-toggle-btn, .language-toggle-btn, .notification-trigger),
+  /* Maintain WCAG-compliant >= 44px touch targets on coarse mobile screens */
+  :root .header-controls :is(.theme-toggle-btn, .notification-trigger),
   :root .notification-trigger {
-    min-width: 36px !important;
-    width: 36px !important;
-    min-height: 36px !important;
-    height: 36px !important;
+    min-width: 44px !important;
+    width: 44px !important;
+    min-height: 44px !important;
+    height: 44px !important;
   }
 
   :root .header-controls .language-toggle-btn {
+    min-width: 44px !important;
     width: auto !important;
-    padding-inline: 10px !important;
+    min-height: 44px !important;
+    height: auto !important;
+    padding-block: 8px !important;
+    padding-inline: 12px !important;
   }
 
   :root :is(.inbounds-refresh-btn, .inbounds-refresh, .actions-dropdown-trigger) {
-    min-width: 36px !important;
-    width: 36px !important;
-    min-height: 36px !important;
-    height: 36px !important;
+    min-width: 44px !important;
+    width: 44px !important;
+    min-height: 44px !important;
+    height: 44px !important;
   }
 
   :root .actions-dropdown {
-    min-height: 36px !important;
+    min-height: 44px !important;
   }
 
   :root .table-action-btn {
-    min-width: 36px !important;
-    min-height: 36px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
     height: auto !important;
-    padding: 6px 11px !important;
-    font-size: 12px !important;
+    padding: 8px 12px !important;
+    font-size: 0.78125rem !important;
   }
 
   :root :is(.logs-level-chip, .filter-chip) {
-    min-height: 36px !important;
-    padding: 6px 12px !important;
+    min-height: 40px !important;
+    height: auto !important;
+    padding: 8px 14px !important;
+  }
+}
+
+/* ==========================================================================
+   24. Modern Web Guidance Architecture: Accessibility, Typography & Craft
+   ========================================================================== */
+
+/* Skip link for keyboard navigation past sidebar/chrome */
+.skip-link {
+  position: fixed;
+  inset-block-start: -100%;
+  inset-inline-start: 12px;
+  z-index: 9999;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 2px solid var(--accent-primary);
+  box-shadow: var(--shadow-lg);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.skip-link:focus-visible {
+  inset-block-start: 12px;
+  outline: 2px solid var(--focus-ring-border);
+  outline-offset: 2px;
+}
+
+#main-content:focus {
+  outline: none;
+}
+
+/* Keyboard-scrollable data table containers and semantic row headers */
+:root .table-container[tabindex="0"]:focus-visible {
+  outline: 2px solid var(--focus-ring-border);
+  outline-offset: -2px;
+  box-shadow: inset 0 0 0 2px var(--accent-primary-soft);
+}
+
+:root :is(.audit-scrollable, .modal-body) .table thead th {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 2;
+  background: var(--surface-table-header);
+  box-shadow: inset 0 -1px 0 var(--border-color);
+}
+
+/* Relative rem typography scale honoring OS text scaling without root font-size lock */
+:root .header-title {
+  font-size: clamp(1.0625rem, 0.92rem + 0.38vw, 1.25rem);
+  line-height: 1.3;
+  text-wrap: balance;
+}
+
+:root :is(h1, h2, h3, .section-header-title, .modal-title, .empty-state-title) {
+  text-wrap: balance;
+}
+
+:root :is(.section-header-title, .modal-title, .empty-state-title) {
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+:root :is(.section-header-subtitle, .confirm-modal-message, .empty-state-sub, .header-subtitle) {
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+
+:root .form-label {
+  font-size: 0.78125rem;
+  line-height: 1.45;
+}
+
+:root :is(.form-input, .form-select, .form-textarea, .btn, .nav-item, .tab, .audit-tab, .users-tab) {
+  font-size: 0.8125rem;
+}
+
+:root .table thead th {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  text-wrap: balance;
+}
+
+:root .table td {
+  font-size: 0.8125rem;
+  user-select: text;
+}
+
+:root .badge {
+  font-size: 0.75rem;
+  min-height: 1.5rem;
+  height: auto;
+  padding-block: 2px;
+}
+
+/* Preserve user text selection on readable content surfaces */
+:root :is(.log-line, .confirm-modal-message, .card p, .subscription-link-code, .notification-item-title) {
+  user-select: text;
+  overflow-wrap: anywhere;
+}
+
+/* Selected tabs always display a structural border indicator alongside color */
+:root :is(.tabs, .audit-tabs, .users-tabs, .xray-tabs, .user-detail-tabs .tabs) > :is(.tab.active, .audit-tab.active, .users-tab.active, [role="tab"][aria-selected="true"])::after {
+  content: "";
+  position: absolute;
+  inset: auto 10px 0;
+  border-block-end: 2px solid var(--accent-primary);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+/* Clean touch target bump on coarse input pointers */
+@media (pointer: coarse) {
+  :root .input-trailing-action-btn,
+  :root .modal-close,
+  :root .sidebar-toggle,
+  :root .nav-item {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* Tactile focus visibility across password toggles & checkboxes */
+:root .input-trailing-action-btn:focus-visible,
+:root input[type="checkbox"]:focus-visible,
+:root input[type="radio"]:focus-visible {
+  outline: 2px solid var(--focus-ring-border);
+  outline-offset: 2px;
+}
+
+/* Refined surface elevation & OKLab hairline brilliance */
+@supports (color: color-mix(in oklab, white, black)) {
+  :root[data-theme="dark"] :is(.card, .settings-panel, .modal, .login-card) {
+    box-shadow: var(--shadow-card), inset 0 1px 0 color-mix(in oklab, #ffffff 5%, transparent);
+  }
+
+  :root[data-theme="light"] :is(.card, .settings-panel, .table-container) {
+    border-color: color-mix(in oklab, var(--border-color) 88%, #0f172a 12%);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px -18px rgba(15, 23, 42, 0.08);
+  }
+
+  :root .header {
+    background: color-mix(in oklab, var(--bg-canvas) 84%, transparent);
+  }
+}
+
+/* Contain overlay scroll chaining within scrollable overlay panes */
+:root :is(.modal-body, .notification-list, .command-palette-results, .actions-dropdown-panel, .sidebar-nav, .audit-scrollable) {
+  overscroll-behavior: contain;
+}
+
+/* Scrollability affordance shadows on vertical overlay & data containers */
+@supports (container-type: scroll-state) {
+  :root :is(.modal-body, .notification-list, .command-palette-results, .audit-scrollable) {
+    container-type: scroll-state;
+  }
+
+  :root :is(.modal-body, .notification-list, .command-palette-results, .audit-scrollable)::before,
+  :root :is(.modal-body, .notification-list, .command-palette-results, .audit-scrollable)::after {
+    content: "";
+    display: block;
+    position: sticky;
+    block-size: 0.75rem;
+    z-index: 3;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.18s ease;
+  }
+
+  :root :is(.modal-body, .notification-list, .command-palette-results, .audit-scrollable)::before {
+    inset-block-start: 0;
+    margin-block-end: -0.75rem;
+    background: radial-gradient(farthest-side at 50% 0, rgba(2, 6, 23, 0.22), transparent);
+  }
+
+  :root :is(.modal-body, .notification-list, .command-palette-results, .audit-scrollable)::after {
+    inset-block-end: 0;
+    margin-block-start: -0.75rem;
+    background: radial-gradient(farthest-side at 50% 100%, rgba(2, 6, 23, 0.22), transparent);
+  }
+
+  @container scroll-state(scrollable: block-start) {
+    :root :is(.modal-body, .notification-list, .command-palette-results, .audit-scrollable)::before {
+      opacity: 1;
+    }
+  }
+
+  @container scroll-state(scrollable: block-end) {
+    :root :is(.modal-body, .notification-list, .command-palette-results, .audit-scrollable)::after {
+      opacity: 1;
+    }
+  }
+}
+
+@supports not (container-type: scroll-state) {
+  @supports (animation-timeline: scroll()) {
+    @media (prefers-reduced-motion: no-preference) {
+      :root :is(.modal-body, .notification-list, .command-palette-results, .audit-scrollable)::before,
+      :root :is(.modal-body, .notification-list, .command-palette-results, .audit-scrollable)::after {
+        content: "";
+        display: block;
+        position: sticky;
+        block-size: 0.75rem;
+        z-index: 3;
+        pointer-events: none;
+        opacity: 0;
+        animation: nms-scroll-shadow linear both;
+        animation-timeline: scroll();
+      }
+
+      :root :is(.modal-body, .notification-list, .command-palette-results, .audit-scrollable)::before {
+        inset-block-start: 0;
+        margin-block-end: -0.75rem;
+        background: radial-gradient(farthest-side at 50% 0, rgba(2, 6, 23, 0.2), transparent);
+        animation-range: 0 1.5rem;
+      }
+
+      :root :is(.modal-body, .notification-list, .command-palette-results, .audit-scrollable)::after {
+        inset-block-end: 0;
+        margin-block-start: -0.75rem;
+        background: radial-gradient(farthest-side at 50% 100%, rgba(2, 6, 23, 0.2), transparent);
+        animation-direction: reverse;
+        animation-range: calc(100% - 1.5rem) 100%;
+      }
+    }
+  }
+}
+
+@keyframes nms-scroll-shadow {
+  to {
+    opacity: 1;
+  }
+}
+
+/* Tactile non-intrusive press response only when full motion is welcomed */
+@media (prefers-reduced-motion: no-preference) {
+  :root .btn:active:not(:disabled):not([aria-disabled="true"]) {
+    transform: translateY(0.5px) scale(0.99);
+  }
+}
+
+/* High Contrast / Windows Forced Colors Mode full resilience */
+@media (forced-colors: active) {
+  :root :is(
+    button,
+    a,
+    input,
+    select,
+    textarea,
+    [tabindex],
+    .btn,
+    .nav-item,
+    .tab,
+    .filter-chip,
+    .node-health-tile,
+    .table-container[tabindex="0"]
+  ):focus-visible,
+  :root .header-search:focus-within {
+    outline: 2px solid Highlight !important;
+    outline-offset: 2px !important;
+  }
+
+  :root :is(.card, .modal, .notification-dropdown, .actions-dropdown-panel, .command-palette-modal, .table-container, .badge, .filter-chip) {
+    border: 1px solid CanvasText !important;
+  }
+
+  :root :is(.sidebar .nav-item.active, .tab.active, .audit-tab.active, .users-tab.active, [role="tab"][aria-selected="true"]) {
+    border: 2px solid Highlight !important;
+  }
+
+  :root :is(.tab.active, .audit-tab.active, .users-tab.active, [role="tab"][aria-selected="true"])::after {
+    border-block-end-color: Highlight !important;
   }
 }

@@ -400,10 +400,10 @@ export default function AccountCenter() {
                                         type="button"
                                         className="input-trailing-action-btn"
                                         onClick={() => setShowOldPassword((prev) => !prev)}
-                                        tabIndex={-1}
+                                        aria-pressed={showOldPassword}
                                         aria-label={showOldPassword ? t('comp.common.hidePassword') : t('comp.common.showPassword')}
                                     >
-                                        {showOldPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                        {showOldPassword ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
                                     </button>
                                 </div>
                             </div>
@@ -423,10 +423,10 @@ export default function AccountCenter() {
                                         type="button"
                                         className="input-trailing-action-btn"
                                         onClick={() => setShowNewPassword((prev) => !prev)}
-                                        tabIndex={-1}
+                                        aria-pressed={showNewPassword}
                                         aria-label={showNewPassword ? t('comp.common.hidePassword') : t('comp.common.showPassword')}
                                     >
-                                        {showNewPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                        {showNewPassword ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
                                     </button>
                                 </div>
                                 <PasswordStrengthMeter password={newPassword} locale={locale} />
@@ -447,10 +447,10 @@ export default function AccountCenter() {
                                         type="button"
                                         className="input-trailing-action-btn"
                                         onClick={() => setShowConfirmPassword((prev) => !prev)}
-                                        tabIndex={-1}
+                                        aria-pressed={showConfirmPassword}
                                         aria-label={showConfirmPassword ? t('comp.common.hidePassword') : t('comp.common.showPassword')}
                                     >
-                                        {showConfirmPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                        {showConfirmPassword ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
                                     </button>
                                 </div>
                             </div>

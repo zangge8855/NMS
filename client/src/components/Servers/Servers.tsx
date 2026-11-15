@@ -1455,10 +1455,10 @@ export default function Servers() {
                                                     type="button"
                                                     className="input-trailing-action-btn"
                                                     onClick={() => setShowFormPassword((prev) => !prev)}
-                                                    tabIndex={-1}
+                                                    aria-pressed={showFormPassword}
                                                     aria-label={t(showFormPassword ? 'comp.common.hidePassword' : 'comp.common.showPassword')}
                                                 >
-                                                    {showFormPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                                    {showFormPassword ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
                                                 </button>
                                             </div>
                                         </div>
@@ -1477,10 +1477,10 @@ export default function Servers() {
                                                 type="button"
                                                 className="input-trailing-action-btn"
                                                 onClick={() => setShowFormApiToken((prev) => !prev)}
-                                                tabIndex={-1}
+                                                aria-pressed={showFormApiToken}
                                                 aria-label={locale === 'en-US' ? (showFormApiToken ? 'Hide token' : 'Show token') : (showFormApiToken ? '隐藏令牌' : '显示令牌')}
                                             >
-                                                {showFormApiToken ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                                {showFormApiToken ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
                                             </button>
                                         </div>
                                         <div className="text-xs text-muted mt-1">{t('comp.servers.credentialModeHint')}</div>
@@ -1537,10 +1537,10 @@ export default function Servers() {
                                                         type="button"
                                                         className="input-trailing-action-btn"
                                                         onClick={() => setShowBatchFormPassword((prev) => !prev)}
-                                                        tabIndex={-1}
+                                                        aria-pressed={showBatchFormPassword}
                                                         aria-label={t(showBatchFormPassword ? 'comp.common.hidePassword' : 'comp.common.showPassword')}
                                                     >
-                                                        {showBatchFormPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                                        {showBatchFormPassword ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
                                                     </button>
                                                 </div>
                                             </div>
@@ -1559,12 +1559,12 @@ export default function Servers() {
                                                     type="button"
                                                     className="input-trailing-action-btn"
                                                     onClick={() => setShowBatchFormApiToken((prev) => !prev)}
-                                                    tabIndex={-1}
+                                                    aria-pressed={showBatchFormApiToken}
                                                     aria-label={locale === 'en-US'
                                                         ? (showBatchFormApiToken ? 'Hide API token' : 'Show API token')
                                                         : (showBatchFormApiToken ? '隐藏 API Token' : '显示 API Token')}
                                                 >
-                                                    {showBatchFormApiToken ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                                    {showBatchFormApiToken ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
                                                 </button>
                                             </div>
                                             <div className="text-xs text-muted mt-1">{t('comp.servers.batchCredentialHint')}</div>
@@ -1696,10 +1696,10 @@ export default function Servers() {
                                                 type="button"
                                                 className="input-trailing-action-btn"
                                                 onClick={() => setShowRepairPassword((prev) => !prev)}
-                                                tabIndex={-1}
+                                                aria-pressed={showRepairPassword}
                                                 aria-label={t(showRepairPassword ? 'comp.common.hidePassword' : 'comp.common.showPassword')}
                                             >
-                                                {showRepairPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                                {showRepairPassword ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
                                             </button>
                                         </div>
                                     </div>
@@ -1717,12 +1717,12 @@ export default function Servers() {
                                                 type="button"
                                                 className="input-trailing-action-btn"
                                                 onClick={() => setShowRepairApiToken((prev) => !prev)}
-                                                tabIndex={-1}
+                                                aria-pressed={showRepairApiToken}
                                                 aria-label={locale === 'en-US'
                                                     ? (showRepairApiToken ? 'Hide API token' : 'Show API token')
                                                     : (showRepairApiToken ? '隐藏 API Token' : '显示 API Token')}
                                             >
-                                                {showRepairApiToken ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                                {showRepairApiToken ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
                                             </button>
                                         </div>
                                         <div className="text-xs text-muted mt-1">{t('comp.servers.tokenRepairHint')}</div>

@@ -9,9 +9,22 @@
    and status colour used only where it carries state.
    ========================================================================== */
 
+:root {
+  color-scheme: light dark;
+}
+
+:root:has(> head > meta[name="color-scheme"][content="dark"]),
+:root[data-theme-mode="dark"] {
+  color-scheme: dark;
+}
+
+:root:has(> head > meta[name="color-scheme"][content="light"]),
+:root[data-theme-mode="light"] {
+  color-scheme: light;
+}
+
 :root,
 :root[data-theme="dark"] {
-  color-scheme: dark;
 
   /* Surfaces, darkest to most raised */
   --bg-canvas: #0d1016;
@@ -127,7 +140,6 @@
 }
 
 :root[data-theme="light"] {
-  color-scheme: light;
 
   --bg-canvas: #f3f4f7;
   --bg-primary: #f3f4f7;
@@ -318,6 +330,7 @@ body {
 }
 
 :root .node-health-tile:focus-visible {
-  outline: none;
+  outline: 2px solid var(--focus-ring-border);
+  outline-offset: 2px;
   box-shadow: var(--focus-ring-shadow);
 }

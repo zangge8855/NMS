@@ -590,10 +590,11 @@ export default function Login() {
                         {mode === MODE_LOGIN && (
                             <form onSubmit={handleLogin} className="auth-form">
                                 <div className="form-group">
-                                    <label className="form-label">{t('pages.login.loginIdentifier')}</label>
+                                    <label className="form-label" htmlFor="login-identifier">{t('pages.login.loginIdentifier')}</label>
                                     <div className="input-icon-wrapper">
-                                        <HiOutlineUser className="input-icon" />
+                                        <HiOutlineUser className="input-icon" aria-hidden="true" />
                                         <input
+                                            id="login-identifier"
                                             type="text"
                                             className="form-input input-with-icon"
                                             placeholder={t('pages.login.loginIdentifierPlaceholder')}
@@ -609,10 +610,11 @@ export default function Login() {
                                     </div>
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">{t('pages.login.password')}</label>
+                                    <label className="form-label" htmlFor="login-password">{t('pages.login.password')}</label>
                                     <div className="input-icon-wrapper">
-                                        <HiOutlineLockClosed className="input-icon" />
+                                        <HiOutlineLockClosed className="input-icon" aria-hidden="true" />
                                         <input
+                                            id="login-password"
                                             type={showPassword ? 'text' : 'password'}
                                             className="form-input input-with-icon input-with-trailing-action"
                                             placeholder={t('pages.login.passwordPlaceholder')}
@@ -625,10 +627,10 @@ export default function Login() {
                                             type="button"
                                             className="input-trailing-action-btn"
                                             onClick={() => setShowPassword((prev) => !prev)}
-                                            tabIndex={-1}
+                                            aria-pressed={showPassword}
                                             aria-label={showPassword ? t('comp.common.hidePassword') : t('comp.common.showPassword')}
                                         >
-                                            {showPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                            {showPassword ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
                                         </button>
                                     </div>
                                 </div>
@@ -674,10 +676,11 @@ export default function Login() {
                             <form onSubmit={handleRegister} className="auth-form">
                                 <div className="login-form-grid">
                                     <div className="form-group">
-                                        <label className="form-label">{t('pages.login.username')}</label>
+                                        <label className="form-label" htmlFor="register-username">{t('pages.login.username')}</label>
                                         <div className="input-icon-wrapper">
-                                            <HiOutlineUser className="input-icon" />
+                                            <HiOutlineUser className="input-icon" aria-hidden="true" />
                                             <input
+                                                id="register-username"
                                                 type="text"
                                                 className="form-input input-with-icon"
                                                 placeholder={t('pages.login.registerUsernamePlaceholder')}
@@ -693,10 +696,11 @@ export default function Login() {
                                         </div>
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">{t('pages.login.email')}</label>
+                                        <label className="form-label" htmlFor="register-email">{t('pages.login.email')}</label>
                                         <div className="input-icon-wrapper">
-                                            <HiOutlineEnvelope className="input-icon" />
+                                            <HiOutlineEnvelope className="input-icon" aria-hidden="true" />
                                             <input
+                                                id="register-email"
                                                 type="email"
                                                 className="form-input input-with-icon"
                                                 placeholder={t('pages.login.registerEmailPlaceholder')}
@@ -713,10 +717,11 @@ export default function Login() {
                                 </div>
                                 <div className="login-form-grid">
                                     <div className="form-group">
-                                        <label className="form-label">{t('pages.login.password')}</label>
+                                        <label className="form-label" htmlFor="register-password">{t('pages.login.password')}</label>
                                         <div className="input-icon-wrapper">
-                                            <HiOutlineLockClosed className="input-icon" />
+                                            <HiOutlineLockClosed className="input-icon" aria-hidden="true" />
                                             <input
+                                                id="register-password"
                                                 type={showRegPassword ? 'text' : 'password'}
                                                 className="form-input input-with-icon input-with-trailing-action"
                                                 placeholder={t('pages.login.registerPasswordPlaceholder')}
@@ -729,19 +734,20 @@ export default function Login() {
                                                 type="button"
                                                 className="input-trailing-action-btn"
                                                 onClick={() => setShowRegPassword((prev) => !prev)}
-                                                tabIndex={-1}
+                                                aria-pressed={showRegPassword}
                                                 aria-label={showRegPassword ? t('comp.common.hidePassword') : t('comp.common.showPassword')}
                                             >
-                                                {showRegPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                                {showRegPassword ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
                                             </button>
                                         </div>
                                         <PasswordStrengthMeter password={regPassword} locale={locale} />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">{t('pages.login.confirmPassword')}</label>
+                                        <label className="form-label" htmlFor="register-confirm">{t('pages.login.confirmPassword')}</label>
                                         <div className="input-icon-wrapper">
-                                            <HiOutlineLockClosed className="input-icon" />
+                                            <HiOutlineLockClosed className="input-icon" aria-hidden="true" />
                                             <input
+                                                id="register-confirm"
                                                 type={showRegConfirm ? 'text' : 'password'}
                                                 className="form-input input-with-icon input-with-trailing-action"
                                                 placeholder={t('pages.login.confirmPasswordPlaceholder')}
@@ -754,10 +760,10 @@ export default function Login() {
                                                 type="button"
                                                 className="input-trailing-action-btn"
                                                 onClick={() => setShowRegConfirm((prev) => !prev)}
-                                                tabIndex={-1}
+                                                aria-pressed={showRegConfirm}
                                                 aria-label={showRegConfirm ? t('comp.common.hidePassword') : t('comp.common.showPassword')}
                                             >
-                                                {showRegConfirm ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                                {showRegConfirm ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
                                             </button>
                                         </div>
                                         {regConfirm && regPassword !== regConfirm && (
@@ -768,10 +774,11 @@ export default function Login() {
                                 <p className="text-muted text-xs -mt-1 mb-3">{passwordPolicyHint}</p>
                                 {inviteOnlyEnabled && (
                                     <div className="form-group">
-                                        <label className="form-label">{t('pages.login.inviteCode')}</label>
+                                        <label className="form-label" htmlFor="register-invite-code">{t('pages.login.inviteCode')}</label>
                                         <div className="input-icon-wrapper">
-                                            <HiOutlineShieldCheck className="input-icon" />
+                                            <HiOutlineShieldCheck className="input-icon" aria-hidden="true" />
                                             <input
+                                                id="register-invite-code"
                                                 type="text"
                                                 className="form-input input-with-icon"
                                                 placeholder={t('pages.login.inviteCodePlaceholder')}
@@ -807,8 +814,9 @@ export default function Login() {
                                     </p>
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">{t('pages.login.verifyCode')}</label>
+                                    <label className="form-label" htmlFor="verify-email-code">{t('pages.login.verifyCode')}</label>
                                     <input
+                                        id="verify-email-code"
                                         type="text"
                                         className="form-input verify-code-input"
                                         placeholder={t('pages.login.verifyCodePlaceholder')}
@@ -863,10 +871,11 @@ export default function Login() {
                                 </div>
 
                                 <div className="form-group">
-                                    <label className="form-label">{t('pages.login.email')}</label>
+                                    <label className="form-label" htmlFor="reset-email">{t('pages.login.email')}</label>
                                     <div className="input-icon-wrapper">
-                                        <HiOutlineEnvelope className="input-icon" />
+                                        <HiOutlineEnvelope className="input-icon" aria-hidden="true" />
                                         <input
+                                            id="reset-email"
                                             type="email"
                                             className="form-input input-with-icon"
                                             placeholder={t('pages.login.resetEmailPlaceholder')}
@@ -882,9 +891,10 @@ export default function Login() {
                                 </div>
 
                                 <div className="form-group">
-                                    <label className="form-label">{t('pages.login.verifyCode')}</label>
+                                    <label className="form-label" htmlFor="reset-verify-code">{t('pages.login.verifyCode')}</label>
                                     <div className="verify-code-row">
                                         <input
+                                            id="reset-verify-code"
                                             type="text"
                                             className="form-input verify-code-input"
                                             placeholder={t('pages.login.resetCodePlaceholder')}
@@ -909,10 +919,11 @@ export default function Login() {
 
                                 <div className="login-form-grid">
                                     <div className="form-group">
-                                        <label className="form-label">{t('pages.login.newPassword')}</label>
+                                        <label className="form-label" htmlFor="reset-new-password">{t('pages.login.newPassword')}</label>
                                         <div className="input-icon-wrapper">
-                                            <HiOutlineLockClosed className="input-icon" />
+                                            <HiOutlineLockClosed className="input-icon" aria-hidden="true" />
                                             <input
+                                                id="reset-new-password"
                                                 type={showResetPassword ? 'text' : 'password'}
                                                 className="form-input input-with-icon input-with-trailing-action"
                                                 placeholder={t('pages.login.resetPasswordPlaceholder')}
@@ -925,19 +936,20 @@ export default function Login() {
                                                 type="button"
                                                 className="input-trailing-action-btn"
                                                 onClick={() => setShowResetPassword((prev) => !prev)}
-                                                tabIndex={-1}
+                                                aria-pressed={showResetPassword}
                                                 aria-label={showResetPassword ? t('comp.common.hidePassword') : t('comp.common.showPassword')}
                                             >
-                                                {showResetPassword ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                                {showResetPassword ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
                                             </button>
                                         </div>
                                         <PasswordStrengthMeter password={resetPassword} locale={locale} />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">{t('pages.login.confirmPassword')}</label>
+                                        <label className="form-label" htmlFor="reset-confirm-password">{t('pages.login.confirmPassword')}</label>
                                         <div className="input-icon-wrapper">
-                                            <HiOutlineLockClosed className="input-icon" />
+                                            <HiOutlineLockClosed className="input-icon" aria-hidden="true" />
                                             <input
+                                                id="reset-confirm-password"
                                                 type={showResetConfirm ? 'text' : 'password'}
                                                 className="form-input input-with-icon input-with-trailing-action"
                                                 placeholder={t('pages.login.resetConfirmPlaceholder')}
@@ -950,10 +962,10 @@ export default function Login() {
                                                 type="button"
                                                 className="input-trailing-action-btn"
                                                 onClick={() => setShowResetConfirm((prev) => !prev)}
-                                                tabIndex={-1}
+                                                aria-pressed={showResetConfirm}
                                                 aria-label={showResetConfirm ? t('comp.common.hidePassword') : t('comp.common.showPassword')}
                                             >
-                                                {showResetConfirm ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                                {showResetConfirm ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
                                             </button>
                                         </div>
                                         {resetConfirm && resetPassword !== resetConfirm && (

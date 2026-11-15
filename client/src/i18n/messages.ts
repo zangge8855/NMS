@@ -30,6 +30,7 @@ const messages = {
       menu: '菜单',
       primaryNavigation: '主导航',
       mobileNavigation: '移动导航',
+      skipToContent: '跳转到主要内容',
     },
     nav: {
       monitor: '监控',
@@ -1188,6 +1189,7 @@ const messages = {
         close: '关闭',
         prevPage: '上一页',
         nextPage: '下一页',
+        dataTable: '数据表格',
         totalCount: '共 {count} 条',
         pageSize: '每页',
         jumpTo: '跳转',
@@ -1967,6 +1969,7 @@ const messages = {
       menu: 'Menu',
       primaryNavigation: 'Primary navigation',
       mobileNavigation: 'Mobile navigation',
+      skipToContent: 'Skip to main content',
     },
     nav: {
       monitor: 'Monitor',
@@ -3125,6 +3128,7 @@ const messages = {
         close: 'Close',
         prevPage: 'Prev',
         nextPage: 'Next',
+        dataTable: 'Data table',
         totalCount: 'Total {count}',
         pageSize: 'Page Size',
         jumpTo: 'Go',

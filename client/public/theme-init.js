@@ -19,8 +19,16 @@
   }
   var systemLight = !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches);
   var theme = stored === 'auto' ? (systemLight ? 'light' : 'dark') : stored;
+  var metaScheme = document.querySelector('meta[name="color-scheme"]');
+  if (metaScheme) {
+    metaScheme.setAttribute('content', stored === 'auto' ? 'light dark' : stored);
+  }
   root.dataset.theme = theme;
   root.dataset.themeMode = stored;
-  root.style.colorScheme = theme;
+  if (stored === 'auto') {
+    root.style.removeProperty('color-scheme');
+  } else {
+    root.style.colorScheme = stored;
+  }
   root.style.backgroundColor = theme === 'light' ? '#f3f4f7' : '#0d1016';
 })();

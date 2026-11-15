@@ -1650,6 +1650,7 @@ export default function Inbounds() {
                                                                 onBlur={() => handleInboundOrderCommit(ib)}
                                                                 onKeyDown={(event) => {
                                                                     if (event.key === 'Enter') {
+                                                                        if (event.nativeEvent?.isComposing || event.keyCode === 229) return;
                                                                         event.preventDefault();
                                                                         handleInboundOrderCommit(ib);
                                                                     }

@@ -451,6 +451,7 @@ export default function CommandPalette() {
             e.preventDefault();
             setHighlightedIndex((prev) => (prev - 1 + filteredItems.length) % filteredItems.length);
         } else if (e.key === 'Enter') {
+            if (e.nativeEvent?.isComposing || e.keyCode === 229) return;
             e.preventDefault();
             const selected = filteredItems[highlightedIndex];
             if (selected) {

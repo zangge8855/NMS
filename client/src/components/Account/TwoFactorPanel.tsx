@@ -206,13 +206,18 @@ export default function TwoFactorPanel({ locale = 'zh-CN' }: TwoFactorPanelProps
                                 onChange={(e) => setDisablePassword(e.target.value)}
                                 disabled={busy}
                                 autoComplete="current-password"
-                                onKeyDown={(e) => { if (e.key === 'Enter' && disablePassword) confirmDisable(); }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        if (e.nativeEvent?.isComposing || e.keyCode === 229) return;
+                                        if (disablePassword) confirmDisable();
+                                    }
+                                }}
                             />
                             <button
                                 type="button"
                                 className="input-trailing-action-btn"
                                 onClick={() => setShowDisablePassword((prev) => !prev)}
-                                tabIndex={-1}
+                                aria-pressed={showDisablePassword}
                                 aria-label={locale === 'en-US'
                                     ? (showDisablePassword ? 'Hide password' : 'Show password')
                                     : (showDisablePassword ? '隐藏密码' : '显示密码')}
@@ -271,7 +276,12 @@ export default function TwoFactorPanel({ locale = 'zh-CN' }: TwoFactorPanelProps
                             autoComplete="one-time-code"
                             autoFocus
                             onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, ''))}
-                            onKeyDown={(e) => { if (e.key === 'Enter' && code.length === 6) confirmEnable(); }}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    if (e.nativeEvent?.isComposing || e.keyCode === 229) return;
+                                    if (code.length === 6) confirmEnable();
+                                }
+                            }}
                         />
                     </div>
                     <div className="account-twofactor-actions">

@@ -1,6 +1,7 @@
 import React, { type ReactNode } from 'react';
 import SkeletonTable from './SkeletonTable';
 import EmptyState, { type EmptyStateProps } from './EmptyState';
+import { useI18n } from '../../contexts/LanguageContext';
 
 export interface TableProps {
     loading?: boolean;
@@ -14,6 +15,8 @@ export interface TableProps {
     headers?: ReactNode[] | ReactNode;
     children?: ReactNode;
     tableContainer?: boolean;
+    ariaLabel?: string;
+    ariaLabelledBy?: string;
 }
 
 export default function Table({
@@ -28,7 +31,10 @@ export default function Table({
     headers = null,
     children,
     tableContainer = true,
+    ariaLabel,
+    ariaLabelledBy,
 }: TableProps) {
+    const { t } = useI18n();
     const containerClasses = [
         tableContainer ? 'table-container' : '',
         className,
@@ -50,8 +56,16 @@ export default function Table({
         );
     }
 
+    const resolvedAriaLabel = ariaLabelledBy ? undefined : (ariaLabel || t('comp.common.dataTable'));
+
     return (
-        <div className={containerClasses}>
+        <div
+            className={containerClasses}
+            tabIndex={tableContainer ? 0 : undefined}
+            role={tableContainer ? 'region' : undefined}
+            aria-label={tableContainer ? resolvedAriaLabel : undefined}
+            aria-labelledby={tableContainer ? ariaLabelledBy : undefined}
+        >
             <table className={`table ${tableClassName}`}>
                 {headers && (
                     <thead>
@@ -59,9 +73,13 @@ export default function Table({
                             <tr>
                                 {headers.map((header, index) => {
                                     if (React.isValidElement(header)) {
-                                        return React.cloneElement(header, { key: header.key || index });
+                                        const headerProps = header.props as { scope?: string };
+                                        return React.cloneElement(header as React.ReactElement<any>, {
+                                            key: header.key || index,
+                                            scope: headerProps.scope ?? 'col',
+                                        });
                                     }
-                                    return <th key={index}>{header}</th>;
+                                    return <th key={index} scope="col">{header}</th>;
                                 })}
                             </tr>
                         ) : (

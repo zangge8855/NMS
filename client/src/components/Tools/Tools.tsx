@@ -1084,9 +1084,10 @@ export default function Tools() {
                                     </div>
                                 )}
                                 <div className="form-group">
-                                    <label className="form-label font-semibold">{copy.ssl.tokenLabel}</label>
+                                    <label className="form-label font-semibold" htmlFor="tools-cf-token">{copy.ssl.tokenLabel}</label>
                                     <div className="input-icon-wrapper">
                                         <input
+                                            id="tools-cf-token"
                                             type={showCfToken ? 'text' : 'password'}
                                             className="form-input input-with-trailing-action"
                                             placeholder={copy.ssl.tokenPlaceholder}
@@ -1099,18 +1100,19 @@ export default function Tools() {
                                             type="button"
                                             className="input-trailing-action-btn"
                                             onClick={() => setShowCfToken((prev) => !prev)}
-                                            tabIndex={-1}
+                                            aria-pressed={showCfToken}
                                             aria-label={locale === 'en-US'
                                                 ? (showCfToken ? 'Hide token' : 'Show token')
                                                 : (showCfToken ? '隐藏 Token' : '显示 Token')}
                                         >
-                                            {showCfToken ? <HiOutlineEyeSlash /> : <HiOutlineEye />}
+                                            {showCfToken ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
                                         </button>
                                     </div>
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label font-semibold">{copy.ssl.emailLabel}</label>
+                                    <label className="form-label font-semibold" htmlFor="tools-cf-email">{copy.ssl.emailLabel}</label>
                                     <input
+                                        id="tools-cf-email"
                                         type="email"
                                         className="form-input"
                                         placeholder={copy.ssl.emailPlaceholder || 'admin@example.com'}
@@ -1325,10 +1327,16 @@ export default function Tools() {
                             <input
                                 type="text"
                                 className="form-input flex-1 min-w-0 font-mono text-sm"
+                                aria-label={copy.ip.title}
                                 placeholder={copy.ip.inputPlaceholder}
                                 value={queryIp}
                                 onChange={(e) => setQueryIp(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleIpLookup()}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        if (e.nativeEvent?.isComposing || e.keyCode === 229) return;
+                                        handleIpLookup();
+                                    }
+                                }}
                             />
                             <button
                                 type="button"
