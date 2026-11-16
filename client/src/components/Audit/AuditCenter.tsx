@@ -881,14 +881,14 @@ function normalizeAuditStatus(value) {
 function formatAuditStatusLabel(value, locale = 'zh-CN') {
     const copy = getAuditCopy(locale);
     const normalized = normalizeAuditStatus(value);
-    if (!normalized) return '-';
+    if (!normalized) return '—';
     if (normalized === 'success') return copy.filters.success;
     if (normalized === 'failed') return copy.filters.failed;
     if (normalized === 'denied') return copy.filters.denied;
     if (normalized === 'revoked') return copy.filters.revoked;
     if (normalized === 'expired') return copy.filters.expired;
     if (normalized === 'info') return copy.filters.info;
-    return String(value || '-');
+    return String(value || '—');
 }
 
 function trendLabel(value, granularity, locale = 'zh-CN') {
@@ -911,7 +911,7 @@ function formatTrafficUserLabel(item) {
     const username = String(item?.username || '').trim();
     const email = String(item?.email || '').trim();
     if (username && email) return `${username} · ${email}`;
-    return username || email || '-';
+    return username || email || '—';
 }
 
 function formatTrafficUserSelectLabel(item) {
@@ -970,13 +970,13 @@ function formatAccessUserMeta(item, copy) {
 function formatAuditEventLabel(item, locale = 'zh-CN') {
     const normalizedLocale = locale === 'en-US' ? 'en-US' : 'zh-CN';
     const eventType = String(item?.eventType || '').trim();
-    return AUDIT_EVENT_LABELS[normalizedLocale][eventType] || eventType || '-';
+    return AUDIT_EVENT_LABELS[normalizedLocale][eventType] || eventType || '—';
 }
 
 function formatAuditActorLabel(item, locale = 'zh-CN') {
     const copy = getAuditCopy(locale);
     const actor = String(item?.actor || '').trim();
-    if (!actor) return '-';
+    if (!actor) return '—';
     if (actor !== 'anonymous') return actor;
 
     const actorSource = String(item?.actorSource || '').trim();
@@ -1012,7 +1012,7 @@ function resolveAuditTarget(item) {
         || item?.details?.email
         || item?.details?.subscriptionEmail
         || item?.details?.username
-        || '-';
+        || '—';
 }
 
 function formatAuditLocationCarrier(item) {
@@ -1029,7 +1029,7 @@ function formatAuditIp(value, locale = 'zh-CN', isMasked = false) {
         return MASKED_AUDIT_IP_PATTERN.test(text) ? copy.states.redactedIp : text;
     }
     if (isMasked) return copy.states.redactedIp;
-    return '-';
+    return '—';
 }
 
 function formatAuditUserAgent(value, locale = 'zh-CN', isMasked = false) {
@@ -1039,7 +1039,7 @@ function formatAuditUserAgent(value, locale = 'zh-CN', isMasked = false) {
         return MASKED_AUDIT_UA_PATTERN.test(text) ? copy.states.redactedUa : text;
     }
     if (isMasked) return copy.states.redactedUa;
-    return '-';
+    return '—';
 }
 
 function sanitizeAuditDetailPayload(payload, locale = 'zh-CN') {
@@ -1066,7 +1066,7 @@ function buildAuditSourceSummary(item, locale = 'zh-CN') {
     const ip = formatAuditIp(item?.ip, locale, item?.ipMasked === true);
     const locationCarrier = formatAuditLocationCarrier(item);
 
-    if (ip && ip !== '-') parts.push(ip);
+    if (ip && ip !== '—') parts.push(ip);
     if (locationCarrier) parts.push(locationCarrier);
 
     return parts.join(' · ');
@@ -1103,7 +1103,7 @@ function AuditEventsMobileList({ items = [], copy, locale, onSelect, resolveServ
                             </div>
                         <div className="audit-mobile-card-item">
                             <span className="audit-mobile-card-label">{copy.tables.node}</span>
-                            <span className="audit-mobile-card-value">{resolveServerName(item.serverId) || '-'}</span>
+                            <span className="audit-mobile-card-value">{resolveServerName(item.serverId) || '—'}</span>
                         </div>
                             <div className="audit-mobile-card-item audit-mobile-card-item--full">
                                 <span className="audit-mobile-card-label">{copy.tables.user}</span>
@@ -1946,10 +1946,6 @@ export default function AuditCenter() {
             icon: HiOutlineCommandLine,
         },
     ]), [copy]);
-    const activeAuditTab = useMemo(
-        () => auditTabs.find((item) => item.id === tab) || auditTabs[0] || null,
-        [auditTabs, tab]
-    );
     const currentTabBusy = (
         (tab === 'events' && eventsLoading)
         || (tab === 'traffic' && trafficLoading)
@@ -1971,15 +1967,11 @@ export default function AuditCenter() {
                 <div className="audit-shell">
                     <div className="card audit-nav">
                         <div className="audit-nav-topbar">
-                            <div className="audit-nav-label">{copy.workspace.navLabel}</div>
                             <div className={`audit-nav-status-chip${currentTabBusy ? ' is-loading' : ' is-ready'}`}>
                                 {currentTabBusy ? <span className="spinner spinner-16" /> : null}
                                 <span>{currentTabBusy ? copy.workspace.loading : copy.workspace.ready}</span>
                             </div>
                         </div>
-                        {activeAuditTab?.summary ? (
-                            <div className="audit-nav-summary">{activeAuditTab.summary}</div>
-                        ) : null}
                         <div className="tabs audit-tabs" role="tablist" aria-label={copy.workspace.navLabel}>
                             {auditTabs.map((item) => {
                                 const Icon = item.icon;
@@ -2041,16 +2033,13 @@ export default function AuditCenter() {
                                         </div>
                                     </div>
                                 </div>
-                                <div className="audit-control-meta audit-control-meta--compact">
-                                    <span className="audit-control-pill">
-                                        {copy.states.total.replace('{count}', String(eventsData.total || 0))}
-                                    </span>
-                                    <span className={`audit-control-pill ${activeEventFilterCount > 0 ? 'is-active' : ''}`}>
-                                        {activeEventFilterCount > 0
-                                            ? copy.workspace.filtersActive.replace('{count}', String(activeEventFilterCount))
-                                            : copy.workspace.noFilters}
-                                    </span>
-                                </div>
+                                {activeEventFilterCount > 0 ? (
+                                    <div className="audit-control-meta audit-control-meta--compact">
+                                        <span className="audit-control-pill is-active">
+                                            {copy.workspace.filtersActive.replace('{count}', String(activeEventFilterCount))}
+                                        </span>
+                                    </div>
+                                ) : null}
                                 <div className="audit-filter-stack">
                                     <div className="audit-filter-grid audit-filter-grid--events-primary">
                                         <label className="audit-filter-field">
@@ -2194,9 +2183,9 @@ export default function AuditCenter() {
                                                     <td
                                                         data-label={copy.tables.node}
                                                         className="table-cell-center audit-event-node-cell"
-                                                        title={item.serverId || '-'}
+                                                        title={item.serverId || '—'}
                                                     >
-                                                        {resolveServerName(item.serverId) || '-'}
+                                                        {resolveServerName(item.serverId) || '—'}
                                                     </td>
                                                     <td data-label={copy.tables.user}>
                                                         <div className="audit-event-target">
@@ -2526,7 +2515,7 @@ export default function AuditCenter() {
                                                 <div className="audit-inbound-breakdown-item" key={`${item.serverId || 'server'}-${item.inboundId || item.inboundRemark || 'inbound'}`}>
                                                     <div className="audit-inbound-breakdown-item-head">
                                                         <div>
-                                                            <div className="audit-inbound-breakdown-item-node">{item.serverName || item.serverId || '-'}</div>
+                                                            <div className="audit-inbound-breakdown-item-node">{item.serverName || item.serverId || '—'}</div>
                                                             <div className="audit-inbound-breakdown-item-inbound">{formatInboundBreakdownLabel(item, copy)}</div>
                                                         </div>
                                                         <div className="audit-inbound-breakdown-item-total">{formatBytes(item.totalBytes || 0)}</div>
@@ -2571,7 +2560,7 @@ export default function AuditCenter() {
                                                         <tr key={`${item.serverId || 'server'}-${item.inboundId || item.inboundRemark || 'inbound'}`}>
                                                             <td data-label={copy.tables.node}>
                                                                 <div className="audit-inbound-node-cell">
-                                                                    <span>{item.serverName || item.serverId || '-'}</span>
+                                                                    <span>{item.serverName || item.serverId || '—'}</span>
                                                                     {item.serverId ? <span>{item.serverId}</span> : null}
                                                                 </div>
                                                             </td>
@@ -2707,7 +2696,7 @@ export default function AuditCenter() {
                                                         <td data-label={copy.tables.node} className="audit-leaderboard-label-cell">
                                                             <div className="flex items-center">
                                                                 <span className="audit-rank-badge" data-rank={index + 1}>{index + 1}</span>
-                                                                <span className="truncate">{item.serverName || item.serverId || '-'}</span>
+                                                                <span className="truncate">{item.serverName || item.serverId || '—'}</span>
                                                             </div>
                                                         </td>
                                                         <td data-label={leaderboardTrendLabel} className="audit-leaderboard-trend-cell">
@@ -2783,16 +2772,13 @@ export default function AuditCenter() {
                                     </div>
                                 </div>
                             </div>
-                            <div className="audit-control-meta audit-control-meta--compact">
-                                <span className="audit-control-pill">
-                                    {copy.states.total.replace('{count}', String(accessData.total || 0))}
-                                </span>
-                                <span className={`audit-control-pill ${activeAccessFilterCount > 0 ? 'is-active' : ''}`}>
-                                    {activeAccessFilterCount > 0
-                                        ? copy.workspace.filtersActive.replace('{count}', String(activeAccessFilterCount))
-                                        : copy.workspace.noFilters}
-                                </span>
-                            </div>
+                            {activeAccessFilterCount > 0 ? (
+                                <div className="audit-control-meta audit-control-meta--compact">
+                                    <span className="audit-control-pill is-active">
+                                        {copy.workspace.filtersActive.replace('{count}', String(activeAccessFilterCount))}
+                                    </span>
+                                </div>
+                            ) : null}
                             <div className="audit-filter-grid audit-filter-grid--subscriptions">
                                 <label className="audit-filter-field">
                                     <span className="audit-filter-field-label">{copy.filters.fromDate}</span>
@@ -3057,7 +3043,7 @@ export default function AuditCenter() {
                                         <span>{resolveServerName(selectedEvent.serverId) || selectedEvent.serverId}</span>
                                     </div>
                                 )}
-                                {resolveAuditTarget(selectedEvent) !== '-' && (
+                                {resolveAuditTarget(selectedEvent) !== '—' && (
                                     <div>
                                         <span className="text-muted">{copy.detail.targetUser}: </span>
                                         <span>{resolveAuditTarget(selectedEvent)}</span>

@@ -417,7 +417,7 @@ a:hover {
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
   font-size: 16px;
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
   letter-spacing: 0.35em;
   text-align: center;
 }
@@ -2400,7 +2400,7 @@ input[type="radio"]:focus {
 .table .cell-number,
 .table .cell-mono-right {
   font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
 }
 
 .table .cell-mono-right {
@@ -7772,7 +7772,7 @@ body::before {
   gap: 2px;
   width: fit-content;
   margin-left: auto;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
   line-height: 1.35;
 }
 
@@ -8711,7 +8711,7 @@ body::before {
   letter-spacing: -0.04em;
   font-weight: 700;
   color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
   text-align: left;
 }
 
@@ -8867,7 +8867,7 @@ body::before {
   font-size: 19px;
   font-weight: 700;
   color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
   text-align: left;
 }
 
@@ -15249,10 +15249,6 @@ input[type="radio"]:focus-visible {
     width: 100%;
   }
 
-  .subscription-user-step {
-    padding: 14px;
-  }
-
   .subscription-admin-focus {
     flex-direction: column;
   }
@@ -17002,7 +16998,7 @@ input[type="radio"]:focus-visible {
 
 .verify-code-input {
   font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
   font-size: 16px !important;
   letter-spacing: 0.2em;
   text-align: center;
@@ -17302,51 +17298,55 @@ input[type="radio"]:focus-visible {
   -webkit-backdrop-filter: none !important;
 }
 
+/* Nested surfaces step down by tone; they do not float. */
 [data-theme="light"] :is(.card .card, .modal .card, .settings-mini-card) {
-  box-shadow: 0 4px 6px -1px rgba(226, 232, 240, 0.24), 0 2px 4px -1px rgba(226, 232, 240, 0.14) !important;
-  background: linear-gradient(180deg, rgba(248, 250, 252, 0.98) 0%, rgba(241, 245, 249, 0.98) 100%) !important;
-  border-color: rgba(148, 163, 184, 0.15) !important;
+  box-shadow: none !important;
+  background: var(--ink-raised) !important;
+  border-color: var(--border-color) !important;
 }
 
+/* The log pane is ink in both themes, so it carries the dark palette locally. */
 .log-pane,
 [data-theme="light"] .log-pane {
-  --text-primary: #f1f5f9;
-  --text-secondary: #cbd5e1;
-  --text-muted: #94a3b8;
-  --accent-info: #60a5fa;
-  --accent-info-bg: rgba(96, 165, 250, 0.14);
-  --accent-success: #34d399;
-  --accent-warning: #fbbf24;
-  --accent-danger: #f87171;
-  --surface-soft: rgba(255, 255, 255, 0.08);
-  background: #050505 !important;
+  --text-primary: #e3edf2;
+  --text-secondary: #c9d6de;
+  --text-muted: #90a1ad;
+  --accent-primary: #62d8c6;
+  --accent-info: #86beee;
+  --accent-info-bg: rgba(134, 190, 238, 0.11);
+  --accent-success: #86d391;
+  --accent-warning: #f0be67;
+  --accent-danger: #ee857e;
+  --surface-soft: rgba(150, 190, 214, 0.07);
+  --border-color: rgba(150, 190, 214, 0.16);
+  background: var(--log-bg) !important;
   color: var(--text-secondary);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  border: 1px solid rgba(150, 190, 214, 0.14);
 }
 
 [data-theme="light"] .log-pane .log-line-index {
-  color: #94a3b8;
+  color: var(--text-muted);
 }
 
 [data-theme="light"] .log-line {
-  color: rgba(229, 231, 235, 0.92);
+  color: var(--log-text);
 }
 
 [data-theme="light"] .log-line:hover {
-  background: rgba(255, 255, 255, 0.04) !important;
+  background: rgba(150, 190, 214, 0.05) !important;
 }
 
 [data-theme="light"] .log-line[data-level="error"] {
-  color: #fca5a5;
+  color: var(--accent-danger);
 }
 
 [data-theme="light"] .log-line[data-level="warning"] {
-  color: #fbbf24;
+  color: var(--accent-warning);
 }
 
 [data-theme="light"] .log-mark {
-  background: rgba(250, 204, 21, 0.22);
-  color: #fef08a;
+  background: rgba(98, 216, 198, 0.22);
+  color: var(--text-primary);
 }
 
 .table td {
@@ -17360,7 +17360,7 @@ input[type="radio"]:focus-visible {
 
 .table td .font-mono,
 .table td code {
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
 }
 
 .login-bg-glow {
@@ -18256,7 +18256,7 @@ textarea {
 .audit-inbound-breakdown-item-total {
   font-weight: 700;
   color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
   white-space: nowrap;
 }
 
@@ -18360,7 +18360,7 @@ textarea {
   color: var(--text-secondary);
   font-size: 12px;
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
 }
 
 .audit-rank-badge[data-rank="1"] {
@@ -18468,7 +18468,7 @@ textarea {
 .audit-protocol-chart-share {
   color: var(--text-secondary);
   font-size: 12px;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
   white-space: nowrap;
 }
 

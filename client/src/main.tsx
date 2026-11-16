@@ -20,6 +20,7 @@ import './styles/modules.css';
 import './styles/subscription-center.css';
 import './styles/theme.css';
 import './styles/polish.css';
+import './styles/identity.css';
 import { buildSiteAssetPath, resolveSiteBasePath } from './utils/sitePath';
 
 // Gracefully handle dynamic import chunk failures after new deployments

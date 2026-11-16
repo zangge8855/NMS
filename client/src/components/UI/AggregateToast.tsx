@@ -124,7 +124,7 @@ export default function AggregateToast({
                             {failures.map((item) => (
                                 <div key={`${item.id}-${item.message}`} className="aggregate-toast-detail-row">
                                     <span className="aggregate-toast-detail-name">{item.label || item.id}</span>
-                                    <span className="aggregate-toast-detail-message">{item.message || '-'}</span>
+                                    <span className="aggregate-toast-detail-message">{item.message || '—'}</span>
                                 </div>
                             ))}
                         </div>

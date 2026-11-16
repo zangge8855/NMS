@@ -12,7 +12,7 @@ export interface InboundRemarkPillProps {
 }
 
 export default function InboundRemarkPill({ remark, protocol, className = '', title }: InboundRemarkPillProps) {
-    const text = String(remark || '').trim() || '-';
+    const text = String(remark || '').trim() || '—';
     const tone = resolveInboundRemarkTone(protocol);
     const classes = ['badge', 'badge-neutral', 'inbound-remark-pill', tone, className].filter(Boolean).join(' ');
 

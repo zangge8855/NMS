@@ -49,7 +49,7 @@ const CAPABILITIES_UI_ACTION_EN_MAP: Record<string, string> = {
 
 function localizeUiActionLabel(label: unknown, locale = 'zh-CN'): string {
     const text = String(label || '').trim();
-    if (!text) return '-';
+    if (!text) return '—';
     if (locale === 'en-US') {
         return CAPABILITIES_UI_ACTION_EN_MAP[text] || text;
     }
@@ -80,7 +80,7 @@ function getCapabilitiesCopy(locale = 'zh-CN') {
             refresh: 'Refresh',
             toolbarSummary: (protocolCount: number, toolCount: number) => `Protocols ${protocolCount} · Tools ${toolCount}`,
             selectServerTitle: 'Select a server first',
-            selectServerSubtitle: 'Open a specific server from Server Management to view node capabilities.',
+            selectServerSubtitle: 'Pick a node below to see the protocols and features it supports.',
             goToServers: 'Open Servers',
             loadingTitle: 'Loading...',
             noDataTitle: 'No capability data yet',
@@ -151,7 +151,7 @@ function getCapabilitiesCopy(locale = 'zh-CN') {
         refresh: '刷新',
         toolbarSummary: (protocolCount: number, toolCount: number) => `协议 ${protocolCount} · 工具 ${toolCount}`,
         selectServerTitle: '请先选择一台服务器',
-        selectServerSubtitle: '请从服务器管理进入某台服务器详情后查看节点能力。',
+        selectServerSubtitle: '在下方选择节点，查看它支持的协议与功能。',
         goToServers: '前往服务器管理',
         loadingTitle: '加载中...',
         noDataTitle: '暂无能力数据',
@@ -304,7 +304,7 @@ function renderAlignmentStatus(value: string | undefined, copy: ReturnType<typeo
 function renderProbeSource(source: string | undefined, copy: ReturnType<typeof getCapabilitiesCopy>) {
     if (source === 'probed') return copy.source.probed;
     if (source === 'unprobed') return copy.source.unprobed;
-    return source || '-';
+    return source || '—';
 }
 
 function getModuleIcon(key: string) {
@@ -776,7 +776,7 @@ export default function Capabilities({ serverId = '', embedded = false }: Capabi
                                         <td data-label={copy.matrixColumns.entry} className="table-cell-center capability-entry-cell">
                                             <span className="badge badge-neutral">{localizeUiActionLabel(module.uiActionLabel, locale)}</span>
                                         </td>
-                                        <td data-label={copy.matrixColumns.note} className="text-sm text-muted">{module.note || '-'}</td>
+                                        <td data-label={copy.matrixColumns.note} className="text-sm text-muted">{module.note || '—'}</td>
                                     </tr>
                                 ))}
                             </Table>
@@ -808,7 +808,7 @@ export default function Capabilities({ serverId = '', embedded = false }: Capabi
                                                 {getModuleIcon(tool.key)}
                                                 <div className="flex flex-col gap-1">
                                                     <span className="font-semibold text-sm">{tool.label || tool.key}</span>
-                                                    <span className="text-xs text-muted">{tool.description || '-'}</span>
+                                                    <span className="text-xs text-muted">{tool.description || '—'}</span>
                                                 </div>
                                             </div>
                                         </td>

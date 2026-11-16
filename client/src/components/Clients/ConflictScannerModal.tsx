@@ -39,7 +39,7 @@ function formatExpiry(value, permanentLabel = 'Permanent', locale = 'en-US') {
     const ts = toNumber(value, 0);
     if (!ts) return permanentLabel;
     const date = new Date(ts);
-    if (Number.isNaN(date.getTime())) return '-';
+    if (Number.isNaN(date.getTime())) return '—';
     return date.toLocaleString(locale === 'en-US' ? 'en-US' : 'zh-CN');
 }
 
@@ -297,7 +297,7 @@ export default function ConflictScannerModal({
                                                             {t('comp.clients.protocolEntries', { protocol: String(protocolGroup.protocol || '').toUpperCase(), count: protocolGroup.entryCount })}
                                                         </div>
                                                         <div className="text-xs text-muted">
-                                                            {t('comp.clients.diffFields', { fields: protocolGroup.diffFields.join(', ') || '-' })}
+                                                            {t('comp.clients.diffFields', { fields: protocolGroup.diffFields.join(', ') || '—' })}
                                                         </div>
                                                     </div>
 
@@ -312,7 +312,7 @@ export default function ConflictScannerModal({
                                                         >
                                                             {(protocolGroup.sourceCandidates || []).map((candidate) => (
                                                                 <option key={candidate.sourceKey} value={candidate.sourceKey}>
-                                                                    {candidate.serverName} / {candidate.inboundRemark || '-'} / {candidate.identifier || `(${t('comp.clients.emptyIdentifier')})`}
+                                                                    {candidate.serverName} / {candidate.inboundRemark || '—'} / {candidate.identifier || `(${t('comp.clients.emptyIdentifier')})`}
                                                                 </option>
                                                             ))}
                                                         </select>
@@ -347,7 +347,7 @@ export default function ConflictScannerModal({
                                                                     <td data-label={t('comp.clients.colNode')}>{entry.serverName || entry.serverId}</td>
                                                                     <td data-label={t('comp.clients.colInbound')}>{entry.inboundRemark || entry.inboundId}</td>
                                                                     <td data-label={t('comp.clients.colIdentifier')} className="font-mono text-xs">
-                                                                        {getClientIdentifier(entry) || '-'}
+                                                                        {getClientIdentifier(entry) || '—'}
                                                                     </td>
                                                                     <td data-label={t('comp.clients.colEnabled')} className="table-cell-center conflict-scanner-enabled-cell">
                                                                         <span className={`badge ${entry.enable === false ? 'badge-danger' : 'badge-success'}`}>
@@ -357,7 +357,7 @@ export default function ConflictScannerModal({
                                                                     <td data-label={t('comp.clients.colExpiry')} className="table-cell-center cell-mono conflict-scanner-expiry-cell">{formatExpiry(entry.expiryTime, t('comp.clients.permanent'), locale)}</td>
                                                                     <td data-label={t('comp.clients.colTotal')} className="table-cell-right cell-mono-right conflict-scanner-total-cell">{formatBytes(toNumber(entry.totalGB, 0))}</td>
                                                                     <td data-label={t('comp.clients.colSource')} className="table-cell-center conflict-scanner-source-cell">
-                                                                        {isSource ? <span className="badge badge-info">{t('comp.clients.sourceBadge')}</span> : '-'}
+                                                                        {isSource ? <span className="badge badge-info">{t('comp.clients.sourceBadge')}</span> : '—'}
                                                                     </td>
                                                                 </tr>
                                                             );

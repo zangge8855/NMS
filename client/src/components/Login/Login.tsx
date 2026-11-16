@@ -507,10 +507,6 @@ export default function Login() {
     // ── Render ───────────────────────────────────────────────
     return (
         <div className={`login-page login-page--${mode}`}>
-            <div className="login-bg-glow one" aria-hidden="true" />
-            <div className="login-bg-glow two" aria-hidden="true" />
-            <div className="login-bg-glow three" aria-hidden="true" />
-
             <div className="login-top-actions">
                 <button
                     type="button"
@@ -542,152 +538,63 @@ export default function Login() {
 
             <main className={`login-shell login-shell--${mode}`}>
                 <div className="login-card-column">
-                        <div className={`login-card login-card--${mode}`}>
-                        <div className="login-brand-row">
-                            <img src={logoSrc} alt="NMS" className="login-brand-mark" />
-                            <div className="login-brand-copy">
-                                <span className="login-brand-name">NMS</span>
-                                {t('shell.brandSubtitle') ? (
-                                    <span className="login-brand-subtitle">{t('shell.brandSubtitle')}</span>
-                                ) : null}
-                            </div>
+                    <div className={`login-card login-pass login-card--${mode}`}>
+                        <div className="login-brand-row login-pass-stub">
+                            <img src={logoSrc} alt="" className="login-brand-mark" />
+                            <span className="login-brand-name">NMS</span>
                         </div>
-                        {(!registrationEnabled || (mode !== MODE_LOGIN && mode !== MODE_REGISTER)) && mode !== MODE_VERIFY && mode !== MODE_FORGOT && mode !== MODE_TWO_FACTOR ? (
-                            <div className="login-form-heading">
-                                <h1>{modeTitle}</h1>
-                            </div>
-                        ) : (mode === MODE_LOGIN || mode === MODE_REGISTER) ? (
-                            <h1 className="sr-only">{modeTitle}</h1>
-                        ) : null}
-
-                        {registrationEnabled && (mode === MODE_LOGIN || mode === MODE_REGISTER) && (
-                            <div className="auth-tabs" role="tablist" aria-label={t('pages.login.title')}>
-                                <button
-                                    type="button"
-                                    className={`auth-tab ${mode === MODE_LOGIN ? 'active' : ''}`}
-                                    role="tab"
-                                    aria-selected={mode === MODE_LOGIN}
-                                    onClick={() => switchMode(MODE_LOGIN)}
-                                >
-                                    {t('pages.login.title')}
-                                </button>
-                                <button
-                                    type="button"
-                                    className={`auth-tab ${mode === MODE_REGISTER ? 'active' : ''}`}
-                                    role="tab"
-                                    aria-selected={mode === MODE_REGISTER}
-                                    onClick={() => switchMode(MODE_REGISTER)}
-                                >
-                                    {t('pages.login.registerTitle')}
-                                </button>
-                            </div>
-                        )}
-
-                        {success && <div className="success-alert" role="status" aria-live="polite">{success}</div>}
-                        {error && <div className="error-alert" role="alert" aria-live="assertive">{error}</div>}
-                        {!registrationStatus.loading && !registrationEnabled && mode === MODE_LOGIN && (
-                            <div className="text-xs text-muted mb-3">{t('pages.login.registrationClosed')}</div>
-                        )}
-
-                        {mode === MODE_LOGIN && (
-                            <form onSubmit={handleLogin} className="auth-form">
-                                <div className="form-group">
-                                    <label className="form-label" htmlFor="login-identifier">{t('pages.login.loginIdentifier')}</label>
-                                    <div className="input-icon-wrapper">
-                                        <HiOutlineUser className="input-icon" aria-hidden="true" />
-                                        <input
-                                            id="login-identifier"
-                                            type="text"
-                                            className="form-input input-with-icon"
-                                            placeholder={t('pages.login.loginIdentifierPlaceholder')}
-                                            value={loginIdentifier}
-                                            onChange={(e) => setLoginIdentifier(e.target.value)}
-                                            autoFocus
-                                            disabled={loading}
-                                            autoComplete="username"
-                                            autoCapitalize="none"
-                                            autoCorrect="off"
-                                            spellCheck={false}
-                                        />
-                                    </div>
+                        <div className="login-pass-perf" aria-hidden="true" />
+                        <div className="login-pass-body">
+                            {(!registrationEnabled || (mode !== MODE_LOGIN && mode !== MODE_REGISTER)) && mode !== MODE_VERIFY && mode !== MODE_FORGOT && mode !== MODE_TWO_FACTOR ? (
+                                <div className="login-form-heading">
+                                    <h1>{modeTitle}</h1>
                                 </div>
-                                <div className="form-group">
-                                    <label className="form-label" htmlFor="login-password">{t('pages.login.password')}</label>
-                                    <div className="input-icon-wrapper">
-                                        <HiOutlineLockClosed className="input-icon" aria-hidden="true" />
-                                        <input
-                                            id="login-password"
-                                            type={showPassword ? 'text' : 'password'}
-                                            className="form-input input-with-icon input-with-trailing-action"
-                                            placeholder={t('pages.login.passwordPlaceholder')}
-                                            value={password}
-                                            onChange={(e) => setPassword(e.target.value)}
-                                            disabled={loading}
-                                            autoComplete="current-password"
-                                        />
-                                        <button
-                                            type="button"
-                                            className="input-trailing-action-btn"
-                                            onClick={() => setShowPassword((prev) => !prev)}
-                                            aria-pressed={showPassword}
-                                            aria-label={showPassword ? t('comp.common.hidePassword') : t('comp.common.showPassword')}
-                                        >
-                                            {showPassword ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
-                                        </button>
-                                    </div>
+                            ) : (mode === MODE_LOGIN || mode === MODE_REGISTER) ? (
+                                <h1 className="sr-only">{modeTitle}</h1>
+                            ) : null}
+
+                            {registrationEnabled && (mode === MODE_LOGIN || mode === MODE_REGISTER) && (
+                                <div className="auth-tabs" role="tablist" aria-label={t('pages.login.title')}>
+                                    <button
+                                        type="button"
+                                        className={`auth-tab ${mode === MODE_LOGIN ? 'active' : ''}`}
+                                        role="tab"
+                                        aria-selected={mode === MODE_LOGIN}
+                                        onClick={() => switchMode(MODE_LOGIN)}
+                                    >
+                                        {t('pages.login.title')}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`auth-tab ${mode === MODE_REGISTER ? 'active' : ''}`}
+                                        role="tab"
+                                        aria-selected={mode === MODE_REGISTER}
+                                        onClick={() => switchMode(MODE_REGISTER)}
+                                    >
+                                        {t('pages.login.registerTitle')}
+                                    </button>
                                 </div>
-                                <button
-                                    type="submit"
-                                    className="btn btn-primary w-full h-11 text-sm font-bold tracking-wide"
-                                    disabled={loading || !loginIdentifier.trim() || !password}
-                                >
-                                    {loading ? <span className="spinner" /> : t('pages.login.loginButton')}
-                                </button>
+                            )}
 
-                                <div className="flex items-center gap-3 my-3">
-                                    <div className="flex-1 h-px bg-stroke-soft" />
-                                    <span className="text-xs text-muted font-medium">{locale === 'en-US' ? 'OR' : '或'}</span>
-                                    <div className="flex-1 h-px bg-stroke-soft" />
-                                </div>
+                            {success && <div className="success-alert" role="status" aria-live="polite">{success}</div>}
+                            {error && <div className="error-alert" role="alert" aria-live="assertive">{error}</div>}
+                            {!registrationStatus.loading && !registrationEnabled && mode === MODE_LOGIN && (
+                                <div className="text-xs text-muted mb-3">{t('pages.login.registrationClosed')}</div>
+                            )}
 
-                                <button
-                                    type="button"
-                                    className="btn btn-secondary w-full h-11 text-sm font-semibold flex items-center justify-center gap-2 border-stroke-soft hover:border-primary/40 transition-colors"
-                                    onClick={handlePasskeyLogin}
-                                    disabled={loading}
-                                >
-                                    <HiOutlineFingerPrint className="w-5 h-5 text-primary" />
-                                    <span>{locale === 'en-US' ? 'Sign in with Passkey' : '使用通行密钥 (Passkey) 登录'}</span>
-                                </button>
-
-                                {passwordResetEnabled && (
-                                    <div className="verify-actions">
-                                        <button
-                                            type="button"
-                                            className="btn-link"
-                                            onClick={() => switchMode(MODE_FORGOT)}
-                                        >
-                                            {t('pages.login.toForgot')}
-                                        </button>
-                                    </div>
-                                )}
-                            </form>
-                        )}
-
-                        {mode === MODE_REGISTER && (
-                            <form onSubmit={handleRegister} className="auth-form">
-                                <div className="login-form-grid">
+                            {mode === MODE_LOGIN && (
+                                <form onSubmit={handleLogin} className="auth-form">
                                     <div className="form-group">
-                                        <label className="form-label" htmlFor="register-username">{t('pages.login.username')}</label>
+                                        <label className="form-label" htmlFor="login-identifier">{t('pages.login.loginIdentifier')}</label>
                                         <div className="input-icon-wrapper">
                                             <HiOutlineUser className="input-icon" aria-hidden="true" />
                                             <input
-                                                id="register-username"
+                                                id="login-identifier"
                                                 type="text"
                                                 className="form-input input-with-icon"
-                                                placeholder={t('pages.login.registerUsernamePlaceholder')}
-                                                value={regUsername}
-                                                onChange={(e) => setRegUsername(e.target.value)}
+                                                placeholder={t('pages.login.loginIdentifierPlaceholder')}
+                                                value={loginIdentifier}
+                                                onChange={(e) => setLoginIdentifier(e.target.value)}
                                                 autoFocus
                                                 disabled={loading}
                                                 autoComplete="username"
@@ -698,16 +605,274 @@ export default function Login() {
                                         </div>
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label" htmlFor="register-email">{t('pages.login.email')}</label>
+                                        <div className="login-label-row">
+                                            <label className="form-label" htmlFor="login-password">{t('pages.login.password')}</label>
+                                            {passwordResetEnabled && (
+                                                <button
+                                                    type="button"
+                                                    className="btn-link login-forgot-link"
+                                                    onClick={() => switchMode(MODE_FORGOT)}
+                                                >
+                                                    {t('pages.login.toForgot')}
+                                                </button>
+                                            )}
+                                        </div>
+                                        <div className="input-icon-wrapper">
+                                            <HiOutlineLockClosed className="input-icon" aria-hidden="true" />
+                                            <input
+                                                id="login-password"
+                                                type={showPassword ? 'text' : 'password'}
+                                                className="form-input input-with-icon input-with-trailing-action"
+                                                placeholder={t('pages.login.passwordPlaceholder')}
+                                                value={password}
+                                                onChange={(e) => setPassword(e.target.value)}
+                                                disabled={loading}
+                                                autoComplete="current-password"
+                                            />
+                                            <button
+                                                type="button"
+                                                className="input-trailing-action-btn"
+                                                onClick={() => setShowPassword((prev) => !prev)}
+                                                aria-pressed={showPassword}
+                                                aria-label={showPassword ? t('comp.common.hidePassword') : t('comp.common.showPassword')}
+                                            >
+                                                {showPassword ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="submit"
+                                        className="btn btn-primary w-full h-11 text-sm font-semibold"
+                                        disabled={loading || !loginIdentifier.trim() || !password}
+                                    >
+                                        {loading ? <span className="spinner" /> : t('pages.login.loginButton')}
+                                    </button>
+
+                                    <div className="login-divider">
+                                        <span>{locale === 'en-US' ? 'or' : '或'}</span>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary w-full h-11 text-sm font-medium login-passkey-btn"
+                                        onClick={handlePasskeyLogin}
+                                        disabled={loading}
+                                    >
+                                        <HiOutlineFingerPrint className="w-5 h-5" aria-hidden="true" />
+                                        <span>{locale === 'en-US' ? 'Sign in with a passkey' : '使用通行密钥登录'}</span>
+                                    </button>
+                                </form>
+                            )}
+
+                            {mode === MODE_REGISTER && (
+                                <form onSubmit={handleRegister} className="auth-form">
+                                    <div className="login-form-grid">
+                                        <div className="form-group">
+                                            <label className="form-label" htmlFor="register-username">{t('pages.login.username')}</label>
+                                            <div className="input-icon-wrapper">
+                                                <HiOutlineUser className="input-icon" aria-hidden="true" />
+                                                <input
+                                                    id="register-username"
+                                                    type="text"
+                                                    className="form-input input-with-icon"
+                                                    placeholder={t('pages.login.registerUsernamePlaceholder')}
+                                                    value={regUsername}
+                                                    onChange={(e) => setRegUsername(e.target.value)}
+                                                    autoFocus
+                                                    disabled={loading}
+                                                    autoComplete="username"
+                                                    autoCapitalize="none"
+                                                    autoCorrect="off"
+                                                    spellCheck={false}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label" htmlFor="register-email">{t('pages.login.email')}</label>
+                                            <div className="input-icon-wrapper">
+                                                <HiOutlineEnvelope className="input-icon" aria-hidden="true" />
+                                                <input
+                                                    id="register-email"
+                                                    type="email"
+                                                    className="form-input input-with-icon"
+                                                    placeholder={t('pages.login.registerEmailPlaceholder')}
+                                                    value={regEmail}
+                                                    onChange={(e) => setRegEmail(e.target.value)}
+                                                    disabled={loading}
+                                                    autoComplete="email"
+                                                    autoCapitalize="none"
+                                                    autoCorrect="off"
+                                                    spellCheck={false}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="login-form-grid">
+                                        <div className="form-group">
+                                            <label className="form-label" htmlFor="register-password">{t('pages.login.password')}</label>
+                                            <div className="input-icon-wrapper">
+                                                <HiOutlineLockClosed className="input-icon" aria-hidden="true" />
+                                                <input
+                                                    id="register-password"
+                                                    type={showRegPassword ? 'text' : 'password'}
+                                                    className="form-input input-with-icon input-with-trailing-action"
+                                                    placeholder={t('pages.login.registerPasswordPlaceholder')}
+                                                    value={regPassword}
+                                                    onChange={(e) => setRegPassword(e.target.value)}
+                                                    disabled={loading}
+                                                    autoComplete="new-password"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    className="input-trailing-action-btn"
+                                                    onClick={() => setShowRegPassword((prev) => !prev)}
+                                                    aria-pressed={showRegPassword}
+                                                    aria-label={showRegPassword ? t('comp.common.hidePassword') : t('comp.common.showPassword')}
+                                                >
+                                                    {showRegPassword ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
+                                                </button>
+                                            </div>
+                                            <PasswordStrengthMeter password={regPassword} locale={locale} />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label" htmlFor="register-confirm">{t('pages.login.confirmPassword')}</label>
+                                            <div className="input-icon-wrapper">
+                                                <HiOutlineLockClosed className="input-icon" aria-hidden="true" />
+                                                <input
+                                                    id="register-confirm"
+                                                    type={showRegConfirm ? 'text' : 'password'}
+                                                    className="form-input input-with-icon input-with-trailing-action"
+                                                    placeholder={t('pages.login.confirmPasswordPlaceholder')}
+                                                    value={regConfirm}
+                                                    onChange={(e) => setRegConfirm(e.target.value)}
+                                                    disabled={loading}
+                                                    autoComplete="new-password"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    className="input-trailing-action-btn"
+                                                    onClick={() => setShowRegConfirm((prev) => !prev)}
+                                                    aria-pressed={showRegConfirm}
+                                                    aria-label={showRegConfirm ? t('comp.common.hidePassword') : t('comp.common.showPassword')}
+                                                >
+                                                    {showRegConfirm ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
+                                                </button>
+                                            </div>
+                                            {regConfirm && regPassword !== regConfirm && (
+                                                <p className="field-error">{t('pages.login.passwordMismatch')}</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <p className="text-muted text-xs -mt-1 mb-3">{passwordPolicyHint}</p>
+                                    {inviteOnlyEnabled && (
+                                        <div className="form-group">
+                                            <label className="form-label" htmlFor="register-invite-code">{t('pages.login.inviteCode')}</label>
+                                            <div className="input-icon-wrapper">
+                                                <HiOutlineShieldCheck className="input-icon" aria-hidden="true" />
+                                                <input
+                                                    id="register-invite-code"
+                                                    type="text"
+                                                    className="form-input input-with-icon"
+                                                    placeholder={t('pages.login.inviteCodePlaceholder')}
+                                                    value={inviteCode}
+                                                    onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                                                    disabled={loading}
+                                                    autoComplete="off"
+                                                    autoCapitalize="characters"
+                                                    autoCorrect="off"
+                                                    spellCheck={false}
+                                                />
+                                            </div>
+                                            <p className="text-muted text-xs mt-1">{t('pages.login.inviteOnlyHint')}</p>
+                                        </div>
+                                    )}
+                                    <button
+                                        type="submit"
+                                        className="btn btn-primary w-full h-11 text-sm font-bold tracking-wide"
+                                        disabled={loading || !regUsername.trim() || !regEmail.trim() || !regPassword || !regConfirm || regPassword !== regConfirm || (inviteOnlyEnabled && !inviteCode.trim())}
+                                    >
+                                        {loading ? <span className="spinner" /> : t('pages.login.registerButton')}
+                                    </button>
+                                </form>
+                            )}
+
+                            {mode === MODE_VERIFY && (
+                                <form onSubmit={handleVerify} className="auth-form">
+                                    <div className="verify-header">
+                                        <HiOutlineShieldCheck className="verify-icon" />
+                                        <h1>{t('pages.login.verifyTitle')}</h1>
+                                        <p className="text-muted text-sm">
+                                            {t('pages.login.verifySentTo', { email: verifyEmail })}
+                                        </p>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label" htmlFor="verify-email-code">{t('pages.login.verifyCode')}</label>
+                                        <input
+                                            id="verify-email-code"
+                                            type="text"
+                                            className="form-input verify-code-input"
+                                            placeholder={t('pages.login.verifyCodePlaceholder')}
+                                            value={verifyCode}
+                                            onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                            maxLength={6}
+                                            autoFocus
+                                            disabled={loading}
+                                            autoComplete="one-time-code"
+                                            inputMode="numeric"
+                                        />
+                                    </div>
+                                    <button
+                                        type="submit"
+                                        className="btn btn-primary w-full h-11 text-sm font-bold tracking-wide"
+                                        disabled={loading || verifyCode.length !== 6}
+                                    >
+                                        {loading ? <span className="spinner" /> : t('pages.login.verifyButton')}
+                                    </button>
+                                    <div className="verify-actions">
+                                        <button
+                                            type="button"
+                                            className="btn-link"
+                                            onClick={handleResend}
+                                            disabled={resendCooldown > 0}
+                                        >
+                                            <HiOutlineArrowPath className={resendCooldown > 0 ? '' : 'spin-on-hover'} />
+                                            {resendCooldown > 0 ? `${resendCooldown}s` : t('pages.login.resendCode')}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn-link"
+                                            onClick={() => switchMode(MODE_LOGIN)}
+                                        >
+                                            {t('pages.login.toLogin')}
+                                        </button>
+                                    </div>
+                                </form>
+                            )}
+
+                            {passwordResetEnabled && mode === MODE_FORGOT && (
+                                <form onSubmit={handleResetPassword} className="auth-form">
+                                    <div className="verify-header">
+                                        <HiOutlineShieldCheck className="verify-icon" />
+                                        <h1>{t('pages.login.forgotTitle')}</h1>
+                                        <p className="text-muted text-sm">
+                                            {t('pages.login.forgotSubtitle')}
+                                        </p>
+                                        <p className="text-muted text-xs">
+                                            {t('pages.login.forgotPrivacyHint')}
+                                        </p>
+                                    </div>
+
+                                    <div className="form-group">
+                                        <label className="form-label" htmlFor="reset-email">{t('pages.login.email')}</label>
                                         <div className="input-icon-wrapper">
                                             <HiOutlineEnvelope className="input-icon" aria-hidden="true" />
                                             <input
-                                                id="register-email"
+                                                id="reset-email"
                                                 type="email"
                                                 className="form-input input-with-icon"
-                                                placeholder={t('pages.login.registerEmailPlaceholder')}
-                                                value={regEmail}
-                                                onChange={(e) => setRegEmail(e.target.value)}
+                                                placeholder={t('pages.login.resetEmailPlaceholder')}
+                                                value={resetEmail}
+                                                onChange={(e) => setResetEmail(e.target.value)}
                                                 disabled={loading}
                                                 autoComplete="email"
                                                 autoCapitalize="none"
@@ -716,369 +881,195 @@ export default function Login() {
                                             />
                                         </div>
                                     </div>
-                                </div>
-                                <div className="login-form-grid">
+
                                     <div className="form-group">
-                                        <label className="form-label" htmlFor="register-password">{t('pages.login.password')}</label>
-                                        <div className="input-icon-wrapper">
-                                            <HiOutlineLockClosed className="input-icon" aria-hidden="true" />
+                                        <label className="form-label" htmlFor="reset-verify-code">{t('pages.login.verifyCode')}</label>
+                                        <div className="verify-code-row">
                                             <input
-                                                id="register-password"
-                                                type={showRegPassword ? 'text' : 'password'}
-                                                className="form-input input-with-icon input-with-trailing-action"
-                                                placeholder={t('pages.login.registerPasswordPlaceholder')}
-                                                value={regPassword}
-                                                onChange={(e) => setRegPassword(e.target.value)}
-                                                disabled={loading}
-                                                autoComplete="new-password"
-                                            />
-                                            <button
-                                                type="button"
-                                                className="input-trailing-action-btn"
-                                                onClick={() => setShowRegPassword((prev) => !prev)}
-                                                aria-pressed={showRegPassword}
-                                                aria-label={showRegPassword ? t('comp.common.hidePassword') : t('comp.common.showPassword')}
-                                            >
-                                                {showRegPassword ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
-                                            </button>
-                                        </div>
-                                        <PasswordStrengthMeter password={regPassword} locale={locale} />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label" htmlFor="register-confirm">{t('pages.login.confirmPassword')}</label>
-                                        <div className="input-icon-wrapper">
-                                            <HiOutlineLockClosed className="input-icon" aria-hidden="true" />
-                                            <input
-                                                id="register-confirm"
-                                                type={showRegConfirm ? 'text' : 'password'}
-                                                className="form-input input-with-icon input-with-trailing-action"
-                                                placeholder={t('pages.login.confirmPasswordPlaceholder')}
-                                                value={regConfirm}
-                                                onChange={(e) => setRegConfirm(e.target.value)}
-                                                disabled={loading}
-                                                autoComplete="new-password"
-                                            />
-                                            <button
-                                                type="button"
-                                                className="input-trailing-action-btn"
-                                                onClick={() => setShowRegConfirm((prev) => !prev)}
-                                                aria-pressed={showRegConfirm}
-                                                aria-label={showRegConfirm ? t('comp.common.hidePassword') : t('comp.common.showPassword')}
-                                            >
-                                                {showRegConfirm ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
-                                            </button>
-                                        </div>
-                                        {regConfirm && regPassword !== regConfirm && (
-                                            <p className="field-error">{t('pages.login.passwordMismatch')}</p>
-                                        )}
-                                    </div>
-                                </div>
-                                <p className="text-muted text-xs -mt-1 mb-3">{passwordPolicyHint}</p>
-                                {inviteOnlyEnabled && (
-                                    <div className="form-group">
-                                        <label className="form-label" htmlFor="register-invite-code">{t('pages.login.inviteCode')}</label>
-                                        <div className="input-icon-wrapper">
-                                            <HiOutlineShieldCheck className="input-icon" aria-hidden="true" />
-                                            <input
-                                                id="register-invite-code"
+                                                id="reset-verify-code"
                                                 type="text"
-                                                className="form-input input-with-icon"
-                                                placeholder={t('pages.login.inviteCodePlaceholder')}
-                                                value={inviteCode}
-                                                onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                                                className="form-input verify-code-input"
+                                                placeholder={t('pages.login.resetCodePlaceholder')}
+                                                value={resetCode}
+                                                onChange={(e) => setResetCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                                maxLength={6}
                                                 disabled={loading}
-                                                autoComplete="off"
-                                                autoCapitalize="characters"
-                                                autoCorrect="off"
-                                                spellCheck={false}
+                                                autoComplete="one-time-code"
+                                                inputMode="numeric"
                                             />
+                                            <button
+                                                type="button"
+                                                className="btn btn-secondary btn-sm verify-code-send-btn"
+                                                onClick={handleSendResetCode}
+                                                disabled={loading || !resetEmail.trim() || resetCooldown > 0}
+                                            >
+                                                <HiOutlineArrowPath className={resetCooldown > 0 ? '' : 'spin-on-hover'} />
+                                                {resetCooldown > 0 ? `${resetCooldown}s` : t('pages.login.sendCode')}
+                                            </button>
                                         </div>
-                                        <p className="text-muted text-xs mt-1">{t('pages.login.inviteOnlyHint')}</p>
                                     </div>
-                                )}
-                                <button
-                                    type="submit"
-                                    className="btn btn-primary w-full h-11 text-sm font-bold tracking-wide"
-                                    disabled={loading || !regUsername.trim() || !regEmail.trim() || !regPassword || !regConfirm || regPassword !== regConfirm || (inviteOnlyEnabled && !inviteCode.trim())}
-                                >
-                                    {loading ? <span className="spinner" /> : t('pages.login.registerButton')}
-                                </button>
-                            </form>
-                        )}
 
-                        {mode === MODE_VERIFY && (
-                            <form onSubmit={handleVerify} className="auth-form">
-                                <div className="verify-header">
-                                    <HiOutlineShieldCheck className="verify-icon" />
-                                    <h1>{t('pages.login.verifyTitle')}</h1>
-                                    <p className="text-muted text-sm">
-                                        {t('pages.login.verifySentTo', { email: verifyEmail })}
-                                    </p>
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label" htmlFor="verify-email-code">{t('pages.login.verifyCode')}</label>
-                                    <input
-                                        id="verify-email-code"
-                                        type="text"
-                                        className="form-input verify-code-input"
-                                        placeholder={t('pages.login.verifyCodePlaceholder')}
-                                        value={verifyCode}
-                                        onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                                        maxLength={6}
-                                        autoFocus
-                                        disabled={loading}
-                                        autoComplete="one-time-code"
-                                        inputMode="numeric"
-                                    />
-                                </div>
-                                <button
-                                    type="submit"
-                                    className="btn btn-primary w-full h-11 text-sm font-bold tracking-wide"
-                                    disabled={loading || verifyCode.length !== 6}
-                                >
-                                    {loading ? <span className="spinner" /> : t('pages.login.verifyButton')}
-                                </button>
-                                <div className="verify-actions">
-                                    <button
-                                        type="button"
-                                        className="btn-link"
-                                        onClick={handleResend}
-                                        disabled={resendCooldown > 0}
-                                    >
-                                        <HiOutlineArrowPath className={resendCooldown > 0 ? '' : 'spin-on-hover'} />
-                                        {resendCooldown > 0 ? `${resendCooldown}s` : t('pages.login.resendCode')}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="btn-link"
-                                        onClick={() => switchMode(MODE_LOGIN)}
-                                    >
-                                        {t('pages.login.toLogin')}
-                                    </button>
-                                </div>
-                            </form>
-                        )}
-
-                        {passwordResetEnabled && mode === MODE_FORGOT && (
-                            <form onSubmit={handleResetPassword} className="auth-form">
-                                <div className="verify-header">
-                                    <HiOutlineShieldCheck className="verify-icon" />
-                                    <h1>{t('pages.login.forgotTitle')}</h1>
-                                    <p className="text-muted text-sm">
-                                        {t('pages.login.forgotSubtitle')}
-                                    </p>
-                                    <p className="text-muted text-xs">
-                                        {t('pages.login.forgotPrivacyHint')}
-                                    </p>
-                                </div>
-
-                                <div className="form-group">
-                                    <label className="form-label" htmlFor="reset-email">{t('pages.login.email')}</label>
-                                    <div className="input-icon-wrapper">
-                                        <HiOutlineEnvelope className="input-icon" aria-hidden="true" />
-                                        <input
-                                            id="reset-email"
-                                            type="email"
-                                            className="form-input input-with-icon"
-                                            placeholder={t('pages.login.resetEmailPlaceholder')}
-                                            value={resetEmail}
-                                            onChange={(e) => setResetEmail(e.target.value)}
-                                            disabled={loading}
-                                            autoComplete="email"
-                                            autoCapitalize="none"
-                                            autoCorrect="off"
-                                            spellCheck={false}
-                                        />
+                                    <div className="login-form-grid">
+                                        <div className="form-group">
+                                            <label className="form-label" htmlFor="reset-new-password">{t('pages.login.newPassword')}</label>
+                                            <div className="input-icon-wrapper">
+                                                <HiOutlineLockClosed className="input-icon" aria-hidden="true" />
+                                                <input
+                                                    id="reset-new-password"
+                                                    type={showResetPassword ? 'text' : 'password'}
+                                                    className="form-input input-with-icon input-with-trailing-action"
+                                                    placeholder={t('pages.login.resetPasswordPlaceholder')}
+                                                    value={resetPassword}
+                                                    onChange={(e) => setResetPassword(e.target.value)}
+                                                    disabled={loading}
+                                                    autoComplete="new-password"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    className="input-trailing-action-btn"
+                                                    onClick={() => setShowResetPassword((prev) => !prev)}
+                                                    aria-pressed={showResetPassword}
+                                                    aria-label={showResetPassword ? t('comp.common.hidePassword') : t('comp.common.showPassword')}
+                                                >
+                                                    {showResetPassword ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
+                                                </button>
+                                            </div>
+                                            <PasswordStrengthMeter password={resetPassword} locale={locale} />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label" htmlFor="reset-confirm-password">{t('pages.login.confirmPassword')}</label>
+                                            <div className="input-icon-wrapper">
+                                                <HiOutlineLockClosed className="input-icon" aria-hidden="true" />
+                                                <input
+                                                    id="reset-confirm-password"
+                                                    type={showResetConfirm ? 'text' : 'password'}
+                                                    className="form-input input-with-icon input-with-trailing-action"
+                                                    placeholder={t('pages.login.resetConfirmPlaceholder')}
+                                                    value={resetConfirm}
+                                                    onChange={(e) => setResetConfirm(e.target.value)}
+                                                    disabled={loading}
+                                                    autoComplete="new-password"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    className="input-trailing-action-btn"
+                                                    onClick={() => setShowResetConfirm((prev) => !prev)}
+                                                    aria-pressed={showResetConfirm}
+                                                    aria-label={showResetConfirm ? t('comp.common.hidePassword') : t('comp.common.showPassword')}
+                                                >
+                                                    {showResetConfirm ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
+                                                </button>
+                                            </div>
+                                            {resetConfirm && resetPassword !== resetConfirm && (
+                                                <p className="field-error">{t('pages.login.passwordMismatch')}</p>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
+                                    <p className="text-muted text-xs -mt-1 mb-3">{passwordPolicyHint}</p>
 
-                                <div className="form-group">
-                                    <label className="form-label" htmlFor="reset-verify-code">{t('pages.login.verifyCode')}</label>
-                                    <div className="verify-code-row">
-                                        <input
-                                            id="reset-verify-code"
-                                            type="text"
-                                            className="form-input verify-code-input"
-                                            placeholder={t('pages.login.resetCodePlaceholder')}
-                                            value={resetCode}
-                                            onChange={(e) => setResetCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                                            maxLength={6}
-                                            disabled={loading}
-                                            autoComplete="one-time-code"
-                                            inputMode="numeric"
-                                        />
+                                    <button
+                                        type="submit"
+                                        className="btn btn-primary w-full h-11 text-sm font-bold tracking-wide"
+                                        disabled={loading || !resetEmail.trim() || resetCode.length !== 6 || !resetPassword || !resetConfirm || resetPassword !== resetConfirm}
+                                    >
+                                        {loading ? <span className="spinner" /> : t('pages.login.resetButton')}
+                                    </button>
+
+                                    <div className="verify-actions">
                                         <button
                                             type="button"
-                                            className="btn btn-secondary btn-sm verify-code-send-btn"
-                                            onClick={handleSendResetCode}
-                                            disabled={loading || !resetEmail.trim() || resetCooldown > 0}
+                                            className="btn-link"
+                                            onClick={() => switchMode(MODE_LOGIN)}
                                         >
-                                            <HiOutlineArrowPath className={resetCooldown > 0 ? '' : 'spin-on-hover'} />
-                                            {resetCooldown > 0 ? `${resetCooldown}s` : t('pages.login.sendCode')}
+                                            {t('pages.login.toLogin')}
                                         </button>
                                     </div>
-                                </div>
+                                </form>
+                            )}
 
-                                <div className="login-form-grid">
-                                    <div className="form-group">
-                                        <label className="form-label" htmlFor="reset-new-password">{t('pages.login.newPassword')}</label>
-                                        <div className="input-icon-wrapper">
-                                            <HiOutlineLockClosed className="input-icon" aria-hidden="true" />
-                                            <input
-                                                id="reset-new-password"
-                                                type={showResetPassword ? 'text' : 'password'}
-                                                className="form-input input-with-icon input-with-trailing-action"
-                                                placeholder={t('pages.login.resetPasswordPlaceholder')}
-                                                value={resetPassword}
-                                                onChange={(e) => setResetPassword(e.target.value)}
-                                                disabled={loading}
-                                                autoComplete="new-password"
-                                            />
-                                            <button
-                                                type="button"
-                                                className="input-trailing-action-btn"
-                                                onClick={() => setShowResetPassword((prev) => !prev)}
-                                                aria-pressed={showResetPassword}
-                                                aria-label={showResetPassword ? t('comp.common.hidePassword') : t('comp.common.showPassword')}
-                                            >
-                                                {showResetPassword ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
-                                            </button>
-                                        </div>
-                                        <PasswordStrengthMeter password={resetPassword} locale={locale} />
+                            {mode === MODE_TWO_FACTOR && (
+                                <form onSubmit={handleTwoFactorLogin} className="auth-form">
+                                    <div className="verify-header">
+                                        <HiOutlineShieldCheck className="verify-icon" />
+                                        <h1>{t('pages.login.twoFactorTitle')}</h1>
+                                        <p className="text-muted text-sm">
+                                            {twoFactorUseBackup ? t('pages.login.twoFactorBackupSubtitle') : t('pages.login.twoFactorSubtitle')}
+                                        </p>
                                     </div>
-                                    <div className="form-group">
-                                        <label className="form-label" htmlFor="reset-confirm-password">{t('pages.login.confirmPassword')}</label>
-                                        <div className="input-icon-wrapper">
-                                            <HiOutlineLockClosed className="input-icon" aria-hidden="true" />
-                                            <input
-                                                id="reset-confirm-password"
-                                                type={showResetConfirm ? 'text' : 'password'}
-                                                className="form-input input-with-icon input-with-trailing-action"
-                                                placeholder={t('pages.login.resetConfirmPlaceholder')}
-                                                value={resetConfirm}
-                                                onChange={(e) => setResetConfirm(e.target.value)}
-                                                disabled={loading}
-                                                autoComplete="new-password"
-                                            />
-                                            <button
-                                                type="button"
-                                                className="input-trailing-action-btn"
-                                                onClick={() => setShowResetConfirm((prev) => !prev)}
-                                                aria-pressed={showResetConfirm}
-                                                aria-label={showResetConfirm ? t('comp.common.hidePassword') : t('comp.common.showPassword')}
-                                            >
-                                                {showResetConfirm ? <HiOutlineEyeSlash aria-hidden="true" /> : <HiOutlineEye aria-hidden="true" />}
-                                            </button>
-                                        </div>
-                                        {resetConfirm && resetPassword !== resetConfirm && (
-                                            <p className="field-error">{t('pages.login.passwordMismatch')}</p>
-                                        )}
-                                    </div>
-                                </div>
-                                <p className="text-muted text-xs -mt-1 mb-3">{passwordPolicyHint}</p>
 
-                                <button
-                                    type="submit"
-                                    className="btn btn-primary w-full h-11 text-sm font-bold tracking-wide"
-                                    disabled={loading || !resetEmail.trim() || resetCode.length !== 6 || !resetPassword || !resetConfirm || resetPassword !== resetConfirm}
-                                >
-                                    {loading ? <span className="spinner" /> : t('pages.login.resetButton')}
-                                </button>
-
-                                <div className="verify-actions">
-                                    <button
-                                        type="button"
-                                        className="btn-link"
-                                        onClick={() => switchMode(MODE_LOGIN)}
-                                    >
-                                        {t('pages.login.toLogin')}
-                                    </button>
-                                </div>
-                            </form>
-                        )}
-
-                        {mode === MODE_TWO_FACTOR && (
-                            <form onSubmit={handleTwoFactorLogin} className="auth-form">
-                                <div className="verify-header">
-                                    <HiOutlineShieldCheck className="verify-icon" />
-                                    <h1>{t('pages.login.twoFactorTitle')}</h1>
-                                    <p className="text-muted text-sm">
-                                        {twoFactorUseBackup ? t('pages.login.twoFactorBackupSubtitle') : t('pages.login.twoFactorSubtitle')}
-                                    </p>
-                                </div>
-
-                                {!twoFactorUseBackup ? (
-                                    <div className="form-group">
-                                        <label htmlFor="login-login-two-factor-code" className="form-label">{t('pages.login.twoFactorCode')}</label>
-                                        <input id="login-login-two-factor-code" name="loginLoginTwoFactorCode"
-                                            type="text"
-                                            className="form-input verify-code-input"
-                                            placeholder={t('pages.login.twoFactorCodePlaceholder')}
-                                            value={twoFactorCode}
-                                            onChange={(e) => handleTwoFactorCodeChange(e.target.value)}
-                                            maxLength={6}
-                                            autoFocus
-                                            disabled={loading}
-                                            autoComplete="one-time-code"
-                                            inputMode="numeric"
-                                        />
-                                    </div>
-                                ) : (
-                                    <div className="form-group">
-                                        <label htmlFor="login-login-two-factor-backup-code" className="form-label">{t('pages.login.twoFactorBackupCode')}</label>
-                                        <div className="input-icon-wrapper">
-                                            <HiOutlineLockClosed className="input-icon" />
-                                            <input id="login-login-two-factor-backup-code" name="loginLoginTwoFactorBackupCode"
+                                    {!twoFactorUseBackup ? (
+                                        <div className="form-group">
+                                            <label htmlFor="login-login-two-factor-code" className="form-label">{t('pages.login.twoFactorCode')}</label>
+                                            <input id="login-login-two-factor-code" name="loginLoginTwoFactorCode"
                                                 type="text"
-                                                className="form-input input-with-icon font-mono"
-                                                placeholder={t('pages.login.twoFactorBackupPlaceholder')}
-                                                value={twoFactorBackupCode}
-                                                onChange={(e) => setTwoFactorBackupCode(e.target.value)}
+                                                className="form-input verify-code-input"
+                                                placeholder={t('pages.login.twoFactorCodePlaceholder')}
+                                                value={twoFactorCode}
+                                                onChange={(e) => handleTwoFactorCodeChange(e.target.value)}
+                                                maxLength={6}
                                                 autoFocus
                                                 disabled={loading}
-                                                autoComplete="off"
-                                                spellCheck={false}
+                                                autoComplete="one-time-code"
+                                                inputMode="numeric"
                                             />
                                         </div>
+                                    ) : (
+                                        <div className="form-group">
+                                            <label htmlFor="login-login-two-factor-backup-code" className="form-label">{t('pages.login.twoFactorBackupCode')}</label>
+                                            <div className="input-icon-wrapper">
+                                                <HiOutlineLockClosed className="input-icon" />
+                                                <input id="login-login-two-factor-backup-code" name="loginLoginTwoFactorBackupCode"
+                                                    type="text"
+                                                    className="form-input input-with-icon font-mono"
+                                                    placeholder={t('pages.login.twoFactorBackupPlaceholder')}
+                                                    value={twoFactorBackupCode}
+                                                    onChange={(e) => setTwoFactorBackupCode(e.target.value)}
+                                                    autoFocus
+                                                    disabled={loading}
+                                                    autoComplete="off"
+                                                    spellCheck={false}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <button
+                                        type="submit"
+                                        className="btn btn-primary w-full h-11 text-sm font-bold tracking-wide"
+                                        disabled={loading || (twoFactorUseBackup ? !twoFactorBackupCode.trim() : twoFactorCode.length !== 6)}
+                                    >
+                                        {loading ? <span className="spinner" /> : t('pages.login.twoFactorButton')}
+                                    </button>
+
+                                    <div className="verify-actions">
+                                        <button
+                                            type="button"
+                                            className="btn-link"
+                                            onClick={() => {
+                                                setTwoFactorUseBackup(!twoFactorUseBackup);
+                                                setError('');
+                                            }}
+                                        >
+                                            {twoFactorUseBackup ? t('pages.login.useTotpCode') : t('pages.login.useBackupCode')}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn-link"
+                                            onClick={() => {
+                                                setMode(MODE_LOGIN);
+                                                setTwoFactorChallengeToken('');
+                                                setTwoFactorCode('');
+                                                setTwoFactorBackupCode('');
+                                                setError('');
+                                                setSuccess('');
+                                            }}
+                                        >
+                                            {t('pages.login.toLogin')}
+                                        </button>
                                     </div>
-                                )}
-
-                                <button
-                                    type="submit"
-                                    className="btn btn-primary w-full h-11 text-sm font-bold tracking-wide"
-                                    disabled={loading || (twoFactorUseBackup ? !twoFactorBackupCode.trim() : twoFactorCode.length !== 6)}
-                                >
-                                    {loading ? <span className="spinner" /> : t('pages.login.twoFactorButton')}
-                                </button>
-
-                                <div className="verify-actions">
-                                    <button
-                                        type="button"
-                                        className="btn-link"
-                                        onClick={() => {
-                                            setTwoFactorUseBackup(!twoFactorUseBackup);
-                                            setError('');
-                                        }}
-                                    >
-                                        {twoFactorUseBackup ? t('pages.login.useTotpCode') : t('pages.login.useBackupCode')}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="btn-link"
-                                        onClick={() => {
-                                            setMode(MODE_LOGIN);
-                                            setTwoFactorChallengeToken('');
-                                            setTwoFactorCode('');
-                                            setTwoFactorBackupCode('');
-                                            setError('');
-                                            setSuccess('');
-                                        }}
-                                    >
-                                        {t('pages.login.toLogin')}
-                                    </button>
-                                </div>
-                            </form>
-                        )}
+                                </form>
+                            )}
+                        </div>
                     </div>
                 </div>
             </main>

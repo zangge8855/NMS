@@ -170,7 +170,8 @@ describe('AuditCenter localization', () => {
         renderWithRouter(<AuditCenter />, { route: '/audit' });
 
         expect(await screen.findByText('暂无审计记录')).toBeInTheDocument();
-        expect(screen.getByText('按事件、结果、目标用户和节点回看系统操作历史，优先定位敏感变更。')).toBeInTheDocument();
+        // The tab strip no longer repeats the active tab as a second headline.
+        expect(screen.queryByText('按事件、结果、目标用户和节点回看系统操作历史，优先定位敏感变更。')).not.toBeInTheDocument();
         expect(screen.getByText('筛选操作记录')).toBeInTheDocument();
         expect(screen.getByText('按关键词、事件类型、结果、目标用户和节点缩小范围。')).toBeInTheDocument();
         expect(screen.queryByPlaceholderText('节点 ID')).not.toBeInTheDocument();
@@ -1083,8 +1084,8 @@ describe('AuditCenter localization', () => {
         if (!totalTrafficCard) {
             throw new Error('Missing traffic total card');
         }
-        expect(screen.getAllByText('流量统计').length).toBeGreaterThan(1);
-        expect(screen.getAllByText('按今日、本周、本月切换流量总览、趋势和排行榜。').length).toBeGreaterThan(1);
+        expect(screen.getAllByText('流量统计').length).toBeGreaterThan(0);
+        expect(screen.getByText('按今日、本周、本月切换流量总览、趋势和排行榜。')).toBeInTheDocument();
         expect(within(totalTrafficCard).getByText('512 B')).toBeInTheDocument();
         expect(within(totalTrafficCard).getByText('本月已归属用户流量')).toBeInTheDocument();
         expect(screen.getByText('活跃账号')).toBeInTheDocument();

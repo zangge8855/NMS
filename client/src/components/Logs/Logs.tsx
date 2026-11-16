@@ -98,7 +98,7 @@ function levelColor(line: string) {
     const level = detectLogLevel(line);
     if (level === 'error') return 'var(--accent-danger)';
     if (level === 'warning') return 'var(--accent-warning)';
-    if (level === 'info') return 'var(--accent-info)';
+    if (level === 'info') return 'var(--text-secondary)';
     if (level === 'debug') return 'var(--text-muted)';
     return 'var(--text-secondary)';
 }
@@ -144,7 +144,7 @@ function LogLine({ line, showServer, serverName, highlight, index }: LogLineProp
         >
             <span className="log-line-index">{String(index + 1).padStart(3, '0')}</span>
             {showServer && serverName && (
-                <span className="badge badge-info badge-tiny">
+                <span className="badge badge-neutral badge-tiny">
                     {serverName}
                 </span>
             )}
@@ -295,27 +295,8 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
     const fetchSummaryMeta = getSummaryToneMeta(fetchSummary?.tone);
     // Reuse the shared form surface and rounded tokens so controls stay visually consistent.
     const filterSelectClassName = 'form-select rounded-lg';
-    const keywordInputClassName = 'form-input w-200 rounded-lg';
+    const keywordInputClassName = 'form-input rounded-lg logs-keyword-input';
     const serverCheckboxClassName = 'checkbox-14 rounded';
-    const activeLogFilterCount = [
-        String(keywords || '').trim(),
-        levelFilter,
-        lockedSourceMode === 'auto' && selectedSource !== 'panel' ? selectedSource : '',
-    ].filter(Boolean).length;
-    const logToolbarMeta = [
-        locale === 'en-US' ? `${count} lines` : `${count} 行`,
-        activeLogFilterCount > 0
-            ? (locale === 'en-US' ? `${activeLogFilterCount} filters` : `${activeLogFilterCount} 个筛选`)
-            : (locale === 'en-US' ? 'No filters' : '无筛选'),
-        isGlobal
-            ? (locale === 'en-US'
-                ? `Nodes ${selectedServerIds.length}/${servers.length}`
-                : `节点 ${selectedServerIds.length}/${servers.length}`)
-            : null,
-        String(keywords || '').trim()
-            ? (locale === 'en-US' ? `Keyword: ${keywords}` : `关键词: ${keywords}`)
-            : null,
-    ].filter(Boolean);
 
     const fetchSingleLogs = useCallback(async (options: { preserveCurrent?: boolean; force?: boolean } = {}) => {
         if (!activeServerId || activeServerId === 'global') {
@@ -567,13 +548,13 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
         });
 
         return [
-            { value: 'error', label: 'Error', count: counts.error },
-            { value: 'warning', label: 'Warning', count: counts.warning },
-            { value: 'info', label: 'Info', count: counts.info },
-            { value: 'debug', label: 'Debug', count: counts.debug },
-            { value: 'none', label: locale === 'en-US' ? 'Other' : '其他', count: counts.none },
+            { value: 'error', label: t('pages.logs.levelError'), count: counts.error },
+            { value: 'warning', label: t('pages.logs.levelWarning'), count: counts.warning },
+            { value: 'info', label: t('pages.logs.levelInfo'), count: counts.info },
+            { value: 'debug', label: t('pages.logs.levelDebug'), count: counts.debug },
+            { value: 'none', label: t('pages.logs.levelNone'), count: counts.none },
         ].filter((item) => item.count > 0);
-    }, [filteredLogs, locale]);
+    }, [filteredLogs, t]);
 
     const shouldVirtualizeLogs = filteredLogs.length > 180 && !wrapLines;
 
@@ -704,13 +685,6 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                             </div>
                         </>
                     )}
-                    meta={(
-                        <div className="logs-toolbar-meta">
-                            {logToolbarMeta.map((item) => (
-                                <span key={item} className="logs-toolbar-chip">{item}</span>
-                            ))}
-                        </div>
-                    )}
                 />
 
                 {/* Global Mode: Server Selector */}
@@ -765,7 +739,6 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                     <span className="text-sm">{fetchSummary.message}</span>
                                 </div>
                             )}
-                            meta={<span className={`badge ${fetchSummaryMeta.badge}`}>{activeSourceMeta.label}</span>}
                         />
                     </div>
                 )}
@@ -778,7 +751,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                             <div className="flex items-center gap-8 flex-wrap">
                                 <HiOutlineDocumentText className="text-muted" />
                                 <span className="card-title">{sourceLabel}</span>
-                                <span className="badge badge-neutral">{activeSourceMeta.label}</span>
+                                {sourceLabel !== activeSourceMeta.label ? <span className="badge badge-neutral">{activeSourceMeta.label}</span> : null}
                                 {levelFilter && activeLevelMeta && <span className="badge badge-info">{t('pages.logs.levelBadge', { level: activeLevelMeta.label })}</span>}
                             </div>
                         )}

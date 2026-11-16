@@ -6,30 +6,64 @@
 
 NMS 的后台界面应优先满足三件事：稳定、清晰、可连续操作。界面不是营销页，重点是状态密度、风险提示、批量操作效率和低误触成本。
 
-### 视觉基线
+### 视觉基线：墨底信号（signal on ink）
 
-- 布局容器使用柔和分层，不使用生硬纯黑边框
-- 卡片、下拉、弹窗统一采用紧凑圆角、柔和阴影与浅边框，常规卡片圆角不超过 8px
-- 按钮、输入框统一采用稳定高度、紧凑圆角和同轴图标 / 文案对齐
+配色取自 Logo：深海军蓝的“墨”作为底，水青色的“信号”只用来指路。
+
+| 角色 | 暗色 | 亮色 | 用途 |
+| --- | --- | --- | --- |
+| `--signal` / `--accent-primary` | `#62d8c6` | `#007a6d` | 主按钮、焦点环、当前导航 / 标签页的引导边、选中项 |
+| `--ink-rail` | `#061222` | `#f5f9fa` | 侧栏 |
+| `--ink-canvas` | `#09172a` | `#ebf3f4` | 工作区底色 |
+| `--ink-panel` | `#102034` | `#ffffff` | 面板 |
+| `--ink-raised` | `#18283e` | `#f0f7f7` | 面板内的嵌套表面 |
+| `--ink-input` | `#0c1a2c` | `#ffffff` | 输入框 |
+| 成功 / 警告 / 危险 / 信息 | `#86d391` / `#f0be67` / `#ee857e` / `#86beee` | 各自加深到 AA 对比度 | 只描述状态 |
+
+- 表面靠色阶区分，细线辅助结构；阴影只留给真正浮起的东西（菜单、弹窗、通行证）
+- 圆角按层级：通行证 16px、面板 12px、控件 8px、标签 6px（`--radius-pass` / `--radius-panel` / `--radius-control` / `--radius-chip`）
+- 字体分工：正文与一切需要阅读的文字用 Noto Sans SC；Wordmark 与数字用 Schibsted Grotesk（`--font-display` / `--font-figure`，比例数字 `proportional-nums`——这款字体的 `tnum` 会把冒号、小数点和“1”撑成整格宽，时间和百分比显得松散，所以全站不使用 `tabular-nums`）；IBM Plex Mono（`--font-mono`）只用于机器字面量——地址、密钥、日志。小号数据标签不用等宽字体
+- 不使用全大写标签、无意义的序号、链接后的 “→”、环境渐变和常驻动画；运动只回应用户操作，并尊重 `prefers-reduced-motion`
 - 明暗模式都必须使用明确且不透明的表面色
-- 后台主色为克制的靛蓝，危险操作只使用红色系；成功、警告、危险、信息等语义色只承担状态含义，不参与常规装饰
 - 按钮尺寸、圆角、focus ring 和 hover 态必须复用 `.btn` 系列规则，图标按钮要保持稳定宽高
-- 字体：标题与大数字使用 display / instrument 字体（西文标题 Schibsted Grotesk、数字 IBM Plex Mono），正文与中文回退 Noto Sans SC；通过 `--font-display` / `--font-mono` / `--font-numeric` 统一管理，西文领头、CJK 逐字回退，保证中文不串体
-- 高端感主要来自排版、留白、对齐、数字字体、稳定层级和少量柔和阴影，不依赖大面积渐变、发光、网格纹理或装饰性 Hero
 - 卡片只在内容本身需要独立交互边界时使用；普通信息区优先采用分栏、分隔线、表格和 ledger 列表
+
+### 色彩纪律
+
+- **信号色只表示“你在这里 / 在这里操作”**：每个操作区只有一个实心主按钮；同类切换（订阅格式、工具页签、自动刷新）使用 `btn-secondary` + `aria-pressed="true"`（或 `.is-on`）的“按下态”，而不是第二个实心主按钮
+- **健康 = 墨色 + 6px 成功圆点**：正常 / 在线 / 已开通 / 已同步等常态不铺绿色底；只有警告和危险保留带色填充，让需要看的东西自己跳出来
+- **分类一律中性**：协议、节点名、标签、角色、推荐配置名、头像首字母、搜索结果类型图标都用中性墨色，不借用信号色或语义色
+- **次要数字和仪表中性**：上下行流量拆分、环形 / 条形仪表默认使用 `--meter-fill`，越过阈值才变成警告 / 危险色；筛选 pill 的计数保持中性，颜色由前面的圆点承担
+- **不做常驻动画**：在线圆点不 ping，环形仪表不“呼吸”
+- **日志面板两种主题都是墨底**：`.log-pane` 在局部重设暗色调色板；INFO 行无左边线，只有 WARN / ERROR 带色边与色字
+
+### 签名元素：通行证（the pass）
+
+登录页和用户订阅页使用同一个“通行证”对象：主体 + 撕口票根，凹口通过 CSS mask 的径向渐变实现，边缘由父级 `filter: drop-shadow(var(--pass-edge))` 提供。票根在两种主题下都印成 Logo 的海军蓝（`--pass-stub-bg` / `--pass-stub-text` / `--pass-stub-muted`）。容器查询 `pass`：≤860px 票根移到底部，≤560px 字段改为单列行。界面的大胆只花在这里，其余页面保持安静。
+
+登录页的票根只印 Logo 与 “NMS” 字标，不放副标题、产品介绍或控制台主机名；表单侧所有输入框、主按钮、验证码发送按钮统一 42px 高，并沿同一左边线对齐。
+
+### 数据展示
+
+- 空值统一显示 “—”（em dash），不用 “-” 或 “--”
+- 同一信息只出现一次：页头已有的名称、地址、健康状态，不在下方卡片里再列一遍；工具栏、区块标题不再重复显示计数或当前页签
+- 不限量 / 永久的环形仪表显示 “∞” 且圆环留空，不画成 100%
+- 只有一个采样点时不画折线图；在线 / 离线只在状态列出现
+- 键值信息用 `<dl>` 网格：上方小号灰色标签、下方正文值，不在标签后加冒号
 
 ### 全局 token
 
-运行时只加载两层样式（按加载顺序）：
+运行时样式按以下顺序加载（见 `client/src/main.tsx`）：
 
-- `client/src/index.css`：基础组件、兼容性与页面原有结构
-- `client/src/styles/restrained-ui.css`：最终权威 token、主题、布局和视觉覆盖层
+`index.css` → `restrained-ui.css` → `overlay-restore.css` → `flagship-console.css` → `tokens.css` → `utilities.css` → `modules.css` → `subscription-center.css` → `theme.css` → `polish.css` → `identity.css`
 
-**权威 token 层**：统一 token 定义在最后加载的 `restrained-ui.css`。明暗主题、表面层级、边框、阴影、文字、数字字体、语义色和响应式覆盖都以该文件为准。新增样式应优先扩展这一层，避免重新引入多套全局 token 或按页面叠加大型主题文件。
+- `theme.css`：颜色 token 的唯一来源（墨色阶、信号色、语义色、`--pass-*`、`--meter-fill`、`--log-bg` / `--log-text`）
+- `identity.css`：最后加载，负责外壳与共享组件如何使用这些 token，以及通行证、色彩纪律等规则
+- 新样式只引用 token，不再写死十六进制颜色；遇到旧层的 `!important` 时，优先删除旧规则，确实删不掉才在 `identity.css` 中以同等权重覆盖并注明原因
 
 统一原则：
 
-- 表面层级使用浅边框 + 阴影，而不是重描边
+- 表面层级使用色阶 + 浅边框，而不是重描边或通用灰阴影
 - Hover 使用 `transition-colors`
 - Focus 使用统一 ring
 - 浮层使用明确背景色和 `z-index`
@@ -145,30 +179,64 @@ NMS 的后台界面应优先满足三件事：稳定、清晰、可连续操作�
 
 The NMS admin UI optimizes for stability, clarity, and uninterrupted operations. This is not a marketing site. The interface should prioritize state density, risk visibility, batch efficiency, and low error cost.
 
-### Visual baseline
+### Visual baseline: signal on ink
 
-- Use soft separation instead of harsh black borders
-- Cards, dropdowns, and modals use compact radius, soft shadow, and subtle borders; standard cards should stay at 8px radius or below
-- Buttons and inputs share stable height, compact radius, and aligned icon / label rhythm
+The palette comes from the logo: deep navy "ink" is the ground, and aqua "signal" only points the way.
+
+| Role | Dark | Light | Use |
+| --- | --- | --- | --- |
+| `--signal` / `--accent-primary` | `#62d8c6` | `#007a6d` | Primary button, focus ring, leading edge of the current nav item / tab, selected option |
+| `--ink-rail` | `#061222` | `#f5f9fa` | Sidebar |
+| `--ink-canvas` | `#09172a` | `#ebf3f4` | Workspace ground |
+| `--ink-panel` | `#102034` | `#ffffff` | Panels |
+| `--ink-raised` | `#18283e` | `#f0f7f7` | Nested surfaces inside a panel |
+| `--ink-input` | `#0c1a2c` | `#ffffff` | Inputs |
+| Success / warning / danger / info | `#86d391` / `#f0be67` / `#ee857e` / `#86beee` | Each deepened to AA contrast | State only |
+
+- Surfaces separate by tone, with hairlines for structure; shadows are kept for things that float (menus, dialogs, the pass)
+- Radius follows hierarchy: pass 16px, panels 12px, controls 8px, chips 6px (`--radius-pass` / `--radius-panel` / `--radius-control` / `--radius-chip`)
+- Type roles: Noto Sans SC for everything people read; Schibsted Grotesk for the wordmark and figures (`--font-display` / `--font-figure`, proportional numerals: this face's `tnum` widens colons, decimal points and the digit 1 to a full cell, so times and percentages look loose; never use `tabular-nums`); IBM Plex Mono (`--font-mono`) only for literal machine strings such as addresses, keys, and logs. Small data labels are not set in mono
+- No all-caps labels, decorative numbering, "→" on links, ambient gradients, or perpetual motion; motion answers user actions and respects `prefers-reduced-motion`
 - Both light and dark themes must use explicit opaque surfaces
-- The admin accent is restrained indigo, destructive actions stay red, and semantic colors are reserved for status meaning instead of routine decoration
 - Button sizing, radius, focus rings, and hover states must reuse the `.btn` family, and icon buttons need stable dimensions
-- Typography: headings and large numerals use display / instrument faces (Latin headings in Schibsted Grotesk, numerals in IBM Plex Mono); body and CJK fall back to Noto Sans SC. Manage via `--font-display` / `--font-mono` / `--font-numeric` — Latin-led with per-glyph CJK fallback so mixed titles never swap typeface
-- Premium quality comes from typography, whitespace, alignment, numeric rhythm, stable hierarchy, and restrained shadows—not broad gradients, glow, grid textures, or decorative heroes
 - Use cards only when the content needs an independent interaction boundary. Prefer columns, dividers, tables, and ledger rows for routine information
+
+### Colour discipline
+
+- **Signal means "you are here / act here"**: one filled primary per action area. Mode switches (subscription formats, tool tabs, auto-refresh) use `btn-secondary` with `aria-pressed="true"` (or `.is-on`) for a pressed state instead of a second filled primary
+- **Healthy = ink plus a 6px success dot**: normal / online / enabled / synced do not get green fills. Only warning and danger keep a tinted fill, so what needs a look stands out on its own
+- **Categories are neutral**: protocols, node names, tags, roles, recommended profile names, avatar initials, and search-result type icons use neutral ink, never signal or state colours
+- **Secondary figures and meters are neutral**: upload/download splits and ring/bar meters use `--meter-fill` until a threshold is crossed; filter-pill counts stay neutral and the leading dot carries the colour
+- **No perpetual motion**: online dots do not ping and ring meters do not "breathe"
+- **The log pane is ink in both themes**: `.log-pane` re-declares the dark palette locally; INFO lines have no edge, only WARN / ERROR get a coloured edge and text
+
+### Signature object: the pass
+
+Login and the user's subscription page share one "pass" object: a body plus a torn stub. The notches are a CSS mask built from radial gradients, and the edge comes from `filter: drop-shadow(var(--pass-edge))` on the parent. The stub is printed in the logo's navy in both themes (`--pass-stub-bg` / `--pass-stub-text` / `--pass-stub-muted`). Container query `pass`: at ≤860px the stub moves to the bottom; at ≤560px fields become rows. The interface spends its boldness here and stays quiet everywhere else.
+
+The login stub carries only the logo and the “NMS” wordmark: no subtitle, product pitch, or console host name. On the form side, inputs, the primary button and the send-code button are all 42px tall and share one left edge.
+
+### Data display
+
+- Empty values render as “—” (em dash), never “-” or “--”
+- Show each fact once: the name, address and health that lead a page header are not listed again in a card below, and toolbars and section headers do not restate counts or the active tab
+- Unlimited / permanent ring meters show “∞” with an empty ring, not a full 100%
+- No sparkline with a single sample; online / offline appears only in the status column
+- Key/value details use a `<dl>` grid: a small muted label above the value, with no trailing colon
 
 ### Global tokens
 
-Runtime styles load in two layers:
+Runtime styles load in this order (see `client/src/main.tsx`):
 
-- `client/src/index.css` for base components, compatibility, and existing page structure
-- `client/src/styles/restrained-ui.css` for the authoritative tokens, themes, layout, and visual overrides
+`index.css` → `restrained-ui.css` → `overlay-restore.css` → `flagship-console.css` → `tokens.css` → `utilities.css` → `modules.css` → `subscription-center.css` → `theme.css` → `polish.css` → `identity.css`
 
-**Authoritative token layer**: `restrained-ui.css` owns light/dark themes, surface hierarchy, borders, shadows, typography, numeric fonts, semantic colors, and responsive overrides. Extend this layer instead of reintroducing multiple global token systems or page-specific theme bundles.
+- `theme.css` is the single source of colour tokens (ink scale, signal, state colours, `--pass-*`, `--meter-fill`, `--log-bg` / `--log-text`)
+- `identity.css` loads last and owns how the shell and shared components use those tokens, plus the pass and colour-discipline rules
+- New styles reference tokens rather than hard-coded hex values. When an older layer uses `!important`, delete the legacy rule first; override it in `identity.css` with matching weight only when it cannot be removed, and say why in a comment
 
 Consistent rules:
 
-- separate layers with subtle borders and shadows
+- separate layers with tone and subtle borders, not heavy outlines or generic grey shadows
 - use `transition-colors` for hover feedback
 - keep a shared focus ring
 - give floating panels explicit background color and stable z-order

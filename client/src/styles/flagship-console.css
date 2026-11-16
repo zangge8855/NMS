@@ -1748,23 +1748,6 @@ main .servers-mobile-tags .badge-info {
   display: none;
 }
 
-/* Subscription import is the primary action; unavailable QR space stays visually quiet. */
-.subscriptions-page .subscription-user-qr-panel {
-  background: color-mix(in srgb, var(--surface-soft) 74%, transparent) !important;
-  box-shadow: none !important;
-}
-
-.subscriptions-page .subscription-user-qr-panel:has(.subscription-user-import-disabled) {
-  border-style: dashed !important;
-  opacity: 0.78;
-}
-
-.subscription-user-danger-row {
-  margin-top: 16px;
-  background: color-mix(in srgb, var(--accent-danger) 5%, var(--surface-panel)) !important;
-  border-color: color-mix(in srgb, var(--accent-danger) 24%, var(--border-color)) !important;
-}
-
 
 @media (max-width: 768px) {
   .header-title-group::before {
@@ -3777,7 +3760,7 @@ input:focus {
   font-size: 15px !important;
   font-weight: 700 !important;
   color: var(--text-primary) !important;
-  font-variant-numeric: tabular-nums !important;
+  font-variant-numeric: proportional-nums !important;
   line-height: 1.2 !important;
 }
 

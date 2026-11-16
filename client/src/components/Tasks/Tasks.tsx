@@ -127,7 +127,7 @@ function getTaskServers(task) {
 
 function formatTaskServerSummary(task) {
     const servers = getTaskServers(task);
-    if (servers.length === 0) return '-';
+    if (servers.length === 0) return '—';
     const head = servers.slice(0, 2).join(', ');
     if (servers.length <= 2) return head;
     return `${head} +${servers.length - 2}`;
@@ -178,15 +178,15 @@ function TaskMobileList({
                             </div>
                             <div className="audit-mobile-card-item">
                                 <span className="audit-mobile-card-label">{copy.totalCol}</span>
-                                <span className="audit-mobile-card-value audit-mobile-card-value--mono">{task.summary?.total ?? '-'}</span>
+                                <span className="audit-mobile-card-value audit-mobile-card-value--mono">{task.summary?.total ?? '—'}</span>
                             </div>
                             <div className="audit-mobile-card-item">
                                 <span className="audit-mobile-card-label">{copy.successCol}</span>
-                                <span className="audit-mobile-card-value audit-mobile-card-value--mono">{task.summary?.success ?? '-'}</span>
+                                <span className="audit-mobile-card-value audit-mobile-card-value--mono">{task.summary?.success ?? '—'}</span>
                             </div>
                             <div className="audit-mobile-card-item">
                                 <span className="audit-mobile-card-label">{copy.failedCol}</span>
-                                <span className="audit-mobile-card-value audit-mobile-card-value--mono">{task.summary?.failed ?? '-'}</span>
+                                <span className="audit-mobile-card-value audit-mobile-card-value--mono">{task.summary?.failed ?? '—'}</span>
                             </div>
                         </div>
                         <div className="audit-mobile-card-actions tasks-mobile-actions">
@@ -623,9 +623,9 @@ export default function Tasks({ embedded = false }) {
                                 <td data-label={copy.server} className="text-sm text-muted tasks-server-cell">
                                     {formatTaskServerSummary(task)}
                                 </td>
-                                <td data-label={copy.totalCol} className="table-cell-right cell-mono-right tasks-total-cell">{task.summary?.total ?? '-'}</td>
-                                <td data-label={copy.successCol} className="table-cell-right cell-mono-right tasks-success-cell">{task.summary?.success ?? '-'}</td>
-                                <td data-label={copy.failedCol} className="table-cell-right cell-mono-right tasks-failed-cell">{task.summary?.failed ?? '-'}</td>
+                                <td data-label={copy.totalCol} className="table-cell-right cell-mono-right tasks-total-cell">{task.summary?.total ?? '—'}</td>
+                                <td data-label={copy.successCol} className="table-cell-right cell-mono-right tasks-success-cell">{task.summary?.success ?? '—'}</td>
+                                <td data-label={copy.failedCol} className="table-cell-right cell-mono-right tasks-failed-cell">{task.summary?.failed ?? '—'}</td>
                                 <td data-label={copy.actions} className="table-cell-actions tasks-actions-cell">
                                     <div className="table-row-actions tasks-row-actions">
                                     <button type="button" className="btn btn-secondary btn-sm btn-icon table-action-btn" onClick={() => handleView(task.id)} title={copy.viewDetail} aria-label={copy.viewDetail}>

@@ -1,0 +1,1282 @@
+/* ==========================================================================
+   NMS identity layer
+   Loaded last. theme.css owns the colour tokens; this file owns how the
+   shell and shared components use them, plus the one signature object:
+   the pass (login and the user's subscription).
+
+   Rules of the system
+   - Signal aqua marks "you are here / act here": the primary button, the
+     focus ring, the leading edge of the current nav item and tab, and the
+     selected option. It never decorates and never encodes state.
+   - State colours (success, warning, danger, info) only describe state.
+   - Surfaces separate by tone. Hairlines help structure; shadows are kept
+     for things that float (menus, dialogs, the pass).
+   - Radius follows hierarchy: pass 16, panels 12, controls 8, chips 6.
+   - Type: Noto Sans SC for everything people read, Schibsted Grotesk for
+     the wordmark and for figures, IBM Plex Mono only for literal machine
+     strings (addresses, keys, logs).
+   ========================================================================== */
+
+:root {
+  --radius-pass: 16px;
+  --radius-panel: 12px;
+  --radius-control: 8px;
+  --radius-chip: 6px;
+}
+
+/* --------------------------------------------------------------------------
+   Canvas: no ambient gradients behind the workspace
+   -------------------------------------------------------------------------- */
+:root .main-content,
+:root[data-theme] .main-content {
+  background-image: none;
+}
+
+/* --------------------------------------------------------------------------
+   Type
+   -------------------------------------------------------------------------- */
+:root .header-title {
+  font-size: 1.3125rem;
+  font-weight: 650;
+  letter-spacing: -0.005em;
+}
+
+:root .header-subtitle {
+  color: var(--text-muted);
+}
+
+/* The tinted icon box beside every page title repeated the nav icon. */
+:root .header .header-icon {
+  display: none;
+}
+
+:root :is(.card-title, .section-title, .panel-title) {
+  font-weight: 650;
+}
+
+/* --------------------------------------------------------------------------
+   Sidebar: the current page is marked by a signal edge, not a boxed tile
+   -------------------------------------------------------------------------- */
+:root .sidebar .nav-item {
+  position: relative;
+  border-radius: var(--radius-control);
+  color: var(--text-secondary);
+}
+
+:root .sidebar .nav-item:hover:not(.active) {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+:root .sidebar .nav-item.active {
+  background: var(--accent-primary-bg);
+  box-shadow: none;
+  border-color: transparent;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+:root .sidebar .nav-item.active .nav-item-icon {
+  color: var(--signal);
+}
+
+:root .sidebar .nav-item .active-glow {
+  display: block;
+  position: absolute;
+  inset: 9px auto 9px 0;
+  width: 3px;
+  height: auto;
+  border-radius: 0 3px 3px 0;
+  background: var(--signal);
+  box-shadow: none;
+  opacity: 1;
+  filter: none;
+}
+
+:root .sidebar .nav-section-title {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+:root .sidebar-logo-icon {
+  box-shadow: none;
+}
+
+:root .sidebar-user-avatar {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: inset 0 0 0 1px var(--border-color);
+  font-family: var(--font-display);
+}
+
+:root .sidebar-logo-text {
+  font-family: var(--font-display);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+/* --------------------------------------------------------------------------
+   Buttons
+   primary  signal fill, ink text
+   secondary  quiet outline
+   danger  coral outline, fills only on hover
+   -------------------------------------------------------------------------- */
+:root .btn {
+  border-radius: var(--radius-control);
+  font-weight: 550;
+  letter-spacing: 0;
+}
+
+:root .btn-primary:not(:disabled):not([aria-disabled="true"]) {
+  background-color: var(--btn-primary-bg);
+  background-image: none;
+  border-color: transparent;
+  color: var(--text-on-accent);
+  box-shadow: none;
+}
+
+:root .btn-primary:hover:not(:disabled):not([aria-disabled="true"]) {
+  background-color: var(--btn-primary-hover);
+  color: var(--text-on-accent);
+  box-shadow: none;
+}
+
+:root .btn-primary:active:not(:disabled):not([aria-disabled="true"]) {
+  background-color: var(--btn-primary-active);
+}
+
+:root .btn-secondary:not(:disabled):not([aria-disabled="true"]) {
+  background: transparent;
+  border-color: var(--border-color-hover);
+  color: var(--text-primary);
+  box-shadow: none;
+}
+
+:root .btn-secondary:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--surface-hover);
+  border-color: var(--stroke-medium);
+}
+
+:root .btn-danger,
+:root[data-theme] .btn-danger,
+:root[data-theme] .btn-danger.btn-sm {
+  background: transparent !important;
+  border-color: var(--accent-danger-border) !important;
+  color: var(--accent-danger) !important;
+  box-shadow: none !important;
+}
+
+:root .btn-danger:hover:not(:disabled),
+:root[data-theme] .btn-danger:hover:not(:disabled),
+:root[data-theme] .btn-danger.btn-sm:hover:not(:disabled) {
+  background: var(--accent-danger-bg) !important;
+  border-color: var(--accent-danger) !important;
+  color: var(--accent-danger) !important;
+}
+
+:root .btn:disabled,
+:root .btn[aria-disabled="true"],
+:root[data-theme] .btn:disabled,
+:root[data-theme] .btn[aria-disabled="true"],
+:root[data-theme] :is(.btn-primary, .btn-secondary):is(:disabled, [aria-disabled="true"]) {
+  background-color: var(--surface-soft) !important;
+  background-image: none !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-muted) !important;
+  box-shadow: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   Form controls
+   -------------------------------------------------------------------------- */
+:root :is(.form-input, .form-select, .form-textarea, select.form-input) {
+  border-radius: var(--radius-control);
+  background-color: var(--bg-input);
+  border-color: var(--border-color-hover);
+}
+
+:root :is(.form-input, .form-select, .form-textarea):hover:not(:disabled):not(:focus) {
+  border-color: var(--stroke-medium);
+}
+
+:root :is(.form-input, .form-select, .form-textarea):focus,
+:root :is(.form-input, .form-select, .form-textarea):focus-visible {
+  border-color: var(--focus-ring-border);
+  box-shadow: var(--focus-ring-shadow);
+  outline: none;
+}
+
+:root .form-label {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* Checkboxes and radios need 3:1 against the panel (WCAG 1.4.11). */
+:root input:is([type="checkbox"], [type="radio"]):not(:checked) {
+  border-color: var(--text-muted);
+}
+
+:root input:is([type="checkbox"], [type="radio"]) {
+  accent-color: var(--signal);
+}
+
+/* --------------------------------------------------------------------------
+   Surfaces
+   -------------------------------------------------------------------------- */
+:root :is(.card, .glass-panel, .table-container, .settings-panel) {
+  border-radius: var(--radius-panel);
+  border-color: var(--border-color);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+:root[data-theme="light"] :is(.card, .glass-panel, .table-container, .settings-panel) {
+  box-shadow: var(--shadow-xs);
+}
+
+:root :is(.dropdown-menu, .popover, .header-search-results, .notification-panel, .modal) {
+  box-shadow: var(--shadow-popover);
+}
+
+/* --------------------------------------------------------------------------
+   Badges and chips: squarer, quieter, never all-caps
+   -------------------------------------------------------------------------- */
+:root .badge {
+  border-radius: var(--radius-chip);
+  font-weight: 550;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Protocol labels are categories, not states: one neutral treatment. */
+:root[data-theme] :is(.badge-vmess, .badge-vless, .badge-trojan, .badge-shadowsocks, .badge-hysteria, .badge-hysteria2, .badge-tuic, .badge-wireguard, .badge-socks, .badge-http, .badge-dokodemo, .badge-protocol) {
+  color: var(--text-secondary) !important;
+  background: var(--surface-soft) !important;
+  border-color: var(--border-color) !important;
+}
+
+/* --------------------------------------------------------------------------
+   Colour discipline
+   "OK" is the normal case, so it reads in ink with a small success dot.
+   Amber and red keep their tinted fill because they ask for action.
+   Categories (tags, protocols, node names) are neutral, and secondary
+   figures never borrow a state colour. The !important answers legacy
+   theme rules that set these with !important.
+   -------------------------------------------------------------------------- */
+:root[data-theme] .badge.badge-success,
+:root[data-theme] :is(.inbounds-online-indicator, .inbounds-client-online-status.is-online, .cap-status-pill--success, .audit-nav-status-chip.is-ready, .logs-scroll-chip.is-live) {
+  color: var(--text-secondary) !important;
+  background: var(--surface-soft) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: none !important;
+}
+
+:root[data-theme] .badge.badge-success {
+  gap: 6px;
+}
+
+:root[data-theme] .badge.badge-success:not(:has(.pulse-dot, .subscription-status-pulse-dot))::before,
+:root[data-theme] :is(.audit-nav-status-chip.is-ready, .logs-scroll-chip.is-live)::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-success);
+}
+
+:root[data-theme] :is(.audit-nav-status-chip.is-ready, .logs-scroll-chip.is-live) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+:root[data-theme] :is(.inbounds-online-dot, .inbounds-client-online-dot) {
+  width: 6px;
+  height: 6px;
+  background: var(--accent-success);
+  box-shadow: none;
+}
+
+/* A steady dot says "online"; a ring that pulses forever only adds noise. */
+:root :is(.inbounds-online-dot-ping, .inbounds-client-online-dot-ping) {
+  display: none;
+}
+
+:root :is(.inbounds-online-dot-shell, .inbounds-client-online-dot-shell) {
+  width: 6px;
+  height: 6px;
+}
+
+/* Tags, protocols and node names are categories. */
+:root[data-theme] :is(.server-card-tags, .inbounds-protocol-cell, .log-line.has-server) > .badge {
+  color: var(--text-secondary) !important;
+  background: var(--surface-soft) !important;
+  border-color: var(--border-color) !important;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+:root .log-line.has-server > .badge {
+  font-family: var(--font-sans);
+}
+
+/* Upload / download splits are detail, not state. */
+:root[data-theme] :is(.inbounds-traffic-stack, .users-traffic-split) > span {
+  color: var(--text-muted) !important;
+}
+
+/* Dates and byte counts are figures; mono is kept for literal strings. */
+:root :is(.users-expiry-cell, .audit-event-time-cell, .users-traffic-total) {
+  font-family: var(--font-figure);
+  font-variant-numeric: proportional-nums lining-nums;
+  letter-spacing: 0;
+}
+
+/* System status tiles: the icon is neutral unless the value needs action. */
+:root[data-theme] :is(.settings-kpi-card-icon--primary, .settings-kpi-card-icon--success, .settings-kpi-card-icon--info),
+:root[data-theme] .settings-status-grid .settings-kpi-card-icon:is(.settings-kpi-card-icon--primary, .settings-kpi-card-icon--success, .settings-kpi-card-icon--info) {
+  color: var(--text-secondary);
+  background: var(--surface-soft);
+  border-color: var(--border-color);
+}
+
+/* Toggles that stay on (auto refresh, the selected tool) read as pressed,
+   with the signal on the edge, instead of a second filled primary. */
+:root[data-theme] .btn.btn-secondary:is([aria-pressed="true"], .is-on) {
+  border-color: var(--signal) !important;
+  background: var(--accent-primary-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+:root[data-theme] .btn.btn-secondary:is([aria-pressed="true"], .is-on) svg {
+  color: var(--signal);
+}
+
+/* --------------------------------------------------------------------------
+   Tables: quiet header, figures aligned
+   -------------------------------------------------------------------------- */
+:root .table thead th {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 550;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-muted);
+  background: var(--surface-table-header);
+}
+
+:root .table tbody tr:hover {
+  background: var(--surface-table-row-hover);
+}
+
+/* --------------------------------------------------------------------------
+   Tabs: the current tab gets the same signal edge as the current page
+   -------------------------------------------------------------------------- */
+:root[data-theme] :is(.tabs, .audit-tabs, .users-tabs, .xray-tabs, .user-detail-tabs .tabs) > :is(.tab, .audit-tab, .users-tab).active,
+:root[data-theme] .settings-nav-list--workspace > .settings-nav-item.is-active {
+  background: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
+  border-color: transparent !important;
+  box-shadow: inset 0 -2px 0 var(--signal) !important;
+  font-weight: 600;
+}
+
+:root[data-theme] :is(.tabs, .audit-tabs, .users-tabs, .xray-tabs, .user-detail-tabs .tabs) > :is(.tab, .audit-tab, .users-tab):hover:not(.active),
+:root[data-theme] .settings-nav-list--workspace > .settings-nav-item:hover:not(.is-active) {
+  background: var(--surface-hover) !important;
+  border-color: transparent !important;
+}
+
+:root[data-theme] :is(.tab.active, .filter-chip.active, .settings-nav-item.is-active, .users-tab.active),
+:root[data-theme] :is(.tab.active, .filter-chip.active, .settings-nav-item.is-active) > span:first-child {
+  color: var(--text-primary);
+}
+
+/* --------------------------------------------------------------------------
+   Log pane: ink in both themes, like a terminal
+   -------------------------------------------------------------------------- */
+:root .log-pane .empty-state-title { color: #e3edf2; }
+:root .log-pane :is(.empty-state-sub, .empty-state-text) { color: #b1c0ca; }
+:root .log-pane .empty-state-icon { color: #90a1ad; }
+
+:root .log-pane .btn-secondary:not(:disabled) {
+  color: #e3edf2 !important;
+  background: rgba(150, 190, 214, 0.08) !important;
+  border-color: rgba(150, 190, 214, 0.28) !important;
+}
+
+:root .log-pane .btn-secondary:hover:not(:disabled) {
+  color: #ffffff !important;
+  background: rgba(150, 190, 214, 0.16) !important;
+  border-color: rgba(150, 190, 214, 0.44) !important;
+}
+
+/* ==========================================================================
+   The pass
+   A subscription is a pass: who holds it, how long it is valid, how much
+   it allows, and a code to scan. Login is the blank pass, the
+   subscription page is the issued one. The shape is the same: a stub,
+   a perforation with two punched notches, and the body.
+   The notches are cut with a mask, so the pass needs no border; on the
+   light canvas a drop-shadow on the parent keeps its edge readable.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Login: the blank pass
+   On wide screens it reads as a ticket: a navy stub on the left names the
+   console and where it lives, a perforation, then the form. Below 760px
+   the stub folds to the top. Inside the body every edge sits on one
+   gutter, and the folded stub uses the same gutter so the mark and the
+   form line up.
+   -------------------------------------------------------------------------- */
+:root .login-page,
+:root[data-theme] .login-page {
+  background: var(--bg-canvas);
+  background-image: none;
+}
+
+:root .login-page::before,
+:root .login-page::after {
+  content: none;
+}
+
+:root .login-shell[class*="login-shell--"] {
+  width: 100%;
+  max-width: none;
+  min-height: 100svh;
+  margin: 0;
+  padding: 72px 24px 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+:root .login-shell .login-card-column {
+  width: min(100%, 784px);
+  max-width: none;
+  filter: drop-shadow(0 18px 30px rgba(2, 8, 16, 0.32));
+}
+
+:root[data-theme="light"] .login-shell .login-card-column {
+  filter: drop-shadow(0 1px 1px rgba(13, 27, 45, 0.08)) drop-shadow(0 20px 40px rgba(13, 27, 45, 0.1));
+}
+
+:root .login-card.login-pass,
+:root[data-theme] .login-card.login-pass {
+  --stub-w: 272px;
+  --perf: 2px;
+  --notch: 12px;
+  --gutter: 44px;
+  position: relative;
+  width: 100%;
+  max-width: none;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pass);
+  background: var(--surface-panel);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  -webkit-mask:
+    radial-gradient(circle var(--notch) at calc(var(--stub-w) + var(--perf) / 2) 0, #0000 97%, #000) top / 100% 51% no-repeat,
+    radial-gradient(circle var(--notch) at calc(var(--stub-w) + var(--perf) / 2) 100%, #0000 97%, #000) bottom / 100% 51% no-repeat;
+  mask:
+    radial-gradient(circle var(--notch) at calc(var(--stub-w) + var(--perf) / 2) 0, #0000 97%, #000) top / 100% 51% no-repeat,
+    radial-gradient(circle var(--notch) at calc(var(--stub-w) + var(--perf) / 2) 100%, #0000 97%, #000) bottom / 100% 51% no-repeat;
+}
+
+:root .login-card.login-pass::before,
+:root .login-card.login-pass::after {
+  content: none;
+}
+
+/* Stub: dark mode lifts it a step above the body; light mode prints it in
+   the navy of the mark so the logo sits on its own ink. */
+:root .login-pass .login-brand-row.login-pass-stub {
+  flex: 0 0 var(--stub-w);
+  width: var(--stub-w);
+  max-width: none;
+  height: auto;
+  margin: 0;
+  padding: 40px 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 0;
+  border: 0;
+  border-radius: var(--radius-pass) 0 0 var(--radius-pass);
+  background: var(--pass-stub-bg);
+  text-align: left;
+}
+
+/* The mark is an opaque PNG with pale corners; crop them away. */
+:root .login-pass .login-brand-mark {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  margin: 0;
+  border-radius: 0;
+  clip-path: inset(4% round 22%);
+  box-shadow: none;
+  filter: none;
+}
+
+/* Only the mark and the name: the mark heads the stub, the name sits on
+   its foot, the way a ticket carries its issuer. */
+:root .login-pass .login-brand-name {
+  margin-top: auto;
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  color: var(--pass-stub-text);
+  background: none;
+  -webkit-text-fill-color: currentColor;
+}
+
+
+:root .login-pass .login-pass-perf {
+  flex: 0 0 var(--perf);
+  width: var(--perf);
+  height: auto;
+  margin: calc(var(--notch) + 8px) 0;
+  background: radial-gradient(circle, var(--stroke-medium) 1px, transparent 1.4px) 50% 0 / var(--perf) 9px repeat-y;
+}
+
+:root .login-pass .login-pass-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 40px var(--gutter);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+:root .login-pass .login-form-heading {
+  margin: 0 0 20px;
+  text-align: left;
+}
+
+:root .login-pass .login-form-heading h1 {
+  margin: 0;
+  font-size: 1.375rem;
+  font-weight: 650;
+}
+
+/* Login / register switch: text tabs with the signal edge */
+:root .login-pass .auth-tabs {
+  gap: 24px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  margin: 0 0 24px;
+}
+
+:root .login-pass .auth-tabs .auth-tab {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 0;
+  margin-bottom: -1px;
+  border-radius: 0;
+  font-size: 1rem;
+  font-weight: 550;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--text-muted) !important;
+}
+
+:root .login-pass .auth-tabs .auth-tab:hover:not(.active) {
+  color: var(--text-primary) !important;
+}
+
+:root .login-pass .auth-tabs .auth-tab.active {
+  color: var(--text-primary) !important;
+  font-weight: 650;
+  box-shadow: inset 0 -2px 0 var(--signal) !important;
+}
+
+:root .login-pass .auth-form .form-group {
+  margin: 0 0 18px;
+}
+
+:root .login-pass .auth-form .form-label {
+  display: block;
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 550;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-secondary);
+}
+
+:root .login-pass .login-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 8px;
+}
+
+:root .login-pass .login-label-row .form-label {
+  margin: 0;
+}
+
+:root .login-pass .login-forgot-link {
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+:root .login-pass .login-forgot-link:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* One control height on the pass: fields, the send-code button and the
+   full-width actions all sit at 42px. The global control heights are
+   !important, so these have to be as well. */
+:root .login-pass .auth-form :is(.form-input, .btn.w-full, .verify-code-send-btn) {
+  height: 42px !important;
+  min-height: 42px !important;
+}
+
+:root .login-pass .auth-form .btn.w-full {
+  letter-spacing: 0;
+}
+
+:root .login-pass .auth-form > .btn-primary {
+  margin-top: 6px;
+}
+
+/* An empty form keeps its primary action recognisable, just quieter.
+   (The global disabled grey is !important, so this has to be too.) */
+:root[data-theme] .login-pass .auth-form .btn-primary:disabled {
+  background-color: var(--btn-primary-bg) !important;
+  border-color: transparent !important;
+  color: var(--text-on-accent) !important;
+  box-shadow: none !important;
+  opacity: 0.45 !important;
+}
+
+:root .login-pass .login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+:root .login-pass .login-divider::before,
+:root .login-pass .login-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border-color);
+}
+
+:root .login-pass .login-passkey-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+:root .login-pass .login-passkey-btn svg {
+  color: var(--text-secondary);
+}
+
+/* Verify, reset and two-factor open with a heading on the same left edge
+   as the fields; the shield above it only repeated the title. */
+:root .login-pass .verify-header {
+  display: block;
+  margin: 0 0 22px;
+  padding: 0 0 18px;
+  border: 0;
+  border-bottom: 1px solid var(--border-color);
+  text-align: left;
+}
+
+:root .login-pass .verify-header .verify-icon {
+  display: none;
+}
+
+:root .login-pass .verify-header :is(h1, h2) {
+  margin: 0 0 6px;
+  font-size: 1.375rem;
+  font-weight: 650;
+  text-align: left;
+}
+
+:root .login-pass .verify-header p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: left;
+  color: var(--text-secondary);
+}
+
+:root .login-pass .verify-header p + p {
+  margin-top: 2px;
+  color: var(--text-muted);
+}
+
+:root .login-pass .verify-code-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+:root .login-pass .verify-code-row .form-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+:root .login-pass .verify-code-send-btn {
+  flex: none;
+  padding-inline: 14px;
+  font-size: 13px;
+}
+
+:root .login-card.login-pass .verify-code-input {
+  text-align: left;
+}
+
+:root .login-card.login-pass .verify-code-input:placeholder-shown {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+/* Register keeps one column inside the pass; side by side, the
+   placeholders would be cut off. */
+:root .login-pass .login-form-grid {
+  grid-template-columns: minmax(0, 1fr);
+  column-gap: 0;
+}
+
+:root .login-top-actions :is(.theme-toggle-btn, .language-toggle-btn) {
+  background: transparent;
+  box-shadow: none;
+}
+
+@media (max-width: 760px) {
+  :root .login-shell[class*="login-shell--"] {
+    padding: 72px 16px 32px;
+  }
+
+  :root .login-shell .login-card-column {
+    width: min(100%, 460px);
+  }
+
+  :root .login-card.login-pass,
+  :root[data-theme] .login-card.login-pass {
+    --stub-h: 76px;
+    --gutter: 24px;
+    flex-direction: column;
+    -webkit-mask:
+      radial-gradient(circle var(--notch) at 0 calc(var(--stub-h) + var(--perf) / 2), #0000 97%, #000) left / 51% 100% no-repeat,
+      radial-gradient(circle var(--notch) at 100% calc(var(--stub-h) + var(--perf) / 2), #0000 97%, #000) right / 51% 100% no-repeat;
+    mask:
+      radial-gradient(circle var(--notch) at 0 calc(var(--stub-h) + var(--perf) / 2), #0000 97%, #000) left / 51% 100% no-repeat,
+      radial-gradient(circle var(--notch) at 100% calc(var(--stub-h) + var(--perf) / 2), #0000 97%, #000) right / 51% 100% no-repeat;
+  }
+
+  :root .login-pass .login-brand-row.login-pass-stub {
+    flex: 0 0 var(--stub-h);
+    width: auto;
+    height: var(--stub-h);
+    padding: 0 var(--gutter);
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+    border-radius: var(--radius-pass) var(--radius-pass) 0 0;
+  }
+
+  :root .login-pass .login-brand-mark {
+    width: 42px;
+    height: 42px;
+    margin: 0;
+  }
+
+  :root .login-pass .login-brand-name {
+    margin-top: 0;
+    font-size: 1.5rem;
+  }
+
+  :root .login-pass .login-pass-perf {
+    flex: 0 0 var(--perf);
+    width: auto;
+    height: var(--perf);
+    margin: 0 calc(var(--notch) + 8px);
+    background: radial-gradient(circle, var(--stroke-medium) 1px, transparent 1.4px) 0 50% / 9px var(--perf) repeat-x;
+  }
+
+  :root .login-pass .login-pass-body {
+    padding: 24px var(--gutter) var(--gutter);
+  }
+}
+
+/* ==========================================================================
+   Pages
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Dashboard: figures lead, units and labels step back
+   -------------------------------------------------------------------------- */
+:root .dashboard-stat-card-value-text {
+  font-family: var(--font-figure);
+  font-size: clamp(1.75rem, 2.4vw, 2.125rem);
+  font-weight: 600;
+  font-variant-numeric: lining-nums proportional-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+:root .dashboard-stat-card-unit {
+  margin-left: 0.04em;
+  font-size: 0.5em;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--text-secondary);
+}
+
+:root .dashboard-stat-card-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+:root .dashboard-stat-card-subtitle {
+  color: var(--text-muted);
+  font-variant-numeric: proportional-nums;
+}
+
+:root .node-health-metric-label {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+:root .node-health-tile-value {
+  font-family: var(--font-figure);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+:root .node-health-tile-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Same colour rule in both themes: healthy is ink with a dot,
+   warning and danger carry their tint. */
+:root[data-theme] .node-health-tile .node-health-tone-pill {
+  gap: 6px;
+  border-radius: var(--radius-chip);
+  color: var(--text-secondary);
+  background: var(--surface-soft);
+  border-color: var(--border-color);
+}
+
+:root[data-theme] .node-health-tile[data-tone="success"] .node-health-tone-pill::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-success);
+}
+
+:root[data-theme] .node-health-tile[data-tone="warning"] .node-health-tone-pill {
+  color: var(--accent-warning);
+  background: var(--accent-warning-bg);
+  border-color: var(--accent-warning-border);
+}
+
+:root[data-theme] .node-health-tile[data-tone="danger"] .node-health-tone-pill {
+  color: var(--accent-danger);
+  background: var(--accent-danger-bg);
+  border-color: var(--accent-danger-border);
+}
+
+/* Summary counts are figures in ink; the state lives in a legend dot,
+   so "0 critical" no longer shouts in red. */
+:root .node-health-summary-item strong {
+  color: var(--text-primary);
+  font-family: var(--font-figure);
+  font-variant-numeric: proportional-nums lining-nums;
+}
+
+:root .node-health-summary-item > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+:root .node-health-summary-item > span::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--summary-dot, var(--text-muted));
+}
+
+:root .node-health-summary-item[data-tone="success"] { --summary-dot: var(--accent-success); }
+:root .node-health-summary-item[data-tone="warning"] { --summary-dot: var(--accent-warning); }
+:root .node-health-summary-item[data-tone="danger"] { --summary-dot: var(--accent-danger); }
+
+:root .dashboard-hero .dashboard-hero-kpi .dashboard-hero-kpi-value {
+  font-family: var(--font-figure);
+  font-size: clamp(1.75rem, 2.4vw, 2.125rem);
+  font-weight: 600;
+  font-variant-numeric: lining-nums proportional-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+:root .dashboard-hero-kpi-value .dashboard-stat-card-unit {
+  font-size: 0.5em;
+}
+
+:root .dashboard-hero-kpi-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* Small live figures: proportional digits, since this face's tabular set
+   also widens the decimal point ("18 . 4%"). */
+:root .node-health-tile :is(.node-health-tile-value, .node-health-metric-val) {
+  font-variant-numeric: lining-nums proportional-nums;
+}
+
+/* --------------------------------------------------------------------------
+   Log pane: only warnings and errors earn a leading edge
+   -------------------------------------------------------------------------- */
+:root .log-pane {
+  border-radius: var(--radius-control);
+}
+
+:root .log-line:not([data-level="warning"], [data-level="error"]) {
+  border-left-color: transparent;
+}
+
+/* The role label is a fact about the account, not a call to act. */
+:root[data-theme] .sidebar-user-badge {
+  color: var(--text-secondary);
+  background: var(--surface-soft);
+  border-color: var(--border-color);
+  border-radius: var(--radius-chip);
+  font-size: 11px;
+  letter-spacing: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Admin subscription view: same colour rules as the pass
+   -------------------------------------------------------------------------- */
+/* An email is data; it reads in ink and is underlined on hover only. */
+:root[data-theme] :is(.subscription-email-link, .subscription-summary-value) a,
+:root[data-theme] a.subscription-email-link {
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+:root[data-theme] a.subscription-email-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+:root[data-theme] .subscriptions-toolbar-chip.is-active {
+  color: var(--text-primary);
+  background: var(--surface-soft);
+  border-color: var(--border-color-hover);
+}
+
+/* Ring meters follow the bar meters: neutral until a threshold is crossed,
+   and still — a ring that breathes forever reads as "loading". */
+:root :is(.circular-meter--info, .circular-meter--primary, .circular-meter--success) .circular-meter-value-ring {
+  stroke: var(--meter-fill);
+}
+
+:root .circular-meter.is-pulse .circular-meter-value-ring {
+  animation: none;
+}
+
+:root .circular-meter-percent {
+  font-family: var(--font-figure);
+  font-variant-numeric: proportional-nums lining-nums;
+  font-weight: 600;
+}
+
+/* --------------------------------------------------------------------------
+   Account and downloads: identity and categories stay in ink
+   -------------------------------------------------------------------------- */
+:root[data-theme] .account-identity-avatar {
+  color: var(--text-primary);
+  background: var(--surface-soft);
+  border-color: var(--border-color-hover);
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+:root[data-theme] .account-twofactor-title svg {
+  color: var(--text-secondary);
+}
+
+/* A recommended profile is a name to look for in the client, not a link. */
+:root[data-theme] .subscription-device-rule-profile {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* --------------------------------------------------------------------------
+   Lists: the dot carries the state, the count is just a number
+   -------------------------------------------------------------------------- */
+:root[data-theme] .filter-chip-count:is(.count-success, .count-warning, .count-danger) {
+  background: color-mix(in srgb, var(--text-muted) 15%, transparent);
+  color: var(--text-secondary);
+}
+
+:root[data-theme] .filter-chip.active .filter-chip-count {
+  background: var(--btn-primary-bg);
+  color: var(--text-on-accent);
+}
+
+/* Initials identify a row; they are not a highlight. */
+:root[data-theme] :is(.user-avatar-badge, .user-avatar) {
+  color: var(--text-primary);
+  background: var(--surface-soft);
+  border-color: var(--border-color-hover);
+}
+
+/* A picked node keeps a quiet border; the checkbox already shows the choice. */
+:root[data-theme] .server-chip.active {
+  background: var(--surface-soft);
+  border-color: var(--border-color-hover);
+}
+
+/* Search results: the type icon is neutral; only the highlighted row takes the signal. */
+:root[data-theme] .header-search-item-icon {
+  background: var(--surface-soft);
+  color: var(--text-secondary);
+  border-radius: var(--radius-control);
+}
+
+:root[data-theme] .header-search-item.active .header-search-item-icon {
+  background: var(--accent-primary-bg);
+  color: var(--signal);
+}
+
+/* The subscription status pill brings its own dot; it keeps the status
+   colour while the label stays neutral. */
+:root[data-theme] .badge.badge-success .subscription-status-pulse-dot {
+  background: var(--accent-success);
+}
+
+:root[data-theme] .badge.badge-warning .subscription-status-pulse-dot {
+  background: var(--accent-warning);
+}
+
+/* --------------------------------------------------------------------------
+   Logs: one column per field, so every message starts on the same edge
+   -------------------------------------------------------------------------- */
+:root .log-line.has-server {
+  grid-template-columns: 3ch minmax(0, 10rem) minmax(0, 1fr);
+  align-items: baseline;
+}
+
+:root .log-line.has-server > .badge {
+  justify-self: start;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:root .logs-keyword-input {
+  flex: 1 1 260px;
+  width: auto;
+  min-width: 200px;
+  max-width: 420px;
+}
+
+@media (max-width: 640px) {
+  :root .log-line.has-server {
+    grid-template-columns: 3ch minmax(0, 1fr);
+  }
+
+  :root .log-line.has-server > .log-line-content {
+    grid-column: 2;
+  }
+
+  :root .logs-keyword-input {
+    max-width: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Audit: the section tabs and the sync state share one row
+   -------------------------------------------------------------------------- */
+:root .audit-nav {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+
+:root .audit-nav .audit-tabs {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+}
+
+:root .audit-nav .audit-nav-topbar {
+  order: 2;
+  flex: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+@media (max-width: 640px) {
+  :root .audit-nav {
+    flex-wrap: wrap;
+  }
+
+  :root .audit-nav .audit-tabs {
+    flex-basis: 100%;
+  }
+
+  :root .audit-nav .audit-nav-topbar {
+    order: -1;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Account: the password rule sits on the same line as the button it governs
+   -------------------------------------------------------------------------- */
+:root .account-password-submit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+:root .account-password-submit .account-card-note {
+  margin: 0;
+  max-width: 60ch;
+}
+
+@media (max-width: 480px) {
+  :root .account-password-submit {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Key/value lists (server detail): muted label above, value below, on a grid
+   -------------------------------------------------------------------------- */
+:root .server-detail-kv {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
+  gap: 18px 32px;
+  margin: 0;
+}
+
+:root .server-detail-kv > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+:root .server-detail-kv dt {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+:root .server-detail-kv dd {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+:root .server-detail-kv .server-detail-kv-wide {
+  grid-column: 1 / -1;
+}
+
+:root .server-detail-kv .server-detail-kv-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* --------------------------------------------------------------------------
+   Downloads: client list left, the config it takes pinned right on line one
+   -------------------------------------------------------------------------- */
+:root .subscription-device-rule {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: 12px;
+  margin-bottom: 0;
+}
+
+:root .subscription-device-rule-tools {
+  min-width: 0;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+:root .subscription-device-rule-profile {
+  margin-left: 0;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* --------------------------------------------------------------------------
+   Audit filters on phones: actions pair up two to a row instead of stacking
+   -------------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  :root .audit-control-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+  }
+
+  :root .audit-control-actions .audit-control-action-group {
+    display: contents;
+  }
+
+  :root .audit-control-actions .btn {
+    width: 100%;
+    margin: 0;
+  }
+}

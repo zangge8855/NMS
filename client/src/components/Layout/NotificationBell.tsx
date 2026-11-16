@@ -61,7 +61,7 @@ function buildNotificationMetaRows(
     if (meta.method || meta.path) {
         rows.push({
             label: labels.request,
-            value: `${meta.method || '-'} ${meta.path || '-'}`.trim(),
+            value: `${meta.method || '—'} ${meta.path || '—'}`.trim(),
         });
     }
     // Recovery events carry reasonCode "none"; there is nothing to explain, so skip the row.

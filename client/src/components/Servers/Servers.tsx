@@ -872,7 +872,7 @@ export default function Servers() {
         const serverGroup = server.group || t('comp.servers.ungrouped');
         const serverTags = Array.isArray(server.tags) ? server.tags : [];
         const serverEnvironment = formatServerEnvironment(server.environment, locale);
-        const authLabel = server.apiTokenConfigured ? 'API Token' : (server.username || '-');
+        const authLabel = server.apiTokenConfigured ? 'API Token' : (server.username || '—');
         const testState = testResults[server.id];
         const testStateText = testState === 'success'
             ? t('comp.servers.testOk')
@@ -1188,7 +1188,7 @@ export default function Servers() {
                             const serverGroup = server.group || t('comp.servers.ungrouped');
                             const serverTags = Array.isArray(server.tags) ? server.tags : [];
                             const serverEnvironment = formatServerEnvironment(server.environment, locale);
-                            const authLabel = server.apiTokenConfigured ? 'API Token' : (server.username || '-');
+                            const authLabel = server.apiTokenConfigured ? 'API Token' : (server.username || '—');
                             const testState = testResults[server.id];
                             const testStateText = testState === 'success'
                                 ? t('comp.servers.testOk')
@@ -1625,19 +1625,19 @@ export default function Servers() {
                                                     <tbody>
                                                         {(batchResult.results || []).map((item) => (
                                                             <tr key={`batch-add-${item.line}-${item.url || item.name || ''}`}>
-                                                                <td data-label={t('comp.servers.lineNumber')} className="table-cell-right cell-mono-right servers-batch-line-cell">{item.line || '-'}</td>
-                                                                <td data-label={t('comp.servers.name')}>{item.name || '-'}</td>
+                                                                <td data-label={t('comp.servers.lineNumber')} className="table-cell-right cell-mono-right servers-batch-line-cell">{item.line || '—'}</td>
+                                                                <td data-label={t('comp.servers.name')}>{item.name || '—'}</td>
                                                                 <td data-label={t('comp.servers.address')} className="table-word-220 cell-mono">
-                                                                    {item.url || '-'}
+                                                                    {item.url || '—'}
                                                                 </td>
-                                                                <td data-label="Path" className="cell-mono">{item.basePath || '-'}</td>
+                                                                <td data-label="Path" className="cell-mono">{item.basePath || '—'}</td>
                                                                 <td data-label={t('comp.servers.status')} className="table-cell-center servers-batch-status-cell">
                                                                     <span className={`badge ${item.success ? 'badge-success' : 'badge-danger'}`}>
                                                                         {item.success ? t('comp.common.success') : t('comp.common.failed')}
                                                                     </span>
                                                                 </td>
                                                                 <td data-label={t('comp.servers.result')} className="table-word-280">
-                                                                    {item.msg || '-'}
+                                                                    {item.msg || '—'}
                                                                 </td>
                                                             </tr>
                                                         ))}
@@ -1668,7 +1668,7 @@ export default function Servers() {
                             <form onSubmit={handleCredentialRepairSubmit}>
                                 <div className="modal-body">
                                     <div className="text-sm text-muted mb-3">
-                                        {t('comp.servers.nodePrefix')}{repairTargetServer?.name || credentialRepair.serverId || '-'}
+                                        {t('comp.servers.nodePrefix')}{repairTargetServer?.name || credentialRepair.serverId || '—'}
                                     </div>
                                     {credentialRepair.reason && (
                                         <div className="badge badge-danger mb-3 w-fit">{credentialRepair.reason}</div>

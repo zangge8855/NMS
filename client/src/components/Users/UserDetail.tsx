@@ -551,7 +551,7 @@ function formatSummaryText(item, copy) {
 function formatTimelineIp(item, copy) {
     if (item.ip) return item.ip;
     if (item.ipMasked) return copy.labels.redacted;
-    return '-';
+    return '—';
 }
 
 function formatTimelineUserAgent(item, copy) {

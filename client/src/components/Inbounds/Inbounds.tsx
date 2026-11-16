@@ -122,7 +122,7 @@ function resolveInboundTrafficSummary(inbound, clients = []) {
 
 function maskSensitiveValue(value) {
     const text = String(value || '').trim();
-    if (!text) return '-';
+    if (!text) return '—';
     if (text.length <= 8) {
         return `${text.slice(0, 2)}***${text.slice(-2)}`;
     }
@@ -990,7 +990,7 @@ export default function Inbounds() {
         const ok = await confirmAction({
             title: t('comp.inbounds.batchDeleteClientTitle'),
             message: t('comp.inbounds.confirmBulkDeleteClients', { count: selectedClients.length }),
-            details: `${inbound?.serverName || '-'} / ${inbound?.remark || inbound?.protocol || '-'}:${inbound?.port || '-'}`,
+            details: `${inbound?.serverName || '—'} / ${inbound?.remark || inbound?.protocol || '—'}:${inbound?.port || '—'}`,
             confirmText: t('comp.common.confirmDelete'),
             tone: 'danger',
         });
@@ -1290,7 +1290,7 @@ export default function Inbounds() {
                             </label>
                             <div className="inbounds-client-mobile-copy">
                                 <div className="inbounds-client-mobile-email">
-                                    <span>{cl.email || '-'}</span>
+                                    <span>{cl.email || '—'}</span>
                                     {hasOverride ? <span className="badge badge-warning">{deepCopy.limited}</span> : null}
                                 </div>
                                 <div className="inbounds-client-mobile-credential cell-mono">
@@ -1905,7 +1905,7 @@ export default function Inbounds() {
                                                                             </td>
                                                                             <td data-label={deepCopy.user} className="inbounds-clients-col-email">
                                                                                 <div className="inbounds-client-email-row">
-                                                                                    <span>{cl.email || '-'}</span>
+                                                                                    <span>{cl.email || '—'}</span>
                                                                                     {hasOverride && (
                                                                                         <span className="badge badge-warning">{deepCopy.limited}</span>
                                                                                     )}
@@ -2145,7 +2145,7 @@ export default function Inbounds() {
                                     <div className="mb-4 p-3 rounded bg-surface-soft border border-stroke-soft text-sm">
                                         <div>{deepCopy.node}: <strong>{entitlementTarget.inbound.serverName}</strong></div>
                                         <div>{deepCopy.inbound}: <strong>{entitlementTarget.inbound.remark || entitlementTarget.inbound.protocol}</strong></div>
-                                        <div>{deepCopy.user}: <strong>{entitlementTarget.client.email || entitlementTarget.clientIdentifier || '-'}</strong></div>
+                                        <div>{deepCopy.user}: <strong>{entitlementTarget.client.email || entitlementTarget.clientIdentifier || '—'}</strong></div>
                                     </div>
                                     <div className="grid-auto-280-tight">
                                         <div className="form-group mb-0">

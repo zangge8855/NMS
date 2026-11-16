@@ -254,7 +254,7 @@ export default function TaskProgressModal({ taskId, title, onClose }) {
                     {/* 任务元信息 */}
                     <div className="grid grid-cols-2 gap-2 text-xs text-muted">
                         <div>{copy.taskId}: <span className="font-mono">{taskId?.slice(0, 8)}...</span></div>
-                        <div>{copy.actor}: {task?.actor || '-'}</div>
+                        <div>{copy.actor}: {task?.actor || '—'}</div>
                         {task?.startedAt && (
                             <div>{copy.startedAt}: {formatTimeOnly(task.startedAt, locale)}</div>
                         )}

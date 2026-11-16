@@ -19,11 +19,11 @@ import ModalShell from '../UI/ModalShell';
 function getCopy(locale = 'zh-CN') {
     if (locale === 'en-US') {
         return {
-            title: 'Passkeys (FIDO2 / WebAuthn)',
-            subtitle: 'Sign in effortlessly using Face ID, Touch ID, Windows Hello, or hardware security keys without typing a password.',
+            title: 'Passkeys',
+            subtitle: 'Sign in with Face ID, Touch ID, Windows Hello or a security key instead of a password.',
             addPasskey: 'Add Passkey',
-            noPasskeysTitle: 'No Passkeys Added Yet',
-            noPasskeysSubtitle: 'Add your first passkey to experience fast, biometric, phishing-resistant sign in.',
+            noPasskeysTitle: 'No passkeys yet',
+            noPasskeysSubtitle: 'Add one to sign in on this device without a password.',
             createdOn: 'Added on',
             lastUsed: 'Last used',
             neverUsed: 'Never used yet',
@@ -48,11 +48,11 @@ function getCopy(locale = 'zh-CN') {
         };
     }
     return {
-        title: '通行密钥 (Passkey / WebAuthn)',
-        subtitle: '使用面容 (Face ID)、指纹 (Touch ID)、Windows Hello 或硬件安全密钥实现免密极速安全登录。',
+        title: '通行密钥',
+        subtitle: '用面容、指纹、Windows Hello 或安全密钥登录，无需输入密码。',
         addPasskey: '添加通行密钥',
-        noPasskeysTitle: '暂未绑定通行密钥',
-        noPasskeysSubtitle: '添加您的首个通行密钥，体验免输入密码的生物识别与高强度抗钓鱼登录。',
+        noPasskeysTitle: '还没有通行密钥',
+        noPasskeysSubtitle: '添加后即可在这台设备上免密码登录。',
         createdOn: '添加时间',
         lastUsed: '上次使用',
         neverUsed: '尚未用于登录',

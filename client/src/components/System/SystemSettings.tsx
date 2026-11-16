@@ -64,7 +64,7 @@ function maskChatIdValue(value) {
 function resolveChatIdPreviewValue(preview, value) {
     const previewText = toText(preview, '');
     if (previewText) return previewText;
-    return maskChatIdValue(value) || '-';
+    return maskChatIdValue(value) || '—';
 }
 
 function normalizeSiteAccessPathInput(value, fallback = '/') {
@@ -2957,11 +2957,11 @@ export default function SystemSettings() {
                     <div className="settings-backup-inspection-grid settings-runtime-storage-grid">
                         <div className="settings-backup-inspection-item">
                             <div className="text-xs text-muted">{t('comp.system.sysDataDir')}</div>
-                            <div className="text-sm settings-runtime-storage-path">{runtimeStorage?.dataDir || '-'}</div>
+                            <div className="text-sm settings-runtime-storage-path">{runtimeStorage?.dataDir || '—'}</div>
                         </div>
                         <div className="settings-backup-inspection-item">
                             <div className="text-xs text-muted">{t('comp.system.sysLocalBackupDir')}</div>
-                            <div className="text-sm settings-runtime-storage-path">{runtimeStorage?.localBackupDir || backupStatus?.localBackupDir || '-'}</div>
+                            <div className="text-sm settings-runtime-storage-path">{runtimeStorage?.localBackupDir || backupStatus?.localBackupDir || '—'}</div>
                         </div>
                         <div className="settings-backup-inspection-item">
                             <div className="text-xs text-muted">{t('comp.system.sysDirStatus')}</div>
@@ -3026,7 +3026,7 @@ export default function SystemSettings() {
                     <div className="settings-backup-local-head">
                         <div>
                             <div className="text-sm font-medium">{t('comp.system.sysLocalBackupsTitle')}</div>
-                            <div className="text-xs text-muted mt-1">{t('comp.system.sysBackupDir')} {backupStatus?.localBackupDir || '-'}</div>
+                            <div className="text-xs text-muted mt-1">{t('comp.system.sysBackupDir')} {backupStatus?.localBackupDir || '—'}</div>
                         </div>
                         <span className="badge badge-neutral">{localBackups.length} {t('comp.system.sysBackupCount')}</span>
                     </div>
@@ -3374,8 +3374,8 @@ export default function SystemSettings() {
                             </div>
                             <div className="settings-kpi-card-body">
                                 <div className="settings-kpi-card-value">{monitorStatus?.telegram?.enabled ? t('pages.settings.enabled') : monitorStatus?.telegram?.configured ? t('pages.settings.configured') : t('pages.settings.notConfigured')}</div>
-                                <div className="settings-kpi-card-meta" title={telegramTargetPreview !== '-' ? telegramTargetPreview : t('pages.settings.telegramNotBound')}>
-                                    {telegramTargetPreview !== '-' ? telegramTargetPreview : t('pages.settings.telegramNotBound')}
+                                <div className="settings-kpi-card-meta" title={telegramTargetPreview !== '—' ? telegramTargetPreview : t('pages.settings.telegramNotBound')}>
+                                    {telegramTargetPreview !== '—' ? telegramTargetPreview : t('pages.settings.telegramNotBound')}
                                     {monitorStatus?.telegram?.sendDailyBackup ? t('pages.settings.nextBackupTimeLabel', { time: telegramNextBackupLabel }) : ''}
                                 </div>
                             </div>
