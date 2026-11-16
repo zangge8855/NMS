@@ -246,10 +246,10 @@
 
 /* Tabular figures helper for numerical data */
 .cell-numeric,
-.tabular-nums,
+.proportional-nums,
 [data-numeric="true"],
 .table td.table-cell-right {
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
   font-family: var(--font-numeric);
 }
 
@@ -341,7 +341,7 @@
   width: 72px;
   min-width: 64px;
   font-family: var(--font-numeric);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
 }
 
 .inbounds-sequence-col {
@@ -548,7 +548,7 @@
 
 .settings-kpi-card-value {
   font-family: var(--font-numeric);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
   color: var(--text-primary);
   font-weight: 600;
 }

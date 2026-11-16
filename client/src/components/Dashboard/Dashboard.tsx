@@ -302,6 +302,19 @@ function StatSparkline({ points = [], domain = null }) {
     );
 }
 
+// "35.03 GB" -> figure plus a smaller unit, so the number carries the weight.
+function renderFigure(value) {
+    if (typeof value !== 'string') return value;
+    const match = value.match(/^(.*\d)\s+([A-Za-z]{1,4}(?:\/s)?)$/);
+    if (!match) return value;
+    return (
+        <>
+            {match[1]}
+            <span className="dashboard-stat-card-unit"> {match[2]}</span>
+        </>
+    );
+}
+
 function StatCard({ card, loading }) {
     const clickable = typeof card.onClick === 'function';
     const animatedValue = useAnimatedCounter(card.animateValue ?? 0);
@@ -352,7 +365,7 @@ function StatCard({ card, loading }) {
                                 style={{ width: card.skeletonWidth || 'clamp(7.5rem, 44%, 11rem)', height: '2.35rem' }}
                             />
                         ) : (
-                            <span className="dashboard-stat-card-value-text">{renderedValue}</span>
+                            <span className="dashboard-stat-card-value-text">{renderFigure(renderedValue)}</span>
                         )}
                     </div>
                     {Array.isArray(card.sparkline) && card.sparkline.length > 1 && (
@@ -430,7 +443,7 @@ function InboundSummaryMobileList({ inbounds = [], loading, t }) {
                 <div key={ib.id} className="dashboard-inbound-mobile-card">
                     <div className="dashboard-inbound-mobile-head">
                         <div className="dashboard-inbound-mobile-copy">
-                            <div className="dashboard-inbound-mobile-title">{ib.remark || '-'}</div>
+                            <div className="dashboard-inbound-mobile-title">{ib.remark || '—'}</div>
                             <div className="dashboard-inbound-mobile-kicker">
                                 <span className="badge badge-info">{ib.protocol}</span>
                                 <span className="dashboard-inbound-mobile-port">:{ib.port}</span>
@@ -559,7 +572,7 @@ function DashboardHero({ title, kpis = [] }) {
                         } : {})}
                     >
                         <span className="dashboard-hero-kpi-label">{kpi.label}</span>
-                        <span className="dashboard-hero-kpi-value">{kpi.value}</span>
+                        <span className="dashboard-hero-kpi-value">{renderFigure(kpi.value)}</span>
                         {kpi.meta ? <span className="dashboard-hero-kpi-meta">{kpi.meta}</span> : null}
                     </KpiElement>
                     );
@@ -1238,7 +1251,7 @@ export default function Dashboard() {
                 >
                     <button
                         type="button"
-                        className={`btn btn-sm dashboard-refresh-btn ${autoRefresh ? 'btn-primary' : 'btn-secondary'}`}
+                        className={`btn btn-sm btn-secondary dashboard-refresh-btn${autoRefresh ? ' is-on' : ''}`}
                         onClick={toggleAutoRefresh}
                         aria-label={autoRefresh ? t('pages.dashboardCommon.autoRefreshOn') : t('pages.dashboardCommon.autoRefreshOff')}
                         title={autoRefresh ? t('pages.dashboardCommon.autoRefreshOffTitle') : t('pages.dashboardCommon.autoRefreshOnTitle')}
@@ -1423,7 +1436,7 @@ export default function Dashboard() {
             >
                 <button
                     type="button"
-                    className={`btn btn-sm dashboard-refresh-btn ${autoRefresh ? 'btn-primary' : 'btn-secondary'}`}
+                    className={`btn btn-sm btn-secondary dashboard-refresh-btn${autoRefresh ? ' is-on' : ''}`}
                     onClick={toggleAutoRefresh}
                     aria-label={autoRefresh ? t('pages.dashboardCommon.autoRefreshOn') : t('pages.dashboardCommon.autoRefreshOff')}
                     title={autoRefresh ? t('pages.dashboardCommon.autoRefreshOffTitle') : t('pages.dashboardCommon.autoRefreshOnTitle')}
@@ -1543,7 +1556,7 @@ export default function Dashboard() {
                                 <tbody>
                                     {inbounds.slice(0, 10).map((ib) => (
                                         <tr key={ib.id}>
-                                            <td data-label={t('pages.dashboardNode.tableRemark')} className="font-medium text-primary truncate max-w-[200px]">{ib.remark || '-'}</td>
+                                            <td data-label={t('pages.dashboardNode.tableRemark')} className="font-medium text-primary truncate max-w-[200px]">{ib.remark || '—'}</td>
                                             <td data-label={t('pages.dashboardNode.tableProtocol')} className="table-cell-center dashboard-inbound-protocol-cell"><span className="badge badge-info">{ib.protocol}</span></td>
                                             <td data-label={t('pages.dashboardNode.tablePort')} className="table-cell-right font-mono dashboard-inbound-port-cell">{ib.port}</td>
                                             <td data-label={t('pages.dashboardNode.tableStatus')} className="table-cell-center dashboard-inbound-status-cell">

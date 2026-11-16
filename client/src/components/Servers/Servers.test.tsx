@@ -150,7 +150,8 @@ describe('Servers', () => {
 
         expect(screen.getByText('98 ms')).toBeInTheDocument();
         expect(screen.getByText('100%')).toBeInTheDocument();
-        expect(within(document.querySelector('.servers-telemetry-cell')).getByText('在线')).toBeInTheDocument();
+        // Online state is shown once, in the status column, not again beside the RTT.
+        expect(document.querySelector('.servers-telemetry-cell .badge')).toBeNull();
     });
 
     it('ignores a late app bootstrap telemetry snapshot after a live empty response has loaded', async () => {

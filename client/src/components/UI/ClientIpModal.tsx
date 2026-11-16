@@ -151,10 +151,10 @@ export default function ClientIpModal({
                                         <div>{geo.location && geo.location !== '-' ? geo.location : copy.unresolved}</div>
                                         {geo.carrier ? <div className="text-muted">{geo.carrier}</div> : null}
                                     </td>
-                                    <td data-label={copy.count} className="table-cell-center client-ip-count-cell">{item.count > 0 ? item.count : '-'}</td>
+                                    <td data-label={copy.count} className="table-cell-center client-ip-count-cell">{item.count > 0 ? item.count : '—'}</td>
                                     <td data-label={copy.lastSeen} className="table-cell-center client-ip-last-seen-cell">{formatDateTime(item.lastSeen, locale)}</td>
                                     <td data-label={copy.note} className="text-xs text-muted client-ip-note-cell">
-                                        {[item.source, item.note].filter(Boolean).join(' / ') || '-'}
+                                        {[item.source, item.note].filter(Boolean).join(' / ') || '—'}
                                     </td>
                                 </tr>
                             );

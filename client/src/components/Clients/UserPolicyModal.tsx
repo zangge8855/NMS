@@ -180,7 +180,7 @@ export default function UserPolicyModal({ isOpen, email, servers = [], onClose }
                 <form onSubmit={handleSubmit}>
                     <div className="modal-body">
                         <div className="mb-4 p-3 rounded bg-surface-soft border border-stroke-soft text-sm">
-                            {t('comp.userPolicy.userLabel')}<strong>{normalizedEmail || '-'}</strong>
+                            {t('comp.userPolicy.userLabel')}<strong>{normalizedEmail || '—'}</strong>
                         </div>
 
                         {loading ? (

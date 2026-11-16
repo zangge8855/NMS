@@ -723,7 +723,7 @@ select {
 .font-mono,
 .card-value,
 [class*="-value"] {
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
 }
 
 .table-cell-right {
@@ -1650,7 +1650,7 @@ select {
 
   .inbounds-page .inbounds-table tr.inbounds-row .inbounds-traffic-stack {
     align-items: flex-end !important;
-    font-variant-numeric: tabular-nums;
+    font-variant-numeric: proportional-nums;
   }
 
   .inbounds-page .inbounds-table tr.inbounds-row:has(.inbounds-condensed-summary) .inbounds-protocol-cell,

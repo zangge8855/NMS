@@ -188,7 +188,8 @@ describe('ServerDetail', () => {
         renderWithRouter(<ServerDetail />);
 
         expect(await screen.findByText('服务器 · Snapshot Server')).toBeInTheDocument();
-        expect(screen.getAllByText('https://snapshot.example.com')).toHaveLength(2);
+        // The URL leads the hero once; the overview card no longer repeats it.
+        expect(screen.getAllByText('https://snapshot.example.com')).toHaveLength(1);
         expect(screen.getByText(/CPU: 12.5%/)).toBeInTheDocument();
 
         const trafficCard = screen.getByText('总流量').closest('.stat-mini-card');

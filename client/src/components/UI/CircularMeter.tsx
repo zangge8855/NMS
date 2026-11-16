@@ -13,6 +13,8 @@ export interface CircularMeterProps {
     progress?: number | string;
     tone?: 'info' | 'primary' | 'success' | 'warning' | 'danger' | string;
     pulse?: boolean;
+    /** Replaces the percentage in the ring, e.g. "∞" for an unlimited quota. */
+    center?: string;
 }
 
 export default function CircularMeter({
@@ -22,6 +24,7 @@ export default function CircularMeter({
     progress = 0,
     tone = 'info',
     pulse = false,
+    center,
 }: CircularMeterProps) {
     const normalizedProgress = clampProgress(progress);
     const radius = 34;
@@ -43,7 +46,7 @@ export default function CircularMeter({
                     />
                 </svg>
                 <div className="circular-meter-center">
-                    <div className="circular-meter-percent">{Math.round(normalizedProgress)}%</div>
+                    <div className="circular-meter-percent">{center ?? `${Math.round(normalizedProgress)}%`}</div>
                 </div>
             </div>
             <div className="circular-meter-copy">

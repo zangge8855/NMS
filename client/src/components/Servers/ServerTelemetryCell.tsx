@@ -8,8 +8,6 @@ function getCopy(locale = 'zh-CN') {
             rtt: 'RTT',
             uptime: '24h up',
             checkedAt: 'Checked',
-            online: 'Online',
-            offline: 'Offline',
             pending: 'Sampling',
         };
     }
@@ -17,8 +15,6 @@ function getCopy(locale = 'zh-CN') {
         rtt: 'RTT',
         uptime: '24h 在线',
         checkedAt: '采样',
-        online: '在线',
-        offline: '离线',
         pending: '采样中',
     };
 }
@@ -34,6 +30,10 @@ function ServerTelemetryCell({
 }) {
     const copy = getCopy(locale);
     const trend = useMemo(() => normalizeLatencyTrend(telemetry), [telemetry]);
+    const sampledPoints = useMemo(
+        () => trend.filter((value) => value !== null && value !== '' && Number.isFinite(Number(value))).length,
+        [trend]
+    );
     const currentLatency = Number(telemetry?.current?.latencyMs);
     const online = telemetry?.current?.online === true;
     const sampled = Boolean(telemetry?.checkedAt);
@@ -49,31 +49,34 @@ function ServerTelemetryCell({
                     <span className="servers-telemetry-value">
                         {loading
                             ? copy.pending
-                            : (hasCurrentLatency ? `${currentLatency} ms` : '--')}
+                            : (hasCurrentLatency ? `${currentLatency} ms` : '—')}
                     </span>
                 </div>
                 <div className="servers-telemetry-metric">
                     <span className="servers-telemetry-label">{copy.uptime}</span>
                     <span className="servers-telemetry-value">
-                        {Number.isFinite(uptimePercent) ? `${uptimePercent}%` : '--'}
+                        {Number.isFinite(uptimePercent) ? `${uptimePercent}%` : '—'}
                     </span>
                 </div>
             </div>
 
-            <MiniSparkline
-                className="servers-telemetry-sparkline"
-                points={trend}
-                tone={tone}
-                width={130}
-                height={34}
-            />
+            {/* A single sample is a dot, not a trend; draw the line from two on.
+                Online/offline lives in the status column, so it is not repeated here. */}
+            {sampledPoints >= 2 ? (
+                <MiniSparkline
+                    className="servers-telemetry-sparkline"
+                    points={trend}
+                    tone={tone}
+                    width={130}
+                    height={34}
+                />
+            ) : null}
 
             <div className="servers-telemetry-foot">
-                <span className={`badge ${!sampled ? 'badge-warning' : online ? 'badge-success' : 'badge-danger'}`}>
-                    {!sampled ? copy.pending : online ? copy.online : copy.offline}
-                </span>
                 <span className="servers-telemetry-checked-at">
-                    {copy.checkedAt} {telemetry?.checkedAt ? formatTimeOnly(telemetry.checkedAt, locale) : '--'}
+                    {sampled
+                        ? `${copy.checkedAt} ${formatTimeOnly(telemetry.checkedAt, locale)}`
+                        : copy.pending}
                 </span>
             </div>
         </div>

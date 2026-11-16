@@ -1,27 +1,31 @@
 /* ==========================================================================
-   End-user Subscription Center
-   A dedicated layer for the self-service subscription page (and the admin
-   "User Detail -> Subscription" view that mirrors it). Every rule is scoped
-   to .subscription-user-workbench so the admin workbench is unaffected.
+   End-user Subscription Center: the pass
+   The self-service subscription page prints as one pass. The sheet holds the
+   account's details and the two import steps; a perforation tears it from the
+   stub that carries the QR code. It shares its geometry (notch, radius, stub
+   ink) with the login pass in identity.css. Every rule is scoped to
+   .subscription-user-workbench so the admin workbench is unaffected.
    ========================================================================== */
 
-/* Outer card becomes a plain container; each section is its own surface. */
-:root .subscription-primary-card--user {
+/* Outer card becomes a plain container; the pass is the only surface. */
+/* !important answers the legacy light-theme .card rule in index.css. */
+:root .subscriptions-page .card.subscription-primary-card--user {
   padding: 0;
-  border: none;
-  background: transparent;
-  box-shadow: none;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 :root .subscription-user-workbench {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
   max-width: 1120px;
   width: 100%;
   margin: 0 auto;
   padding: 0;
   border: none;
+  border-radius: 0;
   background: transparent;
   box-shadow: none;
   overflow: visible;
@@ -32,48 +36,82 @@
 }
 
 /* --------------------------------------------------------------------------
-   Hero
+   Pass geometry
+   The notches are cut with a mask, which also clips borders and box-shadow,
+   so the edge is a drop-shadow on the wrapper (--pass-edge).
    -------------------------------------------------------------------------- */
-:root .subscription-user-workbench .subscription-user-hero-strip {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  flex-wrap: wrap;
-  margin: 0;
-  padding: 26px 28px;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-color);
-  background:
-    radial-gradient(90% 140% at 100% 0%, color-mix(in srgb, var(--accent-primary) 10%, transparent) 0%, transparent 60%),
-    var(--bg-card);
-  box-shadow: var(--shadow-card);
-  overflow: hidden;
+:root .subscription-user-workbench .subscription-user-pass {
+  --stub-w: 248px;
+  --stub-h: 188px;
+  --notch: 11px;
+  --pass-pad: clamp(20px, 2.6vw, 32px);
+  container: pass / inline-size;
+  filter: var(--pass-edge);
 }
 
-:root .subscription-user-workbench .subscription-user-kicker {
-  margin-bottom: 6px;
-  font-family: var(--font-figure);
-  font-size: 11.5px;
-  font-weight: 600;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--accent-primary);
+:root .subscription-user-workbench .subscription-user-pass-sheet {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  border-radius: var(--radius-pass);
+  background: var(--surface-panel);
+}
+
+/* Stub on the right: notches top and bottom where the perforation runs. */
+:root .subscription-user-workbench .subscription-user-pass--with-stub .subscription-user-pass-sheet {
+  grid-template-columns: minmax(0, 1fr) var(--stub-w);
+  -webkit-mask:
+    radial-gradient(circle var(--notch) at calc(100% - var(--stub-w)) 0, #0000 97%, #000) top / 100% 51% no-repeat,
+    radial-gradient(circle var(--notch) at calc(100% - var(--stub-w)) 100%, #0000 97%, #000) bottom / 100% 51% no-repeat;
+  mask:
+    radial-gradient(circle var(--notch) at calc(100% - var(--stub-w)) 0, #0000 97%, #000) top / 100% 51% no-repeat,
+    radial-gradient(circle var(--notch) at calc(100% - var(--stub-w)) 100%, #0000 97%, #000) bottom / 100% 51% no-repeat;
+}
+
+:root .subscription-user-workbench .subscription-user-pass-body {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  min-width: 0;
+  padding: var(--pass-pad);
+}
+
+/* --------------------------------------------------------------------------
+   Header: what this is, and whether it works
+   -------------------------------------------------------------------------- */
+:root .subscription-user-workbench .subscription-user-hero-strip {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 24px;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  overflow: visible;
+}
+
+:root .subscription-user-workbench .subscription-user-hero-copy {
+  min-width: 0;
 }
 
 :root .subscription-user-workbench .subscription-user-title {
+  margin: 0;
   font-family: var(--font-display);
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.25;
+  font-size: 1.5rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
   color: var(--text-primary);
+  text-wrap: balance;
 }
 
 :root .subscription-user-workbench .subscription-user-subtitle {
-  margin-top: 6px;
-  font-size: 13.5px;
+  max-width: 60ch;
+  margin: 6px 0 0;
+  font-size: 14px;
   line-height: 1.6;
   color: var(--text-secondary);
 }
@@ -83,104 +121,123 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
+  padding-top: 4px;
 }
 
 :root .subscription-user-workbench .subscription-user-status-pills .badge {
   display: inline-flex;
   align-items: center;
-  height: 28px;
-  padding: 0 12px;
-  border-radius: var(--radius-full);
-  font-size: 12px;
-  font-weight: 600;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: var(--radius-chip);
+  font-size: 12.5px;
+  font-weight: 550;
   letter-spacing: 0;
   text-transform: none;
   box-shadow: none;
 }
 
-:root .subscription-user-workbench .subscription-user-status-pills .badge-neutral,
-:root .subscription-user-workbench .subscription-user-status-pills .badge-info {
-  background: var(--bg-surface);
+:root .subscription-user-workbench .subscription-user-status-pills .badge-neutral {
   border: 1px solid var(--border-color);
+  background: transparent;
   color: var(--text-secondary);
 }
 
+/* A still dot: state is carried by colour and the word, not by motion. */
 :root .subscription-user-workbench .subscription-status-pulse-dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   margin-right: 7px;
-  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: none;
+  animation: none;
 }
 
 /* --------------------------------------------------------------------------
-   Usage meters: one band with three columns
+   Fields: printed like the details on a pass, no boxes
    -------------------------------------------------------------------------- */
 :root .subscription-user-workbench .subscription-user-meter-strip {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0;
+  gap: 18px 32px;
   margin: 0;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  background: var(--bg-card);
-  box-shadow: var(--shadow-card);
-  overflow: hidden;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  overflow: visible;
 }
 
 :root .subscription-user-workbench .subscription-user-meter-pill {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 20px 24px;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 8px;
   min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
 }
 
 :root .subscription-user-workbench .subscription-user-meter-pill + .subscription-user-meter-pill {
-  border-left: 1px solid var(--border-color);
+  border: 0;
 }
 
 :root .subscription-user-workbench .subscription-user-meter-header {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   gap: 8px;
 }
 
 :root .subscription-user-workbench .subscription-user-meter-label {
-  font-size: 12.5px;
-  font-weight: 550;
+  font-size: 13px;
+  font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 :root .subscription-user-workbench .subscription-user-meter-meta {
-  padding: 2px 8px;
-  border-radius: var(--radius-full);
-  background: var(--bg-surface);
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--text-secondary);
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  font-family: var(--font-figure);
+  font-size: 12.5px;
+  font-weight: 550;
+  font-variant-numeric: lining-nums proportional-nums;
+  color: var(--text-muted);
+}
+
+:root .subscription-user-workbench .subscription-user-meter-pill--warning .subscription-user-meter-meta {
+  color: var(--accent-warning);
+}
+
+:root .subscription-user-workbench .subscription-user-meter-pill--danger .subscription-user-meter-meta {
+  color: var(--accent-danger);
 }
 
 :root .subscription-user-workbench .subscription-user-meter-value {
   font-family: var(--font-figure);
-  font-size: 28px;
-  font-weight: 650;
-  letter-spacing: -0.025em;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
+  font-size: clamp(1.5rem, 2.2vw, 1.875rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  font-variant-numeric: lining-nums proportional-nums;
   color: var(--text-primary);
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 :root .subscription-user-workbench .subscription-user-meter-track {
-  height: 6px;
-  border-radius: var(--radius-full);
-  background: var(--bg-surface);
+  height: 3px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--text-muted) 20%, transparent);
   overflow: hidden;
 }
 
@@ -190,53 +247,89 @@
   box-shadow: none;
 }
 
-:root .subscription-user-workbench .subscription-user-meter-bar--primary { background: var(--accent-primary); }
-:root .subscription-user-workbench .subscription-user-meter-bar--success { background: var(--accent-success); }
+/* Neutral until a threshold is crossed; only then does a state colour show. */
+:root .subscription-user-workbench :is(.subscription-user-meter-bar--primary, .subscription-user-meter-bar--info, .subscription-user-meter-bar--success) { background: var(--meter-fill); }
 :root .subscription-user-workbench .subscription-user-meter-bar--warning { background: var(--accent-warning); }
 :root .subscription-user-workbench .subscription-user-meter-bar--danger { background: var(--accent-danger); }
 
 /* --------------------------------------------------------------------------
-   Import stage
+   Steps: choose a config, then copy or import it
    -------------------------------------------------------------------------- */
 :root .subscription-user-workbench .subscription-user-import-stage {
   margin: 0;
-  padding: 24px 28px 28px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  background: var(--bg-card);
-  box-shadow: var(--shadow-card);
+  padding: 26px 0 0;
+  border: 0;
+  border-top: 1px solid var(--border-color);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
   transform: none;
 }
 
 :root .subscription-user-workbench .subscription-user-import-main {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 30px;
   padding: 0;
-  border: none;
-  background: transparent;
+  border: 0;
+  background: none;
   box-shadow: none;
 }
 
-:root .subscription-user-workbench .subscription-user-section-head {
-  margin: 0;
-  padding: 0;
-  border: none;
+:root .subscription-user-workbench .subscription-user-step {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  column-gap: 14px;
+  align-items: start;
 }
 
-:root .subscription-user-workbench .subscription-user-section-label {
-  font-size: 16px;
+:root .subscription-user-workbench .subscription-user-step-index {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border-color-hover);
+  border-radius: 50%;
+  font-family: var(--font-figure);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: lining-nums;
+  line-height: 1;
+  color: var(--text-secondary);
+}
+
+:root .subscription-user-workbench .subscription-user-step-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+:root .subscription-user-workbench :is(.subscription-user-section-head, .subscription-user-address-head) {
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+:root .subscription-user-workbench :is(.subscription-user-section-label, .subscription-user-address-label) {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 15px;
   font-weight: 650;
+  line-height: 24px;
   color: var(--text-primary);
 }
 
-:root .subscription-user-workbench .subscription-user-section-text {
-  margin-top: 4px;
+:root .subscription-user-workbench :is(.subscription-user-section-text, .subscription-user-address-helper) {
+  margin: 2px 0 0;
   font-size: 13px;
-  color: var(--text-muted);
+  line-height: 1.55;
+  color: var(--text-secondary);
 }
 
-/* Profile picker: a row of pill tabs */
+/* Step 1: config chips. The chosen one is "you are here", so it takes the
+   signal edge; the only filled signal on the page stays the copy button. */
 :root .subscription-user-workbench .subscription-profile-switches {
   display: flex;
   flex-direction: row;
@@ -244,115 +337,98 @@
   gap: 8px;
   margin: 0;
   padding: 0;
-  border: none;
-  background: transparent;
+  border: 0;
+  background: none;
   box-shadow: none;
 }
 
 :root .subscription-user-workbench .subscription-profile-switches .btn {
   flex: 0 0 auto;
   width: auto;
-  height: 36px;
-  padding: 0 16px;
-  border-radius: var(--radius-full);
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 14px !important;
+  border: 1px solid var(--border-color-hover) !important;
+  border-radius: var(--radius-control) !important;
+  background: transparent !important;
+  color: var(--text-secondary) !important;
   font-size: 13px;
+  font-weight: 550;
+  box-shadow: none !important;
+}
+
+:root .subscription-user-workbench .subscription-profile-switches .btn:hover {
+  border-color: var(--text-muted) !important;
+  color: var(--text-primary) !important;
+}
+
+:root .subscription-user-workbench .subscription-profile-switches .btn[aria-pressed="true"] {
+  border-color: var(--signal) !important;
+  background: var(--accent-primary-bg) !important;
+  color: var(--text-primary) !important;
   font-weight: 600;
 }
 
-:root .subscription-user-workbench .subscription-profile-switches .btn-secondary {
-  background: var(--bg-surface) !important;
-  border: 1px solid transparent !important;
-  color: var(--text-secondary) !important;
-}
-
-:root .subscription-user-workbench .subscription-profile-switches .btn-secondary:hover {
-  color: var(--text-primary) !important;
-  border-color: var(--border-color-hover) !important;
-}
-
-:root .subscription-user-workbench .subscription-profile-switches .btn-primary {
-  background: var(--accent-primary) !important;
-  border: 1px solid transparent !important;
-  color: #ffffff !important;
-  box-shadow: 0 4px 12px -4px var(--accent-primary-glow) !important;
-}
-
-/* Address + QR layout */
-:root .subscription-user-workbench .subscription-user-address-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 20px;
-  align-items: stretch;
-}
-
-:root .subscription-user-workbench .subscription-user-address-layout--with-qr {
-  grid-template-columns: minmax(0, 1fr) 248px;
-}
-
-:root .subscription-user-workbench .subscription-user-address-card {
+:root .subscription-user-workbench .subscription-routing-policy {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
   margin: 0;
-  padding: 20px;
-  border: 1px solid var(--border-color);
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--bg-surface) 45%, var(--bg-card));
+}
+
+:root .subscription-user-workbench .subscription-routing-policy-label {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+:root .subscription-user-workbench .subscription-routing-policy-select {
+  display: inline-block;
+  width: auto;
+  min-width: 9.5rem;
+}
+
+/* Step 2: copy or import. A section of the sheet, not a card inside it. */
+:root .subscription-user-workbench .subscription-user-address-card {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
   box-shadow: none;
 }
 
-:root .subscription-user-workbench .subscription-user-address-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-:root .subscription-user-workbench .subscription-user-address-label {
-  font-size: 15px;
-  font-weight: 650;
-  color: var(--text-primary);
-}
-
-:root .subscription-user-workbench .subscription-user-address-helper {
-  margin-top: 3px;
-  font-size: 12.5px;
-  color: var(--text-muted);
-}
-
-:root .subscription-user-workbench .subscription-user-address-head .badge {
-  flex-shrink: 0;
-  border-radius: var(--radius-full);
-  padding: 3px 10px;
-}
-
-/* Supported clients: an inline label + chips row instead of a nested box */
 :root .subscription-user-workbench .subscription-link-card-meta {
   margin: 0;
   padding: 0;
-  border: none;
-  background: transparent;
+  border: 0;
+  background: none;
 }
 
-:root .subscription-user-workbench .subscription-current-profile-tools {
+:root .subscription-user-workbench .subscription-current-profile-tools,
+:root .subscription-user-workbench .subscription-current-profile-tools--embedded {
   display: flex;
+  flex-direction: row;
   align-items: center;
+  justify-content: flex-start;
   flex-wrap: wrap;
   gap: 8px 10px;
   margin: 0;
   padding: 0;
-  border: none;
-  background: transparent;
+  border: 0;
+  background: none;
   box-shadow: none;
 }
 
 :root .subscription-user-workbench .subscription-current-profile-tools-label {
   font-family: var(--font-sans);
-  font-size: 12.5px;
-  font-weight: 550;
+  font-size: 13px;
+  font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 :root .subscription-user-workbench .subscription-current-profile-tools-list {
@@ -363,13 +439,13 @@
 
 :root .subscription-user-workbench .subscription-current-profile-tools-list .badge {
   height: 24px;
-  padding: 0 10px;
-  border-radius: 6px;
+  padding: 0 9px;
   border: 1px solid var(--border-color);
-  background: var(--bg-card);
+  border-radius: var(--radius-chip);
+  background: none;
   color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 550;
+  font-size: 12.5px;
+  font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
 }
@@ -386,8 +462,8 @@
   gap: 8px;
   margin: 0;
   padding: 0;
-  border: none;
-  background: transparent;
+  border: 0;
+  background: none;
 }
 
 :root .subscription-user-workbench .subscription-url-input {
@@ -395,20 +471,21 @@
   min-width: 0;
   height: 42px;
   padding: 0 14px;
-  border-radius: 10px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-color-hover);
+  border-radius: var(--radius-control);
   background: var(--bg-input);
   font-family: var(--font-mono);
   font-size: 12.5px;
-  color: var(--text-primary);
+  color: var(--text-secondary);
   text-overflow: ellipsis;
 }
 
 :root .subscription-user-workbench .subscription-user-copy-btn {
   flex-shrink: 0;
-  height: 42px;
-  padding: 0 18px;
-  border-radius: 10px;
+  height: 42px !important;
+  min-height: 42px !important;
+  padding: 0 18px !important;
+  border-radius: var(--radius-control) !important;
   font-size: 13.5px;
   font-weight: 600;
 }
@@ -422,31 +499,33 @@
 :root .subscription-user-workbench .subscription-user-import-btn {
   flex: 0 0 auto;
   width: auto;
-  height: 38px;
-  padding: 0 16px;
-  border-radius: 10px;
+  height: 38px !important;
+  min-height: 38px !important;
+  padding: 0 14px !important;
+  border-radius: var(--radius-control) !important;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 550;
 }
 
 :root .subscription-user-workbench .subscription-btn-icon-accent {
-  color: var(--accent-warning);
+  color: inherit;
 }
 
 :root .subscription-user-workbench .subscription-user-import-disabled {
   display: inline-flex;
   align-items: center;
   padding: 8px 12px;
-  border-radius: 10px;
   border: 1px solid var(--accent-warning-border);
+  border-radius: var(--radius-control);
   background: var(--accent-warning-soft);
   color: var(--accent-warning);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 550;
 }
 
 :root .subscription-user-workbench .subscription-import-disclosure-toggle {
-  font-size: 12.5px;
+  width: fit-content;
+  font-size: 13px;
   font-weight: 550;
   color: var(--accent-primary);
   cursor: pointer;
@@ -465,73 +544,179 @@
   color: var(--text-muted);
 }
 
-/* QR panel */
-:root .subscription-user-workbench .subscription-user-qr-panel {
+/* --------------------------------------------------------------------------
+   Stub: the QR, printed on the pass ink
+   -------------------------------------------------------------------------- */
+:root .subscription-user-workbench .subscription-user-pass-stub {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 14px;
+  min-width: 0;
   margin: 0;
-  padding: 20px;
-  border: 1px solid var(--border-color);
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--bg-surface) 45%, var(--bg-card));
+  padding: 28px 22px;
+  border: 0;
+  border-radius: 0 var(--radius-pass) var(--radius-pass) 0;
+  background: var(--pass-stub-bg);
+  color: var(--pass-stub-text);
   box-shadow: none;
   text-align: center;
 }
 
-:root .subscription-user-workbench .subscription-inline-qr-title {
-  font-size: 14px;
-  font-weight: 650;
-  color: var(--text-primary);
+/* The perforation, along the tear line */
+:root .subscription-user-workbench .subscription-user-pass-stub::before {
+  content: '';
+  position: absolute;
+  top: calc(var(--notch) + 6px);
+  bottom: calc(var(--notch) + 6px);
+  left: -1px;
+  width: 2px;
+  background: radial-gradient(circle, var(--stroke-medium) 1px, transparent 1.4px) 50% 0 / 2px 9px repeat-y;
+  pointer-events: none;
 }
 
-:root .subscription-user-workbench .subscription-inline-qr-surface {
+:root .subscription-user-workbench .subscription-user-pass-stub .subscription-inline-qr-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--pass-stub-text);
+}
+
+:root .subscription-user-workbench .subscription-user-pass-stub .subscription-inline-qr-surface {
   display: grid;
   place-items: center;
   width: auto;
   height: auto;
-  padding: 10px;
-  border-radius: 12px;
-  border: 1px solid rgba(16, 24, 40, 0.06);
+  padding: 6px;
+  border: 0;
+  border-radius: 10px;
   background: #ffffff;
-  box-shadow: 0 6px 20px -10px rgba(16, 24, 40, 0.25);
+  box-shadow: none;
 }
 
-:root .subscription-user-workbench .subscription-inline-qr-text {
-  max-width: 190px;
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--text-muted);
+:root .subscription-user-workbench .subscription-user-pass-stub .subscription-inline-qr-text {
+  max-width: 22ch;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--pass-stub-muted);
 }
 
-:root .subscription-user-workbench .subscription-inline-qr-empty {
+:root .subscription-user-workbench .subscription-user-pass-stub .subscription-inline-qr-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
 }
 
-:root .subscription-user-workbench .subscription-inline-qr-empty-icon {
+:root .subscription-user-workbench .subscription-user-pass-stub .subscription-inline-qr-empty-icon {
   font-size: 28px;
-  color: var(--text-muted);
-  opacity: 0.7;
+  color: var(--pass-stub-muted);
 }
 
-:root .subscription-user-workbench .subscription-inline-qr-empty-title {
-  font-size: 13.5px;
+:root .subscription-user-workbench .subscription-user-pass-stub .subscription-inline-qr-empty-title {
+  font-size: 14px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--pass-stub-text);
 }
 
-:root .subscription-user-workbench .subscription-inline-qr-empty-text {
-  font-size: 12px;
-  color: var(--text-muted);
+:root .subscription-user-workbench .subscription-user-pass-stub .subscription-inline-qr-empty-text {
+  font-size: 12.5px;
+  color: var(--pass-stub-muted);
+}
+
+/* A narrow pass (sidebar open on a mid-size screen) tears the stub off the
+   bottom instead: fixed height, so the side notches know where to sit. */
+@container pass (max-width: 860px) {
+  :root .subscription-user-workbench .subscription-user-pass--with-stub .subscription-user-pass-sheet {
+    grid-template-columns: minmax(0, 1fr);
+    -webkit-mask:
+      radial-gradient(circle var(--notch) at 0 calc(100% - var(--stub-h)), #0000 97%, #000) left / 51% 100% no-repeat,
+      radial-gradient(circle var(--notch) at 100% calc(100% - var(--stub-h)), #0000 97%, #000) right / 51% 100% no-repeat;
+    mask:
+      radial-gradient(circle var(--notch) at 0 calc(100% - var(--stub-h)), #0000 97%, #000) left / 51% 100% no-repeat,
+      radial-gradient(circle var(--notch) at 100% calc(100% - var(--stub-h)), #0000 97%, #000) right / 51% 100% no-repeat;
+  }
+
+  :root .subscription-user-workbench .subscription-user-pass-stub {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: 1fr auto auto 1fr;
+    align-content: center;
+    justify-items: start;
+    column-gap: 22px;
+    row-gap: 6px;
+    height: var(--stub-h);
+    padding: 0 var(--pass-pad);
+    border-radius: 0 0 var(--radius-pass) var(--radius-pass);
+    text-align: left;
+  }
+
+  :root .subscription-user-workbench .subscription-user-pass-stub > .qr-surface {
+    grid-column: 1;
+    grid-row: 1 / -1;
+  }
+
+  :root .subscription-user-workbench .subscription-user-pass-stub .subscription-inline-qr-title {
+    grid-column: 2;
+    grid-row: 2;
+    margin: 0;
+  }
+
+  :root .subscription-user-workbench .subscription-user-pass-stub .subscription-inline-qr-text {
+    grid-column: 2;
+    grid-row: 3;
+    margin: 0;
+  }
+
+  :root .subscription-user-workbench .subscription-user-pass-stub > .subscription-inline-qr-empty {
+    grid-column: 1 / -1;
+    grid-row: 1 / -1;
+    place-self: center;
+    text-align: center;
+  }
+
+  :root .subscription-user-workbench .subscription-user-pass-stub::before {
+    top: -1px;
+    bottom: auto;
+    left: calc(var(--notch) + 6px);
+    right: calc(var(--notch) + 6px);
+    width: auto;
+    height: 2px;
+    background: radial-gradient(circle, var(--stroke-medium) 1px, transparent 1.4px) 0 50% / 9px 2px repeat-x;
+  }
+}
+
+@container pass (max-width: 560px) {
+  :root .subscription-user-workbench .subscription-user-meter-strip {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  :root .subscription-user-workbench .subscription-user-meter-pill {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    column-gap: 12px;
+    row-gap: 8px;
+  }
+
+  :root .subscription-user-workbench .subscription-user-meter-header {
+    justify-content: flex-start;
+  }
+
+  :root .subscription-user-workbench .subscription-user-meter-value {
+    grid-column: 2;
+    grid-row: 1;
+    font-size: 1.25rem;
+  }
+
+  :root .subscription-user-workbench .subscription-user-meter-track {
+    grid-column: 1 / -1;
+  }
 }
 
 /* --------------------------------------------------------------------------
-   Reset link: a quiet row, not a red alarm box
+   Reset: a quiet line under the pass, not an alarm box
    -------------------------------------------------------------------------- */
 :root .subscription-user-workbench .subscription-user-danger-row {
   display: flex;
@@ -541,24 +726,31 @@
   gap: 16px;
   flex-wrap: wrap;
   margin: 0;
-  padding: 16px 24px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  background: var(--bg-card);
+  padding: 4px 4px 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
   box-shadow: none;
 }
 
 :root .subscription-user-workbench .subscription-user-reset-inline-copy {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   min-width: 0;
 }
 
 :root .subscription-user-workbench .subscription-user-reset-inline-icon {
   flex-shrink: 0;
+  margin-top: 1px;
   font-size: 18px;
   color: var(--accent-warning);
+}
+
+:root .subscription-user-workbench .subscription-user-reset-inline-note {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 :root .subscription-user-workbench .subscription-user-reset-inline-title {
@@ -567,96 +759,44 @@
   color: var(--text-primary);
 }
 
-:root .subscription-user-workbench .subscription-user-reset-inline-text,
-:root .subscription-user-workbench .subscription-user-reset-inline-divider {
+:root .subscription-user-workbench .subscription-user-reset-inline-text {
   font-size: 12.5px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 :root .subscription-user-workbench .subscription-user-reset-inline-btn {
   flex-shrink: 0;
-  height: 34px;
-  padding: 0 14px;
-  border-radius: 8px;
-  border: 1px solid var(--accent-danger-border) !important;
-  background: transparent !important;
-  color: var(--accent-danger) !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 14px !important;
+  border-radius: var(--radius-control) !important;
   font-size: 13px;
   font-weight: 600;
-  box-shadow: none !important;
-}
-
-:root .subscription-user-workbench .subscription-user-reset-inline-btn:hover:not(:disabled) {
-  background: var(--accent-danger-soft) !important;
-}
-
-:root .subscription-user-workbench .subscription-user-reset-inline-btn:disabled {
-  opacity: 0.45;
 }
 
 /* --------------------------------------------------------------------------
-   Responsive
+   Phones: the QR moves to a dialog, so the sheet stands alone
    -------------------------------------------------------------------------- */
-@media (max-width: 900px) {
-  :root .subscription-user-workbench .subscription-user-address-layout--with-qr {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
 @media (max-width: 640px) {
-  :root .subscription-user-workbench {
-    gap: 12px;
+  :root .subscription-user-workbench .subscription-user-pass {
+    --pass-pad: 20px;
   }
 
-  :root .subscription-user-workbench .subscription-user-hero-strip {
-    padding: 20px;
-    gap: 14px;
+  :root .subscription-user-workbench .subscription-user-pass-body {
+    gap: 22px;
   }
 
   :root .subscription-user-workbench .subscription-user-title {
-    font-size: 20px;
+    font-size: 1.25rem;
   }
 
-  :root .subscription-user-workbench .subscription-user-meter-strip {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  :root .subscription-user-workbench .subscription-user-meter-pill {
-    padding: 14px 18px;
-    gap: 8px;
-  }
-
-  :root .subscription-user-workbench .subscription-user-meter-pill + .subscription-user-meter-pill {
-    border-left: none;
-    border-top: 1px solid var(--border-color);
-  }
-
-  :root .subscription-user-workbench .subscription-user-meter-value {
-    font-size: 22px;
-  }
-
-  :root .subscription-user-workbench .subscription-user-import-stage {
-    padding: 18px;
-  }
-
-  /* Profile pills wrap cleanly on mobile so options are never clipped mid-pill */
-  :root .subscription-user-workbench .subscription-profile-switches {
-    flex-wrap: wrap;
-    overflow-x: visible;
-    margin: 0;
-    padding: 0;
-    gap: 6px;
+  :root .subscription-user-workbench .subscription-user-step {
+    column-gap: 12px;
   }
 
   :root .subscription-user-workbench .subscription-profile-switches .btn {
-    height: 32px !important;
-    min-height: 32px !important;
-    padding: 0 12px !important;
-    font-size: 12.5px !important;
-  }
-
-  :root .subscription-user-workbench .subscription-user-address-card {
-    padding: 16px;
+    height: 40px !important;
+    min-height: 40px !important;
   }
 
   :root .subscription-user-workbench .subscription-url-dock {
@@ -665,68 +805,24 @@
 
   :root .subscription-user-workbench .subscription-user-copy-btn {
     width: 100%;
+    height: 44px !important;
+    min-height: 44px !important;
   }
 
   :root .subscription-user-workbench .subscription-user-address-actions .btn {
     flex: 1 1 100%;
+    height: 44px !important;
+    min-height: 44px !important;
   }
 
   :root .subscription-user-workbench .subscription-user-danger-row {
     flex-direction: column-reverse;
     align-items: stretch;
-    padding: 16px;
   }
 
   :root .subscription-user-workbench .subscription-user-reset-inline-btn {
     width: 100%;
+    height: 44px !important;
+    min-height: 44px !important;
   }
-}
-
-/* --------------------------------------------------------------------------
-   Size overrides
-   A global `.btn-sm { height: 28px !important }` rule (flagship-console.css)
-   pins every small button; the controls on this page are larger on purpose.
-   -------------------------------------------------------------------------- */
-:root .subscription-user-workbench .subscription-profile-switches .btn {
-  height: 36px !important;
-  min-height: 36px !important;
-  padding: 0 16px !important;
-  border-radius: var(--radius-full) !important;
-}
-
-:root .subscription-user-workbench .subscription-user-copy-btn {
-  height: 42px !important;
-  min-height: 42px !important;
-  padding: 0 18px !important;
-  border-radius: 10px !important;
-}
-
-:root .subscription-user-workbench .subscription-user-import-btn {
-  height: 38px !important;
-  min-height: 38px !important;
-  padding: 0 16px !important;
-  border-radius: 10px !important;
-}
-
-:root .subscription-user-workbench .subscription-user-reset-inline-btn {
-  height: 34px !important;
-  min-height: 34px !important;
-  padding: 0 14px !important;
-}
-
-:root .subscription-user-workbench .subscription-current-profile-tools,
-:root .subscription-user-workbench .subscription-current-profile-tools--embedded {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: flex-start;
-}
-
-:root .subscription-user-workbench .subscription-user-address-foot.subscription-user-danger-row {
-  background: var(--bg-card) !important;
-  border: 1px solid var(--border-color) !important;
-}
-
-:root .subscription-user-workbench .subscription-url-input {
-  color: var(--text-secondary);
 }

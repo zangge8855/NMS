@@ -109,7 +109,8 @@ describe('Subscriptions', () => {
 
         expect(await screen.findByDisplayValue('https://sub.example.com/base')).toBeInTheDocument();
         expect(screen.getByDisplayValue('admin@example.com')).toBeInTheDocument();
-        expect(screen.getByText('用户列表 1')).toBeInTheDocument();
+        // The toolbar no longer repeats the selected email, scope or user count.
+        expect(screen.queryByText('用户列表 1')).not.toBeInTheDocument();
     });
 
     it('auto-loads the current user subscription without exposing admin controls', async () => {
@@ -157,7 +158,7 @@ describe('Subscriptions', () => {
         expect(screen.queryByText('客户端下载')).not.toBeInTheDocument();
         expect(container.querySelector('.subscription-downloads-page-card--user')).toBeNull();
         expect(screen.getByText('复制或导入')).toBeInTheDocument();
-        expect(screen.getByText('导入工作台')).toBeInTheDocument();
+        expect(screen.queryByText('导入工作台')).not.toBeInTheDocument();
         expect(screen.queryByLabelText('订阅导入步骤')).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'v2rayN / Shadowrocket' })).toBeInTheDocument();
         expect(screen.queryByText('通用链接')).not.toBeInTheDocument();
@@ -292,7 +293,6 @@ describe('Subscriptions', () => {
         renderWithRouter(<Subscriptions />);
 
         expect(await screen.findByText('仅支持手动输入')).toBeInTheDocument();
-        expect(screen.getByText('手动输入邮箱')).toBeInTheDocument();
     });
 
     it('switches between client-specific subscription profiles', async () => {
@@ -349,7 +349,8 @@ describe('Subscriptions', () => {
         expect(screen.getByRole('link', { name: '导入到 Shadowrocket' })).toBeInTheDocument();
         expect(screen.getAllByText('当前用户').length).toBeGreaterThan(0);
         expect(screen.getAllByRole('link', { name: 'admin@example.com' }).length).toBeGreaterThan(0);
-        expect(screen.getByText('查看范围: 全部节点 · 已匹配 0/0')).toBeInTheDocument();
+        // Scope is picked in the toolbar; the link card does not restate it.
+        expect(screen.queryByText('查看范围: 全部节点 · 已匹配 0/0')).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: '复制地址' })).toHaveClass('btn-primary');
         expect(screen.getByRole('link', { name: '导入到 Shadowrocket' })).toHaveClass('btn-secondary');
         expect(screen.getByRole('button', { name: '通用链接' })).toBeInTheDocument();
@@ -682,7 +683,6 @@ describe('Subscriptions', () => {
         await waitFor(() => {
             expect(screen.getByDisplayValue('https://sub.example.com/server-b')).toBeInTheDocument();
             expect(screen.queryByDisplayValue('https://sub.example.com/all')).not.toBeInTheDocument();
-            expect(screen.getByText('查看范围: 节点 Node B · 已匹配 0/0')).toBeInTheDocument();
         });
     });
 });

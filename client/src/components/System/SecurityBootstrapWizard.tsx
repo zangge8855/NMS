@@ -300,7 +300,7 @@ export default function SecurityBootstrapWizard() {
                     <div className="security-bootstrap-meta-grid">
                         <div className="security-bootstrap-meta-card">
                             <div className="security-bootstrap-meta-label">{copy.envFile}</div>
-                            <div className="security-bootstrap-meta-value">{status.envFile || '-'}</div>
+                            <div className="security-bootstrap-meta-value">{status.envFile || '—'}</div>
                         </div>
                         <div className="security-bootstrap-meta-card">
                             <div className="security-bootstrap-meta-label">{copy.statsTitle}</div>

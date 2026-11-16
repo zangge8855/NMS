@@ -663,7 +663,7 @@ export default function Tools() {
             if (failed.length > 0) {
                 toast.error(
                     copy.ssl.dispatchPartial
-                        .replace('{ok}', dispatched.join(', ') || '-')
+                        .replace('{ok}', dispatched.join(', ') || '—')
                         .replace('{failed}', failed.join(', '))
                 );
             } else {
@@ -782,13 +782,13 @@ export default function Tools() {
             if (res && res.success !== false) {
                 setIpResult({
                     ip: res.ip || target,
-                    country: res.country || '-',
+                    country: res.country || '—',
                     countryCode: res.country_code,
                     flag: res.flag?.emoji || '🌐',
-                    region: res.region || '-',
-                    city: res.city || '-',
-                    isp: res.connection?.isp || res.connection?.org || '-',
-                    asn: res.connection?.asn ? `AS${res.connection.asn} (${res.connection.org || ''})` : '-',
+                    region: res.region || '—',
+                    city: res.city || '—',
+                    isp: res.connection?.isp || res.connection?.org || '—',
+                    asn: res.connection?.asn ? `AS${res.connection.asn} (${res.connection.org || ''})` : '—',
                     isBogon: res.is_bogon === true,
                 });
                 return;
@@ -803,10 +803,10 @@ export default function Tools() {
                     ip: obj.ip || target,
                     country: obj.ipLocation || copy.ip.unknownCountry || '未知',
                     flag: '🌐',
-                    region: '-',
-                    city: '-',
-                    isp: obj.ipCarrier || '-',
-                    asn: '-',
+                    region: '—',
+                    city: '—',
+                    isp: obj.ipCarrier || '—',
+                    asn: '—',
                     isBogon: false,
                 });
                 return;
@@ -816,10 +816,10 @@ export default function Tools() {
                 ip: target,
                 country: copy.ip.unknownCountry || '未知',
                 flag: '🌐',
-                region: '-',
-                city: '-',
-                isp: '-',
-                asn: '-',
+                region: '—',
+                city: '—',
+                isp: '—',
+                asn: '—',
                 isBogon: false,
             });
         } catch {
@@ -828,10 +828,10 @@ export default function Tools() {
                 ip: target,
                 country: copy.ip.lookupFailed || '查询失败',
                 flag: '⚠️',
-                region: '-',
-                city: '-',
-                isp: '-',
-                asn: '-',
+                region: '—',
+                city: '—',
+                isp: '—',
+                asn: '—',
                 isBogon: false,
             });
         } finally {
@@ -849,21 +849,24 @@ export default function Tools() {
                 <div className="flex flex-wrap gap-2 mb-6 border-b border-stroke-soft pb-3">
                     <button
                         type="button"
-                        className={`btn btn-sm ${activeTab === 'node' ? 'btn-primary' : 'btn-secondary'}`}
+                        className="btn btn-sm btn-secondary"
+                        aria-pressed={activeTab === 'node'}
                         onClick={() => setActiveTab('node')}
                     >
                         <HiOutlineWrench /> {copy.tabs.nodeTools}
                     </button>
                     <button
                         type="button"
-                        className={`btn btn-sm ${activeTab === 'ssl' ? 'btn-primary' : 'btn-secondary'}`}
+                        className="btn btn-sm btn-secondary"
+                        aria-pressed={activeTab === 'ssl'}
                         onClick={() => setActiveTab('ssl')}
                     >
                         <HiOutlineLockClosed /> {copy.tabs.sslAssistant}
                     </button>
                     <button
                         type="button"
-                        className={`btn btn-sm ${activeTab === 'ip' ? 'btn-primary' : 'btn-secondary'}`}
+                        className="btn btn-sm btn-secondary"
+                        aria-pressed={activeTab === 'ip'}
                         onClick={() => setActiveTab('ip')}
                     >
                         <HiOutlineGlobeAlt /> {copy.tabs.ipDiagnostics}
@@ -1219,7 +1222,7 @@ export default function Tools() {
                                                             )}
                                                             <div className="text-xs text-muted">
                                                                 {copy.ssl.expiresAtLabel}:{' '}
-                                                                {cert.expiresAt ? formatDateTime(cert.expiresAt, locale) : '-'}
+                                                                {cert.expiresAt ? formatDateTime(cert.expiresAt, locale) : '—'}
                                                             </div>
                                                             {cert.lastError && (
                                                                 <div className="text-xs text-danger break-all">
@@ -1383,16 +1386,16 @@ export default function Tools() {
                                     <div className="text-xs text-muted mb-1">{copy.ip.locationLabel}</div>
                                     <div className="text-base font-bold flex items-center gap-2 min-w-0">
                                         <span className="shrink-0">{ipResult.flag}</span>
-                                        <span className="break-all">{ipResult.country} {ipResult.city && ipResult.city !== '-' ? `(${ipResult.city})` : ''}</span>
+                                        <span className="break-all">{ipResult.country} {ipResult.city && ipResult.city !== '—' ? `(${ipResult.city})` : ''}</span>
                                     </div>
                                 </div>
                                 <div className="p-4 rounded-xl bg-surface-panel border border-stroke-soft min-w-0">
                                     <div className="text-xs text-muted mb-1">{copy.ip.carrierLabel}</div>
-                                    <div className="text-sm font-semibold break-all">{ipResult.isp || '-'}</div>
+                                    <div className="text-sm font-semibold break-all">{ipResult.isp || '—'}</div>
                                 </div>
                                 <div className="p-4 rounded-xl bg-surface-panel border border-stroke-soft min-w-0">
                                     <div className="text-xs text-muted mb-1">{copy.ip.asnLabel}</div>
-                                    <div className="text-xs font-mono text-muted break-all">{ipResult.asn || '-'}</div>
+                                    <div className="text-xs font-mono text-muted break-all">{ipResult.asn || '—'}</div>
                                 </div>
                             </div>
                         )}

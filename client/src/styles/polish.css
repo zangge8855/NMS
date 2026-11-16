@@ -123,21 +123,21 @@ body {
 }
 
 :root .btn-primary:not(:disabled):not([aria-disabled="true"]) {
-  background-color: var(--btn-primary-bg, #4654d6);
+  background-color: var(--btn-primary-bg);
   background-image: var(--gradient-primary);
-  color: #ffffff;
+  color: var(--text-on-accent);
   border-color: transparent;
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 :root .btn-primary:hover:not(:disabled):not([aria-disabled="true"]) {
-  background-color: var(--btn-primary-hover, #3d4bc9);
+  background-color: var(--btn-primary-hover);
   background-image: none;
-  color: #ffffff;
+  color: var(--text-on-accent);
 }
 
 :root .btn-primary:active:not(:disabled):not([aria-disabled="true"]) {
-  background-color: var(--btn-primary-active, #3542b8);
+  background-color: var(--btn-primary-active);
   background-image: none;
 }
 
@@ -152,8 +152,8 @@ body {
   box-shadow: none;
   background-color: #272d3d !important;
   background-image: none !important;
-  color: #b4bed0 !important;
-  border-color: rgba(148, 163, 184, 0.28) !important;
+  color: var(--text-secondary) !important;
+  border-color: var(--border-color) !important;
 }
 
 :root[data-theme="light"] .btn:disabled,
@@ -164,8 +164,8 @@ body {
 :root[data-theme="light"] .btn-secondary[aria-disabled="true"] {
   background-color: #e2e6ef !important;
   background-image: none !important;
-  color: #475164 !important;
-  border-color: rgba(15, 23, 42, 0.16) !important;
+  color: var(--text-secondary) !important;
+  border-color: var(--border-color) !important;
 }
 
 :root .btn-secondary {
@@ -347,7 +347,7 @@ body {
   font-family: var(--font-figure);
   font-size: clamp(1.375rem, 0.9rem + 1.25vw, 1.75rem);
   font-weight: 650;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
   letter-spacing: -0.025em;
   line-height: 1.15;
   color: var(--text-primary);
@@ -854,7 +854,7 @@ body {
   font-family: var(--font-figure);
   font-size: 13px;
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
   color: var(--text-primary);
 }
 
@@ -902,7 +902,7 @@ body {
   .sidebar-logo-subtitle
 ) {
   font-family: var(--font-figure);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
 }
 
 :root .header-title-group::before {
@@ -1012,27 +1012,27 @@ body {
 
 /* Muted text that clears WCAG AA (4.5:1) on both white and surface grey */
 :root[data-theme="light"] {
-  --text-muted: #5b6474;
+  /* --text-muted lives in theme.css */
 }
 
 /* Status badges: the legacy layer pins dark-theme hues with !important, which
    fall below AA on light backgrounds. Light theme gets deeper ink. */
 :root[data-theme="light"] .badge-success {
-  color: #047857 !important;
-  background: rgba(5, 150, 105, 0.1) !important;
-  border-color: rgba(5, 150, 105, 0.26) !important;
+  color: var(--accent-success) !important;
+  background: var(--accent-success-bg) !important;
+  border-color: var(--accent-success-border) !important;
 }
 
 :root[data-theme="light"] .badge-warning {
-  color: #a24a06 !important;
-  background: rgba(217, 119, 6, 0.1) !important;
-  border-color: rgba(217, 119, 6, 0.28) !important;
+  color: var(--accent-warning) !important;
+  background: var(--accent-warning-bg) !important;
+  border-color: var(--accent-warning-border) !important;
 }
 
 :root[data-theme="light"] .badge-danger {
-  color: #b91c1c !important;
-  background: rgba(220, 38, 38, 0.08) !important;
-  border-color: rgba(220, 38, 38, 0.24) !important;
+  color: var(--accent-danger) !important;
+  background: var(--accent-danger-bg) !important;
+  border-color: var(--accent-danger-border) !important;
 }
 
 :root[data-theme="light"] :is(.badge-info, .badge-primary) {
@@ -1050,8 +1050,8 @@ body {
 }
 
 :root[data-theme="light"] .nav-badge {
-  color: #b91c1c;
-  background: rgba(220, 38, 38, 0.08);
+  color: var(--accent-danger);
+  background: var(--accent-danger-bg);
 }
 
 :root .sidebar.collapsed .nav-item {
@@ -1234,34 +1234,7 @@ body {
   font-weight: 600;
 }
 
-:root[data-theme="dark"] .node-health-tone-pill {
-  color: #b4bed0;
-  background: rgba(148, 163, 184, 0.14);
-  border-color: rgba(148, 163, 184, 0.24);
-}
-
-:root[data-theme="dark"] .node-health-tile[data-tone="success"] .node-health-tone-pill {
-  color: #34d399;
-  background: rgba(16, 185, 129, 0.14);
-  border-color: rgba(52, 211, 153, 0.3);
-}
-
-:root[data-theme="dark"] .node-health-tile[data-tone="warning"] .node-health-tone-pill {
-  color: #fbbf24;
-  background: rgba(245, 158, 11, 0.14);
-  border-color: rgba(251, 191, 36, 0.3);
-}
-
-:root[data-theme="dark"] .node-health-tile[data-tone="danger"] .node-health-tone-pill {
-  color: #fca5a5;
-  background: rgba(239, 68, 68, 0.14);
-  border-color: rgba(252, 165, 165, 0.32);
-}
-
-:root[data-theme="light"] .node-health-tone-pill { color: #4a5162; }
-:root[data-theme="light"] .node-health-tile[data-tone="success"] .node-health-tone-pill { color: #047857; }
-:root[data-theme="light"] .node-health-tile[data-tone="warning"] .node-health-tone-pill { color: #92400e; }
-:root[data-theme="light"] .node-health-tile[data-tone="danger"] .node-health-tone-pill { color: #b91c1c; }
+/* Tone pill colours live in identity.css. */
 
 :root[data-theme="light"] .settings-nav-item.is-active,
 :root[data-theme="light"] .settings-nav-item.is-active .settings-nav-item-label {
@@ -1269,15 +1242,15 @@ body {
 }
 
 /* Dark theme: lift red / blue ink slightly so small badges clear 4.5:1 */
-:root[data-theme="dark"] .badge-danger { color: #fca5a5 !important; }
-:root[data-theme="dark"] .nav-badge { color: #fca5a5; }
-:root[data-theme="dark"] .sidebar-user-badge { color: #93a4ff; }
+:root[data-theme="dark"] .badge-danger { color: var(--accent-danger) !important; }
+:root[data-theme="dark"] .nav-badge { color: var(--accent-danger); }
+:root[data-theme="dark"] .sidebar-user-badge { color: var(--text-secondary); }
 
 :root[data-theme="light"] .logs-scroll-chip { color: #047857; }
 
 :root[data-theme="dark"] :is(.tab.active, .filter-chip.active, .settings-nav-item.is-active, .users-tab.active),
 :root[data-theme="dark"] :is(.tab.active, .filter-chip.active, .settings-nav-item.is-active) > span:first-child {
-  color: #93a4ff;
+  color: var(--accent-primary);
 }
 
 /* --------------------------------------------------------------------------
@@ -1422,16 +1395,16 @@ body {
 }
 
 :root .btn-primary:not(:disabled):not([aria-disabled="true"]) {
-  background-color: var(--btn-primary-bg, #4654d6);
+  background-color: var(--btn-primary-bg);
   background-image: var(--gradient-primary);
-  color: #ffffff;
+  color: var(--text-on-accent);
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 :root .btn-primary:hover:not(:disabled):not([aria-disabled="true"]) {
-  background-color: var(--btn-primary-hover, #3d4bc9);
+  background-color: var(--btn-primary-hover);
   background-image: none;
-  color: #ffffff;
+  color: var(--text-on-accent);
   box-shadow: 0 4px 12px -2px var(--accent-primary-glow), inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
 
@@ -1984,9 +1957,9 @@ body {
 }
 
 :root[data-theme="light"] .badge-vmess {
-  color: #5b21b6 !important;
-  background: rgba(124, 58, 237, 0.1) !important;
-  border-color: rgba(124, 58, 237, 0.24) !important;
+  color: var(--accent-secondary) !important;
+  background: var(--accent-secondary-bg) !important;
+  border-color: var(--border-color) !important;
 }
 
 :root[data-theme="light"] .badge-trojan {
@@ -1996,9 +1969,9 @@ body {
 }
 
 :root[data-theme="light"] .badge-shadowsocks {
-  color: #0369a1 !important;
-  background: rgba(2, 132, 199, 0.1) !important;
-  border-color: rgba(2, 132, 199, 0.24) !important;
+  color: var(--accent-info) !important;
+  background: var(--accent-info-bg) !important;
+  border-color: var(--accent-info-border) !important;
 }
 
 :root[data-theme="light"] .subscription-user-workbench {
@@ -2255,8 +2228,8 @@ body {
   margin-left: auto;
   padding: 2px 8px;
   border-radius: 999px;
-  background: rgba(148, 163, 184, 0.14);
-  color: #b4bed0;
+  background: var(--surface-soft);
+  color: var(--text-secondary);
   font-size: 11px;
   font-weight: 600;
   line-height: 1.6;
@@ -2265,7 +2238,7 @@ body {
 
 :root[data-theme="light"] .header-search-item-kind {
   background: #eef1f6;
-  color: #4a5162;
+  color: var(--text-secondary);
   border: 1px solid rgba(15, 23, 42, 0.08);
 }
 
@@ -2490,103 +2463,103 @@ body {
 /* High-contrast destructive buttons, capability pills, indicators, ranks & logs */
 :root[data-theme="light"] .btn-danger,
 :root[data-theme="light"] .btn-danger.btn-sm {
-  color: #b91c1c !important;
-  background: rgba(220, 38, 38, 0.09) !important;
-  border-color: rgba(185, 28, 28, 0.24) !important;
+  color: var(--accent-danger) !important;
+  background: var(--accent-danger-bg) !important;
+  border-color: var(--accent-danger-border) !important;
 }
 
 :root[data-theme="light"] .btn-danger:hover:not(:disabled),
 :root[data-theme="light"] .btn-danger.btn-sm:hover:not(:disabled) {
   color: #ffffff !important;
-  background: linear-gradient(180deg, #dc2626 0%, #b91c1c 100%) !important;
+  background: var(--accent-danger) !important;
   border-color: transparent !important;
 }
 
 :root[data-theme="light"] .cap-status-pill--success,
 :root[data-theme="light"] .inbounds-online-indicator,
 :root[data-theme="light"] .inbounds-client-online-status.is-online {
-  color: #047857;
-  background: rgba(5, 150, 105, 0.1);
-  border-color: rgba(5, 150, 105, 0.28);
+  color: var(--accent-success);
+  background: var(--accent-success-bg);
+  border-color: var(--accent-success-border);
 }
 
 :root[data-theme="light"] .cap-status-pill--warning {
-  color: #92400e;
-  background: rgba(217, 119, 6, 0.11);
-  border-color: rgba(217, 119, 6, 0.28);
+  color: var(--accent-warning);
+  background: var(--accent-warning-bg);
+  border-color: var(--accent-warning-border);
 }
 
 :root[data-theme="light"] .cap-status-pill--danger {
-  color: #b91c1c;
-  background: rgba(220, 38, 38, 0.09);
-  border-color: rgba(220, 38, 38, 0.26);
+  color: var(--accent-danger);
+  background: var(--accent-danger-bg);
+  border-color: var(--accent-danger-border);
 }
 
 :root[data-theme="dark"] .cap-status-pill--success,
 :root[data-theme="dark"] .inbounds-online-indicator,
 :root[data-theme="dark"] .inbounds-client-online-status.is-online {
-  color: #34d399;
-  border-color: rgba(52, 211, 153, 0.3);
+  color: var(--accent-success);
+  border-color: var(--accent-success-border);
 }
 
 :root[data-theme="dark"] .cap-status-pill--warning {
-  color: #fbbf24;
-  border-color: rgba(251, 191, 36, 0.3);
+  color: var(--accent-warning);
+  border-color: var(--accent-warning-border);
 }
 
 :root[data-theme="dark"] .cap-status-pill--danger {
-  color: #fca5a5;
-  border-color: rgba(252, 165, 165, 0.3);
+  color: var(--accent-danger);
+  border-color: var(--accent-danger-border);
 }
 
 :root[data-theme="light"] .audit-rank-badge {
-  color: #475569;
-  background: rgba(71, 85, 105, 0.1);
-  border-color: rgba(71, 85, 105, 0.22);
+  color: var(--text-secondary);
+  background: var(--surface-soft);
+  border-color: var(--border-color);
 }
 
 :root[data-theme="light"] .audit-rank-badge[data-rank="1"] {
-  color: #92400e;
-  background: rgba(217, 119, 6, 0.12);
-  border-color: rgba(180, 83, 9, 0.28);
+  color: var(--accent-warning);
+  background: var(--accent-warning-bg);
+  border-color: var(--accent-warning-border);
 }
 
 :root[data-theme="light"] .audit-rank-badge[data-rank="2"] {
-  color: #3243bb;
-  background: rgba(59, 79, 209, 0.12);
-  border-color: rgba(59, 79, 209, 0.28);
+  color: var(--accent-primary);
+  background: var(--accent-primary-bg);
+  border-color: var(--accent-primary-border);
 }
 
 :root[data-theme="light"] .audit-rank-badge[data-rank="3"] {
-  color: #047857;
-  background: rgba(5, 150, 105, 0.1);
-  border-color: rgba(5, 150, 105, 0.28);
+  color: var(--accent-success);
+  background: var(--accent-success-bg);
+  border-color: var(--accent-success-border);
 }
 
 :root[data-theme="dark"] .audit-rank-badge[data-rank="1"] {
-  color: #fbbf24;
+  color: var(--accent-warning);
 }
 
 :root[data-theme="dark"] .audit-rank-badge[data-rank="2"] {
-  color: #93a4ff;
-  background: rgba(109, 127, 245, 0.18);
-  border-color: rgba(147, 164, 255, 0.36);
+  color: var(--accent-primary);
+  background: var(--accent-primary-bg);
+  border-color: var(--accent-primary-border);
 }
 
 :root[data-theme="dark"] .audit-rank-badge[data-rank="3"] {
-  color: #34d399;
+  color: var(--accent-success);
 }
 
 :root[data-theme="light"] .sidebar-toggle {
-  color: #3f4b5e;
+  color: var(--text-secondary);
   background: #ffffff;
   border-color: #bcc7d6;
 }
 
 :root .log-pane .badge-info {
-  color: #93c5fd !important;
-  background: rgba(59, 130, 246, 0.18) !important;
-  border-color: rgba(96, 165, 250, 0.35) !important;
+  color: var(--accent-info) !important;
+  background: var(--accent-info-bg) !important;
+  border-color: var(--accent-info-border) !important;
 }
 
 /* Log pane stays dark in light mode; prevent secondary buttons from inheriting light-ink over white fill */
@@ -2682,7 +2655,7 @@ body {
 :root[data-theme="dark"] :is(.tabs, .audit-tabs, .users-tabs, .xray-tabs, .user-detail-tabs .tabs) > :is(.tab, .audit-tab, .users-tab).active,
 :root[data-theme="dark"] .settings-nav-list--workspace > .settings-nav-item.is-active {
   background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-card)) !important;
-  color: #93a4ff !important;
+  color: var(--accent-primary) !important;
   border-color: color-mix(in srgb, var(--accent-primary) 34%, transparent) !important;
   box-shadow: 0 1px 2px rgba(2, 6, 23, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
   font-weight: 600;
@@ -2714,7 +2687,7 @@ body {
   .command-palette-kbd,
   .servers-telemetry-value
 ) {
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
 }
 
 /* Toolbar & form geometry refinement */
@@ -2787,19 +2760,19 @@ body {
 :root .filter-chip.active .filter-chip-count:is(.count-success, .count-warning, .count-danger),
 :root[data-theme="dark"] .filter-chip.active .filter-chip-count,
 :root[data-theme="dark"] .filter-chip.active .filter-chip-count:is(.count-success, .count-warning, .count-danger) {
-  background: var(--btn-primary-bg, #4654d6);
-  color: #ffffff;
+  background: var(--btn-primary-bg);
+  color: var(--text-on-accent);
 }
 
 :root[data-theme="light"] .filter-chip.active .filter-chip-count,
 :root[data-theme="light"] .filter-chip.active .filter-chip-count:is(.count-success, .count-warning, .count-danger) {
-  background: var(--btn-primary-bg, #3b4fd1);
-  color: #ffffff;
+  background: var(--btn-primary-bg);
+  color: var(--text-on-accent);
 }
 
 :root[data-theme="dark"] .subscriptions-toolbar-chip.is-active,
 :root[data-theme="dark"] .subscription-guide-index {
-  color: #93a4ff;
+  color: var(--accent-primary);
 }
 
 @media (min-width: 881px) {

@@ -45,7 +45,7 @@ function formatInboundLabel(item: any = {}) {
     const inboundId = item.inboundId ?? '';
     const remark = String(item.inboundRemark || '').trim();
     if (inboundId && remark) return `${inboundId} · ${remark}`;
-    return inboundId || remark || '-';
+    return inboundId || remark || '—';
 }
 
 function formatTargetLabel(item: any = {}) {
@@ -54,7 +54,7 @@ function formatTargetLabel(item: any = {}) {
     if (username && subscriptionEmail) {
         return `${username} (${subscriptionEmail})`;
     }
-    return username || subscriptionEmail || item.email || item.remark || item.clientIdentifier || '-';
+    return username || subscriptionEmail || item.email || item.remark || item.clientIdentifier || '—';
 }
 
 export default function BatchResultModal({ isOpen, onClose, title = null, data = null }) {
@@ -116,11 +116,11 @@ export default function BatchResultModal({ isOpen, onClose, title = null, data =
                                                 </span>
                                             </td>
                                             <td data-label={copy.action}>{formatTaskActionLabel(item.action || item.stage, locale)}</td>
-                                            <td data-label={copy.node}>{item.serverName || item.serverId || '-'}</td>
+                                            <td data-label={copy.node}>{item.serverName || item.serverId || '—'}</td>
                                             <td data-label={copy.inbound}>{formatInboundLabel(item)}</td>
                                             <td data-label={copy.target}>{formatTargetLabel(item)}</td>
                                             <td data-label={copy.result} className="batch-result-message-cell">
-                                                {item.msg ? getErrorMessage({ message: item.msg }, item.msg, locale) : '-'}
+                                                {item.msg ? getErrorMessage({ message: item.msg }, item.msg, locale) : '—'}
                                             </td>
                                         </tr>
                                     ))}

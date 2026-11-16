@@ -327,7 +327,7 @@
 
 .chart-tooltip-value {
   color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
   font-weight: 600;
 }
 

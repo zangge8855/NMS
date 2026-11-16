@@ -139,7 +139,7 @@ function normalizePanelTimestamp(value) {
 
 function formatLastOnline(value, locale = 'zh-CN') {
     const timestamp = normalizePanelTimestamp(value);
-    return timestamp > 0 ? formatDateTime(timestamp, locale) : '-';
+    return timestamp > 0 ? formatDateTime(timestamp, locale) : '—';
 }
 
 function ServerDetailOnlineMobileList({ onlineUsers = [], onLoadClientIps, clientIpSupport, locale = 'zh-CN' }) {
@@ -601,6 +601,8 @@ export default function ServerDetail() {
     const showInboundStats = !inboundsLoading || inbounds.length > 0;
     const showOnlineStats = !onlinesLoading || onlineUsers.length > 0 || onlines.length > 0;
     const hasEnvironment = String(server.environment || '').trim() && String(server.environment || '').trim() !== 'unknown';
+    // Inline labels carry a trailing colon; in a definition list the layout does that job.
+    const kvLabel = (key: string) => String(t(key)).replace(/[:：]\s*$/, '');
 
     return (
         <>
@@ -645,20 +647,20 @@ export default function ServerDetail() {
                                 <span className={`badge ${healthBadge[effectiveHealth] || 'badge-neutral'}`}>
                                     {healthLabel[effectiveHealth] || t('comp.common.unknown')}
                                 </span>
-                                <span className={`badge servers-panel-badge ${isSui ? 'badge-info' : 'badge-neutral'}`}>
+                                <span className="badge badge-neutral servers-panel-badge">
                                     {normalizePanelType(server.panelType)}
                                 </span>
                                 {hasEnvironment && (
                                     <span className="badge badge-neutral">{envLabel[server.environment] || server.environment}</span>
                                 )}
-                                {server.group && <span className="badge badge-info">{server.group}</span>}
+                                {server.group && <span className="badge badge-neutral">{server.group}</span>}
                             </div>
                             <div className="user-profile-meta">
                                 {status && (
                                     <>
-                                        <div className="user-profile-meta-item"><HiOutlineCpuChip /> {t('pages.serverDetail.xrayLabels.cpu')} {Number.isFinite(status?.cpu) ? `${status.cpu.toFixed(1)}%` : '-'}</div>
-                                        <div className="user-profile-meta-item"><HiOutlineCircleStack /> {t('pages.serverDetail.xrayLabels.memory')} {status.mem && Number(status.mem.total) > 0 ? `${((Number(status.mem.current || 0) / Number(status.mem.total)) * 100).toFixed(1)}%` : '-'}</div>
-                                        <div className="user-profile-meta-item"><HiOutlineClock /> {t('pages.serverDetail.xrayLabels.uptime')} {status.uptime ? formatUptime(status.uptime, locale) : '-'}</div>
+                                        <div className="user-profile-meta-item"><HiOutlineCpuChip /> {t('pages.serverDetail.xrayLabels.cpu')} {Number.isFinite(status?.cpu) ? `${status.cpu.toFixed(1)}%` : '—'}</div>
+                                        <div className="user-profile-meta-item"><HiOutlineCircleStack /> {t('pages.serverDetail.xrayLabels.memory')} {status.mem && Number(status.mem.total) > 0 ? `${((Number(status.mem.current || 0) / Number(status.mem.total)) * 100).toFixed(1)}%` : '—'}</div>
+                                        <div className="user-profile-meta-item"><HiOutlineClock /> {t('pages.serverDetail.xrayLabels.uptime')} {status.uptime ? formatUptime(status.uptime, locale) : '—'}</div>
                                     </>
                                 )}
                                 {!status && <div className="user-profile-meta-item text-muted">{t('pages.serverDetail.loadingStatus')}</div>}
@@ -697,38 +699,40 @@ export default function ServerDetail() {
                         {/* Overview Tab */}
                         {activeTab === 'overview' && (
                             <div>
+                                {/* Name, URL and health already lead the hero; this card holds what it does not. */}
                                 <div className="card mb-4">
                                     <h2 className="card-title mb-3">{t('pages.serverDetail.serverInfo')}</h2>
-                                    <div className="grid grid-cols-2 gap-4 text-sm server-detail-overview-grid">
-                                        <div><span className="text-muted">{t('pages.serverDetail.infoLabels.name')}</span> {server.name}</div>
-                                        <div><span className="text-muted">{t('pages.serverDetail.infoLabels.url')}</span> <span className="font-mono">{server.url}</span></div>
-                                        <div><span className="text-muted">{t('pages.serverDetail.infoLabels.username')}</span> {server.username}</div>
-                                        {hasEnvironment && <div><span className="text-muted">{t('pages.serverDetail.infoLabels.environment')}</span> {envLabel[server.environment] || server.environment}</div>}
-                                        <div><span className="text-muted">{t('pages.serverDetail.infoLabels.group')}</span> {server.group || t('pages.serverDetail.infoLabels.noGroup')}</div>
-                                        <div><span className="text-muted">{t('pages.serverDetail.infoLabels.health')}</span> {healthLabel[effectiveHealth] || t('comp.common.unknown')}</div>
-                                        {server.basePath && <div><span className="text-muted">{t('pages.serverDetail.infoLabels.basePath')}</span> <span className="font-mono">{server.basePath}</span></div>}
-                                    </div>
-                                    {Array.isArray(server.tags) && server.tags.length > 0 && (
-                                        <div className="flex gap-2 mt-3">
-                                            {server.tags.map(tag => <span key={tag} className="badge badge-info">{tag}</span>)}
-                                        </div>
-                                    )}
+                                    <dl className="server-detail-kv">
+                                        <div><dt>{kvLabel('pages.serverDetail.infoLabels.username')}</dt><dd>{server.username || '—'}</dd></div>
+                                        <div><dt>{kvLabel('pages.serverDetail.infoLabels.group')}</dt><dd>{server.group || t('pages.serverDetail.infoLabels.noGroup')}</dd></div>
+                                        {hasEnvironment && <div><dt>{kvLabel('pages.serverDetail.infoLabels.environment')}</dt><dd>{envLabel[server.environment] || server.environment}</dd></div>}
+                                        <div><dt>{kvLabel('pages.serverDetail.infoLabels.basePath')}</dt><dd className="font-mono">{server.basePath || '/'}</dd></div>
+                                        {Array.isArray(server.tags) && server.tags.length > 0 && (
+                                            <div className="server-detail-kv-wide">
+                                                <dt>{locale === 'en-US' ? 'Tags' : '标签'}</dt>
+                                                <dd className="server-detail-kv-tags">
+                                                    {server.tags.map(tag => <span key={tag} className="badge badge-neutral">{tag}</span>)}
+                                                </dd>
+                                            </div>
+                                        )}
+                                    </dl>
                                 </div>
                                 {status && (
                                     <div className="card">
                                         <h2 className="card-title mb-3">{t(isSui ? 'pages.serverDetail.singboxStatus' : 'pages.serverDetail.xrayStatus')}</h2>
-                                        <div className="grid grid-cols-2 gap-4 text-sm server-detail-overview-grid">
-                                            <div><span className="text-muted">{t(isSui ? 'pages.serverDetail.panelVersion' : 'pages.serverDetail.xrayLabels.version')}</span> {status.xray?.version || '-'}</div>
-                                            <div><span className="text-muted">{t('pages.serverDetail.xrayLabels.uptime')}</span> {formatUptime(status.uptime, locale)}</div>
-                                            <div><span className="text-muted">{t('pages.serverDetail.xrayLabels.cpu')}</span> {Number.isFinite(status?.cpu) ? `${status.cpu.toFixed(1)}%` : '-'}</div>
-                                            <div><span className="text-muted">{t('pages.serverDetail.xrayLabels.memory')}</span> {status.mem && Number(status.mem.total) > 0 ? `${formatBytes(status.mem.current)} / ${formatBytes(status.mem.total)}` : '-'}</div>
-                                            <div><span className="text-muted">{t('pages.serverDetail.xrayLabels.disk')}</span> {status.disk && Number(status.disk.total) > 0 ? `${formatBytes(status.disk.current)} / ${formatBytes(status.disk.total)}` : '-'}</div>
-                                            <div><span className="text-muted">{t('pages.serverDetail.xrayLabels.tcpCount')}</span> {status.tcpCount || '-'}</div>
-                                        </div>
+                                        <dl className="server-detail-kv">
+                                            <div><dt>{kvLabel(isSui ? 'pages.serverDetail.panelVersion' : 'pages.serverDetail.xrayLabels.version')}</dt><dd>{status.xray?.version || '—'}</dd></div>
+                                            <div><dt>{kvLabel('pages.serverDetail.xrayLabels.uptime')}</dt><dd>{status.uptime ? formatUptime(status.uptime, locale) : '—'}</dd></div>
+                                            <div><dt>{kvLabel('pages.serverDetail.xrayLabels.cpu')}</dt><dd>{Number.isFinite(status?.cpu) ? `${status.cpu.toFixed(1)}%` : '—'}</dd></div>
+                                            <div><dt>{kvLabel('pages.serverDetail.xrayLabels.memory')}</dt><dd>{status.mem && Number(status.mem.total) > 0 ? `${formatBytes(status.mem.current)} / ${formatBytes(status.mem.total)}` : '—'}</dd></div>
+                                            <div><dt>{kvLabel('pages.serverDetail.xrayLabels.disk')}</dt><dd>{status.disk && Number(status.disk.total) > 0 ? `${formatBytes(status.disk.current)} / ${formatBytes(status.disk.total)}` : '—'}</dd></div>
+                                            <div><dt>{kvLabel('pages.serverDetail.xrayLabels.tcpCount')}</dt><dd>{status.tcpCount || '—'}</dd></div>
+                                        </dl>
                                     </div>
                                 )}
                             </div>
                         )}
+
 
                         {/* Inbounds Tab */}
                         {activeTab === 'inbounds' && (

@@ -2099,7 +2099,7 @@ export default function UsersHub() {
                             onClick={openGuestModal}
                             title={locale === 'en-US' ? 'Guest Pass (Temporary Trial)' : '生成临时访客试用码'}
                         >
-                            <HiOutlineSparkles className="text-warning" />
+                            <HiOutlineSparkles />
                             <span>{locale === 'en-US' ? 'Guest Pass' : '访客试用码'}</span>
                         </button>
                         <button type="button" className="btn btn-primary btn-sm" onClick={openCreateModal} title={t('pages.usersHub.toolbar.addAccountTitle')}>
@@ -2336,12 +2336,12 @@ export default function UsersHub() {
                                                 <td data-label={t('pages.usersHub.cols.nodeCount')} className="table-cell-center users-node-count-cell">
                                                     {user.statsPending ? (
                                                         <span className="text-xs text-muted">{syncingCopy.status}</span>
-                                                    ) : (user.clientData.count || '-')}
+                                                    ) : (user.clientData.count || '—')}
                                                 </td>
                                                 <td
                                                     data-label={t('pages.usersHub.cols.traffic')}
                                                     className="table-cell-right users-traffic-cell"
-                                                    title={user.statsPending ? syncingCopy.detail : (user.clientData.totalUsed ? t('comp.users.totalTrafficTitle', { total: formatBytes(user.clientData.totalUsed) }) : '-')}
+                                                    title={user.statsPending ? syncingCopy.detail : (user.clientData.totalUsed ? t('comp.users.totalTrafficTitle', { total: formatBytes(user.clientData.totalUsed) }) : '—')}
                                                 >
                                                     {user.statsPending ? (
                                                         <span className="text-xs text-muted">{syncingCopy.detail}</span>
@@ -2355,16 +2355,16 @@ export default function UsersHub() {
                                                                 <span className="text-info">↓{formatBytes(user.clientData.totalDown)}</span>
                                                             </div>
                                                         </div>
-                                                    ) : '-'}
+                                                    ) : '—'}
                                                 </td>
                                                 <td
                                                     data-label={t('pages.usersHub.cols.expiry')}
                                                     className="cell-mono table-cell-center users-expiry-cell"
-                                                    title={user.statsPending ? syncingCopy.detail : (user.clientData.count > 0 ? userExpiryLabel : '-')}
+                                                    title={user.statsPending ? syncingCopy.detail : (user.clientData.count > 0 ? userExpiryLabel : '—')}
                                                 >
                                                     {user.statsPending ? (
                                                         <span className="text-xs text-muted">{syncingCopy.detail}</span>
-                                                    ) : (user.clientData.count > 0 ? userExpiryLabel : '-')}
+                                                    ) : (user.clientData.count > 0 ? userExpiryLabel : '—')}
                                                 </td>
                                                 <td data-label={t('pages.usersHub.cols.actions')} className="table-cell-actions users-actions-cell" onClick={(e) => e.stopPropagation()}>
                                                     <div className="flex items-center justify-end gap-2 flex-wrap users-row-actions">
@@ -3418,7 +3418,7 @@ export default function UsersHub() {
                     <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title flex items-center gap-2">
-                                <HiOutlineSparkles className="w-5 h-5 text-warning" />
+                                <HiOutlineSparkles className="w-5 h-5" />
                                 {locale === 'en-US' ? 'Generate Guest Temporary Pass' : '生成访客临时试用订阅码'}
                             </h3>
                             <button

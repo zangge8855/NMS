@@ -78,7 +78,6 @@ export default function SubscriptionClientLinks({
             ? {
                 sectionTitle: 'Pick one client for your device',
                 sectionCaption: 'Install it, then import the config you selected above.',
-                chooseAny: 'Pick any mainstream client.',
                 downloads: 'Client Downloads',
                 recommended: 'Recommended Config',
                 importMethod: 'Import Method',
@@ -87,7 +86,6 @@ export default function SubscriptionClientLinks({
             : {
                 sectionTitle: '按设备选一个客户端',
                 sectionCaption: '下载一个常用客户端就行。',
-                chooseAny: '选一个常用客户端。',
                 downloads: '客户端下载',
                 recommended: '推荐配置文件',
                 importMethod: '导入方式',
@@ -118,7 +116,7 @@ export default function SubscriptionClientLinks({
         {
             key: 'windows',
             title: 'Windows',
-            summary: copy.chooseAny,
+            summary: '',
             badge: isEn ? 'PC / Desktop' : 'PC / 桌面端',
             appLinks: buildLinks(toolLookup, ['clash-verge', 'mihomo-party', 'flclash', 'v2rayn', 'hiddify', 'singbox']),
             profileRules: [
@@ -131,7 +129,7 @@ export default function SubscriptionClientLinks({
         {
             key: 'macos',
             title: 'macOS',
-            summary: copy.chooseAny,
+            summary: '',
             badge: isEn ? 'Mac / Desktop' : 'Mac / 桌面端',
             appLinks: buildLinks(toolLookup, ['clash-verge', 'mihomo-party', 'flclash', 'surge', 'stash', 'singbox']),
             profileRules: [
@@ -144,7 +142,7 @@ export default function SubscriptionClientLinks({
         {
             key: 'android',
             title: 'Android',
-            summary: copy.chooseAny,
+            summary: '',
             badge: isEn ? 'Android / Mobile' : '安卓 / 移动端',
             appLinks: buildLinks(toolLookup, ['flclash', 'v2rayng', 'nekobox-android', 'cmfa', 'hiddify', 'singbox']),
             profileRules: [
@@ -157,7 +155,7 @@ export default function SubscriptionClientLinks({
         {
             key: 'ios',
             title: 'iPhone / iPad',
-            summary: copy.chooseAny,
+            summary: '',
             badge: isEn ? 'iOS / Mobile' : 'iOS / 移动端',
             appLinks: buildLinks(toolLookup, ['shadowrocket', 'stash', 'surge', 'loon', 'egern', 'singbox', 'karing']),
             profileRules: [
@@ -171,7 +169,7 @@ export default function SubscriptionClientLinks({
         {
             key: 'linux',
             title: 'Linux',
-            summary: copy.chooseAny,
+            summary: '',
             badge: isEn ? 'Linux / Server' : 'Linux / 服务器',
             appLinks: buildLinks(toolLookup, ['clash-verge', 'flclash', 'nekobox-windows', 'hiddify', 'singbox']),
             profileRules: [
@@ -194,7 +192,7 @@ export default function SubscriptionClientLinks({
             ].filter(Boolean),
             quickKeys: [],
         },
-    ]), [copy.chooseAny, isEn, profileLookup, toolLookup]);
+    ]), [isEn, profileLookup, toolLookup]);
 
     if (quickActions.length === 0 && toolSites.length === 0) return null;
 
@@ -228,7 +226,7 @@ export default function SubscriptionClientLinks({
                                             <div className="subscription-device-title">{item.title}</div>
                                             {item.badge && <span className="badge badge-neutral">{item.badge}</span>}
                                         </div>
-                                        {!compact && <div className="subscription-device-text">{item.summary}</div>}
+                                        {!compact && item.summary ? <div className="subscription-device-text">{item.summary}</div> : null}
                                     </div>
                                     {compact ? (
                                         <div className="subscription-device-compact-layout">

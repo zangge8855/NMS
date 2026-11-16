@@ -261,7 +261,7 @@ function NodeTile({ server, serverData, trend = [], showSparkline = false, ping 
                                 className="node-health-metric-bar-fill"
                                 style={{
                                     width: `${Math.max(3, Math.min(100, cpu))}%`,
-                                    background: cpu > 85 ? 'var(--accent-danger)' : cpu > 70 ? 'var(--accent-warning)' : 'var(--accent-success)',
+                                    background: cpu > 85 ? 'var(--accent-danger)' : cpu > 70 ? 'var(--accent-warning)' : 'var(--meter-fill)',
                                 }}
                             />
                         </div>
@@ -276,7 +276,7 @@ function NodeTile({ server, serverData, trend = [], showSparkline = false, ping 
                                 className="node-health-metric-bar-fill"
                                 style={{
                                     width: `${Math.max(3, Math.min(100, memPercent))}%`,
-                                    background: memPercent > 85 ? 'var(--accent-danger)' : memPercent > 75 ? 'var(--accent-warning)' : 'var(--accent-primary)',
+                                    background: memPercent > 85 ? 'var(--accent-danger)' : memPercent > 75 ? 'var(--accent-warning)' : 'var(--meter-fill)',
                                 }}
                             />
                         </div>
@@ -490,7 +490,7 @@ export default function NodeHealthGrid({ servers, serverStatuses, trendHistory =
                         disabled={pinging}
                         title={locale === 'en-US' ? 'Test Latency for All Nodes' : '一键测试全部节点延迟'}
                     >
-                        {pinging ? <HiOutlineArrowPath className="spinning w-3.5 h-3.5" /> : <HiOutlineBolt className="text-warning w-3.5 h-3.5" />}
+                        {pinging ? <HiOutlineArrowPath className="spinning w-3.5 h-3.5" /> : <HiOutlineBolt className="w-3.5 h-3.5" />}
                         <span>{locale === 'en-US' ? 'Ping All' : '一键测速'}</span>
                     </button>
                     <span className="node-health-visible-count">{shownLabel}</span>

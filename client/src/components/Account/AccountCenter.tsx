@@ -285,7 +285,7 @@ export default function AccountCenter() {
                                 <div className="account-identity-head">
                                     <div className="account-identity-name">{loginUsername || copy.title}</div>
                                     <div className="account-role-row">
-                                        <span className={`badge ${user?.role === 'admin' ? 'badge-warning' : 'badge-neutral'}`}>{roleLabel}</span>
+                                        <span className="badge badge-neutral">{roleLabel}</span>
                                         <span className={`badge ${user?.emailVerified ? 'badge-success' : 'badge-neutral'}`}>
                                             {user?.emailVerified ? copy.verified : copy.unverified}
                                         </span>
@@ -293,7 +293,7 @@ export default function AccountCenter() {
                                         {hasPendingPasswordDraft ? <span className="badge badge-warning">{passwordDraftLabel}</span> : null}
                                     </div>
                                 </div>
-                                <div className="account-identity-email">{loginEmail || '-'}</div>
+                                <div className="account-identity-email">{loginEmail || '—'}</div>
                             </div>
                         </div>
                     </div>
@@ -316,15 +316,6 @@ export default function AccountCenter() {
                                 />
                             </div>
                             <div className="form-group mb-0">
-                                <span className="form-label">{copy.role}</span>
-                                <div className="account-role-row">
-                                    <span className={`badge ${user?.role === 'admin' ? 'badge-warning' : 'badge-neutral'}`}>{roleLabel}</span>
-                                    <span className={`badge ${user?.emailVerified ? 'badge-success' : 'badge-neutral'}`}>
-                                        {user?.emailVerified ? copy.verified : copy.unverified}
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="form-group mb-0" style={{ gridColumn: '1 / -1' }}>
                                 <label className="form-label" htmlFor="account-email">{copy.email}</label>
                                 <input
                                     id="account-email"
@@ -461,6 +452,7 @@ export default function AccountCenter() {
                                 </div>
                             </div>
                             <div className="account-password-submit">
+                                <p className="account-card-note">{getPasswordPolicyHint(locale)}</p>
                                 <button
                                     type="submit"
                                     className="btn btn-primary btn-sm"
@@ -470,7 +462,6 @@ export default function AccountCenter() {
                                 </button>
                             </div>
                         </form>
-                        <div className="account-card-note">{getPasswordPolicyHint(locale)}</div>
                     </div>
 
                     <TwoFactorPanel locale={locale} />
