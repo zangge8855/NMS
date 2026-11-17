@@ -31,6 +31,10 @@ const ADMIN_ONLY = [
     ['GET', '/sui/load'],
     ['GET', '/sui/getdb'],
     ['POST', '/sui/importdb'],
+    ['GET', '/panel/api/nodes/list'],
+    ['POST', '/panel/api/nodes/add'],
+    ['POST', '/panel/api/nodes/updatePanel'],
+    ['POST', '/panel/api/nodes/mtls/ca'],
 ];
 
 const OPERATOR_ALLOWED = [
@@ -45,6 +49,14 @@ const OPERATOR_ALLOWED = [
     ['POST', '/sui/save'],
     ['POST', '/sui/restartSb'],
     ['GET', '/sub/abc123'],
+    ['POST', '/panel/api/clients/groups/create'],
+    ['POST', '/panel/api/hosts/add'],
+    ['POST', '/panel/api/sub-balancers'],
+    ['DELETE', '/panel/api/sub-balancers/2'],
+    ['POST', '/panel/api/xray/outbound-subs'],
+    ['POST', '/panel/api/xray/outbound-subs/1/refresh'],
+    ['DELETE', '/panel/api/clients/hwids/a@example.com'],
+    ['DELETE', '/panel/api/clients/hwids/a@example.com/4'],
 ];
 
 const AUDITOR_ALLOWED = [
@@ -62,6 +74,12 @@ const AUDITOR_ALLOWED = [
     ['GET', '/sui/inbounds'],
     ['GET', '/sui/tls'],
     ['GET', '/sui/outbounds'],
+    ['GET', '/panel/api/clients/groups'],
+    ['GET', '/panel/api/clients/groups/vip/emails'],
+    ['GET', '/panel/api/hosts/list'],
+    ['GET', '/panel/api/hosts/byInbound/3'],
+    ['GET', '/panel/api/sub-balancers'],
+    ['POST', '/panel/api/clients/hwids/a@example.com'],
 ];
 
 const AUDITOR_DENIED = [
@@ -76,6 +94,11 @@ const AUDITOR_DENIED = [
     ['GET', '/sub/abc123'],
     ['GET', '/sui/checkOutbound'],
     ['POST', '/sui/save'],
+    ['GET', '/panel/api/xray/outbound-subs'],
+    ['POST', '/panel/api/xray/outbound-subs/parse'],
+    ['POST', '/panel/api/hosts/add'],
+    ['DELETE', '/panel/api/clients/hwids/a@example.com'],
+    ['GET', '/panel/api/nodes/list'],
 ];
 
 test('proxy policy: admins reach every endpoint', () => {

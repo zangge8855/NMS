@@ -98,8 +98,8 @@ function proxyAccessDeniedMessage(locale: AppLocale, reason: ProxyAccessDenyReas
     if (reason === 'admin_only_endpoint') {
         return pickLocalizedText(
             locale,
-            '权限不足: 面板设置、API 令牌、面板用户和数据库导入导出仅限管理员',
-            'Insufficient permissions: panel settings, API tokens, panel users and database import/export are restricted to administrators'
+            '权限不足: 面板设置、API 令牌、面板用户、多节点管理和数据库导入导出仅限管理员',
+            'Insufficient permissions: panel settings, API tokens, panel users, multi-node management and database import/export are restricted to administrators'
         );
     }
     if (reason === 'auditor_read_only') {
@@ -114,6 +114,31 @@ function proxyAccessDeniedMessage(locale: AppLocale, reason: ProxyAccessDenyReas
         '权限不足: 当前角色无法访问节点控制代理',
         'Insufficient permissions: your role cannot access the node control proxy'
     );
+}
+
+function isPrimitiveFormArray(value: unknown): value is Array<string | number | boolean> {
+    return Array.isArray(value)
+        && value.length > 0
+        && value.every((item) => ['string', 'number', 'boolean'].includes(typeof item));
+}
+
+/**
+ * Re-encode a parsed urlencoded body for the panel. Repeated keys arrive as an
+ * array and go back out as repeated keys, which is what panels read with
+ * PostFormArray (e.g. sub-balancer inboundIds). Other objects are sent as JSON.
+ */
+export function encodePanelFormBody(body: Record<string, unknown>): string {
+    const params = new URLSearchParams();
+    for (const [key, val] of Object.entries(body || {})) {
+        if (isPrimitiveFormArray(val)) {
+            for (const item of val) params.append(key, String(item));
+        } else if (val !== null && typeof val === 'object') {
+            params.append(key, JSON.stringify(val));
+        } else {
+            params.append(key, val === undefined || val === null ? '' : String(val));
+        }
+    }
+    return params.toString();
 }
 
 function safeDecodePathSegment(value: unknown = ''): string {
@@ -454,15 +479,7 @@ router.all('/:serverId/*', upload.any(), async (req: Request, res: Response) => 
                 axiosConfig.data = req.body;
                 axiosConfig.headers = { 'Content-Type': 'application/json' };
             } else {
-                const params = new URLSearchParams();
-                for (const [key, val] of Object.entries(req.body)) {
-                    if (typeof val === 'object') {
-                        params.append(key, JSON.stringify(val));
-                    } else {
-                        params.append(key, val as string);
-                    }
-                }
-                axiosConfig.data = params.toString();
+                axiosConfig.data = encodePanelFormBody(req.body);
                 axiosConfig.headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
             }
         }
