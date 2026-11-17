@@ -563,3 +563,114 @@ test('subscriptions use the links s-ui generated, filtered by policy', async () 
     });
     assert.deepEqual(hy2Only.links.map((link) => link.split('://')[0]), ['hysteria2']);
 });
+
+test('inbound enable toggles write the s-ui enable flag and keep everything else', async () => {
+    await resetPanel();
+    const server = addServer();
+    const client = await ensureAuthenticated(server.id);
+    panel.state.inbounds.find((item) => item.id === 4).enable = true;
+    const attachedBefore = panel.state.clients.map((item) => [item.name, [...item.inbounds]]);
+
+    const res = await client.post('/panel/api/inbounds/setEnable/4', 'enable=false', {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    });
+    assert.equal(res.data.success, true);
+    const stored = panel.state.inbounds.find((item) => item.id === 4);
+    assert.equal(stored.enable, false);
+    assert.deepEqual(stored.transport, { type: 'ws', path: '/tj' });
+    assert.equal(stored.listen_port, 2053);
+    assert.deepEqual(panel.state.clients.map((item) => [item.name, [...item.inbounds]]), attachedBefore);
+
+    await client.post('/panel/api/inbounds/setEnable/4', { enable: true });
+    assert.equal(panel.state.inbounds.find((item) => item.id === 4).enable, true);
+
+    await assert.rejects(() => client.post('/panel/api/inbounds/setEnable/999', { enable: true }), (error) => error.response.status === 404);
+});
+
+test('s-ui API tokens are listed, created and deleted over a logged-in session', async () => {
+    await resetPanel();
+    const server = addServer();
+    const client = await ensureAuthenticated(server.id);
+
+    const listed = await client.get('/panel/api/setting/apiTokens');
+    assert.equal(listed.data.success, true);
+    assert.deepEqual(listed.data.obj.map((row) => [row.name, row.scope, row.enabled, row.expiresAt]), [['token-1', 'admin', true, 0]]);
+
+    const before = Date.now();
+    const created = await client.post('/panel/api/setting/apiTokens/create', { name: 'central', scope: 'admin', expiresAt: before + 2.5 * 86400000 });
+    assert.equal(created.data.success, true);
+    assert.match(created.data.obj.token, /^[0-9a-f]{32}$/);
+    const createCall = panel.state.calls.filter((call) => call.action === 'addToken').pop();
+    assert.deepEqual(createCall.body, { desc: 'central', expiry: '3' }, 'lifetime is rounded up to whole days');
+    const stored = panel.state.tokens.find((item) => item.desc === 'central');
+    assert.ok(stored.expiry > Math.floor(before / 1000));
+
+    const forever = await client.post('/panel/api/setting/apiTokens/create', { name: 'forever', expiresAt: 0 });
+    assert.equal(forever.data.success, true);
+    assert.equal(panel.state.tokens.find((item) => item.desc === 'forever').expiry, 0);
+
+    await assert.rejects(
+        () => client.post('/panel/api/setting/apiTokens/create', { name: 'reader', scope: 'monitor' }),
+        (error) => error.response.status === 400 && !compat.isUnsupportedPanelEndpointError(error)
+    );
+    await assert.rejects(
+        () => client.post(`/panel/api/setting/apiTokens/setEnabled/${stored.id}`, { enabled: false, expectedScope: 'admin' }),
+        (error) => compat.isUnsupportedPanelEndpointError(error)
+    );
+
+    await client.post(`/panel/api/setting/apiTokens/delete/${stored.id}`, { expectedScope: 'admin' });
+    assert.equal(panel.state.tokens.some((item) => item.desc === 'central'), false);
+    const missing = await client.post('/panel/api/setting/apiTokens/delete/999', {});
+    assert.equal(missing.data.success, false);
+    assert.match(missing.data.msg, /no such token/);
+});
+
+test('s-ui token management needs a session login, not an API token', async () => {
+    await resetPanel();
+    const server = addServer({ username: '', password: '', apiToken: 'good-token' });
+    const client = await ensureAuthenticated(server.id);
+    await assert.rejects(() => client.get('/panel/api/setting/apiTokens'), (error) => {
+        assert.equal(error.response.status, 501);
+        assert.match(error.response.data.msg, /username and password/);
+        return true;
+    });
+});
+
+test('h2 and quic transports convert both ways, and omitted enable flags are preserved', () => {
+    const h2 = xuiInboundPayloadToSui({
+        protocol: 'vmess',
+        remark: 'h2-in',
+        port: 3,
+        settings: JSON.stringify({ clients: [] }),
+        streamSettings: JSON.stringify({ network: 'h2', httpSettings: { path: '/h', host: ['a.example', 'b.example'] } }),
+    });
+    assert.deepEqual(h2.transport, { type: 'http', path: '/h', host: ['a.example', 'b.example'] });
+
+    const csvHosts = xuiInboundPayloadToSui({
+        protocol: 'vmess',
+        remark: 'h2-csv',
+        port: 5,
+        streamSettings: JSON.stringify({ network: 'http', httpSettings: { host: 'a.example, b.example' } }),
+    });
+    assert.deepEqual(csvHosts.transport, { type: 'http', path: '/', host: ['a.example', 'b.example'] });
+
+    const quic = xuiInboundPayloadToSui({
+        protocol: 'vless',
+        remark: 'quic-in',
+        port: 4,
+        streamSettings: JSON.stringify({ network: 'quic' }),
+    });
+    assert.deepEqual(quic.transport, { type: 'quic' });
+
+    const back = suiInboundToXuiInbound({ id: 7, type: 'vmess', tag: 'h2-in', listen_port: 3, transport: { type: 'http', path: '/h', host: ['a.example'] } }, []);
+    const stream = JSON.parse(back.streamSettings);
+    assert.equal(stream.network, 'h2');
+    assert.deepEqual(stream.httpSettings, { path: '/h', host: ['a.example'] });
+
+    const kept = xuiInboundPayloadToSui({ remark: 'x', port: 2 }, { id: 4, type: 'trojan', tag: 'x', enable: false });
+    assert.equal(kept.enable, false, 'an update that omits enable keeps the inbound disabled');
+    const reenabled = xuiInboundPayloadToSui({ enable: true }, { id: 4, type: 'trojan', tag: 'x', enable: false });
+    assert.equal(reenabled.enable, true);
+    const legacy = xuiInboundPayloadToSui({ enable: true }, { id: 4, type: 'trojan', tag: 'x' });
+    assert.equal(Object.prototype.hasOwnProperty.call(legacy, 'enable'), false, 'older s-ui without the column gets no enable key');
+});

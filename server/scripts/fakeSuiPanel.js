@@ -127,7 +127,7 @@ export function createFakeSuiState(seed = {}) {
         hostName: seed.hostName || 'sui-node',
         sessionIds: new Set(),
         calls: [],
-        nextIds: { inbounds: 1, clients: 1, tls: 1 },
+        nextIds: { inbounds: 1, clients: 1, tls: 1, tokens: (seed.tokens || []).length + 1 },
         importedDb: null,
         closedSessions: [],
         restarts: 0,
@@ -382,6 +382,9 @@ export function createFakeSuiPanelApp(state, options = {}) {
                         return res.send(Buffer.from('SQLite format 3\u0000fake'));
                     case 'settings':
                         return send(res, { webPort: '2095', subPort: '2096' });
+                    case 'tokens':
+                        // s-ui masks the secret when listing.
+                        return send(res, state.tokens.map((item) => ({ id: item.id, desc: item.desc, token: '****', expiry: item.expiry, userId: 1 })));
                     default:
                         return fail(res, 'failed', `unknown action: ${action}`);
                 }
@@ -429,6 +432,19 @@ export function createFakeSuiPanelApp(state, options = {}) {
                     state.closedSessions.push(String(req.body.u || req.query.u || ''));
                     state.sessions = state.sessions.filter((session) => session.user !== String(req.body.u || req.query.u || ''));
                     return send(res, null);
+                case 'addToken': {
+                    const days = Number.parseInt(String(req.body.expiry ?? ''), 10);
+                    if (!Number.isFinite(days)) return fail(res, '', 'strconv.ParseInt: parsing "": invalid syntax');
+                    const token = crypto.randomBytes(16).toString('hex');
+                    state.tokens.push({ id: state.nextIds.tokens++, desc: String(req.body.desc || ''), expiry: days > 0 ? days * 86400 + nowSeconds() : 0, token });
+                    return send(res, token);
+                }
+                case 'deleteToken': {
+                    const before = state.tokens.length;
+                    state.tokens = state.tokens.filter((item) => String(item.id) !== String(req.body.id || ''));
+                    if (state.tokens.length === before) return fail(res, '', 'no such token');
+                    return send(res, null);
+                }
                 case 'importdb':
                     if (!req.file) return fail(res, 'importdb', 'no file');
                     state.importedDb = { field: req.file.fieldname, size: req.file.size, name: req.file.originalname };

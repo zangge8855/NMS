@@ -892,6 +892,9 @@ function buildXuiStreamSettings(inbound: any, tlsById: Map<number, any>): any {
         stream.grpcSettings = { serviceName: transport.service_name || '' };
     } else if (network === 'httpupgrade') {
         stream.httpupgradeSettings = { path: transport.path || '/', host: transport.host || '' };
+    } else if (network === 'h2') {
+        const hosts = Array.isArray(transport.host) ? transport.host : (transport.host ? [transport.host] : []);
+        stream.httpSettings = { path: transport.path || '/', host: hosts.map((item: any) => normalizeText(item)).filter(Boolean) };
     }
     if (tls.security === 'tls') {
         stream.tlsSettings = { serverName: tls.serverName };
@@ -999,7 +1002,23 @@ const TRANSPORT_FROM_XUI: Record<string, (stream: any) => any> = {
         path: stream?.httpupgradeSettings?.path || '/',
         ...(stream?.httpupgradeSettings?.host ? { host: stream.httpupgradeSettings.host } : {}),
     }),
+    // sing-box's V2Ray HTTP transport is HTTP/2 when TLS is on; Xray called it h2 / http.
+    h2: (stream) => buildSuiHttpTransport(stream?.httpSettings),
+    http: (stream) => buildSuiHttpTransport(stream?.httpSettings),
+    quic: () => ({ type: 'quic' }),
 };
+
+function buildSuiHttpTransport(httpSettings: any): any {
+    const rawHosts = httpSettings?.host;
+    const hosts = (Array.isArray(rawHosts) ? rawHosts : String(rawHosts || '').split(','))
+        .map((item: any) => normalizeText(item))
+        .filter(Boolean);
+    return {
+        type: 'http',
+        path: httpSettings?.path || '/',
+        ...(hosts.length > 0 ? { host: hosts } : {}),
+    };
+}
 
 /**
  * Turn an inbound payload sent to `inbounds/add|update` into an s-ui inbound.
@@ -1030,8 +1049,12 @@ export function xuiInboundPayloadToSui(payload: any = {}, existing: any = null):
     if (payload?.port !== undefined) next.listen_port = toNonNegativeInt(payload.port);
     if (payload?.suiTlsId !== undefined) next.tls_id = toNonNegativeInt(payload.suiTlsId);
     if (next.tls_id === undefined) next.tls_id = 0;
-    if (payload?.enable === false || payload?.enable === 'false' || typeof existing?.enable === 'boolean') {
-        next.enable = payload.enable !== false && payload.enable !== 'false';
+    // Leave the flag alone when the payload doesn't mention it; `next` already carries the
+    // stored value, and an update that omits it must not re-enable a disabled inbound.
+    const rawEnable = payload?.enable;
+    if (rawEnable !== undefined && rawEnable !== null && rawEnable !== '') {
+        const enableValue = rawEnable !== false && rawEnable !== 'false';
+        if (!enableValue || typeof existing?.enable === 'boolean') next.enable = enableValue;
     }
     if (Array.isArray(payload?.addrs)) next.addrs = payload.addrs;
     if (!Array.isArray(next.addrs)) next.addrs = [];
@@ -1298,6 +1321,23 @@ async function handleUpdateInbound(ctx: FacadeContext, req: FacadeRequest, match
     inbound.id = existing.id;
     await saveObject(ctx.transport, 'inbounds', 'edit', inbound);
     return ok(inbound, 'Update successfully');
+}
+
+async function handleSetInboundEnable(ctx: FacadeContext, req: FacadeRequest, match: RegExpMatchArray): Promise<FacadeResult> {
+    const existing = await findInboundById(ctx.transport, safeDecode(match[1]));
+    if (!existing) throw new FacadeHttpError(404, 'inbound not found');
+    // Older s-ui builds have no enable column and would pass the key through to sing-box,
+    // which rejects unknown inbound fields. Only builds that report the flag can take it.
+    if (typeof existing.enable !== 'boolean') {
+        unsupported('Enabling or disabling an inbound on this s-ui version');
+    }
+    const raw = req.body?.enable;
+    const enable = raw === true || raw === 'true' || raw === 1 || raw === '1' || raw === 'on';
+    const inbound = cloneJson(existing);
+    delete inbound.users;
+    inbound.enable = enable;
+    await saveObject(ctx.transport, 'inbounds', 'edit', inbound);
+    return ok(null, 'Update successfully');
 }
 
 async function handleDeleteInbound(ctx: FacadeContext, _req: FacadeRequest, match: RegExpMatchArray): Promise<FacadeResult> {
@@ -1623,6 +1663,63 @@ async function handleSubscription(ctx: FacadeContext, _req: FacadeRequest, match
     return { data: links.join('\n'), headers: { 'content-type': 'text/plain; charset=utf-8' } };
 }
 
+// s-ui keeps API tokens per login user and only exposes them on the session API (`/api`);
+// the token API (`/apiv2`) has no token actions at all.
+function requireSessionTokenApi(ctx: FacadeContext): void {
+    if (ctx.transport.mode !== 'session') {
+        throw new FacadeHttpError(
+            501,
+            's-ui only manages API tokens for a logged-in user; connect this node with a username and password'
+        );
+    }
+}
+
+function suiTokenToXuiToken(row: any): any {
+    const expirySeconds = toNonNegativeInt(row?.expiry);
+    return {
+        id: row?.id,
+        name: normalizeText(row?.desc),
+        // s-ui tokens have no enable switch and always carry full access.
+        enabled: true,
+        scope: 'admin',
+        expiresAt: expirySeconds > 0 ? expirySeconds * 1000 : 0,
+        createdAt: 0,
+    };
+}
+
+async function handleListApiTokens(ctx: FacadeContext): Promise<FacadeResult> {
+    requireSessionTokenApi(ctx);
+    const rows = await ctx.transport.request('GET', 'tokens');
+    return ok((Array.isArray(rows) ? rows : []).map(suiTokenToXuiToken));
+}
+
+async function handleCreateApiToken(ctx: FacadeContext, req: FacadeRequest): Promise<FacadeResult> {
+    requireSessionTokenApi(ctx);
+    const name = normalizeText(req.body?.name);
+    if (!name) throw new FacadeHttpError(400, 'token name is required');
+    const scope = normalizeText(req.body?.scope).toLowerCase();
+    if (scope && scope !== 'admin') {
+        throw new FacadeHttpError(400, 's-ui API tokens always have full access; choose the admin scope');
+    }
+    // s-ui takes a lifetime in whole days, counted from now (0 = never expires).
+    const expiresAt = toNonNegativeInt(req.body?.expiresAt);
+    const days = expiresAt > 0 ? Math.max(1, Math.ceil((expiresAt - Date.now()) / 86400000)) : 0;
+    const token = await ctx.transport.request('POST', 'addToken', { form: { desc: name, expiry: days } });
+    return ok({
+        name,
+        token: typeof token === 'string' ? token : '',
+        scope: 'admin',
+        enabled: true,
+        expiresAt: days > 0 ? Date.now() + days * 86400000 : 0,
+    });
+}
+
+async function handleDeleteApiToken(ctx: FacadeContext, _req: FacadeRequest, match: RegExpMatchArray): Promise<FacadeResult> {
+    requireSessionTokenApi(ctx);
+    await ctx.transport.request('POST', 'deleteToken', { form: { id: safeDecode(match[1]) } });
+    return ok(null, 'Token deleted');
+}
+
 const NATIVE_GET_ACTIONS = new Set([
     'load', 'inbounds', 'outbounds', 'endpoints', 'services', 'tls', 'clients', 'config', 'users',
     'settings', 'stats', 'status', 'onlines', 'sessions', 'logs', 'changes', 'keypairs', 'checkOutbound',
@@ -1658,6 +1755,7 @@ const ROUTES: Array<[RegExp, Handler]> = [
     [/^\/panel\/api\/inbounds\/add$/, handleAddInbound],
     [/^\/panel\/api\/inbounds\/update\/([^/]+)$/, handleUpdateInbound],
     [/^\/panel\/api\/inbounds\/del\/([^/]+)$/, handleDeleteInbound],
+    [/^\/panel\/api\/inbounds\/setEnable\/([^/]+)$/, handleSetInboundEnable],
     [/^\/panel\/api\/(?:inbounds|clients)\/onlines$/, handleOnlines],
     [/^\/panel\/api\/clients\/lastOnline$/, handleLastOnline],
     [/^\/panel\/api\/clients\/list$/, handleListClients],
@@ -1687,6 +1785,9 @@ const ROUTES: Array<[RegExp, Handler]> = [
     [/^\/panel\/api\/server\/getNewUUID$/, handleUuid],
     [/^\/panel\/api\/server\/(?:logs|xraylogs)\/(\d+)$/, handleLogs],
     [/^\/(?:panel|server)\/api\/server\/log$/, handleLogs],
+    [/^\/panel\/api\/setting\/apiTokens$/, handleListApiTokens],
+    [/^\/panel\/api\/setting\/apiTokens\/create$/, handleCreateApiToken],
+    [/^\/panel\/api\/setting\/apiTokens\/delete\/([^/]+)$/, handleDeleteApiToken],
     [/^\/panel\/api\/nodes\/list$/, async () => ok([])],
     [/^\/sub\/([^/]+)$/, handleSubscription],
     [/^\/sui\/([A-Za-z]+)$/, handleNative],
@@ -1694,8 +1795,8 @@ const ROUTES: Array<[RegExp, Handler]> = [
 
 const UNSUPPORTED_FEATURES: Array<[RegExp, string]> = [
     [LEGACY_CLIENT_ENDPOINT, 'Per-inbound client editing'],
-    [/^\/panel\/api\/inbounds\/setEnable\//, 'Enabling or disabling an inbound'],
     [/^\/panel\/api\/clients\/onlinesBy(?:Guid|Node)$/, 'Multi-node online attribution'],
+    [/^\/panel\/api\/setting\/apiTokens\/setEnabled\//, 'Pausing an API token (delete it instead)'],
     [/^\/panel\/api\/server\/cpuHistory\//, 'CPU history'],
     [/^\/panel\/api\/(?:server\/getXrayVersion|server\/installXray|xray\/|server\/xray\/|server\/getConfigJson)/, 'Xray configuration'],
     [/^\/panel\/api\/setting\//, 'Panel settings over the 3x-ui API'],

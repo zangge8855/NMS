@@ -176,7 +176,36 @@ function normalizeClientData(input: any = {}, fallbackIdentifier = '', options: 
         reset: toNumberValue(input.reset, 0),
         speedLimitUp: toNumberValue(input.speedLimitUp, 0),
         speedLimitDown: toNumberValue(input.speedLimitDown, 0),
+        ...pickPanelClientExtras(input),
     };
+}
+
+const CLIENT_TRAFFIC_RESET_CYCLES = new Set(['never', 'hourly', 'daily', 'weekly', 'monthly']);
+
+function clampInt(value: any, min: number, max: number): number {
+    const parsed = Math.floor(Number(value));
+    if (!Number.isFinite(parsed)) return min;
+    return Math.min(max, Math.max(min, parsed));
+}
+
+/**
+ * Fields newer panels keep per client (3x-ui v3 group, calendar renewal and traffic
+ * reset cycle; s-ui group). Passed through only when the caller sent them, so older
+ * panels see the same payload as before.
+ */
+function pickPanelClientExtras(input: any = {}) {
+    const has = (key: string) => Object.prototype.hasOwnProperty.call(input, key) && input[key] !== undefined && input[key] !== null;
+    const extras: Record<string, any> = {};
+    if (has('group')) extras.group = toStringValue(input.group).trim();
+    if (has('resetDay')) extras.resetDay = clampInt(input.resetDay, 0, 31);
+    if (has('resetWeekday')) extras.resetWeekday = clampInt(input.resetWeekday, 0, 7);
+    if (has('resetMax')) extras.resetMax = clampInt(input.resetMax, 0, Number.MAX_SAFE_INTEGER);
+    if (has('trafficReset')) {
+        const cycle = toStringValue(input.trafficReset).toLowerCase();
+        extras.trafficReset = CLIENT_TRAFFIC_RESET_CYCLES.has(cycle) ? cycle : 'never';
+    }
+    if (has('trafficResetDay')) extras.trafficResetDay = clampInt(input.trafficResetDay, 1, 31);
+    return extras;
 }
 
 function hasRequiredCredential(client: any = {}, protocol = '') {
@@ -1786,4 +1815,7 @@ export default router;
 export {
     buildClientAdjustPatch,
     findTargetClientInInbound,
+    normalizeClientData,
+    pickPanelClientExtras,
+    setInboundEnableCompat,
 };

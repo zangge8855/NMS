@@ -10,6 +10,8 @@ import { generateSecurePassword, generateUuidLocal, generateHexToken } from '../
 import ModalShell from '../UI/ModalShell';
 import toast from 'react-hot-toast';
 import { useI18n } from '../../contexts/LanguageContext';
+import { useOptionalServer } from '../../contexts/ServerContext';
+import { PANEL_TYPE_SUI, normalizePanelType } from '../../utils/panelType';
 import {
     bytesPerSecondToKilobytesInput,
     bytesToGigabytesInput,
@@ -84,6 +86,21 @@ function fromLocalDateTimeInput(input) {
     return Number.isFinite(ts) ? ts : 0;
 }
 
+const CLIENT_TRAFFIC_RESET_CYCLES = ['never', 'hourly', 'daily', 'weekly', 'monthly'];
+const MONTH_DAYS = Array.from({ length: 31 }, (_, index) => index + 1);
+const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7];
+
+function clampIntInput(value: any, min: number, max: number) {
+    const parsed = Math.floor(Number(value));
+    if (!Number.isFinite(parsed)) return min;
+    return Math.min(max, Math.max(min, parsed));
+}
+
+function normalizeTrafficResetCycle(value: any) {
+    const cycle = String(value || '').trim().toLowerCase();
+    return CLIENT_TRAFFIC_RESET_CYCLES.includes(cycle) ? cycle : 'never';
+}
+
 function getTargetKey(target: any = {}) {
     const server = String(target.serverId || '').trim();
     const inbound = String(target.id || target.inboundId || '').trim();
@@ -121,6 +138,12 @@ export default function ClientModal({
     const [tgId, setTgId] = useState('');
     const [comment, setComment] = useState('');
     const [reset, setReset] = useState(0);
+    const [group, setGroup] = useState('');
+    const [resetDay, setResetDay] = useState(0);
+    const [resetWeekday, setResetWeekday] = useState(0);
+    const [resetMax, setResetMax] = useState<string | number>(0);
+    const [clientTrafficReset, setClientTrafficReset] = useState('never');
+    const [clientTrafficResetDay, setClientTrafficResetDay] = useState<string | number>(1);
     const [flow, setFlow] = useState('');
     const [editTargets, setEditTargets] = useState<any[]>([]);
     const [selectedServerIds, setSelectedServerIds] = useState<string[]>([]);
@@ -207,6 +230,12 @@ export default function ClientModal({
             setTgId(String(currentEditing.tgId || ''));
             setComment(String(currentEditing.comment || ''));
             setReset(Number(currentEditing.reset || 0));
+            setGroup(String(currentEditing.group || ''));
+            setResetDay(clampIntInput(currentEditing.resetDay, 0, 31));
+            setResetWeekday(clampIntInput(currentEditing.resetWeekday, 0, 7));
+            setResetMax(clampIntInput(currentEditing.resetMax, 0, Number.MAX_SAFE_INTEGER));
+            setClientTrafficReset(normalizeTrafficResetCycle(currentEditing.trafficReset));
+            setClientTrafficResetDay(clampIntInput(currentEditing.trafficResetDay, 1, 31));
             setFlow(currentEditing.flow || '');
             setEditTargets(Array.isArray(currentEditing.editTargets) ? currentEditing.editTargets : []);
             setSelectedServerIds([]);
@@ -238,6 +267,12 @@ export default function ClientModal({
             setTgId('');
             setComment('');
             setReset(0);
+            setGroup('');
+            setResetDay(0);
+            setResetWeekday(0);
+            setResetMax(0);
+            setClientTrafficReset('never');
+            setClientTrafficResetDay(1);
             setFlow('');
             setEditTargets([]);
             const uniqueServerIds = Array.from(new Set<string>((currentTargets || []).map((t: any) => String(t.serverId || '')).filter(Boolean)));
@@ -387,6 +422,31 @@ export default function ClientModal({
         }
     }, [isFlowSupported, flow]);
 
+    const serverContext = useOptionalServer();
+    const knownServers = serverContext?.servers;
+    // Which panel kinds this save reaches; unknown servers count as 3x-ui.
+    const panelScope = useMemo(() => {
+        const ids = new Set<string>();
+        if (editingClient) {
+            const scope = editTargets.length > 0 ? editTargets : [editingClient];
+            scope.forEach((item: any) => ids.add(String(item?.serverId || serverId || '')));
+        } else if (filteredTargets.length > 0) {
+            filteredTargets.forEach((item: any) => ids.add(String(item?.serverId || '')));
+        } else if (serverId) {
+            ids.add(String(serverId));
+        }
+        ids.delete('');
+        const servers = Array.isArray(knownServers) ? knownServers : [];
+        const types = Array.from(ids).map((id) => {
+            const match = servers.find((item: any) => String(item?.id) === id);
+            return normalizePanelType(match?.panelType);
+        });
+        const allSui = types.length > 0 && types.every((type) => type === PANEL_TYPE_SUI);
+        return { allSui, anyXui: !allSui };
+    }, [editTargets, editingClient, filteredTargets, knownServers, serverId]);
+    const showXuiOnlyFields = panelScope.anyXui;
+    const weeklyRenewalConflict = resetWeekday > 0 && (Number(reset || 0) > 0 || resetDay > 0);
+
     const isEditingClient = Boolean(editingClient);
     useEffect(() => {
         if (!isOpen || isEditingClient) return;
@@ -466,6 +526,39 @@ export default function ClientModal({
                 resolvedExpiryTime = 0;
             }
 
+            if (showXuiOnlyFields && weeklyRenewalConflict) {
+                toast.error(t('comp.clients.renewWeeklyConflict'));
+                setLoading(false);
+                return;
+            }
+
+            // Newer-panel fields go out only when set or already present on the client,
+            // so older panels keep receiving the payload they always did.
+            const editingHas = (key: string) => Boolean(editingClient)
+                && Object.prototype.hasOwnProperty.call(editingClient, key)
+                && editingClient[key] !== undefined && editingClient[key] !== null;
+            const panelExtras: Record<string, any> = {};
+            const normalizedGroup = String(group || '').trim();
+            if (normalizedGroup || editingHas('group')) panelExtras.group = normalizedGroup;
+            if (showXuiOnlyFields) {
+                const resetMaxValue = clampIntInput(resetMax, 0, Number.MAX_SAFE_INTEGER);
+                if (resetDay > 0 || editingHas('resetDay')) panelExtras.resetDay = resetDay;
+                if (resetWeekday > 0 || editingHas('resetWeekday')) panelExtras.resetWeekday = resetWeekday;
+                if (resetMaxValue > 0 || editingHas('resetMax')) panelExtras.resetMax = resetMaxValue;
+                if (clientTrafficReset !== 'never' || editingHas('trafficReset')) {
+                    panelExtras.trafficReset = clientTrafficReset;
+                    panelExtras.trafficResetDay = clampIntInput(clientTrafficResetDay, 1, 31);
+                }
+            }
+            const extraDefaults: Record<string, any> = {
+                group: '', resetDay: 0, resetWeekday: 0, resetMax: 0, trafficReset: 'never', trafficResetDay: 1,
+            };
+            const changedPanelExtras = Object.fromEntries(
+                Object.entries(panelExtras).filter(([key, value]) => (
+                    String(value) !== String(editingClient?.[key] ?? extraDefaults[key])
+                ))
+            );
+
             const derivedSubId = subId || buildStableSubId(email);
             const clientData = {
                 id: normalizedUuid,
@@ -482,6 +575,7 @@ export default function ClientModal({
                 speedLimitUp: kilobytesInputToBytesPerSecond(speedLimitUp),
                 speedLimitDown: kilobytesInputToBytesPerSecond(speedLimitDown),
                 flow: isFlowSupported ? flow : '',
+                ...panelExtras,
             };
 
             if (editingClient) {
@@ -515,6 +609,7 @@ export default function ClientModal({
                             speedLimitUp: isSpeedLimitUpChanged ? kilobytesInputToBytesPerSecond(speedLimitUp) : (item.speedLimitUp || 0),
                             speedLimitDown: isSpeedLimitDownChanged ? kilobytesInputToBytesPerSecond(speedLimitDown) : (item.speedLimitDown || 0),
                             flow: isFlowChanged ? flow : (item.flow || ''),
+                            ...changedPanelExtras,
                         };
 
                         if (!flowProtocolSet.has(String(item.protocol || '').toLowerCase())) {
@@ -936,10 +1031,14 @@ export default function ClientModal({
                         </div>
 
                         <div className="grid grid-cols-2 gap-4 mb-4">
-                            <div className="form-group">
-                                <label htmlFor="client-modal-clients-ip-limit" className="form-label">{t('comp.clients.ipLimit')}</label>
-                                <input id="client-modal-clients-ip-limit" name="clientModalClientsIpLimit" className="form-input" type="number" value={limitIp} onChange={e => setLimitIp(e.target.value)} />
-                            </div>
+                            {panelScope.allSui ? (
+                                <div className="form-group text-xs text-muted">{t('comp.clients.suiHiddenFieldsHint')}</div>
+                            ) : (
+                                <div className="form-group">
+                                    <label htmlFor="client-modal-clients-ip-limit" className="form-label">{t('comp.clients.ipLimit')}</label>
+                                    <input id="client-modal-clients-ip-limit" name="clientModalClientsIpLimit" className="form-input" type="number" min={0} value={limitIp} onChange={e => setLimitIp(e.target.value)} />
+                                </div>
+                            )}
                             <div className="form-group flex items-center pt-4">
                                 <label className="flex items-center gap-2 cursor-pointer">
                                     <input name="clientModalField5" type="checkbox" checked={enable} onChange={e => setEnable(e.target.checked)} />
@@ -959,21 +1058,26 @@ export default function ClientModal({
                                 <input id="client-modal-speed-limit-down" name="clientModalSpeedLimitDown" className="form-input" type="number" min={0} value={speedLimitDown} onChange={e => setSpeedLimitDown(e.target.value)} />
                                 <div className="text-xs text-muted mt-1">{locale === 'en-US' ? '0 = Unlimited' : '0 为不限速'}</div>
                             </div>
+                            <div className="text-xs text-muted" style={{ gridColumn: '1 / -1', marginTop: '-0.5rem' }}>
+                                {t('comp.clients.speedLimitPanelHint')}
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4 mb-4">
-                            <div className="form-group">
-                                <label htmlFor="client-modal-clients-telegram-placeholder" className="form-label">Telegram ID</label>
-                                <input id="client-modal-clients-telegram-placeholder" name="clientModalClientsTelegramPlaceholder"
-                                    className="form-input"
-                                    inputMode="numeric"
-                                    pattern="[0-9-]*"
-                                    value={tgId}
-                                    placeholder={t('comp.clients.telegramPlaceholder')}
-                                    onChange={e => setTgId(e.target.value.replace(/[^0-9-]/g, ''))}
-                                />
-                                <div className="text-xs text-muted mt-1">{t('comp.clients.telegramHint')}</div>
-                            </div>
+                            {!panelScope.allSui && (
+                                <div className="form-group">
+                                    <label htmlFor="client-modal-clients-telegram-placeholder" className="form-label">Telegram ID</label>
+                                    <input id="client-modal-clients-telegram-placeholder" name="clientModalClientsTelegramPlaceholder"
+                                        className="form-input"
+                                        inputMode="numeric"
+                                        pattern="[0-9-]*"
+                                        value={tgId}
+                                        placeholder={t('comp.clients.telegramPlaceholder')}
+                                        onChange={e => setTgId(e.target.value.replace(/[^0-9-]/g, ''))}
+                                    />
+                                    <div className="text-xs text-muted mt-1">{t('comp.clients.telegramHint')}</div>
+                                </div>
+                            )}
                             <div className="form-group">
                                 <label htmlFor="client-modal-clients-traffic-reset-period" className="form-label">{t('comp.clients.trafficResetPeriod')}</label>
                                 <select id="client-modal-clients-traffic-reset-period" name="clientModalClientsTrafficResetPeriod"
@@ -986,6 +1090,9 @@ export default function ClientModal({
                                     <option value={7}>{t('comp.clients.resetWeekly')}</option>
                                     <option value={30}>{t('comp.clients.resetMonthly')}</option>
                                     <option value={90}>{t('comp.clients.resetQuarterly')}</option>
+                                    {![0, 1, 7, 30, 90].includes(Number(reset || 0)) && (
+                                        <option value={Number(reset || 0)}>{`${Number(reset || 0)} ${locale === 'en-US' ? 'days' : '天'}`}</option>
+                                    )}
                                 </select>
                                 <div className="text-xs text-muted mt-1">{t('comp.clients.resetNeverHelp')}</div>
                             </div>
@@ -1001,6 +1108,100 @@ export default function ClientModal({
                                 onChange={e => setComment(e.target.value)}
                             />
                         </div>
+
+                        <div className="form-group mb-4">
+                            <label htmlFor="client-modal-clients-group" className="form-label">{t('comp.clients.groupLabel')}</label>
+                            <input id="client-modal-clients-group" name="clientModalClientsGroup"
+                                className="form-input"
+                                maxLength={64}
+                                value={group}
+                                placeholder={t('comp.clients.groupPlaceholder')}
+                                onChange={e => setGroup(e.target.value)}
+                            />
+                        </div>
+
+                        {showXuiOnlyFields && (
+                            <details className="mb-4" open={resetDay > 0 || resetWeekday > 0 || Number(resetMax || 0) > 0 || clientTrafficReset !== 'never'}>
+                                <summary className="form-label cursor-pointer">{t('comp.clients.panelAdvancedTitle')}</summary>
+                                <div className="text-xs text-muted mb-2">{t('comp.clients.panelAdvancedHint')}</div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="form-group">
+                                        <label htmlFor="client-modal-clients-renew-day" className="form-label">{t('comp.clients.renewDayLabel')}</label>
+                                        <select id="client-modal-clients-renew-day" name="clientModalClientsRenewDay"
+                                            className="form-select"
+                                            value={resetDay}
+                                            onChange={e => setResetDay(clampIntInput(e.target.value, 0, 31))}
+                                        >
+                                            <option value={0}>{t('comp.clients.renewOff')}</option>
+                                            {MONTH_DAYS.map((day) => (
+                                                <option key={day} value={day}>{t('comp.clients.renewDayOption', { day })}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="client-modal-clients-renew-weekday" className="form-label">{t('comp.clients.renewWeekdayLabel')}</label>
+                                        <select id="client-modal-clients-renew-weekday" name="clientModalClientsRenewWeekday"
+                                            className="form-select"
+                                            value={resetWeekday}
+                                            aria-invalid={weeklyRenewalConflict || undefined}
+                                            aria-describedby={weeklyRenewalConflict ? 'client-modal-clients-renew-conflict' : undefined}
+                                            onChange={e => setResetWeekday(clampIntInput(e.target.value, 0, 7))}
+                                        >
+                                            <option value={0}>{t('comp.clients.renewOff')}</option>
+                                            {WEEKDAYS.map((day) => (
+                                                <option key={day} value={day}>{t(`comp.clients.weekday${day}`)}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                                {weeklyRenewalConflict && (
+                                    <div id="client-modal-clients-renew-conflict" className="text-xs text-danger mb-2" role="alert">
+                                        {t('comp.clients.renewWeeklyConflict')}
+                                    </div>
+                                )}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="form-group">
+                                        <label htmlFor="client-modal-clients-renew-max" className="form-label">{t('comp.clients.renewMaxLabel')}</label>
+                                        <input id="client-modal-clients-renew-max" name="clientModalClientsRenewMax"
+                                            className="form-input"
+                                            type="number"
+                                            min={0}
+                                            value={resetMax}
+                                            onChange={e => setResetMax(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="client-modal-clients-own-traffic-reset" className="form-label">{t('comp.clients.clientTrafficResetLabel')}</label>
+                                        <select id="client-modal-clients-own-traffic-reset" name="clientModalClientsOwnTrafficReset"
+                                            className="form-select"
+                                            value={clientTrafficReset}
+                                            onChange={e => setClientTrafficReset(normalizeTrafficResetCycle(e.target.value))}
+                                        >
+                                            {CLIENT_TRAFFIC_RESET_CYCLES.map((cycle) => (
+                                                <option key={cycle} value={cycle}>
+                                                    {t(`comp.clients.cycle${cycle.charAt(0).toUpperCase()}${cycle.slice(1)}`)}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <div className="text-xs text-muted mt-1">{t('comp.clients.clientTrafficResetHint')}</div>
+                                    </div>
+                                </div>
+                                {clientTrafficReset === 'monthly' && (
+                                    <div className="form-group">
+                                        <label htmlFor="client-modal-clients-own-traffic-reset-day" className="form-label">{t('comp.clients.clientTrafficResetDayLabel')}</label>
+                                        <select id="client-modal-clients-own-traffic-reset-day" name="clientModalClientsOwnTrafficResetDay"
+                                            className="form-select"
+                                            value={clampIntInput(clientTrafficResetDay, 1, 31)}
+                                            onChange={e => setClientTrafficResetDay(clampIntInput(e.target.value, 1, 31))}
+                                        >
+                                            {MONTH_DAYS.map((day) => (
+                                                <option key={day} value={day}>{t('comp.clients.renewDayOption', { day })}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+                            </details>
+                        )}
                     </div>
 
                     <div className="modal-footer">
