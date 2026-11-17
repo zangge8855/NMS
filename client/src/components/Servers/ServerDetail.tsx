@@ -7,6 +7,8 @@ import EmptyState from '../UI/EmptyState';
 import ClientIpModal from '../UI/ClientIpModal';
 import Capabilities from '../Capabilities/Capabilities';
 import PanelApiTokens from './PanelApiTokens';
+import PanelFeatures from './panelFeatures/PanelFeatures';
+import ClientHwidSection from './panelFeatures/ClientHwidSection';
 import useAnimatedCounter from '../../hooks/useAnimatedCounter';
 import useMediaQuery from '../../hooks/useMediaQuery';
 import { formatBytes, formatDateTime, formatUptime, getErrorMessage } from '../../utils/format';
@@ -36,6 +38,7 @@ const SERVER_DETAIL_TABS = [
     { key: 'inbounds', label: 'Inbounds' },
     { key: 'onlines', label: 'Online Users' },
     { key: 'capabilities', label: 'Capabilities' },
+    { key: 'panelFeatures', label: 'Panel Features', xuiOnly: true },
     { key: 'apiTokens', label: 'API Tokens', adminOnly: true },
     { key: 'audit', label: 'Audit Log' },
 ];
@@ -191,10 +194,6 @@ export default function ServerDetail() {
     const detailBootstrapRef = useRef(readServerDetailSnapshot(serverId));
     const user = useOptionalAuth()?.user;
     const isAdmin = user?.role === 'admin';
-    const tabs = useMemo(() => SERVER_DETAIL_TABS.filter(tab => isAdmin || !tab.adminOnly).map(tab => ({
-        ...tab,
-        label: t(`pages.serverDetail.tabs.${tab.key}`),
-    })), [isAdmin, t]);
     const snapshotRequestIdRef = useRef(0);
     const auditRequestIdRef = useRef(0);
     const clientIpRequestIdRef = useRef(0);
@@ -379,6 +378,16 @@ export default function ServerDetail() {
     }, [auditEvents, inbounds, lastOnline, onlines, server, serverId, status, statusMeta]);
 
     const isSui = isSuiServer(server);
+    const tabs = useMemo(() => SERVER_DETAIL_TABS
+        .filter((tab) => (isAdmin || !tab.adminOnly) && (!isSui || !tab.xuiOnly))
+        .map((tab) => ({
+            ...tab,
+            label: t(`pages.serverDetail.tabs.${tab.key}`),
+        })), [isAdmin, isSui, t]);
+    useEffect(() => {
+        // s-ui has none of the 3x-ui v3 panel features.
+        if (isSui && activeTab === 'panelFeatures') setActiveTab('overview');
+    }, [activeTab, isSui]);
 
     const totalTraffic = useMemo(() => {
         return inbounds.reduce((sum, ib) => sum + (ib.up || 0) + (ib.down || 0), 0);
@@ -423,6 +432,7 @@ export default function ServerDetail() {
     const selectTab = (tabKey) => {
         setActiveTab(tabKey);
         const nextParams = new URLSearchParams(searchParams);
+        if (tabKey !== 'panelFeatures') nextParams.delete('section');
         if (tabKey === 'overview') {
             nextParams.delete('tab');
         } else {
@@ -871,6 +881,10 @@ export default function ServerDetail() {
                             <Capabilities embedded serverId={serverId} />
                         )}
 
+                        {activeTab === 'panelFeatures' && !isSui && serverId && (
+                            <PanelFeatures serverId={serverId} inbounds={inbounds} />
+                        )}
+
                         {/* Panel API Tokens Tab */}
                         {activeTab === 'apiTokens' && isAdmin && serverId && (
                             <PanelApiTokens serverId={serverId} isSui={isSui} />
@@ -934,6 +948,9 @@ export default function ServerDetail() {
                 onClose={closeClientIpModal}
                 onRefresh={() => loadClientIps(clientIpModal.email, { preserveOpen: true })}
                 onClear={clientIpSupport.supported === false ? undefined : clearClientIps}
+                extra={!isSui && serverId && clientIpModal.email ? (
+                    <ClientHwidSection key={clientIpModal.email} serverId={serverId} email={clientIpModal.email} />
+                ) : null}
             />
         </>
     );

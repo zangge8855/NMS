@@ -5,6 +5,7 @@ import Header from '../Layout/Header';
 import SkeletonTable from '../UI/SkeletonTable';
 import EmptyState from '../UI/EmptyState';
 import ClientIpModal from '../UI/ClientIpModal';
+import ClientHwidSection from '../Servers/panelFeatures/ClientHwidSection';
 import CopyFeedbackButton from '../UI/CopyFeedbackButton';
 import VirtualList from '../UI/VirtualList';
 import ModalShell from '../UI/ModalShell';
@@ -30,6 +31,7 @@ import { fetchServerPanelData, invalidateServerPanelDataCache } from '../../util
 import { invalidateManagedUsersCache } from '../../utils/managedUsersCache';
 import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot';
 import { getAuditEventLabel } from '../../utils/auditEventLabels';
+import { isSuiServer } from '../../utils/panelType';
 import {
     HiOutlineArrowLeft,
     HiOutlineNoSymbol,
@@ -2157,6 +2159,9 @@ export default function UserDetail() {
                     inboundId: '',
                 }, { preserveOpen: true })}
                 onClear={clientIpSupportByServer[clientIpModal.serverId]?.supported === false ? undefined : clearClientIps}
+                extra={clientIpModal.serverId && clientIpModal.email && !isSuiServer(servers.find((item) => String(item?.id) === String(clientIpModal.serverId))) ? (
+                    <ClientHwidSection key={`${clientIpModal.serverId}:${clientIpModal.email}`} serverId={clientIpModal.serverId} email={clientIpModal.email} />
+                ) : null}
             />
         </>
     );
