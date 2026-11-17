@@ -16,7 +16,9 @@
 | 用户 / 客户端管理 | client 增删改查 | 基本对齐 | 字段命名和协议细节仍可能因面板版本不同而有差异 |
 | 入站协议覆盖 | vmess/vless/trojan/ss/http/tunnel/mixed/wireguard/tun/mtproto/hysteria/tuic/amneziawg/masque | 已对齐（v3.11.0） | 3x-ui 没有 `hysteria2` 协议：NMS 创建 Hysteria2 入站时会转换为 `protocol: "hysteria"` + `version: 2`，客户端凭据写入 `auth`；s-ui 节点保持 `hysteria2` |
 | Hysteria2 / TUIC 客户端 | `auth`（Hysteria）、原生 TUIC `uuid` + `password` | 已对齐 | 托管用户会为这两类入站写入凭据；订阅链接读取 `finalmask` 中的 salamander 与 udphop 端口跳跃，以及 TUIC 的 `settings.server` |
-| 入站更新语义 | v3.9.0 起 `/inbounds/update` 不再修改客户端与启用状态 | 已对齐 | 启用/禁用优先走 `/inbounds/setEnable/:id`，客户端走 `/panel/api/clients/*`，旧接口仅作回退 |
+| 入站更新语义 | v3.9.0 起 `/inbounds/update` 不再修改客户端与启用状态 | 已对齐 | 启用/禁用优先走 `/inbounds/setEnable/:id`（单个与批量都是），客户端走 `/panel/api/clients/*`，旧接口仅作回退 |
+| 客户端扩展字段 | `group`、按月/按周续期 `resetDay`/`resetWeekday`/`resetMax`、单用户流量清零 `trafficReset`/`trafficResetDay` | 已对齐 | 客户端表单可编辑；单个和批量保存都会带上，未设置时不发送，旧版面板不受影响。按周续期不能和 `reset` 周期或按月续期同时使用 |
+| 面板 API Token | `setting/apiTokens`：名称、`scope`（admin/monitor/node-sync/node-admin）、`expiresAt`（毫秒，0 为永久） | 已对齐 | 节点详情页「API Token」标签（仅管理员）。删除和启停会带上面板要求的 `expectedScope`，明文只在创建后显示一次 |
 | Xray 路由 / 出站 / DNS / 负载均衡 | v3.0 Xray Settings 页 | 已对齐 | 通过 `server/services/xrayConfigService.ts` + `/xray` 页面读写，api 规则强制保持第一条 |
 | 订阅生成 | 节点信息、用户映射、token 访问 | 已扩展 | NMS 在 3x-ui 之上增加了独立 token 与公开订阅入口 |
 | 日志与审计 | 面板日志、系统操作日志 | 已扩展 | NMS 增加了独立审计中心，不仅依赖面板原生日志 |
@@ -39,7 +41,8 @@
 - 密码学工具链：`Capabilities` 与 `Tools` 已集成 `getNewUUID`、`getNewX25519Cert`、`getNewmldsa65`、`getNewmlkem768`、`getNewVlessEnc`、`getNewEchCert`、`getNewWireguardKeypair`。
 - Xray 路由与配置：`/xray` 页面支持可视化编辑 `domainStrategy`、`outboundTag`、`domain`、`ip`、`inboundTag`、`protocol`、`port`、`network` 及完整 JSON 配置。
 - 订阅分享链接与客户端配置生成：全面对齐 `vless`（含 XHTTP `xmux`、Post-Quantum `encryption`、REALITY `mldsa65Verify`/`spiderX`、ECH）、`vmess`、`trojan`、`shadowsocks`（含 2022 多用户中继密钥拼接）、`hysteria`（v1 & v2 `salamander` 混淆与 `udphop` 端口跳跃）、`tuic`、`anytls`、`naive`、`wireguard`。
-- 上游新增但 NMS 暂未直接暴露独立页面的接口：`clients/list/paged`、`get/subId`、`get/tgId`、客户端分组、hosts、订阅负载均衡、Xray 出站订阅。
+- 上游新增但 NMS 暂未直接暴露独立页面的接口：`clients/list/paged`、`get/subId`、`get/tgId`、分组管理页（客户端 `group` 字段已可编辑）、HWID 设备绑定、hosts、订阅负载均衡、Xray 出站订阅、面板自带的多节点 `nodes/*`。
+- 上下行限速 `speedLimitUp`/`speedLimitDown` 只有支持限速的面板分支会生效，官方 3x-ui 会忽略；客户端表单里有提示。
 
 ### 验证建议
 
@@ -63,7 +66,9 @@ This matrix describes how NMS aligns with 3x-ui panel capabilities. It helps dev
 | User / client admin | client CRUD | mostly aligned | field naming and protocol detail can still vary by panel version |
 | Inbound protocol coverage | vmess/vless/trojan/ss/http/tunnel/mixed/wireguard/tun/mtproto/hysteria/tuic/amneziawg/masque | aligned (v3.11.0) | 3x-ui has no `hysteria2` protocol: NMS sends Hysteria2 inbounds as `protocol: "hysteria"` with `version: 2` and client `auth`; s-ui nodes keep `hysteria2` |
 | Hysteria2 / TUIC clients | `auth` (Hysteria), native TUIC `uuid` + `password` | aligned | managed users get credentials on these inbounds; share links read salamander and udphop port hopping from `finalmask`, and TUIC options from `settings.server` |
-| Inbound update semantics | since v3.9.0 `/inbounds/update` no longer changes clients or the enable flag | aligned | enable toggles use `/inbounds/setEnable/:id` first and clients use `/panel/api/clients/*`; legacy routes are fallbacks only |
+| Inbound update semantics | since v3.9.0 `/inbounds/update` no longer changes clients or the enable flag | aligned | enable toggles (single and batch) use `/inbounds/setEnable/:id` first and clients use `/panel/api/clients/*`; legacy routes are fallbacks only |
+| Client extra fields | `group`, calendar renewal `resetDay`/`resetWeekday`/`resetMax`, per-client traffic reset `trafficReset`/`trafficResetDay` | aligned | editable in the client form and carried by single and batch saves; left out when unset so older panels are unaffected. Weekly renewal cannot be combined with a `reset` period or a monthly renewal day |
+| Panel API tokens | `setting/apiTokens`: name, `scope` (admin/monitor/node-sync/node-admin), `expiresAt` (ms, 0 = never) | aligned | the "API Tokens" tab on the server page (admins only). Delete and enable/disable send the `expectedScope` the panel requires; the plaintext is shown once after creation |
 | Xray routing / outbounds / DNS / balancers | v3.0 Xray Settings page | aligned | reads and writes via `server/services/xrayConfigService.ts` and the `/xray` console; the api rule is forced first |
 | Subscription generation | node info, user mapping, token access | extended | NMS adds independent tokenized public subscription access |
 | Logs and audit | panel logs and system actions | extended | NMS adds its own audit center beyond panel-native logs |
@@ -86,7 +91,8 @@ This matrix describes how NMS aligns with 3x-ui panel capabilities. It helps dev
 - Cryptographic generators: `Capabilities` and `Tools` integrate `getNewUUID`, `getNewX25519Cert`, `getNewmldsa65`, `getNewmlkem768`, `getNewVlessEnc`, `getNewEchCert`, and `getNewWireguardKeypair`.
 - Xray routing & settings: `/xray` supports visual editing of `domainStrategy`, `outboundTag`, `domain`, `ip`, `inboundTag`, `protocol`, `port`, `network`, as well as full JSON blocks.
 - Subscription URI & client profile generation: aligned for `vless` (XHTTP `xmux`, Post-Quantum `encryption`, REALITY `mldsa65Verify`/`spiderX`, ECH), `vmess`, `trojan`, `shadowsocks` (including 2022 multi-user relay key concatenation), `hysteria` (v1 & v2 `salamander` obfs and `udphop` port hopping), `tuic`, `anytls`, `naive`, and `wireguard`.
-- Upstream endpoints NMS does not expose as standalone pages yet: `clients/list/paged`, `get/subId`, `get/tgId`, client groups, hosts, subscription balancers and Xray outbound subscriptions.
+- Upstream endpoints NMS does not expose as standalone pages yet: `clients/list/paged`, `get/subId`, `get/tgId`, a group management page (the client `group` field itself is editable), HWID device binding, hosts, subscription balancers, Xray outbound subscriptions and the panel's own multi-node `nodes/*`.
+- The `speedLimitUp`/`speedLimitDown` fields only take effect on panel forks that support per-client speed limits; official 3x-ui ignores them, and the client form says so.
 
 ### Validation guidance
 
