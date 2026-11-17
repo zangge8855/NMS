@@ -8,7 +8,8 @@
  *   admin    → everything the proxy allows.
  *   operator → node and client management, but not the panel's own
  *              administration surface (panel settings and credentials, API
- *              tokens, panel users and sessions, raw database export/import).
+ *              tokens, panel users and sessions, the 3x-ui multi-node registry
+ *              with its stored node credentials, raw database export/import).
  *              Those stay admin-only, matching the adminOnly NMS routes for
  *              panel API tokens.
  *   auditor  → an explicit allow-list of read-only queries. Anything not
@@ -40,6 +41,8 @@ const READ_ONLY_POST_PATHS = [
     /^\/panel\/api\/inbounds\/(?:onlines|lastOnline)$/,
     /^\/panel\/api\/inbounds\/clientIps\/[^/]+$/,
     /^\/panel\/api\/clients\/ips\/[^/]+$/,
+    // 3x-ui v3 HWID device list (DELETE on the same path clears it).
+    /^\/panel\/api\/clients\/hwids\/[^/]+$/,
     /^\/panel\/api\/server\/logs\/[^/]+$/,
     /^\/panel\/api\/server\/xraylogs\/[^/]+$/,
     /^\/panel\/api\/inbounds\/getClientTraffics\/[^/]+$/,
@@ -58,6 +61,12 @@ const AUDITOR_GET_PATHS = [
     /^\/panel\/api\/clients\/lastOnline$/,
     /^\/panel\/api\/server\/(?:status|getXrayVersion|getPanelUpdateInfo|xrayMetricsState|xrayObservatory)$/,
     /^\/panel\/api\/custom-geo\/list$/,
+    // 3x-ui v3 client groups, subscription hosts and subscription balancers.
+    // Outbound subscriptions are left out: their URLs usually embed access tokens.
+    /^\/panel\/api\/clients\/groups$/,
+    /^\/panel\/api\/clients\/groups\/[^/]+\/emails$/,
+    /^\/panel\/api\/hosts\/(?:list|raw|tags|get\/[^/]+|byInbound\/[^/]+)$/,
+    /^\/panel\/api\/sub-balancers$/,
     /^\/server\/api\/server\/log$/,
     ...KEY_GENERATOR_PATHS,
     // Native s-ui reads. Excluded on purpose: load (bundles users and settings),
@@ -73,6 +82,9 @@ const ADMIN_ONLY_PATHS = [
     // Raw panel database: contains the panel admin credentials and tokens, and an
     // import replaces them.
     /^\/panel\/api\/server\/(?:database\/(?:export|import)|getDb|importDB)$/,
+    // 3x-ui v3 multi-node registry: stores API tokens for other panels, can push
+    // panel updates to them and manages the mTLS CA.
+    /^\/panel\/api\/nodes(?:\/|$)/,
     // s-ui panel administration.
     /^\/sui\/(?:tokens|addToken|deleteToken|users|sessions|closeSessions|settings|load|getdb|importdb)(?:\/|$)/,
 ];

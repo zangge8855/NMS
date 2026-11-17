@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { type ReactNode } from 'react';
 import { HiOutlineArrowPath, HiOutlineTrash, HiOutlineXMark } from 'react-icons/hi2';
 import ModalShell from './ModalShell';
 import Table from './Table';
@@ -28,6 +28,8 @@ export interface ClientIpModalProps {
     onClose?: () => void;
     onRefresh?: () => void;
     onClear?: () => void;
+    /** Panel-specific section shown under the IP table (e.g. 3x-ui device HWIDs). */
+    extra?: ReactNode;
 }
 
 const CLIENT_IP_COPY = {
@@ -80,6 +82,7 @@ export default function ClientIpModal({
     onClose,
     onRefresh,
     onClear,
+    extra = null,
 }: ClientIpModalProps) {
     const { locale } = useI18n();
     const copy = getClientIpCopy(locale);
@@ -160,6 +163,7 @@ export default function ClientIpModal({
                             );
                         })}
                     </Table>
+                    {extra}
                 </div>
                 <div className="modal-footer">
                     <button type="button" className="btn btn-secondary" onClick={onClose}>{copy.close}</button>
