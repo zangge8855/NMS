@@ -6,6 +6,7 @@ import SkeletonTable from '../UI/SkeletonTable';
 import EmptyState from '../UI/EmptyState';
 import ClientIpModal from '../UI/ClientIpModal';
 import Capabilities from '../Capabilities/Capabilities';
+import PanelApiTokens from './PanelApiTokens';
 import useAnimatedCounter from '../../hooks/useAnimatedCounter';
 import useMediaQuery from '../../hooks/useMediaQuery';
 import { formatBytes, formatDateTime, formatUptime, getErrorMessage } from '../../utils/format';
@@ -14,6 +15,7 @@ import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSn
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { useI18n } from '../../contexts/LanguageContext';
+import { useOptionalAuth } from '../../contexts/AuthContext';
 import { isSuiServer, normalizePanelType } from '../../utils/panelType';
 import { AUDIT_EVENT_LABELS } from '../../utils/auditEventLabels';
 import SectionHeader from '../UI/SectionHeader';
@@ -34,6 +36,7 @@ const SERVER_DETAIL_TABS = [
     { key: 'inbounds', label: 'Inbounds' },
     { key: 'onlines', label: 'Online Users' },
     { key: 'capabilities', label: 'Capabilities' },
+    { key: 'apiTokens', label: 'API Tokens', adminOnly: true },
     { key: 'audit', label: 'Audit Log' },
 ];
 const SERVER_DETAIL_TAB_KEYS = new Set(SERVER_DETAIL_TABS.map((tab) => tab.key));
@@ -186,10 +189,12 @@ export default function ServerDetail() {
     const [searchParams, setSearchParams] = useSearchParams();
     const confirmAction = useConfirm();
     const detailBootstrapRef = useRef(readServerDetailSnapshot(serverId));
-    const tabs = useMemo(() => SERVER_DETAIL_TABS.map(tab => ({
+    const user = useOptionalAuth()?.user;
+    const isAdmin = user?.role === 'admin';
+    const tabs = useMemo(() => SERVER_DETAIL_TABS.filter(tab => isAdmin || !tab.adminOnly).map(tab => ({
         ...tab,
         label: t(`pages.serverDetail.tabs.${tab.key}`),
-    })), [t]);
+    })), [isAdmin, t]);
     const snapshotRequestIdRef = useRef(0);
     const auditRequestIdRef = useRef(0);
     const clientIpRequestIdRef = useRef(0);
@@ -219,6 +224,9 @@ export default function ServerDetail() {
     const [isNotFound, setIsNotFound] = useState(false);
     const [auditError, setAuditError] = useState('');
     const [activeTab, setActiveTab] = useState(() => getServerDetailTab(searchParams));
+    useEffect(() => {
+        if (!isAdmin && activeTab === 'apiTokens') setActiveTab('overview');
+    }, [activeTab, isAdmin]);
     const [clientIpSupport, setClientIpSupport] = useState({ supported: true, reason: '' });
     const [clientIpModal, setClientIpModal] = useState({
         open: false,
@@ -861,6 +869,11 @@ export default function ServerDetail() {
                         {/* Capabilities Tab */}
                         {activeTab === 'capabilities' && (
                             <Capabilities embedded serverId={serverId} />
+                        )}
+
+                        {/* Panel API Tokens Tab */}
+                        {activeTab === 'apiTokens' && isAdmin && serverId && (
+                            <PanelApiTokens serverId={serverId} isSui={isSui} />
                         )}
 
                         {/* Audit Tab */}
