@@ -1,7 +1,14 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import net from 'node:net';
-import { isBlockedHostname, normalizeTokenRows, requestPanelApiTokenRoute, validateServerUrl } from '../routes/servers.js';
+import {
+    isBlockedHostname,
+    normalizePanelTokenScope,
+    normalizeTokenRows,
+    requestPanelApiTokenRoute,
+    resolvePanelTokenExpectedScope,
+    validateServerUrl,
+} from '../routes/servers.js';
 import { pingServer } from '../lib/probe.js';
 
 describe('servers route hostname guards', () => {
@@ -139,5 +146,49 @@ describe('panel api token helpers', () => {
             (error) => error === expected,
         );
         assert.deepEqual(calls, ['/panel/api/setting/apiTokens/delete/missing']);
+    });
+});
+
+describe('panel api token scopes', () => {
+    it('defaults rows without a known scope to admin and keeps real scopes', () => {
+        const rows = normalizeTokenRows({
+            success: true,
+            obj: [
+                { id: 1, name: 'legacy', token: 'x' },
+                { id: 2, name: 'reader', token: 'y', scope: 'Monitor' },
+                { id: 3, name: 'odd', token: 'z', scope: 'root' },
+            ],
+        });
+        assert.deepEqual(rows.map((row) => row.scope), ['admin', 'monitor', 'admin']);
+        assert.equal(normalizePanelTokenScope(' node-sync '), 'node-sync');
+        assert.equal(normalizePanelTokenScope('owner'), '');
+    });
+
+    it('uses the caller scope, then the panel list, then admin as the expected scope', async () => {
+        let listCalls = 0;
+        const client = async () => {
+            listCalls += 1;
+            return { data: { success: true, obj: [{ id: 7, name: 'sync', scope: 'node-sync' }] } };
+        };
+        assert.equal(await resolvePanelTokenExpectedScope(client, '7', 'monitor'), 'monitor');
+        assert.equal(listCalls, 0, 'an explicit scope skips the lookup');
+        assert.equal(await resolvePanelTokenExpectedScope(client, '7', undefined), 'node-sync');
+        assert.equal(await resolvePanelTokenExpectedScope(client, '8', ''), 'admin');
+
+        const failing = async () => { throw new Error('offline'); };
+        assert.equal(await resolvePanelTokenExpectedScope(failing, '7', 'bogus'), 'admin');
+    });
+
+    it('reports the current route error when both token routes are unsupported', async () => {
+        const client = async (request) => {
+            const isCurrent = request.url.startsWith('/panel/api/');
+            const error = new Error(isCurrent ? 'needs a session login' : 'no route');
+            error.response = { status: isCurrent ? 501 : 404, data: { success: false, msg: error.message } };
+            throw error;
+        };
+        await assert.rejects(
+            () => requestPanelApiTokenRoute(client, 'get'),
+            (error) => error.response.status === 501 && error.message === 'needs a session login',
+        );
     });
 });

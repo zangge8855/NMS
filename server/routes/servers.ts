@@ -213,12 +213,39 @@ function normalizeTokenRows(payload) {
             : (token ? 'configured' : '');
         const next = {
             ...row,
+            scope: normalizePanelTokenScope(row?.scope) || PANEL_TOKEN_DEFAULT_SCOPE,
             tokenConfigured: Boolean(token),
             tokenPreview,
         };
         delete next.token;
         return next;
     });
+}
+
+// 3x-ui token scopes. Older panels have no scope column and treat every token as admin.
+const PANEL_TOKEN_SCOPES = ['admin', 'monitor', 'node-sync', 'node-admin'];
+const PANEL_TOKEN_DEFAULT_SCOPE = 'admin';
+
+function normalizePanelTokenScope(value: unknown): string {
+    const scope = String(value ?? '').trim().toLowerCase();
+    return PANEL_TOKEN_SCOPES.includes(scope) ? scope : '';
+}
+
+/**
+ * Current 3x-ui refuses to delete or toggle a token unless the caller names the scope it
+ * expects the token to have. Use the caller's value, or read it from the token list.
+ */
+async function resolvePanelTokenExpectedScope(client: any, tokenId: string, provided: unknown): Promise<string> {
+    const explicit = normalizePanelTokenScope(provided);
+    if (explicit) return explicit;
+    try {
+        const response = await requestPanelApiTokenRoute(client, 'get');
+        const row = normalizeTokenRows(response.data).find((item: any) => String(item?.id) === String(tokenId));
+        if (row?.scope) return row.scope;
+    } catch {
+        // Fall through: an older panel ignores the field.
+    }
+    return PANEL_TOKEN_DEFAULT_SCOPE;
 }
 
 async function requestPanelApiTokenRoute(client: any, method: string, suffix: string = '', data: any = undefined) {
@@ -237,7 +264,9 @@ async function requestPanelApiTokenRoute(client: any, method: string, suffix: st
                 timeout: 15_000,
             });
         } catch (err) {
-            lastError = err;
+            // The first route is the current one; its error explains the failure better
+            // than the legacy fallback's generic 404.
+            lastError = lastError || err;
             if (!isUnsupportedPanelSettingEndpoint(err)) {
                 throw err;
             }
@@ -248,9 +277,11 @@ async function requestPanelApiTokenRoute(client: any, method: string, suffix: st
 
 function sendPanelTokenRouteError(res, error, fallbackMessage) {
     if (isUnsupportedPanelSettingEndpoint(error)) {
+        const panelMsg = error?.response?.data?.msg;
         return res.status(501).json({
             success: false,
             msg: pickRequestText(res.req, '当前节点面板不支持通过 NMS 管理 API Token', 'This node panel does not support managing API tokens through NMS'),
+            ...(typeof panelMsg === 'string' && panelMsg.trim() && panelMsg.length <= 300 ? { detail: panelMsg.trim() } : {}),
         });
     }
     if (error?.response) {
@@ -485,6 +516,9 @@ router.get('/:id/panel-api-tokens', adminOnly, async (req, res) => {
     try {
         const client = await ensureAuthenticated(req.params.id);
         const response = await requestPanelApiTokenRoute(client, 'get');
+        if (response.data && typeof response.data === 'object' && response.data.success === false) {
+            return res.json(response.data);
+        }
         return res.json({
             success: true,
             obj: normalizeTokenRows(response.data),
@@ -502,13 +536,42 @@ router.post('/:id/panel-api-tokens', adminOnly, async (req, res) => {
             msg: 'token name is required',
         });
     }
+    if (name.length > 64) {
+        return res.status(400).json({
+            success: false,
+            msg: 'token name must be 64 characters or fewer',
+        });
+    }
+    const rawScope = req.body?.scope;
+    const scope = rawScope === undefined || rawScope === null || String(rawScope).trim() === ''
+        ? PANEL_TOKEN_DEFAULT_SCOPE
+        : normalizePanelTokenScope(rawScope);
+    if (!scope) {
+        return res.status(400).json({
+            success: false,
+            msg: `scope must be one of: ${PANEL_TOKEN_SCOPES.join(', ')}`,
+        });
+    }
+    const expiresAt = Number(req.body?.expiresAt || 0);
+    if (!Number.isFinite(expiresAt) || expiresAt < 0 || (expiresAt > 0 && expiresAt <= Date.now())) {
+        return res.status(400).json({
+            success: false,
+            msg: 'expiresAt must be 0 (never) or a future unix-ms timestamp',
+        });
+    }
 
     try {
         const client = await ensureAuthenticated(req.params.id);
-        const response = await requestPanelApiTokenRoute(client, 'post', 'create', { name });
+        const response = await requestPanelApiTokenRoute(client, 'post', 'create', {
+            name,
+            scope,
+            expiresAt: Math.floor(expiresAt),
+        });
         appendSecurityAudit('panel_api_token_created', req, {
             serverId: req.params.id,
             name,
+            scope,
+            expiresAt: Math.floor(expiresAt),
         });
         return res.status(response.status || 200).json(normalizePanelResponse(response.data));
     } catch (error) {
@@ -520,8 +583,10 @@ router.patch('/:id/panel-api-tokens/:tokenId', adminOnly, async (req, res) => {
     try {
         const client = await ensureAuthenticated(req.params.id);
         const enabled = parseBoolean(req.body?.enabled, true);
+        const expectedScope = await resolvePanelTokenExpectedScope(client, req.params.tokenId, req.body?.expectedScope);
         const response = await requestPanelApiTokenRoute(client, 'post', `setEnabled/${encodeURIComponent(req.params.tokenId)}`, {
             enabled,
+            expectedScope,
         });
         appendSecurityAudit('panel_api_token_enabled_changed', req, {
             serverId: req.params.id,
@@ -537,7 +602,14 @@ router.patch('/:id/panel-api-tokens/:tokenId', adminOnly, async (req, res) => {
 router.delete('/:id/panel-api-tokens/:tokenId', adminOnly, async (req, res) => {
     try {
         const client = await ensureAuthenticated(req.params.id);
-        const response = await requestPanelApiTokenRoute(client, 'post', `delete/${encodeURIComponent(req.params.tokenId)}`);
+        const expectedScope = await resolvePanelTokenExpectedScope(
+            client,
+            req.params.tokenId,
+            req.body?.expectedScope ?? req.query?.expectedScope
+        );
+        const response = await requestPanelApiTokenRoute(client, 'post', `delete/${encodeURIComponent(req.params.tokenId)}`, {
+            expectedScope,
+        });
         appendSecurityAudit('panel_api_token_deleted', req, {
             serverId: req.params.id,
             tokenId: String(req.params.tokenId || ''),
@@ -1126,5 +1198,12 @@ router.post('/:id/ping', authMiddleware, operatorOrAbove, async (req: any, res: 
     }
 });
 
-export { isBlockedHostname, normalizeTokenRows, requestPanelApiTokenRoute, validateServerUrl };
+export {
+    isBlockedHostname,
+    normalizePanelTokenScope,
+    normalizeTokenRows,
+    requestPanelApiTokenRoute,
+    resolvePanelTokenExpectedScope,
+    validateServerUrl,
+};
 export default router;
