@@ -3,6 +3,7 @@ import { normalizePanelType, PANEL_TYPE_SUI } from './panelType.js';
 
 const UUID_PROTOCOLS = new Set<string>(['vmess', 'vless', 'tuic']);
 const PASSWORD_PROTOCOLS = new Set<string>(['trojan', 'shadowsocks']);
+const AUTH_PROTOCOLS = new Set<string>(['hysteria', 'hysteria2', 'hy2']);
 
 function normalizeText(value: unknown): string {
     return String(value || '').trim();
@@ -172,15 +173,27 @@ export function normalizeHysteriaInboundForXui(inboundData: any = {}): any {
 
     const payload = { ...inboundData, protocol: 'hysteria' };
     const settingsField = parseJsonField(payload.settings);
+    const streamField = parseJsonField(payload.streamSettings);
     if (settingsField.parsed) {
         const settings = { ...settingsField.parsed };
-        const isV2 = protocol !== 'hysteria' || Number(settings.version || 2) === 2;
+        const hasExplicitVersion = settings.version !== undefined && settings.version !== null && settings.version !== '';
+        const hasV2Stream = Number(streamField.parsed?.hysteriaSettings?.version) === 2;
+        const hasV1StringObfs = typeof settings.obfs === 'string';
+        const hasV1AuthStr = Array.isArray(settings.clients)
+            && settings.clients.some((client: any) => (
+                client
+                && typeof client === 'object'
+                && Object.prototype.hasOwnProperty.call(client, 'auth_str')
+            ));
+        const isV2 = protocol !== 'hysteria'
+            || Number(settings.version) === 2
+            || (!hasExplicitVersion && (hasV2Stream || (!hasV1StringObfs && !hasV1AuthStr)));
         if (!isV2) return inboundData;
         settings.version = 2;
         if (Array.isArray(settings.clients)) {
             settings.clients = settings.clients.map((client: any) => {
                 if (!client || typeof client !== 'object') return client;
-                const auth = normalizeText(client.auth) || normalizeText(client.password);
+                const auth = normalizeText(client.password) || normalizeText(client.auth);
                 const next = { ...client, auth };
                 delete next.password;
                 return next;
@@ -189,7 +202,6 @@ export function normalizeHysteriaInboundForXui(inboundData: any = {}): any {
         payload.settings = settingsField.isString ? JSON.stringify(settings) : settings;
     }
 
-    const streamField = parseJsonField(payload.streamSettings);
     if (streamField.parsed) {
         const stream = { ...streamField.parsed, network: 'hysteria' };
         stream.hysteriaSettings = {
@@ -223,6 +235,9 @@ export function resolveClientIdentifier(client: any = {}, protocol: string = '')
     }
     if (UUID_PROTOCOLS.has(normalizedProtocol)) {
         return normalizeText(client.uuid || client.id || client.password || client.email);
+    }
+    if (AUTH_PROTOCOLS.has(normalizedProtocol)) {
+        return normalizeText(client.auth || client.password || client.id || client.email);
     }
     return normalizeText(client.id || client.uuid || client.password || client.auth || client.email);
 }
@@ -273,11 +288,27 @@ function valuesEqual(field: string, left: any, right: any): boolean {
     return normalizeText(left) === normalizeText(right);
 }
 
-function clientUpdateMatches(actual: any = {}, expected: any = {}): boolean {
-    const fields = ['email', 'id', 'uuid', 'password', 'subId', 'flow', 'expiryTime', 'limitIp', 'totalGB', 'enable'];
+function resolveActualFieldForMatch(actual: any, field: string): any {
+    if (field === 'password') {
+        return normalizeText(actual?.password) ? actual.password : actual?.auth;
+    }
+    if (field === 'auth') {
+        return normalizeText(actual?.auth) ? actual.auth : actual?.password;
+    }
+    if (field === 'uuid') {
+        return normalizeText(actual?.uuid) ? actual.uuid : actual?.id;
+    }
+    if (field === 'id') {
+        return normalizeText(actual?.id) ? actual.id : actual?.uuid;
+    }
+    return actual?.[field];
+}
+
+export function clientUpdateMatches(actual: any = {}, expected: any = {}): boolean {
+    const fields = ['email', 'id', 'uuid', 'password', 'auth', 'subId', 'flow', 'expiryTime', 'limitIp', 'totalGB', 'enable'];
     return fields.every((field) => {
         if (!Object.prototype.hasOwnProperty.call(expected || {}, field)) return true;
-        return valuesEqual(field, actual?.[field], expected?.[field]);
+        return valuesEqual(field, resolveActualFieldForMatch(actual, field), expected?.[field]);
     });
 }
 
@@ -376,7 +407,9 @@ async function resolveClientEmailForInbound(panelClient: any, inboundId: any, cl
 
 function parseLegacyClientSettingsPayload(payload: any = {}): any {
     const settings = parseMaybeJson(payload?.settings, {});
-    const clients = Array.isArray(settings?.clients) ? settings.clients : [];
+    const clients = Array.isArray(settings?.clients)
+        ? settings.clients
+        : (Array.isArray(settings?.users) ? settings.users : []);
     return clients[0] || null;
 }
 
@@ -467,8 +500,37 @@ export async function clearClientIpsCompat(panelClient: any, email: string): Pro
     }
 }
 
-export async function postAddClientCompat(panelClient: any, inboundId: any, clientData: any): Promise<any> {
-    const sanitizedClient = sanitizeClientPayloadForPanel(clientData);
+function enrichCompatClientCredentials(clientData: any = {}, protocol: string = ''): any {
+    if (!clientData || typeof clientData !== 'object') return clientData;
+    const next = { ...clientData };
+    const normalizedProtocol = normalizeProtocol(protocol || next.protocol);
+    if (next.uuid && !next.id) {
+        next.id = next.uuid;
+    }
+    if (next.auth && !next.password) {
+        next.password = next.auth;
+    }
+    if (normalizedProtocol === 'tuic') {
+        const uuid = normalizeText(next.uuid || next.id);
+        if (uuid) {
+            next.uuid = uuid;
+            if (!next.id) next.id = uuid;
+        }
+    } else if (AUTH_PROTOCOLS.has(normalizedProtocol)) {
+        const secret = normalizeText(next.auth || next.password);
+        if (secret) {
+            next.auth = secret;
+            if (!next.password) next.password = secret;
+        }
+    }
+    return next;
+}
+
+export async function postAddClientCompat(panelClient: any, inboundId: any, clientData: any, options: any = {}): Promise<any> {
+    const sanitizedClient = enrichCompatClientCredentials(
+        sanitizeClientPayloadForPanel(clientData),
+        options?.protocol
+    );
     try {
         return assertPanelResponseSuccess(await postJson(panelClient, '/panel/api/clients/add', {
             client: sanitizedClient,
@@ -486,7 +548,10 @@ export async function postAddClientCompat(panelClient: any, inboundId: any, clie
 }
 
 export async function postUpdateClientCompat(panelClient: any, inboundId: any, clientIdentifier: string, clientData: any, options: any = {}): Promise<any> {
-    const sanitizedClient = sanitizeClientPayloadForPanel(clientData);
+    const sanitizedClient = enrichCompatClientCredentials(
+        sanitizeClientPayloadForPanel(clientData),
+        options?.protocol
+    );
     const encodedIdentifier = encodePathSegment(clientIdentifier);
     let legacyError: any = null;
 

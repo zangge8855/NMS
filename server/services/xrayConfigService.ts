@@ -36,20 +36,45 @@ function parseJsonTemplate(raw: unknown): any {
 
 function isUnsupportedPanelRouteError(err: any): boolean {
     const status = Number(err?.response?.status || 0);
-    return status === 404 || status === 405;
+    return [404, 405, 410, 501].includes(status);
+}
+
+function createPanelRouteResponseError(res: any): Error & { response?: any; code?: string } {
+    const data = res?.data;
+    const isJsonObject = Boolean(data && typeof data === 'object' && !Array.isArray(data));
+    const message = isJsonObject
+        ? normalizePanelErrorMessage({ response: res }, 'Panel route request failed')
+        : 'Panel route returned a non-JSON response';
+    const error: any = new Error(message);
+    error.code = isJsonObject ? 'PANEL_API_ERROR' : 'PANEL_INVALID_RESPONSE';
+    error.response = res;
+    return error;
 }
 
 async function requestFirstSupportedPanelRoute(client: any, attempts: any[]): Promise<any> {
     let lastError: any = null;
     for (const attempt of attempts) {
         try {
-            return await client({
+            const res = await client({
                 method: attempt.method,
                 url: attempt.url,
                 data: attempt.data,
                 headers: attempt.headers,
                 timeout: attempt.timeout || 15_000,
             });
+            const parsed = parseJsonObject(res?.data);
+            if (!parsed || Array.isArray(parsed)) {
+                lastError = createPanelRouteResponseError(res);
+                continue;
+            }
+            if (parsed.success === false) {
+                lastError = createPanelRouteResponseError({
+                    ...res,
+                    data: parsed,
+                });
+                continue;
+            }
+            return res;
         } catch (err: any) {
             lastError = err;
             if (!isUnsupportedPanelRouteError(err)) {
@@ -396,6 +421,7 @@ export {
     ensureApiRuleFirst,
     extractTemplateConfig,
     fetchPanelSettings,
+    isUnsupportedPanelRouteError,
     persistTemplate,
     requestFirstSupportedPanelRoute,
 };

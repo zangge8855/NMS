@@ -85,13 +85,37 @@ function isSkippablePreLoginCsrfError(error: any): boolean {
     return [401, 403].includes(status) || isUnsupportedPanelCsrfError(error);
 }
 
+function isPlainJsonObject(value: unknown): value is Record<string, any> {
+    return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+function assertValidPanelJsonResponse(response: any, contextLabel: string): any {
+    const data = response?.data;
+    if (!isPlainJsonObject(data)) {
+        const error: any = new Error(`${contextLabel} returned an unexpected non-JSON response`);
+        error.code = 'PANEL_INVALID_RESPONSE';
+        error.response = response;
+        throw error;
+    }
+    if (data.success === false) {
+        const error: any = new Error(String(data.msg || data.message || `${contextLabel} failed`));
+        error.code = 'PANEL_API_ERROR';
+        error.response = response;
+        throw error;
+    }
+    return response;
+}
+
 function extractPanelCsrfToken(payload: any): string {
+    const rawString = typeof payload === 'string' && !/^\s*</.test(payload) && !/[\r\n]/.test(payload)
+        ? payload
+        : '';
     const candidates = [
         payload?.obj,
         payload?.token,
         payload?.csrfToken,
         payload?.csrf,
-        typeof payload === 'string' ? payload : '',
+        rawString,
     ];
     return candidates
         .map((item) => String(item || '').trim())
@@ -278,13 +302,19 @@ export function classifyPanelError(error: any, options: { context?: string } = {
 export async function fetchPanelServerStatus(client: AxiosInstance): Promise<any> {
     let getError: any = null;
     try {
-        return await client.get('/panel/api/server/status');
+        return assertValidPanelJsonResponse(
+            await client.get('/panel/api/server/status'),
+            'Panel status endpoint'
+        );
     } catch (error) {
         getError = error;
     }
 
     try {
-        return await client.post('/panel/api/server/status');
+        return assertValidPanelJsonResponse(
+            await client.post('/panel/api/server/status'),
+            'Panel status endpoint'
+        );
     } catch (postError) {
         const getUnsupported = isUnsupportedPanelStatusError(getError);
         const postUnsupported = isUnsupportedPanelStatusError(postError);
@@ -315,7 +345,7 @@ export interface PanelClientWrapper {
     baseURL: string;
 }
 
-function mergeCookieHeader(existingCookie: string = '', incomingSetCookies: string[] | string = []): string {
+export function mergeCookieHeader(existingCookie: string = '', incomingSetCookies: string[] | string = []): string {
     const cookieMap = new Map<string, string>();
     const addPair = (pairStr: string) => {
         const trimmed = String(pairStr || '').trim();
@@ -424,17 +454,17 @@ export async function createPanelClient(serverId: string, options: any = {}): Pr
 async function ensurePanelApiTokenAuthenticated(client: AxiosInstance): Promise<AxiosInstance> {
     try {
         const res = await fetchPanelServerStatus(client);
-        if (res.data && res.data.success !== false) {
+        if (isPlainJsonObject(res?.data) && res.data.success !== false) {
             return client;
         }
-        throw createPanelAuthError('PANEL_LOGIN_FAILED', res.data?.msg || 'API token authentication failed');
+        throw createPanelAuthError('PANEL_LOGIN_FAILED', res?.data?.msg || 'API token authentication failed');
     } catch (error: any) {
         if (error?.isPanelAuthError) {
             throw error;
         }
         const status = Number(error?.response?.status || 0);
         const panelMessage = normalizePanelErrorMessage(error, 'API token authentication failed');
-        if ([401, 403, 404].includes(status)) {
+        if ([401, 403, 404].includes(status) || error?.response?.data?.success === false) {
             throw createPanelAuthError(
                 'PANEL_LOGIN_FAILED',
                 panelMessage || 'API token authentication failed',
@@ -505,7 +535,7 @@ export async function ensureAuthenticated(serverId: string, options: any = {}): 
         try {
             await refreshPanelCsrfToken(client, '/panel/csrf-token', { ignoreUnsupported: true });
             const res = await fetchPanelServerStatus(client);
-            if (res.data && res.data.success !== false) {
+            if (isPlainJsonObject(res?.data) && res.data.success !== false) {
                 return client;
             }
         } catch {
@@ -544,7 +574,13 @@ export async function ensureAuthenticated(serverId: string, options: any = {}): 
             ignorePreLoginFailure: true,
         });
         const loginRes = await client.post('/login', `username=${encodeURIComponent(server.username)}&password=${encodeURIComponent(server.password)}`);
-        if (loginRes.data && loginRes.data.success) {
+        if (!isPlainJsonObject(loginRes?.data)) {
+            const invalidError: any = new Error('Panel login returned an unexpected non-JSON response');
+            invalidError.code = 'PANEL_INVALID_RESPONSE';
+            invalidError.response = loginRes;
+            throw invalidError;
+        }
+        if (loginRes.data.success) {
             await refreshPanelCsrfToken(client, '/panel/csrf-token', { ignoreUnsupported: true }).catch(() => '');
             return client;
         }

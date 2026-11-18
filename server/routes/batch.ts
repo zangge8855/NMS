@@ -10,6 +10,8 @@ import {
     resyncManagedUserNodes,
     syncAddedInboundsToExistingUsers,
 } from '../services/userAdminService.js';
+import { autoRemoveClients } from '../services/subscriptionSyncService.js';
+import serverRepository from '../repositories/serverRepository.js';
 import batchRiskTokenStore, {
     assessBatchRisk,
     buildBatchRiskOperationKey,
@@ -106,21 +108,37 @@ function normalizeClientIdentifier(target: any = {}, fallbackClient: any = {}, p
     }
 
     const protocol = normalizeProtocol(protocolHint || target.protocol || fallbackClient.protocol);
+    if (AUTH_PROTOCOLS.has(protocol)) {
+        return toStringValue(
+            target.auth
+            || target.password
+            || target.id
+            || target.email
+            || fallbackClient.auth
+            || fallbackClient.password
+            || fallbackClient.id
+            || fallbackClient.email
+        );
+    }
     if (PASSWORD_PROTOCOLS.has(protocol)) {
         return toStringValue(
             target.password
+            || target.auth
             || target.id
             || target.email
             || fallbackClient.password
+            || fallbackClient.auth
             || fallbackClient.id
             || fallbackClient.email
         );
     }
     if (UUID_PROTOCOLS.has(protocol)) {
         return toStringValue(
-            target.id
+            target.uuid
+            || target.id
             || target.password
             || target.email
+            || fallbackClient.uuid
             || fallbackClient.id
             || fallbackClient.password
             || fallbackClient.email
@@ -128,10 +146,14 @@ function normalizeClientIdentifier(target: any = {}, fallbackClient: any = {}, p
     }
 
     return toStringValue(
-        target.id
+        target.uuid
+        || target.id
+        || target.auth
         || target.password
         || target.email
+        || fallbackClient.uuid
         || fallbackClient.id
+        || fallbackClient.auth
         || fallbackClient.password
         || fallbackClient.email
     );
@@ -140,7 +162,7 @@ function normalizeClientIdentifier(target: any = {}, fallbackClient: any = {}, p
 function normalizeClientData(input: any = {}, fallbackIdentifier = '', options: any = {}) {
     const allowFlow = options.allowFlow !== false;
     const protocol = normalizeProtocol(options.protocol || input.protocol);
-    const idValue = toStringValue(input.id);
+    const idValue = toStringValue(input.id || input.uuid);
     const passwordValue = toStringValue(input.password || input.auth);
     const fallback = toStringValue(fallbackIdentifier);
     const legacyIdentifier = toStringValue(idValue || passwordValue || fallback);
@@ -162,6 +184,7 @@ function normalizeClientData(input: any = {}, fallbackIdentifier = '', options: 
 
     return {
         id: normalizedId,
+        ...(protocol === 'tuic' && normalizedId ? { uuid: normalizedId } : {}),
         password: normalizedPassword,
         ...(AUTH_PROTOCOLS.has(protocol) ? { auth: normalizedPassword } : {}),
         email,
@@ -571,7 +594,7 @@ async function executeClientAction({ action, target, globalClient, payload, targ
                 throw new Error(requiredCredentialLabel(targetProtocol));
             }
 
-            await postAddClientCompat(client, target.inboundId, clientData);
+            await postAddClientCompat(client, target.inboundId, clientData, { protocol: targetProtocol });
             invalidateBatchMutationCaches(target.serverId);
 
             return {
@@ -1053,14 +1076,15 @@ function buildRetryRequestSnapshot(entry, options: any = {}) {
     const groupBy = normalizeRetryGroupBy(options.groupBy);
     const requestedGroupKey = toStringValue(options.groupKey);
 
-    const snapshot = safeClone(entry.request) || {};
+    const snapshot = safeClone(entry.request || entry.retryPayload) || {};
     const results = Array.isArray(entry.results) ? entry.results : [];
+    const userSyncOperation = toStringValue(snapshot.operation || entry.action);
 
     if (overrideConcurrency !== null && overrideConcurrency !== undefined) {
         snapshot.concurrency = overrideConcurrency;
     }
 
-    const failed = results.filter((item) => item && item.success === false);
+    const failed = results.filter((item) => item && (item.success === false || (item.success === undefined && item.status === 'failed')));
     const groups = buildRetryGroups(failed, groupBy);
     const validGroupKeys = new Set(groups.map((item) => item.key));
     const groupKey = requestedGroupKey || '';
@@ -1081,11 +1105,28 @@ function buildRetryRequestSnapshot(entry, options: any = {}) {
     }
 
     if (selectedFailed.length === 0) {
+        if (
+            entry.type === 'user_sync'
+            && userSyncOperation === 'delete_user_cleanup'
+            && results.length === 0
+            && !requestedGroupKey
+        ) {
+            return {
+                snapshot,
+                failedOnly,
+                groupBy,
+                groupKey,
+                groups,
+                totalFailedCount: failed.length,
+                selectedFailedCount: 0,
+            };
+        }
         return {
             snapshot: {
                 ...snapshot,
                 targets: [],
                 serverIds: [],
+                ...(entry.type === 'user_sync' && userSyncOperation === 'delete_user_cleanup' ? { emails: [] } : {}),
             },
             failedOnly,
             groupBy,
@@ -1132,11 +1173,27 @@ function buildRetryRequestSnapshot(entry, options: any = {}) {
             }
         }
     } else if (entry.type === 'user_sync') {
-        snapshot.targets = selectedFailed.map((item) => ({
-            stage: toStringValue(item.stage),
-            serverId: toStringValue(item.serverId),
-            inboundId: item.inboundId ?? null,
-        }));
+        if (userSyncOperation === 'delete_user_cleanup') {
+            snapshot.operation = 'delete_user_cleanup';
+            const failedEmails = Array.from(new Set(
+                selectedFailed.map((item) => toStringValue(item.email)).filter(Boolean)
+            ));
+            const failedServerIds = Array.from(new Set(
+                selectedFailed.map((item) => toStringValue(item.serverId)).filter(Boolean)
+            ));
+            if (failedEmails.length > 0) {
+                snapshot.emails = failedEmails;
+            }
+            if (failedServerIds.length > 0) {
+                snapshot.serverIds = failedServerIds;
+            }
+        } else {
+            snapshot.targets = selectedFailed.map((item) => ({
+                stage: toStringValue(item.stage),
+                serverId: toStringValue(item.serverId),
+                inboundId: item.inboundId ?? null,
+            }));
+        }
     }
 
     return {
@@ -1320,9 +1377,14 @@ async function retryHistoryItem(historyItem, req) {
             };
         }
     }
+    const userSyncOperation = toStringValue(retryRequest.operation || historyItem.action);
+    const isDeleteUserCleanup = historyItem.type === 'user_sync' && userSyncOperation === 'delete_user_cleanup';
     if (historyItem.type === 'user_sync' && failedOnly) {
         const hasTargets = Array.isArray(retryRequest.targets) && retryRequest.targets.length > 0;
-        if (!hasTargets) {
+        const hasCleanupTargets = isDeleteUserCleanup
+            && Array.isArray(retryRequest.emails)
+            && retryRequest.emails.length > 0;
+        if (!hasTargets && !hasCleanupTargets) {
             return {
                 error: {
                     status: 400,
@@ -1334,9 +1396,13 @@ async function retryHistoryItem(historyItem, req) {
 
     const targetCount = historyItem.type === 'clients'
         ? (Array.isArray(retryRequest.targets) ? retryRequest.targets.length : 0)
-        : (historyItem.type === 'user_sync'
-            ? (Array.isArray(retryRequest.targets) ? retryRequest.targets.length : 0)
-            : inferInboundTargetCount(historyItem.action, retryRequest.targets, retryRequest.serverIds));
+        : (isDeleteUserCleanup
+            ? (Array.isArray(retryRequest.serverIds) && retryRequest.serverIds.length > 0
+                ? retryRequest.serverIds.length
+                : (Array.isArray(retryRequest.emails) ? retryRequest.emails.length : 0))
+            : (historyItem.type === 'user_sync'
+                ? (Array.isArray(retryRequest.targets) ? retryRequest.targets.length : 0)
+                : inferInboundTargetCount(historyItem.action, retryRequest.targets, retryRequest.serverIds)));
     const riskCheck = consumeRiskTokenIfRequired(req, {
         type: historyItem.type,
         action: historyItem.action,
@@ -1374,42 +1440,103 @@ async function retryHistoryItem(historyItem, req) {
                 actor: req.user?.username || req.user?.role || 'admin',
             });
         } else if (historyItem.type === 'user_sync') {
-            const selectedTargets = Array.isArray(retryRequest.targets) ? retryRequest.targets : [];
-            const targetServerIds = Array.from(new Set(
-                selectedTargets
-                    .map((item) => toStringValue(item.serverId))
-                    .filter(Boolean)
-            ));
-            const targetInboundKeys = Array.from(new Set(
-                selectedTargets
-                    .filter((item) => toStringValue(item.serverId) && item.inboundId !== null && item.inboundId !== undefined && item.inboundId !== '')
-                    .map((item) => `${toStringValue(item.serverId)}:${toStringValue(item.inboundId)}`)
-            ));
-            const stages = new Set(selectedTargets.map((item) => toStringValue(item.stage)));
-            const locale = resolveRequestLocale(req);
-            const syncResult = await resyncManagedUserNodes(
-                retryRequest.userId,
-                {
+            if (isDeleteUserCleanup) {
+                const cleanupEmails = Array.from(new Set<string>(
+                    (Array.isArray(retryRequest.emails) ? retryRequest.emails : [])
+                        .map((item) => toStringValue(item).toLowerCase())
+                        .filter(Boolean)
+                ));
+                if (cleanupEmails.length === 0) {
+                    return {
+                        error: {
+                            status: 400,
+                            msg: 'No retryable user sync targets',
+                        },
+                    };
+                }
+                const retryServerIds = Array.from(new Set<string>(
+                    (Array.isArray(retryRequest.serverIds) ? retryRequest.serverIds : [])
+                        .map((item) => toStringValue(item))
+                        .filter(Boolean)
+                ));
+                const allServers = retryServerIds.length > 0
+                    ? retryServerIds.map((id) => serverRepository.getById(id)).filter(Boolean)
+                    : undefined;
+
+                let total = 0;
+                let removed = 0;
+                let failed = 0;
+                const results: any[] = [];
+                for (const email of cleanupEmails) {
+                    const removal = await autoRemoveClients(email, allServers ? { allServers } : {});
+                    total += Number(removal?.total || 0);
+                    removed += Number(removal?.removed || 0);
+                    failed += Number(removal?.failed || 0);
+                    const details = Array.isArray(removal?.details) ? removal.details : [];
+                    for (const detail of details) {
+                        results.push({
+                            stage: 'delete_user_cleanup',
+                            email,
+                            serverId: toStringValue(detail?.serverId),
+                            serverName: toStringValue(detail?.serverName),
+                            inboundId: detail?.inboundId ?? null,
+                            inboundRemark: toStringValue(detail?.inboundRemark),
+                            protocol: toStringValue(detail?.protocol),
+                            success: detail?.status !== 'failed',
+                            status: toStringValue(detail?.status || 'removed'),
+                            msg: toStringValue(detail?.error || detail?.reason || detail?.status || 'removed'),
+                        });
+                    }
+                }
+                run = {
+                    output: {
+                        operation: 'delete_user_cleanup',
+                        summary: {
+                            total: total || results.length,
+                            success: removed,
+                            failed,
+                        },
+                        results,
+                    },
+                };
+            } else {
+                const selectedTargets = Array.isArray(retryRequest.targets) ? retryRequest.targets : [];
+                const targetServerIds = Array.from(new Set(
+                    selectedTargets
+                        .map((item) => toStringValue(item.serverId))
+                        .filter(Boolean)
+                ));
+                const targetInboundKeys = Array.from(new Set(
+                    selectedTargets
+                        .filter((item) => toStringValue(item.serverId) && item.inboundId !== null && item.inboundId !== undefined && item.inboundId !== '')
+                        .map((item) => `${toStringValue(item.serverId)}:${toStringValue(item.inboundId)}`)
+                ));
+                const stages = new Set(selectedTargets.map((item) => toStringValue(item.stage)));
+                const locale = resolveRequestLocale(req);
+                const syncResult = await resyncManagedUserNodes(
+                    retryRequest.userId,
+                    {
+                        operation: retryRequest.operation,
+                        includeToggle: selectedTargets.length > 0 ? stages.has('client_toggle') : undefined,
+                        includeDeploy: selectedTargets.length > 0 ? stages.has('client_deploy') : undefined,
+                        targetServerIds,
+                        targetInboundKeys,
+                    },
+                    String(req.user?.username || req.user?.role || 'admin'),
+                    { locale }
+                );
+                const payload = buildManagedUserSyncJobPayload({
                     operation: retryRequest.operation,
-                    includeToggle: selectedTargets.length > 0 ? stages.has('client_toggle') : undefined,
-                    includeDeploy: selectedTargets.length > 0 ? stages.has('client_deploy') : undefined,
-                    targetServerIds,
-                    targetInboundKeys,
-                },
-                String(req.user?.username || req.user?.role || 'admin'),
-                { locale }
-            );
-            const payload = buildManagedUserSyncJobPayload({
-                operation: retryRequest.operation,
-                target: syncResult.target,
-                subscriptionEmail: syncResult.subscriptionEmail,
-                enabled: syncResult.enabled,
-                clientSync: syncResult.clientSync,
-                deployment: syncResult.deployment,
-            });
-            run = {
-                output: payload.output,
-            };
+                    target: syncResult.target,
+                    subscriptionEmail: syncResult.subscriptionEmail,
+                    enabled: syncResult.enabled,
+                    clientSync: syncResult.clientSync,
+                    deployment: syncResult.deployment,
+                });
+                run = {
+                    output: payload.output,
+                };
+            }
         } else {
             return {
                 error: {
