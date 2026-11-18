@@ -4,6 +4,7 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import net from 'net';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -197,16 +198,58 @@ test('STRESS 3.3: Backup Snapshot Collection and Restoration State Consistency',
     assert.deepEqual(Object.keys(snapshotBefore), Object.keys(snapshotAfter));
 });
 
+function getFreePort() {
+    return new Promise((resolve, reject) => {
+        const srv = net.createServer();
+        srv.listen(0, '127.0.0.1', () => {
+            const addr = srv.address();
+            const port = typeof addr === 'object' && addr ? addr.port : 0;
+            srv.close((err) => (err ? reject(err) : resolve(port)));
+        });
+        srv.on('error', reject);
+    });
+}
+
+function waitForProcessExit(proc, timeoutMs = 5000) {
+    if (!proc || proc.exitCode !== null || proc.signalCode !== null) {
+        return Promise.resolve();
+    }
+    return new Promise((resolve) => {
+        let settled = false;
+        let forceTimer = null;
+        const done = () => {
+            if (settled) return;
+            settled = true;
+            if (forceTimer) clearTimeout(forceTimer);
+            proc.off('exit', done);
+            proc.off('close', done);
+            resolve();
+        };
+        proc.once('exit', done);
+        proc.once('close', done);
+        try {
+            proc.kill('SIGTERM');
+        } catch {
+            done();
+            return;
+        }
+        forceTimer = setTimeout(() => {
+            try { proc.kill('SIGKILL'); } catch {}
+            done();
+        }, timeoutMs);
+    });
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // STRESS TEST 4: Live HTTP API Server High Concurrency Stress
 // ─────────────────────────────────────────────────────────────────────────────
 test('STRESS 4.1: Express Server API concurrent requests under heavy load', async () => {
-    const serverPort = 28991;
+    const serverPort = await getFreePort();
     const nmsBaseUrl = `http://127.0.0.1:${serverPort}`;
     const dataDir = path.join(TEMP_DIR, 'nms-api-stress-data');
     fs.mkdirSync(dataDir, { recursive: true });
 
-    const nmsProc = spawn('node', ['index.js'], {
+    const nmsProc = spawn(process.execPath, ['--import', 'tsx', 'index.ts'], {
         cwd: SERVER_DIR,
         env: {
             ...process.env,
@@ -226,7 +269,10 @@ test('STRESS 4.1: Express Server API concurrent requests under heavy load', asyn
     nmsProc.stdout.on('data', (d) => { procLogs += `[STDOUT] ${d.toString()}\n`; });
 
     let started = false;
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 80; i++) {
+        if (nmsProc.exitCode !== null) {
+            break;
+        }
         try {
             const res = await fetch(`${nmsBaseUrl}/api/auth/registration-status`);
             if (res.status === 200) {
@@ -240,7 +286,7 @@ test('STRESS 4.1: Express Server API concurrent requests under heavy load', asyn
     }
 
     if (!started) {
-        nmsProc.kill('SIGKILL');
+        await waitForProcessExit(nmsProc);
         throw new Error(`Stress NMS server failed to start:\n${procLogs}`);
     }
 
@@ -288,6 +334,6 @@ test('STRESS 4.1: Express Server API concurrent requests under heavy load', asyn
             assert.ok(res.status === 200 || res.status === 304, `Unexpected status code: ${res.status} for ${res.url}`);
         }
     } finally {
-        nmsProc.kill('SIGTERM');
+        await waitForProcessExit(nmsProc);
     }
 });

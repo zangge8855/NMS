@@ -231,6 +231,7 @@ function createDefaultFetcher() {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(body),
+            signal: AbortSignal.timeout(25_000),
         });
         if (!response.ok) {
             const payload = await response.text().catch(() => '');
@@ -248,6 +249,7 @@ function createDefaultDocumentFetcher() {
         const response = await fetch(url, {
             method: 'POST',
             body: formData,
+            signal: AbortSignal.timeout(25_000),
         });
         if (!response.ok) {
             const payload = await response.text().catch(() => '');
@@ -1662,9 +1664,10 @@ export function createTelegramAlertService(options: any = {}) {
 
     async function primeUpdates() {
         const result = await callTelegramApi('getUpdates', {
+            offset: -1,
             timeout: 0,
-            limit: 20,
-            allowed_updates: ['message'],
+            limit: 1,
+            allowed_updates: ['message', 'callback_query'],
         });
         const latest = Array.isArray(result) ? result[result.length - 1] : null;
         lastUpdateId = Number(latest?.update_id || 0);
@@ -2200,6 +2203,18 @@ export function createTelegramAlertService(options: any = {}) {
                     const mod = await import('../store/auditStore.js');
                     return mod.default || mod;
                 },
+                async userPolicy() {
+                    const mod = await import('../store/userPolicyStore.js');
+                    return mod.default || mod;
+                },
+                async userGroup() {
+                    const mod = await import('../store/userGroupStore.js');
+                    return mod.default || mod;
+                },
+                async subscriptionTokens() {
+                    const mod = await import('../store/subscriptionTokenStore.js');
+                    return mod.default || mod;
+                },
             },
     };
 
@@ -2229,9 +2244,13 @@ export function createTelegramAlertService(options: any = {}) {
         // the user has to tap to confirm.
         if (result.pending && typeof result.pending.execute === 'function') {
             const level = String(result.entry?.level || 'write').toLowerCase();
+            const initiatorId = from?.id !== undefined && from?.id !== null
+                ? String(from.id).trim()
+                : '';
             const record = pendingActions.create({
                 command: result.entry?.name,
                 actor,
+                initiatorId,
                 level,
                 execute: result.pending.execute,
                 summary: result.pending.summary || '',
@@ -2293,6 +2312,25 @@ export function createTelegramAlertService(options: any = {}) {
         if (!parsed) {
             await answerCallbackQuerySafe(callback, '无效操作');
             return;
+        }
+
+        if (parsed.kind === 'cancel' || parsed.kind === 'confirm') {
+            const pending = pendingActions.peek(parsed.id);
+            if (!pending) {
+                await answerCallbackQuerySafe(
+                    callback,
+                    parsed.kind === 'cancel' ? '已过期' : '确认已过期，请重新发起'
+                );
+                return;
+            }
+            const expectedInitiatorId = String(pending.payload?.initiatorId || '').trim();
+            const callbackFromId = callback?.from?.id !== undefined && callback?.from?.id !== null
+                ? String(callback.from.id).trim()
+                : '';
+            if (expectedInitiatorId && callbackFromId !== expectedInitiatorId) {
+                await answerCallbackQuerySafe(callback, '仅限发起人操作');
+                return;
+            }
         }
 
         if (parsed.kind === 'cancel') {
@@ -2706,6 +2744,7 @@ export function createTelegramAlertService(options: any = {}) {
         // synchronously (e.g. write-command confirmation in Step 4).
         _handleCallbackQuery: handleCallbackQuery,
         _processUpdates: processUpdates,
+        _pollOnce: pollOnce,
     };
 }
 

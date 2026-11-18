@@ -4,7 +4,10 @@ import { authMiddleware, adminOnly, operatorOrAbove, auditorOrAbove } from '../m
 import serverStore from '../store/serverStore.js';
 import userStore from '../store/userStore.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
+import certificateStore from '../store/certificateStore.js';
+import subscriptionTokenStore from '../store/subscriptionTokenStore.js';
 import inviteCodeStore from '../store/inviteCodeStore.js';
+import { invalidatePublicSubCache } from './subscriptions.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import config from '../config.js';
 import { toHttpError } from '../lib/httpError.js';
@@ -857,6 +860,7 @@ router.put('/settings', adminOnly, (req, res) => {
     try {
         const payload = req.body && typeof req.body === 'object' ? req.body : {};
         const updated = systemSettingsStore.update(payload);
+        invalidatePublicSubCache();
         telegramAlertService.reloadSettings({
             deferMissedRun: true,
         });
@@ -903,6 +907,7 @@ router.put('/servers/order', operatorOrAbove, (req, res) => {
         const knownServerIds = new Set(serverStore.getAll().map((item) => String(item?.id || '').trim()).filter(Boolean));
         const filteredIds = serverIds.filter((id) => knownServerIds.has(String(id || '').trim()));
         const order = systemSettingsStore.setServerOrder(filteredIds);
+        invalidatePublicSubCache();
         appendSecurityAudit('server_order_updated', req, {
             serverCount: order.length,
         });
@@ -946,6 +951,7 @@ router.put('/inbounds/order', operatorOrAbove, (req, res) => {
 
     try {
         const order = systemSettingsStore.setInboundOrder(serverId, inboundIds);
+        invalidatePublicSubCache();
         appendSecurityAudit('inbound_order_updated', req, {
             serverId,
             inboundCount: order.length,
@@ -1091,7 +1097,36 @@ router.post('/credentials/rotate', adminOnly, (req, res) => {
     const dryRun = rawDryRun === true
         || String(rawDryRun || '').trim().toLowerCase() === 'true'
         || String(rawDryRun || '').trim() === '1';
-    const output = serverStore.rotateCredentials({ dryRun });
+    const serverRotation = serverStore.rotateCredentials({ dryRun });
+    const systemSettingsRotation = systemSettingsStore.rotateCredentials({ dryRun });
+    const certificateRotation = certificateStore.rotateCredentials({ dryRun });
+    const subscriptionTokenRotation = subscriptionTokenStore.rotateCredentials({ dryRun });
+    const output = {
+        dryRun,
+        totalServers: serverRotation.totalServers,
+        scannedFields: (serverRotation.scannedFields || 0)
+            + (systemSettingsRotation.scannedFields || 0)
+            + (certificateRotation.scannedFields || 0)
+            + (subscriptionTokenRotation.scannedFields || 0),
+        rotatedFields: (serverRotation.rotatedFields || 0)
+            + (systemSettingsRotation.rotatedFields || 0)
+            + (certificateRotation.rotatedFields || 0)
+            + (subscriptionTokenRotation.rotatedFields || 0),
+        migratedPlaintext: (serverRotation.migratedPlaintext || 0)
+            + (systemSettingsRotation.migratedPlaintext || 0)
+            + (certificateRotation.migratedPlaintext || 0)
+            + (subscriptionTokenRotation.migratedPlaintext || 0),
+        failedFields: (serverRotation.failedFields || 0)
+            + (systemSettingsRotation.failedFields || 0)
+            + (certificateRotation.failedFields || 0)
+            + (subscriptionTokenRotation.failedFields || 0),
+        stores: {
+            servers: serverRotation,
+            systemSettings: systemSettingsRotation,
+            certificates: certificateRotation,
+            subscriptionTokens: subscriptionTokenRotation,
+        },
+    };
     appendSecurityAudit('credentials_rotation', req, {
         dryRun,
         ...output,

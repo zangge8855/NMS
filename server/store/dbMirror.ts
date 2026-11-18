@@ -1,3 +1,4 @@
+import config from '../config.js';
 import { isDbReady } from '../db/client.js';
 import { isSqliteReady, sqliteReadSnapshot, sqliteWriteSnapshot } from '../db/sqliteClient.js';
 import { isDbReadMode, isDbWriteMode, shouldWriteFileByMode } from '../db/runtimeModes.js';
@@ -20,6 +21,7 @@ function cloneJson<T = any>(value: T): T | null {
 }
 
 export function shouldWriteFile(): boolean {
+    if (config.db?.enabled && !shouldWriteFileByMode()) return false;
     if (!isDbReady() && !isSqliteReady()) return true;
     return shouldWriteFileByMode();
 }

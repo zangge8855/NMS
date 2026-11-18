@@ -21,6 +21,7 @@ import {
 import { saveObjectAtomic } from '../store/fileUtils.js';
 import { parseJsonObjectLike } from '../lib/normalize.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
+import notificationService, { SEVERITY } from '../lib/notifications.js';
 
 interface CloudflareZone {
     id: string;
@@ -1095,23 +1096,34 @@ export async function issueOrRenewCertificate(
 
     const domain = stripIpv6Brackets(record.domain);
     const now = new Date().toISOString();
+    const providerKey = String(record.provider || 'letsencrypt').trim().toLowerCase();
+    const challengeType = String(record.challengeType || 'dns-cloudflare').trim().toLowerCase();
+    const customDirUrl = String(record.acmeDirectoryUrl || '').trim();
+
+    if (providerKey === 'custom' && (!customDirUrl || challengeType === 'manual')) {
+        const err: any = new Error('Custom/uploaded certificates without a custom ACME directory URL cannot be automatically issued or renewed');
+        err.statusCode = 400;
+        throw err;
+    }
+    if (challengeType === 'manual' && providerKey !== 'selfsigned') {
+        const err: any = new Error(`Unsupported renewal: manual challenge with provider "${record.provider}" cannot be overwritten with a self-signed certificate`);
+        err.statusCode = 400;
+        throw err;
+    }
 
     try {
         let certContent = '';
         let keyContent = '';
         let expiresAt = '';
 
-        const providerKey = String(record.provider || 'letsencrypt').trim().toLowerCase();
-        const challengeType = String(record.challengeType || 'dns-cloudflare').trim().toLowerCase();
-
-        if (providerKey === 'selfsigned' || challengeType === 'manual') {
+        if (providerKey === 'selfsigned') {
             const generated = generateSelfSignedCert(domain, 90, { sans: record.sans });
             certContent = generated.cert;
             keyContent = generated.key;
             expiresAt = generated.expiresAt;
         } else if (challengeType === 'dns-cloudflare' || challengeType === 'http') {
             const allowLoopback = options.allowLoopbackDirectory === true;
-            const directoryUrl = resolveAcmeDirectoryUrl(providerKey, record.acmeDirectoryUrl, {
+            const directoryUrl = resolveAcmeDirectoryUrl(providerKey, customDirUrl, {
                 allowLoopbackDirectory: allowLoopback,
             });
             const acmeClient = new AcmeV2Client(directoryUrl, record.email || '', {
@@ -1129,7 +1141,9 @@ export async function issueOrRenewCertificate(
             keyContent = issued.key;
             expiresAt = issued.expiresAt;
         } else {
-            throw new Error(`Unsupported ACME challenge type: ${record.challengeType}`);
+            const err: any = new Error(`Unsupported ACME challenge type: ${record.challengeType}`);
+            err.statusCode = 400;
+            throw err;
         }
 
         const updated = certificateStore.update(certId, {
@@ -1285,16 +1299,64 @@ export async function dispatchCertificateToServers(
                 const client = await ensureAuthenticated(serverId);
 
                 if (isSuiPanelServer(server)) {
-                    await client.get('/panel/api/inbounds/list').catch(() => null);
+                    const inboundsRes = await client.get('/panel/api/inbounds/list');
+                    if (inboundsRes?.data && inboundsRes.data.success === false) {
+                        throw new Error(inboundsRes.data.msg || 's-ui panel reachability check failed');
+                    }
+
+                    let tlsMatched = 0;
+                    let tlsUpdated = 0;
+                    let tlsFetched = false;
+                    try {
+                        const tlsRes = await client.get('/sui/tls');
+                        tlsFetched = true;
+                        const tlsList = Array.isArray(tlsRes?.data?.obj?.tls)
+                            ? tlsRes.data.obj.tls
+                            : (Array.isArray(tlsRes?.data?.obj) ? tlsRes.data.obj : []);
+                        for (const tlsProfile of tlsList) {
+                            const serverCfg = parseJsonObjectLike(tlsProfile?.server, {});
+                            if (serverCfg?.reality?.enabled) continue;
+                            const sniMatch = matchesCertificateHost(serverCfg?.server_name, certHosts);
+                            if (!sniMatch && options.applyAllTlsInbounds !== true) continue;
+                            tlsMatched += 1;
+                            const nextServerCfg = {
+                                ...serverCfg,
+                                enabled: serverCfg?.enabled !== false,
+                                certificate: certLines,
+                                key: keyLines,
+                            };
+                            const saveRes = await client.post('/sui/save', {
+                                object: 'tls',
+                                action: 'edit',
+                                data: JSON.stringify({
+                                    ...tlsProfile,
+                                    server: nextServerCfg,
+                                }),
+                            });
+                            if (saveRes?.data && saveRes.data.success === false) {
+                                throw new Error(saveRes.data.msg || 'Failed to update s-ui TLS profile');
+                            }
+                            tlsUpdated += 1;
+                            updatedInboundCount += 1;
+                        }
+                    } catch (tlsErr: any) {
+                        const httpStatus = Number(tlsErr?.response?.status || 0);
+                        if (tlsFetched || (httpStatus !== 404 && !/unsupported/i.test(String(tlsErr?.message || '')))) {
+                            throw tlsErr;
+                        }
+                    }
+
                     dispatchedServers.push(serverLabel);
                     details.push({
                         serverId,
                         serverName: serverLabel,
                         ok: true,
-                        mode: 'sui_tls_profile_manual',
-                        matchedInbounds: 0,
-                        updatedInbounds: 0,
-                        message: 's-ui manages TLS profiles natively; verified panel reachability',
+                        mode: tlsUpdated > 0 ? 'sui_tls_profile_updated' : 'sui_tls_profile_manual',
+                        matchedInbounds: tlsMatched,
+                        updatedInbounds: tlsUpdated,
+                        message: tlsUpdated > 0
+                            ? `Updated ${tlsUpdated} s-ui TLS profile(s)`
+                            : 'Verified s-ui panel reachability; no matching native TLS profile updated',
                     });
                     return;
                 }
@@ -1410,4 +1472,110 @@ export async function dispatchCertificateToServers(
         updatedInboundCount,
         details,
     };
+}
+
+const DAILY_RENEWAL_CHECK_MS = 24 * 60 * 60 * 1000;
+let certRenewalTimer: NodeJS.Timeout | null = null;
+let certRenewalInFlight = false;
+
+export async function runCertificateRenewalCycle(options: { nowMs?: number } = {}): Promise<{
+    checked: number;
+    renewed: number;
+    notified: number;
+    failed: number;
+}> {
+    if (certRenewalInFlight) {
+        return { checked: 0, renewed: 0, notified: 0, failed: 0 };
+    }
+    certRenewalInFlight = true;
+    const nowMs = Number.isFinite(Number(options.nowMs)) ? Number(options.nowMs) : Date.now();
+    let checked = 0;
+    let renewed = 0;
+    let notified = 0;
+    let failed = 0;
+
+    try {
+        const records = certificateStore.getAll();
+        for (const record of records) {
+            if (!record?.certificate) continue;
+            checked += 1;
+            const status = resolveCertificateStatus(record, nowMs);
+            if (status !== 'expiring_soon' && status !== 'expired') continue;
+
+            const providerKey = String(record.provider || '').trim().toLowerCase();
+            const challengeType = String(record.challengeType || '').trim().toLowerCase();
+            const isManualCustom = (providerKey === 'custom' && (!String(record.acmeDirectoryUrl || '').trim() || challengeType === 'manual'))
+                || (challengeType === 'manual' && providerKey !== 'selfsigned');
+
+            if (record.autoRenew === true && !isManualCustom) {
+                try {
+                    const updated = await issueOrRenewCertificate(record.id);
+                    renewed += 1;
+                    if (Array.isArray(updated.assignedServerIds) && updated.assignedServerIds.length > 0) {
+                        await dispatchCertificateToServers(updated.id, updated.assignedServerIds).catch(() => {});
+                    }
+                    continue;
+                } catch (err: any) {
+                    failed += 1;
+                    notificationService.notify({
+                        type: 'cert_renew_failed',
+                        severity: SEVERITY.WARNING,
+                        title: `Certificate auto-renewal failed: ${record.domain}`,
+                        body: String(err?.message || 'Certificate renewal failed'),
+                        meta: {
+                            certId: record.id,
+                            domain: record.domain,
+                            expiresAt: record.expiresAt,
+                        },
+                        dedupKey: `cert_renew_failed:${record.id}`,
+                    });
+                    notified += 1;
+                    continue;
+                }
+            }
+
+            notificationService.notify({
+                type: 'cert_expiring',
+                severity: status === 'expired' ? SEVERITY.CRITICAL : SEVERITY.WARNING,
+                title: status === 'expired'
+                    ? `Certificate expired: ${record.domain}`
+                    : `Certificate expiring soon: ${record.domain}`,
+                body: `TLS certificate for ${record.domain} (${status}) expires at ${record.expiresAt || 'unknown'}.`,
+                meta: {
+                    certId: record.id,
+                    domain: record.domain,
+                    status,
+                    expiresAt: record.expiresAt,
+                },
+                dedupKey: `cert_expiring:${record.id}:${status}`,
+            });
+            notified += 1;
+        }
+    } finally {
+        certRenewalInFlight = false;
+    }
+
+    return { checked, renewed, notified, failed };
+}
+
+export function startCertificateRenewalLoop(intervalMs: number = DAILY_RENEWAL_CHECK_MS): void {
+    stopCertificateRenewalLoop();
+    const safeInterval = Math.max(1000, Number(intervalMs) || DAILY_RENEWAL_CHECK_MS);
+    certRenewalTimer = setInterval(() => {
+        void runCertificateRenewalCycle().catch(() => {});
+    }, safeInterval);
+    if (typeof certRenewalTimer?.unref === 'function') {
+        certRenewalTimer.unref();
+    }
+}
+
+export function stopCertificateRenewalLoop(): void {
+    if (certRenewalTimer) {
+        clearInterval(certRenewalTimer);
+        certRenewalTimer = null;
+    }
+}
+
+if (process.env.NODE_ENV !== 'test') {
+    startCertificateRenewalLoop();
 }

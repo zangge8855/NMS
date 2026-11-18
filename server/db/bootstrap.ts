@@ -42,6 +42,8 @@ export async function bootstrapDatabase(): Promise<DbBootstrapResult> {
             ready: true,
             schema,
             modesLoaded,
+            sqliteReady,
+            connection: getDbConnectionStatus(),
             error: String(error?.message || error),
         };
     }

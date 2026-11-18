@@ -1,8 +1,64 @@
 import { findUserByIdOrEmail, paginate, missingArgs, notFound, compactDate, inlineCode } from '../commandHelpers.js';
 import { buildPaginationKeyboard } from '../inlineKeyboards.js';
+import { resolveEffectivePolicy } from '../../userPolicyResolver.js';
 import type { CommandRegistry } from '../commandRegistry.js';
 
 const PAGE_SIZE = 8;
+
+async function loadOptionalService(services: any, key: string, loader: () => Promise<any>): Promise<any> {
+    try {
+        if (typeof services?.[key] === 'function') {
+            return await services[key]();
+        }
+        return await loader();
+    } catch {
+        return null;
+    }
+}
+
+async function hydrateClientUser(services: any, user: any, deps?: { policyStore?: any; groupStore?: any; tokenStore?: any; includeTokens?: boolean }): Promise<any> {
+    if (!user) return user;
+    const policyStore = deps?.policyStore !== undefined
+        ? deps.policyStore
+        : await loadOptionalService(services, 'userPolicy', async () => (await import('../../../store/userPolicyStore.js')).default);
+    const groupStore = deps?.groupStore !== undefined
+        ? deps.groupStore
+        : await loadOptionalService(services, 'userGroup', async () => (await import('../../../store/userGroupStore.js')).default);
+    const tokenStore = deps?.includeTokens
+        ? (deps.tokenStore !== undefined
+            ? deps.tokenStore
+            : await loadOptionalService(services, 'subscriptionTokens', async () => (await import('../../../store/subscriptionTokenStore.js')).default))
+        : null;
+
+    const subEmail = String(user.subscriptionEmail || user.email || '').trim().toLowerCase();
+    const rawPolicy = subEmail && typeof policyStore?.get === 'function' ? policyStore.get(subEmail) : {};
+    const groupId = String(user.groupId || '').trim();
+    const group = groupId && typeof groupStore?.getById === 'function' ? groupStore.getById(groupId) : null;
+    const effective = resolveEffectivePolicy(user, rawPolicy, group);
+
+    const expiryTime = effective.expiryTime > 0 ? effective.expiryTime : (user.expiryTime || 0);
+    const trafficLimitBytes = effective.trafficLimitBytes > 0
+        ? effective.trafficLimitBytes
+        : (user.trafficLimitBytes ?? user.totalBytes ?? 0);
+    const limitIp = effective.limitIp > 0 ? effective.limitIp : (user.limitIp ?? 0);
+
+    let subscriptionTokens = Array.isArray(user.subscriptionTokens) ? user.subscriptionTokens : [];
+    if (deps?.includeTokens && subEmail && typeof tokenStore?.listByEmail === 'function') {
+        const listed = tokenStore.listByEmail(subEmail, { includeRevoked: false, includeExpired: false });
+        if (Array.isArray(listed) && listed.length > 0) {
+            subscriptionTokens = listed;
+        }
+    }
+
+    return {
+        ...user,
+        expiryTime,
+        trafficLimitBytes,
+        limitIp,
+        subscriptionTokens,
+        effectivePolicy: effective,
+    };
+}
 
 function formatTrafficUsage(helpers: any, user: any): string {
     const used = Number(user.trafficUsedBytes || user.usedBytes || 0);
@@ -49,7 +105,14 @@ export function registerClientCommands(registry: CommandRegistry, ctx: any): voi
                 page: Number(args?.page || 1),
                 pageSize: PAGE_SIZE,
             });
-            const lines = items.map((u: any) => summarizeUserLine(helpers, u));
+            const [policyStore, groupStore] = await Promise.all([
+                loadOptionalService(services, 'userPolicy', async () => (await import('../../../store/userPolicyStore.js')).default),
+                loadOptionalService(services, 'userGroup', async () => (await import('../../../store/userGroupStore.js')).default),
+            ]);
+            const hydratedItems = await Promise.all(
+                items.map((u: any) => hydrateClientUser(services, u, { policyStore, groupStore }))
+            );
+            const lines = hydratedItems.map((u: any) => summarizeUserLine(helpers, u));
             const text = helpers.joinHtmlMessage('NMS 客户列表', [
                 `${helpers.sectionHeader('结果')}\n${lines.join('\n')}`,
                 `${helpers.sectionHeader('提示')}\n• 共 <b>${total}</b> 位\n• 使用 <code>/client &lt;email&gt;</code> 查看详情`,
@@ -86,10 +149,11 @@ export function registerClientCommands(registry: CommandRegistry, ctx: any): voi
             }
             const userAdmin = await services.userAdmin();
             const users = userAdmin.listUsers();
-            const user = findUserByIdOrEmail(users, target);
-            if (!user) {
+            const rawUser = findUserByIdOrEmail(users, target);
+            if (!rawUser) {
                 return { text: notFound(helpers, '客户'), kind: 'client_not_found' };
             }
+            const user = await hydrateClientUser(services, rawUser);
 
             const rows = [
                 helpers.formatHtmlKeyValueRow('ID', user.id),
@@ -122,11 +186,11 @@ export function registerClientCommands(registry: CommandRegistry, ctx: any): voi
             const userAdmin = await services.userAdmin();
             const users = userAdmin.listUsers();
             
-            const user = target
+            const rawUser = target
                 ? findUserByIdOrEmail(users, target)
                 : (fromId ? users.find((u: any) => String(u.tgId || u.telegramId || '').trim() === String(fromId)) : null);
 
-            if (!user) {
+            if (!rawUser) {
                 if (!target && !fromId) {
                     return { text: missingArgs(helpers, '/myinfo <邮箱或用户名>'), kind: 'myinfo_missing_args' };
                 }
@@ -137,6 +201,7 @@ export function registerClientCommands(registry: CommandRegistry, ctx: any): voi
                     kind: 'myinfo_not_found',
                 };
             }
+            const user = await hydrateClientUser(services, rawUser);
 
             const rows = [
                 helpers.formatHtmlKeyValueRow('用户名', user.username || '-'),
@@ -166,11 +231,11 @@ export function registerClientCommands(registry: CommandRegistry, ctx: any): voi
             const target = args?.positional?.[0];
             const userAdmin = await services.userAdmin();
             const users = userAdmin.listUsers();
-            const user = target
+            const rawUser = target
                 ? findUserByIdOrEmail(users, target)
                 : (fromId ? users.find((u: any) => String(u.tgId || u.telegramId || '').trim() === String(fromId)) : null);
 
-            if (!user) {
+            if (!rawUser) {
                 return {
                     text: target
                         ? notFound(helpers, '客户')
@@ -178,9 +243,10 @@ export function registerClientCommands(registry: CommandRegistry, ctx: any): voi
                     kind: 'sub_not_found',
                 };
             }
+            const user = await hydrateClientUser(services, rawUser, { includeTokens: true });
 
             // Show whatever profile / token info is already on the user
-            // record. Don't trigger token issuance from a read-only command.
+            // record or subscriptionTokenStore. Don't trigger token issuance from a read-only command.
             const tokens = Array.isArray(user.subscriptionTokens) ? user.subscriptionTokens : [];
             const rows = [
                 helpers.formatHtmlKeyValueRow('客户', user.email || user.username || user.id),
@@ -188,8 +254,8 @@ export function registerClientCommands(registry: CommandRegistry, ctx: any): voi
                 helpers.formatHtmlKeyValueRow('Token 数', tokens.length || 0),
             ];
             const tokenLines = tokens.slice(0, 3).map((t: any) => {
-                const id = String(t.id || '').slice(0, 8);
-                const profile = String(t.profile || 'default');
+                const id = String(t.id || t.publicTokenId || '').slice(0, 8);
+                const profile = String(t.profile || t.name || 'default');
                 return `• ${inlineCode(helpers, profile)} · token ${inlineCode(helpers, id || '-')}`;
             });
             const blocks = [`${helpers.sectionHeader('关键信息')}\n${helpers.trimLines(rows)}`];

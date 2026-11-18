@@ -70,12 +70,14 @@ class NotificationService extends EventEmitter {
     notifications: NotificationItem[];
     dedupCache: Map<string, number>;
     _savePending: boolean;
+    _saveTimer: NodeJS.Timeout | null;
 
     constructor() {
         super();
         this.notifications = this._load();
         this.dedupCache = new Map();
         this._savePending = false;
+        this._saveTimer = null;
     }
 
     _load(): NotificationItem[] {
@@ -95,14 +97,23 @@ class NotificationService extends EventEmitter {
     _scheduleSave(): void {
         if (this._savePending) return;
         this._savePending = true;
-        startBackgroundTimeout(() => {
-            this._savePending = false;
-            try {
-                saveObjectAtomic(NOTIFICATIONS_FILE, this.notifications);
-            } catch (e: any) {
-                console.error('Failed to save notifications.json:', e.message);
-            }
+        this._saveTimer = startBackgroundTimeout(() => {
+            this._saveTimer = null;
+            this.flush();
         }, 2000);
+    }
+
+    flush(): void {
+        if (this._saveTimer) {
+            clearTimeout(this._saveTimer);
+            this._saveTimer = null;
+        }
+        this._savePending = false;
+        try {
+            saveObjectAtomic(NOTIFICATIONS_FILE, this.notifications);
+        } catch (e: any) {
+            console.error('Failed to save notifications.json:', e.message);
+        }
     }
 
     /**
@@ -160,17 +171,23 @@ class NotificationService extends EventEmitter {
 
         try {
             const webhookConfig = systemSettingsStore.getWebhook();
-            if (webhookConfig && (webhookConfig.url || webhookConfig.barkKey)) {
+            if (webhookConfig?.enabled === true && (webhookConfig.url || webhookConfig.barkKey)) {
                 const isOffline = notification.type.includes('offline')
                     || notification.type.includes('node')
                     || notification.type.includes('server_health');
                 const isTraffic = notification.type.includes('traffic');
                 const isCert = notification.type.includes('cert');
-                const events = webhookConfig.events || {};
-                const allow = (isOffline && events.nodeOffline !== false)
+                const events = webhookConfig.events && typeof webhookConfig.events === 'object'
+                    ? webhookConfig.events
+                    : {};
+                const eventValues = Object.values(events);
+                const allEventsDisabled = eventValues.length > 0 && eventValues.every((value) => value === false);
+                const allow = !allEventsDisabled && (
+                    (isOffline && events.nodeOffline !== false)
                     || (isTraffic && events.trafficAlert !== false)
                     || (isCert && events.certExpiring !== false)
-                    || (!isOffline && !isTraffic && !isCert);
+                    || (!isOffline && !isTraffic && !isCert)
+                );
 
                 if (allow) {
                     void sendWebhookAlert(webhookConfig, {

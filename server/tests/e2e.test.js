@@ -10,11 +10,18 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const SERVER_DIR = path.resolve(__dirname, '..');
+const WORKSPACE_ROOT = path.resolve(SERVER_DIR, '..');
+const CLIENT_DIST_DIR = path.join(WORKSPACE_ROOT, 'client', 'dist');
+const CLIENT_DIST_INDEX = path.join(CLIENT_DIST_DIR, 'index.html');
+const CLIENT_DIST_MANAGED_MARKER = path.join(CLIENT_DIST_DIR, '.e2e-managed');
 
 let TEMP_DATA_DIR;
+let clientDistRefFile = '';
 let backendPort;
 let healthyPort;
 let legacyPort;
+let suiPort;
+let downPort;
 let fakePanelProc;
 let nmsProc;
 let nmsBaseUrl;
@@ -31,8 +38,8 @@ let testSubToken = '';
 let testSubTokenId = '';
 let testInviteCode = '';
 
-async function getThreeFreePorts() {
-    const servers = Array.from({ length: 3 }, () => net.createServer());
+async function getFreePorts(count = 5) {
+    const servers = Array.from({ length: count }, () => net.createServer());
     const ports = await Promise.all(
         servers.map((server) => {
             return new Promise((resolve, reject) => {
@@ -47,15 +54,66 @@ async function getThreeFreePorts() {
     return ports;
 }
 
-before(async () => {
-    // 1. Create temporary directory
-    TEMP_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'nms-e2e-data-'));
+function terminateChildProcess(proc, timeoutMs = 5000) {
+    if (!proc || proc.exitCode !== null || proc.signalCode !== null) {
+        return Promise.resolve();
+    }
+    return new Promise((resolve) => {
+        let settled = false;
+        let forceTimer = null;
+        const finish = () => {
+            if (settled) return;
+            settled = true;
+            if (forceTimer) clearTimeout(forceTimer);
+            proc.off('exit', finish);
+            proc.off('close', finish);
+            resolve();
+        };
+        proc.once('exit', finish);
+        proc.once('close', finish);
+        try {
+            proc.kill('SIGTERM');
+        } catch {
+            finish();
+            return;
+        }
+        forceTimer = setTimeout(() => {
+            try {
+                proc.kill('SIGKILL');
+            } catch {
+                // ignore
+            }
+            finish();
+        }, timeoutMs);
+    });
+}
 
-    // 2. Find three free ports dynamically
-    const ports = await getThreeFreePorts();
+before(async () => {
+    // 1. Create temporary directory and ensure client build placeholder exists if unbuilt in worktree
+    TEMP_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'nms-e2e-data-'));
+    if (!fs.existsSync(CLIENT_DIST_INDEX) || fs.existsSync(CLIENT_DIST_MANAGED_MARKER)) {
+        fs.mkdirSync(CLIENT_DIST_DIR, { recursive: true });
+        if (!fs.existsSync(CLIENT_DIST_INDEX)) {
+            fs.writeFileSync(
+                CLIENT_DIST_INDEX,
+                '<!doctype html><html><head></head><body><div id="root"></div></body></html>',
+                'utf8'
+            );
+            fs.writeFileSync(CLIENT_DIST_MANAGED_MARKER, '1', 'utf8');
+        }
+        if (fs.existsSync(CLIENT_DIST_MANAGED_MARKER)) {
+            clientDistRefFile = path.join(CLIENT_DIST_DIR, `.e2e-ref-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+            fs.writeFileSync(clientDistRefFile, String(process.pid), 'utf8');
+        }
+    }
+
+    // 2. Find five free ports dynamically
+    const ports = await getFreePorts(5);
     backendPort = ports[0];
     healthyPort = ports[1];
     legacyPort = ports[2];
+    suiPort = ports[3];
+    downPort = ports[4];
     nmsBaseUrl = `http://127.0.0.1:${backendPort}`;
 
     // 3. Spawn the mock panels in a child process
@@ -63,7 +121,9 @@ before(async () => {
         '--import', 'tsx',
         'scripts/review_fake_panel.js',
         `--healthy-port=${healthyPort}`,
-        `--legacy-port=${legacyPort}`
+        `--legacy-port=${legacyPort}`,
+        `--sui-port=${suiPort}`,
+        `--down-port=${downPort}`
     ], {
         cwd: SERVER_DIR,
         env: {
@@ -79,6 +139,24 @@ before(async () => {
     // 4. Wait and parse panel credentials from stdout
     let stdoutBuffer = '';
     const panelData = await new Promise((resolve, reject) => {
+        let startupTimer = null;
+        const cleanup = () => {
+            if (startupTimer) {
+                clearTimeout(startupTimer);
+                startupTimer = null;
+            }
+            fakePanelProc.stdout.off('data', onData);
+            fakePanelProc.off('error', onError);
+            fakePanelProc.off('exit', onEarlyExit);
+        };
+        const onError = (err) => {
+            cleanup();
+            reject(err);
+        };
+        const onEarlyExit = (code, signal) => {
+            cleanup();
+            reject(new Error(`Mock panels exited prematurely (code=${code}, signal=${signal})`));
+        };
         const onData = (chunk) => {
             stdoutBuffer += chunk.toString();
             if (stdoutBuffer.includes('panels')) {
@@ -88,7 +166,7 @@ before(async () => {
                     if (startIdx >= 0 && endIdx > startIdx) {
                         const parsed = JSON.parse(stdoutBuffer.substring(startIdx, endIdx + 1));
                         if (parsed.success && parsed.panels) {
-                            fakePanelProc.stdout.off('data', onData);
+                            cleanup();
                             resolve(parsed);
                         }
                     }
@@ -98,8 +176,12 @@ before(async () => {
             }
         };
         fakePanelProc.stdout.on('data', onData);
-        fakePanelProc.on('error', reject);
-        setTimeout(() => reject(new Error('Timeout waiting for mock panels stdout')), 15000);
+        fakePanelProc.on('error', onError);
+        fakePanelProc.on('exit', onEarlyExit);
+        startupTimer = setTimeout(() => {
+            cleanup();
+            reject(new Error('Timeout waiting for mock panels stdout'));
+        }, 15000);
     });
 
     healthyPanelDef = panelData.panels.find(p => p.key === 'healthy');
@@ -197,12 +279,23 @@ before(async () => {
     adminToken = loginJson.token;
 });
 
-after(() => {
-    if (nmsProc) {
-        nmsProc.kill('SIGTERM');
-    }
-    if (fakePanelProc) {
-        fakePanelProc.kill('SIGTERM');
+after(async () => {
+    await Promise.all([
+        terminateChildProcess(nmsProc),
+        terminateChildProcess(fakePanelProc),
+    ]);
+    if (clientDistRefFile) {
+        try {
+            fs.rmSync(clientDistRefFile, { force: true });
+        } catch {}
+        try {
+            if (fs.existsSync(CLIENT_DIST_MANAGED_MARKER)) {
+                const remaining = fs.readdirSync(CLIENT_DIST_DIR).filter((name) => name.startsWith('.e2e-ref-'));
+                if (remaining.length === 0) {
+                    fs.rmSync(CLIENT_DIST_DIR, { recursive: true, force: true });
+                }
+            }
+        } catch {}
     }
     if (TEMP_DATA_DIR) {
         try {

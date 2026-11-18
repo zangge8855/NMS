@@ -1,5 +1,32 @@
 import { missingArgs, notFound, findUserByIdOrEmail, inlineCode, compactDate } from '../commandHelpers.js';
+import { resolveEffectivePolicy } from '../../userPolicyResolver.js';
 import type { CommandRegistry } from '../commandRegistry.js';
+
+async function loadOptionalService(services: any, key: string, loader: () => Promise<any>): Promise<any> {
+    try {
+        if (typeof services?.[key] === 'function') {
+            return await services[key]();
+        }
+        return await loader();
+    } catch {
+        return null;
+    }
+}
+
+function parseExpiryTimestampMs(value: unknown): number {
+    if (value === undefined || value === null || value === '' || value === 0) return 0;
+    if (typeof value === 'number') {
+        return Number.isFinite(value) && value > 0 ? value : 0;
+    }
+    const text = String(value).trim();
+    if (!text) return 0;
+    if (/^\d+$/.test(text)) {
+        const numeric = Number(text);
+        return Number.isFinite(numeric) && numeric > 0 ? numeric : 0;
+    }
+    const parsed = new Date(text).getTime();
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
 
 function buildAuditRequest(actor: string, command: string, extras: any = {}) {
     return {
@@ -142,12 +169,21 @@ const MAX_EXTEND_DAYS = 3650;
             if (!user) {
                 return { text: notFound(helpers, '客户'), kind: 'client_extend_not_found' };
             }
-            const baseTs = user.expiryTime ? new Date(user.expiryTime).getTime() : Date.now();
-            const startTs = Number.isFinite(baseTs) && baseTs > Date.now() ? baseTs : Date.now();
-            const newExpiry = new Date(startTs + Math.floor(days) * 24 * 60 * 60 * 1000).toISOString();
+            const [policyStore, groupStore] = await Promise.all([
+                loadOptionalService(services, 'userPolicy', async () => (await import('../../../store/userPolicyStore.js')).default),
+                loadOptionalService(services, 'userGroup', async () => (await import('../../../store/userGroupStore.js')).default),
+            ]);
+            const subEmail = String(user.subscriptionEmail || user.email || '').trim().toLowerCase();
+            const rawPolicy = subEmail && typeof policyStore?.get === 'function' ? policyStore.get(subEmail) : {};
+            const groupId = String(user.groupId || '').trim();
+            const group = groupId && typeof groupStore?.getById === 'function' ? groupStore.getById(groupId) : null;
+            const effectivePolicy = resolveEffectivePolicy(user, rawPolicy, group);
+            const effectiveExpirySource = effectivePolicy.expiryTime > 0 ? effectivePolicy.expiryTime : user.expiryTime;
+            const currentExpiryMs = parseExpiryTimestampMs(effectiveExpirySource);
+            const newExpiry = new Date(Math.max(Date.now(), currentExpiryMs) + Math.floor(days) * 86400000).toISOString();
             const promptText = helpers.joinHtmlMessage('NMS Telegram 控制台', [
                 `${helpers.sectionHeader('确认')}\n• 即将延长 <b>${summarizeClient(helpers, user)}</b> 到期 <b>${Math.floor(days)}</b> 天`,
-                `${helpers.sectionHeader('结果预览')}\n• 当前到期：${compactDate(user.expiryTime) || '永久'}\n• 新到期：${compactDate(newExpiry)}`,
+                `${helpers.sectionHeader('结果预览')}\n• 当前到期：${currentExpiryMs > 0 ? compactDate(currentExpiryMs) : '永久'}\n• 新到期：${compactDate(newExpiry)}`,
                 `${helpers.sectionHeader('提示')}\n• 60 秒内点击下方按钮以执行`,
             ], { subtitle: '延长到期' });
             return {

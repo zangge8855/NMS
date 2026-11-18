@@ -1,3 +1,5 @@
+import path from 'path';
+import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -33,16 +35,17 @@ function runChild(command, args) {
 
 async function main() {
     console.log('=== STAGE 1: Parallel e2e.test.js & stress_challenger.js Execution ===');
-    const p1 = runChild('node', ['--test', 'tests/e2e.test.js']);
-    const p2 = runChild('node', ['--test', 'tests/e2e.test.js']);
-    const p3 = runChild('node', ['--test', 'tests/stress_challenger.js']);
-    const p4 = runChild('node', ['--test', 'tests/stress_challenger.js']);
+    const p1 = runChild(process.execPath, ['--import', 'tsx', '--test', 'tests/e2e.test.js']);
+    const p2 = runChild(process.execPath, ['--import', 'tsx', '--test', 'tests/e2e.test.js']);
+    const p3 = runChild(process.execPath, ['--import', 'tsx', '--import', './tests/setup/isolateDataDir.js', '--test', 'tests/stress_challenger.js']);
+    const p4 = runChild(process.execPath, ['--import', 'tsx', '--import', './tests/setup/isolateDataDir.js', '--test', 'tests/stress_challenger.js']);
 
     await Promise.all([p1, p2, p3, p4]);
     console.log('=== STAGE 1 PASSED: Concurrent test runners executed without conflict ===\n');
 
     console.log('=== STAGE 2: Repeated Full npm test Runs ===');
-    await runChild('npm', ['test']);
+    const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+    await runChild(npmCmd, ['test']);
     console.log('=== STAGE 2 PASSED: Full npm test suite passed ===\n');
 
     console.log('ALL EMPIRICAL CHALLENGE SUITES PASSED SUCCESSFULLY!');

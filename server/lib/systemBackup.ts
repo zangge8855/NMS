@@ -187,6 +187,32 @@ function parseLegacyBackupArchive(buffer: Buffer, deps: any = {}) {
     };
 }
 
+function resolveBackupDecryptionSecrets(deps: any = {}): string[] {
+    if (deps.backupSecret !== undefined && deps.backupSecret !== null && String(deps.backupSecret).trim()) {
+        return [String(deps.backupSecret).trim()];
+    }
+    const candidates = Array.from(new Set(
+        [
+            config.credentials.secret,
+            ...(config.credentials.legacySecrets || []),
+            config.jwt.secret,
+        ]
+            .map((item) => String(item || '').trim())
+            .filter(Boolean)
+    ));
+    if (candidates.length === 0) {
+        throw new Error('未配置 CREDENTIALS_SECRET，无法加密或解密系统备份');
+    }
+    return candidates;
+}
+
+function deriveBackupKeyForSecret(secret: string, saltHex = ''): Buffer {
+    if (saltHex) {
+        return crypto.scryptSync(secret, Buffer.from(saltHex, 'hex'), 32);
+    }
+    return crypto.createHash('sha256').update(secret).digest();
+}
+
 function parseEncryptedBackupArchive(buffer: Buffer, deps: any = {}) {
     let envelope: any;
     try {
@@ -210,20 +236,27 @@ function parseEncryptedBackupArchive(buffer: Buffer, deps: any = {}) {
         throw new Error('加密备份结构无效');
     }
 
-    const key = deriveBackupKey(deps, saltHex);
-    let compressedPayload: Buffer;
-    try {
-        const decipher = crypto.createDecipheriv(
-            BACKUP_CIPHER,
-            key,
-            Buffer.from(String(envelope.iv || ''), 'hex')
-        );
-        decipher.setAuthTag(Buffer.from(String(envelope.tag || ''), 'hex'));
-        compressedPayload = Buffer.concat([
-            decipher.update(Buffer.from(String(envelope.ciphertext || ''), 'base64')),
-            decipher.final(),
-        ]);
-    } catch {
+    const secrets = resolveBackupDecryptionSecrets(deps);
+    const ivBuf = Buffer.from(String(envelope.iv || ''), 'hex');
+    const tagBuf = Buffer.from(String(envelope.tag || ''), 'hex');
+    const cipherBuf = Buffer.from(String(envelope.ciphertext || ''), 'base64');
+
+    let compressedPayload: Buffer | null = null;
+    for (const secret of secrets) {
+        try {
+            const key = deriveBackupKeyForSecret(secret, saltHex);
+            const decipher = crypto.createDecipheriv(BACKUP_CIPHER, key, ivBuf);
+            decipher.setAuthTag(tagBuf);
+            compressedPayload = Buffer.concat([
+                decipher.update(cipherBuf),
+                decipher.final(),
+            ]);
+            break;
+        } catch {
+            // Try next fallback secret.
+        }
+    }
+    if (!compressedPayload) {
         throw new Error('备份文件无法解密，请确认当前 NMS 的 CREDENTIALS_SECRET 与备份创建时一致');
     }
 

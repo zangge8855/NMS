@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import {
     requestExternalWithPinnedIp,
     resolveExternalHttpTarget,
@@ -44,6 +45,7 @@ function buildBarkTargetUrl(urlValue: unknown, barkKeyValue: unknown, title: unk
 
 export async function sendWebhookAlert(webhookConfig: any, payload: any, deps: WebhookSecurityDeps = {}) {
     const { channel, url, barkKey } = webhookConfig || {};
+    const secret = String(webhookConfig?.secret || '').trim();
     const { title, message, event, timestamp } = payload || {};
     const fetchFn = typeof deps.fetchImpl === 'function' ? deps.fetchImpl : null;
     const timeoutMs = Number.isFinite(Number(deps.timeoutMs)) && Number(deps.timeoutMs) > 0
@@ -84,14 +86,23 @@ export async function sendWebhookAlert(webhookConfig: any, payload: any, deps: W
                     }),
                 };
             } else if (channel === 'feishu' || channel === 'lark') {
+                const feishuPayload: Record<string, any> = {
+                    msg_type: 'text',
+                    content: { text: `${title}\n${message}` },
+                };
+                if (secret) {
+                    const feishuTimestamp = String(Math.floor(Date.now() / 1000));
+                    const feishuSign = crypto
+                        .createHmac('sha256', `${feishuTimestamp}\n${secret}`)
+                        .digest('base64');
+                    feishuPayload.timestamp = feishuTimestamp;
+                    feishuPayload.sign = feishuSign;
+                }
                 requestInit = {
                     method: 'POST',
                     redirect: 'manual',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        msg_type: 'text',
-                        content: { text: `${title}\n${message}` },
-                    }),
+                    body: JSON.stringify(feishuPayload),
                 };
             } else if (channel === 'wechat' || channel === 'wechatwork') {
                 requestInit = {
@@ -116,6 +127,18 @@ export async function sendWebhookAlert(webhookConfig: any, payload: any, deps: W
                     }),
                 };
             }
+        }
+
+        if (secret) {
+            const signPayload = typeof requestInit.body === 'string' ? requestInit.body : finalUrl;
+            const hmacHex = crypto
+                .createHmac('sha256', secret)
+                .update(signPayload)
+                .digest('hex');
+            requestInit.headers = {
+                ...((requestInit.headers as Record<string, string>) || {}),
+                'X-NMS-Signature': `sha256=${hmacHex}`,
+            };
         }
 
         const controller = new AbortController();

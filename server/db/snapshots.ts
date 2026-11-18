@@ -224,8 +224,14 @@ export function resumeSnapshotQueue(): void {
     if (queuePauseDepth > 0) {
         queuePauseDepth -= 1;
     }
-    if (queuePauseDepth === 0 && pendingWritesMap.size > 0) {
-        void processQueue();
+    if (queuePauseDepth === 0) {
+        if (pendingWritesMap.size > 0) {
+            void processQueue();
+        } else if (!isProcessingQueue && flushResolvers.length > 0) {
+            const resolvers = flushResolvers;
+            flushResolvers = [];
+            resolvers.forEach((resolve) => resolve());
+        }
     }
 }
 
@@ -317,7 +323,7 @@ export function queueSnapshotWrite(storeKey: string, payload: any, options: Snap
 }
 
 export async function flushSnapshotQueue(): Promise<void> {
-    if (!isProcessingQueue && pendingWritesMap.size === 0) return;
+    if (!isProcessingQueue && (pendingWritesMap.size === 0 || queuePauseDepth > 0)) return;
     await new Promise<void>((resolve) => {
         flushResolvers.push(resolve);
         void processQueue();

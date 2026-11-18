@@ -10,6 +10,8 @@ import userGroupStore from './userGroupStore.js';
 import clientEntitlementOverrideStore from './clientEntitlementOverrideStore.js';
 import inviteCodeStore from './inviteCodeStore.js';
 import certificateStore from './certificateStore.js';
+import { isDbReady } from '../db/client.js';
+import { isSqliteReady, sqliteReadSnapshot } from '../db/sqliteClient.js';
 import { loadStoreSnapshot, writeStoreSnapshotNow } from './dbMirror.js';
 import {
     clearPendingSnapshotWrites,
@@ -227,7 +229,9 @@ export async function verifyStoresAgainstDatabase(options: any = {}): Promise<an
         }
 
         try {
-            const dbPayload = await readSnapshot(key);
+            const dbPayload = isDbReady()
+                ? await readSnapshot(key)
+                : (isSqliteReady() ? sqliteReadSnapshot(key) : await readSnapshot(key));
             details.push(buildStoreSnapshotComparison(key, filePayload, dbPayload, { redact }));
         } catch (error: any) {
             details.push({

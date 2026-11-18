@@ -59,7 +59,7 @@ test('certificateStore CRUD works accurately', () => {
 test('issueOrRenewCertificate generates certificate for pending record', async () => {
     const record = certificateStore.create({
         domain: 'auto.example.com',
-        provider: 'letsencrypt',
+        provider: 'selfsigned',
         challengeType: 'manual',
     });
 

@@ -20,6 +20,8 @@ function sanitizeCert(cert: any, includeSecrets = false) {
         ...cert,
         status: resolveCertificateStatus(cert),
     };
+    delete sanitized.cfApiTokenEnc;
+    delete sanitized.privateKeyEnc;
     if (!includeSecrets) {
         if (sanitized.cfApiToken) sanitized.cfApiToken = '********';
         if (sanitized.privateKey) sanitized.hasPrivateKey = true;
@@ -182,12 +184,28 @@ router.delete('/:id', operatorOrAbove, (req: Request, res: Response) => {
  * POST /api/certificates/:id/renew — Renew certificate
  */
 router.post('/:id/renew', operatorOrAbove, async (req: Request, res: Response) => {
+    const existing = certificateStore.getById(req.params.id);
+    if (!existing) {
+        return res.status(404).json({ success: false, msg: 'Certificate not found' });
+    }
+    const providerKey = String(existing.provider || '').trim().toLowerCase();
+    const challengeType = String(existing.challengeType || '').trim().toLowerCase();
+    const hasCustomDirectory = Boolean(String(existing.acmeDirectoryUrl || '').trim());
+    if ((providerKey === 'custom' && (!hasCustomDirectory || challengeType === 'manual'))
+        || (challengeType === 'manual' && providerKey !== 'selfsigned')) {
+        return res.status(400).json({
+            success: false,
+            msg: 'Custom or manual certificates cannot be automatically renewed',
+        });
+    }
     try {
         const renewed = await issueOrRenewCertificate(req.params.id);
         return res.json({ success: true, obj: sanitizeCert(renewed, false) });
     } catch (err: any) {
         const message = err?.message || 'Failed to renew certificate';
-        const status = /not found/i.test(message) ? 404 : (/required|unsupported/i.test(message) ? 400 : 500);
+        const status = Number(err?.statusCode) === 400
+            ? 400
+            : (/not found/i.test(message) ? 404 : (/required|unsupported/i.test(message) ? 400 : 500));
         return res.status(status).json({ success: false, msg: message });
     }
 });

@@ -5,6 +5,7 @@ import type { Pool, PoolConfig, QueryResult, QueryResultRow } from 'pg';
 let PoolCtor: typeof Pool | null = null;
 let pool: Pool | null = null;
 let initError: any = null;
+let lastError: string | null = null;
 let initialized: boolean = false;
 let ready: boolean = false;
 
@@ -82,6 +83,7 @@ export async function initDb(): Promise<DbInitResult> {
         initialized = true;
         ready = false;
         initError = null;
+        lastError = null;
         return {
             enabled: false,
             ready: false,
@@ -89,16 +91,22 @@ export async function initDb(): Promise<DbInitResult> {
         };
     }
 
-    if (initialized && pool) {
+    if (initialized && pool && ready) {
         return {
             enabled: true,
             ready,
-            error: initError ? String(initError.message || initError) : '',
+            error: lastError || (initError ? String(initError.message || initError) : ''),
         };
+    }
+
+    if (pool) {
+        await pool.end().catch(() => {});
+        pool = null;
     }
 
     initialized = true;
     initError = null;
+    lastError = null;
 
     try {
         const PoolClass = await loadPoolCtor();
@@ -117,9 +125,16 @@ export async function initDb(): Promise<DbInitResult> {
         };
 
         pool = new PoolClass(poolConfig);
+        pool.on('error', (err: any) => {
+            ready = false;
+            lastError = String(err?.message || err || 'Unknown DB pool error');
+            initError = err;
+            console.error('[DB Pool Error]', lastError);
+        });
 
         await pool.query('SELECT 1');
         ready = true;
+        lastError = null;
         return {
             enabled: true,
             ready: true,
@@ -127,10 +142,14 @@ export async function initDb(): Promise<DbInitResult> {
     } catch (error: any) {
         ready = false;
         initError = error;
+        lastError = String(error?.message || error);
+        await pool?.end().catch(() => {});
+        pool = null;
+        initialized = false;
         return {
             enabled: true,
             ready: false,
-            error: String(error?.message || error),
+            error: lastError,
         };
     }
 }
@@ -149,6 +168,8 @@ export async function closeDb(): Promise<void> {
     pool = null;
     ready = false;
     initialized = false;
+    initError = null;
+    lastError = null;
 }
 
 export interface DbConnectionStatus {
@@ -163,6 +184,6 @@ export function getDbConnectionStatus(): DbConnectionStatus {
         enabled: isDbEnabled(),
         initialized,
         ready,
-        error: initError ? String(initError.message || initError) : '',
+        error: lastError || (initError ? String(initError.message || initError) : ''),
     };
 }

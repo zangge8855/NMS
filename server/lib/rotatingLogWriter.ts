@@ -17,7 +17,11 @@ export interface RotatingLineWriterOptions {
  */
 export class RotatingLineWriter {
     private stream: fs.WriteStream | null = null;
+    private fd: number | null = null;
     private bytes = 0;
+    private rotating: Promise<void> | null = null;
+    private queuedLines: string[] = [];
+    private closed = false;
     private readonly options: RotatingLineWriterOptions;
 
     constructor(options: RotatingLineWriterOptions) {
@@ -29,26 +33,74 @@ export class RotatingLineWriter {
     }
 
     write(line: string): void {
+        if (this.closed) return;
+        if (this.rotating) {
+            this.queuedLines.push(line);
+            return;
+        }
         const size = Buffer.byteLength(line);
         this.ensureStream();
         const { maxBytes } = this.options;
         if (maxBytes > 0 && this.bytes > 0 && this.bytes + size > maxBytes) {
+            this.queuedLines.push(line);
             this.rotate();
-            this.ensureStream();
+            return;
         }
         this.bytes += size;
         this.stream?.write(line);
     }
 
     /** Ends the active stream and resolves once buffered lines are on disk. */
-    close(): Promise<void> {
+    async close(): Promise<void> {
+        while (this.rotating || this.queuedLines.length > 0) {
+            if (this.rotating) {
+                await this.rotating;
+            } else {
+                const batch = this.queuedLines.splice(0);
+                for (const nextLine of batch) {
+                    this.write(nextLine);
+                }
+            }
+        }
+        this.closed = true;
+        await this.closeCurrentStream();
+    }
+
+    private closeCurrentStream(): Promise<void> {
         const current = this.stream;
+        const currentFd = this.fd;
         this.stream = null;
+        this.fd = null;
         this.bytes = 0;
-        if (!current) return Promise.resolve();
+
+        const closeFdSafely = () => {
+            if (currentFd === null) return;
+            try {
+                fs.closeSync(currentFd);
+            } catch {
+                // Already closed.
+            }
+        };
+
+        if (!current) {
+            closeFdSafely();
+            return Promise.resolve();
+        }
         return new Promise((resolve) => {
-            current.end(() => resolve());
-            current.once('error', () => resolve());
+            let settled = false;
+            const finish = () => {
+                if (settled) return;
+                settled = true;
+                closeFdSafely();
+                resolve();
+            };
+            current.once('error', finish);
+            current.once('close', finish);
+            if (current.writableFinished || current.destroyed) {
+                finish();
+                return;
+            }
+            current.end(finish);
         });
     }
 
@@ -61,38 +113,59 @@ export class RotatingLineWriter {
         } catch {
             this.bytes = 0;
         }
-        // Open synchronously: an async open would race with a rotation in the same
-        // burst (the rename would miss the not-yet-created file and the late open
-        // would then append to the new active file).
-        const stream = fs.createWriteStream(file, { fd: fs.openSync(file, 'a') });
+        const fd = fs.openSync(file, 'a');
+        this.fd = fd;
+        const stream = fs.createWriteStream(file, { fd, autoClose: false });
         stream.on('error', (err) => {
             this.options.onError?.(err);
             // Discard a broken stream so the next write opens a fresh one.
             if (this.stream === stream) {
+                const brokenFd = this.fd;
                 this.stream = null;
+                this.fd = null;
                 this.bytes = 0;
+                if (brokenFd !== null) {
+                    try {
+                        fs.closeSync(brokenFd);
+                    } catch {
+                        // Already closed.
+                    }
+                }
             }
         });
         this.stream = stream;
     }
 
-    private rotate(): void {
+    private shiftRotatedFiles(): void {
         const { file, maxFiles } = this.options;
-        const previous = this.stream;
-        this.stream = null;
-        this.bytes = 0;
-        previous?.end();
-        try {
-            const oldest = `${file}.${maxFiles}`;
-            if (fs.existsSync(oldest)) fs.unlinkSync(oldest);
-            for (let index = maxFiles - 1; index >= 1; index -= 1) {
-                const source = `${file}.${index}`;
-                if (fs.existsSync(source)) fs.renameSync(source, `${file}.${index + 1}`);
-            }
-            if (fs.existsSync(file)) fs.renameSync(file, `${file}.1`);
-        } catch (err) {
-            // Keep appending to the current file rather than losing audit lines.
-            this.options.onError?.(err);
+        const oldest = `${file}.${maxFiles}`;
+        if (fs.existsSync(oldest)) fs.unlinkSync(oldest);
+        for (let index = maxFiles - 1; index >= 1; index -= 1) {
+            const source = `${file}.${index}`;
+            if (fs.existsSync(source)) fs.renameSync(source, `${file}.${index + 1}`);
         }
+        if (fs.existsSync(file)) fs.renameSync(file, `${file}.1`);
+    }
+
+    private rotate(): void {
+        if (this.rotating) return;
+        const closePromise = this.closeCurrentStream();
+        this.rotating = (async () => {
+            try {
+                await closePromise;
+                this.shiftRotatedFiles();
+            } catch (err) {
+                // Keep appending to the current file rather than losing audit lines.
+                this.options.onError?.(err);
+            } finally {
+                this.rotating = null;
+                if (!this.closed && this.queuedLines.length > 0) {
+                    const batch = this.queuedLines.splice(0);
+                    for (const nextLine of batch) {
+                        this.write(nextLine);
+                    }
+                }
+            }
+        })();
     }
 }

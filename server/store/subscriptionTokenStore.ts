@@ -531,23 +531,64 @@ class SubscriptionTokenStore {
     }
 
     rotateSecrets(): { total: number; rotated: number; skipped: number } {
+        const result = this.rotateCredentials({ dryRun: false });
+        return {
+            total: result.total,
+            rotated: result.rotated,
+            skipped: result.skipped,
+        };
+    }
+
+    rotateCredentials(options: any = {}): {
+        dryRun: boolean;
+        total: number;
+        scannedFields: number;
+        rotatedFields: number;
+        migratedPlaintext: number;
+        failedFields: number;
+        rotated: number;
+        skipped: number;
+    } {
+        const dryRun = options?.dryRun === true;
+        let scannedFields = 0;
         let rotated = 0;
+        let failedFields = 0;
         let skipped = 0;
-        for (const record of this.tokens) {
-            const plainSecret = this._decryptSecret(record.tokenSecretEnc);
+
+        const nextTokens = this.tokens.map((record) => {
+            const rawEnc = String(record?.tokenSecretEnc || '').trim();
+            if (!rawEnc) {
+                skipped += 1;
+                return record;
+            }
+            scannedFields += 1;
+            const plainSecret = this._decryptSecret(rawEnc);
             if (!plainSecret) {
                 skipped += 1;
-                continue;
+                failedFields += 1;
+                return record;
             }
-            record.tokenSecretHash = hashTokenSecret(plainSecret);
-            record.tokenSecretEnc = this._encryptSecret(plainSecret);
+            const nextEnc = this._encryptSecret(plainSecret);
+            const nextHash = hashTokenSecret(plainSecret);
             rotated += 1;
-        }
-        if (rotated > 0) {
+            return {
+                ...record,
+                tokenSecretHash: nextHash,
+                tokenSecretEnc: nextEnc,
+            };
+        });
+
+        if (!dryRun && rotated > 0) {
+            this.tokens = nextTokens;
             this._save();
         }
         return {
+            dryRun,
             total: this.tokens.length,
+            scannedFields,
+            rotatedFields: rotated,
+            migratedPlaintext: 0,
+            failedFields,
             rotated,
             skipped,
         };

@@ -5,6 +5,7 @@ import auditStore from '../store/auditStore.js';
 import { resolveClientIp } from './requestIp.js';
 import notificationService, { SEVERITY } from './notifications.js';
 import { enrichAuditEvent } from './auditEventEnrichment.js';
+import { redactRequestUrl } from './httpSecurity.js';
 import { RotatingLineWriter } from './rotatingLogWriter.js';
 
 const AUDIT_FILE = path.join(config.dataDir, 'security_audit.log');
@@ -431,7 +432,7 @@ export function appendSecurityAudit(event: string, req: any, details: any = {}, 
             ip: resolveClientIp(req),
             actor: req?.user?.username || req?.user?.userId || 'anonymous',
             method: req?.method || null,
-            path: req?.originalUrl || null,
+            path: req?.originalUrl ? redactRequestUrl(req.originalUrl) : null,
             details: safeDetails,
         };
         getAuditWriter().write(`${JSON.stringify(entry)}\n`);

@@ -65,6 +65,7 @@ const ALLOWED_KEYS: Record<string, Set<string>> = {
         'alertMutedUntil',
     ]),
     webhook: new Set([
+        'enabled',
         'channel',
         'url',
         'barkKey',
@@ -91,6 +92,7 @@ const LEGACY_TECH_CAMOUFLAGE_TITLE_PATTERN = /\b(?:edge\s+precision\s+systems|ed
 const DEFAULT_DAILY_BACKUP_TIME = '09:00';
 const TELEGRAM_TOKEN_ENC_ALGO = 'aes-256-gcm';
 const TELEGRAM_TOKEN_ENC_PREFIX = 'nms-tg:v1';
+const CREDENTIAL_ENC_PREFIX = 'nms-cred:v1';
 const WEBHOOK_MASKED_SENTINEL = '********';
 const MODERN_AUDIT_IP_GEO_PROVIDER = GEO_PROVIDERS.has(String(config.audit?.ipGeo?.provider || '').trim().toLowerCase())
     ? String(config.audit?.ipGeo?.provider || '').trim().toLowerCase()
@@ -360,11 +362,21 @@ export class SystemSettingsStore {
             ? config.credentials.legacySecrets
             : [];
         const jwtSecret = String(config.jwt?.secret || '').trim();
+        const derivedCredentials = jwtSecret ? `${jwtSecret}-credentials` : '';
+        const publicDerived = KNOWN_PUBLIC_SECRETS
+            .map((item) => String(item || '').trim())
+            .filter(Boolean)
+            .map((item) => `${item}-credentials`);
         // The known public secrets are decrypt-only fallbacks for tokens written by
         // older releases; encryption always uses the primary secret.
-        return Array.from(new Set([primary, ...legacy, jwtSecret, ...KNOWN_PUBLIC_SECRETS]
-            .map((item) => String(item || '').trim())
-            .filter(Boolean)));
+        return Array.from(new Set([
+            primary,
+            ...legacy,
+            jwtSecret,
+            derivedCredentials,
+            ...KNOWN_PUBLIC_SECRETS,
+            ...publicDerived,
+        ].map((item) => String(item || '').trim()).filter(Boolean)));
     }
 
     _credentialKeyFromSecret(secret: unknown): Buffer {
@@ -388,24 +400,37 @@ export class SystemSettingsStore {
         return typeof value === 'string' && value.startsWith(`${TELEGRAM_TOKEN_ENC_PREFIX}:`);
     }
 
-    _encryptTelegramToken(token: unknown): string {
-        const text = String(token || '').trim();
+    _isEncryptedCredentialValue(value: unknown): boolean {
+        return typeof value === 'string'
+            && (value.startsWith(`${CREDENTIAL_ENC_PREFIX}:`) || value.startsWith(`${TELEGRAM_TOKEN_ENC_PREFIX}:`));
+    }
+
+    _encryptWithPrefix(value: unknown, prefix: string): string {
+        const text = String(value || '').trim();
         if (!text) return '';
-        if (this._isEncryptedTelegramToken(text)) return text;
+        if (this._isEncryptedCredentialValue(text)) return text;
 
         const iv = crypto.randomBytes(12);
         const cipher = crypto.createCipheriv(TELEGRAM_TOKEN_ENC_ALGO, this._credentialKey(), iv);
         const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
         const tag = cipher.getAuthTag();
-        return `${TELEGRAM_TOKEN_ENC_PREFIX}:${iv.toString('hex')}:${tag.toString('hex')}:${encrypted.toString('hex')}`;
+        return `${prefix}:${iv.toString('hex')}:${tag.toString('hex')}:${encrypted.toString('hex')}`;
     }
 
-    _decryptTelegramTokenDetailed(payload: unknown): { value: string; status: 'missing' | 'plaintext' | 'unreadable' | 'ok' } {
+    _encryptTelegramToken(token: unknown): string {
+        return this._encryptWithPrefix(token, TELEGRAM_TOKEN_ENC_PREFIX);
+    }
+
+    _encryptWebhookSecret(value: unknown): string {
+        return this._encryptWithPrefix(value, CREDENTIAL_ENC_PREFIX);
+    }
+
+    _decryptCredentialDetailed(payload: unknown): { value: string; status: 'missing' | 'plaintext' | 'unreadable' | 'ok' } {
         const text = String(payload || '').trim();
         if (!text) {
             return { value: '', status: 'missing' };
         }
-        if (!this._isEncryptedTelegramToken(text)) {
+        if (!this._isEncryptedCredentialValue(text)) {
             return { value: text, status: 'plaintext' };
         }
 
@@ -415,7 +440,7 @@ export class SystemSettingsStore {
         }
 
         const prefix = `${parts[0]}:${parts[1]}`;
-        if (prefix !== TELEGRAM_TOKEN_ENC_PREFIX) {
+        if (prefix !== TELEGRAM_TOKEN_ENC_PREFIX && prefix !== CREDENTIAL_ENC_PREFIX) {
             return { value: '', status: 'unreadable' };
         }
 
@@ -446,6 +471,10 @@ export class SystemSettingsStore {
         return { value: '', status: 'unreadable' };
     }
 
+    _decryptTelegramTokenDetailed(payload: unknown): { value: string; status: 'missing' | 'plaintext' | 'unreadable' | 'ok' } {
+        return this._decryptCredentialDetailed(payload);
+    }
+
     _buildPublicTelegram(section: any = {}): any {
         const decrypted = this._decryptTelegramTokenDetailed(section.botTokenEnc);
         const botToken = String(decrypted.value || '').trim();
@@ -468,9 +497,10 @@ export class SystemSettingsStore {
     }
 
     _buildPublicWebhook(section: any = {}): any {
-        const rawBarkKey = String(section?.barkKey || '').trim();
-        const rawSecret = String(section?.secret || '').trim();
+        const rawBarkKey = String(section?.barkKey || section?.barkKeyEnc || '').trim();
+        const rawSecret = String(section?.secret || section?.secretEnc || '').trim();
         return {
+            enabled: section?.enabled === true,
             channel: String(section?.channel || 'bark'),
             url: String(section?.url || ''),
             barkKey: rawBarkKey ? WEBHOOK_MASKED_SENTINEL : '',
@@ -543,6 +573,7 @@ export class SystemSettingsStore {
                 alertMutedUntil: '',
             },
             webhook: {
+                enabled: false,
                 channel: 'bark',
                 url: '',
                 barkKey: '',
@@ -677,25 +708,32 @@ export class SystemSettingsStore {
         for (const key of WEBHOOK_EVENT_KEYS) {
             events[key] = normalizeBoolean(inputEvents[key], fallbackEvents[key] !== false);
         }
-        let barkKey = String(fallback.barkKey ?? '').trim().slice(0, 512);
+        const encodeField = (candidateRaw: unknown): string => {
+            const raw = String(candidateRaw ?? '').trim();
+            if (!raw) return '';
+            if (this._isEncryptedCredentialValue(raw)) return raw;
+            return this._encryptWebhookSecret(raw.slice(0, 512));
+        };
+        let barkKey = encodeField(fallback.barkKey ?? fallback.barkKeyEnc ?? '');
         if (input.clearBarkKey === true) {
             barkKey = '';
         } else if (Object.prototype.hasOwnProperty.call(input, 'barkKey')) {
-            const candidate = String(input.barkKey ?? '').trim().slice(0, 512);
+            const candidate = String(input.barkKey ?? '').trim();
             if (candidate !== WEBHOOK_MASKED_SENTINEL) {
-                barkKey = candidate;
+                barkKey = encodeField(candidate);
             }
         }
-        let secret = String(fallback.secret ?? '').trim().slice(0, 512);
+        let secret = encodeField(fallback.secret ?? fallback.secretEnc ?? '');
         if (input.clearSecret === true) {
             secret = '';
         } else if (Object.prototype.hasOwnProperty.call(input, 'secret')) {
-            const candidate = String(input.secret ?? '').trim().slice(0, 512);
+            const candidate = String(input.secret ?? '').trim();
             if (candidate !== WEBHOOK_MASKED_SENTINEL) {
-                secret = candidate;
+                secret = encodeField(candidate);
             }
         }
         return {
+            enabled: normalizeBoolean(input.enabled, fallback.enabled === true),
             channel: WEBHOOK_CHANNELS.has(channel) ? channel : fallback.channel,
             url: normalizeHttpUrl(input.url, fallback.url),
             barkKey,
@@ -884,7 +922,16 @@ export class SystemSettingsStore {
 
     getWebhook(): any {
         const webhook = this.settings?.webhook || this._defaults().webhook;
-        return { ...webhook, events: { ...(webhook.events || {}) } };
+        const barkKey = this._decryptCredentialDetailed(webhook.barkKey || webhook.barkKeyEnc || '').value;
+        const secret = this._decryptCredentialDetailed(webhook.secret || webhook.secretEnc || '').value;
+        return {
+            enabled: webhook.enabled === true,
+            channel: String(webhook.channel || 'bark'),
+            url: String(webhook.url || ''),
+            barkKey,
+            secret,
+            events: { ...(webhook.events || {}) },
+        };
     }
 
     getInboundOrder(serverId: string = ''): any {
@@ -1041,6 +1088,80 @@ export class SystemSettingsStore {
         this.settings = nextSettings;
         this._save();
         return this.getAll();
+    }
+
+    rotateCredentials(options: any = {}): any {
+        const dryRun = options?.dryRun === true;
+        let scannedFields = 0;
+        let rotatedFields = 0;
+        let migratedPlaintext = 0;
+        let failedFields = 0;
+
+        const nextSettings = safeClone(this.settings) || this._normalizeSettings();
+        const rotateField = (rawValue: unknown, encryptFn: (plain: string) => string): string => {
+            const raw = String(rawValue || '').trim();
+            if (!raw) return '';
+            scannedFields += 1;
+
+            if (!this._isEncryptedCredentialValue(raw)) {
+                migratedPlaintext += 1;
+                rotatedFields += 1;
+                return encryptFn(raw);
+            }
+
+            const decrypted = this._decryptCredentialDetailed(raw);
+            if (decrypted.status === 'unreadable' || !decrypted.value) {
+                failedFields += 1;
+                return raw;
+            }
+
+            const reEncrypted = encryptFn(decrypted.value);
+            if (reEncrypted !== raw) {
+                rotatedFields += 1;
+            }
+            return reEncrypted;
+        };
+
+        if (nextSettings.telegram) {
+            nextSettings.telegram.botTokenEnc = rotateField(
+                nextSettings.telegram.botTokenEnc,
+                (plain) => this._encryptWithPrefixForce(plain, TELEGRAM_TOKEN_ENC_PREFIX)
+            );
+        }
+        if (nextSettings.webhook) {
+            nextSettings.webhook.barkKey = rotateField(
+                nextSettings.webhook.barkKey || nextSettings.webhook.barkKeyEnc,
+                (plain) => this._encryptWithPrefixForce(plain, CREDENTIAL_ENC_PREFIX)
+            );
+            nextSettings.webhook.secret = rotateField(
+                nextSettings.webhook.secret || nextSettings.webhook.secretEnc,
+                (plain) => this._encryptWithPrefixForce(plain, CREDENTIAL_ENC_PREFIX)
+            );
+            delete nextSettings.webhook.barkKeyEnc;
+            delete nextSettings.webhook.secretEnc;
+        }
+
+        if (!dryRun && rotatedFields > 0) {
+            nextSettings.updatedAt = new Date().toISOString();
+            this.settings = nextSettings;
+            this._save();
+        }
+
+        return {
+            dryRun,
+            scannedFields,
+            rotatedFields,
+            migratedPlaintext,
+            failedFields,
+        };
+    }
+
+    _encryptWithPrefixForce(value: string, prefix: string): string {
+        const iv = crypto.randomBytes(12);
+        const cipher = crypto.createCipheriv(TELEGRAM_TOKEN_ENC_ALGO, this._credentialKey(), iv);
+        const encrypted = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
+        const tag = cipher.getAuthTag();
+        return `${prefix}:${iv.toString('hex')}:${tag.toString('hex')}:${encrypted.toString('hex')}`;
     }
 
     exportState(): any {

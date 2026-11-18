@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import fs from 'fs';
 import os from 'os';
 import { isAbsolute, relative, resolve } from 'path';
@@ -20,6 +21,7 @@ const CORE_RUNTIME_FILES = [
     { key: 'system_settings', file: 'system_settings.json' },
     { key: 'subscription_tokens', file: 'subscription_tokens.json' },
     { key: 'user_policies', file: 'user_policies.json' },
+    { key: 'user_groups', file: 'user_groups.json' },
     { key: 'audit_events', file: 'audit_events.json' },
     { key: 'subscription_access_logs', file: 'subscription_access_logs.json' },
     { key: 'jobs', file: 'jobs.json' },
@@ -29,6 +31,7 @@ const CORE_RUNTIME_FILES = [
     { key: 'server_telemetry', file: 'server_telemetry.json' },
     { key: 'client_entitlement_overrides', file: 'client_entitlement_overrides.json' },
     { key: 'invite_codes', file: 'invite_codes.json' },
+    { key: 'certificates', file: 'certificates.json' },
 ];
 
 function hasNonEmptyValue(value: unknown): boolean {
@@ -102,7 +105,53 @@ export interface SecurityIssue {
     message: string;
 }
 
-export function collectSecurityIssues(env: Record<string, any> = process.env): SecurityIssue[] {
+export interface SecurityIssueOptions {
+    dataDir?: string;
+    rootDir?: string;
+}
+
+const KNOWN_WEAK_PASSWORDS = ['admin', 'admin123', 'password', '12345678', 'changeme', ''];
+
+function hasStrongStoredAdminPassword(dataDir: string): boolean {
+    const usersFile = resolve(dataDir, 'users.json');
+    if (!fs.existsSync(usersFile)) return false;
+
+    let parsed: any;
+    try {
+        parsed = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
+    } catch {
+        return false;
+    }
+
+    const users = Array.isArray(parsed)
+        ? parsed
+        : (Array.isArray(parsed?.users) ? parsed.users : []);
+    const activeAdmins = users.filter((u: any) =>
+        u && String(u.role || '').trim().toLowerCase() === 'admin' && u.enabled !== false
+    );
+    if (activeAdmins.length === 0) return false;
+
+    return activeAdmins.every((admin: any) => {
+        const storedHash = String(admin.passwordHash || '').trim();
+        const salt = String(admin.passwordSalt || '').trim();
+        if (!storedHash || storedHash.length < 32 || !salt) return false;
+
+        const iterations = Number(admin.pbkdf2Iterations) > 0 ? Number(admin.pbkdf2Iterations) : 10000;
+        const candidates = Array.from(new Set([
+            ...KNOWN_WEAK_PASSWORDS,
+            String(admin.username || '').trim(),
+        ]));
+        return candidates.every((candidate) => {
+            const derived = crypto.pbkdf2Sync(candidate, salt, iterations, 64, 'sha512').toString('hex');
+            return derived !== storedHash;
+        });
+    });
+}
+
+export function collectSecurityIssues(
+    env: Record<string, any> = process.env,
+    options: SecurityIssueOptions = {}
+): SecurityIssue[] {
     const nodeEnv = String(env.NODE_ENV || 'development').trim().toLowerCase() || 'development';
     const isProduction = nodeEnv === 'production';
     const enforceStrictSecurity = parseBoolean(env.ENFORCE_STRICT_SECURITY, isProduction);
@@ -111,7 +160,10 @@ export function collectSecurityIssues(env: Record<string, any> = process.env): S
     const issues: SecurityIssue[] = [];
     const jwtSecret = String(env.JWT_SECRET || '');
     const adminUsername = env.ADMIN_USERNAME || 'admin';
+    const hasExplicitAdminPassword = hasNonEmptyValue(env.ADMIN_PASSWORD);
     const adminPassword = env.ADMIN_PASSWORD || 'admin';
+    const allowLegacyLogin = String(env.ALLOW_LEGACY_PASSWORD_LOGIN || '').trim().toLowerCase() === 'true';
+    const dataDir = resolveDataDir(options.dataDir ?? env.DATA_DIR, options.rootDir || REPO_ROOT);
     const credentialsSecret = env.CREDENTIALS_SECRET || '';
 
     if (isWeakJwtSecret(jwtSecret)) {
@@ -126,7 +178,10 @@ export function collectSecurityIssues(env: Record<string, any> = process.env): S
             message: 'ADMIN_USERNAME is missing or still using a default-style value. Use a non-default admin username.',
         });
     }
-    if (isWeakAdminPassword(adminPassword)) {
+    const storedStrongAdmin = !hasExplicitAdminPassword
+        && !allowLegacyLogin
+        && hasStrongStoredAdminPassword(dataDir);
+    if (!storedStrongAdmin && isWeakAdminPassword(adminPassword)) {
         issues.push({
             code: 'unsafe_admin_password',
             message: 'ADMIN_PASSWORD is missing or weak. Use at least 8 characters spanning 3 of: lowercase, uppercase, digits, symbols.',
@@ -161,7 +216,7 @@ export function collectStartupIssues(env: Record<string, any> = process.env, opt
     const includeClientBuildCheck = options.includeClientBuildCheck !== false;
     const includeEnvFileNotice = options.includeEnvFileNotice !== false;
     const issues: SecurityIssue[] = [];
-    const securityIssues = collectSecurityIssues(env);
+    const securityIssues = collectSecurityIssues(env, { dataDir, rootDir });
 
     if (includeEnvFileNotice && securityIssues.length > 0 && !fs.existsSync(envFile)) {
         issues.push({

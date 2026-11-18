@@ -4,6 +4,7 @@ import config from '../config.js';
 import userStore from '../store/userStore.js';
 import serverStore from '../store/serverStore.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
+import certificateStore from '../store/certificateStore.js';
 import subscriptionTokenStore from '../store/subscriptionTokenStore.js';
 import {
     collectSecurityIssues,
@@ -137,15 +138,9 @@ function rotateCredentialSecret(nextSecret: string) {
 
     const serverRotation = serverStore.rotateCredentials({ dryRun: false });
     const telegram = systemSettingsStore.getTelegram();
-    let telegramRotated = false;
-    if (telegram.botTokenConfigured && telegram.botToken) {
-        systemSettingsStore.update({
-            telegram: {
-                botToken: telegram.botToken,
-            },
-        });
-        telegramRotated = true;
-    }
+    const settingsRotation = systemSettingsStore.rotateCredentials({ dryRun: false });
+    const certificateRotation = certificateStore.rotateCredentials({ dryRun: false });
+    const telegramRotated = Boolean(telegram.botTokenConfigured && settingsRotation.rotatedFields > 0);
 
     config.credentials.legacySecrets = previousLegacySecrets.filter((item) => item && item !== nextSecret);
     process.env.CREDENTIALS_LEGACY_SECRETS = config.credentials.legacySecrets.join(',');
@@ -154,6 +149,8 @@ function rotateCredentialSecret(nextSecret: string) {
         changed: true,
         serverRotation,
         telegramRotated,
+        settingsRotation,
+        certificateRotation,
         legacySecrets: config.credentials.legacySecrets,
     };
 }
@@ -194,7 +191,6 @@ export function applySecurityBootstrap(payload: any = {}, currentUser: any = {})
     const envUpdates = {
         JWT_SECRET: nextValues.jwtSecret,
         ADMIN_USERNAME: nextValues.adminUsername,
-        ADMIN_PASSWORD: nextValues.adminPassword,
         CREDENTIALS_SECRET: nextValues.credentialsSecret,
         SUBSCRIPTION_TOKEN_SECRET: nextSubscriptionSecret,
         SUBSCRIPTION_TOKEN_LEGACY_SECRETS: nextSubscriptionLegacySecrets.join(','),

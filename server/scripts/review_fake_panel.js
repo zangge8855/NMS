@@ -167,6 +167,17 @@ function makeSuccess(res, obj = null) {
 function createPanelApp(definition) {
     const state = deepClone(definition.state);
     state.apiTokens = Array.isArray(state.apiTokens) ? state.apiTokens : [];
+    state.clientGroups = Array.isArray(state.clientGroups) ? state.clientGroups : [];
+    state.clientHwids = state.clientHwids && typeof state.clientHwids === 'object' ? state.clientHwids : {};
+    state.hosts = Array.isArray(state.hosts) ? state.hosts : [];
+    state.subBalancers = Array.isArray(state.subBalancers) ? state.subBalancers : [];
+    state.outboundSubs = Array.isArray(state.outboundSubs) ? state.outboundSubs : [];
+    state.nodes = Array.isArray(state.nodes) ? state.nodes : [];
+    let nextBalancerId = state.subBalancers.reduce((m, item) => Math.max(m, Number(item?.id || 0)), 0) + 1;
+    let nextOutboundSubId = state.outboundSubs.reduce((m, item) => Math.max(m, Number(item?.id || 0)), 0) + 1;
+    let nextNodeId = state.nodes.reduce((m, item) => Math.max(m, Number(item?.id || 0)), 0) + 1;
+    const isLegacy = definition.profile === 'legacy';
+    const rejectLegacy = (res) => res.status(404).json({ success: false, msg: 'endpoint unavailable on legacy panel' });
     const sessions = new Set();
     const app = express();
 
@@ -581,6 +592,191 @@ function createPanelApp(definition) {
         return makeSuccess(res, { updated });
     });
 
+    const lookupClientsByField = (matcher) => {
+        const grouped = new Map();
+        state.inbounds.forEach((inbound) => {
+            getInboundClients(inbound).forEach((client) => {
+                if (!matcher(client)) return;
+                const emailKey = normalizeEmail(client.email) || toText(client.id) || crypto.randomUUID();
+                const existing = grouped.get(emailKey) || { client: deepClone(client), inboundIds: [] };
+                existing.inboundIds.push(Number(inbound.id));
+                grouped.set(emailKey, existing);
+            });
+        });
+        return Array.from(grouped.values());
+    };
+
+    app.get('/panel/api/clients/get/subId/:subId', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const subId = toText(req.params.subId).trim();
+        const matches = lookupClientsByField((client) => toText(client.subId || client.subID).trim() === subId);
+        if (matches.length === 0) {
+            return res.status(404).json({ success: false, msg: 'client not found' });
+        }
+        return makeSuccess(res, matches.length === 1 ? matches[0] : matches);
+    });
+
+    app.get('/panel/api/clients/get/tgId/:tgId', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const tgId = toText(req.params.tgId).trim();
+        const matches = lookupClientsByField((client) => toText(client.tgId ?? client.tgID).trim() === tgId);
+        if (matches.length === 0) {
+            return res.status(404).json({ success: false, msg: 'client not found' });
+        }
+        return makeSuccess(res, matches.length === 1 ? matches[0] : matches);
+    });
+
+    const getGroupEmailList = (groupName) => {
+        const target = toText(groupName).trim();
+        const emails = new Set();
+        state.inbounds.forEach((inbound) => {
+            getInboundClients(inbound).forEach((client) => {
+                if (toText(client.group).trim() === target && client.email) {
+                    emails.add(toText(client.email));
+                }
+            });
+        });
+        return Array.from(emails);
+    };
+
+    app.get('/panel/api/clients/groups', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const names = new Set(state.clientGroups.map((g) => toText(g.name).trim()).filter(Boolean));
+        state.inbounds.forEach((inbound) => {
+            getInboundClients(inbound).forEach((client) => {
+                const groupName = toText(client.group).trim();
+                if (groupName) names.add(groupName);
+            });
+        });
+        const rows = Array.from(names).map((name) => {
+            const existing = state.clientGroups.find((g) => toText(g.name).trim() === name) || {};
+            const emails = getGroupEmailList(name);
+            return {
+                name,
+                count: emails.length,
+                createdAt: existing.createdAt || new Date().toISOString(),
+            };
+        });
+        return makeSuccess(res, rows);
+    });
+
+    app.get('/panel/api/clients/groups/:name/emails', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        return makeSuccess(res, getGroupEmailList(req.params.name));
+    });
+
+    app.post('/panel/api/clients/groups/create', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const name = toText(req.body?.name).trim();
+        if (!name) return res.status(400).json({ success: false, msg: 'name is required' });
+        if (!state.clientGroups.some((g) => g.name === name)) {
+            state.clientGroups.push({ name, createdAt: new Date().toISOString() });
+        }
+        return makeSuccess(res, { name, count: getGroupEmailList(name).length });
+    });
+
+    app.post('/panel/api/clients/groups/rename', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const oldName = toText(req.body?.oldName).trim();
+        const newName = toText(req.body?.newName).trim();
+        if (!oldName || !newName) return res.status(400).json({ success: false, msg: 'oldName and newName are required' });
+        state.clientGroups = state.clientGroups.map((g) => (g.name === oldName ? { ...g, name: newName } : g));
+        state.inbounds.forEach((inbound) => {
+            const next = getInboundClients(inbound).map((client) => (
+                toText(client.group).trim() === oldName ? { ...client, group: newName } : client
+            ));
+            setInboundClients(inbound, next);
+        });
+        return makeSuccess(res, { oldName, newName });
+    });
+
+    app.post('/panel/api/clients/groups/resetTraffic', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const name = toText(req.body?.name).trim();
+        let resetCount = 0;
+        state.inbounds.forEach((inbound) => {
+            const next = getInboundClients(inbound).map((client) => {
+                if (toText(client.group).trim() !== name) return client;
+                resetCount += 1;
+                return { ...client, up: 0, down: 0 };
+            });
+            setInboundClients(inbound, next);
+            inbound.clientStats = buildClientStats(next);
+        });
+        return makeSuccess(res, { name, resetCount });
+    });
+
+    app.post('/panel/api/clients/groups/delete', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const name = toText(req.body?.name).trim();
+        state.clientGroups = state.clientGroups.filter((g) => g.name !== name);
+        state.inbounds.forEach((inbound) => {
+            const next = getInboundClients(inbound).map((client) => (
+                toText(client.group).trim() === name ? { ...client, group: '' } : client
+            ));
+            setInboundClients(inbound, next);
+        });
+        return makeSuccess(res, { deleted: true });
+    });
+
+    app.post('/panel/api/clients/groups/bulkAdd', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const group = toText(req.body?.group).trim();
+        const rawEmails = Array.isArray(req.body?.emails) ? req.body.emails : [req.body?.emails].filter(Boolean);
+        const targetEmails = new Set(rawEmails.map(normalizeEmail).filter(Boolean));
+        if (group && !state.clientGroups.some((g) => g.name === group)) {
+            state.clientGroups.push({ name: group, createdAt: new Date().toISOString() });
+        }
+        let updated = 0;
+        state.inbounds.forEach((inbound) => {
+            const next = getInboundClients(inbound).map((client) => {
+                if (!targetEmails.has(normalizeEmail(client.email))) return client;
+                updated += 1;
+                return { ...client, group };
+            });
+            setInboundClients(inbound, next);
+        });
+        return makeSuccess(res, { updated });
+    });
+
+    app.post('/panel/api/clients/groups/bulkRemove', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const rawEmails = Array.isArray(req.body?.emails) ? req.body.emails : [req.body?.emails].filter(Boolean);
+        const targetEmails = new Set(rawEmails.map(normalizeEmail).filter(Boolean));
+        let updated = 0;
+        state.inbounds.forEach((inbound) => {
+            const next = getInboundClients(inbound).map((client) => {
+                if (!targetEmails.has(normalizeEmail(client.email))) return client;
+                updated += 1;
+                return { ...client, group: '' };
+            });
+            setInboundClients(inbound, next);
+        });
+        return makeSuccess(res, { updated });
+    });
+
+    app.post('/panel/api/clients/hwids/:email', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const email = normalizeEmail(req.params.email);
+        return makeSuccess(res, deepClone(state.clientHwids[email] || []));
+    });
+
+    app.delete('/panel/api/clients/hwids/:email/:hwidId', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const email = normalizeEmail(req.params.email);
+        const hwidId = toText(req.params.hwidId);
+        const current = Array.isArray(state.clientHwids[email]) ? state.clientHwids[email] : [];
+        state.clientHwids[email] = current.filter((item) => toText(item.id) !== hwidId);
+        return makeSuccess(res, deepClone(state.clientHwids[email]));
+    });
+
+    app.delete('/panel/api/clients/hwids/:email', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const email = normalizeEmail(req.params.email);
+        state.clientHwids[email] = [];
+        return makeSuccess(res, []);
+    });
+
     app.get('/panel/api/clients/get/:email', (req, res) => {
         const email = normalizeEmail(req.params.email);
         const inboundIds = [];
@@ -684,6 +880,9 @@ function createPanelApp(definition) {
                 if (addBytes !== 0 && Number(next.totalGB || 0) > 0) {
                     next.totalGB = Math.max(0, Number(next.totalGB || 0) + Math.trunc(addBytes));
                 }
+                if (req.body?.limitHwid !== undefined) {
+                    next.limitHwid = toNumber(req.body.limitHwid, next.limitHwid || 0);
+                }
                 updated += 1;
                 return next;
             });
@@ -780,6 +979,339 @@ function createPanelApp(definition) {
         return makeSuccess(res, {
             deleted: true,
         });
+    });
+
+    app.post('/panel/api/inbounds/setEnable/:id', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const inboundId = Number(req.params.id);
+        const target = state.inbounds.find((item) => Number(item.id) === inboundId);
+        if (!target) {
+            return res.status(404).json({ success: false, msg: 'inbound not found' });
+        }
+        target.enable = normalizeBoolean(req.body?.enable, target.enable !== false);
+        return makeSuccess(res, target);
+    });
+
+    // ── 3x-ui v3 hosts, sub-balancers, xray/outbound-subs, and multi-nodes ──
+
+    const listHostTags = () => {
+        const tags = new Set();
+        state.hosts.forEach((group) => {
+            (Array.isArray(group.hosts) ? group.hosts : []).forEach((h) => {
+                if (h?.tag) tags.add(toText(h.tag));
+            });
+        });
+        return Array.from(tags);
+    };
+
+    app.get('/panel/api/hosts/list', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        return makeSuccess(res, deepClone(state.hosts));
+    });
+
+    app.get('/panel/api/hosts/raw', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        return makeSuccess(res, deepClone(state.hosts));
+    });
+
+    app.get('/panel/api/hosts/tags', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        return makeSuccess(res, listHostTags());
+    });
+
+    app.get('/panel/api/hosts/get/:groupId', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const found = state.hosts.find((item) => toText(item.groupId) === toText(req.params.groupId));
+        if (!found) return res.status(404).json({ success: false, msg: 'host group not found' });
+        return makeSuccess(res, deepClone(found));
+    });
+
+    app.get('/panel/api/hosts/byInbound/:inboundId', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const inboundId = Number(req.params.inboundId);
+        const matched = state.hosts.filter((item) =>
+            Array.isArray(item.inboundIds) && item.inboundIds.map(Number).includes(inboundId)
+        );
+        return makeSuccess(res, deepClone(matched));
+    });
+
+    app.post('/panel/api/hosts/add', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const body = deepClone(req.body || {});
+        const groupId = toText(body.groupId).trim() || crypto.randomUUID();
+        const created = {
+            ...body,
+            groupId,
+            inboundIds: Array.isArray(body.inboundIds) ? body.inboundIds.map(Number) : [],
+            hosts: Array.isArray(body.hosts) ? body.hosts : [],
+            isDisabled: body.isDisabled === true,
+        };
+        state.hosts.push(created);
+        return makeSuccess(res, deepClone(created));
+    });
+
+    app.post('/panel/api/hosts/update/:groupId', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const idx = state.hosts.findIndex((item) => toText(item.groupId) === toText(req.params.groupId));
+        if (idx < 0) return res.status(404).json({ success: false, msg: 'host group not found' });
+        state.hosts[idx] = { ...state.hosts[idx], ...deepClone(req.body || {}), groupId: state.hosts[idx].groupId };
+        return makeSuccess(res, deepClone(state.hosts[idx]));
+    });
+
+    app.post('/panel/api/hosts/setEnable/:groupId', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const target = state.hosts.find((item) => toText(item.groupId) === toText(req.params.groupId));
+        if (!target) return res.status(404).json({ success: false, msg: 'host group not found' });
+        const enable = normalizeBoolean(req.body?.enable, true);
+        target.isDisabled = !enable;
+        return makeSuccess(res, deepClone(target));
+    });
+
+    app.post('/panel/api/hosts/reorder', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(toText) : [];
+        const byId = new Map(state.hosts.map((item) => [toText(item.groupId), item]));
+        const reordered = [];
+        ids.forEach((id) => {
+            if (byId.has(id)) {
+                reordered.push(byId.get(id));
+                byId.delete(id);
+            }
+        });
+        for (const rest of byId.values()) reordered.push(rest);
+        state.hosts = reordered;
+        return makeSuccess(res, deepClone(state.hosts));
+    });
+
+    app.post('/panel/api/hosts/del/:groupId', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const before = state.hosts.length;
+        state.hosts = state.hosts.filter((item) => toText(item.groupId) !== toText(req.params.groupId));
+        if (state.hosts.length === before) return res.status(404).json({ success: false, msg: 'host group not found' });
+        return makeSuccess(res, { deleted: true });
+    });
+
+    const parseIdList = (raw) => {
+        if (Array.isArray(raw)) return raw.map((v) => Number(v)).filter(Number.isFinite);
+        if (raw === undefined || raw === null || raw === '') return [];
+        const single = Number(raw);
+        return Number.isFinite(single) ? [single] : [];
+    };
+
+    app.get('/panel/api/sub-balancers', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        return makeSuccess(res, deepClone(state.subBalancers));
+    });
+
+    app.post('/panel/api/sub-balancers', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const body = req.body || {};
+        const created = {
+            id: nextBalancerId++,
+            remark: toText(body.remark).trim(),
+            strategy: toText(body.strategy || 'random').trim(),
+            inboundIds: parseIdList(body.inboundIds),
+            memberWeights: parseMaybeJson(body.memberWeights, {}),
+            sortOrder: toNumber(body.sortOrder, state.subBalancers.length + 1),
+            enabled: normalizeBoolean(body.enabled, true),
+        };
+        state.subBalancers.push(created);
+        return makeSuccess(res, deepClone(created));
+    });
+
+    app.post('/panel/api/sub-balancers/:id', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const targetId = Number(req.params.id);
+        const idx = state.subBalancers.findIndex((item) => Number(item.id) === targetId);
+        if (idx < 0) return res.status(404).json({ success: false, msg: 'sub-balancer not found' });
+        const body = req.body || {};
+        const prev = state.subBalancers[idx];
+        state.subBalancers[idx] = {
+            ...prev,
+            remark: body.remark !== undefined ? toText(body.remark).trim() : prev.remark,
+            strategy: body.strategy !== undefined ? toText(body.strategy).trim() : prev.strategy,
+            inboundIds: body.inboundIds !== undefined ? parseIdList(body.inboundIds) : prev.inboundIds,
+            memberWeights: body.memberWeights !== undefined ? parseMaybeJson(body.memberWeights, prev.memberWeights) : prev.memberWeights,
+            sortOrder: body.sortOrder !== undefined ? toNumber(body.sortOrder, prev.sortOrder) : prev.sortOrder,
+            enabled: body.enabled !== undefined ? normalizeBoolean(body.enabled, prev.enabled) : prev.enabled,
+        };
+        return makeSuccess(res, deepClone(state.subBalancers[idx]));
+    });
+
+    const handleDeleteSubBalancer = (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const targetId = Number(req.params.id);
+        const before = state.subBalancers.length;
+        state.subBalancers = state.subBalancers.filter((item) => Number(item.id) !== targetId);
+        if (state.subBalancers.length === before) return res.status(404).json({ success: false, msg: 'sub-balancer not found' });
+        return makeSuccess(res, { deleted: true });
+    };
+    app.post('/panel/api/sub-balancers/:id/del', handleDeleteSubBalancer);
+    app.delete('/panel/api/sub-balancers/:id', handleDeleteSubBalancer);
+
+    app.get('/panel/api/xray/outbound-subs', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        return makeSuccess(res, deepClone(state.outboundSubs));
+    });
+
+    app.post('/panel/api/xray/outbound-subs/parse', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        return makeSuccess(res, [{ tag: 'parsed-outbound-1', protocol: 'vless', address: 'example.com', port: 443 }]);
+    });
+
+    app.post('/panel/api/xray/outbound-subs', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const body = req.body || {};
+        const created = {
+            id: nextOutboundSubId++,
+            remark: toText(body.remark).trim(),
+            url: toText(body.url).trim(),
+            tagPrefix: toText(body.tagPrefix).trim(),
+            userAgent: toText(body.userAgent).trim(),
+            allowPrivate: normalizeBoolean(body.allowPrivate, false),
+            allowInsecure: normalizeBoolean(body.allowInsecure, false),
+            enabled: normalizeBoolean(body.enabled, true),
+            outboundCount: 1,
+            lastUpdated: Math.floor(Date.now() / 1000),
+            outbounds: [{ tag: `${toText(body.tagPrefix)}node-1`, protocol: 'vless' }],
+        };
+        state.outboundSubs.push(created);
+        return makeSuccess(res, deepClone(created));
+    });
+
+    app.post('/panel/api/xray/outbound-subs/:id', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const targetId = Number(req.params.id);
+        const idx = state.outboundSubs.findIndex((item) => Number(item.id) === targetId);
+        if (idx < 0) return res.status(404).json({ success: false, msg: 'outbound sub not found' });
+        const body = req.body || {};
+        const prev = state.outboundSubs[idx];
+        state.outboundSubs[idx] = {
+            ...prev,
+            remark: body.remark !== undefined ? toText(body.remark).trim() : prev.remark,
+            url: body.url !== undefined ? toText(body.url).trim() : prev.url,
+            tagPrefix: body.tagPrefix !== undefined ? toText(body.tagPrefix).trim() : prev.tagPrefix,
+            enabled: body.enabled !== undefined ? normalizeBoolean(body.enabled, prev.enabled) : prev.enabled,
+        };
+        return makeSuccess(res, deepClone(state.outboundSubs[idx]));
+    });
+
+    app.post('/panel/api/xray/outbound-subs/:id/refresh', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const target = state.outboundSubs.find((item) => Number(item.id) === Number(req.params.id));
+        if (!target) return res.status(404).json({ success: false, msg: 'outbound sub not found' });
+        target.lastUpdated = Math.floor(Date.now() / 1000);
+        target.outboundCount = Array.isArray(target.outbounds) ? target.outbounds.length : 1;
+        return makeSuccess(res, deepClone(target.outbounds || []));
+    });
+
+    app.post('/panel/api/xray/outbound-subs/:id/move', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const idx = state.outboundSubs.findIndex((item) => Number(item.id) === Number(req.params.id));
+        if (idx < 0) return res.status(404).json({ success: false, msg: 'outbound sub not found' });
+        const dir = toText(req.body?.dir).trim().toLowerCase();
+        const swapWith = dir === 'up' ? idx - 1 : (dir === 'down' ? idx + 1 : -1);
+        if (swapWith >= 0 && swapWith < state.outboundSubs.length) {
+            [state.outboundSubs[idx], state.outboundSubs[swapWith]] = [state.outboundSubs[swapWith], state.outboundSubs[idx]];
+        }
+        return makeSuccess(res, deepClone(state.outboundSubs));
+    });
+
+    const handleDeleteOutboundSub = (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const before = state.outboundSubs.length;
+        state.outboundSubs = state.outboundSubs.filter((item) => Number(item.id) !== Number(req.params.id));
+        if (state.outboundSubs.length === before) return res.status(404).json({ success: false, msg: 'outbound sub not found' });
+        return makeSuccess(res, { deleted: true });
+    };
+    app.post('/panel/api/xray/outbound-subs/:id/del', handleDeleteOutboundSub);
+    app.delete('/panel/api/xray/outbound-subs/:id', handleDeleteOutboundSub);
+
+    app.get('/panel/api/nodes/list', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        return makeSuccess(res, deepClone(state.nodes));
+    });
+
+    app.post('/panel/api/nodes/test', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        return makeSuccess(res, { status: 'online', latencyMs: 12 });
+    });
+
+    app.post('/panel/api/nodes/certFingerprint', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        return makeSuccess(res, '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef');
+    });
+
+    app.post('/panel/api/nodes/inbounds', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        return makeSuccess(res, deepClone(state.inbounds.map((item) => ({
+            id: item.id,
+            remark: item.remark,
+            tag: item.tag || `inbound-${item.port}`,
+            protocol: item.protocol,
+            port: item.port,
+        }))));
+    });
+
+    app.post('/panel/api/nodes/add', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const body = deepClone(req.body || {});
+        const created = {
+            ...body,
+            id: nextNodeId++,
+            enable: body.enable !== false,
+            status: 'online',
+            latencyMs: 15,
+            cpuPct: 12,
+            memPct: 28,
+            clientCount: 0,
+            inboundCount: state.inbounds.length,
+        };
+        state.nodes.push(created);
+        return makeSuccess(res, deepClone(created));
+    });
+
+    app.post('/panel/api/nodes/update/:id', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const idx = state.nodes.findIndex((item) => Number(item.id) === Number(req.params.id));
+        if (idx < 0) return res.status(404).json({ success: false, msg: 'node not found' });
+        state.nodes[idx] = { ...state.nodes[idx], ...deepClone(req.body || {}), id: state.nodes[idx].id };
+        return makeSuccess(res, deepClone(state.nodes[idx]));
+    });
+
+    app.post('/panel/api/nodes/probe/:id', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const node = state.nodes.find((item) => Number(item.id) === Number(req.params.id));
+        if (!node) return res.status(404).json({ success: false, msg: 'node not found' });
+        node.status = 'online';
+        node.latencyMs = 14;
+        return makeSuccess(res, { status: node.status, latencyMs: node.latencyMs });
+    });
+
+    app.post('/panel/api/nodes/setEnable/:id', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const node = state.nodes.find((item) => Number(item.id) === Number(req.params.id));
+        if (!node) return res.status(404).json({ success: false, msg: 'node not found' });
+        node.enable = normalizeBoolean(req.body?.enable, true);
+        return makeSuccess(res, deepClone(node));
+    });
+
+    app.post('/panel/api/nodes/updatePanel', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        return makeSuccess(res, { updated: true });
+    });
+
+    app.post('/panel/api/nodes/mtls/ca', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        return makeSuccess(res, { ca: 'mock-mtls-ca' });
+    });
+
+    app.post('/panel/api/nodes/del/:id', (req, res) => {
+        if (isLegacy) return rejectLegacy(res);
+        const before = state.nodes.length;
+        state.nodes = state.nodes.filter((item) => Number(item.id) !== Number(req.params.id));
+        if (state.nodes.length === before) return res.status(404).json({ success: false, msg: 'node not found' });
+        return makeSuccess(res, { deleted: true });
     });
 
     const handleResetInboundTraffic = (req, res) => {
