@@ -26,7 +26,7 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
     const [mode, setMode] = useState('visual'); // 'visual' or 'json'
     const [config, setConfig] = useState(() => {
         try {
-            return typeof value === 'object' && value !== null ? JSON.parse(JSON.stringify(value)) : { domainStrategy: 'AsIs', rules: [] };
+            return typeof value === 'object' && value !== null ? structuredClone(value) : { domainStrategy: 'AsIs', rules: [] };
         } catch {
             return { domainStrategy: 'AsIs', rules: [] };
         }
@@ -38,7 +38,7 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
     useEffect(() => {
         try {
             if (value && typeof value === 'object') {
-                setConfig(JSON.parse(JSON.stringify(value)));
+                setConfig(structuredClone(value));
             } else {
                 setConfig({ domainStrategy: 'AsIs', rules: [] });
             }

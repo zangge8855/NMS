@@ -158,6 +158,13 @@
 
   --rail-bg: var(--ink-rail);
   --rail-border: rgba(150, 190, 214, 0.08);
+
+  accent-color: var(--signal);
+  --scrollbar-thumb: rgba(150, 190, 214, 0.26);
+  --scrollbar-thumb-hover: rgba(150, 190, 214, 0.42);
+  --scrollbar-track: transparent;
+  --tab-fade-start: 0px;
+  --tab-fade-end: 0px;
 }
 
 :root[data-theme="light"] {
@@ -279,6 +286,40 @@
 
   --rail-bg: var(--ink-rail);
   --rail-border: #dfe9eb;
+
+  accent-color: var(--signal);
+  --scrollbar-thumb: rgba(13, 27, 45, 0.22);
+  --scrollbar-thumb-hover: rgba(13, 27, 45, 0.38);
+  --scrollbar-track: transparent;
+}
+
+:root {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+@supports not (scrollbar-color: auto) {
+  :root {
+    scrollbar-width: auto;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
 }
 
 body {

@@ -36,6 +36,7 @@ import { AUDIT_EVENT_LABELS } from '../../utils/auditEventLabels';
 import { useOptionalServer } from '../../contexts/ServerContext';
 import { useOptionalAuth } from '../../contexts/AuthContext';
 import { canClearAuditLogs, resolveOptionalAuthActor } from '../../utils/permissions';
+import { handleRovingTabKeyDown } from '../../utils/rovingTabs';
 
 const Logs = lazyWithRetry(() => import('../Logs/Logs'), 'AuditLogs');
 const TrafficLineChart = lazyWithRetry(() => import('./TrafficLineChart'), 'TrafficLineChart');
@@ -1875,6 +1876,10 @@ export default function AuditCenter() {
         { key: 'month', label: copy.traffic.windowMonth },
         { key: 'custom', label: copy.traffic.windowCustom },
     ]), [copy]);
+    const trafficWindowRovingTabs = useMemo(
+        () => trafficWindowTabs.map((item) => ({ id: item.key })),
+        [trafficWindowTabs]
+    );
     const trafficTotals = normalizeTrafficTotals(trafficOverview?.managedTotals || trafficOverview?.totals || EMPTY_TRAFFIC_TOTALS);
     const trafficAttributionState = resolveTrafficAttributionState(trafficOverview);
     const trafficTotalsNote = buildTrafficTotalsNote(trafficOverview, copy, selectedTrafficWindow);
@@ -2001,7 +2006,12 @@ export default function AuditCenter() {
                                 <span>{currentTabBusy ? copy.workspace.loading : copy.workspace.ready}</span>
                             </div>
                         </div>
-                        <div className="tabs audit-tabs" role="tablist" aria-label={copy.workspace.navLabel}>
+                        <div
+                            className="tabs audit-tabs"
+                            role="tablist"
+                            aria-label={copy.workspace.navLabel}
+                            onKeyDown={(e) => handleRovingTabKeyDown(e, auditTabs, tab, setTab)}
+                        >
                             {auditTabs.map((item) => {
                                 const Icon = item.icon;
                                 const isActive = tab === item.id;
@@ -2013,6 +2023,7 @@ export default function AuditCenter() {
                                         onClick={() => setTab(item.id)}
                                         role="tab"
                                         aria-selected={isActive}
+                                        tabIndex={isActive ? 0 : -1}
                                     >
                                         <span className="audit-tab-icon" aria-hidden="true"><Icon /></span>
                                         <span className="audit-tab-label">{item.label}</span>
@@ -2279,19 +2290,33 @@ export default function AuditCenter() {
                                 <div className="audit-traffic-toolbar-actions">
                                     <div className="audit-traffic-window-bar">
                                         <span className="audit-traffic-window-label">{copy.traffic.windowLabel}</span>
-                                        <div className="tabs audit-traffic-window-tabs" role="tablist" aria-label={copy.traffic.windowLabel}>
-                                            {trafficWindowTabs.map((item) => (
-                                                <button
-                                                    key={item.key}
-                                                    type="button"
-                                                    className={`tab${selectedTrafficWindow === item.key ? ' active' : ''}`}
-                                                    onClick={() => selectTrafficWindow(item.key)}
-                                                    role="tab"
-                                                    aria-selected={selectedTrafficWindow === item.key}
-                                                >
-                                                    {item.label}
-                                                </button>
-                                            ))}
+                                        <div
+                                            className="tabs audit-traffic-window-tabs"
+                                            role="tablist"
+                                            aria-label={copy.traffic.windowLabel}
+                                            onKeyDown={(e) => handleRovingTabKeyDown(
+                                                e,
+                                                trafficWindowRovingTabs,
+                                                selectedTrafficWindow,
+                                                selectTrafficWindow
+                                            )}
+                                        >
+                                            {trafficWindowTabs.map((item) => {
+                                                const isSelectedWindow = selectedTrafficWindow === item.key;
+                                                return (
+                                                    <button
+                                                        key={item.key}
+                                                        type="button"
+                                                        className={`tab${isSelectedWindow ? ' active' : ''}`}
+                                                        onClick={() => selectTrafficWindow(item.key)}
+                                                        role="tab"
+                                                        aria-selected={isSelectedWindow}
+                                                        tabIndex={isSelectedWindow ? 0 : -1}
+                                                    >
+                                                        {item.label}
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                     {selectedTrafficWindow === 'custom' && (

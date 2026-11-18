@@ -35,6 +35,7 @@ import {
 } from '../../utils/managedUsersCache';
 import { fetchServerPanelData, invalidateServerPanelDataCache } from '../../utils/serverPanelDataCache';
 import { readSessionSnapshot, SESSION_SNAPSHOT_EVENT, writeSessionSnapshot } from '../../utils/sessionSnapshot';
+import { handleRovingTabKeyDown } from '../../utils/rovingTabs';
 import SubscriptionClientLinks from '../Subscriptions/SubscriptionClientLinks';
 import ModalShell from '../UI/ModalShell';
 import ActionsDropdown from '../UI/ActionsDropdown';
@@ -877,8 +878,7 @@ export default function UsersHub() {
     const groupMemberCandidates = useMemo(() => (
         users
             .filter((user) => user?.role !== 'admin' && canManageUserTarget(actorRole, user?.role))
-            .slice()
-            .sort((a, b) => String(a?.username || '').localeCompare(String(b?.username || '')))
+            .toSorted((a, b) => String(a?.username || '').localeCompare(String(b?.username || '')))
     ), [actorRole, users]);
     const visibleGroupMemberCandidates = useMemo(() => {
         const query = String(groupMemberQuery || '').trim().toLowerCase();
@@ -2046,11 +2046,22 @@ export default function UsersHub() {
                 title={t('pages.usersHub.title')}
             />
             <div className="page-content page-enter page-content--wide users-page">
-                <div className="tabs users-tabs mb-6" role="tablist" aria-label={t('pages.usersHub.tabs.ariaLabel')}>
+                <div
+                    className="tabs users-tabs mb-6"
+                    role="tablist"
+                    aria-label={t('pages.usersHub.tabs.ariaLabel')}
+                    onKeyDown={(e) => handleRovingTabKeyDown(
+                        e,
+                        [{ id: 'users' }, { id: 'groups' }],
+                        activeDirectoryView,
+                        setActiveDirectoryView
+                    )}
+                >
                     <button
                         type="button"
                         role="tab"
                         aria-selected={activeDirectoryView === 'users'}
+                        tabIndex={activeDirectoryView === 'users' ? 0 : -1}
                         className={`tab users-tab ${activeDirectoryView === 'users' ? 'active' : ''}`}
                         onClick={() => setActiveDirectoryView('users')}
                     >
@@ -2060,6 +2071,7 @@ export default function UsersHub() {
                         type="button"
                         role="tab"
                         aria-selected={activeDirectoryView === 'groups'}
+                        tabIndex={activeDirectoryView === 'groups' ? 0 : -1}
                         className={`tab users-tab ${activeDirectoryView === 'groups' ? 'active' : ''}`}
                         onClick={() => setActiveDirectoryView('groups')}
                     >

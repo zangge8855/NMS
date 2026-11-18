@@ -34,6 +34,7 @@ import { invalidateManagedUsersCache } from '../../utils/managedUsersCache';
 import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot';
 import { getAuditEventLabel } from '../../utils/auditEventLabels';
 import { isSuiServer } from '../../utils/panelType';
+import { handleRovingTabKeyDown } from '../../utils/rovingTabs';
 import {
     HiOutlineArrowLeft,
     HiOutlineNoSymbol,
@@ -1601,6 +1602,7 @@ export default function UserDetail() {
         { key: 'clients', label: copy.tabs.clients },
         { key: 'activity', label: copy.tabs.activity },
     ];
+    const rovingTabs = tabs.map((tabItem) => ({ id: tabItem.key }));
 
     const renderClientActionButton = (client, supportState) => {
         const clientIpUnsupported = supportState?.supported === false;
@@ -1692,19 +1694,27 @@ export default function UserDetail() {
                 </div>
 
                 <div className="user-detail-tabs detail-tabs">
-                    <div className="tabs" role="tablist">
-                        {tabs.map(t => (
-                            <button
-                                key={t.key}
-                                type="button"
-                                role="tab"
-                                aria-selected={activeTab === t.key}
-                                className={`tab ${activeTab === t.key ? 'active' : ''}`}
-                                onClick={() => applyTab(t.key)}
-                            >
-                                {t.label}
-                            </button>
-                        ))}
+                    <div
+                        className="tabs"
+                        role="tablist"
+                        onKeyDown={(e) => handleRovingTabKeyDown(e, rovingTabs, activeTab, applyTab)}
+                    >
+                        {tabs.map((tabItem) => {
+                            const isActive = activeTab === tabItem.key;
+                            return (
+                                <button
+                                    key={tabItem.key}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={isActive}
+                                    tabIndex={isActive ? 0 : -1}
+                                    className={`tab ${isActive ? 'active' : ''}`}
+                                    onClick={() => applyTab(tabItem.key)}
+                                >
+                                    {tabItem.label}
+                                </button>
+                            );
+                        })}
                     </div>
 
                     <div className="user-detail-tab-content tab-content-enter" key={activeTab}>

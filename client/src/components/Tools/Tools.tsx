@@ -776,11 +776,8 @@ export default function Tools() {
         try {
             let res: any = null;
             try {
-                const controller = new AbortController();
-                const timer = setTimeout(() => controller.abort(), 4000);
-                res = await fetch(`https://ipwho.is/${encodeURIComponent(target)}`, { signal: controller.signal })
-                    .then((r) => r.json())
-                    .finally(() => clearTimeout(timer));
+                res = await fetch(`https://ipwho.is/${encodeURIComponent(target)}`, { signal: AbortSignal.timeout(4000) })
+                    .then((r) => r.json());
             } catch {
                 res = null;
             }

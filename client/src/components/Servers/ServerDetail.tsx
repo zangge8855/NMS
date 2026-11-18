@@ -22,6 +22,7 @@ import { useOptionalAuth } from '../../contexts/AuthContext';
 import { canMutateOperations, isAdminRole, resolveOptionalAuthActor } from '../../utils/permissions';
 import { isSuiServer, normalizePanelType } from '../../utils/panelType';
 import { AUDIT_EVENT_LABELS } from '../../utils/auditEventLabels';
+import { handleRovingTabKeyDown } from '../../utils/rovingTabs';
 import SectionHeader from '../UI/SectionHeader';
 import InboundRemarkPill from '../UI/InboundRemarkPill';
 import {
@@ -390,6 +391,7 @@ export default function ServerDetail() {
             ...tab,
             label: t(`pages.serverDetail.tabs.${tab.key}`),
         })), [isAdmin, isSui, t]);
+    const rovingTabs = useMemo(() => tabs.map((tabItem) => ({ id: tabItem.key })), [tabs]);
     useEffect(() => {
         // s-ui has none of the 3x-ui v3 panel features.
         if (isSui && activeTab === 'panelFeatures') setActiveTab('overview');
@@ -705,19 +707,27 @@ export default function ServerDetail() {
 
                 {/* Tabs */}
                 <div className="user-detail-tabs detail-tabs">
-                    <div className="tabs" role="tablist">
-                        {tabs.map(t => (
-                            <button
-                                key={t.key}
-                                type="button"
-                                role="tab"
-                                aria-selected={activeTab === t.key}
-                                className={`tab ${activeTab === t.key ? 'active' : ''}`}
-                                onClick={() => selectTab(t.key)}
-                            >
-                                {t.label}
-                            </button>
-                        ))}
+                    <div
+                        className="tabs"
+                        role="tablist"
+                        onKeyDown={(e) => handleRovingTabKeyDown(e, rovingTabs, activeTab, selectTab)}
+                    >
+                        {tabs.map((tabItem) => {
+                            const isActive = activeTab === tabItem.key;
+                            return (
+                                <button
+                                    key={tabItem.key}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={isActive}
+                                    tabIndex={isActive ? 0 : -1}
+                                    className={`tab ${isActive ? 'active' : ''}`}
+                                    onClick={() => selectTab(tabItem.key)}
+                                >
+                                    {tabItem.label}
+                                </button>
+                            );
+                        })}
                     </div>
 
                     <div className="user-detail-tab-content tab-content-enter" key={activeTab}>

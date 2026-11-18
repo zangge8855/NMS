@@ -10539,8 +10539,14 @@ body::before {
     scrollbar-width: none;
   }
 
-  .settings-nav-list--workspace::-webkit-scrollbar {
-    display: none;
+  @supports not (scrollbar-color: auto) {
+    .settings-nav-list--workspace {
+      scrollbar-width: auto;
+    }
+
+    .settings-nav-list--workspace::-webkit-scrollbar {
+      display: none;
+    }
   }
 
   .settings-nav-item {
@@ -12110,29 +12116,36 @@ body::before {
   line-height: 1.7;
 }
 
-/* ── Scrollbar styling ────────────────────────────────────── */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(145, 161, 181, 0.14);
-  border-radius: 999px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(145, 161, 181, 0.26);
-}
-
 /* Firefox scrollbar */
 * {
   scrollbar-width: thin;
   scrollbar-color: rgba(145, 161, 181, 0.14) transparent;
+}
+
+/* ── Scrollbar styling ────────────────────────────────────── */
+@supports not (scrollbar-color: auto) {
+  :root,
+  * {
+    scrollbar-width: auto;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(145, 161, 181, 0.14);
+    border-radius: 999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(145, 161, 181, 0.26);
+  }
 }
 
 /* ── Page content entrance ────────────────────────────────── */
@@ -12200,12 +12213,14 @@ body::before {
   border-bottom-color: color-mix(in srgb, var(--accent-primary) 30%, transparent);
 }
 
-[data-theme="light"] ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.12);
-}
+@supports not (scrollbar-color: auto) {
+  [data-theme="light"] ::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.12);
+  }
 
-[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.22);
+  [data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.22);
+  }
 }
 
 [data-theme="light"] .sidebar.collapsed .nav-item::after {
@@ -18002,23 +18017,29 @@ input[type="radio"]:focus-visible {
 /* ── Final Layout Polish ───────────────────────────────────── */
 
 /* Enhanced Custom Scrollbar globally */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
+@supports not (scrollbar-color: auto) {
+  :root {
+    scrollbar-width: auto;
+  }
 
-::-webkit-scrollbar-track {
-  background: var(--bg-primary);
-  border-left: 1px solid var(--border-color);
-}
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
 
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: var(--radius-full);
-}
+  ::-webkit-scrollbar-track {
+    background: var(--bg-primary);
+    border-left: 1px solid var(--border-color);
+  }
 
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-full);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
 }
 
 /* Modal and Backdrop refinements */

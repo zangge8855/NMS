@@ -1062,8 +1062,14 @@
     scrollbar-width: none;
   }
 
-  .pf-nav::-webkit-scrollbar {
-    display: none;
+  @supports not (scrollbar-color: auto) {
+    .pf-nav {
+      scrollbar-width: auto;
+    }
+
+    .pf-nav::-webkit-scrollbar {
+      display: none;
+    }
   }
 
   .pf-nav-list {

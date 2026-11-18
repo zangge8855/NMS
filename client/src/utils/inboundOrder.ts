@@ -70,7 +70,7 @@ export function sortServersByOrder<T extends { id?: string | number; name?: stri
     const orderIndex = new Map<string, number>(normalizedServerOrder.map((id, index) => [id, index]));
     const direction = normalizeServerDirection(options?.direction);
 
-    return [...(Array.isArray(servers) ? servers : [])].sort((left, right) => {
+    return (Array.isArray(servers) ? servers : []).toSorted((left, right) => {
         const leftId = normalizeId(left?.id);
         const rightId = normalizeId(right?.id);
         const leftIndex = orderIndex.get(leftId);
@@ -111,7 +111,7 @@ export function sortInboundsByOrder<T extends { id?: string | number; serverId?:
         ])
     );
 
-    return [...(Array.isArray(inbounds) ? inbounds : [])].sort((left, right) => {
+    return (Array.isArray(inbounds) ? inbounds : []).toSorted((left, right) => {
         const leftServerId = normalizeId(left?.serverId);
         const rightServerId = normalizeId(right?.serverId);
 

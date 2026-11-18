@@ -24,6 +24,18 @@
   --radius-chip: 6px;
 }
 
+@property --tab-fade-start {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --tab-fade-end {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
 /* --------------------------------------------------------------------------
    Canvas: no ambient gradients behind the workspace
    -------------------------------------------------------------------------- */
@@ -360,7 +372,21 @@
 /* --------------------------------------------------------------------------
    Tables: quiet header, figures aligned
    -------------------------------------------------------------------------- */
+:root .table-container {
+  container-type: inline-size;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+:root .table-container:focus-visible {
+  outline: 2px solid var(--focus-ring-border);
+  outline-offset: 2px;
+}
+
 :root .table thead th {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 2;
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 550;
@@ -377,13 +403,98 @@
 /* --------------------------------------------------------------------------
    Tabs: the current tab gets the same signal edge as the current page
    -------------------------------------------------------------------------- */
-:root[data-theme] :is(.tabs, .audit-tabs, .users-tabs, .xray-tabs, .user-detail-tabs .tabs) > :is(.tab, .audit-tab, .users-tab).active,
+:root :is([role="tablist"], .tabs, .audit-tabs, .users-tabs, .xray-tabs, .pf-nav-list, .user-detail-tabs .tabs) {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: inline proximity;
+  scroll-padding-inline: 24px;
+  scrollbar-width: none;
+}
+
+@supports not (scrollbar-color: auto) {
+  :root :is([role="tablist"], .tabs, .audit-tabs, .users-tabs, .xray-tabs, .pf-nav-list, .user-detail-tabs .tabs) {
+    scrollbar-width: auto;
+  }
+
+  :root :is([role="tablist"], .tabs, .audit-tabs, .users-tabs, .xray-tabs, .pf-nav-list, .user-detail-tabs .tabs)::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+:root :is([role="tab"], .tab, .audit-tab, .users-tab, .auth-tab),
+:root :is(.tabs, .audit-tabs, .users-tabs, .xray-tabs, .user-detail-tabs .tabs) > :is([role="tab"], .tab, .audit-tab, .users-tab) {
+  position: relative;
+  flex: none;
+  scroll-snap-align: start;
+  font-weight: 600;
+}
+
+:root[data-theme] :is(.tabs, .audit-tabs, .users-tabs, .xray-tabs, .user-detail-tabs .tabs) > :is([role="tab"][aria-selected="true"], .tab.active, .audit-tab.active, .users-tab.active),
 :root[data-theme] .settings-nav-list--workspace > .settings-nav-item.is-active {
   background: var(--bg-surface) !important;
   color: var(--text-primary) !important;
   border-color: transparent !important;
-  box-shadow: inset 0 -2px 0 var(--signal) !important;
+  box-shadow: none !important;
   font-weight: 600;
+}
+
+:root :is([role="tab"][aria-selected="true"], .pf-nav-item[aria-current="page"]) {
+  box-shadow: none !important;
+}
+
+:root :is(
+  [role="tab"][aria-selected="true"],
+  .tab.active,
+  .audit-tab.active,
+  .users-tab.active,
+  .auth-tab.active,
+  .settings-nav-list--workspace > .settings-nav-item.is-active,
+  .pf-nav-item[aria-current="page"]
+)::after,
+:root :is(.tabs, .audit-tabs, .users-tabs, .xray-tabs, .user-detail-tabs .tabs) > :is(
+  [role="tab"][aria-selected="true"],
+  .tab.active,
+  .audit-tab.active,
+  .users-tab.active
+)::after {
+  content: "";
+  display: block;
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  height: auto;
+  background: transparent;
+  border-block-end: 2px solid var(--signal);
+  border-radius: 0;
+  opacity: 1;
+  pointer-events: none;
+}
+
+@keyframes tab-fade-in {
+  from { --tab-fade-start: 0px; }
+  to { --tab-fade-start: 24px; }
+}
+
+@keyframes tab-fade-out {
+  from { --tab-fade-end: 24px; }
+  to { --tab-fade-end: 0px; }
+}
+
+@supports (animation-timeline: scroll()) {
+  :root :is(.tabs, .audit-tabs, .users-tabs, .xray-tabs):not(.auth-tabs) {
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      black var(--tab-fade-start),
+      black calc(100% - var(--tab-fade-end)),
+      transparent
+    );
+    animation: tab-fade-in linear both, tab-fade-out linear both;
+    animation-timeline: scroll(self inline);
+    animation-range: 0px 24px, calc(100% - 24px) 100%;
+  }
 }
 
 :root[data-theme] :is(.tabs, .audit-tabs, .users-tabs, .xray-tabs, .user-detail-tabs .tabs) > :is(.tab, .audit-tab, .users-tab):hover:not(.active),
@@ -586,13 +697,14 @@
 }
 
 :root .login-pass .auth-tabs .auth-tab {
+  position: relative;
   flex: 0 0 auto;
   min-height: 44px;
   padding: 0;
-  margin-bottom: -1px;
+  margin-bottom: 0;
   border-radius: 0;
   font-size: 1rem;
-  font-weight: 550;
+  font-weight: 600;
   background: transparent !important;
   box-shadow: none !important;
   color: var(--text-muted) !important;
@@ -604,8 +716,8 @@
 
 :root .login-pass .auth-tabs .auth-tab.active {
   color: var(--text-primary) !important;
-  font-weight: 650;
-  box-shadow: inset 0 -2px 0 var(--signal) !important;
+  font-weight: 600;
+  box-shadow: none !important;
 }
 
 :root .login-pass .auth-form .form-group {
@@ -1278,5 +1390,105 @@
   :root .audit-control-actions .btn {
     width: 100%;
     margin: 0;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Form-factor adaptation, typography resilience & natural interactions
+   -------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  html,
+  .main-scroll-region {
+    scroll-padding-bottom: calc(var(--mobile-bottom-nav-height, 78px) + env(safe-area-inset-bottom, 0px) + 1rem);
+  }
+}
+
+@media (pointer: coarse) {
+  :root :is(.tab, .audit-tab, .users-tab, .auth-tab, .filter-chip, .pagination-btn) {
+    min-height: 44px;
+  }
+
+  :root .btn-icon {
+    position: relative;
+  }
+
+  :root .btn-icon::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+  }
+}
+
+:root :is(h1, h2, h3, .header-title, .modal-title, .empty-state-title) {
+  text-wrap: balance;
+}
+
+:root :is(.empty-state-desc, .empty-state-sub, .empty-state-text, .card-subtitle, .header-subtitle) {
+  text-wrap: pretty;
+}
+
+:where(a, code) {
+  overflow-wrap: anywhere;
+}
+
+@keyframes mwg-popover-in {
+  from {
+    opacity: 0;
+    scale: 0.96;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root :is(.btn, .tab, .audit-tab, .users-tab, .auth-tab, .filter-chip):active:not(:disabled):not([aria-disabled="true"]) {
+    transform: none;
+    scale: 0.98;
+  }
+
+  :root :is(
+    .actions-dropdown-menu.is-ready,
+    .actions-dropdown-panel.is-ready,
+    .notification-dropdown.is-ready,
+    .server-selector-dropdown.is-ready,
+    .header-search-results.is-ready
+  ) {
+    animation: mwg-popover-in 160ms ease-out;
+    animation-timing-function: linear(0, 0.45 15%, 1.04 40%, 0.99 65%, 1);
+  }
+}
+
+:root :is(.card, tr, .pf-row, .group):focus-within :is(
+  .table-row-actions,
+  .server-card-actions,
+  .inbounds-row-actions,
+  .users-row-actions,
+  .servers-row-actions,
+  .audit-table-row-actions,
+  .tasks-row-actions,
+  .pf-row-actions,
+  .group-hover\:opacity-100
+),
+.group:focus-within .group-hover\:opacity-100 {
+  opacity: 1;
+  visibility: visible;
+}
+
+@media (hover: none) {
+  :root :is(
+    .table-row-actions,
+    .server-card-actions,
+    .inbounds-row-actions,
+    .users-row-actions,
+    .servers-row-actions,
+    .audit-table-row-actions,
+    .tasks-row-actions,
+    .pf-row-actions,
+    .group-hover\:opacity-100
+  ) {
+    opacity: 1;
+    visibility: visible;
   }
 }

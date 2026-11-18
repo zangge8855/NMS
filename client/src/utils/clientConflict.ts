@@ -199,7 +199,7 @@ function analyzeProtocolGroup(entries: any[], identityType: string): AnalyzedPro
     const conflictTypes = Array.from(conflictTypeSet.values())
         .sort((a, b) => (TYPE_PRIORITY[b] || 0) - (TYPE_PRIORITY[a] || 0));
 
-    const sortedByPriority = [...entries].sort((a, b) => scoreSourceEntry(b) - scoreSourceEntry(a));
+    const sortedByPriority = entries.toSorted((a, b) => scoreSourceEntry(b) - scoreSourceEntry(a));
     const recommended = sortedByPriority[0] || null;
     const recommendedSourceKey = recommended ? buildClientEntryLocator(recommended) : '';
 

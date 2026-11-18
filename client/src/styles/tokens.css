@@ -591,6 +591,11 @@
 
 /* Legacy fallback guarded against standard-supporting engines */
 @supports not (scrollbar-color: auto) {
+  :root,
+  * {
+    scrollbar-width: auto;
+  }
+
   ::-webkit-scrollbar {
     width: 10px;
     height: 10px;

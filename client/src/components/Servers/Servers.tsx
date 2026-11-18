@@ -719,7 +719,7 @@ export default function Servers() {
     const orderedServers = useMemo(() => {
         const orderMap = new Map();
         serverOrder.forEach((id, index) => orderMap.set(id, index));
-        return [...servers].sort((a, b) => {
+        return servers.toSorted((a, b) => {
             const aId = String(a?.id || '').trim();
             const bId = String(b?.id || '').trim();
             const aIndex = orderMap.has(aId) ? orderMap.get(aId) : Number.MAX_SAFE_INTEGER;

@@ -173,7 +173,7 @@ function randomMtprotoSecret(domain = DEFAULT_MTPROTO_FAKE_TLS_DOMAIN) {
 
 function deepClone(value) {
     try {
-        return JSON.parse(JSON.stringify(value));
+        return structuredClone(value);
     } catch {
         return value;
     }
@@ -1824,7 +1824,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
     };
 
     const ensureRealityStreamForServer = async (baseStream, serverId) => {
-        const stream = JSON.parse(JSON.stringify(baseStream || {}));
+        const stream = structuredClone(baseStream || {});
         if ((stream.security || 'none') !== 'reality') {
             return stream;
         }
