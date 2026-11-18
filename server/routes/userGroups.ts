@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from 'express';
+import { authMiddleware, auditorOrAbove, operatorOrAbove } from '../middleware/auth.js';
 import serverStore from '../store/serverStore.js';
 import jobStore from '../store/jobStore.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
@@ -106,14 +107,16 @@ function appendGroupSyncHistory(req: Request, sync: any = {}, operation: string 
     return ids;
 }
 
-router.get('/', (_req: Request, res: Response) => {
+router.use(authMiddleware);
+
+router.get('/', auditorOrAbove, (_req: Request, res: Response) => {
     return res.json({
         success: true,
         obj: listUserGroups(),
     });
 });
 
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', operatorOrAbove, async (req: Request, res: Response) => {
     const locale = resolveRequestLocale(req);
     try {
         const actor = (req as any).user?.username || (req as any).user?.role || 'admin';
@@ -148,7 +151,7 @@ router.post('/', async (req: Request, res: Response) => {
     }
 });
 
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', operatorOrAbove, async (req: Request, res: Response) => {
     const locale = resolveRequestLocale(req);
     try {
         const actor = (req as any).user?.username || (req as any).user?.role || 'admin';
@@ -183,7 +186,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     }
 });
 
-router.post('/:id/sync', async (req: Request, res: Response) => {
+router.post('/:id/sync', operatorOrAbove, async (req: Request, res: Response) => {
     const locale = resolveRequestLocale(req);
     try {
         const actor = (req as any).user?.username || (req as any).user?.role || 'admin';
@@ -212,7 +215,7 @@ router.post('/:id/sync', async (req: Request, res: Response) => {
     }
 });
 
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', operatorOrAbove, async (req: Request, res: Response) => {
     const locale = resolveRequestLocale(req);
     try {
         const actor = (req as any).user?.username || (req as any).user?.role || 'admin';

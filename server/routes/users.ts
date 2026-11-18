@@ -5,7 +5,7 @@ import userPolicyStore from '../store/userPolicyStore.js';
 import userGroupStore from '../store/userGroupStore.js';
 import auditStore from '../store/auditStore.js';
 import subscriptionTokenStore from '../store/subscriptionTokenStore.js';
-import { authMiddleware, operatorOrAbove } from '../middleware/auth.js';
+import { authMiddleware, auditorOrAbove, operatorOrAbove } from '../middleware/auth.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import { normalizeEmail } from '../lib/normalize.js';
 import { querySubscriptionAccess } from '../services/subscriptionAuditService.js';
@@ -29,6 +29,8 @@ function resolveGuestPassSubscriptionBase(req: Request): string {
 }
 
 const router = Router();
+
+router.use(authMiddleware);
 
 function collectUserEmails(user: any): string[] {
     return Array.from(new Set([
@@ -69,7 +71,7 @@ function mergeAuditResults(results: any[] = [], pageSize: number = 50) {
 }
 
 // GET /api/users/:id/detail — aggregate user detail
-router.get('/:id/detail', async (req: Request, res: Response) => {
+router.get('/:id/detail', auditorOrAbove, async (req: Request, res: Response) => {
     const locale = resolveRequestLocale(req);
     const user = userStore.getById(req.params.id);
     if (!user) {
@@ -164,7 +166,7 @@ router.get('/:id/detail', async (req: Request, res: Response) => {
 });
 
 // GET /api/users/:id/tokens — list user's subscription tokens
-router.get('/:id/tokens', (req: Request, res: Response) => {
+router.get('/:id/tokens', auditorOrAbove, (req: Request, res: Response) => {
     const locale = resolveRequestLocale(req);
     const user = userStore.getById(req.params.id);
     if (!user) {
@@ -179,7 +181,7 @@ router.get('/:id/tokens', (req: Request, res: Response) => {
 });
 
 // POST /api/users/:id/tokens — issue new subscription token
-router.post('/:id/tokens', (req: Request, res: Response) => {
+router.post('/:id/tokens', operatorOrAbove, (req: Request, res: Response) => {
     const locale = resolveRequestLocale(req);
     const user = userStore.getById(req.params.id);
     if (!user) {
@@ -216,7 +218,7 @@ router.post('/:id/tokens', (req: Request, res: Response) => {
 });
 
 // DELETE /api/users/:id/tokens/:tid — revoke token
-router.delete('/:id/tokens/:tid', (req: Request, res: Response) => {
+router.delete('/:id/tokens/:tid', operatorOrAbove, (req: Request, res: Response) => {
     const locale = resolveRequestLocale(req);
     const user = userStore.getById(req.params.id);
     if (!user) {

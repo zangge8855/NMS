@@ -52,7 +52,7 @@ import {
     updateManagedUserExpiry,
     updateUserSubscriptionBinding,
 } from '../services/userAdminService.js';
-import { authMiddleware, adminOnly, auditorOrAbove, anyRole } from '../middleware/auth.js';
+import { authMiddleware, auditorOrAbove, operatorOrAbove, anyRole } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -727,7 +727,56 @@ router.post('/reset-password', (req, res) => {
     }
 });
 
-// ── User Management Routes (admin only) ────────────────────
+// ── User Management Routes (operator+ for regular users, admin for staff) ──
+
+function assertOperatorCanManageUserTargets(
+    req: any,
+    res: any,
+    options: {
+        requestedRole?: unknown;
+        targetIds?: unknown[];
+    } = {},
+): boolean {
+    if (req.user?.role === 'admin') {
+        return true;
+    }
+
+    const locale = resolveRequestLocale(req);
+    if (options.requestedRole !== undefined && options.requestedRole !== null) {
+        const requestedRole = String(options.requestedRole).trim().toLowerCase();
+        if (requestedRole && requestedRole !== 'user') {
+            res.status(403).json({
+                success: false,
+                msg: pickLocalizedText(
+                    locale,
+                    '仅超级管理员可创建或修改管理角色账号',
+                    'Only administrators can assign or modify staff account roles'
+                ),
+            });
+            return false;
+        }
+    }
+
+    const targetIds = Array.isArray(options.targetIds) ? options.targetIds : [];
+    for (const rawId of targetIds) {
+        const idText = String(rawId || '');
+        const target = (idText ? userStore.getById(idText) : null)
+            || (idText.trim() ? userStore.getById(idText.trim()) : null);
+        if (target && target.role !== 'user') {
+            res.status(403).json({
+                success: false,
+                msg: pickLocalizedText(
+                    locale,
+                    '仅超级管理员可管理非普通用户账号（admin / operator / auditor）',
+                    'Only administrators can manage staff accounts (admin, operator, or auditor)'
+                ),
+            });
+            return false;
+        }
+    }
+
+    return true;
+}
 
 /**
  * GET /api/auth/users — 获取用户列表（支持分页）
@@ -756,7 +805,10 @@ router.get('/users', authMiddleware, auditorOrAbove, (req, res) => {
 /**
  * POST /api/auth/users — 创建新用户
  */
-router.post('/users', authMiddleware, adminOnly, (req, res) => {
+router.post('/users', authMiddleware, operatorOrAbove, (req, res) => {
+    if (!assertOperatorCanManageUserTargets(req, res, { requestedRole: req.body?.role })) {
+        return;
+    }
     const locale = resolveRequestLocale(req);
     try {
         const result = createManagedUser(req.body, { locale });
@@ -769,7 +821,12 @@ router.post('/users', authMiddleware, adminOnly, (req, res) => {
 });
 
 // ── Bulk enable/disable users ──
-router.post('/users/bulk-set-enabled', authMiddleware, adminOnly, async (req, res) => {
+router.post('/users/bulk-set-enabled', authMiddleware, operatorOrAbove, async (req, res) => {
+    if (!assertOperatorCanManageUserTargets(req, res, {
+        targetIds: Array.isArray(req.body?.userIds) ? req.body.userIds : [],
+    })) {
+        return;
+    }
     const locale = resolveRequestLocale(req);
     try {
         const result = await bulkSetUsersEnabled(
@@ -837,7 +894,7 @@ router.post('/users/bulk-set-enabled', authMiddleware, adminOnly, async (req, re
 });
 
 // ── CSV export users ──
-router.get('/users/export', authMiddleware, adminOnly, (req, res) => {
+router.get('/users/export', authMiddleware, auditorOrAbove, (req, res) => {
     const csv = buildUsersCsv();
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${buildUsersExportFilename()}"`);
@@ -847,7 +904,13 @@ router.get('/users/export', authMiddleware, adminOnly, (req, res) => {
 /**
  * PUT /api/auth/users/:id — 更新用户信息
  */
-router.put('/users/:id', authMiddleware, adminOnly, async (req, res) => {
+router.put('/users/:id', authMiddleware, operatorOrAbove, async (req, res) => {
+    if (!assertOperatorCanManageUserTargets(req, res, {
+        requestedRole: req.body?.role,
+        targetIds: [req.params.id],
+    })) {
+        return;
+    }
     const locale = resolveRequestLocale(req);
     try {
         const result = await updateManagedUser(
@@ -871,7 +934,10 @@ router.put('/users/:id', authMiddleware, adminOnly, async (req, res) => {
 /**
  * PUT /api/auth/users/:id/subscription-binding — 管理员绑定用户订阅邮箱
  */
-router.put('/users/:id/subscription-binding', authMiddleware, adminOnly, async (req, res) => {
+router.put('/users/:id/subscription-binding', authMiddleware, operatorOrAbove, async (req, res) => {
+    if (!assertOperatorCanManageUserTargets(req, res, { targetIds: [req.params.id] })) {
+        return;
+    }
     const locale = resolveRequestLocale(req);
     try {
         const result = await updateUserSubscriptionBinding(
@@ -899,7 +965,10 @@ router.put('/users/:id/subscription-binding', authMiddleware, adminOnly, async (
 /**
  * PUT /api/auth/users/:id/set-enabled — 启用/停用用户
  */
-router.put('/users/:id/set-enabled', authMiddleware, adminOnly, async (req, res) => {
+router.put('/users/:id/set-enabled', authMiddleware, operatorOrAbove, async (req, res) => {
+    if (!assertOperatorCanManageUserTargets(req, res, { targetIds: [req.params.id] })) {
+        return;
+    }
     const locale = resolveRequestLocale(req);
     try {
         const result = await setManagedUserEnabled(
@@ -958,7 +1027,10 @@ router.put('/users/:id/set-enabled', authMiddleware, adminOnly, async (req, res)
 /**
  * PUT /api/auth/users/:id/update-expiry — 更新用户所有客户端的到期时间
  */
-router.put('/users/:id/update-expiry', authMiddleware, adminOnly, async (req, res) => {
+router.put('/users/:id/update-expiry', authMiddleware, operatorOrAbove, async (req, res) => {
+    if (!assertOperatorCanManageUserTargets(req, res, { targetIds: [req.params.id] })) {
+        return;
+    }
     const locale = resolveRequestLocale(req);
     try {
         const result = await updateManagedUserExpiry(
@@ -1009,7 +1081,10 @@ router.put('/users/:id/update-expiry', authMiddleware, adminOnly, async (req, re
  * POST /api/auth/users/:id/provision-subscription
  * 一键开通订阅：绑定订阅邮箱 + 写入节点/协议策略 + 预生成持久 token。
  */
-router.post('/users/:id/provision-subscription', authMiddleware, adminOnly, async (req, res) => {
+router.post('/users/:id/provision-subscription', authMiddleware, operatorOrAbove, async (req, res) => {
+    if (!assertOperatorCanManageUserTargets(req, res, { targetIds: [req.params.id] })) {
+        return;
+    }
     const locale = resolveRequestLocale(req);
     try {
         const actor = String(req.user?.username || req.user?.role || 'admin');
@@ -1069,7 +1144,10 @@ router.post('/users/:id/provision-subscription', authMiddleware, adminOnly, asyn
 /**
  * PUT /api/auth/users/:id/reset-password — 管理员重置指定用户密码
  */
-router.put('/users/:id/reset-password', authMiddleware, adminOnly, (req, res) => {
+router.put('/users/:id/reset-password', authMiddleware, operatorOrAbove, (req, res) => {
+    if (!assertOperatorCanManageUserTargets(req, res, { targetIds: [req.params.id] })) {
+        return;
+    }
     const locale = resolveRequestLocale(req);
     try {
         const result = adminResetUserPassword(req.params.id, req.body, { locale });
@@ -1084,7 +1162,10 @@ router.put('/users/:id/reset-password', authMiddleware, adminOnly, (req, res) =>
 /**
  * DELETE /api/auth/users/:id — 删除用户
  */
-router.delete('/users/:id', authMiddleware, adminOnly, async (req, res) => {
+router.delete('/users/:id', authMiddleware, operatorOrAbove, async (req, res) => {
+    if (!assertOperatorCanManageUserTargets(req, res, { targetIds: [req.params.id] })) {
+        return;
+    }
     const locale = resolveRequestLocale(req);
     try {
         const result = await deleteManagedUser(req.params.id, { locale });

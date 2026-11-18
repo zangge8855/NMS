@@ -63,6 +63,10 @@ const AUDITOR_ALLOWED = [
     ['GET', '/panel/api/inbounds/list'],
     ['GET', '/panel/api/inbounds/get/3'],
     ['GET', '/panel/api/clients/list'],
+    ['GET', '/panel/api/clients/list/paged'],
+    ['GET', '/panel/api/clients/get/a@example.com'],
+    ['GET', '/panel/api/clients/get/subId/sub-abc123'],
+    ['GET', '/panel/api/clients/get/tgId/123456789'],
     ['GET', '/panel/api/server/status'],
     ['GET', '/panel/api/server/getXrayVersion'],
     ['GET', '/panel/api/server/getNewUUID'],
@@ -99,6 +103,10 @@ const AUDITOR_DENIED = [
     ['POST', '/panel/api/hosts/add'],
     ['DELETE', '/panel/api/clients/hwids/a@example.com'],
     ['GET', '/panel/api/nodes/list'],
+    ['POST', '/panel/api/clients/list/paged'],
+    ['DELETE', '/panel/api/clients/get/subId/sub-abc123'],
+    ['POST', '/panel/api/clients/get/tgId/123456789'],
+    ['GET', '/panel/api/clients/get/other/sub-abc123'],
 ];
 
 test('proxy policy: admins reach every endpoint', () => {
@@ -191,4 +199,17 @@ test('proxy route enforces the policy before contacting the panel', async () => 
     });
     assert.equal(auditorWrite.statusCode, 403);
     assert.match(String(auditorWrite.json?.msg || ''), /审计员角色仅限只读查询/);
+
+    for (const allowedReadPath of [
+        '/api/panel/srv-1/panel/api/clients/list/paged',
+        '/api/panel/srv-1/panel/api/clients/get/subId/sub-abc123',
+        '/api/panel/srv-1/panel/api/clients/get/tgId/123456789',
+    ]) {
+        const res = await invokeApp(app, {
+            method: 'GET',
+            url: allowedReadPath,
+            headers: { Authorization: makeAuthHeader(auditor) },
+        });
+        assert.notEqual(res.statusCode, 403, `expected auditor GET ${allowedReadPath} to pass RBAC policy`);
+    }
 });

@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from 'express';
-import { authMiddleware } from '../middleware/auth.js';
+import { authMiddleware, auditorOrAbove, operatorOrAbove } from '../middleware/auth.js';
 import { pickLocalizedText, resolveRequestLocale } from '../lib/requestLocale.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import serverStore from '../store/serverStore.js';
@@ -103,7 +103,7 @@ function sanitizePolicyResult(result: any): any {
 
 router.use(authMiddleware);
 
-router.get('/:email', (req: Request, res: Response) => {
+router.get('/:email', auditorOrAbove, (req: Request, res: Response) => {
     const email = normalizeEmail(req.params.email);
     if (!email) {
         return res.status(400).json({ success: false, msg: 'Email is required' });
@@ -116,7 +116,7 @@ router.get('/:email', (req: Request, res: Response) => {
     });
 });
 
-router.put('/:email', async (req: Request, res: Response) => {
+router.put('/:email', operatorOrAbove, async (req: Request, res: Response) => {
     const email = normalizeEmail(req.params.email);
     if (!email) {
         return res.status(400).json({ success: false, msg: 'Email is required' });

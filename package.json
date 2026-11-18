@@ -12,6 +12,7 @@
     "build": "npm run build --workspace=client",
     "start": "node server/index.js",
     "lint": "npm run lint --workspace=client",
+    "typecheck": "npm run typecheck --workspace=server && npm run typecheck --workspace=client",
     "test:server": "npm test --workspace=server",
     "test:client": "npm test --workspace=client",
     "test": "npm run test:server && npm run test:client",

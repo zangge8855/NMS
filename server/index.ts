@@ -6,7 +6,7 @@ import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import config from './config.js';
 import { initWebSocket } from './wsServer.js';
-import { authMiddleware, adminOnly, operatorOrAbove, auditorOrAbove } from './middleware/auth.js';
+import { authMiddleware, adminOnly, auditorOrAbove } from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
 import serverRoutes from './routes/servers.js';
 import proxyRoutes from './routes/proxy.js';
@@ -179,12 +179,12 @@ export function createApp(options: { serveClientBuild?: boolean } = {}): Express
 
     app.use('/api/servers', authMiddleware, auditorOrAbove, serverRoutes);
     app.use('/api/panel', authMiddleware, auditorOrAbove, proxyRoutes);
-    app.use('/api/batch', authMiddleware, operatorOrAbove, batchRoutes);
-    app.use('/api/jobs', authMiddleware, operatorOrAbove, batchRoutes);
-    app.use('/api/user-policy', authMiddleware, operatorOrAbove, userPolicyRoutes);
-    app.use('/api/user-groups', authMiddleware, operatorOrAbove, userGroupRoutes);
-    app.use('/api/users', authMiddleware, operatorOrAbove, usersRoutes);
-    app.use('/api/clients', authMiddleware, operatorOrAbove, clientsRoutes);
+    app.use('/api/batch', authMiddleware, auditorOrAbove, batchRoutes);
+    app.use('/api/jobs', authMiddleware, auditorOrAbove, batchRoutes);
+    app.use('/api/user-policy', authMiddleware, auditorOrAbove, userPolicyRoutes);
+    app.use('/api/user-groups', authMiddleware, auditorOrAbove, userGroupRoutes);
+    app.use('/api/users', authMiddleware, auditorOrAbove, usersRoutes);
+    app.use('/api/clients', authMiddleware, auditorOrAbove, clientsRoutes);
     app.use('/api/certificates', authMiddleware, auditorOrAbove, certificatesRoutes);
     app.use('/api/system', authMiddleware, auditorOrAbove, systemRoutes);
     app.use('/api/xray', authMiddleware, adminOnly, xrayConfigRoutes);
@@ -233,11 +233,42 @@ export function createApp(options: { serveClientBuild?: boolean } = {}): Express
         if (res.headersSent) {
             return next(err);
         }
-        const status = err.status || err.statusCode || 500;
-        const message = config.nodeEnv === 'production'
-            ? '服务器内部错误'
-            : (err.message || '服务器内部错误');
-        console.error(`[Error] ${req.method} ${redactRequestUrl(req.originalUrl)} →`, err.stack || err);
+        const errObj = err as any;
+        const isPayloadTooLarge = errObj?.type === 'entity.too.large';
+        const isJsonSyntaxError = err instanceof SyntaxError
+            && (errObj?.type === 'entity.parse.failed' || 'body' in err || Number(errObj?.status || errObj?.statusCode) === 400);
+
+        const rawStatus = Number(errObj?.status || errObj?.statusCode);
+        let status = Number.isInteger(rawStatus) && rawStatus >= 400 && rawStatus <= 599
+            ? rawStatus
+            : 500;
+        if (isPayloadTooLarge) {
+            status = 413;
+        } else if (isJsonSyntaxError) {
+            status = 400;
+        }
+
+        const isProduction = process.env.NODE_ENV === 'production' || config.nodeEnv === 'production';
+        const rawMessage = typeof err?.message === 'string' ? err.message : '';
+        const hasNonEmptyMessage = rawMessage.trim().length > 0;
+
+        let message: string;
+        if (isPayloadTooLarge) {
+            message = pickRequestText(req, '请求体过大', 'Request payload too large');
+        } else if (isJsonSyntaxError) {
+            message = pickRequestText(req, '请求 JSON 格式无效', 'Invalid JSON payload');
+        } else if (status >= 400 && status < 500) {
+            message = hasNonEmptyMessage
+                ? rawMessage
+                : pickRequestText(req, '请求无效', 'Bad request');
+        } else {
+            const fallback500 = pickRequestText(req, '服务器内部错误', 'Internal server error');
+            message = isProduction
+                ? fallback500
+                : (hasNonEmptyMessage ? rawMessage : fallback500);
+        }
+
+        console.error(`[Error] ${req.method} ${redactRequestUrl(req.originalUrl)} →`, err?.stack || err);
         res.status(status).json({ success: false, msg: message });
     });
 

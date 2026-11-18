@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from 'express';
+import { authMiddleware, auditorOrAbove, operatorOrAbove } from '../middleware/auth.js';
 import { toHttpError } from '../lib/httpError.js';
 import { pickLocalizedText, resolveRequestLocale } from '../lib/requestLocale.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
@@ -6,7 +7,9 @@ import { listEntitlementOverrides, updateClientEntitlement } from '../services/c
 
 const router = Router();
 
-router.get('/entitlement-overrides', (req: Request, res: Response) => {
+router.use(authMiddleware);
+
+router.get('/entitlement-overrides', auditorOrAbove, (req: Request, res: Response) => {
     return res.json({
         success: true,
         obj: listEntitlementOverrides({
@@ -16,7 +19,7 @@ router.get('/entitlement-overrides', (req: Request, res: Response) => {
     });
 });
 
-router.put('/entitlement', async (req: Request, res: Response) => {
+router.put('/entitlement', operatorOrAbove, async (req: Request, res: Response) => {
     const locale = resolveRequestLocale(req);
     const fallbackMessage = pickLocalizedText(locale, '更新单独限定失败', 'Failed to update client entitlement');
     try {

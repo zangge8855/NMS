@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authMiddleware } from '../middleware/auth.js';
+import { authMiddleware, auditorOrAbove, operatorOrAbove } from '../middleware/auth.js';
 import { ensureAuthenticated } from '../lib/panelClient.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import config from '../config.js';
@@ -1459,13 +1459,13 @@ async function retryHistoryItem(historyItem, req) {
     };
 }
 
-router.get('/history', (req, res) => {
+router.get('/history', auditorOrAbove, (req, res) => {
     return res.json(buildHistoryListResponse(req, {
         limit: Math.max(1, Math.min(toNumberValue(req.query.limit, 50), 500)),
     }));
 });
 
-router.get('/history/:id', (req, res) => {
+router.get('/history/:id', auditorOrAbove, (req, res) => {
     const item = getHistoryEntry(req.params.id);
     if (!item) {
         return res.status(404).json({
@@ -1479,7 +1479,7 @@ router.get('/history/:id', (req, res) => {
     });
 });
 
-router.delete('/history', (req, res) => {
+router.delete('/history', operatorOrAbove, (req, res) => {
     const cleared = jobStore.clear();
     appendSecurityAudit('batch_history_cleared', req, { cleared });
     return res.json({
@@ -1488,7 +1488,7 @@ router.delete('/history', (req, res) => {
     });
 });
 
-router.post('/clients', async (req, res) => {
+router.post('/clients', operatorOrAbove, async (req, res) => {
     try {
         const action = String(req.body?.action || '').trim();
         const targets = Array.isArray(req.body?.targets) ? req.body.targets : [];
@@ -1581,7 +1581,7 @@ router.post('/clients', async (req, res) => {
     }
 });
 
-router.post('/inbounds', async (req, res) => {
+router.post('/inbounds', operatorOrAbove, async (req, res) => {
     try {
         const action = String(req.body?.action || '').trim();
         const targets = Array.isArray(req.body?.targets) ? req.body.targets : [];
@@ -1687,7 +1687,7 @@ router.post('/inbounds', async (req, res) => {
     }
 });
 
-router.post('/history/:id/retry', async (req, res) => {
+router.post('/history/:id/retry', operatorOrAbove, async (req, res) => {
     try {
         const historyItem = getHistoryEntry(req.params.id);
         if (!historyItem) {
@@ -1744,11 +1744,11 @@ router.post('/history/:id/retry', async (req, res) => {
 // as dead code; long-running work is cancelled through the task queue instead.
 
 // Job-style aliases for /api/jobs mount.
-router.get('/', (req, res) => {
+router.get('/', auditorOrAbove, (req, res) => {
     return res.json(buildHistoryListResponse(req));
 });
 
-router.get(`/:id(${JOB_ID_PATTERN})`, (req, res) => {
+router.get(`/:id(${JOB_ID_PATTERN})`, auditorOrAbove, (req, res) => {
     const item = getHistoryEntry(req.params.id);
     if (!item) {
         return res.status(404).json({
@@ -1762,7 +1762,7 @@ router.get(`/:id(${JOB_ID_PATTERN})`, (req, res) => {
     });
 });
 
-router.post(`/:id(${JOB_ID_PATTERN})/retry`, async (req, res) => {
+router.post(`/:id(${JOB_ID_PATTERN})/retry`, operatorOrAbove, async (req, res) => {
     try {
         const historyItem = getHistoryEntry(req.params.id);
         if (!historyItem) {
