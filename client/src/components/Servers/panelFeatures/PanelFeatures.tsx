@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useI18n } from '../../../contexts/LanguageContext';
+import ClientDirectoryPanel from './ClientDirectoryPanel';
 import ClientGroupsPanel from './ClientGroupsPanel';
 import OutboundSubsPanel from './OutboundSubsPanel';
 import PanelNodesPanel from './PanelNodesPanel';
@@ -8,7 +9,7 @@ import SubBalancersPanel from './SubBalancersPanel';
 import SubscriptionHostsPanel from './SubscriptionHostsPanel';
 import { usePanelPermissions, type PanelInboundOption } from './panelRequest';
 
-type SectionKey = 'groups' | 'hosts' | 'balancers' | 'outboundSubs' | 'nodes';
+type SectionKey = 'groups' | 'clients' | 'hosts' | 'balancers' | 'outboundSubs' | 'nodes';
 
 type SectionDef = {
     key: SectionKey;
@@ -18,6 +19,7 @@ type SectionDef = {
 
 const SECTIONS: SectionDef[] = [
     { key: 'groups', audience: 'staff' },
+    { key: 'clients', audience: 'staff' },
     { key: 'hosts', audience: 'staff' },
     { key: 'balancers', audience: 'staff' },
     { key: 'outboundSubs', audience: 'managers' },
@@ -84,6 +86,7 @@ export default function PanelFeatures({ serverId, inbounds }: PanelFeaturesProps
             </nav>
             <div className="pf-stage">
                 {active === 'groups' && <ClientGroupsPanel serverId={serverId} canManage={canManage} />}
+                {active === 'clients' && <ClientDirectoryPanel serverId={serverId} inbounds={inboundOptions} />}
                 {active === 'hosts' && <SubscriptionHostsPanel serverId={serverId} canManage={canManage} inbounds={inboundOptions} />}
                 {active === 'balancers' && <SubBalancersPanel serverId={serverId} canManage={canManage} inbounds={inboundOptions} />}
                 {active === 'outboundSubs' && <OutboundSubsPanel serverId={serverId} canManage={canManage} />}
