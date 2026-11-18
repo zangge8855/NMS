@@ -196,6 +196,7 @@ export default function Inbounds() {
     const navigate = useNavigate();
     const confirmAction = useConfirm();
     const bootstrapRef = useRef(readInboundsSnapshot());
+    const hasHydratedLiveRef = useRef(false);
     const inboundsRequestIdRef = useRef(0);
     const resolvedActiveFilterServerId = activeServerId && activeServerId !== 'global' ? activeServerId : 'all';
     const isServerFilterLocked = Boolean(activeServerId && activeServerId !== 'global');
@@ -423,6 +424,7 @@ export default function Inbounds() {
         if (seededOrder) {
             setInboundOrder(nextOrderMap);
         }
+        hasHydratedLiveRef.current = true;
         setInbounds(sortVisibleInbounds(allResults, nextOrderMap, nextServerOrder));
         setLoading(false);
     };
@@ -435,7 +437,8 @@ export default function Inbounds() {
     }, [servers]);
 
     useEffect(() => {
-        const handlePageRefresh = () => {
+        const handlePageRefresh = (event?: Event) => {
+            event?.preventDefault?.();
             fetchAllInboundsRef.current({ preserveCurrent: true, force: true });
         };
         window.addEventListener('nms:page-refresh', handlePageRefresh);
@@ -443,6 +446,7 @@ export default function Inbounds() {
     }, []);
 
     useEffect(() => {
+        if (!hasHydratedLiveRef.current) return;
         writeSessionSnapshot(INBOUNDS_SNAPSHOT_KEY, {
             inbounds,
             inboundOrder,
@@ -527,7 +531,7 @@ export default function Inbounds() {
                 toast.success(deleteDoneMsg);
             }
             setSelectedKeys(new Set());
-            fetchAllInbounds();
+            fetchAllInbounds({ force: true });
         } catch (err) {
             console.error(err);
             const msg = getErrorMessage(err, t('comp.inbounds.batchDeleteFailed'), locale);
@@ -577,7 +581,7 @@ export default function Inbounds() {
                 toast.success(resetDoneMsg);
             }
             setSelectedKeys(new Set());
-            fetchAllInbounds();
+            fetchAllInbounds({ force: true });
         } catch (err) {
             console.error(err);
             const msg = getErrorMessage(err, t('comp.inbounds.batchResetFailed'), locale);
@@ -631,7 +635,7 @@ export default function Inbounds() {
                 toast.success(t('comp.inbounds.batchSyncUsersSummaryOk', summaryParams));
             }
             setSelectedKeys(new Set());
-            fetchAllInbounds();
+            fetchAllInbounds({ force: true });
         } catch (err) {
             console.error(err);
             const msg = getErrorMessage(err, t('comp.inbounds.batchSyncUsersFailed'), locale);
@@ -692,7 +696,7 @@ export default function Inbounds() {
                 toast.success(toggleDoneMsg);
             }
             setSelectedKeys(new Set());
-            fetchAllInbounds();
+            fetchAllInbounds({ force: true });
         } catch (err) {
             console.error(err);
             const msg = getErrorMessage(err, t('comp.inbounds.batchToggleFailed'), locale);
@@ -709,11 +713,14 @@ export default function Inbounds() {
         });
         if (!ok) return;
         try {
-            await api.post(`/panel/${inbound.serverId}/panel/api/inbounds/del/${inbound.id}`);
+            const res = await api.post(`/panel/${inbound.serverId}/panel/api/inbounds/del/${inbound.id}`);
+            if (res.data?.success === false) {
+                throw new Error(res.data?.msg || res.data?.message || t('comp.common.deleteFailed'));
+            }
             toast.success(t('comp.inbounds.inboundDeleted'));
-            fetchAllInbounds();
-        } catch {
-            toast.error(t('comp.common.deleteFailed'));
+            fetchAllInbounds({ force: true });
+        } catch (err) {
+            toast.error(getErrorMessage(err, t('comp.common.deleteFailed'), locale));
         }
     };
 
@@ -753,9 +760,12 @@ export default function Inbounds() {
                 action,
                 targetCount: 1,
             });
-            await api.post('/batch/inbounds', payload);
+            const res = await api.post('/batch/inbounds', payload);
+            if (res.data?.success === false) {
+                throw new Error(res.data?.msg || res.data?.message || t('comp.inbounds.toggleFailed'));
+            }
             toast.success(nextEnable ? t('comp.inbounds.inboundEnabled') : t('comp.inbounds.inboundDisabled'));
-            fetchAllInbounds();
+            fetchAllInbounds({ force: true });
         } catch (err) {
             toast.error(getErrorMessage(err, t('comp.inbounds.toggleFailed'), locale));
         }
@@ -773,9 +783,12 @@ export default function Inbounds() {
         if (!ok) return;
 
         try {
-            await api.post(`/panel/${inbound.serverId}/panel/api/inbounds/delDepletedClients/${inbound.id}`);
+            const res = await api.post(`/panel/${inbound.serverId}/panel/api/inbounds/delDepletedClients/${inbound.id}`);
+            if (res.data?.success === false) {
+                throw new Error(res.data?.msg || res.data?.message || t('comp.inbounds.cleanupDepletedFailed'));
+            }
             toast.success(t('comp.inbounds.cleanupDepletedDone'));
-            fetchAllInbounds();
+            fetchAllInbounds({ force: true });
         } catch (err) {
             toast.error(getErrorMessage(err, t('comp.inbounds.cleanupDepletedFailed'), locale));
         }
@@ -808,7 +821,7 @@ export default function Inbounds() {
             toast.success(t('comp.inbounds.orderSaved'));
         } catch (err) {
             toast.error(getErrorMessage(err, t('comp.inbounds.orderSaveFailed'), locale));
-            fetchAllInbounds();
+            fetchAllInbounds({ force: true });
         }
         setSavingOrderServerId('');
     };
@@ -825,7 +838,7 @@ export default function Inbounds() {
             toast.success(t('comp.inbounds.serverOrderSaved'));
         } catch (err) {
             toast.error(getErrorMessage(err, t('comp.inbounds.serverOrderSaveFailed'), locale));
-            fetchAllInbounds();
+            fetchAllInbounds({ force: true });
         }
         setSavingOrderServerId('');
     };
@@ -930,9 +943,12 @@ export default function Inbounds() {
                 action: 'delete',
                 targetCount: 1,
             });
-            await api.post('/batch/clients', payload);
+            const res = await api.post('/batch/clients', payload);
+            if (res.data?.success === false) {
+                throw new Error(res.data?.msg || res.data?.message || t('comp.common.deleteFailed'));
+            }
             toast.success(t('comp.inbounds.clientDeleted'));
-            fetchAllInbounds();
+            fetchAllInbounds({ force: true });
         } catch (err) {
             console.error(err);
             toast.error(getErrorMessage(err, t('comp.common.deleteFailed'), locale));
@@ -1035,7 +1051,7 @@ export default function Inbounds() {
                 toast.success(clientDeleteDoneMsg);
             }
             clearInboundClientSelection(inbound, selectedClients);
-            fetchAllInbounds();
+            fetchAllInbounds({ force: true });
         } catch (err) {
             console.error(err);
             toast.error(getErrorMessage(err, t('comp.inbounds.batchDeleteFailed'), locale));
@@ -1159,9 +1175,12 @@ export default function Inbounds() {
                 action: nextAction,
                 targetCount: 1,
             });
-            await api.post('/batch/clients', payload);
+            const res = await api.post('/batch/clients', payload);
+            if (res.data?.success === false) {
+                throw new Error(res.data?.msg || res.data?.message || t('comp.inbounds.toggleFailed'));
+            }
             toast.success(nextAction === 'enable' ? t('comp.inbounds.clientEnabled') : t('comp.inbounds.clientDisabled'));
-            fetchAllInbounds();
+            fetchAllInbounds({ force: true });
         } catch (err) {
             console.error(err);
             toast.error(getErrorMessage(err, t('comp.inbounds.toggleFailed'), locale));
@@ -1231,7 +1250,7 @@ export default function Inbounds() {
             });
             toast.success(t('comp.inbounds.entitlementSaved'));
             closeEntitlementModal();
-            fetchAllInbounds();
+            fetchAllInbounds({ force: true });
         } catch (err) {
             toast.error(getErrorMessage(err, t('comp.inbounds.entitlementSaveFailed'), locale));
         } finally {
@@ -1253,7 +1272,7 @@ export default function Inbounds() {
             });
             toast.success(t('comp.inbounds.policyRestored'));
             closeEntitlementModal();
-            fetchAllInbounds();
+            fetchAllInbounds({ force: true });
         } catch (err) {
             toast.error(getErrorMessage(err, t('comp.inbounds.policyRestoreFailed'), locale));
             setEntitlementSaving(false);
@@ -1309,8 +1328,12 @@ export default function Inbounds() {
                                             title={deepCopy.copyCredential}
                                             disabled={isActioning}
                                             onClick={async () => {
-                                                await copyToClipboard(rawCredential);
-                                                toast.success(t('comp.inbounds.idCopied'));
+                                                const copied = await copyToClipboard(rawCredential);
+                                                if (copied) {
+                                                    toast.success(t('comp.inbounds.idCopied'));
+                                                } else {
+                                                    toast.error(t('comp.common.copyFailed'));
+                                                }
                                             }}
                                         >
                                             <HiOutlineClipboard />
@@ -1945,8 +1968,12 @@ export default function Inbounds() {
                                                                                             disabled={isActioning}
                                                                                             onClick={async (e) => {
                                                                                                 e.stopPropagation();
-                                                                                                await copyToClipboard(rawCredential);
-                                                                                                toast.success(t('comp.inbounds.idCopied'));
+                                                                                                const copied = await copyToClipboard(rawCredential);
+                                                                                                if (copied) {
+                                                                                                    toast.success(t('comp.inbounds.idCopied'));
+                                                                                                } else {
+                                                                                                    toast.error(t('comp.common.copyFailed'));
+                                                                                                }
                                                                                             }}
                                                                                         >
                                                                                             <HiOutlineClipboard />

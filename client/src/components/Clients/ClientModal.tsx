@@ -45,12 +45,78 @@ function assertOperationSucceeded(response, fallbackMsg = 'Operation failed') {
 function resolveClientIdentifier(client: any = {}, protocol: any = '') {
     const normalizedProtocol = normalizeProtocol(protocol || client.protocol);
     if (PASSWORD_PROTOCOLS.has(normalizedProtocol)) {
-        return client.password || client.id || client.email || '';
+        return client.auth || client.auth_str || client.password || client.id || client.uuid || client.email || '';
     }
     if (UUID_PROTOCOLS.has(normalizedProtocol)) {
-        return client.id || client.password || client.email || '';
+        return client.uuid || client.id || client.password || client.email || '';
     }
-    return client.id || client.password || client.email || '';
+    return client.id || client.uuid || client.password || client.auth || client.auth_str || client.email || '';
+}
+
+function generateBase64Key(byteLength: number = 32): string {
+    const bytes = new Uint8Array(byteLength);
+    if (typeof globalThis !== 'undefined' && globalThis.crypto?.getRandomValues) {
+        globalThis.crypto.getRandomValues(bytes);
+    } else {
+        for (let i = 0; i < byteLength; i += 1) {
+            bytes[i] = Math.floor(Math.random() * 256);
+        }
+    }
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += 1) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+}
+
+function extractShadowsocksMethod(source: any): string {
+    if (!source || typeof source !== 'object') return '';
+    if (typeof source.method === 'string' && source.method.trim()) {
+        return source.method.trim().toLowerCase();
+    }
+    const rawSettings = source.settings;
+    if (rawSettings && typeof rawSettings === 'object') {
+        return String(rawSettings.method || '').trim().toLowerCase();
+    }
+    if (typeof rawSettings === 'string' && rawSettings.trim()) {
+        try {
+            const parsed = JSON.parse(rawSettings);
+            if (parsed && typeof parsed === 'object') {
+                return String(parsed.method || '').trim().toLowerCase();
+            }
+        } catch {
+            // ignore malformed JSON settings
+        }
+    }
+    return '';
+}
+
+function resolveShadowsocks2022KeyLength(sources: any[] = [], fallbackProtocol: string = ''): 16 | 32 | null {
+    let has16 = false;
+    let has32 = false;
+    for (const item of Array.isArray(sources) ? sources : []) {
+        if (!item || typeof item !== 'object') continue;
+        const proto = normalizeProtocol(item.protocol || fallbackProtocol);
+        if (proto && proto !== 'shadowsocks') continue;
+        const method = extractShadowsocksMethod(item);
+        if (!method || !method.includes('2022-blake3')) continue;
+        if (method === '2022-blake3-aes-128-gcm' || method.includes('128-gcm')) {
+            has16 = true;
+        } else {
+            has32 = true;
+        }
+    }
+    if (has32) return 32;
+    if (has16) return 16;
+    return null;
+}
+
+function generatePasswordForSources(sources: any[] = [], fallbackProtocol: string = ''): string {
+    const keyLength = resolveShadowsocks2022KeyLength(sources, fallbackProtocol);
+    if (keyLength) {
+        return generateBase64Key(keyLength);
+    }
+    return generateSecurePassword();
 }
 
 function normalizeTimestamp(value: any) {
@@ -150,6 +216,7 @@ export default function ClientModal({
     const [selectedInboundKeys, setSelectedInboundKeys] = useState<string[]>([]);
     const [baseFlowOptions, setBaseFlowOptions] = useState(['', 'xtls-rprx-vision']);
     const [flowProtocols, setFlowProtocols] = useState(['vless']);
+    const [advancedPanelOpen, setAdvancedPanelOpen] = useState(false);
     const initializedKeyRef = useRef('');
     const latestEditingClientRef = useRef(editingClient);
     latestEditingClientRef.current = editingClient;
@@ -159,11 +226,15 @@ export default function ClientModal({
     latestInboundProtocolRef.current = inboundProtocol;
     const prevRequiresUuidRef = useRef(false);
     const prevRequiresPasswordRef = useRef(false);
+    const prevSs2022KeyLengthRef = useRef<16 | 32 | null>(null);
+    const lastAutoPasswordRef = useRef('');
+    const initialEditCredsRef = useRef({ email: '', uuid: '', password: '' });
+    const initialAfterFirstUseRef = useRef<{ rawExpiry: number; daysStr: string } | null>(null);
 
     const sessionInitKey = useMemo(() => {
         if (!isOpen) return '';
         if (editingClient) {
-            return `edit:${String(editingClient.serverId || serverId || '')}:${String(editingClient.inboundId || inboundId || '')}:${String(editingClient.id || editingClient.password || editingClient.email || '')}`;
+            return `edit:${String(editingClient.serverId || serverId || '')}:${String(editingClient.inboundId || inboundId || '')}:${String(editingClient.id || editingClient.uuid || editingClient.password || editingClient.auth || editingClient.auth_str || editingClient.email || '')}`;
         }
         const targetKeys = (Array.isArray(targets) ? targets : [])
             .map((item) => getTargetKey(item))
@@ -183,6 +254,11 @@ export default function ClientModal({
             initializedKeyRef.current = '';
             prevRequiresUuidRef.current = false;
             prevRequiresPasswordRef.current = false;
+            prevSs2022KeyLengthRef.current = null;
+            lastAutoPasswordRef.current = '';
+            initialEditCredsRef.current = { email: '', uuid: '', password: '' };
+            initialAfterFirstUseRef.current = null;
+            setAdvancedPanelOpen(false);
             return;
         }
         if (initializedKeyRef.current === sessionInitKey) {
@@ -203,12 +279,26 @@ export default function ClientModal({
             );
             const needsUuid = protocolSet.size === 0 || Array.from(protocolSet).some((item) => UUID_PROTOCOLS.has(item));
             const needsPassword = Array.from(protocolSet).some((item) => PASSWORD_PROTOCOLS.has(item));
-            const currentId = String(currentEditing.id || '').trim();
-            const currentPassword = String(currentEditing.password || '').trim();
+            const currentId = String(currentEditing.id || currentEditing.uuid || '').trim();
+            const currentPassword = String(currentEditing.password || currentEditing.auth || currentEditing.auth_str || '').trim();
+            const initEmail = String(currentEditing.email || '');
+            const initUuid = currentId || (needsUuid ? currentPassword : '');
+            const initPassword = currentPassword || (needsPassword ? currentId : '');
 
-            setEmail(currentEditing.email);
-            setUuid(currentId || (needsUuid ? currentPassword : ''));
-            setPassword(currentPassword || (needsPassword ? currentId : ''));
+            initialEditCredsRef.current = {
+                email: initEmail,
+                uuid: initUuid,
+                password: initPassword,
+            };
+            lastAutoPasswordRef.current = '';
+            prevSs2022KeyLengthRef.current = resolveShadowsocks2022KeyLength(
+                editScopeTargets,
+                currentEditing.protocol || currentInboundProtocol
+            );
+
+            setEmail(initEmail);
+            setUuid(initUuid);
+            setPassword(initPassword);
             setSubId(currentEditing.subId || '');
             setTotalGB(bytesToGigabytesInput(currentEditing.totalGB));
             {
@@ -217,11 +307,21 @@ export default function ClientModal({
                 if (rawExpiry > 0) {
                     setExpiryMode('datetime');
                     setExpiryDateTime(toLocalDateTimeInput(rawExpiry));
+                    setExpiryAfterDays('');
+                    initialAfterFirstUseRef.current = null;
+                } else if (rawExpiry < 0) {
+                    const afterDays = Math.max(1, Math.round(Math.abs(rawExpiry) / 86400000));
+                    const daysStr = String(afterDays);
+                    setExpiryMode('after_first_use');
+                    setExpiryDateTime('');
+                    setExpiryAfterDays(daysStr);
+                    initialAfterFirstUseRef.current = { rawExpiry, daysStr };
                 } else {
                     setExpiryMode('never');
                     setExpiryDateTime('');
+                    setExpiryAfterDays('');
+                    initialAfterFirstUseRef.current = null;
                 }
-                setExpiryAfterDays('');
             }
             setEnable(currentEditing.enable !== false);
             setLimitIp(currentEditing.limitIp || 0);
@@ -231,11 +331,21 @@ export default function ClientModal({
             setComment(String(currentEditing.comment || ''));
             setReset(Number(currentEditing.reset || 0));
             setGroup(String(currentEditing.group || ''));
-            setResetDay(clampIntInput(currentEditing.resetDay, 0, 31));
-            setResetWeekday(clampIntInput(currentEditing.resetWeekday, 0, 7));
-            setResetMax(clampIntInput(currentEditing.resetMax, 0, Number.MAX_SAFE_INTEGER));
-            setClientTrafficReset(normalizeTrafficResetCycle(currentEditing.trafficReset));
+            const initResetDay = clampIntInput(currentEditing.resetDay, 0, 31);
+            const initResetWeekday = clampIntInput(currentEditing.resetWeekday, 0, 7);
+            const initResetMax = clampIntInput(currentEditing.resetMax, 0, Number.MAX_SAFE_INTEGER);
+            const initTrafficReset = normalizeTrafficResetCycle(currentEditing.trafficReset);
+            setResetDay(initResetDay);
+            setResetWeekday(initResetWeekday);
+            setResetMax(initResetMax);
+            setClientTrafficReset(initTrafficReset);
             setClientTrafficResetDay(clampIntInput(currentEditing.trafficResetDay, 1, 31));
+            setAdvancedPanelOpen(
+                initResetDay > 0
+                || initResetWeekday > 0
+                || initResetMax > 0
+                || initTrafficReset !== 'never'
+            );
             setFlow(currentEditing.flow || '');
             setEditTargets(Array.isArray(currentEditing.editTargets) ? currentEditing.editTargets : []);
             setSelectedServerIds([]);
@@ -250,10 +360,19 @@ export default function ClientModal({
             }
             const needsUuid = addProtocolSet.size === 0 || Array.from(addProtocolSet).some((item: string) => UUID_PROTOCOLS.has(item));
             const needsPassword = Array.from(addProtocolSet).some((item: string) => PASSWORD_PROTOCOLS.has(item));
+            const ssKeyLength = resolveShadowsocks2022KeyLength(currentTargets || [], currentInboundProtocol);
+            const generatedPassword = needsPassword
+                ? generatePasswordForSources(currentTargets || [], currentInboundProtocol)
+                : '';
+
+            initialEditCredsRef.current = { email: '', uuid: '', password: '' };
+            initialAfterFirstUseRef.current = null;
+            lastAutoPasswordRef.current = generatedPassword;
+            prevSs2022KeyLengthRef.current = ssKeyLength;
 
             setEmail('user_' + Math.random().toString(36).substring(7));
             setUuid(needsUuid ? generateUuidLocal() : '');
-            setPassword(needsPassword ? generateSecurePassword() : '');
+            setPassword(generatedPassword);
             setSubId('');
             setTotalGB(0);
             setExpiryTime(0);
@@ -273,6 +392,7 @@ export default function ClientModal({
             setResetMax(0);
             setClientTrafficReset('never');
             setClientTrafficResetDay(1);
+            setAdvancedPanelOpen(false);
             setFlow('');
             setEditTargets([]);
             const uniqueServerIds = Array.from(new Set<string>((currentTargets || []).map((t: any) => String(t.serverId || '')).filter(Boolean)));
@@ -448,17 +568,51 @@ export default function ClientModal({
     const weeklyRenewalConflict = resetWeekday > 0 && (Number(reset || 0) > 0 || resetDay > 0);
 
     const isEditingClient = Boolean(editingClient);
+    const activeCredentialSources = useMemo(() => {
+        if (editingClient) {
+            return editTargets.length > 0 ? editTargets : [editingClient];
+        }
+        if (filteredTargets.length > 0) {
+            return filteredTargets;
+        }
+        if (Array.isArray(targets) && targets.length > 0) {
+            return targets;
+        }
+        return [{ protocol: inboundProtocol }];
+    }, [editTargets, editingClient, filteredTargets, inboundProtocol, targets]);
+
+    const currentSs2022KeyLength = useMemo(
+        () => resolveShadowsocks2022KeyLength(activeCredentialSources, inboundProtocol),
+        [activeCredentialSources, inboundProtocol]
+    );
+
     useEffect(() => {
         if (!isOpen || isEditingClient) return;
         if (!prevRequiresUuidRef.current && requiresUuidCredential) {
             setUuid((prev) => prev || generateUuidLocal());
         }
         if (!prevRequiresPasswordRef.current && requiresPasswordCredential) {
-            setPassword((prev) => prev || generateSecurePassword());
+            const nextPassword = generatePasswordForSources(activeCredentialSources, inboundProtocol);
+            setPassword((prev) => {
+                if (prev && prev !== lastAutoPasswordRef.current) return prev;
+                lastAutoPasswordRef.current = nextPassword;
+                return nextPassword;
+            });
+        } else if (
+            requiresPasswordCredential
+            && prevSs2022KeyLengthRef.current !== currentSs2022KeyLength
+        ) {
+            const nextPassword = generatePasswordForSources(activeCredentialSources, inboundProtocol);
+            setPassword((prev) => {
+                if (prev && prev !== lastAutoPasswordRef.current) return prev;
+                lastAutoPasswordRef.current = nextPassword;
+                return nextPassword;
+            });
         }
         prevRequiresUuidRef.current = requiresUuidCredential;
         prevRequiresPasswordRef.current = requiresPasswordCredential;
-    }, [isEditingClient, isOpen, requiresPasswordCredential, requiresUuidCredential]);
+        prevSs2022KeyLengthRef.current = currentSs2022KeyLength;
+    }, [activeCredentialSources, currentSs2022KeyLength, inboundProtocol, isEditingClient, isOpen, requiresPasswordCredential, requiresUuidCredential]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -522,6 +676,21 @@ export default function ClientModal({
                     return;
                 }
                 resolvedExpiryTime = Date.now() + (Math.floor(days) * 24 * 60 * 60 * 1000);
+            } else if (expiryMode === 'after_first_use') {
+                const days = Number(expiryAfterDays || 0);
+                if (!Number.isFinite(days) || days <= 0) {
+                    toast.error(t('comp.clients.invalidExpiryDays'));
+                    setLoading(false);
+                    return;
+                }
+                if (
+                    initialAfterFirstUseRef.current
+                    && String(Math.floor(days)) === initialAfterFirstUseRef.current.daysStr
+                ) {
+                    resolvedExpiryTime = initialAfterFirstUseRef.current.rawExpiry;
+                } else {
+                    resolvedExpiryTime = -(Math.floor(days) * 24 * 60 * 60 * 1000);
+                }
             } else {
                 resolvedExpiryTime = 0;
             }
@@ -560,12 +729,22 @@ export default function ClientModal({
             );
 
             const derivedSubId = subId || buildStableSubId(email);
-            const clientData = {
+            const normalizedExpiryTime = resolvedExpiryTime < 0
+                ? resolvedExpiryTime
+                : Math.max(0, Number(resolvedExpiryTime || 0));
+            const hasHysteriaTarget = activeProtocols.some((p) => p === 'hysteria' || p === 'hysteria2' || p === 'hy2');
+            const hasTuicTarget = activeProtocols.includes('tuic');
+            const clientData: Record<string, any> = {
                 id: normalizedUuid,
                 password: normalizedPassword,
+                ...(hasHysteriaTarget ? { auth: normalizedPassword } : {}),
+                ...(hasHysteriaTarget && editingClient && Object.prototype.hasOwnProperty.call(editingClient, 'auth_str')
+                    ? { auth_str: normalizedPassword }
+                    : {}),
+                ...(hasTuicTarget ? { uuid: normalizedUuid } : {}),
                 email,
                 totalGB: gigabytesInputToBytes(totalGB),
-                expiryTime: Math.max(0, Number(resolvedExpiryTime || 0)),
+                expiryTime: normalizedExpiryTime,
                 enable,
                 tgId: Number(tgId) || 0,
                 subId: derivedSubId,
@@ -580,9 +759,15 @@ export default function ClientModal({
 
             if (editingClient) {
                 if (isBatchEdit) {
+                    const isEmailChanged = String(email || '').trim() !== String(editingClient.email || '').trim();
+                    const baselineUuid = String(editingClient.id || editingClient.uuid || '').trim() || initialEditCredsRef.current.uuid;
+                    const baselinePassword = String(editingClient.password || editingClient.auth || editingClient.auth_str || '').trim() || initialEditCredsRef.current.password;
+                    const isUuidChanged = normalizedUuid !== baselineUuid;
+                    const isPasswordChanged = normalizedPassword !== baselinePassword;
+
                     const updateTargets = editTargets.map((item) => {
                         const isTotalGBChanged = gigabytesInputToBytes(totalGB) !== Number(editingClient.totalGB || 0);
-                        const isExpiryTimeChanged = Math.max(0, Number(resolvedExpiryTime || 0)) !== Number(editingClient.expiryTime || 0);
+                        const isExpiryTimeChanged = normalizedExpiryTime !== Number(editingClient.expiryTime || 0);
                         const isEnableChanged = enable !== (editingClient.enable !== false);
                         const isTgIdChanged = Number(tgId || 0) !== Number(editingClient.tgId || 0);
                         const isSubIdChanged = derivedSubId !== String(editingClient.subId || '').trim();
@@ -592,14 +777,30 @@ export default function ClientModal({
                         const isSpeedLimitUpChanged = kilobytesInputToBytesPerSecond(speedLimitUp) !== Number(editingClient.speedLimitUp || 0);
                         const isSpeedLimitDownChanged = kilobytesInputToBytesPerSecond(speedLimitDown) !== Number(editingClient.speedLimitDown || 0);
                         const isFlowChanged = flow !== (editingClient.flow || '');
+                        const itemProto = normalizeProtocol(item.protocol);
+                        const isItemHysteria = itemProto === 'hysteria' || itemProto === 'hysteria2' || itemProto === 'hy2';
+                        const isItemTuic = itemProto === 'tuic';
+                        const nextItemUuid = isUuidChanged ? normalizedUuid : (item.id || item.uuid || normalizedUuid);
+                        const nextItemPassword = isPasswordChanged
+                            ? normalizedPassword
+                            : (item.password || item.auth || item.auth_str || normalizedPassword);
 
-                        const mergedClient = {
+                        const mergedClient: Record<string, any> = {
                             ...item,
-                            id: item.id || normalizedUuid,
-                            password: item.password || normalizedPassword,
-                            email: item.email || email,
+                            id: nextItemUuid,
+                            ...(isItemTuic || Object.prototype.hasOwnProperty.call(item, 'uuid')
+                                ? { uuid: isUuidChanged ? normalizedUuid : (item.uuid || item.id || normalizedUuid) }
+                                : {}),
+                            password: nextItemPassword,
+                            ...(isItemHysteria || Object.prototype.hasOwnProperty.call(item, 'auth')
+                                ? { auth: isPasswordChanged ? normalizedPassword : (item.auth || item.password || item.auth_str || normalizedPassword) }
+                                : {}),
+                            ...(Object.prototype.hasOwnProperty.call(item, 'auth_str')
+                                ? { auth_str: isPasswordChanged ? normalizedPassword : (item.auth_str || item.password || item.auth || normalizedPassword) }
+                                : {}),
+                            email: isEmailChanged ? email : (item.email || email),
                             totalGB: isTotalGBChanged ? gigabytesInputToBytes(totalGB) : (item.totalGB || 0),
-                            expiryTime: isExpiryTimeChanged ? Math.max(0, Number(resolvedExpiryTime || 0)) : (item.expiryTime || 0),
+                            expiryTime: isExpiryTimeChanged ? normalizedExpiryTime : (item.expiryTime || 0),
                             enable: isEnableChanged ? enable : (item.enable !== false),
                             tgId: isTgIdChanged ? (Number(tgId) || 0) : (Number(item.tgId) || 0),
                             subId: isSubIdChanged ? derivedSubId : String(item.subId || '').trim(),
@@ -699,17 +900,24 @@ export default function ClientModal({
                         return;
                     }
 
-                    const batchTargets = filteredTargets.map((target) => ({
-                        serverId: target.serverId,
-                        serverName: target.serverName,
-                        inboundId: target.id,
-                        protocol: target.protocol,
-                        email: clientData.email,
-                        client: {
-                            ...clientData,
-                            flow: flowProtocolSet.has(String(target.protocol || '').toLowerCase()) ? clientData.flow : '',
-                        },
-                    }));
+                    const batchTargets = filteredTargets.map((target) => {
+                        const targetProto = normalizeProtocol(target.protocol);
+                        return {
+                            serverId: target.serverId,
+                            serverName: target.serverName,
+                            inboundId: target.id,
+                            protocol: target.protocol,
+                            email: clientData.email,
+                            client: {
+                                ...clientData,
+                                ...(targetProto === 'hysteria' || targetProto === 'hysteria2' || targetProto === 'hy2'
+                                    ? { auth: normalizedPassword }
+                                    : {}),
+                                ...(targetProto === 'tuic' ? { uuid: normalizedUuid } : {}),
+                                flow: flowProtocolSet.has(targetProto) ? clientData.flow : '',
+                            },
+                        };
+                    });
 
                     const batchPayload = await attachBatchRiskToken({
                         action: 'add',
@@ -938,7 +1146,11 @@ export default function ClientModal({
                                     <button
                                         type="button"
                                         className="btn btn-secondary btn-icon"
-                                        onClick={() => setPassword(generateSecurePassword())}
+                                        onClick={() => {
+                                            const nextPassword = generatePasswordForSources(activeCredentialSources, inboundProtocol);
+                                            lastAutoPasswordRef.current = nextPassword;
+                                            setPassword(nextPassword);
+                                        }}
                                         title={t('comp.clients.genPasswordTitle')}
                                         aria-label={t('comp.clients.genPasswordTitle')}
                                     >
@@ -1008,6 +1220,7 @@ export default function ClientModal({
                                     <option value="never">{t('comp.clients.expiryNever')}</option>
                                     <option value="datetime">{t('comp.clients.expiryDatetime')}</option>
                                     <option value="days">{t('comp.clients.expiryDays')}</option>
+                                    <option value="after_first_use">{locale === 'en-US' ? 'Expire N days after first use' : '首次使用后 N 天过期'}</option>
                                 </select>
                                 {expiryMode === 'datetime' && (
                                     <input name="clientModalExpiryDateTime"
@@ -1017,7 +1230,7 @@ export default function ClientModal({
                                         onChange={(e) => setExpiryDateTime(e.target.value)}
                                     />
                                 )}
-                                {expiryMode === 'days' && (
+                                {(expiryMode === 'days' || expiryMode === 'after_first_use') && (
                                     <input name="clientModalExpiryAfterDays"
                                         className="form-input"
                                         type="number"
@@ -1121,7 +1334,11 @@ export default function ClientModal({
                         </div>
 
                         {showXuiOnlyFields && (
-                            <details className="mb-4" open={resetDay > 0 || resetWeekday > 0 || Number(resetMax || 0) > 0 || clientTrafficReset !== 'never'}>
+                            <details
+                                className="mb-4"
+                                open={advancedPanelOpen}
+                                onToggle={(e) => setAdvancedPanelOpen(e.currentTarget.open)}
+                            >
                                 <summary className="form-label cursor-pointer">{t('comp.clients.panelAdvancedTitle')}</summary>
                                 <div className="text-xs text-muted mb-2">{t('comp.clients.panelAdvancedHint')}</div>
                                 <div className="grid grid-cols-2 gap-4">
