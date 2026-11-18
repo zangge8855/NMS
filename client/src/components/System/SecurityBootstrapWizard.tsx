@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import api, { setStoredToken } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
@@ -6,7 +7,7 @@ import { useI18n } from '../../contexts/LanguageContext';
 import { getPasswordPolicyError } from '../../utils/passwordPolicy';
 import { getErrorMessage } from '../../utils/format';
 import { HiOutlineEye, HiOutlineEyeSlash } from 'react-icons/hi2';
-import { acquireModalStackSlot } from '../UI/ModalShell';
+import { acquireModalStackSlot, isolateAppRoot, lockBodyScroll } from '../UI/ModalShell';
 
 const FOCUSABLE_SELECTOR = [
     'a[href]',
@@ -178,7 +179,11 @@ export default function SecurityBootstrapWizard() {
     useEffect(() => {
         if (!isWizardVisible || typeof document === 'undefined') return undefined;
 
-        const stackSlot = acquireModalStackSlot();
+        const stackSlot = typeof acquireModalStackSlot === 'function'
+            ? acquireModalStackSlot()
+            : { isTopmost: () => true, release: () => {} };
+        const unlockScroll = typeof lockBodyScroll === 'function' ? lockBodyScroll() : () => {};
+        const restoreAppRootIsolation = typeof isolateAppRoot === 'function' ? isolateAppRoot() : () => {};
         const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
         const container = overlayRef.current;
 
@@ -213,9 +218,22 @@ export default function SecurityBootstrapWizard() {
             }
         };
 
+        const handleFocusIn = (event: FocusEvent) => {
+            if (!stackSlot.isTopmost()) return;
+            const currentContainer = overlayRef.current;
+            if (!currentContainer || currentContainer.contains(event.target as Node)) return;
+            const focusable = Array.from(currentContainer.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
+                .filter((el) => !el.hasAttribute('hidden') && el.getAttribute('aria-hidden') !== 'true');
+            (focusable[0] || currentContainer)?.focus?.({ preventScroll: true });
+        };
+
         document.addEventListener('keydown', handleKeyDown, true);
+        document.addEventListener('focusin', handleFocusIn);
         return () => {
             document.removeEventListener('keydown', handleKeyDown, true);
+            document.removeEventListener('focusin', handleFocusIn);
+            unlockScroll();
+            restoreAppRootIsolation();
             stackSlot.release();
             if (previousFocus && previousFocus.isConnected && typeof previousFocus.focus === 'function') {
                 previousFocus.focus();
@@ -279,8 +297,8 @@ export default function SecurityBootstrapWizard() {
         }
     };
 
-    return (
-        <div ref={overlayRef} className="security-bootstrap-overlay" role="dialog" aria-modal="true" aria-labelledby="security-bootstrap-title">
+    const wizardNode = (
+        <div ref={overlayRef} tabIndex={-1} className="security-bootstrap-overlay" role="dialog" aria-modal="true" aria-labelledby="security-bootstrap-title">
             <div className="security-bootstrap-shell">
                 <div className="security-bootstrap-copy">
                     <div className="security-bootstrap-kicker">NMS Security</div>
@@ -430,4 +448,9 @@ export default function SecurityBootstrapWizard() {
             </div>
         </div>
     );
+
+    if (typeof document !== 'undefined' && document.body) {
+        return createPortal(wizardNode, document.body);
+    }
+    return wizardNode;
 }

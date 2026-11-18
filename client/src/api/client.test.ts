@@ -39,13 +39,25 @@ describe('api client token storage', () => {
 });
 
 describe('api client unauthorized handling', () => {
-    it('does not clear the session for 3x-ui panel auth failures', () => {
+    it('does not clear the session for explicit panel credential failures on panel proxy routes', () => {
         const error = {
-            response: { status: 401, data: {} },
+            response: { status: 401, data: { code: 'PANEL_LOGIN_FAILED' } },
             config: { url: '/panel/server-a/panel/api/server/log' },
         };
 
         expect(shouldClearSessionOnUnauthorized(error)).toBe(false);
+    });
+
+    it('clears the session when NMS JWT expires on /panel/ or /servers/ routes without a PANEL_ code', () => {
+        expect(shouldClearSessionOnUnauthorized({
+            response: { status: 401, data: { msg: 'Invalid or expired token' } },
+            config: { url: '/panel/server-a/panel/api/server/log' },
+        })).toBe(true);
+
+        expect(shouldClearSessionOnUnauthorized({
+            response: { status: 401, data: { msg: 'Invalid or expired token' } },
+            config: { url: '/servers' },
+        })).toBe(true);
     });
 
     it('does not clear the session for explicit panel error codes', () => {

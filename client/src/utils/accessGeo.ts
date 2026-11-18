@@ -1,22 +1,28 @@
 export interface CarrierAlias {
     canonical: string;
+    canonicalEn: string;
     variants: string[];
 }
 
 const CARRIER_ALIASES: CarrierAlias[] = [
-    { canonical: '中国电信', variants: ['中国电信', '电信'] },
-    { canonical: '中国联通', variants: ['中国联通', '联通'] },
-    { canonical: '中国移动', variants: ['中国移动', '移动'] },
-    { canonical: '中国广电', variants: ['中国广电', '广电'] },
-    { canonical: '中国教育网', variants: ['中国教育网', '教育网', 'CERNET'] },
-    { canonical: '长城宽带', variants: ['长城宽带', '长宽'] },
+    { canonical: '中国电信', canonicalEn: 'China Telecom', variants: ['中国电信', '电信', 'China Telecom'] },
+    { canonical: '中国联通', canonicalEn: 'China Unicom', variants: ['中国联通', '联通', 'China Unicom'] },
+    { canonical: '中国移动', canonicalEn: 'China Mobile', variants: ['中国移动', '移动', 'China Mobile'] },
+    { canonical: '中国广电', canonicalEn: 'China Broadnet', variants: ['中国广电', '广电', 'China Broadnet'] },
+    { canonical: '中国教育网', canonicalEn: 'CERNET', variants: ['中国教育网', '教育网', 'CERNET'] },
+    { canonical: '长城宽带', canonicalEn: 'Great Wall Broadband', variants: ['长城宽带', '长宽', 'Great Wall Broadband'] },
 ];
 
-export function normalizeCarrierLabel(value?: string | null): string {
+function isEnglishLocale(locale?: string | null): boolean {
+    return String(locale || '').trim().toLowerCase().startsWith('en');
+}
+
+export function normalizeCarrierLabel(value?: string | null, locale: string = 'zh-CN'): string {
     const text = String(value || '').trim();
     if (!text) return '';
     const matched = CARRIER_ALIASES.find((item) => item.variants.some((variant) => text.includes(variant)));
-    return matched?.canonical || text;
+    if (!matched) return text;
+    return isEnglishLocale(locale) ? matched.canonicalEn : matched.canonical;
 }
 
 export function stripCarrierFromLocation(location?: string | null, carrier?: string | null): string {
@@ -24,7 +30,9 @@ export function stripCarrierFromLocation(location?: string | null, carrier?: str
     const normalizedCarrier = normalizeCarrierLabel(carrier);
     if (!text || !normalizedCarrier) return text;
 
-    const matched = CARRIER_ALIASES.find((item) => item.canonical === normalizedCarrier);
+    const matched = CARRIER_ALIASES.find(
+        (item) => item.canonical === normalizedCarrier || item.canonicalEn === normalizedCarrier
+    );
     const variants = matched?.variants || [normalizedCarrier];
 
     return variants.reduce((result, variant) => result.replaceAll(variant, ' '), text)
@@ -39,25 +47,46 @@ export interface AccessGeoDisplay {
     carrier: string;
 }
 
-export function resolveAccessGeoDisplay(item?: { ipLocation?: string; cfCountry?: string; ipCarrier?: string } | null): AccessGeoDisplay {
+export function resolveAccessGeoDisplay(
+    item?: { ipLocation?: string; cfCountry?: string; ipCarrier?: string } | null,
+    locale: string = 'zh-CN'
+): AccessGeoDisplay {
+    const isEn = isEnglishLocale(locale);
     const rawLocation = String(item?.ipLocation || item?.cfCountry || '').trim();
-    const carrier = normalizeCarrierLabel(item?.ipCarrier || '');
+    const carrier = normalizeCarrierLabel(item?.ipCarrier || '', locale);
 
     if (!rawLocation) {
         return { location: carrier || '-', carrier: '' };
     }
-    if (!carrier) {
-        return { location: rawLocation, carrier: '' };
+
+    const country = resolveAccessCountry(item, locale);
+    let displayLocation = rawLocation;
+    if (country.local) {
+        displayLocation = country.name;
+    } else if (isEn) {
+        if (item?.ipLocation) {
+            const tokens = String(item.ipLocation).trim().split(/\s+/);
+            const firstCode = resolveRegionCodeFromName(tokens[0]);
+            if (firstCode && country.name) {
+                displayLocation = [country.name, ...tokens.slice(1)].join(' ');
+            }
+        } else if (country.name) {
+            displayLocation = country.name;
+        }
     }
 
-    const strippedLocation = stripCarrierFromLocation(rawLocation, carrier);
-    if (!strippedLocation) {
-        return { location: rawLocation, carrier: '' };
+    if (!carrier) {
+        return { location: displayLocation, carrier: '' };
     }
-    if (strippedLocation !== rawLocation) {
+
+    const strippedLocation = stripCarrierFromLocation(displayLocation, item?.ipCarrier || carrier);
+    if (!strippedLocation) {
+        return { location: displayLocation, carrier: '' };
+    }
+    if (strippedLocation !== displayLocation) {
         return { location: strippedLocation, carrier };
     }
-    return { location: rawLocation, carrier };
+    return { location: displayLocation, carrier };
 }
 
 // Server-side label for private/loopback addresses (see server/lib/ipGeoResolver.ts).
@@ -140,19 +169,25 @@ export interface AccessCountry {
  * "country region city" string from the geo provider; `cfCountry` is the
  * ISO code Cloudflare forwards when the panel sits behind it.
  */
-export function resolveAccessCountry(item?: { ipLocation?: string; cfCountry?: string } | null): AccessCountry {
+export function resolveAccessCountry(
+    item?: { ipLocation?: string; cfCountry?: string } | null,
+    locale: string = 'zh-CN'
+): AccessCountry {
+    const isEn = isEnglishLocale(locale);
     const location = String(item?.ipLocation || '').trim();
     const cfCode = normalizeRegionCode(item?.cfCountry);
 
     if (location === LOCAL_IP_LOCATION_LABEL) {
-        return { name: location, code: '', local: true };
+        return { name: isEn ? 'Local / LAN' : location, code: '', local: true };
     }
     if (location) {
-        const name = location.split(/\s+/)[0];
-        return { name, code: resolveRegionCodeFromName(name) || cfCode, local: false };
+        const rawName = location.split(/\s+/)[0];
+        const code = resolveRegionCodeFromName(rawName) || cfCode;
+        const localizedName = isEn && code ? resolveRegionDisplayName(code, locale) : '';
+        return { name: localizedName || rawName, code, local: false };
     }
     if (cfCode) {
-        return { name: resolveRegionDisplayName(cfCode, 'zh-CN') || cfCode, code: cfCode, local: false };
+        return { name: resolveRegionDisplayName(cfCode, locale) || cfCode, code: cfCode, local: false };
     }
     return { name: '', code: '', local: false };
 }

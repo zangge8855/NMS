@@ -95,6 +95,7 @@ export function NotificationProvider({ children, wsLastMessage, enabled = true }
         expandedLoaded: false,
         realtimeReceived: false,
     });
+    const appBootstrapHydratedRef = useRef(false);
     const notificationsStateRef = useRef({
         notifications: bootstrapRef.current?.notifications || [],
         unreadCount: bootstrapRef.current?.unreadCount || 0,
@@ -102,6 +103,18 @@ export function NotificationProvider({ children, wsLastMessage, enabled = true }
 
     useEffect(() => {
         if (enabled) return;
+        initialFetchDone.current = false;
+        liveNotificationStateRef.current = {
+            previewLoaded: false,
+            expandedLoaded: false,
+            realtimeReceived: false,
+        };
+        appBootstrapHydratedRef.current = false;
+        bootstrapRef.current = null;
+        loadedLimitRef.current = 0;
+        lastLoadedAtRef.current = { preview: 0, expanded: 0 };
+        pendingFetchesRef.current.clear();
+        requestIdRef.current += 1;
         notificationsStateRef.current = {
             notifications: [],
             unreadCount: 0,
@@ -140,6 +153,7 @@ export function NotificationProvider({ children, wsLastMessage, enabled = true }
             }
             const snapshot = readNotificationSnapshot();
             if (!snapshot) return;
+            appBootstrapHydratedRef.current = true;
             bootstrapRef.current = snapshot;
             if (
                 liveNotificationStateRef.current.previewLoaded
@@ -201,8 +215,34 @@ export function NotificationProvider({ children, wsLastMessage, enabled = true }
                     lastLoadedAtRef.current.expanded = Date.now();
                 }
                 lastLoadedAtRef.current.preview = Date.now();
-                setNotifications(items);
-                setUnreadCount(typeof obj.unreadCount === 'number' ? obj.unreadCount : 0);
+                setNotifications((prev) => {
+                    if (
+                        requestedLimit <= INITIAL_NOTIFICATION_LIMIT
+                        && prev.length > items.length
+                        && (
+                            appBootstrapHydratedRef.current
+                            || liveNotificationStateRef.current.expandedLoaded
+                            || liveNotificationStateRef.current.realtimeReceived
+                            || (items.length > 0 && prev.some((existing) => existing.id === items[0].id))
+                        )
+                    ) {
+                        if (items.length === 0) return prev;
+                        const incomingById = new Map<string, NotificationItem>(
+                            items.map((item: NotificationItem) => [item.id, item])
+                        );
+                        const merged = prev.map((existing) => incomingById.get(existing.id) || existing);
+                        for (const item of items) {
+                            if (!prev.some((existing) => existing.id === item.id)) {
+                                merged.unshift(item);
+                            }
+                        }
+                        return merged;
+                    }
+                    return items;
+                });
+                if (!(requestedLimit <= INITIAL_NOTIFICATION_LIMIT && liveNotificationStateRef.current.realtimeReceived)) {
+                    setUnreadCount(typeof obj.unreadCount === 'number' ? obj.unreadCount : 0);
+                }
                 loadedLimitRef.current = Math.max(loadedLimitRef.current, items.length, requestedLimit);
             })
             .catch(() => {

@@ -1,3 +1,5 @@
+import { resolveActiveClientLocale } from './locale';
+
 /**
  * Format bytes to human readable (KB, MB, GB, TB).
  */
@@ -227,7 +229,11 @@ export async function copyToClipboard(text: string): Promise<boolean> {
 /**
  * Extract a user-friendly error message from an Axios error or generic Error.
  */
-export function getErrorMessage(err: any, fallback: string = '操作失败', locale: string = 'zh-CN'): string {
+export function getErrorMessage(
+    err: any,
+    fallback: string = '操作失败',
+    locale: string = resolveActiveClientLocale()
+): string {
     const language = resolveLocaleTag(locale);
     const messages = language === 'en-US'
         ? {
@@ -251,17 +257,65 @@ export function getErrorMessage(err: any, fallback: string = '操作失败', loc
             notFound: '节点不存在，请刷新节点列表后重试',
         };
     const apiMsg = String(err?.response?.data?.msg || '').trim();
+    const apiCode = String(err?.response?.data?.code || '').trim();
+    const errCode = String(err?.code || '').trim();
     const rawMessage = String(err?.message || '').trim();
-    const raw = `${apiMsg} ${rawMessage} ${err?.code || ''}`.toLowerCase();
 
-    if (/getaddrinfo|enotfound|eai_again|dns|resolve/.test(raw)) return messages.dns;
-    if (/econnrefused/.test(raw)) return messages.refused;
-    if (/timeout|etimedout|econnaborted/.test(raw)) return messages.timeout;
-    if (/panel_login_failed|failed to authenticate|auth failed|login failed|401|403|用户名|密码|unauthorized|forbidden/.test(raw)) return messages.auth;
-    if (/panel_inbound_list_failed|list inbounds failed|inbound list/.test(raw)) return messages.inbounds;
-    if (/connection failed|failed to connect to panel|panel connection/.test(raw)) return messages.panel;
-    if (/network error|err_network|econnreset|ehostunreach|enetunreach/.test(raw)) return messages.network;
-    if (/server not found|node not found/.test(raw)) return messages.notFound;
+    if (apiMsg && !apiCode.startsWith('PANEL_')) {
+        return apiMsg;
+    }
+
+    const isPanelError = apiCode.startsWith('PANEL_') || /^PANEL_/i.test(errCode) || /^PANEL_[A-Z0-9_]+$/i.test(rawMessage);
+    const codeSource = `${errCode} ${apiCode}`.toLowerCase();
+    const transportSource = `${errCode} ${rawMessage}`.toLowerCase();
+    const panelSource = isPanelError
+        ? `${apiCode} ${apiMsg} ${rawMessage} ${errCode}`.toLowerCase()
+        : codeSource;
+
+    if (
+        /getaddrinfo|enotfound|eai_again|err_name_not_resolved/.test(codeSource)
+        || /getaddrinfo|enotfound|eai_again|err_name_not_resolved/.test(transportSource)
+        || (isPanelError && /getaddrinfo|enotfound|eai_again|err_name_not_resolved/.test(panelSource))
+    ) {
+        return messages.dns;
+    }
+    if (
+        /econnrefused/.test(codeSource)
+        || /econnrefused/.test(transportSource)
+        || (isPanelError && /econnrefused/.test(panelSource))
+    ) {
+        return messages.refused;
+    }
+    if (
+        /etimedout|econnaborted/.test(codeSource)
+        || /\b(etimedout|econnaborted|timed out)\b|timeout of \d+ms exceeded/.test(transportSource)
+        || (isPanelError && /\b(etimedout|econnaborted|timed out|timeout)\b/.test(panelSource))
+    ) {
+        return messages.timeout;
+    }
+    if (
+        /panel_login_failed|panel_credential_missing|panel_credential_unreadable/.test(panelSource)
+        || (isPanelError && /failed to authenticate|auth failed|login failed/.test(panelSource))
+    ) {
+        return messages.auth;
+    }
+    if (/panel_inbound_list_failed/.test(panelSource)) {
+        return messages.inbounds;
+    }
+    if (/panel_connection_failed|panel_status_unsupported/.test(panelSource) || (isPanelError && /failed to connect to panel|panel connection/.test(panelSource))) {
+        return messages.panel;
+    }
+    if (
+        /err_network|econnreset|ehostunreach|enetunreach/.test(codeSource)
+        || rawMessage === 'Network Error'
+        || /\b(err_network|econnreset|ehostunreach|enetunreach)\b/.test(transportSource)
+        || (isPanelError && /\b(err_network|econnreset|ehostunreach|enetunreach)\b|network error/.test(panelSource))
+    ) {
+        return messages.network;
+    }
+    if (isPanelError && /server not found|node not found/.test(panelSource)) {
+        return messages.notFound;
+    }
 
     if (apiMsg) return apiMsg;
     if (err?.code === 'ECONNABORTED') {

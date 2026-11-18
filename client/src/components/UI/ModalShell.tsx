@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, type ReactNode } from 'react';
+import React, { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 const BODY_MODAL_COUNT_KEY = 'nmsModalOpenCount';
@@ -66,8 +66,8 @@ function getFocusableElements(root: HTMLElement | null): HTMLElement[] {
         .filter((element) => isVisible(element));
 }
 
-function lockBodyScroll(): () => void {
-    if (typeof document === 'undefined') return () => {};
+export function lockBodyScroll(): () => void {
+    if (typeof document === 'undefined' || !document.body) return () => {};
     const { body } = document;
     const currentCount = Number(body.dataset[BODY_MODAL_COUNT_KEY] || '0');
 
@@ -106,14 +106,20 @@ function getAppRoot(): HTMLElement | null {
     return document.getElementById('root') || document.querySelector('[data-app-root]') || null;
 }
 
-function isolateAppRoot(): () => void {
+export function isolateAppRoot(): () => void {
     const appRoot = getAppRoot();
     if (!appRoot) return () => {};
 
     const currentCount = Number(appRoot.dataset[APP_ROOT_MODAL_INERT_COUNT_KEY] || '0');
     if (currentCount === 0) {
         appRoot.dataset.nmsModalAriaHidden = appRoot.getAttribute('aria-hidden') || '';
-        (appRoot as any).inert = true;
+        if (typeof (appRoot as any).inert !== 'undefined' || !('inert' in appRoot)) {
+            try {
+                (appRoot as any).inert = true;
+            } catch {
+                // ignore read-only inert mocks
+            }
+        }
         appRoot.setAttribute('aria-hidden', 'true');
     }
     appRoot.dataset[APP_ROOT_MODAL_INERT_COUNT_KEY] = String(currentCount + 1);
@@ -121,7 +127,13 @@ function isolateAppRoot(): () => void {
     return () => {
         const nextCount = Math.max(0, Number(appRoot.dataset[APP_ROOT_MODAL_INERT_COUNT_KEY] || '1') - 1);
         if (nextCount === 0) {
-            (appRoot as any).inert = false;
+            if (typeof (appRoot as any).inert !== 'undefined' || !('inert' in appRoot)) {
+                try {
+                    (appRoot as any).inert = false;
+                } catch {
+                    // ignore read-only inert mocks
+                }
+            }
             const previousAriaHidden = appRoot.dataset.nmsModalAriaHidden || '';
             if (previousAriaHidden) {
                 appRoot.setAttribute('aria-hidden', previousAriaHidden);
@@ -163,6 +175,7 @@ export default function ModalShell({
     const startSentinelRef = useRef<HTMLDivElement | null>(null);
     const endSentinelRef = useRef<HTMLDivElement | null>(null);
     const instanceIdRef = useRef(0);
+    const generatedTitleId = useId();
     const [shouldRender, setShouldRender] = useState(isOpen);
 
     const restorePreviousFocus = () => {
@@ -259,12 +272,21 @@ export default function ModalShell({
             } else if (ariaLabel) {
                 dialog.setAttribute('aria-label', ariaLabel);
                 dialog.removeAttribute('aria-labelledby');
+            } else if (!dialog.getAttribute('aria-label') && !dialog.getAttribute('aria-labelledby')) {
+                const heading = dialog.querySelector<HTMLElement>('.modal-title, h1, h2, h3');
+                if (heading) {
+                    const headingId = heading.getAttribute('id') || generatedTitleId;
+                    if (!heading.getAttribute('id')) {
+                        heading.setAttribute('id', headingId);
+                    }
+                    dialog.setAttribute('aria-labelledby', headingId);
+                }
             }
         };
         syncDialogAria();
         const animationFrame = window.requestAnimationFrame(syncDialogAria);
         return () => window.cancelAnimationFrame(animationFrame);
-    }, [ariaLabel, ariaLabelledBy, isOpen]);
+    }, [ariaLabel, ariaLabelledBy, generatedTitleId, isOpen]);
 
     // Ensure focus is restored even when callers conditionally unmount ModalShell
     // before isOpen transitions cleanly through the exit timer. Declared after

@@ -7,6 +7,7 @@
 
 .bg-amber-500\/10 { background-color:color-mix(in srgb, var(--accent-warning) 10%, transparent); }
 .bg-danger\/5 { background-color:color-mix(in srgb, var(--accent-danger) 5%, transparent); }
+.bg-danger\/10 { background-color:color-mix(in srgb, var(--accent-danger) 10%, transparent); }
 .bg-gradient-to-r { background-image:linear-gradient(to right, var(--tw-gradient-from, var(--accent-primary)), var(--tw-gradient-to, var(--accent-info))); }
 .bg-primary\/10 { background-color:color-mix(in srgb, var(--accent-primary) 10%, transparent); }
 .bg-stroke-soft { background-color:var(--stroke-medium); }
@@ -25,6 +26,7 @@
 .border-border-color { border-color:var(--border-color); }
 .border-\[var\(--border-color\)\] { border-color:var(--border-color); }
 .border-danger\/15 { border-color:color-mix(in srgb, var(--accent-danger) 15%, transparent); }
+.border-danger\/25 { border-color:color-mix(in srgb, var(--accent-danger) 25%, transparent); }
 .border-dashed { border-style:dashed; }
 .border-primary\/20 { border-color:color-mix(in srgb, var(--accent-primary) 20%, transparent); }
 .border-stroke-soft\/60 { border-color:color-mix(in srgb, var(--stroke-medium) 60%, transparent); }
@@ -65,6 +67,7 @@
 .-mt-1 { margin-top:-4px; }
 .leading-none { line-height:1; }
 .leading-relaxed { line-height:1.625; }
+.leading-snug { line-height:1.375; }
 .leading-tight { line-height:1.25; }
 .max-w-md { max-width:28rem; }
 .max-w-xl { max-width:36rem; }

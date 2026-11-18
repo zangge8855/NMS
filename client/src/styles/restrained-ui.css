@@ -206,7 +206,7 @@ textarea {
 
 @keyframes restrained-page-enter {
   from { opacity: 0; transform: translateY(5px); }
-  to { opacity: 1; transform: translateY(0); }
+  to { opacity: 1; transform: none; }
 }
 
 .sidebar {
@@ -2178,7 +2178,7 @@ select {
 .settings-save-dock {
   position: sticky;
   bottom: 14px;
-  z-index: 14;
+  z-index: calc(var(--z-sticky, 100) + 10);
   margin-top: 14px;
   border-color: var(--accent-primary-border);
   box-shadow: var(--shadow-lg);
@@ -3093,7 +3093,7 @@ select {
   }
 
   .settings-save-dock {
-    bottom: calc(var(--mobile-bottom-nav-height) + 10px);
+    bottom: calc(var(--mobile-bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 10px);
   }
 
   .settings-save-dock-inner,

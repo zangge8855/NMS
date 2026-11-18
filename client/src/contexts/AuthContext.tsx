@@ -39,7 +39,9 @@ function decodeJwtPayload(token?: string | null): Record<string, any> | null {
         const payloadSeg = text.split('.')[1] || '';
         const normalized = payloadSeg.replace(/-/g, '+').replace(/_/g, '/');
         const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
-        const json = atob(padded);
+        const binary = atob(padded);
+        const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+        const json = typeof TextDecoder === 'function' ? new TextDecoder().decode(bytes) : binary;
         const parsed = JSON.parse(json);
         return parsed && typeof parsed === 'object' ? parsed : null;
     } catch {
@@ -93,20 +95,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 setUser(null);
             } else {
                 const decoded = decodeJwtPayload(storedToken);
-                const validRoles = ['admin', 'operator', 'auditor', 'user'];
-                const fallbackRole = validRoles.includes(String(decoded?.role || ''))
-                    ? (decoded?.role as User['role'])
-                    : 'user';
-                setToken(storedToken);
-                setIsAuthenticated(true);
-                setUser((prev) => prev || {
-                    id: '',
-                    createdAt: Date.now(),
-                    username: String(decoded?.username || ''),
-                    role: fallbackRole,
-                    email: '',
-                    subscriptionEmail: '',
-                });
+                const exp = Number(decoded?.exp);
+                if (!decoded || !decoded.exp || !Number.isFinite(exp) || exp * 1000 <= Date.now()) {
+                    clearStoredToken();
+                    clearAppSessionState();
+                    setToken(null);
+                    setIsAuthenticated(false);
+                    setUser(null);
+                } else {
+                    const validRoles = ['admin', 'operator', 'auditor', 'user'];
+                    const fallbackRole = validRoles.includes(String(decoded?.role || ''))
+                        ? (decoded?.role as User['role'])
+                        : 'user';
+                    setToken(storedToken);
+                    setIsAuthenticated(true);
+                    setUser((prev) => prev || {
+                        id: '',
+                        createdAt: Date.now(),
+                        username: String(decoded?.username || ''),
+                        role: fallbackRole,
+                        email: '',
+                        subscriptionEmail: '',
+                    });
+                }
             }
         }
         setLoading(false);
@@ -121,6 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
             const res = await api.post('/auth/login', { identifier, username: identifier, password });
             if (res.data.success) {
+                clearAppSessionState();
                 setStoredToken(res.data.token);
                 setToken(res.data.token);
                 setIsAuthenticated(true);
@@ -161,6 +173,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
             const res = await api.post('/auth/login/2fa', { challengeToken, code, useBackupCode });
             if (res.data.success) {
+                clearAppSessionState();
                 setStoredToken(res.data.token);
                 setToken(res.data.token);
                 setIsAuthenticated(true);

@@ -66,13 +66,24 @@ export function normalizeScopeMode(mode?: string | null, selectedItems: any[] = 
     return text as 'all' | 'selected' | 'none';
 }
 
-export function getClientIdentifier(client?: { password?: string; id?: string; email?: string; protocol?: string } | null, protocol?: string): string {
+export function getClientIdentifier(
+    client?: {
+        password?: string;
+        auth?: string;
+        auth_str?: string;
+        uuid?: string;
+        id?: string;
+        email?: string;
+        protocol?: string;
+    } | null,
+    protocol?: string
+): string {
     const normalizedProtocol = normalizeProtocol(protocol || client?.protocol);
     if (PASSWORD_PROTOCOLS.has(normalizedProtocol)) {
-        return client?.password || client?.id || client?.email || '';
+        return client?.auth || client?.auth_str || client?.password || client?.uuid || client?.id || client?.email || '';
     }
     if (UUID_PROTOCOLS.has(normalizedProtocol)) {
-        return client?.id || client?.password || client?.email || '';
+        return client?.uuid || client?.id || client?.password || client?.auth || client?.auth_str || client?.email || '';
     }
-    return client?.id || client?.password || client?.email || '';
+    return client?.uuid || client?.id || client?.auth || client?.auth_str || client?.password || client?.email || '';
 }

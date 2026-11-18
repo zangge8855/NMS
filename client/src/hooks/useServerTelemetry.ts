@@ -66,8 +66,9 @@ export default function useServerTelemetry(options: UseServerTelemetryOptions = 
 
     useEffect(() => {
         telemetryStateRef.current = telemetry;
+        if (!enabled || !liveTelemetryLoadedRef.current) return;
         writeSessionSnapshot(snapshotKey, telemetry);
-    }, [snapshotKey, telemetry]);
+    }, [enabled, snapshotKey, telemetry]);
 
     useEffect(() => {
         const handleSnapshotUpdate = (event: any) => {
@@ -140,6 +141,7 @@ export default function useServerTelemetry(options: UseServerTelemetryOptions = 
     useEffect(() => {
         if (!enabled) {
             liveTelemetryLoadedRef.current = false;
+            telemetryBootstrapRef.current = null;
             telemetryStateRef.current = EMPTY_TELEMETRY;
             setTelemetry(EMPTY_TELEMETRY);
             return undefined;

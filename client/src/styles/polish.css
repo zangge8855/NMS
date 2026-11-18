@@ -1066,7 +1066,7 @@ body {
   height: 7px;
   border-radius: 999px;
   background: var(--accent-danger);
-  box-shadow: 0 0 0 2px var(--bg-sidebar);
+  box-shadow: 0 0 0 2px var(--rail-bg, var(--bg-card));
   pointer-events: none;
 }
 
