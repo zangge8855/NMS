@@ -1,10 +1,11 @@
-import React, { Suspense, lazy, useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { Suspense, lazy, useId, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useServer } from '../../contexts/ServerContext';
 import api from '../../api/client';
 import Header from '../Layout/Header';
 import { formatBytes, formatUptime } from '../../utils/format';
 import useWebSocket from '../../hooks/useWebSocket';
 import { useAuth } from '../../contexts/AuthContext';
+import toast from 'react-hot-toast';
 import {
     HiOutlineCpuChip,
     HiOutlineCircleStack,
@@ -17,11 +18,14 @@ import {
     HiOutlineServerStack,
     HiOutlineCloud,
     HiOutlineArrowRight,
+    HiOutlineAdjustmentsHorizontal,
+    HiOutlineArrowDownTray,
 } from 'react-icons/hi2';
 import NodeHealthGrid from './NodeHealthGrid';
 import useAnimatedCounter from '../../hooks/useAnimatedCounter';
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../../contexts/LanguageContext';
+import { getOpsUiCopy, type OpsUiCopy } from '../../i18n/opsUiCopy';
 import EmptyState from '../UI/EmptyState';
 import SectionHeader from '../UI/SectionHeader';
 import useMediaQuery from '../../hooks/useMediaQuery';
@@ -37,6 +41,106 @@ const MAX_GLOBAL_ONLINE_ROWS = 10000;
 const MAX_NODE_TREND_POINTS = 12;
 const DASHBOARD_SNAPSHOT_KEY = 'dashboard_global_v1';
 const DASHBOARD_SNAPSHOT_TTL_MS = 90_000;
+const DASHBOARD_SECTIONS_STORAGE_PREFIX = 'nms_dashboard_sections_v1';
+
+export type DashboardSectionKey = 'kpis' | 'trafficWindows' | 'systemTrends' | 'nodeHealth' | 'onlineSessions';
+export type DashboardSectionVisibility = Record<DashboardSectionKey, boolean>;
+
+const DASHBOARD_SECTION_KEYS: DashboardSectionKey[] = [
+    'kpis',
+    'trafficWindows',
+    'systemTrends',
+    'nodeHealth',
+    'onlineSessions',
+];
+
+const DEFAULT_DASHBOARD_SECTIONS: DashboardSectionVisibility = {
+    kpis: true,
+    trafficWindows: true,
+    systemTrends: true,
+    nodeHealth: true,
+    onlineSessions: true,
+};
+
+function getDashboardSectionsStorageKey(username?: string | null): string {
+    const normalized = String(username || '').trim() || 'default';
+    return `${DASHBOARD_SECTIONS_STORAGE_PREFIX}:${normalized}`;
+}
+
+function readDashboardSections(storageKey: string): DashboardSectionVisibility {
+    try {
+        const raw = localStorage.getItem(storageKey);
+        if (!raw) return { ...DEFAULT_DASHBOARD_SECTIONS };
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') return { ...DEFAULT_DASHBOARD_SECTIONS };
+        return {
+            kpis: parsed.kpis !== false,
+            trafficWindows: parsed.trafficWindows !== false,
+            systemTrends: parsed.systemTrends !== false,
+            nodeHealth: parsed.nodeHealth !== false,
+            onlineSessions: parsed.onlineSessions !== false,
+        };
+    } catch {
+        return { ...DEFAULT_DASHBOARD_SECTIONS };
+    }
+}
+
+function writeDashboardSections(storageKey: string, sections: DashboardSectionVisibility): void {
+    try {
+        localStorage.setItem(storageKey, JSON.stringify(sections));
+    } catch {
+        // Ignore storage quota or restricted context errors
+    }
+}
+
+function escapeCsvCell(value: unknown): string {
+    const raw = value === null || value === undefined ? '' : String(value);
+    const neutralized = /^[=+\-@\t\r]/.test(raw) && !/^-?\d+(\.\d+)?$/.test(raw)
+        ? `'${raw}`
+        : raw;
+    if (/[",\r\n]/.test(neutralized)) {
+        return `"${neutralized.replace(/"/g, '""')}"`;
+    }
+    return neutralized;
+}
+
+function summarizeClusterSystemTrends(
+    serverStatuses: Record<string, any> = {},
+    serverTrendHistory: Record<string, any[]> = {},
+) {
+    const entries = Object.values(serverStatuses || {});
+    const onlineEntries = entries.filter((item) => item?.online === true);
+    const cpuValues = onlineEntries
+        .map((item) => Number(item?.status?.cpu))
+        .filter((value) => Number.isFinite(value));
+    const memValues = onlineEntries
+        .map((item) => {
+            const mem = item?.status?.mem;
+            const total = Number(mem?.total || 0);
+            if (!(total > 0)) return NaN;
+            return (Number(mem?.current || 0) / total) * 100;
+        })
+        .filter((value) => Number.isFinite(value));
+
+    const histories = Object.values(serverTrendHistory || {}).filter((list) => Array.isArray(list) && list.length > 0);
+    const maxLen = histories.reduce((max, list) => Math.max(max, list.length), 0);
+    const cpuSparkline: number[] = [];
+    for (let idx = 0; idx < maxLen; idx += 1) {
+        const samplesAtIdx = histories
+            .map((list) => list[list.length - maxLen + idx])
+            .filter((sample) => sample && sample.online !== false && Number.isFinite(Number(sample.cpu)));
+        if (samplesAtIdx.length > 0) {
+            const avg = samplesAtIdx.reduce((sum, s) => sum + Number(s.cpu), 0) / samplesAtIdx.length;
+            cpuSparkline.push(Number(avg.toFixed(1)));
+        }
+    }
+
+    return {
+        avgCpu: cpuValues.length > 0 ? cpuValues.reduce((sum, v) => sum + v, 0) / cpuValues.length : null,
+        avgMem: memValues.length > 0 ? memValues.reduce((sum, v) => sum + v, 0) / memValues.length : null,
+        cpuSparkline,
+    };
+}
 const INITIAL_GLOBAL_STATS = {
     totalUp: 0,
     totalDown: 0,
@@ -582,12 +686,165 @@ function DashboardHero({ title, kpis = [] }) {
     );
 }
 
+function DashboardCustomizePanel({
+    panelId,
+    opsCopy,
+    visibleSections,
+    onToggle,
+    onReset,
+    onClose,
+}: {
+    panelId: string;
+    opsCopy: OpsUiCopy;
+    visibleSections: DashboardSectionVisibility;
+    onToggle: (key: DashboardSectionKey) => void;
+    onReset: () => void;
+    onClose: () => void;
+}) {
+    return (
+        <section
+            id={panelId}
+            className="card dashboard-customize-panel"
+            aria-label={opsCopy.dashboard.customizePanelTitle}
+            onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    onClose();
+                }
+            }}
+        >
+            <div className="dashboard-customize-head">
+                <div className="dashboard-customize-copy">
+                    <h2 className="dashboard-customize-title">{opsCopy.dashboard.customizePanelTitle}</h2>
+                    <p className="dashboard-customize-subtitle">{opsCopy.dashboard.customizePanelSubtitle}</p>
+                </div>
+                <div className="dashboard-customize-actions">
+                    <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={onReset}
+                    >
+                        {opsCopy.dashboard.resetDefault}
+                    </button>
+                    <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        onClick={onClose}
+                        aria-label={opsCopy.dashboard.closeCustomizeAriaLabel}
+                    >
+                        {opsCopy.dashboard.closeCustomizeLabel}
+                    </button>
+                </div>
+            </div>
+            <div className="dashboard-customize-options">
+                {DASHBOARD_SECTION_KEYS.map((key) => (
+                    <label
+                        key={key}
+                        className={`dashboard-customize-option${visibleSections[key] ? ' is-checked' : ''}`}
+                    >
+                        <input
+                            type="checkbox"
+                            checked={visibleSections[key]}
+                            onChange={() => onToggle(key)}
+                        />
+                        <span>{opsCopy.dashboard.sections[key]}</span>
+                    </label>
+                ))}
+            </div>
+        </section>
+    );
+}
+
+function ClusterSystemTrendsCard({
+    opsCopy,
+    trends,
+    throughput,
+    clusterSummaryReady,
+    onlineServers,
+    clusterServerCount,
+    throughputPendingLabel,
+    clusterPendingLabel,
+}: {
+    opsCopy: OpsUiCopy;
+    trends: { avgCpu: number | null; avgMem: number | null; cpuSparkline: number[] };
+    throughput: { up: number; down: number; total: number; ready: boolean };
+    clusterSummaryReady: boolean;
+    onlineServers: number;
+    clusterServerCount: number;
+    throughputPendingLabel: string;
+    clusterPendingLabel: string;
+}) {
+    const availabilityPercent = clusterSummaryReady && clusterServerCount > 0
+        ? `${Math.round((onlineServers / clusterServerCount) * 100)}%`
+        : '--';
+
+    return (
+        <section className="card dashboard-trends-card mb-6" aria-label={opsCopy.dashboard.trendsTitle}>
+            <SectionHeader
+                className="dashboard-section-head"
+                title={opsCopy.dashboard.trendsTitle}
+                subtitle={opsCopy.dashboard.trendsSubtitle}
+            />
+            <div className="dashboard-trends-grid">
+                <div className="dashboard-trend-metric">
+                    <span className="dashboard-trend-label">{opsCopy.dashboard.avgCpuLabel}</span>
+                    <div className="dashboard-trend-primary">
+                        <span className="dashboard-trend-value">
+                            {trends.avgCpu !== null ? `${trends.avgCpu.toFixed(1)}%` : '--'}
+                        </span>
+                        {trends.cpuSparkline.length > 1 && (
+                            <StatSparkline points={trends.cpuSparkline} domain={[0, 100]} />
+                        )}
+                    </div>
+                </div>
+                <div className="dashboard-trend-metric">
+                    <span className="dashboard-trend-label">{opsCopy.dashboard.avgMemoryLabel}</span>
+                    <span className="dashboard-trend-value">
+                        {trends.avgMem !== null ? `${trends.avgMem.toFixed(1)}%` : '--'}
+                    </span>
+                </div>
+                <div className="dashboard-trend-metric">
+                    <span className="dashboard-trend-label">{opsCopy.dashboard.liveThroughputLabel}</span>
+                    <span className="dashboard-trend-value">
+                        {throughput.ready ? `${formatBytes(throughput.total)}/s` : '--'}
+                    </span>
+                    <span className="dashboard-trend-meta">
+                        {throughput.ready
+                            ? `↑ ${formatBytes(throughput.up)}/s · ↓ ${formatBytes(throughput.down)}/s`
+                            : throughputPendingLabel}
+                    </span>
+                </div>
+                <div className="dashboard-trend-metric">
+                    <span className="dashboard-trend-label">{opsCopy.dashboard.availabilityLabel}</span>
+                    <span className="dashboard-trend-value">{availabilityPercent}</span>
+                    <span className="dashboard-trend-meta">
+                        {clusterSummaryReady
+                            ? opsCopy.dashboard.onlineNodesSummary
+                                .replace('{online}', String(onlineServers))
+                                .replace('{total}', String(clusterServerCount))
+                            : clusterPendingLabel}
+                    </span>
+                </div>
+            </div>
+        </section>
+    );
+}
+
 export default function Dashboard() {
     const { activeServerId, activeServer, servers, loading: serverContextLoading } = useServer();
-    const { token } = useAuth();
+    const { token, user } = useAuth();
     const { t, locale } = useI18n();
+    const opsCopy = useMemo(() => getOpsUiCopy(locale), [locale]);
     const navigate = useNavigate();
     const isCompactLayout = useMediaQuery('(max-width: 768px)');
+    const customizePanelId = useId();
+    const customizeBtnRef = useRef<HTMLButtonElement | null>(null);
+    const sectionsStorageKey = getDashboardSectionsStorageKey(user?.username);
+    const [visibleSections, setVisibleSections] = useState<DashboardSectionVisibility>(
+        () => readDashboardSections(sectionsStorageKey)
+    );
+    const lastSectionsStorageKeyRef = useRef(sectionsStorageKey);
+    const [customizeOpen, setCustomizeOpen] = useState(false);
     const [wsTicket, setWsTicket] = useState('');
     const lastWsTicketFetchAtRef = useRef(0);
     const dashboardBootstrapRef = useRef(readDashboardBootstrapSnapshot());
@@ -658,6 +915,39 @@ export default function Dashboard() {
         }
     });
     const [showOnlineDetail, setShowOnlineDetail] = useState(false);
+
+    useEffect(() => {
+        if (lastSectionsStorageKeyRef.current === sectionsStorageKey) return;
+        lastSectionsStorageKeyRef.current = sectionsStorageKey;
+        setVisibleSections(readDashboardSections(sectionsStorageKey));
+    }, [sectionsStorageKey]);
+
+    const toggleDashboardSection = useCallback((sectionKey: DashboardSectionKey) => {
+        setVisibleSections((current) => {
+            const next = {
+                ...current,
+                [sectionKey]: !current[sectionKey],
+            };
+            writeDashboardSections(sectionsStorageKey, next);
+            return next;
+        });
+    }, [sectionsStorageKey]);
+
+    const resetDashboardSections = useCallback(() => {
+        const next = { ...DEFAULT_DASHBOARD_SECTIONS };
+        setVisibleSections(next);
+        writeDashboardSections(sectionsStorageKey, next);
+    }, [sectionsStorageKey]);
+
+    const closeCustomizePanel = useCallback(() => {
+        setCustomizeOpen(false);
+        requestAnimationFrame(() => customizeBtnRef.current?.focus());
+    }, []);
+
+    const clusterSystemTrends = useMemo(
+        () => summarizeClusterSystemTrends(serverStatuses, serverTrendHistory),
+        [serverStatuses, serverTrendHistory]
+    );
     const singleServerCpuSparkline = useMemo(
         () => cpuHistory.map((item) => Number(item?.cpu)).filter((value) => Number.isFinite(value)),
         [cpuHistory]
@@ -1115,6 +1405,225 @@ export default function Dashboard() {
     };
     const cpuChartEndTick = cpuHistory.length > 0 ? cpuHistory[cpuHistory.length - 1].time : 0;
 
+    const handleExportSnapshot = () => {
+        try {
+            const csv = opsCopy.dashboard.csv;
+            const rows: string[][] = [
+                [csv.section, csv.metric, csv.value, csv.detail],
+                [csv.generatedAt, csv.generatedAt, new Date().toISOString(), locale],
+            ];
+
+            if (activeServerId === 'global') {
+                const clusterSummaryReady = hasLiveClusterSnapshot || Object.keys(serverStatuses || {}).length > 0;
+                const isOnlineCountReady = globalPresenceReady || globalManagedOnlineCount !== null;
+                const clusterServerCount = globalStats.serverCount || servers.length;
+                const effectiveManagedOnlineCount = globalManagedOnlineCount ?? (globalPresenceReady ? globalOnlineUsers.length : null);
+                const effectiveThroughput = throughputSummary.ready ? throughputSummary : clusterThroughput;
+                const onlineSummary = globalPresenceReady
+                    ? t('pages.dashboardCommon.registeredSessionSummary', {
+                        users: globalAccountSummary.totalUsers,
+                        sessions: globalOnlineSessionCount,
+                    })
+                    : globalAccountSummary.totalUsers > 0
+                        ? t('pages.dashboardCommon.registeredPendingSummary', {
+                            users: globalAccountSummary.totalUsers,
+                        })
+                        : t('pages.dashboardCommon.onlineUsersPending');
+
+                rows.push([csv.scope, csv.scope, csv.globalScope, `${clusterServerCount}`]);
+                rows.push([
+                    csv.kpiSection,
+                    csv.onlineUsers,
+                    isOnlineCountReady ? String(effectiveManagedOnlineCount ?? globalStats.totalOnline ?? 0) : csv.pending,
+                    onlineSummary,
+                ]);
+                rows.push([
+                    csv.kpiSection,
+                    csv.nodesOnline,
+                    clusterSummaryReady ? `${globalStats.onlineServers}/${clusterServerCount}` : csv.pending,
+                    clusterSummaryReady
+                        ? t('pages.dashboardGlobal.inboundSummary', {
+                            active: globalStats.activeInbounds,
+                            total: globalStats.totalInbounds,
+                        })
+                        : t('pages.dashboardCommon.clusterPending'),
+                ]);
+                rows.push([
+                    csv.kpiSection,
+                    csv.totalTraffic,
+                    formatBytes((globalStats.totalUp || 0) + (globalStats.totalDown || 0)),
+                    `↑ ${formatBytes(globalStats.totalUp || 0)} · ↓ ${formatBytes(globalStats.totalDown || 0)}`,
+                ]);
+                rows.push([
+                    csv.kpiSection,
+                    csv.liveThroughput,
+                    effectiveThroughput.ready ? `${formatBytes(effectiveThroughput.total)}/s` : csv.pending,
+                    effectiveThroughput.ready
+                        ? `↑ ${formatBytes(effectiveThroughput.up)}/s · ↓ ${formatBytes(effectiveThroughput.down)}/s`
+                        : t('pages.dashboardCommon.throughputPending'),
+                ]);
+
+                const windows: Array<{ key: 'day' | 'week' | 'month'; label: string }> = [
+                    { key: 'day', label: csv.todayTraffic },
+                    { key: 'week', label: csv.weekTraffic },
+                    { key: 'month', label: csv.monthTraffic },
+                ];
+                for (const win of windows) {
+                    const data = trafficWindowTotals[win.key];
+                    rows.push([
+                        csv.trafficWindowSection,
+                        win.label,
+                        data?.ready ? formatBytes((data.totalUp || 0) + (data.totalDown || 0)) : csv.pending,
+                        buildTrafficWindowSubtitle(data, t),
+                    ]);
+                }
+
+                for (const server of servers) {
+                    const sData = serverStatuses?.[server.id];
+                    const isOnline = sData?.online === true;
+                    const history = Array.isArray(serverTrendHistory?.[server.id]) ? serverTrendHistory[server.id] : [];
+                    const latestSample = history[history.length - 1] || null;
+                    const cpuText = isOnline && Number.isFinite(Number(sData?.status?.cpu))
+                        ? `${Number(sData.status.cpu).toFixed(1)}%`
+                        : csv.pending;
+                    const mem = sData?.status?.mem;
+                    const memText = isOnline && Number(mem?.total || 0) > 0
+                        ? `${((Number(mem.current || 0) / Number(mem.total)) * 100).toFixed(1)}%`
+                        : csv.pending;
+                    const onlineVal = sData
+                        ? String(sData?.managedOnlineCount ?? sData?.onlineCount ?? sData?.onlineSessionCount ?? 0)
+                        : csv.pending;
+                    const trafficVal = sData?.managedTrafficReady
+                        ? formatBytes(Number(sData?.managedTrafficTotal || 0))
+                        : csv.pending;
+                    const throughputVal = latestSample?.hasThroughputSample
+                        ? `↑ ${formatBytes(latestSample.upPerSecond || 0)}/s · ↓ ${formatBytes(latestSample.downPerSecond || 0)}/s`
+                        : csv.pending;
+
+                    rows.push([
+                        csv.nodeHealthSection,
+                        String(server?.name || server?.id || ''),
+                        isOnline ? csv.onlineStatus : csv.offlineStatus,
+                        `CPU ${cpuText} | Mem ${memText} | Online ${onlineVal} | Traffic ${trafficVal} | Throughput ${throughputVal}`,
+                    ]);
+                }
+            } else {
+                const totalUp = Number(singleServerTrafficTotals.totalUp || 0);
+                const totalDown = Number(singleServerTrafficTotals.totalDown || 0);
+                const activeCount = inbounds.filter((ib) => ib.enable).length;
+                rows.push([csv.scope, csv.scope, String(activeServer?.name || activeServerId || ''), String(activeServerId || '')]);
+                rows.push([
+                    csv.kpiSection,
+                    csv.cpuUsage,
+                    Number.isFinite(status?.cpu) ? `${status.cpu.toFixed(1)}%` : csv.pending,
+                    '',
+                ]);
+                rows.push([
+                    csv.kpiSection,
+                    csv.memoryUsage,
+                    status?.mem && Number(status.mem.total) > 0
+                        ? `${((Number(status.mem.current || 0) / Number(status.mem.total)) * 100).toFixed(1)}%`
+                        : csv.pending,
+                    status?.mem && Number(status.mem.total) > 0
+                        ? `${formatBytes(status.mem.current)} / ${formatBytes(status.mem.total)}`
+                        : '',
+                ]);
+                rows.push([
+                    csv.kpiSection,
+                    csv.runtime,
+                    status ? formatUptime(status.uptime, locale) : csv.pending,
+                    '',
+                ]);
+                rows.push([
+                    csv.kpiSection,
+                    csv.totalTraffic,
+                    formatBytes(totalUp + totalDown),
+                    `↑ ${formatBytes(totalUp)} · ↓ ${formatBytes(totalDown)}`,
+                ]);
+                rows.push([
+                    csv.kpiSection,
+                    csv.inbounds,
+                    `${activeCount}/${inbounds.length}`,
+                    t('pages.dashboardCommon.enabledTotal'),
+                ]);
+                rows.push([
+                    csv.kpiSection,
+                    csv.onlineUsers,
+                    String(onlineCount),
+                    t('pages.dashboardCommon.userSessionSummary', {
+                        users: onlineUsers.length,
+                        sessions: onlineSessionCount,
+                    }),
+                ]);
+                for (const ib of inbounds) {
+                    rows.push([
+                        csv.inboundSection,
+                        String(ib.remark || ib.id || ''),
+                        ib.enable ? csv.enabled : csv.disabled,
+                        `${String(ib.protocol || '')}:${String(ib.port || '')} | ↑ ${formatBytes(ib.up)} · ↓ ${formatBytes(ib.down)}`,
+                    ]);
+                }
+            }
+
+            const csvBody = rows.map((row) => row.map(escapeCsvCell).join(',')).join('\r\n');
+            const blob = new Blob([`\uFEFF${csvBody}`], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            const scopeSlug = activeServerId === 'global'
+                ? 'global'
+                : String(activeServerId || 'node').replace(/[^a-zA-Z0-9_-]+/g, '-');
+            anchor.href = url;
+            anchor.download = `nms-dashboard-${scopeSlug}-${new Date().toISOString().slice(0, 10)}.csv`;
+            document.body.appendChild(anchor);
+            anchor.click();
+            document.body.removeChild(anchor);
+            URL.revokeObjectURL(url);
+            toast.success(opsCopy.dashboard.exportSuccess);
+        } catch {
+            toast.error(opsCopy.dashboard.exportError);
+        }
+    };
+
+    const renderDashboardHeaderActions = () => (
+        <>
+            <button
+                ref={customizeBtnRef}
+                type="button"
+                className={`btn btn-sm btn-secondary dashboard-customize-btn${customizeOpen ? ' is-open' : ''}`}
+                onClick={() => setCustomizeOpen((value) => !value)}
+                aria-expanded={customizeOpen}
+                aria-controls={customizePanelId}
+                aria-label={opsCopy.dashboard.customizeAriaLabel}
+                title={opsCopy.dashboard.customizeAriaLabel}
+            >
+                <HiOutlineAdjustmentsHorizontal aria-hidden="true" style={{ fontSize: '14px' }} />
+                <span className="hidden sm:inline-block ml-1">{opsCopy.dashboard.customizeButton}</span>
+            </button>
+            <button
+                type="button"
+                className="btn btn-sm btn-secondary dashboard-export-btn"
+                onClick={handleExportSnapshot}
+                aria-label={opsCopy.dashboard.exportAriaLabel}
+                title={opsCopy.dashboard.exportAriaLabel}
+            >
+                <HiOutlineArrowDownTray aria-hidden="true" style={{ fontSize: '14px' }} />
+                <span className="hidden sm:inline-block ml-1">{opsCopy.dashboard.exportButton}</span>
+            </button>
+            <button
+                type="button"
+                className={`btn btn-sm btn-secondary dashboard-refresh-btn${autoRefresh ? ' is-on' : ''}`}
+                onClick={toggleAutoRefresh}
+                aria-label={autoRefresh ? t('pages.dashboardCommon.autoRefreshOn') : t('pages.dashboardCommon.autoRefreshOff')}
+                title={autoRefresh ? t('pages.dashboardCommon.autoRefreshOffTitle') : t('pages.dashboardCommon.autoRefreshOnTitle')}
+            >
+                <HiOutlineArrowPath className={autoRefresh ? 'spinning' : ''} style={{ fontSize: '13px' }} />
+                <span className="hidden sm:inline-block ml-1">
+                    {autoRefresh ? t('pages.dashboardCommon.autoRefreshOn') : t('pages.dashboardCommon.autoRefreshOff')}
+                </span>
+            </button>
+        </>
+    );
+
     // Empty State
     if (!serverContextLoading && !activeServerId && servers.length === 0 && activeServerId !== 'global') {
         return (
@@ -1243,41 +1752,79 @@ export default function Dashboard() {
             },
         ];
 
+        const allGlobalSectionsHidden = (
+            !visibleSections.kpis
+            && !visibleSections.trafficWindows
+            && !visibleSections.systemTrends
+            && !visibleSections.nodeHealth
+            && !(showOnlineDetail && visibleSections.onlineSessions)
+        );
+
         return (
             <>
                 <Header
                     title={t('pages.dashboardGlobal.title')}
                     icon={<HiOutlineCloud />}
                 >
-                    <button
-                        type="button"
-                        className={`btn btn-sm btn-secondary dashboard-refresh-btn${autoRefresh ? ' is-on' : ''}`}
-                        onClick={toggleAutoRefresh}
-                        aria-label={autoRefresh ? t('pages.dashboardCommon.autoRefreshOn') : t('pages.dashboardCommon.autoRefreshOff')}
-                        title={autoRefresh ? t('pages.dashboardCommon.autoRefreshOffTitle') : t('pages.dashboardCommon.autoRefreshOnTitle')}
-                    >
-                        <HiOutlineArrowPath className={autoRefresh ? 'spinning' : ''} style={{ fontSize: '13px' }} />
-                        <span className="hidden sm:inline-block ml-1">
-                            {autoRefresh ? t('pages.dashboardCommon.autoRefreshOn') : t('pages.dashboardCommon.autoRefreshOff')}
-                        </span>
-                    </button>
+                    {renderDashboardHeaderActions()}
                 </Header>
                 <div className="page-content page-content--wide page-enter dashboard-page">
-                    <DashboardHero
-                        title={t('pages.dashboardGlobal.title')}
-                        kpis={globalHeroKpis}
-                    />
-                    <div className="stats-grid dashboard-stats-grid dashboard-traffic-window-grid mb-8">
-                        {trafficCards.map((card: any, index: number) => (
-                            <StatCard
-                                key={`${card.label || card.kicker || 'global-card'}-${index}`}
-                                card={card}
-                                loading={false}
+                    {customizeOpen && (
+                        <DashboardCustomizePanel
+                            panelId={customizePanelId}
+                            opsCopy={opsCopy}
+                            visibleSections={visibleSections}
+                            onToggle={toggleDashboardSection}
+                            onReset={resetDashboardSections}
+                            onClose={closeCustomizePanel}
+                        />
+                    )}
+                    {allGlobalSectionsHidden && (
+                        <div className="card">
+                            <EmptyState
+                                size="compact"
+                                hideIcon
+                                title={opsCopy.dashboard.allSectionsHiddenTitle}
+                                subtitle={opsCopy.dashboard.allSectionsHiddenSubtitle}
+                                action={(
+                                    <button type="button" className="btn btn-secondary btn-sm" onClick={resetDashboardSections}>
+                                        {opsCopy.dashboard.resetDefault}
+                                    </button>
+                                )}
                             />
-                        ))}
-                    </div>
+                        </div>
+                    )}
+                    {visibleSections.kpis && (
+                        <DashboardHero
+                            title={t('pages.dashboardGlobal.title')}
+                            kpis={globalHeroKpis}
+                        />
+                    )}
+                    {visibleSections.trafficWindows && (
+                        <div className="stats-grid dashboard-stats-grid dashboard-traffic-window-grid mb-8">
+                            {trafficCards.map((card: any, index: number) => (
+                                <StatCard
+                                    key={`${card.label || card.kicker || 'global-card'}-${index}`}
+                                    card={card}
+                                    loading={false}
+                                />
+                            ))}
+                        </div>
+                    )}
+                    {visibleSections.systemTrends && (
+                        <ClusterSystemTrendsCard
+                            opsCopy={opsCopy}
+                            trends={clusterSystemTrends}
+                            throughput={effectiveThroughput}
+                            clusterSummaryReady={clusterSummaryReady}
+                            onlineServers={globalStats.onlineServers}
+                            clusterServerCount={clusterServerCount}
+                            throughputPendingLabel={t('pages.dashboardCommon.throughputPending')}
+                            clusterPendingLabel={t('pages.dashboardCommon.clusterPending')}
+                        />
+                    )}
 
-                    {showOnlineDetail && (
+                    {showOnlineDetail && visibleSections.onlineSessions && (
                         <div className="card mb-6">
                             <SectionHeader
                                 className="dashboard-section-head"
@@ -1367,14 +1914,16 @@ export default function Dashboard() {
                     )}
 
                     {/* 节点健康网格 */}
-                    <div className="mb-6">
-                        <SectionHeader
-                            className="dashboard-section-head"
-                            title={t('pages.dashboardGlobal.nodeHealthTitle')}
-                            meta={<span className="text-sm text-muted">{t('pages.dashboardGlobal.nodeCount', { count: servers.length })}</span>}
-                        />
-                        <NodeHealthGrid servers={servers} serverStatuses={serverStatuses} trendHistory={serverTrendHistory} />
-                    </div>
+                    {visibleSections.nodeHealth && (
+                        <div className="mb-6">
+                            <SectionHeader
+                                className="dashboard-section-head"
+                                title={t('pages.dashboardGlobal.nodeHealthTitle')}
+                                meta={<span className="text-sm text-muted">{t('pages.dashboardGlobal.nodeCount', { count: servers.length })}</span>}
+                            />
+                            <NodeHealthGrid servers={servers} serverStatuses={serverStatuses} trendHistory={serverTrendHistory} />
+                        </div>
+                    )}
                 </div>
             </>
         );
@@ -1434,31 +1983,32 @@ export default function Dashboard() {
             <Header
                 title={activeServer?.name || t('pages.dashboardNode.title')}
             >
-                <button
-                    type="button"
-                    className={`btn btn-sm btn-secondary dashboard-refresh-btn${autoRefresh ? ' is-on' : ''}`}
-                    onClick={toggleAutoRefresh}
-                    aria-label={autoRefresh ? t('pages.dashboardCommon.autoRefreshOn') : t('pages.dashboardCommon.autoRefreshOff')}
-                    title={autoRefresh ? t('pages.dashboardCommon.autoRefreshOffTitle') : t('pages.dashboardCommon.autoRefreshOnTitle')}
-                >
-                    <HiOutlineArrowPath className={autoRefresh ? 'spinning' : ''} style={{ fontSize: '13px' }} />
-                    <span className="hidden sm:inline-block ml-1">
-                        {autoRefresh ? t('pages.dashboardCommon.autoRefreshOn') : t('pages.dashboardCommon.autoRefreshOff')}
-                    </span>
-                </button>
+                {renderDashboardHeaderActions()}
             </Header>
             <div className="page-content page-content--wide page-enter dashboard-page">
-                <div className="stats-grid dashboard-stats-grid">
-                    {statCards.map((card: any, index: number) => (
-                        <StatCard
-                            key={`${card.label || card.kicker || 'node-card'}-${index}`}
-                            card={card}
-                            loading={loading}
-                        />
-                    ))}
-                </div>
+                {customizeOpen && (
+                    <DashboardCustomizePanel
+                        panelId={customizePanelId}
+                        opsCopy={opsCopy}
+                        visibleSections={visibleSections}
+                        onToggle={toggleDashboardSection}
+                        onReset={resetDashboardSections}
+                        onClose={closeCustomizePanel}
+                    />
+                )}
+                {visibleSections.kpis && (
+                    <div className="stats-grid dashboard-stats-grid">
+                        {statCards.map((card: any, index: number) => (
+                            <StatCard
+                                key={`${card.label || card.kicker || 'node-card'}-${index}`}
+                                card={card}
+                                loading={loading}
+                            />
+                        ))}
+                    </div>
+                )}
 
-                {showOnlineDetail && (
+                {showOnlineDetail && visibleSections.onlineSessions && (
                     <div className="card mb-6">
                         <SectionHeader
                             className="dashboard-section-head"
@@ -1577,23 +2127,25 @@ export default function Dashboard() {
                 </div>
 
                 {/* CPU History Chart */}
-                <div className="card mb-6">
-                    <SectionHeader
-                        className="dashboard-section-head"
-                        title={t('pages.dashboardNode.cpuChartTitle')}
-                    />
-                    <div className="w-full dashboard-chart py-5">
-                        {loading && cpuHistory.length === 0 ? (
-                            <div className="w-full h-full flex flex-col gap-4 px-6">
-                                <div className="skeleton w-full h-full opacity-10" />
-                            </div>
-                        ) : (
-                            <Suspense fallback={<div className="skeleton w-full h-full opacity-10" />}>
-                                <CpuHistoryChart cpuHistory={cpuHistory} endTick={cpuChartEndTick} t={t} />
-                            </Suspense>
-                        )}
+                {visibleSections.systemTrends && (
+                    <div className="card mb-6">
+                        <SectionHeader
+                            className="dashboard-section-head"
+                            title={t('pages.dashboardNode.cpuChartTitle')}
+                        />
+                        <div className="w-full dashboard-chart py-5">
+                            {loading && cpuHistory.length === 0 ? (
+                                <div className="w-full h-full flex flex-col gap-4 px-6">
+                                    <div className="skeleton w-full h-full opacity-10" />
+                                </div>
+                            ) : (
+                                <Suspense fallback={<div className="skeleton w-full h-full opacity-10" />}>
+                                    <CpuHistoryChart cpuHistory={cpuHistory} endTick={cpuChartEndTick} t={t} />
+                                </Suspense>
+                            )}
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
         </>
     );

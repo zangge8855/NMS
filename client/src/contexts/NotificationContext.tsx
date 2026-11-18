@@ -7,6 +7,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
 import api from '../api/client';
+import { useOptionalAuth } from './AuthContext';
 import {
     resolveLocalizedNotificationText,
     type LocalizedNotificationCopy,
@@ -32,6 +33,7 @@ export interface NotificationContextType {
     notifications: NotificationItem[];
     unreadCount: number;
     loading: boolean;
+    canMarkRead?: boolean;
     markRead: (id: string) => Promise<void>;
     markAllRead: () => Promise<void>;
     ensureExpandedNotifications: () => Promise<void>;
@@ -74,6 +76,8 @@ export interface NotificationProviderProps {
 }
 
 export function NotificationProvider({ children, wsLastMessage, enabled = true }: NotificationProviderProps) {
+    const auth = useOptionalAuth();
+    const isAuditor = auth?.user?.role === 'auditor';
     const bootstrapRef = useRef<NotificationSnapshot | null>(enabled ? readNotificationSnapshot() : null);
     const [notifications, setNotifications] = useState<NotificationItem[]>(() => (enabled ? (bootstrapRef.current?.notifications || []) : []));
     const [unreadCount, setUnreadCount] = useState<number>(() => (enabled ? (bootstrapRef.current?.unreadCount || 0) : 0));
@@ -283,7 +287,7 @@ export function NotificationProvider({ children, wsLastMessage, enabled = true }
     }, []);
 
     const markRead = useCallback(async (id: string) => {
-        if (!enabled || !id) return;
+        if (!enabled || !id || isAuditor) return;
         try {
             await api.post('/system/notifications/read', { id });
             liveNotificationStateRef.current.realtimeReceived = true;
@@ -310,10 +314,10 @@ export function NotificationProvider({ children, wsLastMessage, enabled = true }
         } catch (error) {
             showNotificationActionError(error, '标记通知已读失败', 'Failed to mark notification as read');
         }
-    }, [enabled, showNotificationActionError]);
+    }, [enabled, isAuditor, showNotificationActionError]);
 
     const markAllRead = useCallback(async () => {
-        if (!enabled) return;
+        if (!enabled || isAuditor) return;
         try {
             await api.post('/system/notifications/read', { all: true });
             liveNotificationStateRef.current.realtimeReceived = true;
@@ -330,13 +334,14 @@ export function NotificationProvider({ children, wsLastMessage, enabled = true }
         } catch (error) {
             showNotificationActionError(error, '全部标记已读失败', 'Failed to mark all notifications as read');
         }
-    }, [enabled, showNotificationActionError]);
+    }, [enabled, isAuditor, showNotificationActionError]);
 
     return (
         <NotificationContext.Provider value={{
             notifications,
             unreadCount,
             loading,
+            canMarkRead: !isAuditor,
             markRead,
             markAllRead,
             ensureExpandedNotifications,
