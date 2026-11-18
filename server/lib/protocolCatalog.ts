@@ -289,7 +289,7 @@ const PROTOCOL_SCHEMAS: ProtocolSchema[] = [
             }],
         },
         supports: {
-            transports: [],
+            transports: ['udp', 'hysteria'],
             securities: ['tls'],
         },
     },
@@ -316,7 +316,7 @@ const PROTOCOL_SCHEMAS: ProtocolSchema[] = [
             }],
         },
         supports: {
-            transports: [],
+            transports: ['udp', 'hysteria'],
             securities: ['tls'],
         },
     },

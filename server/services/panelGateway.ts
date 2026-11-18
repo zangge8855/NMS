@@ -17,10 +17,28 @@ async function listPanelInbounds(serverId: string, options: any = {}): Promise<{
         error.code = error.code || 'PANEL_INBOUND_LIST_FAILED';
         throw error;
     }
-    const inbounds = Array.isArray(listRes.data?.obj) ? listRes.data.obj : [];
+    const data = listRes?.data;
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+        const error: any = new Error('Panel inbound list returned a non-JSON response');
+        error.code = 'PANEL_INBOUND_LIST_FAILED';
+        error.response = listRes;
+        throw error;
+    }
+    if (data.success === false) {
+        const error: any = new Error(String(data.msg || data.message || 'Panel inbound list request failed'));
+        error.code = 'PANEL_INBOUND_LIST_FAILED';
+        error.response = listRes;
+        throw error;
+    }
+    if (!Array.isArray(data.obj)) {
+        const error: any = new Error('Panel inbound list payload obj is not an array');
+        error.code = 'PANEL_INBOUND_LIST_FAILED';
+        error.response = listRes;
+        throw error;
+    }
     return {
         client,
-        inbounds,
+        inbounds: data.obj,
     };
 }
 

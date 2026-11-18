@@ -10,11 +10,14 @@ import {
     postAddClient,
     postUpdateClient,
     resolveClientIdentifier,
+    resolveShadowsocksPassword,
 } from '../lib/clientEntitlements.js';
 import clientEntitlementOverrideRepository from '../repositories/clientEntitlementOverrideRepository.js';
 import serverRepository from '../repositories/serverRepository.js';
 import subscriptionTokenRepository from '../repositories/subscriptionTokenRepository.js';
+import userGroupRepository from '../repositories/userGroupRepository.js';
 import userPolicyRepository from '../repositories/userPolicyRepository.js';
+import userRepository from '../repositories/userRepository.js';
 import { invalidateServerPanelSnapshotCache } from '../lib/serverPanelSnapshotService.js';
 import { postDeleteClientFromInboundCompat } from '../lib/panelApiCompat.js';
 import { listPanelInbounds } from './panelGateway.js';
@@ -23,6 +26,7 @@ import {
     isInboundAllowedByPolicy,
     isProtocolAllowedByPolicy,
     isServerAllowedByPolicy,
+    resolveEffectivePolicy,
 } from '../lib/userPolicyResolver.js';
 
 function redactCredentials(message: unknown): any {
@@ -74,6 +78,8 @@ function createSharedCredentials() {
     return {
         uuid: crypto.randomUUID(),
         password: crypto.randomBytes(16).toString('hex'),
+        ss2022Key16: crypto.randomBytes(16).toString('base64'),
+        ss2022Key32: crypto.randomBytes(32).toString('base64'),
         subId: buildRandomSubId(),
     };
 }
@@ -94,22 +100,32 @@ function applyManagedCredentialsToClient(clientRecord: any, {
     resolveFlow: (protocol: string, inbound: any) => string;
 }) {
     const normalizedProtocol = String(protocol || '').toLowerCase();
+    const resolvedUuid = String(sharedCredentials.uuid || '').trim() || String(clientRecord?.id || clientRecord?.uuid || '').trim();
     const payload = applyEntitlementToClient({
         ...clientRecord,
         email,
         enable: true,
-        id: String(sharedCredentials.uuid || '').trim() || String(clientRecord?.id || '').trim(),
+        id: resolvedUuid,
+        ...(normalizedProtocol === 'tuic' && resolvedUuid ? { uuid: resolvedUuid } : {}),
         subId: String(sharedCredentials.subId || '').trim() || String(clientRecord?.subId || '').trim(),
     }, entitlement);
 
-    if (UUID_PROTOCOLS.has(normalizedProtocol)) {
+    if (normalizedProtocol === 'vmess' || normalizedProtocol === 'vless') {
         payload.flow = resolveFlow(normalizedProtocol, inbound);
     }
     // s-ui clients hold one password for every protocol, so keep it in step even on uuid inbounds.
     if (PASSWORD_PROTOCOLS.has(normalizedProtocol) || isSuiPanelContext(inbound)) {
-        payload.password = String(sharedCredentials.password || '').trim() || String(clientRecord?.password || '').trim();
+        const nextPassword = normalizedProtocol === 'shadowsocks' && !isSuiPanelContext(inbound)
+            ? resolveShadowsocksPassword(inbound, sharedCredentials, clientRecord)
+            : String(sharedCredentials.password || '').trim();
+        payload.password = nextPassword || String(clientRecord?.password || '').trim();
     }
-    if (!isSuiPanelContext(inbound)) {
+    if (isSuiPanelContext(inbound)) {
+        const ss2022Key16 = String(sharedCredentials.ss2022Key16 || '').trim();
+        const ss2022Key32 = String(sharedCredentials.ss2022Key32 || '').trim();
+        if (ss2022Key16) payload.ss2022Key16 = ss2022Key16;
+        if (ss2022Key32) payload.ss2022Key32 = ss2022Key32;
+    } else {
         applyExtraProtocolCredentials(payload, normalizedProtocol, String(sharedCredentials.password || '').trim(), clientRecord || {});
     }
 
@@ -126,7 +142,7 @@ function resolveDeployFlow(protocol: string, inbound: any): string {
     } catch { /* ignore */ }
     const network = String(stream.network || '').toLowerCase();
     const security = String(stream.security || '').toLowerCase();
-    if ((network === 'tcp' || network === 'http') && (security === 'reality' || security === 'tls')) {
+    if ((!network || network === 'tcp' || network === 'raw') && (security === 'reality' || security === 'tls')) {
         return 'xtls-rprx-vision';
     }
     return '';
@@ -468,6 +484,7 @@ async function autoDeployClients(subscriptionEmail: string, policy: any, options
                             protocol,
                             sourceClient: match,
                         });
+                        markServerPanelSnapshotStale(server.id);
                         result.removed = (result.removed || 0) + 1;
                         result.details.push({
                             serverId: server.id,
@@ -544,9 +561,15 @@ async function autoDeployClients(subscriptionEmail: string, policy: any, options
                         ? true
                         : ((match.enable !== false) === Boolean(clientEnabled));
                     const isSameCredentials = !forceCredentialRotation || (
-                        String(updatedClient.id || '') === String(match.id || '')
+                        String(updatedClient.id || updatedClient.uuid || '') === String(match.id || match.uuid || '')
                         && String(updatedClient.password || '') === String(match.password || '')
                         && String(updatedClient.subId || '') === String(match.subId || '')
+                        && !(
+                            isSuiPanelContext(inbound)
+                            && protocol === 'shadowsocks'
+                            && (updatedClient.ss2022Key16 || updatedClient.ss2022Key32)
+                            && resolveShadowsocksPassword(inbound, sharedCredentials, match) !== String(match.password || '')
+                        )
                     );
 
                     if (isSameEntitlement && isSameCredentials && isSameEnableState && !needsEmailCanonicalization) {
@@ -563,7 +586,7 @@ async function autoDeployClients(subscriptionEmail: string, policy: any, options
                         continue;
                     }
 
-                    await updateClient(client, inbound.id, clientIdentifier, updatedClient);
+                    await updateClient(client, inbound.id, clientIdentifier, updatedClient, { protocol });
                     markServerPanelSnapshotStale(server.id);
                     result.updated += 1;
                     result.details.push({
@@ -596,7 +619,7 @@ async function autoDeployClients(subscriptionEmail: string, policy: any, options
                     clientData.enable = Boolean(clientEnabled);
                 }
 
-                await addClient(client, inbound.id, clientData);
+                await addClient(client, inbound.id, clientData, { protocol });
                 markServerPanelSnapshotStale(server.id);
                 result.created += 1;
                 result.details.push({
@@ -895,7 +918,8 @@ async function autoSetManagedClientsEnabled(subscriptionEmail: string, enabled: 
 }
 
 async function provisionSubscriptionForUser(targetUser: any, payload: any = {}, actor: string = 'admin', deps: any = {}): Promise<any> {
-    const users = deps.userRepository;
+    const users = deps.userRepository || userRepository;
+    const groupsRepo = deps.userGroupRepository || userGroupRepository;
     const policies = deps.userPolicyRepository || userPolicyRepository;
     const servers = deps.serverRepository || serverRepository;
     const tokenRepo = deps.subscriptionTokenRepository || subscriptionTokenRepository;
@@ -939,6 +963,19 @@ async function provisionSubscriptionForUser(targetUser: any, payload: any = {}, 
     const speedLimitUp = normalizeNonNegativeInt(payload.speedLimitUp, 0);
     const speedLimitDown = normalizeNonNegativeInt(payload.speedLimitDown, 0);
     const user = users.setSubscriptionEmail(targetUser.id, subscriptionEmail);
+    const storedUser = typeof users?.getById === 'function' ? users.getById(targetUser.id) : null;
+    const resolvedUser = {
+        ...targetUser,
+        ...(user && typeof user === 'object' ? user : {}),
+        ...(storedUser && typeof storedUser === 'object' ? storedUser : {}),
+    };
+    const existingPolicy = typeof policies.get === 'function' ? policies.get(subscriptionEmail) : null;
+    const inheritGroup = payload.inheritGroup !== undefined
+        ? Boolean(payload.inheritGroup)
+        : (existingPolicy?.updatedAt ? existingPolicy.inheritGroup === true : Boolean(resolvedUser?.groupId));
+    const overrideFields = Array.isArray(payload.overrideFields)
+        ? payload.overrideFields
+        : (Array.isArray(existingPolicy?.overrideFields) ? existingPolicy.overrideFields : []);
     const policy = policies.upsert(
         subscriptionEmail,
         {
@@ -956,29 +993,28 @@ async function provisionSubscriptionForUser(targetUser: any, payload: any = {}, 
             group: String(payload.group || '').trim(),
             comment: String(payload.comment || '').trim(),
             reset: Number(payload.reset) || 0,
+            inheritGroup,
+            overrideFields,
         },
         actor
     );
+    const group = resolvedUser?.groupId ? groupsRepo?.getById?.(resolvedUser.groupId) : null;
+    const resolvedPolicy = resolveEffectivePolicy(resolvedUser, policy, group);
+    const effectivePolicy = {
+        ...policy,
+        ...resolvedPolicy,
+    };
     const tokenState = ensurePersistentSubscriptionToken(subscriptionEmail, actor, {
         subscriptionTokenRepository: tokenRepo,
     });
 
     let deployment: any = { total: 0, created: 0, updated: 0, skipped: 0, failed: 0, details: [] };
     try {
-        deployment = await autoDeployClients(subscriptionEmail, policy, {
-            expiryTime,
-            limitIp,
-            trafficLimitBytes,
-            speedLimitUp,
-            speedLimitDown,
-            tgId: Number(payload.tgId) || 0,
-            group: String(payload.group || '').trim(),
-            comment: String(payload.comment || '').trim(),
-            reset: Number(payload.reset) || 0,
-            allowedInboundKeys,
+        deployment = await autoDeployClients(subscriptionEmail, effectivePolicy, {
+            allowedInboundKeys: effectivePolicy.allowedInboundKeys,
             allServers: servers.list(),
-            clientEnabled: targetUser?.enabled !== false,
-            emailAliases: [targetUser?.email, targetUser?.subscriptionEmail],
+            clientEnabled: resolvedUser?.enabled !== false,
+            emailAliases: [resolvedUser?.email, resolvedUser?.subscriptionEmail],
         }, deps);
     } catch (error: any) {
         deployment.error = error.message || 'Auto-deploy failed';
@@ -986,7 +1022,7 @@ async function provisionSubscriptionForUser(targetUser: any, payload: any = {}, 
 
     return {
         user,
-        policy,
+        policy: effectivePolicy,
         subscription: {
             email: subscriptionEmail,
             status: subscriptionEmail ? 'active' : 'pending',
@@ -1000,11 +1036,11 @@ async function provisionSubscriptionForUser(targetUser: any, payload: any = {}, 
         deployment,
         context: {
             subscriptionEmail,
-            expiryTime,
-            limitIp,
-            trafficLimitBytes,
-            allowedServerIds,
-            allowedProtocols,
+            expiryTime: effectivePolicy.expiryTime,
+            limitIp: effectivePolicy.limitIp,
+            trafficLimitBytes: effectivePolicy.trafficLimitBytes,
+            allowedServerIds: effectivePolicy.allowedServerIds,
+            allowedProtocols: effectivePolicy.allowedProtocols,
             tokenState,
         },
     };

@@ -18,6 +18,7 @@ import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'a
 import FormData from 'form-data';
 import { PANEL_TYPE_SUI } from './panelType.js';
 import { SUI_CLIENT_PROTOCOLS } from './clientProtocols.js';
+import { mergeCookieHeader } from './panelClient.js';
 
 // ---------------------------------------------------------------------------
 // Protocol knowledge
@@ -240,14 +241,8 @@ function stringifyFormValues(form: Record<string, any> = {}): Record<string, str
     return output;
 }
 
-function readSetCookie(headers: any): string {
-    const raw = headers?.['set-cookie'] ?? (typeof headers?.get === 'function' ? headers.get('set-cookie') : undefined);
-    if (!raw) return '';
-    const list = Array.isArray(raw) ? raw : [raw];
-    return list
-        .map((item) => String(item || '').split(';')[0].trim())
-        .filter(Boolean)
-        .join('; ');
+function extractRawSetCookie(headers: any): string[] | string | undefined {
+    return headers?.['set-cookie'] ?? (typeof headers?.get === 'function' ? headers.get('set-cookie') : undefined);
 }
 
 export function createSuiTransport(server: any, options: SuiTransportOptions = {}): SuiTransport {
@@ -266,10 +261,12 @@ export function createSuiTransport(server: any, options: SuiTransportOptions = {
     let cookie = apiToken ? '' : normalizeText(sessionStore?.get?.());
 
     function captureCookie(response: any): void {
-        const value = readSetCookie(response?.headers);
-        if (!value) return;
-        cookie = value;
-        sessionStore?.set(value);
+        const raw = extractRawSetCookie(response?.headers);
+        if (!raw || (Array.isArray(raw) && raw.length === 0)) return;
+        const merged = mergeCookieHeader(cookie, raw);
+        if (!merged) return;
+        cookie = merged;
+        sessionStore?.set(merged);
     }
 
     function clearCookie(): void {
@@ -761,6 +758,8 @@ function applyPasswordToKey(config: any, key: string, password: string): void {
 export function applyXuiCredentials(config: any, input: any, targetKeys: string[] | null = null): void {
     const uuid = normalizeText(input?.id || input?.uuid);
     const password = normalizeText(input?.password ?? input?.auth ?? input?.pass);
+    const ss2022Key16 = normalizeText(input?.ss2022Key16);
+    const ss2022Key32 = normalizeText(input?.ss2022Key32);
     const flow = input?.flow !== undefined ? normalizeText(input.flow) : undefined;
 
     if (targetKeys) {
@@ -768,7 +767,13 @@ export function applyXuiCredentials(config: any, input: any, targetKeys: string[
             if (uuid && UUID_CONFIG_KEYS.includes(key)) {
                 (config[key] || (config[key] = {})).uuid = uuid;
             }
-            if (password && key !== 'vless' && key !== 'vmess') {
+            if (key === 'shadowsocks16') {
+                const candidate = ss2022Key16 || password;
+                if (candidate) applyKeyedPassword(config, 'shadowsocks16', candidate);
+            } else if (key === 'shadowsocks' || key === 'shadowtls') {
+                const candidate = ss2022Key32 || password;
+                if (candidate) applyKeyedPassword(config, key, candidate);
+            } else if (password && key !== 'vless' && key !== 'vmess') {
                 applyPasswordToKey(config, key, password);
             }
             if (key === 'vless' && flow) {
@@ -787,9 +792,17 @@ export function applyXuiCredentials(config: any, input: any, targetKeys: string[
         for (const key of PLAIN_PASSWORD_CONFIG_KEYS) setPlainPassword(config, key, password);
         setPlainPassword(config, 'hysteria', password);
         setPlainPassword(config, 'snell', password);
-        applyKeyedPassword(config, 'shadowsocks', password);
-        applyKeyedPassword(config, 'shadowsocks16', password);
-        applyKeyedPassword(config, 'shadowtls', password);
+        applyKeyedPassword(config, 'shadowsocks', ss2022Key32 || password);
+        applyKeyedPassword(config, 'shadowsocks16', ss2022Key16 || password);
+        applyKeyedPassword(config, 'shadowtls', ss2022Key32 || password);
+    } else {
+        if (ss2022Key32 && !collectPasswordValues(config).has(ss2022Key32)) {
+            applyKeyedPassword(config, 'shadowsocks', ss2022Key32);
+            applyKeyedPassword(config, 'shadowtls', ss2022Key32);
+        }
+        if (ss2022Key16 && !collectPasswordValues(config).has(ss2022Key16)) {
+            applyKeyedPassword(config, 'shadowsocks16', ss2022Key16);
+        }
     }
     // Vision is stripped by s-ui on inbounds that cannot use it, so an empty
     // flow from a non-TCP inbound must not erase it for the TLS/Reality ones.
@@ -936,7 +949,7 @@ export function suiInboundToXuiInbound(inbound: any, clients: any[] = [], tls: a
     if (type === 'hysteria' || type === 'hysteria2') {
         if (inbound?.up_mbps !== undefined) settings.up_mbps = toNonNegativeInt(inbound.up_mbps);
         if (inbound?.down_mbps !== undefined) settings.down_mbps = toNonNegativeInt(inbound.down_mbps);
-        if (inbound?.obfs && typeof inbound.obfs === 'object') settings.obfs = inbound.obfs;
+        if (inbound?.obfs && (typeof inbound.obfs === 'object' || typeof inbound.obfs === 'string')) settings.obfs = inbound.obfs;
     }
     if (type === 'tuic') {
         if (inbound?.congestion_control) settings.congestion_control = inbound.congestion_control;
@@ -1071,7 +1084,7 @@ export function xuiInboundPayloadToSui(payload: any = {}, existing: any = null):
     } else if (next.type === 'hysteria' || next.type === 'hysteria2') {
         if (settings.up_mbps !== undefined) next.up_mbps = toNonNegativeInt(settings.up_mbps);
         if (settings.down_mbps !== undefined) next.down_mbps = toNonNegativeInt(settings.down_mbps);
-        if (settings.obfs && typeof settings.obfs === 'object') next.obfs = settings.obfs;
+        if (settings.obfs && (typeof settings.obfs === 'object' || typeof settings.obfs === 'string')) next.obfs = settings.obfs;
     } else if (next.type === 'tuic') {
         if (settings.congestion_control) next.congestion_control = settings.congestion_control;
         if (settings.udp_relay_mode) next.udp_relay_mode = settings.udp_relay_mode;

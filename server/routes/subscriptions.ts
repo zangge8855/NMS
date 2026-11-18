@@ -23,6 +23,9 @@ import {
     isInboundAllowedByPolicy,
     resolveEffectivePolicy,
 } from '../lib/userPolicyResolver.js';
+import { isSuiPanelContext } from '../lib/clientProtocols.js';
+import { isSuiPanelServer } from '../lib/panelType.js';
+import { parseInboundClients } from '../lib/panelApiCompat.js';
 import { getServerPanelSnapshot, getServerPanelSnapshots } from '../lib/serverPanelSnapshotService.js';
 import { getCachedClusterStatusSnapshot, UNREACHABLE } from '../lib/serverStatusService.js';
 import { canAccessSubscriptionEmail } from '../lib/subscriptionAccess.js';
@@ -42,16 +45,28 @@ import { pickRequestText } from '../lib/requestLocale.js';
 
 const router = Router();
 
+function canOperatorManageSubscriptionTarget(requestedEmail: string): boolean {
+    const normalized = normalizeEmail(requestedEmail);
+    if (!normalized) return true;
+    const targetUser = userStore.getBySubscriptionEmail(normalized) || userStore.getByEmail(normalized) || null;
+    if (!targetUser) return true;
+    return String(targetUser.role || '').trim().toLowerCase() === 'user';
+}
+
 /**
- * 订阅邮件访问控制中间件。
- * admin 可访问所有邮件的订阅;
+ * 订阅邮件访问控制中间件 (只读)。
+ * admin / operator / auditor 可查看所有订阅；
  * user 仅可访问与自己身份绑定的邮箱/用户名。
  */
 function ensureEmailAccess(req, res, next) {
+    const role = String(req.user?.role || '').trim().toLowerCase();
     const requestedEmail = normalizeEmail(req.params.email);
-    const allowed = canAccessSubscriptionEmail(req.user, requestedEmail, {
-        findUserById: (id) => userStore.getById(id),
-    });
+    const allowed = role === 'admin'
+        || role === 'operator'
+        || role === 'auditor'
+        || canAccessSubscriptionEmail(req.user, requestedEmail, {
+            findUserById: (id) => userStore.getById(id),
+        });
     if (!allowed) {
         return res.status(403).json({
             success: false,
@@ -61,6 +76,37 @@ function ensureEmailAccess(req, res, next) {
     next();
 }
 
+function ensureOperatorTargetUserAccess(req, res, next) {
+    const role = String(req.user?.role || '').trim().toLowerCase();
+    if (role === 'operator' && !canOperatorManageSubscriptionTarget(req.params.email)) {
+        return res.status(403).json({
+            success: false,
+            msg: pickRequestText(req, '权限不足: 操作员仅可管理普通用户的订阅链接', 'Permission denied: operators can only manage subscriptions for user accounts'),
+        });
+    }
+    next();
+}
+
+function ensureResetLinkAccess(req, res, next) {
+    const role = String(req.user?.role || '').trim().toLowerCase();
+    if (role === 'auditor') {
+        return res.status(403).json({
+            success: false,
+            msg: pickRequestText(req, '权限不足: 审计员仅支持只读访问', 'Permission denied: auditors have read-only access'),
+        });
+    }
+    if (role === 'operator') {
+        if (!canOperatorManageSubscriptionTarget(req.params.email)) {
+            return res.status(403).json({
+                success: false,
+                msg: pickRequestText(req, '权限不足: 操作员仅可重置普通用户的订阅链接', 'Permission denied: operators can only reset subscription links for user accounts'),
+            });
+        }
+        return next();
+    }
+    return ensureEmailAccess(req, res, next);
+}
+
 const RECONSTRUCTED_PROTOCOLS = new Set(['vmess', 'vless', 'trojan', 'shadowsocks', 'hysteria', 'hysteria2', 'hy2', 'tuic']);
 const LINK_PATTERN = /^(vmess|vless|trojan|ss|hy2|hysteria2?|tuic|anytls|socks5?|https?|http2|naive\+https|naive\+quic):\/\//i;
 const MODE_SET = new Set(['auto', 'native', 'reconstructed']);
@@ -68,6 +114,14 @@ const POLICY_SCOPE_SET = new Set(['all', 'selected', 'none']);
 
 function normalizeEmail(email) {
     return String(email || '').trim().toLowerCase();
+}
+
+function resolveEffectivePolicyForEmail(email) {
+    const normalizedEmail = normalizeEmail(email);
+    const rawPolicy = userPolicyStore.get(normalizedEmail);
+    const policyUser = userStore.getBySubscriptionEmail(normalizedEmail) || userStore.getByEmail(normalizedEmail) || null;
+    const policyGroup = policyUser?.groupId ? userGroupStore.getById(policyUser.groupId) : null;
+    return resolveEffectivePolicy(policyUser, rawPolicy, policyGroup);
 }
 
 function normalizeNonNegativeNumber(value) {
@@ -81,7 +135,9 @@ function buildSubscriptionClientKeys(client: any = {}) {
         [
             client?.email,
             client?.id,
+            client?.uuid,
             client?.password,
+            client?.auth,
         ]
             .map((value) => String(value || '').trim().toLowerCase())
             .filter(Boolean)
@@ -89,10 +145,7 @@ function buildSubscriptionClientKeys(client: any = {}) {
 }
 
 function mergeInboundClientEntries(inbound: any = {}) {
-    const settings = parseJsonObjectLike(inbound.settings, {});
-    const clients = Array.isArray(settings.clients)
-        ? settings.clients
-        : (Array.isArray(settings.users) ? settings.users : (Array.isArray(settings.accounts) ? settings.accounts : []));
+    const clients = parseInboundClients(inbound);
     const stats = Array.isArray(inbound.clientStats) ? inbound.clientStats : [];
     const statIndex = new Map();
 
@@ -126,13 +179,26 @@ function summarizeSubscriptionUsage(entries: any[] = [], policy: any = {}) {
         remainingTrafficBytes: 0,
         expiryTime: 0,
     };
+    const seenSuiClients = new Set();
 
     (Array.isArray(entries) ? entries : []).forEach((item) => {
         const entry = item?.entry || item || {};
-        summary.uploadTrafficBytes += normalizeNonNegativeNumber(entry.up);
-        summary.downloadTrafficBytes += normalizeNonNegativeNumber(entry.down);
-        // Note: 3x-ui's "totalGB" field is bytes despite the misleading name.
-        summary.trafficLimitBytes += normalizeNonNegativeNumber(entry.totalGB);
+        const serverId = String(item?.serverId || entry?.serverId || item?.inbound?.serverId || '').trim();
+        const rawSuiClientId = entry?.suiClientId;
+        const suiClientId = rawSuiClientId !== undefined && rawSuiClientId !== null && String(rawSuiClientId).trim() !== ''
+            ? String(rawSuiClientId).trim()
+            : '';
+        const dedupKey = suiClientId ? `${serverId}:${suiClientId}` : '';
+        const isDuplicateSuiClient = Boolean(dedupKey && seenSuiClients.has(dedupKey));
+        if (dedupKey) {
+            seenSuiClients.add(dedupKey);
+        }
+        if (!isDuplicateSuiClient) {
+            summary.uploadTrafficBytes += normalizeNonNegativeNumber(entry.up);
+            summary.downloadTrafficBytes += normalizeNonNegativeNumber(entry.down);
+            // Note: 3x-ui's "totalGB" field is bytes despite the misleading name.
+            summary.trafficLimitBytes += normalizeNonNegativeNumber(entry.totalGB);
+        }
         const expiryTime = normalizeNonNegativeNumber(entry.expiryTime);
         if (expiryTime > 0 && (summary.expiryTime === 0 || expiryTime < summary.expiryTime)) {
             summary.expiryTime = expiryTime;
@@ -553,10 +619,11 @@ function buildVmessLink({ server, inbound, client, stream, diagnostics }) {
         scy: (!rawScy || rawScy === 'none' || rawScy === 'zero') ? 'auto' : client.security,
         net,
         type: stream.tcpSettings?.header?.type || 'none',
-        host: stream.wsSettings?.headers?.Host
+        host: firstNonEmpty(stream.wsSettings?.host, getHeaderValue(stream.wsSettings?.headers, 'Host'))
             || (Array.isArray(stream.httpSettings?.host)
                 ? stream.httpSettings.host.join(',')
                 : (stream.httpSettings?.host || ''))
+            || (net === 'grpc' ? firstNonEmpty(stream.grpcSettings?.authority) : '')
             || firstNonEmpty(stream.httpupgradeSettings?.host, getHeaderValue(stream.httpupgradeSettings?.headers, 'Host'))
             || firstNonEmpty(stream.xhttpSettings?.host, getHeaderValue(stream.xhttpSettings?.headers, 'Host')),
         path: stream.wsSettings?.path
@@ -570,7 +637,13 @@ function buildVmessLink({ server, inbound, client, stream, diagnostics }) {
         alpn: Array.isArray(stream.tlsSettings?.alpn) ? stream.tlsSettings.alpn.join(',') : '',
     };
 
-    if (security === 'reality') {
+    const tlsFingerprint = firstNonEmpty(stream.tlsSettings?.settings?.fingerprint, stream.tlsSettings?.fingerprint);
+    if (security === 'tls') {
+        if (tlsFingerprint) vmessObj.fp = tlsFingerprint;
+        if (stream.tlsSettings?.allowInsecure === true) {
+            vmessObj.allowInsecure = 1;
+        }
+    } else if (security === 'reality') {
         const reality = getRealityParams(stream);
         if (!reality.sni || !reality.pbk || !reality.fp) {
             diagnostics.push('missing reality required params: sni/pbk/fp');
@@ -604,7 +677,7 @@ function buildVlessLink({ server, inbound, client, stream, diagnostics }) {
     params.set('type', net);
     params.set('encryption', firstNonEmpty(inboundSettings.encryption, client.encryption, 'none'));
 
-    if (net === 'tcp' && inbound.disableFlow !== true) {
+    if ((net === 'tcp' || net === 'raw') && inbound.disableFlow !== true) {
         setParamIfPresent(params, 'flow', client.flow);
     }
     applyTransportParams(params, stream);
@@ -647,9 +720,6 @@ function buildVlessLink({ server, inbound, client, stream, diagnostics }) {
         }
     } else if (security === 'reality') {
         params.set('security', 'reality');
-        if (!client.flow && net === 'tcp' && inbound.disableFlow !== true) {
-            params.set('flow', 'xtls-rprx-vision');
-        }
         const { sni, pbk, fp, sid, spx, pqv } = getRealityParams(stream);
         if (!sni || !pbk || !fp) {
             diagnostics.push('missing reality required params: sni/pbk/fp');
@@ -722,6 +792,8 @@ function buildTrojanLink({ server, inbound, client, stream, diagnostics }) {
     return `trojan://${encodeURIComponent(password)}@${getServerHost(server.url)}:${inbound.port}?${params.toString()}#${tag}`;
 }
 
+const SS2022_EIH_METHODS = new Set(['2022-blake3-aes-128-gcm', '2022-blake3-aes-256-gcm']);
+
 function buildShadowsocksLink({ server, inbound, client, settings, diagnostics }) {
     const method = client.method || settings.method;
     const password = client.password;
@@ -730,11 +802,15 @@ function buildShadowsocksLink({ server, inbound, client, settings, diagnostics }
         return null;
     }
 
+    const normalizedMethod = String(method).trim().toLowerCase();
     const serverPassword = String(settings?.password || '').trim();
-    const combinedPassword = String(method).startsWith('2022-') && serverPassword && serverPassword !== String(password).trim()
+    const clientPassword = String(password).trim();
+    const combinedPassword = SS2022_EIH_METHODS.has(normalizedMethod)
+        && serverPassword
+        && !clientPassword.includes(':')
         ? `${serverPassword}:${password}`
         : password;
-    const userInfo = Buffer.from(`${method}:${combinedPassword}`).toString('base64');
+    const userInfo = Buffer.from(`${method}:${combinedPassword}`).toString('base64url');
     const tag = encodeURIComponent(getTag(server, inbound, client.email || ''));
     return `ss://${userInfo}@${getServerHost(server.url)}:${inbound.port}#${tag}`;
 }
@@ -896,12 +972,48 @@ function parseSubscriptionLinks(rawPayload) {
     }
 }
 
+function isNativeLinkAllowedByPolicy(link: string, protocolScopeMode: string = 'all', allowedProtocols: Set<string> = new Set()): boolean {
+    const mode = String(protocolScopeMode || 'all').trim().toLowerCase();
+    if (mode === 'none') return false;
+    if (mode !== 'selected') return true;
+    const raw = String(link || '').trim();
+    const schemeMatch = raw.match(/^([a-z0-9+.-]+):\/\//i);
+    if (!schemeMatch) return false;
+    const scheme = schemeMatch[1].toLowerCase();
+    if (scheme === 'ss') {
+        return allowedProtocols.has('shadowsocks') || allowedProtocols.has('ss');
+    }
+    if (scheme === 'hy2' || scheme === 'hysteria2') {
+        return allowedProtocols.has('hysteria2') || allowedProtocols.has('hy2');
+    }
+    if (scheme === 'socks' || scheme === 'socks5') {
+        return allowedProtocols.has('socks') || allowedProtocols.has('mixed');
+    }
+    if (scheme === 'http' || scheme === 'https' || scheme === 'http2') {
+        return allowedProtocols.has('http') || allowedProtocols.has('mixed');
+    }
+    if (scheme === 'naive+https' || scheme === 'naive+quic') {
+        return allowedProtocols.has('naive');
+    }
+    return allowedProtocols.has(scheme);
+}
+
 async function collectNativeLinks({
     client,
     subIds,
     serverMeta,
     perServer,
     warnings,
+    protocolScopeMode = 'all',
+    allowedProtocols = new Set(),
+}: {
+    client: any;
+    subIds: any[];
+    serverMeta: any;
+    perServer: any;
+    warnings: any[];
+    protocolScopeMode?: string;
+    allowedProtocols?: Set<string>;
 }) {
     const links = new Set();
     for (const subId of subIds) {
@@ -927,10 +1039,12 @@ async function collectNativeLinks({
                 continue;
             }
 
-            parsed.forEach((line) => {
-                const label = `NODE-${links.size + 1}`;
-                links.add(rewriteNativeLinkLabel(line, label));
-            });
+            parsed
+                .filter((line) => isNativeLinkAllowedByPolicy(line, protocolScopeMode, allowedProtocols))
+                .forEach((line) => {
+                    const label = `NODE-${links.size + 1}`;
+                    links.add(rewriteNativeLinkLabel(line, label));
+                });
         } catch (error) {
             const reason = `native subscription failed for subId=${subId}: ${error.message}`;
             const detail = {
@@ -975,9 +1089,9 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options: any =
     const blockedServerIdList = Array.isArray(options.policy?.blockedServerIds) ? options.policy.blockedServerIds : [];
     const serverScopeMode = normalizePolicyScopeMode(options.policy?.serverScopeMode, allowedServerIdList);
     const protocolScopeMode = normalizePolicyScopeMode(options.policy?.protocolScopeMode, allowedProtocolList);
-    const allowedServerIds = new Set(allowedServerIdList);
-    const allowedProtocols = new Set(allowedProtocolList);
-    const blockedServerIds = new Set(blockedServerIdList);
+    const allowedServerIds = new Set<string>(allowedServerIdList.map((item) => String(item || '').trim()).filter(Boolean));
+    const allowedProtocols = new Set<string>(allowedProtocolList.map((item) => String(item || '').trim().toLowerCase()).filter(Boolean));
+    const blockedServerIds = new Set<string>(blockedServerIdList.map((item) => String(item || '').trim()).filter(Boolean));
     const nowTs = Number(options.nowTs || Date.now());
 
     const perServer = {
@@ -1059,13 +1173,21 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options: any =
             includeOnlines: false,
         });
         const inbounds = sortInboundsForServer(serverMeta.id, panelSnapshot?.inbounds || []);
+        const serverIsSui = isSuiPanelServer(serverMeta) || inbounds.some((item) => isSuiPanelContext(item));
+        const hasInboundScopePolicy = (Array.isArray(options.policy?.allowedInboundKeys) && options.policy.allowedInboundKeys.length > 0)
+            || (Array.isArray(options.policy?.blockedInboundKeys) && options.policy.blockedInboundKeys.length > 0);
+        let hasExcludedInbound = false;
         const matchedEntries = [];
         const panelLinks = [];
         const subIds = new Set();
         const fallbackSubIds = new Set();
 
         for (const inbound of inbounds) {
-            if (inbound?.excludeFromSub === true || inbound?.enable === false) continue;
+            if (inbound?.excludeFromSub === true) {
+                hasExcludedInbound = true;
+                continue;
+            }
+            if (inbound?.enable === false) continue;
             const protocol = String(inbound.protocol || '').toLowerCase();
             const settings = parseJsonObjectLike(inbound.settings, {});
             const stream = parseJsonObjectLike(inbound.streamSettings, {});
@@ -1098,6 +1220,7 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options: any =
 
                 const shareLinks = extractPanelShareLinks(entry);
                 matchedEntries.push({
+                    serverId: serverMeta.id,
                     inbound,
                     protocol,
                     entry,
@@ -1106,14 +1229,14 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options: any =
                     shareLinks,
                     subId: entry.subId ? String(entry.subId).trim() : '',
                 });
-                if (shareLinks.length > 0) {
+                if (shareLinks.length > 0 && mode !== 'reconstructed') {
                     labelPanelShareLinks(inbound, shareLinks).forEach((link) => {
                         panelLinks.push(link);
                         links.add(link);
                     });
                     continue;
                 }
-                if (entry.subId) subIds.add(String(entry.subId).trim());
+                if (entry.subId && !serverIsSui) subIds.add(String(entry.subId).trim());
             }
         }
 
@@ -1124,7 +1247,7 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options: any =
 
         if (shouldReconstruct) {
             for (const item of matchedEntries) {
-                if (item.shareLinks.length > 0) continue;
+                if (mode !== 'reconstructed' && item.shareLinks.length > 0) continue;
                 if (!RECONSTRUCTED_PROTOCOLS.has(item.protocol)) {
                     const reason = `unsupported protocol for reconstruction: ${item.protocol}`;
                     const detail = {
@@ -1137,7 +1260,7 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options: any =
                     };
                     warnings.push(detail);
                     perServer.warnings.push(detail);
-                    if (item.subId) fallbackSubIds.add(item.subId);
+                    if (item.subId && !serverIsSui) fallbackSubIds.add(item.subId);
                     continue;
                 }
 
@@ -1161,7 +1284,7 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options: any =
                             ? diagnostics.join('; ')
                             : 'unsupported or missing parameters',
                     });
-                    if (item.subId) fallbackSubIds.add(item.subId);
+                    if (item.subId && !serverIsSui) fallbackSubIds.add(item.subId);
                     continue;
                 }
 
@@ -1170,7 +1293,17 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options: any =
             }
         }
 
-        const nativeSubIds = selectNativeSubIds(mode, Array.from(subIds), Array.from(fallbackSubIds));
+        const hasPolicyExcludes = hasExcludedInbound
+            || perServer.filteredByPolicy > 0
+            || protocolScopeMode !== 'all'
+            || hasInboundScopePolicy;
+        const nativeCandidateSubIds = (serverIsSui || hasExcludedInbound || hasInboundScopePolicy || protocolScopeMode === 'none')
+            ? []
+            : Array.from(subIds);
+        const fallbackCandidateSubIds = (serverIsSui || hasPolicyExcludes)
+            ? []
+            : Array.from(fallbackSubIds);
+        const nativeSubIds = selectNativeSubIds(mode, nativeCandidateSubIds, fallbackCandidateSubIds);
         const shouldCollectNative = nativeSubIds.length > 0;
         if (shouldCollectNative) {
             client = await ensureAuthenticated(serverMeta.id);
@@ -1180,6 +1313,8 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options: any =
                 serverMeta,
                 perServer,
                 warnings,
+                protocolScopeMode,
+                allowedProtocols,
             });
             nativeLinks.forEach((link) => links.add(link));
         }
@@ -1214,10 +1349,7 @@ async function buildMergedLinksByEmail(email, options: any = {}) {
     const mode = normalizeMode(options.mode);
     const requestedServerId = normalizeServerId(options.serverId);
     const nowTs = Date.now();
-    const rawPolicy = userPolicyStore.get(normalizedEmail);
-    const policyUser = userStore.getBySubscriptionEmail(normalizedEmail) || userStore.getByEmail(normalizedEmail) || null;
-    const policyGroup = policyUser?.groupId ? userGroupStore.getById(policyUser.groupId) : null;
-    const policy = resolveEffectivePolicy(policyUser, rawPolicy, policyGroup);
+    const policy = resolveEffectivePolicyForEmail(normalizedEmail);
     const policyAllowedServerIds = Array.isArray(policy.allowedServerIds) ? policy.allowedServerIds : [];
     const policyAllowedProtocols = Array.isArray(policy.allowedProtocols) ? policy.allowedProtocols : [];
     const policyBlockedServerIds = Array.isArray(policy.blockedServerIds) ? policy.blockedServerIds : [];
@@ -1488,6 +1620,22 @@ function pickQueryText(params, ...keys) {
     return '';
 }
 
+const INSECURE_QUERY_KEYS = ['allowInsecure', 'allow_insecure', 'insecure', 'skip-cert-verify'];
+
+function pickQueryInsecure(params, fallback = false) {
+    return pickQueryBoolean(params, fallback, ...INSECURE_QUERY_KEYS);
+}
+
+function pickObjectInsecure(payload: any = {}) {
+    const raw = [
+        payload?.allowInsecure,
+        payload?.allow_insecure,
+        payload?.insecure,
+        payload?.['skip-cert-verify'],
+    ].find((value) => value !== undefined && value !== null && value !== '');
+    return raw !== undefined ? normalizeBoolean(raw, false) : false;
+}
+
 function pickQueryBoolean(params, fallback = false, ...keys) {
     for (const key of keys) {
         const value = params.get(key);
@@ -1536,8 +1684,8 @@ function makeUniqueName(base, usedNames) {
 }
 
 function isYamlPlainString(value) {
-    return /^[A-Za-z0-9._/@%-]+$/.test(value)
-        && !['true', 'false', 'null', 'yes', 'no', '~'].includes(value.toLowerCase());
+    return /^[A-Za-z_/][A-Za-z0-9._/@%-]*$/.test(value)
+        && !['true', 'false', 'null', 'yes', 'no', 'on', 'off', 'y', 'n', '~'].includes(value.toLowerCase());
 }
 
 function formatYamlScalar(value) {
@@ -1741,7 +1889,7 @@ function parseVmessProxy(link, usedNames, index) {
 
     if (!applyTransportToMihomoProxy(proxy, payload.net || 'tcp', {
         path: payload.path,
-        host: payload.host,
+        host: firstNonEmpty(payload.host, payload.authority),
         serviceName: payload.path,
         headerType: payload.type,
     })) {
@@ -1755,6 +1903,7 @@ function parseVmessProxy(link, usedNames, index) {
         publicKey: payload.pbk,
         shortId: payload.sid,
         clientFingerprint: payload.fp,
+        skipCertVerify: pickObjectInsecure(payload),
     })) {
         return null;
     }
@@ -1809,7 +1958,7 @@ function parseVlessProxy(link, usedNames, index) {
         publicKey: query.get('pbk'),
         shortId: query.get('sid'),
         clientFingerprint: query.get('fp'),
-        skipCertVerify: normalizeBoolean(query.get('allowInsecure'), false),
+        skipCertVerify: pickQueryInsecure(query, false),
     })) {
         return null;
     }
@@ -1846,6 +1995,7 @@ function parseTrojanProxy(link, usedNames, index) {
         path: query.get('path'),
         host: query.get('host'),
         serviceName: query.get('serviceName'),
+        headerType: query.get('headerType'),
         mode: query.get('mode'),
         maxEarlyData: query.get('ed') || query.get('max-early-data'),
     })) {
@@ -1861,7 +2011,7 @@ function parseTrojanProxy(link, usedNames, index) {
         publicKey: query.get('pbk'),
         shortId: query.get('sid'),
         clientFingerprint: query.get('fp'),
-        skipCertVerify: normalizeBoolean(query.get('allowInsecure'), false),
+        skipCertVerify: pickQueryInsecure(query, false),
     })) {
         return null;
     }
@@ -1870,7 +2020,7 @@ function parseTrojanProxy(link, usedNames, index) {
 }
 
 function parseShadowsocksUserInfo(value) {
-    const raw = String(value || '').trim();
+    const raw = decodeMaybeEncoded(String(value || '').trim()).trim();
     if (!raw) return { method: '', password: '' };
     if (raw.includes(':')) {
         const splitIndex = raw.indexOf(':');
@@ -2081,7 +2231,7 @@ function parseHysteria2Outbound(link, usedNames, index) {
         password,
         tls: {
             enabled: true,
-            insecure: pickQueryBoolean(query, false, 'insecure', 'allowInsecure', 'skip-cert-verify'),
+            insecure: pickQueryInsecure(query, false),
         },
     };
 
@@ -2149,7 +2299,7 @@ function parseTuicOutbound(link, usedNames, index) {
         password,
         tls: {
             enabled: true,
-            insecure: pickQueryBoolean(query, false, 'skip-cert-verify', 'insecure', 'allowInsecure'),
+            insecure: pickQueryInsecure(query, false),
         },
     };
 
@@ -2266,13 +2416,13 @@ function parseAnytlsOutbound(link, usedNames, index) {
     return outbound;
 }
 
-// socks5://user:pass@host:port and http(s)://user:pass@host:port
+// socks5://user:pass@host:port and http(s)/http2://user:pass@host:port
 function parseSocksOrHttpOutbound(link, usedNames, index) {
     const endpoint = parseLinkEndpoint(link);
     if (!endpoint) return null;
-    const { parsed, server, serverPort } = endpoint;
+    const { parsed, server, serverPort, query } = endpoint;
     const scheme = parsed.protocol.replace(/:$/, '').toLowerCase();
-    const isHttp = scheme === 'http' || scheme === 'https';
+    const isHttp = scheme === 'http' || scheme === 'https' || scheme === 'http2';
 
     const outbound: any = {
         type: isHttp ? 'http' : 'socks',
@@ -2285,8 +2435,12 @@ function parseSocksOrHttpOutbound(link, usedNames, index) {
     const password = decodeMaybeEncoded(parsed.password);
     if (username) outbound.username = username;
     if (password) outbound.password = password;
-    if (scheme === 'https') {
-        outbound.tls = { enabled: true, insecure: false, server_name: server };
+    if (scheme === 'https' || scheme === 'http2') {
+        outbound.tls = {
+            enabled: true,
+            insecure: pickQueryInsecure(query, false),
+            server_name: pickQueryText(query, 'sni', 'peer') || server,
+        };
     }
     return outbound;
 }
@@ -2346,7 +2500,7 @@ function toMihomoSocksOrHttpProxy(outbound: any) {
     return proxy;
 }
 
-const SOCKS_OR_HTTP_LINK = /^(socks5?|https?):\/\//i;
+const SOCKS_OR_HTTP_LINK = /^(socks5?|https?|http2):\/\//i;
 
 function toMihomoHysteria2Proxy(outbound: any) {
     if (!outbound) return null;
@@ -2506,6 +2660,10 @@ function buildMihomoConfigObject(links: any[] = [], routingPolicy: string = 'rul
     };
 }
 
+function hasMihomoCompatibleLinks(links: any[] = []) {
+    return !!buildMihomoConfigObject(links);
+}
+
 function buildMihomoConfigFromLinks(links: any[] = [], subscriptionUrl = "", routingPolicy = "rules") {
     const config = buildMihomoConfigObject(links, routingPolicy);
     if (!config) return '';
@@ -2519,113 +2677,134 @@ function buildMihomoConfigFromLinks(links: any[] = [], subscriptionUrl = "", rou
 }
 
 function formatSurgeParamValue(value) {
-    const text = String(value ?? '');
+    const text = String(value ?? '').replace(/[\r\n]+/g, ' ').trim();
+    if (!text) return '""';
     if (/[,="\s]/.test(text)) {
         return `"${text.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
     }
     return text;
 }
 
-function sanitizeSurgeProxyName(name) {
-    return String(name || '').replace(/[,=]/g, ' ').replace(/\s+/g, ' ').trim() || 'NODE';
+function sanitizeSurgeProxyName(name, usedNames = null) {
+    const seed = String(name || '').replace(/[,=\r\n]/g, ' ').replace(/\s+/g, ' ').trim() || 'NODE';
+    if (!usedNames) return seed;
+    let candidate = seed;
+    let index = 2;
+    while (usedNames.has(candidate)) {
+        candidate = `${seed}-${index}`;
+        index += 1;
+    }
+    usedNames.add(candidate);
+    return candidate;
 }
 
-function buildSurgeProxyLine(proxy) {
-    if (!proxy || !proxy.type) return '';
-    const proxyName = sanitizeSurgeProxyName(proxy.name);
-
-    if (proxy.type === 'ss') {
-        return `${proxyName} = ss, ${proxy.server}, ${proxy.port}, encrypt-method=${proxy.cipher}, password=${formatSurgeParamValue(proxy.password)}`;
+function buildSurgeTransportSuffix(proxy) {
+    const net = String(proxy.network || 'tcp').trim().toLowerCase() || 'tcp';
+    if (!['tcp', 'ws', 'grpc'].includes(net)) {
+        return null;
     }
+    if (net === 'ws') {
+        let suffix = `, ws=true, ws-path=${formatSurgeParamValue(proxy['ws-opts']?.path || '/')}`;
+        const host = String(proxy['ws-opts']?.headers?.Host || '').trim();
+        if (host) {
+            suffix += `, ws-headers=${formatSurgeParamValue(`Host:${host}`)}`;
+        }
+        return suffix;
+    }
+    if (net === 'grpc' && proxy['grpc-opts']?.['grpc-service-name']) {
+        return `, grpc-service-name=${formatSurgeParamValue(proxy['grpc-opts']['grpc-service-name'])}`;
+    }
+    return '';
+}
 
-    if (proxy.type === 'vmess') {
-        let line = `${proxyName} = vmess, ${proxy.server}, ${proxy.port}, username=${proxy.uuid}`;
-        if (Number(proxy.alterId || 0) === 0) line += ', vmess-aead=true';
+function buildSurgeProxyLine(proxy, usedNames = null) {
+    if (!proxy || !proxy.type || proxy.type === 'vless' || proxy['reality-opts']) return '';
+
+    let body = '';
+    if (proxy.type === 'ss') {
+        body = `ss, ${proxy.server}, ${proxy.port}, encrypt-method=${proxy.cipher}, password=${formatSurgeParamValue(proxy.password)}`;
+        if (proxy.plugin) {
+            if (proxy.plugin !== 'obfs') return '';
+            const obfsMode = String(proxy['plugin-opts']?.mode || '').trim().toLowerCase();
+            if (obfsMode !== 'http' && obfsMode !== 'tls') return '';
+            body += `, obfs=${formatSurgeParamValue(obfsMode)}`;
+            const obfsHost = String(proxy['plugin-opts']?.host || '').trim();
+            if (obfsHost) body += `, obfs-host=${formatSurgeParamValue(obfsHost)}`;
+        }
+    } else if (proxy.type === 'vmess') {
+        const transportSuffix = buildSurgeTransportSuffix(proxy);
+        if (transportSuffix === null) return '';
+        body = `vmess, ${proxy.server}, ${proxy.port}, username=${proxy.uuid}`;
+        if (Number(proxy.alterId || 0) === 0) body += ', vmess-aead=true';
         if (proxy.tls) {
-            line += ', tls=true';
-            if (proxy.servername) line += `, sni=${proxy.servername}`;
-            if (proxy['skip-cert-verify']) line += ', skip-cert-verify=true';
+            body += ', tls=true';
+            if (proxy.servername) body += `, sni=${formatSurgeParamValue(proxy.servername)}`;
+            if (proxy['skip-cert-verify']) body += ', skip-cert-verify=true';
             if (Array.isArray(proxy.alpn) && proxy.alpn.length > 0) {
-                line += `, alpn=${proxy.alpn.join(',')}`;
+                body += `, alpn=${formatSurgeParamValue(proxy.alpn.join(','))}`;
             }
         }
-        if (proxy.network === 'ws') {
-            line += `, ws=true, ws-path=${proxy['ws-opts']?.path || '/'}`;
-            const host = proxy['ws-opts']?.headers?.Host;
-            if (host) line += `, ws-headers=Host:${host}`;
-        } else if (proxy.network === 'grpc' && proxy['grpc-opts']?.['grpc-service-name']) {
-            line += `, grpc-service-name=${proxy['grpc-opts']['grpc-service-name']}`;
-        }
-        return line;
-    }
-
-    if (proxy.type === 'trojan') {
-        let line = `${proxyName} = trojan, ${proxy.server}, ${proxy.port}, password=${formatSurgeParamValue(proxy.password)}`;
-        if (proxy.sni) line += `, sni=${proxy.sni}`;
-        if (proxy['skip-cert-verify']) line += ', skip-cert-verify=true';
+        body += transportSuffix;
+    } else if (proxy.type === 'trojan') {
+        const transportSuffix = buildSurgeTransportSuffix(proxy);
+        if (transportSuffix === null) return '';
+        body = `trojan, ${proxy.server}, ${proxy.port}, password=${formatSurgeParamValue(proxy.password)}`;
+        if (proxy.sni) body += `, sni=${formatSurgeParamValue(proxy.sni)}`;
+        if (proxy['skip-cert-verify']) body += ', skip-cert-verify=true';
         if (Array.isArray(proxy.alpn) && proxy.alpn.length > 0) {
-            line += `, alpn=${proxy.alpn.join(',')}`;
+            body += `, alpn=${formatSurgeParamValue(proxy.alpn.join(','))}`;
         }
-        if (proxy.network === 'ws') {
-            line += `, ws=true, ws-path=${proxy['ws-opts']?.path || '/'}`;
-            const host = proxy['ws-opts']?.headers?.Host;
-            if (host) line += `, ws-headers=Host:${host}`;
-        } else if (proxy.network === 'grpc' && proxy['grpc-opts']?.['grpc-service-name']) {
-            line += `, grpc-service-name=${proxy['grpc-opts']['grpc-service-name']}`;
-        }
-        return line;
-    }
-
-    if (proxy.type === 'hysteria2') {
-        let line = `${proxyName} = hysteria2, ${proxy.server}, ${proxy.port}, password=${formatSurgeParamValue(proxy.password)}`;
-        if (proxy.sni) line += `, sni=${proxy.sni}`;
-        if (proxy['skip-cert-verify']) line += ', skip-cert-verify=true';
+        body += transportSuffix;
+    } else if (proxy.type === 'hysteria2') {
+        if (proxy.obfs || proxy['obfs-password']) return '';
+        body = `hysteria2, ${proxy.server}, ${proxy.port}, password=${formatSurgeParamValue(proxy.password)}`;
+        if (proxy.sni) body += `, sni=${formatSurgeParamValue(proxy.sni)}`;
+        if (proxy['skip-cert-verify']) body += ', skip-cert-verify=true';
         if (Array.isArray(proxy.alpn) && proxy.alpn.length > 0) {
-            line += `, alpn=${proxy.alpn.join(',')}`;
+            body += `, alpn=${formatSurgeParamValue(proxy.alpn.join(','))}`;
         }
-        if (proxy['hop-interval'] !== undefined) line += `, hop-interval=${proxy['hop-interval']}`;
-        return line;
-    }
-
-    if (proxy.type === 'tuic') {
-        let line = `${proxyName} = tuic, ${proxy.server}, ${proxy.port}, password=${formatSurgeParamValue(proxy.password)}, uuid=${proxy.uuid}`;
-        if (proxy.sni) line += `, sni=${proxy.sni}`;
-        if (proxy['skip-cert-verify']) line += ', skip-cert-verify=true';
+        if (proxy['hop-interval'] !== undefined) body += `, hop-interval=${proxy['hop-interval']}`;
+    } else if (proxy.type === 'tuic') {
+        body = `tuic, ${proxy.server}, ${proxy.port}, password=${formatSurgeParamValue(proxy.password)}, uuid=${formatSurgeParamValue(proxy.uuid)}`;
+        if (proxy.sni) body += `, sni=${formatSurgeParamValue(proxy.sni)}`;
+        if (proxy['skip-cert-verify']) body += ', skip-cert-verify=true';
         if (Array.isArray(proxy.alpn) && proxy.alpn.length > 0) {
-            line += `, alpn=${proxy.alpn.join(',')}`;
+            body += `, alpn=${formatSurgeParamValue(proxy.alpn.join(','))}`;
         }
         if (proxy['congestion-controller']) {
-            line += `, congestion-controller=${proxy['congestion-controller']}`;
+            body += `, congestion-controller=${formatSurgeParamValue(proxy['congestion-controller'])}`;
         }
         if (proxy['udp-relay-mode']) {
-            line += `, udp-relay-mode=${proxy['udp-relay-mode']}`;
+            body += `, udp-relay-mode=${formatSurgeParamValue(proxy['udp-relay-mode'])}`;
         }
-        return line;
-    }
-
-    if (proxy.type === 'socks5' || proxy.type === 'http') {
+    } else if (proxy.type === 'socks5' || proxy.type === 'http') {
         const kind = proxy.type === 'http' ? (proxy.tls ? 'https' : 'http') : (proxy.tls ? 'socks5-tls' : 'socks5');
-        let line = `${proxyName} = ${kind}, ${proxy.server}, ${proxy.port}`;
-        if (proxy.username) line += `, ${formatSurgeParamValue(proxy.username)}`;
-        if (proxy.password) line += `, ${formatSurgeParamValue(proxy.password)}`;
-        if (proxy.tls && proxy.sni) line += `, sni=${proxy.sni}`;
-        if (proxy.type === 'socks5' && proxy.udp) line += ', udp-relay=true';
-        return line;
+        body = `${kind}, ${proxy.server}, ${proxy.port}`;
+        if (proxy.username || proxy.password) {
+            body += `, ${formatSurgeParamValue(proxy.username || '')}, ${formatSurgeParamValue(proxy.password || '')}`;
+        }
+        if (proxy.tls && proxy.sni) body += `, sni=${formatSurgeParamValue(proxy.sni)}`;
+        if (proxy.type === 'socks5' && proxy.udp) body += ', udp-relay=true';
+    } else {
+        return '';
     }
 
-    return '';
+    const proxyName = sanitizeSurgeProxyName(proxy.name, usedNames);
+    return `${proxyName} = ${body}`;
 }
 
 function buildSurgeConfigObject(links: any[] = [], routingPolicy = "rules") {
     const usedNames = new Set();
+    const surgeUsedNames = new Set();
     const proxies = [];
     (Array.isArray(links) ? links : []).forEach((link, index) => {
         const proxy = parseMihomoProxyFromLink(link, usedNames, index + 1);
         if (!proxy || proxy.type === 'vless') return;
-        const line = buildSurgeProxyLine(proxy);
+        const line = buildSurgeProxyLine(proxy, surgeUsedNames);
         if (line) {
+            const eqIndex = line.indexOf(' = ');
             proxies.push({
-                name: sanitizeSurgeProxyName(proxy.name),
+                name: eqIndex >= 0 ? line.slice(0, eqIndex) : sanitizeSurgeProxyName(proxy.name),
                 line,
             });
         }
@@ -2759,7 +2938,13 @@ function applyTransportToSingboxOutbound(outbound, network, options: any = {}) {
     if (['kcp', 'quic'].includes(normalized)) {
         return false;
     }
-    if (normalized === 'tcp') return true;
+    if (normalized === 'tcp') {
+        const headerType = String(options.headerType || '').trim().toLowerCase();
+        if (headerType && headerType !== 'none') {
+            return false;
+        }
+        return true;
+    }
     if (normalized === 'xhttp') {
         const transport: any = {
             type: 'xhttp',
@@ -2892,8 +3077,9 @@ function parseSingboxVmessOutbound(link, usedNames, index) {
 
     if (!applyTransportToSingboxOutbound(outbound, payload.net || 'tcp', {
         path: payload.path,
-        host: payload.host,
+        host: firstNonEmpty(payload.host, payload.authority),
         serviceName: payload.path,
+        headerType: payload.type,
         mode: payload.type,
     })) {
         return null;
@@ -2906,6 +3092,7 @@ function parseSingboxVmessOutbound(link, usedNames, index) {
         publicKey: payload.pbk,
         shortId: payload.sid,
         clientFingerprint: payload.fp,
+        allowInsecure: pickObjectInsecure(payload),
     })) {
         return null;
     }
@@ -2926,6 +3113,9 @@ function parseSingboxVlessOutbound(link, usedNames, index) {
     if (!server || !Number.isFinite(serverPort) || serverPort <= 0 || !uuid) return null;
 
     const query = parsed.searchParams;
+    const encryption = String(query.get('encryption') || 'none').trim().toLowerCase();
+    if (encryption && encryption !== 'none') return null;
+
     const outbound: any = {
         type: 'vless',
         tag: makeUniqueName(extractLinkLabel(link, `NODE-${index}`), usedNames),
@@ -2941,6 +3131,7 @@ function parseSingboxVlessOutbound(link, usedNames, index) {
         path: query.get('path'),
         host: query.get('host'),
         serviceName: query.get('serviceName'),
+        headerType: query.get('headerType'),
         mode: query.get('mode'),
     })) {
         return null;
@@ -2953,7 +3144,7 @@ function parseSingboxVlessOutbound(link, usedNames, index) {
         publicKey: query.get('pbk'),
         shortId: query.get('sid'),
         clientFingerprint: query.get('fp'),
-        allowInsecure: query.get('allowInsecure'),
+        allowInsecure: pickQueryInsecure(query, false),
     })) {
         return null;
     }
@@ -2985,6 +3176,7 @@ function parseSingboxTrojanOutbound(link, usedNames, index) {
         path: query.get('path'),
         host: query.get('host'),
         serviceName: query.get('serviceName'),
+        headerType: query.get('headerType'),
         mode: query.get('mode'),
     })) {
         return null;
@@ -2997,7 +3189,7 @@ function parseSingboxTrojanOutbound(link, usedNames, index) {
         publicKey: query.get('pbk'),
         shortId: query.get('sid'),
         clientFingerprint: query.get('fp'),
-        allowInsecure: query.get('allowInsecure'),
+        allowInsecure: pickQueryInsecure(query, false),
         forceTls: true,
     })) {
         return null;
@@ -3845,6 +4037,29 @@ function sanitizeProfileTitleHeader(value: unknown): string {
         .slice(0, 64);
 }
 
+const EMPTY_CLASH_POLICY_YAML = 'proxies: []\nproxy-groups: []\nrules:\n  - MATCH,DIRECT\n';
+const EMPTY_SINGBOX_POLICY_JSON = '{"outbounds":[{"type":"direct","tag":"DIRECT"}]}';
+
+function buildPolicyBlockedPayload(format: string) {
+    if (format === 'clash') {
+        return {
+            contentType: 'text/yaml; charset=utf-8',
+            body: EMPTY_CLASH_POLICY_YAML,
+        };
+    }
+    if (format === 'singbox') {
+        return {
+            contentType: 'application/json; charset=utf-8',
+            body: EMPTY_SINGBOX_POLICY_JSON,
+        };
+    }
+    const emptyPayload = buildSubscriptionPayload([]);
+    return {
+        contentType: 'text/plain; charset=utf-8',
+        body: format === 'raw' ? emptyPayload.raw : emptyPayload.encoded,
+    };
+}
+
 async function handlePublicTokenRequest(req, res, emailFromPath = '') {
     const hintedEmail = normalizeEmail(emailFromPath || req.params.email);
     const tokenId = String(req.params.tokenId || '').trim();
@@ -3917,10 +4132,14 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
         }
     }
 
-    const ua = String(req.headers['user-agent'] || '').slice(0, 50);
+    const rawUserAgent = String(req.headers['user-agent'] || '');
+    const ua = rawUserAgent.slice(0, 50);
+    const resolvedSingboxVersion = format === 'singbox'
+        ? resolveSingboxConfigVersion(resolveSingboxBuildOptions(req).version, rawUserAgent)
+        : '';
     const publicBase = resolvePublicBase(req);
     const profileTitle = sanitizeProfileTitleHeader(email || 'NMS');
-    const cacheKey = `${email}:${tokenId}:${format}:${mode}:${serverId || 'all'}:${routingPolicy}:${publicBase}:${ua}`;
+    const cacheKey = `${email}:${tokenId}:${format}:${mode}:${serverId || 'all'}:${routingPolicy}:${resolvedSingboxVersion}:${publicBase}:${ua}`;
     const cached = getPublicSubCacheEntry(cacheKey);
     if (cached) {
         subscriptionTokenStore.touchLastUsedByTokenId(tokenId);
@@ -3978,20 +4197,19 @@ async function handlePublicTokenRequest(req, res, emailFromPath = '') {
                 trafficLimitBytes,
                 expiryTime,
             });
-            res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+            const blockedPayload = buildPolicyBlockedPayload(format);
+            res.setHeader('Content-Type', blockedPayload.contentType);
             res.setHeader('X-Subscription-Token-Id', tokenId);
             res.setHeader('Subscription-Userinfo', userInfo);
-            const emptyPayload = buildSubscriptionPayload([]);
-            const body = format === 'raw' ? emptyPayload.raw : emptyPayload.encoded;
             setPublicSubCacheEntry(cacheKey, {
-                body,
-                contentType: 'text/plain; charset=utf-8',
+                body: blockedPayload.body,
+                contentType: blockedPayload.contentType,
                 userInfo,
                 tokenId,
                 status: 200,
                 timestamp: Date.now(),
             });
-            return res.send(body);
+            return res.send(blockedPayload.body);
         }
         appendSubscriptionAccessAudit(req, {
             email,
@@ -4186,7 +4404,8 @@ router.get('/public/:email/:sig', async (req, res, next) => {
                     serverId,
                     format,
                 });
-                res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+                const blockedPayload = buildPolicyBlockedPayload(format);
+                res.setHeader('Content-Type', blockedPayload.contentType);
                 res.setHeader('X-Subscription-Legacy', '1');
                 if (profileTitle) {
                     res.setHeader('Profile-Title', profileTitle);
@@ -4197,8 +4416,7 @@ router.get('/public/:email/:sig', async (req, res, next) => {
                     trafficLimitBytes,
                     expiryTime,
                 }));
-                const emptyPayload = buildSubscriptionPayload([]);
-                return res.send(format === 'raw' ? emptyPayload.raw : emptyPayload.encoded);
+                return res.send(blockedPayload.body);
             }
             appendSubscriptionAccessAudit(req, {
                 email,
@@ -4299,8 +4517,7 @@ router.get('/users', authMiddleware, auditorOrAbove, async (req, res, next) => {
             }
 
             for (const inbound of inbounds) {
-                const settings = parseJsonObjectLike(inbound.settings, {});
-                const clients = Array.isArray(settings.clients) ? settings.clients : [];
+                const clients = parseInboundClients(inbound);
                 for (const entry of clients) {
                     const email = normalizeEmail(entry.email);
                     if (email) emails.add(email);
@@ -4455,7 +4672,7 @@ router.get('/:email/tokens', authMiddleware, auditorOrAbove, (req, res) => {
     }
 });
 
-router.post('/:email/issue', authMiddleware, operatorOrAbove, (req, res) => {
+router.post('/:email/issue', authMiddleware, operatorOrAbove, ensureOperatorTargetUserAccess, (req, res) => {
     try {
         const issued = issueSubscriptionToken(req.params.email, {
             name: req.body?.name,
@@ -4493,7 +4710,7 @@ router.post('/:email/issue', authMiddleware, operatorOrAbove, (req, res) => {
     }
 });
 
-router.post('/:email/revoke', authMiddleware, operatorOrAbove, (req, res) => {
+router.post('/:email/revoke', authMiddleware, operatorOrAbove, ensureOperatorTargetUserAccess, (req, res) => {
     try {
         const result = revokeSubscriptionTokens(req.params.email, req.body);
         if (result.revokeAll) {
@@ -4524,7 +4741,7 @@ router.post('/:email/revoke', authMiddleware, operatorOrAbove, (req, res) => {
     }
 });
 
-router.post('/:email/reset-link', authMiddleware, ensureEmailAccess, async (req, res) => {
+router.post('/:email/reset-link', authMiddleware, ensureResetLinkAccess, async (req, res) => {
     try {
         const serverId = normalizeServerId(req.body?.serverId);
         const scopeName = buildScopeTokenName(serverId);
@@ -4538,7 +4755,7 @@ router.post('/:email/reset-link', authMiddleware, ensureEmailAccess, async (req,
             },
         });
         invalidatePublicSubCache(issued.email);
-        const basePolicy = userPolicyStore.get(issued.email);
+        const basePolicy = resolveEffectivePolicyForEmail(issued.email);
         const rotationPolicy = serverId
             ? {
                 ...basePolicy,
@@ -4651,8 +4868,10 @@ router.get('/:email', authMiddleware, ensureEmailAccess, async (req, res, next) 
         // token minting from the admin preview UI.
         const hasResolvedSubscription = (Array.isArray(links) && links.length > 0)
             || Number(matchedClientsRaw || 0) > 0;
+        const actorRole = String(req.user?.role || '').trim().toLowerCase();
+        const canAutoIssue = actorRole !== 'auditor' && hasResolvedSubscription;
         const scopeToken = getOrCreateScopeToken(email, serverId, req.user?.role || 'admin', {
-            allowIssue: hasResolvedSubscription,
+            allowIssue: canAutoIssue,
         });
         const tokenRequired = !scopeToken?.token;
         if (scopeToken.autoIssued && scopeToken.metadata?.id) {
@@ -4687,10 +4906,12 @@ router.get('/:email', authMiddleware, ensureEmailAccess, async (req, res, next) 
             subscriptionUrlNativeRaw = builtUrls.subscriptionUrlNativeRaw;
             subscriptionUrlReconstructedRaw = builtUrls.subscriptionUrlReconstructedRaw;
             subscriptionUrlV2rayn = builtUrls.subscriptionUrlV2rayn;
-            subscriptionUrlClash = builtUrls.subscriptionUrlClash;
-            subscriptionUrlMihomo = builtUrls.subscriptionUrlMihomo;
+            const clashExternallyAvailable = builtUrls.subscriptionClashExternalConfigured === true;
             const singboxExternallyAvailable = builtUrls.subscriptionSingboxExternalConfigured === true;
             const surgeExternallyAvailable = builtUrls.subscriptionSurgeExternalConfigured === true;
+            const clashAvailable = clashExternallyAvailable || hasMihomoCompatibleLinks(links);
+            subscriptionUrlClash = clashAvailable ? builtUrls.subscriptionUrlClash : '';
+            subscriptionUrlMihomo = clashAvailable ? builtUrls.subscriptionUrlMihomo : '';
             subscriptionUrlSingbox = (singboxExternallyAvailable || hasSingboxCompatibleLinks(links))
                 ? builtUrls.subscriptionUrlSingbox
                 : '';

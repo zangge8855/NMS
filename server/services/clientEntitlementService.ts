@@ -12,7 +12,12 @@ import { isManagedClientProtocol } from '../lib/clientProtocols.js';
 import { normalizeAppLocale, pickLocalizedText } from '../lib/requestLocale.js';
 import clientEntitlementOverrideRepository from '../repositories/clientEntitlementOverrideRepository.js';
 import serverRepository from '../repositories/serverRepository.js';
+import userGroupRepository from '../repositories/userGroupRepository.js';
 import userPolicyRepository from '../repositories/userPolicyRepository.js';
+import userRepository from '../repositories/userRepository.js';
+import { invalidateServerPanelSnapshotCache } from '../lib/serverPanelSnapshotService.js';
+import { resolveEffectivePolicy } from '../lib/userPolicyResolver.js';
+import { invalidatePublicSubCache } from '../routes/subscriptions.js';
 import { listPanelInbounds } from './panelGateway.js';
 
 function normalizeText(value: unknown): string {
@@ -28,6 +33,8 @@ async function updateClientEntitlement(payload: any = {}, actor: string = 'admin
     const locale = normalizeAppLocale(deps?.locale, 'zh-CN');
     const overrideRepository = deps.overrideRepository || clientEntitlementOverrideRepository;
     const policyRepository = deps.userPolicyRepository || userPolicyRepository;
+    const usersRepository = deps.userRepository || userRepository;
+    const groupsRepository = deps.userGroupRepository || userGroupRepository;
     const servers = deps.serverRepository || serverRepository;
     const listInbounds = deps.listPanelInbounds || listPanelInbounds;
 
@@ -96,7 +103,10 @@ async function updateClientEntitlement(payload: any = {}, actor: string = 'admin
 
     const entitlement = mode === 'follow_policy'
         ? (() => {
-            const policy = policyRepository.get(email);
+            const rawPolicy = policyRepository.get(email);
+            const user = usersRepository?.getBySubscriptionEmail?.(email) || usersRepository?.getByEmail?.(email) || null;
+            const group = user?.groupId ? groupsRepository?.getById?.(user.groupId) : null;
+            const policy = resolveEffectivePolicy(user, rawPolicy, group);
             return {
                 expiryTime: normalizeNonNegativeInt(policy.expiryTime, 0),
                 limitIp: normalizeNonNegativeInt(policy.limitIp, 0),
@@ -122,7 +132,7 @@ async function updateClientEntitlement(payload: any = {}, actor: string = 'admin
         };
 
     const updatedClient = applyEntitlementToClient(match, entitlement);
-    await postUpdateClient(client, inbound.id, clientIdentifier, updatedClient);
+    await postUpdateClient(client, inbound.id, clientIdentifier, updatedClient, { protocol });
 
     let overrideActive = false;
     if (mode === 'override') {
@@ -136,6 +146,11 @@ async function updateClientEntitlement(payload: any = {}, actor: string = 'admin
         overrideActive = true;
     } else {
         overrideRepository.remove(serverId, inboundId, clientIdentifier);
+    }
+
+    (deps.invalidateServerPanelSnapshotCache || invalidateServerPanelSnapshotCache)(serverId);
+    if (email) {
+        (deps.invalidatePublicSubCache || invalidatePublicSubCache)(email);
     }
 
     return {
