@@ -1,7 +1,9 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useOptionalAuth } from '../../contexts/AuthContext';
 import { useServer } from '../../contexts/ServerContext';
 import { useI18n } from '../../contexts/LanguageContext';
+import { canMutateOperations, resolveOptionalAuthActor } from '../../utils/permissions';
 import Header from '../Layout/Header';
 import ModalShell from '../UI/ModalShell';
 import EmptyState from '../UI/EmptyState';
@@ -95,6 +97,9 @@ function getLiveStatusBadge(status: any, copy: any = {}) {
 }
 
 export default function Servers() {
+    const auth = useOptionalAuth();
+    const { role: actorRole } = resolveOptionalAuthActor(auth);
+    const canMutate = canMutateOperations(actorRole);
     const { locale, t } = useI18n();
     const isCompactLayout = useMediaQuery('(max-width: 1100px)');
     const isCondensedLayout = useMediaQuery('(min-width: 769px) and (max-width: 1320px)');
@@ -293,12 +298,13 @@ export default function Servers() {
     }, [servers]);
 
     useEffect(() => {
+        if (!canMutate) return;
         if (searchParams.get('action') !== 'create') return;
         openCreateServerModal();
         const nextParams = new URLSearchParams(searchParams);
         nextParams.delete('action');
         setSearchParams(nextParams, { replace: true });
-    }, [searchParams, setSearchParams]);
+    }, [canMutate, searchParams, setSearchParams]);
 
     useEffect(() => {
         const handlePageRefresh = (event) => {
@@ -895,53 +901,57 @@ export default function Servers() {
                 key={server.id}
                 className={`card servers-mobile-card${isSelected ? ' is-selected' : ''}${isActive ? ' is-active' : ''}${rowBusy ? ' is-pending' : ''}`}
                 onClick={() => {
-                    if (!rowBusy) {
+                    if (canMutate && !rowBusy) {
                         toggleSelect(server.id);
                     }
                 }}
                 aria-busy={rowBusy}
             >
                 <div className="servers-mobile-card-top">
-                    <label className="servers-mobile-check" onClick={(e) => e.stopPropagation()}>
-                        <input name="serversField"
-                            type="checkbox"
-                            aria-label={t('pages.servers.selectServer', { name: server.name || server.id })}
-                            className="checkbox"
-                            checked={isSelected}
-                            disabled={rowBusy}
-                            onChange={() => toggleSelect(server.id)}
-                        />
-                    </label>
+                    {canMutate ? (
+                        <label className="servers-mobile-check" onClick={(e) => e.stopPropagation()}>
+                            <input name="serversField"
+                                type="checkbox"
+                                aria-label={t('pages.servers.selectServer', { name: server.name || server.id })}
+                                className="checkbox"
+                                checked={isSelected}
+                                disabled={rowBusy}
+                                onChange={() => toggleSelect(server.id)}
+                            />
+                        </label>
+                    ) : <span />}
                     <div className="servers-mobile-order">
                         <span className="servers-mobile-order-number">#{index + 1}</span>
-                        <div className="servers-mobile-order-actions">
-                            <button
-                                type="button"
-                                className="btn btn-ghost btn-xs btn-icon"
-                                aria-label={t('pages.servers.moveUp') + ' ' + server.name}
-                                title={t('pages.servers.moveUp')}
-                                disabled={index === 0 || loading.serverOrder || rowBusy}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    moveServer(server.id, -1);
-                                }}
-                            >
-                                <HiOutlineArrowUp />
-                            </button>
-                            <button
-                                type="button"
-                                className="btn btn-ghost btn-xs btn-icon"
-                                aria-label={t('pages.servers.moveDown') + ' ' + server.name}
-                                title={t('pages.servers.moveDown')}
-                                disabled={index === filteredServers.length - 1 || loading.serverOrder || rowBusy}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    moveServer(server.id, 1);
-                                }}
-                            >
-                                <HiOutlineArrowDown />
-                            </button>
-                        </div>
+                        {canMutate ? (
+                            <div className="servers-mobile-order-actions">
+                                <button
+                                    type="button"
+                                    className="btn btn-ghost btn-xs btn-icon"
+                                    aria-label={t('pages.servers.moveUp') + ' ' + server.name}
+                                    title={t('pages.servers.moveUp')}
+                                    disabled={index === 0 || loading.serverOrder || rowBusy}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        moveServer(server.id, -1);
+                                    }}
+                                >
+                                    <HiOutlineArrowUp />
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-ghost btn-xs btn-icon"
+                                    aria-label={t('pages.servers.moveDown') + ' ' + server.name}
+                                    title={t('pages.servers.moveDown')}
+                                    disabled={index === filteredServers.length - 1 || loading.serverOrder || rowBusy}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        moveServer(server.id, 1);
+                                    }}
+                                >
+                                    <HiOutlineArrowDown />
+                                </button>
+                            </div>
+                        ) : null}
                     </div>
                 </div>
 
@@ -1006,21 +1016,25 @@ export default function Servers() {
                     <button type="button" className="btn btn-secondary btn-sm" onClick={() => navigate(`/servers/${server.id}`)} title={t('comp.servers.details')}>
                         <HiOutlineEye /> {t('comp.servers.details')}
                     </button>
-                    <button
-                        type="button"
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => handleTest(server.id)}
-                        disabled={rowBusy}
-                    >
-                        {rowBusy ? <span className="spinner" /> : <HiOutlineSignal />}
-                        {testState === 'success' ? t('comp.servers.testOk') : testState === 'error' ? t('comp.servers.testFail') : t('comp.servers.testConnect')}
-                    </button>
-                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleEdit(server)} aria-label={t('comp.common.edit')} disabled={rowBusy}>
-                        <HiOutlinePencilSquare /> {t('comp.common.edit')}
-                    </button>
-                    <button type="button" className="btn btn-danger btn-sm" onClick={() => handleDelete(server.id)} aria-label={t('comp.common.delete')} disabled={rowBusy}>
-                        <HiOutlineTrash /> {t('comp.common.delete')}
-                    </button>
+                    {canMutate && (
+                        <>
+                            <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => handleTest(server.id)}
+                                disabled={rowBusy}
+                            >
+                                {rowBusy ? <span className="spinner" /> : <HiOutlineSignal />}
+                                {testState === 'success' ? t('comp.servers.testOk') : testState === 'error' ? t('comp.servers.testFail') : t('comp.servers.testConnect')}
+                            </button>
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleEdit(server)} aria-label={t('comp.common.edit')} disabled={rowBusy}>
+                                <HiOutlinePencilSquare /> {t('comp.common.edit')}
+                            </button>
+                            <button type="button" className="btn btn-danger btn-sm" onClick={() => handleDelete(server.id)} aria-label={t('comp.common.delete')} disabled={rowBusy}>
+                                <HiOutlineTrash /> {t('comp.common.delete')}
+                            </button>
+                        </>
+                    )}
                 </div>
             </article>
         );
@@ -1067,7 +1081,7 @@ export default function Servers() {
                             </select>
                         </>
                     )}
-                    summary={selectedIds.size > 0 ? (
+                    summary={canMutate && selectedIds.size > 0 ? (
                         <div className="flex gap-2 items-center animate-fade-in servers-selection-bar servers-selection-bar-takeover">
                             <span className="text-sm font-bold px-2 bulk-toolbar-count">{t('pages.servers.toolbar.selectedItems', { count: selectedIds.size })}</span>
                             <button type="button" className="btn btn-secondary btn-sm" onClick={handleBulkTest} disabled={bulkActionBusy}>
@@ -1099,7 +1113,7 @@ export default function Servers() {
                             ) : null}
                         </div>
                     )}
-                    actions={selectedIds.size > 0 ? null : (
+                    actions={!canMutate || selectedIds.size > 0 ? null : (
                         <>
                             <button
                                 type="button"
@@ -1131,7 +1145,7 @@ export default function Servers() {
                     <EmptyState
                         title={t('pages.servers.empty.noServersTitle')}
                         subtitle={t('pages.servers.empty.noServersSubtitle')}
-                        action={<button type="button" className="btn btn-primary" onClick={openCreateServerModal}><HiOutlinePlusCircle /> {t('pages.servers.empty.addAction')}</button>}
+                        action={canMutate ? <button type="button" className="btn btn-primary" onClick={openCreateServerModal}><HiOutlinePlusCircle /> {t('pages.servers.empty.addAction')}</button> : undefined}
                     />
                 ) : filteredServers.length === 0 ? (
                     <EmptyState
@@ -1165,8 +1179,8 @@ export default function Servers() {
                         <table className="table servers-table">
                             <thead>
                                 <tr>
-                                    <th className="table-cell-center servers-select-column">{t('pages.servers.cols.select')}</th>
-                                    <th className="table-cell-center servers-move-column">{t('pages.servers.cols.move')}</th>
+                                    {canMutate && <th className="table-cell-center servers-select-column">{t('pages.servers.cols.select')}</th>}
+                                    {canMutate && <th className="table-cell-center servers-move-column">{t('pages.servers.cols.move')}</th>}
                                     <th className="table-cell-center servers-order-column">{t('pages.servers.cols.sequence')}</th>
                                     <th className="servers-name-column">{t('pages.servers.cols.server')}</th>
                                     <th className="servers-telemetry-column">{t('pages.servers.cols.telemetry')}</th>
@@ -1210,46 +1224,50 @@ export default function Servers() {
                                     key={server.id}
                                     className={`servers-table-row ${isSelected ? 'server-card-selected' : ''} ${isActive ? 'active' : ''}${rowBusy ? ' is-pending' : ''}`}
                                     onClick={() => {
-                                        if (!rowBusy) {
+                                        if (canMutate && !rowBusy) {
                                             toggleSelect(server.id);
                                         }
                                     }}
                                     aria-busy={rowBusy}
                                 >
-                                    <td className="table-cell-center mobile-checkbox-cell" data-label="" onClick={(e) => e.stopPropagation()}>
-                                        <input name={`serversField2-${index}`}
-                                            type="checkbox"
-                                            aria-label={t('pages.servers.selectServer', { name: server.name || server.id })}
-                                            className="checkbox"
-                                            checked={isSelected}
-                                            disabled={rowBusy}
-                                            onChange={() => toggleSelect(server.id)}
-                                        />
-                                    </td>
-                                    <td className="table-cell-center servers-move-cell" data-label={t('pages.servers.cols.move')} onClick={(e) => e.stopPropagation()}>
-                                        <div className="servers-order-actions">
-                                            <button
-                                                type="button"
-                                                className="btn btn-ghost btn-xs btn-icon"
-                                                aria-label={t('pages.servers.moveUp') + ' ' + server.name}
-                                                title={t('pages.servers.moveUp')}
-                                                disabled={index === 0 || loading.serverOrder || rowBusy}
-                                                onClick={() => moveServer(server.id, -1)}
-                                            >
-                                                <HiOutlineArrowUp />
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className="btn btn-ghost btn-xs btn-icon"
-                                                aria-label={t('pages.servers.moveDown') + ' ' + server.name}
-                                                title={t('pages.servers.moveDown')}
-                                                disabled={index === filteredServers.length - 1 || loading.serverOrder || rowBusy}
-                                                onClick={() => moveServer(server.id, 1)}
-                                            >
-                                                <HiOutlineArrowDown />
-                                            </button>
-                                        </div>
-                                    </td>
+                                    {canMutate && (
+                                        <td className="table-cell-center mobile-checkbox-cell" data-label="" onClick={(e) => e.stopPropagation()}>
+                                            <input name={`serversField2-${index}`}
+                                                type="checkbox"
+                                                aria-label={t('pages.servers.selectServer', { name: server.name || server.id })}
+                                                className="checkbox"
+                                                checked={isSelected}
+                                                disabled={rowBusy}
+                                                onChange={() => toggleSelect(server.id)}
+                                            />
+                                        </td>
+                                    )}
+                                    {canMutate && (
+                                        <td className="table-cell-center servers-move-cell" data-label={t('pages.servers.cols.move')} onClick={(e) => e.stopPropagation()}>
+                                            <div className="servers-order-actions">
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-ghost btn-xs btn-icon"
+                                                    aria-label={t('pages.servers.moveUp') + ' ' + server.name}
+                                                    title={t('pages.servers.moveUp')}
+                                                    disabled={index === 0 || loading.serverOrder || rowBusy}
+                                                    onClick={() => moveServer(server.id, -1)}
+                                                >
+                                                    <HiOutlineArrowUp />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-ghost btn-xs btn-icon"
+                                                    aria-label={t('pages.servers.moveDown') + ' ' + server.name}
+                                                    title={t('pages.servers.moveDown')}
+                                                    disabled={index === filteredServers.length - 1 || loading.serverOrder || rowBusy}
+                                                    onClick={() => moveServer(server.id, 1)}
+                                                >
+                                                    <HiOutlineArrowDown />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    )}
                                     <td className="table-cell-center servers-order-cell" data-label={t('pages.servers.cols.sequence')} onClick={(e) => e.stopPropagation()}>
                                         <div className="servers-order-stack">
                                             <span className="servers-order-number">{index + 1}</span>
@@ -1352,34 +1370,38 @@ export default function Servers() {
                                     <td className="table-cell-actions servers-actions-cell" data-label={t('pages.servers.cols.actions')} onClick={(e) => e.stopPropagation()}>
                                         <div className="table-row-actions servers-row-actions">
                                             <button type="button" className="btn btn-secondary btn-sm servers-row-action-main" onClick={() => navigate(`/servers/${server.id}`)} title={t('comp.servers.details')} disabled={rowBusy}>
-                                            <HiOutlineEye /> {t('comp.servers.details')}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="btn btn-secondary btn-sm servers-row-action-main"
-                                            onClick={() => handleTest(server.id)}
-                                            disabled={rowBusy}
-                                        >
-                                            {rowBusy ? <span className="spinner" /> : <HiOutlineSignal />}
-                                            {testState === 'success' ? t('comp.servers.testOk') : testState === 'error' ? t('comp.servers.testFail') : t('comp.servers.testConnect')}
-                                        </button>
-                                            <ActionsDropdown
-                                                actions={[
-                                                    {
-                                                        label: t('comp.common.edit'),
-                                                        icon: HiOutlinePencilSquare,
-                                                        onClick: () => handleEdit(server),
-                                                        disabled: rowBusy,
-                                                    },
-                                                    {
-                                                        label: t('comp.common.delete'),
-                                                        icon: HiOutlineTrash,
-                                                        onClick: () => handleDelete(server.id),
-                                                        disabled: rowBusy,
-                                                        isDanger: true,
-                                                    },
-                                                ]}
-                                            />
+                                                <HiOutlineEye /> {t('comp.servers.details')}
+                                            </button>
+                                            {canMutate && (
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-secondary btn-sm servers-row-action-main"
+                                                        onClick={() => handleTest(server.id)}
+                                                        disabled={rowBusy}
+                                                    >
+                                                        {rowBusy ? <span className="spinner" /> : <HiOutlineSignal />}
+                                                        {testState === 'success' ? t('comp.servers.testOk') : testState === 'error' ? t('comp.servers.testFail') : t('comp.servers.testConnect')}
+                                                    </button>
+                                                    <ActionsDropdown
+                                                        actions={[
+                                                            {
+                                                                label: t('comp.common.edit'),
+                                                                icon: HiOutlinePencilSquare,
+                                                                onClick: () => handleEdit(server),
+                                                                disabled: rowBusy,
+                                                            },
+                                                            {
+                                                                label: t('comp.common.delete'),
+                                                                icon: HiOutlineTrash,
+                                                                onClick: () => handleDelete(server.id),
+                                                                disabled: rowBusy,
+                                                                isDanger: true,
+                                                            },
+                                                        ]}
+                                                    />
+                                                </>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
@@ -1391,7 +1413,7 @@ export default function Servers() {
                 )}
 
                 {/* Add/Edit Modal */}
-                {showForm && (
+                {canMutate && showForm && (
                     <ModalShell isOpen={showForm} onClose={resetForm}>
                         <div className="modal modal-lg glass-panel" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
@@ -1498,7 +1520,7 @@ export default function Servers() {
                 )}
 
                 {/* Batch Add Modal */}
-                {showBatchForm && (
+                {canMutate && showBatchForm && (
                     <ModalShell isOpen={showBatchForm} onClose={resetBatchForm}>
                         <div className="modal modal-lg glass-panel servers-batch-modal" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
@@ -1658,7 +1680,7 @@ export default function Servers() {
                     </ModalShell>
                 )}
 
-                {credentialRepair.open && (
+                {canMutate && credentialRepair.open && (
                     <ModalShell isOpen={credentialRepair.open} onClose={closeCredentialRepair}>
                         <div className="modal glass-panel" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">

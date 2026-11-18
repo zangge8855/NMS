@@ -18,6 +18,12 @@ import useWebSocket from './hooks/useWebSocket';
 import { applyAppBootstrapSnapshots } from './utils/appBootstrap';
 import { lazyWithRetry } from './utils/lazyWithRetry';
 import { buildSiteAssetPath } from './utils/sitePath';
+import {
+    canAccessSystemSettings,
+    canAccessXraySettings,
+    isAdminRole,
+    isStaffRole,
+} from './utils/permissions';
 
 const Login = lazyWithRetry(() => import('./components/Login/Login'), 'Login');
 const Sidebar = lazyWithRetry(() => import('./components/Layout/Sidebar'), 'Sidebar');
@@ -247,8 +253,10 @@ function getWsUrl(ticket: string | null): string | null {
 function ProtectedLayout() {
     const { user, token } = useAuth();
     const role = user?.role || 'user';
-    const isAdmin = role === 'admin';
-    const isStaff = isAdmin || role === 'operator' || role === 'auditor';
+    const isAdmin = isAdminRole(role);
+    const isStaff = isStaffRole(role);
+    const canOpenSystemSettings = canAccessSystemSettings(role);
+    const canOpenXraySettings = canAccessXraySettings(role);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [rootWsTicket, setRootWsTicket] = useState('');
@@ -537,16 +545,16 @@ function ProtectedLayout() {
                             <Route path="/downloads" element={isStaff ? <Navigate to="/subscriptions" replace /> : <LazyPage><DownloadsCenter /></LazyPage>} />
                             <Route path="/account" element={<LazyPage><AccountCenter /></LazyPage>} />
                             <Route path="/logs" element={isStaff ? <LazyPage><Logs /></LazyPage> : <Navigate to="/subscriptions" replace />} />
-                            <Route path="/server" element={isStaff ? <Navigate to="/settings?tab=console" replace /> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/server" element={canOpenSystemSettings ? <Navigate to="/settings?tab=console" replace /> : <Navigate to={isStaff ? '/' : '/subscriptions'} replace />} />
                             <Route path="/tools" element={isStaff ? <LazyPage><Tools /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                             <Route path="/capabilities" element={isStaff ? <LazyPage><Capabilities /></LazyPage> : <Navigate to="/subscriptions" replace />} />
-                            <Route path="/xray" element={isAdmin ? <LazyPage><XrayConsole /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/xray" element={canOpenXraySettings ? <LazyPage><XrayConsole /></LazyPage> : <Navigate to={isStaff ? '/' : '/subscriptions'} replace />} />
                             <Route path="/tasks" element={isStaff ? <Navigate to="/audit" replace /> : <Navigate to="/subscriptions" replace />} />
                             <Route path="/audit" element={isStaff ? <LazyPage><AuditCenter /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                             <Route path="/servers" element={isStaff ? <LazyPage><Servers /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                             <Route path="/servers/:serverId" element={isStaff ? <LazyPage><ServerDetail /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                             <Route path="/accounts" element={isStaff ? <Navigate to="/clients" replace /> : <Navigate to="/account" replace />} />
-                            <Route path="/settings" element={(isAdmin || role === 'operator') ? <LazyPage><SystemSettings /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/settings" element={canOpenSystemSettings ? <LazyPage><SystemSettings /></LazyPage> : <Navigate to={isStaff ? '/' : '/subscriptions'} replace />} />
                             <Route path="*" element={<Navigate to={isStaff ? '/' : '/subscriptions'} replace />} />
                         </Routes>
                     </div>

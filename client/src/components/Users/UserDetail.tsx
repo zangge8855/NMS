@@ -22,8 +22,10 @@ import { getClientIdentifier } from '../../utils/protocol';
 import SubscriptionClientLinks from '../Subscriptions/SubscriptionClientLinks';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../contexts/ConfirmContext';
+import { useOptionalAuth } from '../../contexts/AuthContext';
 import { useI18n } from '../../contexts/LanguageContext';
 import { useServer } from '../../contexts/ServerContext';
+import { canManageUserTarget, canMutateOperations, resolveOptionalAuthActor } from '../../utils/permissions';
 import SectionHeader from '../UI/SectionHeader';
 import ExpandableQRCode from '../UI/ExpandableQRCode';
 import useMediaQuery from '../../hooks/useMediaQuery';
@@ -751,6 +753,9 @@ function TimelineEntry({ item, index, copy, locale }) {
 }
 
 export default function UserDetail() {
+    const auth = useOptionalAuth();
+    const { role: actorRole } = resolveOptionalAuthActor(auth);
+    const canMutate = canMutateOperations(actorRole);
     const { locale, t } = useI18n();
     const copy = useMemo(() => getUserDetailCopy(locale), [locale]);
     const isCompactLayout = useMediaQuery('(max-width: 768px)');
@@ -1353,6 +1358,7 @@ export default function UserDetail() {
         : '';
 
     const handleResetSubscription = async () => {
+        if (!canMutate) return;
         const targetEmail = String(subscriptionResult?.email || user?.subscriptionEmail || user?.email || '').trim().toLowerCase();
         if (!targetEmail) return;
 
@@ -1382,7 +1388,7 @@ export default function UserDetail() {
     };
 
     const handleToggleEnabled = async () => {
-        if (!user) return;
+        if (!user || !canManageUserTarget(actorRole, user.role)) return;
         const newEnabled = !user.enabled;
         try {
             const res = await api.put(`/auth/users/${encodeURIComponent(user.id)}/set-enabled`, { enabled: newEnabled });
@@ -1508,7 +1514,7 @@ export default function UserDetail() {
     };
 
     const clearClientIps = async () => {
-        if (!clientIpModal.serverId || !clientIpModal.email) return;
+        if (!canMutate || !clientIpModal.serverId || !clientIpModal.email) return;
         const ok = await confirmAction({
             title: copy.labels.clearClientIpTitle,
             message: copy.labels.clearClientIpMessage
@@ -1659,16 +1665,20 @@ export default function UserDetail() {
                             </div>
                         </div>
                         <div className="user-profile-actions">
-                            <button
-                                type="button"
-                                className={`btn btn-sm ${user.enabled ? 'btn-danger' : 'btn-success'}`}
-                                onClick={handleToggleEnabled}
-                            >
-                                {user.enabled ? <><HiOutlineNoSymbol /> {copy.labels.disableUser}</> : <><HiOutlinePlayCircle /> {copy.labels.enableUser}</>}
-                            </button>
-                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => navigate(`/clients?edit=${user.id}`)}>
-                                <HiOutlinePencilSquare /> {t('comp.common.edit')}
-                            </button>
+                            {canManageUserTarget(actorRole, user.role) && (
+                                <>
+                                    <button
+                                        type="button"
+                                        className={`btn btn-sm ${user.enabled ? 'btn-danger' : 'btn-success'}`}
+                                        onClick={handleToggleEnabled}
+                                    >
+                                        {user.enabled ? <><HiOutlineNoSymbol /> {copy.labels.disableUser}</> : <><HiOutlinePlayCircle /> {copy.labels.enableUser}</>}
+                                    </button>
+                                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => navigate(`/clients?edit=${user.id}`)}>
+                                        <HiOutlinePencilSquare /> {t('comp.common.edit')}
+                                    </button>
+                                </>
+                            )}
                             <button type="button" className="btn btn-secondary btn-sm" onClick={() => void fetchDetail()}>
                                 <HiOutlineArrowPath /> {copy.labels.refresh}
                             </button>
@@ -1823,19 +1833,21 @@ export default function UserDetail() {
                                                     {subscriptionResult.bundle?.externalConverterConfigured ? ` · ${copy.labels.converterEnabled}` : ` · ${copy.labels.converterBuiltin}`}
                                                 </div>
 
-                                                <div className="subscription-user-address-foot">
-                                                    <button
-                                                        type="button"
-                                                        className="btn btn-secondary subscription-user-reset-inline-btn"
-                                                        onClick={handleResetSubscription}
-                                                        disabled={subscriptionResetLoading || !subscriptionResult.email}
-                                                    >
-                                                        {subscriptionResetLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {copy.labels.resetLink}</>}
-                                                    </button>
-                                                    <div className="subscription-user-reset-inline-copy">
-                                                        <div className="subscription-user-reset-inline-text">{copy.labels.resetMessage}</div>
+                                                {canMutate && (
+                                                    <div className="subscription-user-address-foot">
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-secondary subscription-user-reset-inline-btn"
+                                                            onClick={handleResetSubscription}
+                                                            disabled={subscriptionResetLoading || !subscriptionResult.email}
+                                                        >
+                                                            {subscriptionResetLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {copy.labels.resetLink}</>}
+                                                        </button>
+                                                        <div className="subscription-user-reset-inline-copy">
+                                                            <div className="subscription-user-reset-inline-text">{copy.labels.resetMessage}</div>
+                                                        </div>
                                                     </div>
-                                                </div>
+                                                )}
                                             </div>
 
                                             <div className="subscription-inline-qr subscription-inline-qr--featured user-detail-subscription-qr">
@@ -1883,7 +1895,7 @@ export default function UserDetail() {
                         {/* Clients Tab */}
                         {activeTab === 'clients' && (
                             <div>
-                                {clientData.length > 0 && (
+                                {canMutate && clientData.length > 0 && (
                                     <div className="flex justify-end gap-2 mb-3">
                                         <button
                                             type="button"
@@ -2051,7 +2063,7 @@ export default function UserDetail() {
                 </div>
             </div>
 
-            {clientAdjustOpen && (
+            {canMutate && clientAdjustOpen && (
                 <ModalShell isOpen={clientAdjustOpen} onClose={() => setClientAdjustOpen(false)}>
                     <div className="modal modal-md" onClick={(event) => event.stopPropagation()}>
                         <div className="modal-header">
@@ -2158,7 +2170,7 @@ export default function UserDetail() {
                     inboundRemark: '',
                     inboundId: '',
                 }, { preserveOpen: true })}
-                onClear={clientIpSupportByServer[clientIpModal.serverId]?.supported === false ? undefined : clearClientIps}
+                onClear={!canMutate || clientIpSupportByServer[clientIpModal.serverId]?.supported === false ? undefined : clearClientIps}
                 extra={clientIpModal.serverId && clientIpModal.email && !isSuiServer(servers.find((item) => String(item?.id) === String(clientIpModal.serverId))) ? (
                     <ClientHwidSection key={`${clientIpModal.serverId}:${clientIpModal.email}`} serverId={clientIpModal.serverId} email={clientIpModal.email} />
                 ) : null}

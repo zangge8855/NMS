@@ -18,6 +18,7 @@ import toast from 'react-hot-toast';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { useI18n } from '../../contexts/LanguageContext';
 import { useOptionalAuth } from '../../contexts/AuthContext';
+import { canMutateOperations, isAdminRole, resolveOptionalAuthActor } from '../../utils/permissions';
 import { isSuiServer, normalizePanelType } from '../../utils/panelType';
 import { AUDIT_EVENT_LABELS } from '../../utils/auditEventLabels';
 import SectionHeader from '../UI/SectionHeader';
@@ -192,8 +193,11 @@ export default function ServerDetail() {
     const [searchParams, setSearchParams] = useSearchParams();
     const confirmAction = useConfirm();
     const detailBootstrapRef = useRef(readServerDetailSnapshot(serverId));
-    const user = useOptionalAuth()?.user;
-    const isAdmin = user?.role === 'admin';
+    const auth = useOptionalAuth();
+    const user = auth?.user;
+    const isAdmin = isAdminRole(user?.role);
+    const { role: actorRole } = resolveOptionalAuthActor(auth);
+    const canMutate = canMutateOperations(actorRole);
     const snapshotRequestIdRef = useRef(0);
     const auditRequestIdRef = useRef(0);
     const clientIpRequestIdRef = useRef(0);
@@ -510,7 +514,7 @@ export default function ServerDetail() {
     };
 
     const clearClientIps = async () => {
-        if (!clientIpModal.email) return;
+        if (!canMutate || !clientIpModal.email) return;
         const ok = await confirmAction({
             title: t('pages.serverDetail.clearClientIps.title'),
             message: t('pages.serverDetail.clearClientIps.message', { email: clientIpModal.email }),
@@ -947,7 +951,7 @@ export default function ServerDetail() {
                 error={clientIpModal.error}
                 onClose={closeClientIpModal}
                 onRefresh={() => loadClientIps(clientIpModal.email, { preserveOpen: true })}
-                onClear={clientIpSupport.supported === false ? undefined : clearClientIps}
+                onClear={!canMutate || clientIpSupport.supported === false ? undefined : clearClientIps}
                 extra={!isSui && serverId && clientIpModal.email ? (
                     <ClientHwidSection key={clientIpModal.email} serverId={serverId} email={clientIpModal.email} />
                 ) : null}

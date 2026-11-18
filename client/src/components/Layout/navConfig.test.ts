@@ -1,6 +1,6 @@
 import { HiOutlineCog6Tooth, HiOutlineRss, HiOutlineServerStack, HiOutlineSignal, HiOutlineUserCircle } from 'react-icons/hi2';
 import { describe, expect, it } from 'vitest';
-import { getVisibleMobileNavItems, getVisibleNavSections, navSections } from './navConfig';
+import { getSearchableNavItems, getVisibleMobileNavItems, getVisibleNavSections, navSections } from './navConfig';
 
 describe('navConfig', () => {
     it('folds dashboard into manage and keeps audit under manage for admins', () => {
@@ -51,5 +51,53 @@ describe('navConfig', () => {
         });
 
         expect(items.map((item) => item.path)).toEqual(['/', '/inbounds', '/clients', '/audit']);
+    });
+
+    it('hides /settings and /xray from operator in visible and searchable nav', () => {
+        const sections = getVisibleNavSections({
+            isAdmin: false,
+            role: 'operator',
+            isGlobalView: true,
+            locale: 'zh-CN',
+        });
+
+        expect(sections.map((section) => section.title)).toEqual(['管理', '运维', '系统']);
+        expect(sections[0].items.map((item) => item.path)).toEqual(['/', '/inbounds', '/clients', '/audit']);
+        expect(sections[1].items.map((item) => item.path)).toEqual(['/logs', '/tools']);
+        expect(sections[2].items.map((item) => item.path)).toEqual(['/servers']);
+
+        const searchablePaths = getSearchableNavItems({
+            isAdmin: false,
+            role: 'operator',
+            isGlobalView: true,
+            locale: 'zh-CN',
+        }).map((item) => item.path);
+        expect(searchablePaths).not.toContain('/settings');
+        expect(searchablePaths).not.toContain('/xray');
+        expect(searchablePaths).toContain('/servers');
+    });
+
+    it('hides /settings and /xray from auditor and legacy viewer in visible and searchable nav', () => {
+        for (const role of ['auditor', 'viewer']) {
+            const sections = getVisibleNavSections({
+                isAdmin: false,
+                role,
+                isGlobalView: true,
+                locale: 'zh-CN',
+            });
+
+            expect(sections[1].items.map((item) => item.path)).toEqual(['/logs', '/tools']);
+            expect(sections[2].items.map((item) => item.path)).toEqual(['/servers']);
+
+            const searchablePaths = getSearchableNavItems({
+                isAdmin: false,
+                role,
+                isGlobalView: true,
+                locale: 'zh-CN',
+            }).map((item) => item.path);
+            expect(searchablePaths).not.toContain('/settings');
+            expect(searchablePaths).not.toContain('/xray');
+            expect(searchablePaths).toContain('/audit');
+        }
     });
 });

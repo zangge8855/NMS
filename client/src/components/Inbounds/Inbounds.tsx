@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useOptionalAuth } from '../../contexts/AuthContext';
 import { useServer } from '../../contexts/ServerContext';
 import { useI18n } from '../../contexts/LanguageContext';
+import { canMutateOperations, resolveOptionalAuthActor } from '../../utils/permissions';
 import api from '../../api/client';
 import Header from '../Layout/Header';
 import { copyToClipboard, formatBytes, getErrorMessage } from '../../utils/format';
@@ -165,6 +167,9 @@ function buildClientOnlineKeys(client, protocol) {
 }
 
 export default function Inbounds() {
+    const auth = useOptionalAuth();
+    const { role: actorRole } = resolveOptionalAuthActor(auth);
+    const canMutate = canMutateOperations(actorRole);
     const { servers, activeServerId } = useServer();
     const { locale, t } = useI18n();
     const deepCopy = useMemo(() => locale === 'en-US' ? {
@@ -1279,15 +1284,17 @@ export default function Inbounds() {
                 return (
                     <article key={`${clientIdentifier || cl.email || 'client'}-${idx}`} className={`inbounds-client-mobile-card${isClientSelected ? ' is-selected' : ''}`}>
                         <div className="inbounds-client-mobile-head">
-                            <label className="inbounds-client-mobile-check">
-                                <input name={`inboundsField-${idx}`}
-                                    type="checkbox"
-                                    aria-label={t('pages.inbounds.selectClient', { name: cl.email || clientIdentifier || idx + 1 })}
-                                    checked={isClientSelected}
-                                    onChange={() => toggleClientSelect(selectionKey)}
-                                    className="cursor-pointer"
-                                />
-                            </label>
+                            {canMutate ? (
+                                <label className="inbounds-client-mobile-check">
+                                    <input name={`inboundsField-${idx}`}
+                                        type="checkbox"
+                                        aria-label={t('pages.inbounds.selectClient', { name: cl.email || clientIdentifier || idx + 1 })}
+                                        checked={isClientSelected}
+                                        onChange={() => toggleClientSelect(selectionKey)}
+                                        className="cursor-pointer"
+                                    />
+                                </label>
+                            ) : null}
                             <div className="inbounds-client-mobile-copy">
                                 <div className="inbounds-client-mobile-email">
                                     <span>{cl.email || '—'}</span>
@@ -1369,35 +1376,37 @@ export default function Inbounds() {
                             </span>
                         </div>
 
-                        <div className="inbounds-client-actions inbounds-client-mobile-actions flex gap-2">
-                            <button
-                                type="button"
-                                className={`btn btn-secondary btn-sm inbounds-client-action-btn inbounds-client-limit-btn ${hasOverride ? 'is-active' : ''}`}
-                                title={hasOverride ? deepCopy.limitSetTitle : deepCopy.limitUnsetTitle}
-                                disabled={isActioning}
-                                onClick={() => openEntitlementModal(ib, cl)}
-                            >
-                                {deepCopy.limit}
-                            </button>
-                            <ActionsDropdown
-                                actions={[
-                                    {
-                                        label: toggleLabel,
-                                        title: toggleTitle,
-                                        icon: cl.enable !== false ? HiOutlineXMark : HiOutlineCheck,
-                                        onClick: () => handleToggleClientEnabled(ib, cl),
-                                        disabled: isActioning,
-                                    },
-                                    {
-                                        label: deepCopy.delete,
-                                        icon: HiOutlineTrash,
-                                        onClick: () => handleDeleteClient(ib, cl),
-                                        isDanger: true,
-                                        disabled: isActioning,
-                                    }
-                                ]}
-                            />
-                        </div>
+                        {canMutate && (
+                            <div className="inbounds-client-actions inbounds-client-mobile-actions flex gap-2">
+                                <button
+                                    type="button"
+                                    className={`btn btn-secondary btn-sm inbounds-client-action-btn inbounds-client-limit-btn ${hasOverride ? 'is-active' : ''}`}
+                                    title={hasOverride ? deepCopy.limitSetTitle : deepCopy.limitUnsetTitle}
+                                    disabled={isActioning}
+                                    onClick={() => openEntitlementModal(ib, cl)}
+                                >
+                                    {deepCopy.limit}
+                                </button>
+                                <ActionsDropdown
+                                    actions={[
+                                        {
+                                            label: toggleLabel,
+                                            title: toggleTitle,
+                                            icon: cl.enable !== false ? HiOutlineXMark : HiOutlineCheck,
+                                            onClick: () => handleToggleClientEnabled(ib, cl),
+                                            disabled: isActioning,
+                                        },
+                                        {
+                                            label: deepCopy.delete,
+                                            icon: HiOutlineTrash,
+                                            onClick: () => handleDeleteClient(ib, cl),
+                                            isDanger: true,
+                                            disabled: isActioning,
+                                        }
+                                    ]}
+                                />
+                            </div>
+                        )}
                     </article>
                 );
             })}
@@ -1417,7 +1426,7 @@ export default function Inbounds() {
     const bulkToggleClassName = bulkToggleEnable ? 'btn btn-success btn-sm' : 'btn btn-danger btn-sm';
     const visibleServerIds = Array.from(new Set(filteredInbounds.map((item) => String(item?.serverId || '').trim()).filter(Boolean)));
     const visibleServerIndexMap = new Map(visibleServerIds.map((id, index) => [id, index]));
-    const tableColSpan = filterServerId === 'all' ? 11 : 10;
+    const tableColSpan = (filterServerId === 'all' ? 11 : 10) - (canMutate ? 0 : 2);
 
     if (servers.length === 0) {
         return (
@@ -1462,7 +1471,7 @@ export default function Inbounds() {
                         </>
                     )}
                     summary={<span className="text-sm text-muted inbounds-toolbar-summary">{t('pages.inbounds.toolbar.summary', { count: filteredInbounds.length })}</span>}
-                    actions={selectedVisibleCount > 0 ? (
+                    actions={canMutate && selectedVisibleCount > 0 ? (
                         <div className="flex flex-wrap gap-2 items-center animate-fade-in inbounds-selection-bar">
                             <span className="text-sm font-bold px-2 text-primary">{t('pages.inbounds.toolbar.selected', { count: selectedVisibleCount })}</span>
                             <button type="button" className={bulkToggleClassName} onClick={() => handleBulkSetEnable(bulkToggleEnable)}>
@@ -1484,9 +1493,11 @@ export default function Inbounds() {
                         </div>
                     ) : (
                         <>
-                        <button type="button" className="btn btn-primary btn-sm" onClick={handleAdd}>
-                            <HiOutlinePlusCircle /> {t('pages.inbounds.toolbar.add')}
-                        </button>
+                        {canMutate && (
+                            <button type="button" className="btn btn-primary btn-sm" onClick={handleAdd}>
+                                <HiOutlinePlusCircle /> {t('pages.inbounds.toolbar.add')}
+                            </button>
+                        )}
                         <button
                             type="button"
                             className="btn btn-secondary btn-sm btn-icon inbounds-refresh-btn"
@@ -1518,11 +1529,11 @@ export default function Inbounds() {
                             icon={<HiOutlineInbox />}
                             title={t('pages.inbounds.emptyTitle')}
                             subtitle={t('pages.inbounds.emptySubtitle')}
-                            action={(
+                            action={canMutate ? (
                                 <button type="button" className="btn btn-primary" onClick={handleAdd}>
                                     <HiOutlinePlusCircle /> {t('pages.inbounds.addAction')}
                                 </button>
-                            )}
+                            ) : undefined}
                         />
                     </div>
                 ) : (
@@ -1530,15 +1541,17 @@ export default function Inbounds() {
                         <table className="table inbounds-table">
                             <thead>
                                 <tr>
-                                    <th className="cell-checkbox">
-                                        <input name="inboundsInboundsSelectAllRows"
-                                            type="checkbox"
-                                            aria-label={t('pages.inbounds.selectAllRows')}
-                                            checked={filteredInbounds.length > 0 && selectedVisibleCount === filteredInbounds.length}
-                                            onChange={toggleSelectAll}
-                                            className="cursor-pointer"
-                                        />
-                                    </th>
+                                    {canMutate && (
+                                        <th className="cell-checkbox">
+                                            <input name="inboundsInboundsSelectAllRows"
+                                                type="checkbox"
+                                                aria-label={t('pages.inbounds.selectAllRows')}
+                                                checked={filteredInbounds.length > 0 && selectedVisibleCount === filteredInbounds.length}
+                                                onChange={toggleSelectAll}
+                                                className="cursor-pointer"
+                                            />
+                                        </th>
+                                    )}
                                     <th className="inbounds-expand-col" aria-hidden="true" />
                                     <th className={`inbounds-sequence-col${filterServerId === 'all' ? ' is-compact' : ''}`}>{t('pages.inbounds.cols.sequence')}</th>
                                     {filterServerId === 'all' && (
@@ -1550,7 +1563,7 @@ export default function Inbounds() {
                                     <th className="table-cell-center inbounds-users-col">{t('pages.inbounds.cols.users')}</th>
                                     <th className="table-cell-right inbounds-traffic-col">{t('pages.inbounds.cols.traffic')}</th>
                                     <th className="table-cell-center inbounds-status-col">{t('pages.inbounds.cols.status')}</th>
-                                    <th className="table-cell-actions inbounds-actions-col">{t('pages.inbounds.cols.actions')}</th>
+                                    {canMutate && <th className="table-cell-actions inbounds-actions-col">{t('pages.inbounds.cols.actions')}</th>}
                                 </tr>
                             </thead>
                             <tbody>
@@ -1558,7 +1571,7 @@ export default function Inbounds() {
                                     const clients = parseClients(ib);
                                     const isExpanded = expandedId === ib.uiKey;
                                     const isSelected = selectedKeys.has(ib.uiKey);
-                                    const canAdjustOrder = filterServerId !== 'all';
+                                    const canAdjustOrder = canMutate && filterServerId !== 'all';
                                     const isFirstInServerGroup = filterServerId !== 'all' || index === 0 || filteredInbounds[index - 1]?.serverId !== ib.serverId;
                                     const serverGroupIndex = visibleServerIndexMap.get(String(ib.serverId || '').trim()) ?? 0;
                                     const canMoveServerUp = filterServerId === 'all' && isFirstInServerGroup && serverGroupIndex > 0 && !savingOrderServerId;
@@ -1573,7 +1586,7 @@ export default function Inbounds() {
                                         .filter(Boolean);
                                     const selectedClientCount = selectableClientKeys.filter((key) => selectedClientKeys.has(key)).length;
                                     const allInboundClientsSelected = selectableClientKeys.length > 0 && selectedClientCount === selectableClientKeys.length;
-                                    const showNodeMoveControls = filterServerId === 'all' && isFirstInServerGroup;
+                                    const showNodeMoveControls = canMutate && filterServerId === 'all' && isFirstInServerGroup;
                                     const renderNodeMoveControls = (layout = 'row') => (
                                         <div className={`inbounds-node-order-actions${layout === 'column' ? ' is-inline' : ''}`}>
                                             <div
@@ -1613,15 +1626,17 @@ export default function Inbounds() {
                                                 className={`cursor-pointer transition-colors inbounds-row${isSelected ? ' inbounds-row-selected' : ''}`}
                                                 onClick={() => setExpandedId(isExpanded ? null : ib.uiKey)}
                                             >
-                                                <td data-label="" onClick={e => e.stopPropagation()} className="text-center mobile-checkbox-cell">
-                                                    <input name={`inboundsField2-${index}`}
-                                                        type="checkbox"
-                                                        aria-label={t('pages.inbounds.selectInboundRow', { name: ib.remark || ib.port || ib.id })}
-                                                        checked={isSelected}
-                                                        onChange={() => toggleSelect(ib.uiKey)}
-                                                        className="cursor-pointer"
-                                                    />
-                                                </td>
+                                                {canMutate && (
+                                                    <td data-label="" onClick={e => e.stopPropagation()} className="text-center mobile-checkbox-cell">
+                                                        <input name={`inboundsField2-${index}`}
+                                                            type="checkbox"
+                                                            aria-label={t('pages.inbounds.selectInboundRow', { name: ib.remark || ib.port || ib.id })}
+                                                            checked={isSelected}
+                                                            onChange={() => toggleSelect(ib.uiKey)}
+                                                            className="cursor-pointer"
+                                                        />
+                                                    </td>
+                                                )}
                                                 <td
                                                     className="inbounds-expand-cell"
                                                     data-label=""
@@ -1762,47 +1777,49 @@ export default function Inbounds() {
                                                         )}
                                                     </div>
                                                 </td>
-                                                <td data-label={t('pages.inbounds.cols.actions')} className="table-cell-actions inbounds-actions-cell" onClick={(e) => e.stopPropagation()}>
-                                                    <div className="flex gap-2 items-center inbounds-row-actions">
-                                                        <button
-                                                            type="button"
-                                                            className="btn btn-secondary btn-sm btn-icon table-action-btn inbounds-action-btn"
-                                                            title={t('comp.common.edit')}
-                                                            onClick={() => handleEdit(ib)}
-                                                        >
-                                                            <HiOutlinePencilSquare />
-                                                            <span className="inbounds-action-mobile-label">{t('comp.common.edit')}</span>
-                                                        </button>
-                                                        <ActionsDropdown
-                                                            actions={[
-                                                                {
-                                                                    label: deepCopy.addClient,
-                                                                    icon: HiOutlinePlusCircle,
-                                                                    onClick: () => {
-                                                                        setClientTargets([ib]);
-                                                                        setIsClientModalOpen(true);
+                                                {canMutate && (
+                                                    <td data-label={t('pages.inbounds.cols.actions')} className="table-cell-actions inbounds-actions-cell" onClick={(e) => e.stopPropagation()}>
+                                                        <div className="flex gap-2 items-center inbounds-row-actions">
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-secondary btn-sm btn-icon table-action-btn inbounds-action-btn"
+                                                                title={t('comp.common.edit')}
+                                                                onClick={() => handleEdit(ib)}
+                                                            >
+                                                                <HiOutlinePencilSquare />
+                                                                <span className="inbounds-action-mobile-label">{t('comp.common.edit')}</span>
+                                                            </button>
+                                                            <ActionsDropdown
+                                                                actions={[
+                                                                    {
+                                                                        label: deepCopy.addClient,
+                                                                        icon: HiOutlinePlusCircle,
+                                                                        onClick: () => {
+                                                                            setClientTargets([ib]);
+                                                                            setIsClientModalOpen(true);
+                                                                        },
                                                                     },
-                                                                },
-                                                                {
-                                                                    label: ib.enable ? t('comp.common.disable') : t('comp.common.enable'),
-                                                                    icon: ib.enable ? HiOutlineXMark : HiOutlineCheck,
-                                                                    onClick: () => handleToggleInboundEnabled(ib),
-                                                                },
-                                                                {
-                                                                    label: t('comp.inbounds.cleanupDepletedTitle'),
-                                                                    icon: HiOutlineArrowPath,
-                                                                    onClick: () => handleCleanupDepletedClients(ib),
-                                                                },
-                                                                {
-                                                                    label: t('comp.common.delete'),
-                                                                    icon: HiOutlineTrash,
-                                                                    onClick: () => handleDelete(ib),
-                                                                    isDanger: true,
-                                                                }
-                                                            ]}
-                                                        />
-                                                    </div>
-                                                </td>
+                                                                    {
+                                                                        label: ib.enable ? t('comp.common.disable') : t('comp.common.enable'),
+                                                                        icon: ib.enable ? HiOutlineXMark : HiOutlineCheck,
+                                                                        onClick: () => handleToggleInboundEnabled(ib),
+                                                                    },
+                                                                    {
+                                                                        label: t('comp.inbounds.cleanupDepletedTitle'),
+                                                                        icon: HiOutlineArrowPath,
+                                                                        onClick: () => handleCleanupDepletedClients(ib),
+                                                                    },
+                                                                    {
+                                                                        label: t('comp.common.delete'),
+                                                                        icon: HiOutlineTrash,
+                                                                        onClick: () => handleDelete(ib),
+                                                                        isDanger: true,
+                                                                    }
+                                                                ]}
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                )}
                                             </tr>
                                             {isExpanded && clients.length > 0 && (
                                                 <tr>
@@ -1812,7 +1829,7 @@ export default function Inbounds() {
                                                                 <div className="text-xs font-bold text-muted inbounds-clients-label">
                                                                     {locale === 'en-US' ? `Users (${clients.length})` : `用户列表 (${clients.length})`}
                                                                 </div>
-                                                                {selectedClientCount > 0 && (
+                                                                {canMutate && selectedClientCount > 0 && (
                                                                     <div className="inbounds-clients-selection-bar">
                                                                         <span className="text-xs font-semibold text-primary">{deepCopy.selectedUsersCount ? deepCopy.selectedUsersCount.replace('{count}', String(selectedClientCount)) : (locale === 'en-US' ? `Selected ${selectedClientCount} users` : `已选 ${selectedClientCount} 位用户`)}</span>
                                                                         <button
@@ -1853,15 +1870,17 @@ export default function Inbounds() {
                                                                 <table className="table w-full text-xs inbounds-clients-table">
                                                                 <thead>
                                                                     <tr>
-                                                                        <th className="cell-checkbox">
-                                                                            <input name={`inboundsInboundsSelectAllClients-${index}`}
-                                                                                type="checkbox"
-                                                                                aria-label={t('pages.inbounds.selectAllClients')}
-                                                                                checked={allInboundClientsSelected}
-                                                                                onChange={() => toggleSelectAllInboundClients(ib, clients)}
-                                                                                className="cursor-pointer"
-                                                                            />
-                                                                        </th>
+                                                                        {canMutate && (
+                                                                            <th className="cell-checkbox">
+                                                                                <input name={`inboundsInboundsSelectAllClients-${index}`}
+                                                                                    type="checkbox"
+                                                                                    aria-label={t('pages.inbounds.selectAllClients')}
+                                                                                    checked={allInboundClientsSelected}
+                                                                                    onChange={() => toggleSelectAllInboundClients(ib, clients)}
+                                                                                    className="cursor-pointer"
+                                                                                />
+                                                                            </th>
+                                                                        )}
                                                                         <th className="inbounds-clients-col-email">Email</th>
                                                                         <th className="inbounds-clients-col-id">{deepCopy.maskedCredential}</th>
                                                                         <th className="inbounds-clients-col-usage">{deepCopy.usedTraffic}</th>
@@ -1870,7 +1889,7 @@ export default function Inbounds() {
                                                                         <th className="table-cell-right inbounds-clients-col-traffic">{deepCopy.traffic}</th>
                                                                         <th className="table-cell-center inbounds-clients-col-expiry">{deepCopy.expiry}</th>
                                                                         <th className="table-cell-center inbounds-clients-col-status">{deepCopy.status}</th>
-                                                                        <th className="table-cell-actions inbounds-clients-col-actions">{deepCopy.actions}</th>
+                                                                        {canMutate && <th className="table-cell-actions inbounds-clients-col-actions">{deepCopy.actions}</th>}
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>
@@ -1894,15 +1913,17 @@ export default function Inbounds() {
                                                                         const isClientSelected = Boolean(selectionKey) && selectedClientKeys.has(selectionKey);
                                                                         return (
                                                                         <tr key={idx}>
-                                                                            <td data-label="" onClick={(e) => e.stopPropagation()} className="text-center mobile-checkbox-cell">
-                                                                                <input name={`inboundsField4-${idx}`}
-                                                                                    type="checkbox"
-                                                                                    aria-label={t('pages.inbounds.selectClient', { name: cl.email || clientIdentifier || idx + 1 })}
-                                                                                    checked={isClientSelected}
-                                                                                    onChange={() => toggleClientSelect(selectionKey)}
-                                                                                    className="cursor-pointer"
-                                                                                />
-                                                                            </td>
+                                                                            {canMutate && (
+                                                                                <td data-label="" onClick={(e) => e.stopPropagation()} className="text-center mobile-checkbox-cell">
+                                                                                    <input name={`inboundsField4-${idx}`}
+                                                                                        type="checkbox"
+                                                                                        aria-label={t('pages.inbounds.selectClient', { name: cl.email || clientIdentifier || idx + 1 })}
+                                                                                        checked={isClientSelected}
+                                                                                        onChange={() => toggleClientSelect(selectionKey)}
+                                                                                        className="cursor-pointer"
+                                                                                    />
+                                                                                </td>
+                                                                            )}
                                                                             <td data-label={deepCopy.user} className="inbounds-clients-col-email">
                                                                                 <div className="inbounds-client-email-row">
                                                                                     <span>{cl.email || '—'}</span>
@@ -1978,40 +1999,42 @@ export default function Inbounds() {
                                                                                     </span>
                                                                                 </div>
                                                                             </td>
-                                                                            <td data-label={deepCopy.actions} className="table-cell-actions inbounds-clients-col-actions">
-                                                                                <div className="inbounds-client-actions flex items-center gap-2">
-                                                                                    <button
-                                                                                        type="button"
-                                                                                        className={`btn btn-secondary btn-sm inbounds-client-action-btn inbounds-client-limit-btn ${hasOverride ? 'is-active' : ''}`}
-                                                                                        title={hasOverride ? deepCopy.limitSetTitle : deepCopy.limitUnsetTitle}
-                                                                                        disabled={isActioning}
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation();
-                                                                                            openEntitlementModal(ib, cl);
-                                                                                        }}
-                                                                                    >
-                                                                                        {deepCopy.limit}
-                                                                                    </button>
-                                                                                    <ActionsDropdown
-                                                                                        actions={[
-                                                                                            {
-                                                                                                label: toggleLabel,
-                                                                                                title: toggleTitle,
-                                                                                                icon: cl.enable !== false ? HiOutlineXMark : HiOutlineCheck,
-                                                                                                onClick: () => handleToggleClientEnabled(ib, cl),
-                                                                                                disabled: isActioning,
-                                                                                            },
-                                                                                            {
-                                                                                                label: deepCopy.delete,
-                                                                                                icon: HiOutlineTrash,
-                                                                                                onClick: () => handleDeleteClient(ib, cl),
-                                                                                                isDanger: true,
-                                                                                                disabled: isActioning,
-                                                                                            }
-                                                                                        ]}
-                                                                                    />
-                                                                                </div>
-                                                                            </td>
+                                                                            {canMutate && (
+                                                                                <td data-label={deepCopy.actions} className="table-cell-actions inbounds-clients-col-actions">
+                                                                                    <div className="inbounds-client-actions flex items-center gap-2">
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            className={`btn btn-secondary btn-sm inbounds-client-action-btn inbounds-client-limit-btn ${hasOverride ? 'is-active' : ''}`}
+                                                                                            title={hasOverride ? deepCopy.limitSetTitle : deepCopy.limitUnsetTitle}
+                                                                                            disabled={isActioning}
+                                                                                            onClick={(e) => {
+                                                                                                e.stopPropagation();
+                                                                                                openEntitlementModal(ib, cl);
+                                                                                            }}
+                                                                                        >
+                                                                                            {deepCopy.limit}
+                                                                                        </button>
+                                                                                        <ActionsDropdown
+                                                                                            actions={[
+                                                                                                {
+                                                                                                    label: toggleLabel,
+                                                                                                    title: toggleTitle,
+                                                                                                    icon: cl.enable !== false ? HiOutlineXMark : HiOutlineCheck,
+                                                                                                    onClick: () => handleToggleClientEnabled(ib, cl),
+                                                                                                    disabled: isActioning,
+                                                                                                },
+                                                                                                {
+                                                                                                    label: deepCopy.delete,
+                                                                                                    icon: HiOutlineTrash,
+                                                                                                    onClick: () => handleDeleteClient(ib, cl),
+                                                                                                    isDanger: true,
+                                                                                                    disabled: isActioning,
+                                                                                                }
+                                                                                            ]}
+                                                                                        />
+                                                                                    </div>
+                                                                                </td>
+                                                                            )}
                                                                         </tr>
                                                                     );
                                                                     })}
@@ -2031,32 +2054,36 @@ export default function Inbounds() {
                     </div>
                 )}
 
-                <InboundModal
-                    isOpen={isModalOpen}
-                    onClose={() => setIsModalOpen(false)}
-                    editingInbound={editingInbound}
-                    onSuccess={() => fetchAllInbounds({ force: true })}
-                    servers={servers}
-                    onBatchResult={(title, data) => {
-                        if (!data) return;
-                        setBatchResultTitle(title);
-                        setBatchResultData(data);
-                    }}
-                />
+                {canMutate && (
+                    <InboundModal
+                        isOpen={isModalOpen}
+                        onClose={() => setIsModalOpen(false)}
+                        editingInbound={editingInbound}
+                        onSuccess={() => fetchAllInbounds({ force: true })}
+                        servers={servers}
+                        onBatchResult={(title, data) => {
+                            if (!data) return;
+                            setBatchResultTitle(title);
+                            setBatchResultData(data);
+                        }}
+                    />
+                )}
 
-                <ClientModal
-                    isOpen={isClientModalOpen}
-                    onClose={() => setIsClientModalOpen(false)}
-                    targets={clientTargets}
-                    onSuccess={() => fetchAllInbounds({ force: true })}
-                    onBatchResult={(title, data) => {
-                        if (!data) return;
-                        setBatchResultTitle(title || t('comp.inbounds.batchUserResult'));
-                        setBatchResultData(data);
-                    }}
-                />
+                {canMutate && (
+                    <ClientModal
+                        isOpen={isClientModalOpen}
+                        onClose={() => setIsClientModalOpen(false)}
+                        targets={clientTargets}
+                        onSuccess={() => fetchAllInbounds({ force: true })}
+                        onBatchResult={(title, data) => {
+                            if (!data) return;
+                            setBatchResultTitle(title || t('comp.inbounds.batchUserResult'));
+                            setBatchResultData(data);
+                        }}
+                    />
+                )}
 
-                {selectedVisibleCount > 0 && (
+                {canMutate && selectedVisibleCount > 0 && (
                     <div className="mobile-batch-bar">
                         <div className="batch-count">{t('comp.inbounds.selectedCount', { count: selectedVisibleCount })}</div>
                         <button type="button" className={bulkToggleClassName} onClick={() => handleBulkSetEnable(bulkToggleEnable)}>
@@ -2076,7 +2103,7 @@ export default function Inbounds() {
                     data={batchResultData}
                 />
 
-                {clientAdjustOpen && clientAdjustTarget && (
+                {canMutate && clientAdjustOpen && clientAdjustTarget && (
                     <ModalShell isOpen={clientAdjustOpen} onClose={closeClientAdjustModal}>
                         <div className="modal modal-md" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
@@ -2131,7 +2158,7 @@ export default function Inbounds() {
                     </ModalShell>
                 )}
 
-                {entitlementOpen && entitlementTarget && (
+                {canMutate && entitlementOpen && entitlementTarget && (
                     <ModalShell isOpen={entitlementOpen} onClose={closeEntitlementModal}>
                         <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">

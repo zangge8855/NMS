@@ -1,7 +1,14 @@
 import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useOptionalAuth } from '../../contexts/AuthContext';
 import { useServer } from '../../contexts/ServerContext';
 import { useConfirm } from '../../contexts/ConfirmContext';
+import {
+    canManageStaffAccounts,
+    canManageUserTarget,
+    canMutateOperations,
+    resolveOptionalAuthActor,
+} from '../../utils/permissions';
 import api from '../../api/client';
 import Header from '../Layout/Header';
 import { useI18n } from '../../contexts/LanguageContext';
@@ -292,6 +299,10 @@ function getDefaultGuestNote(locale: string) {
 }
 
 export default function UsersHub() {
+    const auth = useOptionalAuth();
+    const { role: actorRole } = resolveOptionalAuthActor(auth);
+    const canMutate = canMutateOperations(actorRole);
+    const canManageStaff = canManageStaffAccounts(actorRole);
     const { servers } = useServer();
     const confirmAction = useConfirm();
     const { locale, t } = useI18n();
@@ -865,10 +876,10 @@ export default function UsersHub() {
     ), [allInbounds]);
     const groupMemberCandidates = useMemo(() => (
         users
-            .filter((user) => user?.role !== 'admin')
+            .filter((user) => user?.role !== 'admin' && canManageUserTarget(actorRole, user?.role))
             .slice()
             .sort((a, b) => String(a?.username || '').localeCompare(String(b?.username || '')))
-    ), [users]);
+    ), [actorRole, users]);
     const visibleGroupMemberCandidates = useMemo(() => {
         const query = String(groupMemberQuery || '').trim().toLowerCase();
         if (!query) return groupMemberCandidates;
@@ -888,6 +899,7 @@ export default function UsersHub() {
 
     // --- Set enabled ---
     const handleSetEnabled = async (user, enabled) => {
+        if (!canManageUserTarget(actorRole, user?.role)) return;
         const action = enabled ? t('comp.common.enable') : t('comp.common.disable');
         const ok = await confirmAction({
             title: `${action}${t('comp.users.user')}`,
@@ -920,6 +932,7 @@ export default function UsersHub() {
 
     // --- Kick online sessions ---
     const handleKickOnlineSessions = async (user: any) => {
+        if (!canManageUserTarget(actorRole, user?.role)) return;
         const targetEmail = user.subscriptionEmail || user.email;
         if (!targetEmail) return;
         const ok = await confirmAction({
@@ -947,6 +960,7 @@ export default function UsersHub() {
 
     // --- Delete user ---
     const handleDelete = async (user) => {
+        if (!canManageUserTarget(actorRole, user?.role)) return;
         const ok = await confirmAction({
             title: t('comp.users.deleteUser'),
             message: t('comp.users.confirmDeleteUser', { username: user.username }),
@@ -974,11 +988,15 @@ export default function UsersHub() {
 
     // --- Bulk operations ---
     const handleBulkSetEnabled = async (enabled) => {
-        if (selectedIds.size === 0) return;
+        if (!canMutate) return;
+        const manageableSelectedIds = selectedUsers
+            .filter((user) => canManageUserTarget(actorRole, user?.role))
+            .map((user) => user.id);
+        if (manageableSelectedIds.length === 0) return;
         setBulkLoading(true);
         try {
             const res = await api.post('/auth/users/bulk-set-enabled', {
-                userIds: Array.from(selectedIds),
+                userIds: manageableSelectedIds,
                 enabled,
             });
             if (res.data?.success) {
@@ -1019,7 +1037,15 @@ export default function UsersHub() {
         }
     };
 
+    const selectableUsers = useMemo(
+        () => enrichedUsers.filter((user) => canManageUserTarget(actorRole, user?.role)),
+        [actorRole, enrichedUsers]
+    );
+
     const toggleSelect = (id) => {
+        if (!canMutate) return;
+        const target = enrichedUsers.find((user) => user.id === id) || users.find((user) => user.id === id);
+        if (!canManageUserTarget(actorRole, target?.role)) return;
         setSelectedIds(prev => {
             const next = new Set(prev);
             if (next.has(id)) next.delete(id);
@@ -1029,19 +1055,38 @@ export default function UsersHub() {
     };
 
     const toggleSelectAll = () => {
-        const allVisibleSelected = enrichedUsers.length > 0 && enrichedUsers.every((u) => selectedIds.has(u.id));
+        if (!canMutate) return;
+        const allVisibleSelected = selectableUsers.length > 0 && selectableUsers.every((u) => selectedIds.has(u.id));
         setSelectedIds((prev) => {
             const next = new Set(prev);
             if (allVisibleSelected) {
-                enrichedUsers.forEach((u) => next.delete(u.id));
+                selectableUsers.forEach((u) => next.delete(u.id));
             } else {
-                enrichedUsers.forEach((u) => next.add(u.id));
+                selectableUsers.forEach((u) => next.add(u.id));
             }
             return next;
         });
     };
 
     const renderUserActionButtons = (user) => {
+        const canManageTarget = canManageUserTarget(actorRole, user?.role);
+        if (!canManageTarget) {
+            return (
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        className="btn btn-secondary btn-sm btn-icon table-action-btn users-action-btn"
+                        title={t('comp.users.details')}
+                        aria-label={t('comp.users.details')}
+                        onClick={() => navigate(`/clients/${user.id}`)}
+                    >
+                        <HiOutlineEye />
+                        <span className="users-action-mobile-label">{t('comp.users.details')}</span>
+                    </button>
+                </div>
+            );
+        }
+
         const dropdownActions = [];
 
         if (user.status.key === 'pending') {
@@ -1179,15 +1224,20 @@ export default function UsersHub() {
                 className={`users-mobile-card ${selectedIds.has(user.id) ? 'users-mobile-card--selected' : ''}`}
             >
                 <div className="users-mobile-card-head">
-                    <label className="users-mobile-check">
-                        <input name="usersHubField"
-                            type="checkbox"
-                            aria-label={t('pages.usersHub.selectUser', { name: user.username || user.email || user.id })}
-                            checked={selectedIds.has(user.id)}
-                            onChange={() => toggleSelect(user.id)}
-                        />
+                    {canMutate ? (
+                        <label className="users-mobile-check">
+                            <input name="usersHubField"
+                                type="checkbox"
+                                aria-label={t('pages.usersHub.selectUser', { name: user.username || user.email || user.id })}
+                                checked={selectedIds.has(user.id)}
+                                disabled={!canManageUserTarget(actorRole, user?.role)}
+                                onChange={() => toggleSelect(user.id)}
+                            />
+                            <span className="users-mobile-sequence">#{sequenceNumber}</span>
+                        </label>
+                    ) : (
                         <span className="users-mobile-sequence">#{sequenceNumber}</span>
-                    </label>
+                    )}
                     <div className="users-mobile-card-badges">
                         <span className={`badge ${user.status.badge}`}>{user.status.label}</span>
                         <span className={`badge ${user.onlineStatus.badge}`}>{user.onlineStatus.label}</span>
@@ -1252,6 +1302,7 @@ export default function UsersHub() {
     };
 
     const openProvisionModal = async (user) => {
+        if (!canManageUserTarget(actorRole, user?.role)) return;
         const suggestedEmail = normalizeEmail(user?.subscriptionEmail || user?.email);
         if (!suggestedEmail) {
             toast.error(t('comp.users.noEmailForSubscription'));
@@ -1487,6 +1538,7 @@ export default function UsersHub() {
     };
 
     const openEditModal = (user) => {
+        if (!canManageUserTarget(actorRole, user?.role)) return;
         try {
             setEditUser(user);
             setEditUsername(user.username || '');
@@ -1718,6 +1770,7 @@ export default function UsersHub() {
     };
 
     const openGroupModal = (group = null) => {
+        if (!canMutate) return;
         resetGroupForm();
         if (group) {
             setEditingGroup(group);
@@ -1811,6 +1864,7 @@ export default function UsersHub() {
     };
 
     const handleDeleteGroup = async (group) => {
+        if (!canMutate) return;
         const ok = await confirmAction({
             title: t('comp.users.deleteGroupTitle'),
             message: t('comp.users.deleteGroupMessage', { name: group.name }),
@@ -1836,6 +1890,7 @@ export default function UsersHub() {
     };
 
     const handleSyncGroup = async (group) => {
+        if (!canMutate) return;
         try {
             const res = await api.post(`/user-groups/${encodeURIComponent(group.id)}/sync`);
             const syncResult = res.data?.obj?.sync || {};
@@ -1856,6 +1911,7 @@ export default function UsersHub() {
 
     // --- Create user modal ---
     const openCreateModal = () => {
+        if (!canMutate) return;
         setCreateUsername('');
         setCreateEmail('');
         setCreatePassword(generateSecurePassword());
@@ -1871,13 +1927,17 @@ export default function UsersHub() {
         setCreateSaving(false);
     };
 
+    const openCreateModalRef = useRef(openCreateModal);
+    openCreateModalRef.current = openCreateModal;
+
     useEffect(() => {
+        if (!canMutate) return;
         if (searchParams.get('action') !== 'create') return;
-        openCreateModal();
+        openCreateModalRef.current();
         const nextParams = new URLSearchParams(searchParams);
         nextParams.delete('action');
         setSearchParams(nextParams, { replace: true });
-    }, [searchParams, setSearchParams]);
+    }, [canMutate, searchParams, setSearchParams]);
 
     const submitCreate = async (event) => {
         event.preventDefault();
@@ -1899,7 +1959,7 @@ export default function UsersHub() {
             const res = await api.post('/auth/users', {
                 username,
                 password,
-                role: createRole,
+                role: canManageStaff ? createRole : 'user',
                 email,
                 subscriptionEmail: email,
                 groupId: createGroupId,
@@ -1940,14 +2000,15 @@ export default function UsersHub() {
         const editId = searchParams.get('edit');
         if (editId && users.length > 0 && !loading) {
             const targetUser = users.find(u => u.id === editId);
-            if (targetUser) {
+            if (targetUser && canManageUserTarget(actorRole, targetUser.role)) {
                 openEditModalRef.current(targetUser);
                 setSearchParams({}, { replace: true });
             }
         }
-    }, [users, loading, searchParams, setSearchParams]);
+    }, [actorRole, users, loading, searchParams, setSearchParams]);
 
     const openGuestModal = () => {
+        if (!canMutate) return;
         setGuestResult(null);
         setGuestNote((prev) => (
             !prev || prev === '访客临时体验' || prev === 'Guest temporary pass'
@@ -2093,18 +2154,22 @@ export default function UsersHub() {
                         <button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchData({ forceUsers: true })} title={t('pages.usersHub.toolbar.refreshTitle')}>
                             <HiOutlineArrowPath /> {t('pages.usersHub.toolbar.refresh')}
                         </button>
-                        <button
-                            type="button"
-                            className="btn btn-secondary btn-sm flex items-center gap-1"
-                            onClick={openGuestModal}
-                            title={locale === 'en-US' ? 'Guest Pass (Temporary Trial)' : '生成临时访客试用码'}
-                        >
-                            <HiOutlineSparkles />
-                            <span>{locale === 'en-US' ? 'Guest Pass' : '访客试用码'}</span>
-                        </button>
-                        <button type="button" className="btn btn-primary btn-sm" onClick={openCreateModal} title={t('pages.usersHub.toolbar.addAccountTitle')}>
-                            <HiOutlineUserPlus /> {t('pages.usersHub.toolbar.addAccount')}
-                        </button>
+                        {canMutate && (
+                            <>
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary btn-sm flex items-center gap-1"
+                                    onClick={openGuestModal}
+                                    title={locale === 'en-US' ? 'Guest Pass (Temporary Trial)' : '生成临时访客试用码'}
+                                >
+                                    <HiOutlineSparkles />
+                                    <span>{locale === 'en-US' ? 'Guest Pass' : '访客试用码'}</span>
+                                </button>
+                                <button type="button" className="btn btn-primary btn-sm" onClick={openCreateModal} title={t('pages.usersHub.toolbar.addAccountTitle')}>
+                                    <HiOutlineUserPlus /> {t('pages.usersHub.toolbar.addAccount')}
+                                </button>
+                            </>
+                        )}
                         </>
                     )}
                 />
@@ -2117,7 +2182,7 @@ export default function UsersHub() {
                     </div>
                 )}
 
-                {selectedIds.size > 0 && (
+                {canMutate && selectedIds.size > 0 && (
                     <div className="bulk-toolbar mb-4 users-bulk-toolbar">
                         <span className="bulk-toolbar-count">{t('pages.usersHub.toolbar.selected', { count: selectedIds.size })}</span>
                         <button type="button" className={bulkToggleClassName} onClick={() => handleBulkSetEnabled(bulkToggleEnable)} disabled={bulkLoading}>
@@ -2132,15 +2197,18 @@ export default function UsersHub() {
                 {isCompactLayout ? (
                     <div className="users-mobile-list">
                         <div className="users-mobile-list-head glass-panel">
-                            <label className="users-mobile-list-toggle">
-                                <input name="usersHubUsersHubSelectAllRows"
-                                    type="checkbox"
-                                    aria-label={t('pages.usersHub.selectAllRows')}
-                                    checked={enrichedUsers.length > 0 && selectedUsers.length === enrichedUsers.length}
-                                    onChange={toggleSelectAll}
-                                />
-                                <span>{t('pages.usersHub.mobileSelectAll')}</span>
-                            </label>
+                            {canMutate ? (
+                                <label className="users-mobile-list-toggle">
+                                    <input name="usersHubUsersHubSelectAllRows"
+                                        type="checkbox"
+                                        aria-label={t('pages.usersHub.selectAllRows')}
+                                        checked={selectableUsers.length > 0 && selectableUsers.every((u) => selectedIds.has(u.id))}
+                                        disabled={selectableUsers.length === 0}
+                                        onChange={toggleSelectAll}
+                                    />
+                                    <span>{t('pages.usersHub.mobileSelectAll')}</span>
+                                </label>
+                            ) : <span />}
                             <button
                                 type="button"
                                 className="table-sort-button users-sequence-sort-button"
@@ -2170,7 +2238,9 @@ export default function UsersHub() {
                                     subtitle={searchTerm ? t('comp.users.noMatchUsersSubtitle') : t('comp.users.noUsersSubtitle')}
                                     action={searchTerm || statusFilter !== 'all'
                                         ? <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setSearchTerm(''); setStatusFilter('all'); }}>{t('pages.usersHub.clearFilters')}</button>
-                                        : <button type="button" className="btn btn-primary btn-sm" onClick={openCreateModal}><HiOutlineUserPlus /> {t('pages.usersHub.toolbar.addAccount')}</button>}
+                                        : canMutate
+                                            ? <button type="button" className="btn btn-primary btn-sm" onClick={openCreateModal}><HiOutlineUserPlus /> {t('pages.usersHub.toolbar.addAccount')}</button>
+                                            : undefined}
                                 />
                             </div>
                         ) : (
@@ -2179,7 +2249,7 @@ export default function UsersHub() {
                     </div>
                 ) : loading ? (
                     <div className="table-container p-4">
-                        <SkeletonTable rows={8} cols={9} colTemplate="40px 88px 236px 120px 170px 90px 120px 144px 144px" />
+                        <SkeletonTable rows={8} cols={canMutate ? 9 : 8} colTemplate={canMutate ? '40px 88px 236px 120px 170px 90px 120px 144px 144px' : '88px 236px 120px 170px 90px 120px 144px 144px'} />
                     </div>
                 ) : primaryError ? (
                     <div className="table-container p-4">
@@ -2196,7 +2266,9 @@ export default function UsersHub() {
                             subtitle={searchTerm ? t('comp.users.noMatchUsersSubtitle') : t('comp.users.noUsersSubtitle')}
                             action={searchTerm || statusFilter !== 'all'
                                 ? <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setSearchTerm(''); setStatusFilter('all'); }}>{t('pages.usersHub.clearFilters')}</button>
-                                : <button type="button" className="btn btn-primary btn-sm" onClick={openCreateModal}><HiOutlineUserPlus /> {t('pages.usersHub.toolbar.addAccount')}</button>}
+                                : canMutate
+                                    ? <button type="button" className="btn btn-primary btn-sm" onClick={openCreateModal}><HiOutlineUserPlus /> {t('pages.usersHub.toolbar.addAccount')}</button>
+                                    : undefined}
                         />
                     </div>
                 ) : (
@@ -2204,14 +2276,17 @@ export default function UsersHub() {
                         <table className="table users-table">
                             <thead>
                                 <tr>
-                                    <th className="users-select-column">
-                                        <input name="usersHubUsersHubSelectAllRows2"
-                                            type="checkbox"
-                                            aria-label={t('pages.usersHub.selectAllRows')}
-                                            checked={enrichedUsers.length > 0 && selectedUsers.length === enrichedUsers.length}
-                                            onChange={toggleSelectAll}
-                                        />
-                                    </th>
+                                    {canMutate && (
+                                        <th className="users-select-column">
+                                            <input name="usersHubUsersHubSelectAllRows2"
+                                                type="checkbox"
+                                                aria-label={t('pages.usersHub.selectAllRows')}
+                                                checked={selectableUsers.length > 0 && selectableUsers.every((u) => selectedIds.has(u.id))}
+                                                disabled={selectableUsers.length === 0}
+                                                onChange={toggleSelectAll}
+                                            />
+                                        </th>
+                                    )}
                                     <th className="users-sequence-column">
                                         <button
                                             type="button"
@@ -2285,20 +2360,24 @@ export default function UsersHub() {
                                         : user.clientData.count > 0
                                         ? formatExpiryLabel(user.clientData.expiryValues, t)
                                         : t('pages.usersHub.notProvisioned');
+                                    const canManageTarget = canManageUserTarget(actorRole, user.role);
                                     return (
                                         <tr
                                             key={user.id}
-                                            className={`users-row ${selectedIds.has(user.id) ? 'users-row-selected table-row-selected' : ''}${selectedIds.size > 0 ? ' table-row-selectable' : ''}`}
-                                            onClick={selectedIds.size > 0 ? () => toggleSelect(user.id) : undefined}
+                                            className={`users-row ${selectedIds.has(user.id) ? 'users-row-selected table-row-selected' : ''}${canMutate && canManageTarget && selectedIds.size > 0 ? ' table-row-selectable' : ''}`}
+                                            onClick={canMutate && canManageTarget && selectedIds.size > 0 ? () => toggleSelect(user.id) : undefined}
                                         >
-                                                <td className="mobile-checkbox-cell users-select-cell" data-label="" onClick={(e) => e.stopPropagation()}>
-                                                    <input name={`usersHubField2-${index}`}
-                                                        type="checkbox"
-                                                        aria-label={t('pages.usersHub.selectUser', { name: user.username || user.email || user.id })}
-                                                        checked={selectedIds.has(user.id)}
-                                                        onChange={() => toggleSelect(user.id)}
-                                                    />
-                                                </td>
+                                                {canMutate && (
+                                                    <td className="mobile-checkbox-cell users-select-cell" data-label="" onClick={(e) => e.stopPropagation()}>
+                                                        <input name={`usersHubField2-${index}`}
+                                                            type="checkbox"
+                                                            aria-label={t('pages.usersHub.selectUser', { name: user.username || user.email || user.id })}
+                                                            checked={selectedIds.has(user.id)}
+                                                            disabled={!canManageTarget}
+                                                            onChange={() => toggleSelect(user.id)}
+                                                        />
+                                                    </td>
+                                                )}
                                                 <td data-label={t('pages.usersHub.cols.sequence')} onClick={(e) => e.stopPropagation()}>
                                                     <span className="cell-mono users-sequence-number">{sequenceNumber}</span>
                                                 </td>
@@ -2389,32 +2468,37 @@ export default function UsersHub() {
                                 <div className="text-xs text-muted">{t('pages.usersHub.groups.toolbarSubtitle')}</div>
                             </div>
                         )}
-                        actions={(
+                        actions={canMutate ? (
                             <button type="button" className="btn btn-primary btn-sm" onClick={() => openGroupModal()}>
                                 <HiOutlineUserGroup /> {t('pages.usersHub.groups.newGroup')}
                             </button>
-                        )}
+                        ) : null}
                     />
                     <Table
                         loading={groupsLoading}
                         rows={4}
-                        cols={5}
+                        cols={canMutate ? 5 : 4}
                         empty={userGroups.length === 0}
                         emptyStateProps={{
                             title: t('pages.usersHub.groups.emptyTitle'),
                             subtitle: t('pages.usersHub.groups.emptySubtitle'),
-                            action: (
+                            action: canMutate ? (
                                 <button type="button" className="btn btn-primary btn-sm" onClick={() => openGroupModal()}>
                                     <HiOutlineUserGroup /> {t('pages.usersHub.groups.newGroup')}
                                 </button>
-                            ),
+                            ) : undefined,
                         }}
-                        headers={[
+                        headers={canMutate ? [
                             t('pages.usersHub.groups.cols.name'),
                             t('pages.usersHub.groups.cols.inbounds'),
                             t('pages.usersHub.groups.cols.members'),
                             t('pages.usersHub.groups.cols.limits'),
                             <th key="actions" className="table-cell-actions">{t('pages.usersHub.groups.cols.actions')}</th>
+                        ] : [
+                            t('pages.usersHub.groups.cols.name'),
+                            t('pages.usersHub.groups.cols.inbounds'),
+                            t('pages.usersHub.groups.cols.members'),
+                            t('pages.usersHub.groups.cols.limits'),
                         ]}
                     >
                         {userGroups.map((group) => {
@@ -2460,13 +2544,15 @@ export default function UsersHub() {
                                             </span>
                                         </div>
                                     </td>
-                                    <td className="table-cell-actions">
-                                        <div className="flex gap-2 flex-wrap justify-end">
-                                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleSyncGroup(group)}><HiOutlineArrowPath /> {t('pages.usersHub.groups.actionSync')}</button>
-                                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => openGroupModal(group)}><HiOutlinePencilSquare /> {t('pages.usersHub.groups.actionEdit')}</button>
-                                            <button type="button" className="btn btn-danger btn-sm" onClick={() => handleDeleteGroup(group)}><HiOutlineTrash /> {t('pages.usersHub.groups.actionDelete')}</button>
-                                        </div>
-                                    </td>
+                                    {canMutate && (
+                                        <td className="table-cell-actions">
+                                            <div className="flex gap-2 flex-wrap justify-end">
+                                                <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleSyncGroup(group)}><HiOutlineArrowPath /> {t('pages.usersHub.groups.actionSync')}</button>
+                                                <button type="button" className="btn btn-secondary btn-sm" onClick={() => openGroupModal(group)}><HiOutlinePencilSquare /> {t('pages.usersHub.groups.actionEdit')}</button>
+                                                <button type="button" className="btn btn-danger btn-sm" onClick={() => handleDeleteGroup(group)}><HiOutlineTrash /> {t('pages.usersHub.groups.actionDelete')}</button>
+                                            </div>
+                                        </td>
+                                    )}
                                 </tr>
                             );
                         })}
@@ -2475,7 +2561,7 @@ export default function UsersHub() {
                 )}
             </div>
 
-            {groupModalOpen && (
+            {canMutate && groupModalOpen && (
                 <ModalShell isOpen={groupModalOpen} onClose={closeGroupModal}>
                     <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
@@ -2617,7 +2703,7 @@ export default function UsersHub() {
             )}
 
             {/* Create User Modal */}
-            {createOpen && (
+            {canMutate && createOpen && (
                 <ModalShell isOpen={createOpen} onClose={closeCreateModal}>
                     <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
@@ -2664,13 +2750,17 @@ export default function UsersHub() {
                                     <label htmlFor="users-hub-shell-role-user" className="form-label">{locale === 'en-US' ? 'Account Role' : '账号角色'}</label>
                                     <select id="users-hub-shell-role-user" name="usersHubShellRoleUser"
                                         className="form-select"
-                                        value={createRole}
-                                        onChange={(e) => setCreateRole(e.target.value as any)}
+                                        value={canManageStaff ? createRole : 'user'}
+                                        onChange={(e) => setCreateRole(canManageStaff ? (e.target.value as any) : 'user')}
                                     >
                                         <option value="user">{t('shell.roleUser')}</option>
-                                        <option value="operator">{t('shell.roleOperator')}</option>
-                                        <option value="auditor">{t('shell.roleAuditor')}</option>
-                                        <option value="admin">{t('shell.roleAdmin')}</option>
+                                        {canManageStaff && (
+                                            <>
+                                                <option value="operator">{t('shell.roleOperator')}</option>
+                                                <option value="auditor">{t('shell.roleAuditor')}</option>
+                                                <option value="admin">{t('shell.roleAdmin')}</option>
+                                            </>
+                                        )}
                                     </select>
                                 </div>
                                 <div className="form-group page-field-wide">
@@ -2745,7 +2835,7 @@ export default function UsersHub() {
             )}
 
             {/* Edit User Modal */}
-            {editOpen && editUser && (
+            {editOpen && editUser && canManageUserTarget(actorRole, editUser.role) && (
                 <ModalShell isOpen={editOpen} onClose={closeEditModal}>
                     <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
@@ -3111,7 +3201,7 @@ export default function UsersHub() {
             )}
 
             {/* Provision Modal */}
-            {provisionOpen && provisionTargetUser && (
+            {provisionOpen && provisionTargetUser && canManageUserTarget(actorRole, provisionTargetUser.role) && (
                 <ModalShell isOpen={provisionOpen} onClose={closeProvisionModal}>
                     <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
@@ -3410,7 +3500,7 @@ export default function UsersHub() {
             )}
 
             {/* Modal: Guest Temporary Pass */}
-            {guestModalOpen && (
+            {canMutate && guestModalOpen && (
                 <ModalShell
                     isOpen={guestModalOpen}
                     onClose={() => setGuestModalOpen(false)}

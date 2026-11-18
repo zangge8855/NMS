@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { HiOutlineArrowPath, HiOutlineTrash, HiOutlineEye, HiOutlineArrowUturnLeft } from 'react-icons/hi2';
+import { HiOutlineArrowPath, HiOutlineTrash, HiOutlineEye, HiOutlineArrowUturnLeft, HiOutlineXMark } from 'react-icons/hi2';
 import Header from '../Layout/Header';
 import Table from '../UI/Table';
 import api from '../../api/client';
@@ -13,7 +13,9 @@ import {
 import toast from 'react-hot-toast';
 import BatchResultModal from '../Batch/BatchResultModal';
 import { useConfirm } from '../../contexts/ConfirmContext';
+import { useOptionalAuth } from '../../contexts/AuthContext';
 import { useI18n } from '../../contexts/LanguageContext';
+import { canCancelTask, canMutateOperations, pickRoleCopy, resolveOptionalAuthActor } from '../../utils/permissions';
 import PageToolbar from '../UI/PageToolbar';
 import ListToolbar, { ListPagination } from '../UI/ListToolbar';
 import { formatDateTime } from '../../utils/format';
@@ -152,14 +154,20 @@ function TaskMobileList({
     copy,
     locale,
     retryingId,
+    cancellingId,
+    canMutate,
+    canCancel,
     onView,
     onRetryFailed,
+    onCancel,
 }) {
     return (
         <div className="tasks-mobile-list audit-mobile-list">
             {tasks.map((task) => {
                 const badge = getTaskResultBadge(task, copy);
                 const failedCount = Number(task?.summary?.failed || 0);
+                const cancelLabel = pickRoleCopy(locale, '取消任务', 'Cancel Task');
+                const showCancel = canCancel(task);
                 return (
                     <div key={task.id} className="tasks-mobile-card audit-mobile-card">
                         <div className="audit-mobile-card-head">
@@ -200,7 +208,7 @@ function TaskMobileList({
                                 <HiOutlineEye />
                                 <span>{copy.viewDetail}</span>
                             </button>
-                            {failedCount > 0 && (
+                            {canMutate && failedCount > 0 && (
                                 <button
                                     type="button"
                                     className="btn btn-primary btn-sm"
@@ -213,6 +221,19 @@ function TaskMobileList({
                                     <span>{copy.retryFailedItems}</span>
                                 </button>
                             )}
+                            {showCancel && (
+                                <button
+                                    type="button"
+                                    className="btn btn-danger btn-sm"
+                                    onClick={() => onCancel(task)}
+                                    disabled={cancellingId === task.id}
+                                    title={cancelLabel}
+                                    aria-label={cancelLabel}
+                                >
+                                    {cancellingId === task.id ? <span className="spinner" /> : <HiOutlineXMark />}
+                                    <span>{cancelLabel}</span>
+                                </button>
+                            )}
                         </div>
                     </div>
                 );
@@ -222,6 +243,9 @@ function TaskMobileList({
 }
 
 export default function Tasks({ embedded = false }) {
+    const auth = useOptionalAuth();
+    const { role: actorRole, username: actorUsername } = resolveOptionalAuthActor(auth);
+    const canMutate = canMutateOperations(actorRole);
     const confirmAction = useConfirm();
     const { locale, t } = useI18n();
     const isCompactLayout = useMediaQuery('(max-width: 768px)');
@@ -233,6 +257,7 @@ export default function Tasks({ embedded = false }) {
     const [loading, setLoading] = useState(() => tasksBootstrapRef.current == null);
     const [tasks, setTasks] = useState(() => tasksBootstrapRef.current?.tasks || []);
     const [selectedTask, setSelectedTask] = useState(null);
+    const [cancellingId, setCancellingId] = useState('');
     const [retryingId, setRetryingId] = useState('');
     const [typeFilter, setTypeFilter] = useState('all');
     const [actionFilter, setActionFilter] = useState('all');
@@ -384,6 +409,7 @@ export default function Tasks({ embedded = false }) {
     };
 
     const handleClear = async () => {
+        if (!canMutate) return;
         const ok = await confirmAction({
             title: t('comp.tasks.clearTitle'),
             message: t('comp.tasks.clearMessage'),
@@ -404,7 +430,7 @@ export default function Tasks({ embedded = false }) {
     };
 
     const handleRetryFailed = async (task) => {
-        if (!task?.id) return;
+        if (!canMutate || !task?.id) return;
         setRetryingId(task.id);
         try {
             const payload = await attachBatchRiskToken({
@@ -443,6 +469,28 @@ export default function Tasks({ embedded = false }) {
         setRetryingId('');
     };
 
+    const handleCancelTask = async (task) => {
+        if (!task?.id || !canCancelTask(actorRole, actorUsername, task)) return;
+        const label = formatTaskActionPair(task.type, task.action, locale);
+        const ok = await confirmAction({
+            title: pickRoleCopy(locale, '取消任务', 'Cancel Task'),
+            message: pickRoleCopy(locale, `确定取消正在运行的任务「${label}」吗？`, `Cancel running task "${label}"?`),
+            confirmText: pickRoleCopy(locale, '取消任务', 'Cancel Task'),
+            tone: 'danger',
+        });
+        if (!ok) return;
+        setCancellingId(task.id);
+        try {
+            await api.delete(`/system/tasks/${encodeURIComponent(task.id)}`);
+            toast.success(pickRoleCopy(locale, '任务取消请求已发送', 'Task cancellation requested'));
+            await fetchTasks();
+        } catch (err) {
+            const msg = err.response?.data?.msg || err.message || pickRoleCopy(locale, '取消任务失败', 'Failed to cancel task');
+            toast.error(msg);
+        }
+        setCancellingId('');
+    };
+
     return (
         <>
             {!embedded && <Header title={t('pages.tasks.title')} />}
@@ -456,9 +504,11 @@ export default function Tasks({ embedded = false }) {
                                 <button type="button" className="btn btn-secondary btn-sm" onClick={() => void fetchTasks()} disabled={loading}>
                                     <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> {copy.refresh}
                                 </button>
-                                <button type="button" className="btn btn-danger btn-sm" onClick={handleClear}>
-                                    <HiOutlineTrash /> {copy.clear}
-                                </button>
+                                {canMutate && (
+                                    <button type="button" className="btn btn-danger btn-sm" onClick={handleClear}>
+                                        <HiOutlineTrash /> {copy.clear}
+                                    </button>
+                                )}
                             </div>
                         )}
                         meta={<span>{copy.total.replace('{count}', String(filteredTasks.length))}</span>}
@@ -477,9 +527,11 @@ export default function Tasks({ embedded = false }) {
                                     <button type="button" className="btn btn-secondary btn-sm" onClick={() => void fetchTasks()} disabled={loading}>
                                         <HiOutlineArrowPath className={loading ? 'spinning' : ''} /> {copy.refresh}
                                     </button>
-                                    <button type="button" className="btn btn-danger btn-sm" onClick={handleClear}>
-                                        <HiOutlineTrash /> {copy.clear}
-                                    </button>
+                                    {canMutate && (
+                                        <button type="button" className="btn btn-danger btn-sm" onClick={handleClear}>
+                                            <HiOutlineTrash /> {copy.clear}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                             <div className="audit-control-meta audit-control-meta--compact">
@@ -598,8 +650,12 @@ export default function Tasks({ embedded = false }) {
                             copy={copy}
                             locale={locale}
                             retryingId={retryingId}
+                            cancellingId={cancellingId}
+                            canMutate={canMutate}
+                            canCancel={(task) => canCancelTask(actorRole, actorUsername, task)}
                             onView={handleView}
                             onRetryFailed={handleRetryFailed}
+                            onCancel={handleCancelTask}
                         />
                     </div>
                 ) : (
@@ -631,7 +687,7 @@ export default function Tasks({ embedded = false }) {
                                     <button type="button" className="btn btn-secondary btn-sm btn-icon table-action-btn" onClick={() => handleView(task.id)} title={copy.viewDetail} aria-label={copy.viewDetail}>
                                         <HiOutlineEye />
                                     </button>
-                                    {Number(task.summary?.failed || 0) > 0 && (
+                                    {canMutate && Number(task.summary?.failed || 0) > 0 && (
                                         <button
                                             type="button"
                                             className="btn btn-primary btn-sm btn-icon table-action-btn is-primary"
@@ -641,6 +697,18 @@ export default function Tasks({ embedded = false }) {
                                             aria-label={copy.retryFailedItems}
                                         >
                                             {retryingId === task.id ? <span className="spinner" /> : <HiOutlineArrowUturnLeft />}
+                                        </button>
+                                    )}
+                                    {canCancelTask(actorRole, actorUsername, task) && (
+                                        <button
+                                            type="button"
+                                            className="btn btn-danger btn-sm btn-icon table-action-btn"
+                                            onClick={() => handleCancelTask(task)}
+                                            disabled={cancellingId === task.id}
+                                            title={pickRoleCopy(locale, '取消任务', 'Cancel Task')}
+                                            aria-label={pickRoleCopy(locale, '取消任务', 'Cancel Task')}
+                                        >
+                                            {cancellingId === task.id ? <span className="spinner" /> : <HiOutlineXMark />}
                                         </button>
                                     )}
                                     </div>
