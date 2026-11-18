@@ -3,6 +3,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import api from '../../../api/client';
 import { renderWithRouter } from '../../../test/render';
+import ClientDirectoryPanel from './ClientDirectoryPanel';
 import ClientHwidSection from './ClientHwidSection';
 import OutboundSubsPanel from './OutboundSubsPanel';
 import PanelFeatures from './PanelFeatures';
@@ -52,7 +53,7 @@ describe('PanelFeatures workspace', () => {
         renderWithRouter(<PanelFeatures serverId="s1" inbounds={INBOUNDS} />);
         const nav = screen.getByRole('navigation', { name: '面板功能分区' });
         expect(within(nav).getAllByRole('button').map((item) => item.textContent)).toEqual([
-            '客户端分组', '订阅主机', '订阅均衡器', '出站订阅', '面板节点',
+            '客户端分组', '客户端目录', '订阅主机', '订阅均衡器', '出站订阅', '面板节点',
         ]);
         await waitFor(() => expect(mockedApi.get).toHaveBeenCalledWith('/panel/s1/panel/api/clients/groups'));
     });
@@ -62,11 +63,20 @@ describe('PanelFeatures workspace', () => {
         renderWithRouter(<PanelFeatures serverId="s1" inbounds={INBOUNDS} />, { route: '/?section=nodes' });
         const nav = screen.getByRole('navigation', { name: '面板功能分区' });
         expect(within(nav).getAllByRole('button').map((item) => item.textContent)).toEqual([
-            '客户端分组', '订阅主机', '订阅均衡器',
+            '客户端分组', '客户端目录', '订阅主机', '订阅均衡器',
         ]);
         expect(within(nav).getByRole('button', { name: '客户端分组' })).toHaveAttribute('aria-current', 'page');
         await waitFor(() => expect(mockedApi.get).toHaveBeenCalledWith('/panel/s1/panel/api/clients/groups'));
         expect(mockedApi.get).not.toHaveBeenCalledWith('/panel/s1/panel/api/nodes/list');
+    });
+
+    it('lets auditors open the client directory section', async () => {
+        auth.role = 'auditor';
+        mockedApi.get.mockResolvedValue(ok({ items: [], total: 0, page: 1, pageSize: 20 }));
+        renderWithRouter(<PanelFeatures serverId="s1" inbounds={INBOUNDS} />, { route: '/?section=clients' });
+        const nav = screen.getByRole('navigation', { name: '面板功能分区' });
+        expect(within(nav).getByRole('button', { name: '客户端目录' })).toHaveAttribute('aria-current', 'page');
+        await waitFor(() => expect(mockedApi.get).toHaveBeenCalledWith('/panel/s1/panel/api/clients/list/paged?page=1&pageSize=20'));
     });
 
     it('lets operators open outbound subscriptions but not nodes', () => {
@@ -250,5 +260,226 @@ describe('ClientHwidSection', () => {
         expect(await screen.findByText('Pixel 9')).toBeInTheDocument();
         expect(screen.queryByLabelText('设备上限')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: '移除 Pixel 9' })).not.toBeInTheDocument();
+    });
+});
+
+describe('ClientDirectoryPanel', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        auth.role = 'admin';
+    });
+
+    it('loads paged clients, shows all client fields, and paginates', async () => {
+        const user = userEvent.setup();
+        mockedApi.get.mockImplementation((url: string) => {
+            if (url.includes('page=2')) {
+                return Promise.resolve(ok({
+                    clients: [
+                        {
+                            email: 'bob@example.com',
+                            inboundId: 2,
+                            group: '',
+                            enable: false,
+                            up: 0,
+                            down: 0,
+                            totalGB: 0,
+                            expiryTime: -604_800_000,
+                            subId: 'sub-bob',
+                            tgId: 0,
+                        },
+                    ],
+                    total: 25,
+                    page: 2,
+                    pageSize: 20,
+                }));
+            }
+            return Promise.resolve(ok({
+                items: [
+                    {
+                        email: 'alice@example.com',
+                        inboundId: 1,
+                        group: 'vip',
+                        enable: true,
+                        up: 1024,
+                        down: 2048,
+                        totalGB: 10 * 1024 * 1024 * 1024,
+                        expiryTime: 0,
+                        subId: 'sub-alice',
+                        tgId: 123456789,
+                    },
+                ],
+                total: 25,
+                page: 1,
+                pageSize: 20,
+            }));
+        });
+
+        renderWithRouter(<ClientDirectoryPanel serverId="s1" inbounds={INBOUNDS} />);
+
+        expect(await screen.findByText('alice@example.com')).toBeInTheDocument();
+        const list = screen.getByRole('list', { name: '客户端目录列表' });
+        expect(within(list).getByText('hk-reality (vless:443)')).toBeInTheDocument();
+        expect(within(list).getByText('vless')).toBeInTheDocument();
+        expect(within(list).getByText('vip')).toBeInTheDocument();
+        expect(within(list).getByText('已启用')).toBeInTheDocument();
+        expect(within(list).getByText('3 KB')).toBeInTheDocument();
+        expect(within(list).getByText('上限 10 GB')).toBeInTheDocument();
+        expect(within(list).getByText('永不过期')).toBeInTheDocument();
+        expect(within(list).getByText('sub-alice')).toBeInTheDocument();
+        expect(within(list).getByText('123456789')).toBeInTheDocument();
+        expect(screen.getByText('共 25 条')).toBeInTheDocument();
+        expect(screen.getByText('1 / 2')).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: '下一页' }));
+        expect(await screen.findByText('bob@example.com')).toBeInTheDocument();
+        const nextList = screen.getByRole('list', { name: '客户端目录列表' });
+        expect(within(nextList).getByText('jp-ws (vmess:8443)')).toBeInTheDocument();
+        expect(within(nextList).getByText('已停用')).toBeInTheDocument();
+        expect(within(nextList).getByText('首次连接后 7 天')).toBeInTheDocument();
+        expect(within(nextList).getByText('不限流量')).toBeInTheDocument();
+        expect(screen.getByText('2 / 2')).toBeInTheDocument();
+        expect(mockedApi.get).toHaveBeenLastCalledWith('/panel/s1/panel/api/clients/list/paged?page=2&pageSize=20');
+    });
+
+    it('applies search, inbound, group, and status filters and resets cleanly', async () => {
+        const user = userEvent.setup();
+        mockedApi.get.mockResolvedValue(ok([
+            {
+                email: 'filtered@example.com',
+                inboundId: 1,
+                group: 'team-a',
+                enable: true,
+                up: 512,
+                down: 512,
+                totalGB: 0,
+                expiryTime: 1_800_000_000_000,
+                subId: 'sub-f',
+                tgId: 555,
+            },
+        ]));
+
+        renderWithRouter(<ClientDirectoryPanel serverId="s1" inbounds={INBOUNDS} />);
+        expect(await screen.findByText('filtered@example.com')).toBeInTheDocument();
+
+        await user.type(screen.getByLabelText('搜索'), 'alice');
+        await user.type(screen.getByLabelText('分组'), 'team-a');
+        await user.click(screen.getByRole('button', { name: '筛选' }));
+
+        await waitFor(() => expect(mockedApi.get).toHaveBeenCalledWith(
+            '/panel/s1/panel/api/clients/list/paged?page=1&pageSize=20&search=alice&group=team-a',
+        ));
+
+        await user.selectOptions(screen.getByLabelText('入站'), '1');
+        await waitFor(() => expect(mockedApi.get).toHaveBeenCalledWith(
+            '/panel/s1/panel/api/clients/list/paged?page=1&pageSize=20&search=alice&inboundId=1&group=team-a',
+        ));
+
+        await user.selectOptions(screen.getByLabelText('状态'), 'disabled');
+        await waitFor(() => expect(mockedApi.get).toHaveBeenCalledWith(
+            '/panel/s1/panel/api/clients/list/paged?page=1&pageSize=20&search=alice&inboundId=1&group=team-a&status=disabled',
+        ));
+
+        await user.click(screen.getByRole('button', { name: '重置' }));
+        await waitFor(() => expect(mockedApi.get).toHaveBeenLastCalledWith(
+            '/panel/s1/panel/api/clients/list/paged?page=1&pageSize=20',
+        ));
+    });
+
+    it('looks up clients by SubID and Telegram ID and resets back to the paged directory', async () => {
+        const user = userEvent.setup();
+        mockedApi.get.mockImplementation((url: string) => {
+            if (url.includes('/clients/get/subId/sub-xyz')) {
+                return Promise.resolve(ok({
+                    client: {
+                        email: 'sub-hit@example.com',
+                        group: 'pro',
+                        enable: true,
+                        totalGB: 5 * 1024 * 1024 * 1024,
+                        expiryTime: 0,
+                        subId: 'sub-xyz',
+                        tgId: 777,
+                    },
+                    inboundIds: [1],
+                    up: 2048,
+                    down: 2048,
+                }));
+            }
+            if (url.includes('/clients/get/tgId/998877')) {
+                return Promise.resolve(ok([
+                    {
+                        email: 'tg-hit@example.com',
+                        inboundId: 2,
+                        group: 'tg-vip',
+                        enable: true,
+                        up: 0,
+                        down: 1024,
+                        totalGB: 0,
+                        expiryTime: 0,
+                        subId: 'sub-tg',
+                        tgId: 998877,
+                    },
+                ]));
+            }
+            if (url.includes('/clients/get/subId/missing')) {
+                return Promise.resolve({ data: { success: false, msg: 'client not found' } });
+            }
+            return Promise.resolve(ok({
+                items: [
+                    {
+                        email: 'dir-row@example.com',
+                        inboundId: 1,
+                        enable: true,
+                        up: 0,
+                        down: 0,
+                        totalGB: 0,
+                        expiryTime: 0,
+                        subId: 'sub-dir',
+                        tgId: 0,
+                    },
+                ],
+                total: 1,
+                page: 1,
+                pageSize: 20,
+            }));
+        });
+
+        renderWithRouter(<ClientDirectoryPanel serverId="s1" inbounds={INBOUNDS} />);
+        expect(await screen.findByText('dir-row@example.com')).toBeInTheDocument();
+
+        const lookupInput = screen.getByLabelText('精确查询');
+        await user.type(lookupInput, 'sub-xyz');
+        await user.click(screen.getByRole('button', { name: '查询' }));
+
+        expect(await screen.findByText('sub-hit@example.com')).toBeInTheDocument();
+        expect(screen.getByText('精确查询：SubID = sub-xyz（1 条结果）')).toBeInTheDocument();
+        expect(screen.queryByText('dir-row@example.com')).not.toBeInTheDocument();
+        expect(mockedApi.get).toHaveBeenCalledWith('/panel/s1/panel/api/clients/get/subId/sub-xyz');
+
+        await user.selectOptions(screen.getByLabelText('精确查询方式'), 'tgId');
+        await user.clear(lookupInput);
+        await user.type(lookupInput, '998877');
+        await user.click(screen.getByRole('button', { name: '查询' }));
+
+        expect(await screen.findByText('tg-hit@example.com')).toBeInTheDocument();
+        expect(screen.getByText('精确查询：Telegram ID = 998877（1 条结果）')).toBeInTheDocument();
+        expect(mockedApi.get).toHaveBeenCalledWith('/panel/s1/panel/api/clients/get/tgId/998877');
+
+        await user.selectOptions(screen.getByLabelText('精确查询方式'), 'subId');
+        await user.clear(lookupInput);
+        await user.type(lookupInput, 'missing');
+        await user.click(screen.getByRole('button', { name: '查询' }));
+
+        expect(await screen.findByText('未找到匹配的客户端')).toBeInTheDocument();
+        expect(screen.queryByText('这台面板不支持此功能')).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: '返回分页目录' }));
+        expect(await screen.findByText('dir-row@example.com')).toBeInTheDocument();
+        expect(screen.queryByText('未找到匹配的客户端')).not.toBeInTheDocument();
+    });
+
+    it('shows the standard unsupported note when the panel lacks clients/list/paged', async () => {
+        mockedApi.get.mockRejectedValue({ response: { status: 404 } });
+        renderWithRouter(<ClientDirectoryPanel serverId="s1" inbounds={INBOUNDS} />);
+        expect(await screen.findByText('这台面板不支持此功能')).toBeInTheDocument();
     });
 });
