@@ -11,6 +11,7 @@ import Header from '../Layout/Header';
 import { useServer } from '../../contexts/ServerContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useI18n } from '../../contexts/LanguageContext';
+import { canMutateOperations, isAdminRole, isStaffRole } from '../../utils/permissions';
 import useMediaQuery from '../../hooks/useMediaQuery';
 import ListToolbar from '../UI/ListToolbar';
 import SectionHeader from '../UI/SectionHeader';
@@ -382,8 +383,10 @@ export default function Subscriptions() {
     const { t, locale } = useI18n();
     const isCompactViewport = useMediaQuery('(max-width: 768px)');
     const [searchParams] = useSearchParams();
-    const isAdmin = user?.role === 'admin';
-    const isUserOnly = !isAdmin;
+    const isAdmin = isAdminRole(user?.role);
+    const isStaff = isStaffRole(user?.role);
+    const canResetSubscriptionLink = !isStaff || canMutateOperations(user?.role);
+    const isUserOnly = !isStaff;
     const defaultIdentity = useMemo(
         () => String(user?.subscriptionEmail || user?.email || user?.username || '').trim(),
         [user?.subscriptionEmail, user?.email, user?.username]
@@ -391,9 +394,10 @@ export default function Subscriptions() {
     const queryEmail = String(searchParams.get('email') || '').trim();
     const queryServerId = String(searchParams.get('serverId') || '').trim();
     const bootstrapRef = useRef(readSubscriptionsSnapshot());
+    const hasHydratedLiveRef = useRef(false);
     const subscriptionRequestIdRef = useRef(0);
     const initialSelectedEmail = queryEmail || (isUserOnly ? defaultIdentity : bootstrapRef.current?.selectedEmail || '');
-    const initialSelectedServerId = isAdmin ? (queryServerId || bootstrapRef.current?.selectedServerId || 'all') : 'all';
+    const initialSelectedServerId = isStaff ? (queryServerId || bootstrapRef.current?.selectedServerId || 'all') : 'all';
     const initialScopedServerId = initialSelectedServerId !== 'all' ? initialSelectedServerId : '';
     const initialResult = bootstrapRef.current?.subscriptionPayload
         && bootstrapRef.current?.subscriptionEmail === initialSelectedEmail
@@ -404,9 +408,9 @@ export default function Subscriptions() {
             selectedServerId: initialSelectedServerId,
         })
         : null;
-    const [users, setUsers] = useState(() => (isAdmin ? bootstrapRef.current?.users || [] : []));
+    const [users, setUsers] = useState(() => (isStaff ? bootstrapRef.current?.users || [] : []));
     const [usersLoading, setUsersLoading] = useState(false);
-    const [usersAccessDenied, setUsersAccessDenied] = useState(() => isAdmin ? bootstrapRef.current?.usersAccessDenied === true : false);
+    const [usersAccessDenied, setUsersAccessDenied] = useState(() => isStaff ? bootstrapRef.current?.usersAccessDenied === true : false);
     const [selectedEmail, setSelectedEmail] = useState(initialSelectedEmail);
     const [selectedServerId, setSelectedServerId] = useState(initialSelectedServerId);
     const [loading, setLoading] = useState(() => Boolean(initialSelectedEmail) && initialResult == null);
@@ -480,7 +484,7 @@ export default function Subscriptions() {
         () => servers.find((item) => item.id === selectedServerId)?.name || selectedServerId,
         [servers, selectedServerId]
     );
-    const summaryScopeLabel = isAdmin && selectedServerId && selectedServerId !== 'all'
+    const summaryScopeLabel = isStaff && selectedServerId && selectedServerId !== 'all'
         ? ui.selectedNode.replace('{id}', selectedServerDisplayName)
         : ui.allNodes;
     // The user list could not be loaded, so the email has to be typed in.
@@ -554,11 +558,11 @@ export default function Subscriptions() {
         const emailFromQuery = String(searchParams.get('email') || '').trim();
         const serverIdFromQuery = String(searchParams.get('serverId') || '').trim();
         if (emailFromQuery) setSelectedEmail(emailFromQuery);
-        if (isAdmin && serverIdFromQuery) setSelectedServerId(serverIdFromQuery);
+        if (isStaff && serverIdFromQuery) setSelectedServerId(serverIdFromQuery);
     };
 
     const loadUsers = async (options: any = {}) => {
-        if (!isAdmin) {
+        if (!isStaff) {
             setUsers([]);
             setUsersAccessDenied(true);
             return;
@@ -569,6 +573,7 @@ export default function Subscriptions() {
             const res = await api.get('/subscriptions/users');
             const payload = res.data?.obj || {};
             const list = Array.isArray(payload.users) ? payload.users : [];
+            hasHydratedLiveRef.current = true;
             setUsers(list);
             setUsersAccessDenied(false);
 
@@ -584,6 +589,7 @@ export default function Subscriptions() {
             }
         } catch (error) {
             if (error.response?.status === 403) {
+                hasHydratedLiveRef.current = true;
                 setUsers([]);
                 setUsersAccessDenied(true);
             } else {
@@ -599,7 +605,7 @@ export default function Subscriptions() {
 
     const loadSubscription = async (targetEmail = normalizedEmailRef.current, options: any = {}) => {
         const resolvedEmail = String(targetEmail || '').trim();
-        const requestServerId = isAdmin
+        const requestServerId = isStaff
             ? String((options.serverId ?? selectedServerIdRef.current) || '').trim() || 'all'
             : 'all';
         if (!resolvedEmail) {
@@ -620,7 +626,7 @@ export default function Subscriptions() {
         }
         try {
             const query = new URLSearchParams();
-            if (isAdmin && requestServerId && requestServerId !== 'all') {
+            if (isStaff && requestServerId && requestServerId !== 'all') {
                 query.append('serverId', requestServerId);
             }
 
@@ -632,6 +638,7 @@ export default function Subscriptions() {
                 resolvedEmail,
                 selectedServerId: requestServerId,
             });
+            hasHydratedLiveRef.current = true;
             setResult(nextResult);
             setProfileKey((currentKey) => {
                 const availableKeys = Array.isArray(nextResult.bundle?.availableProfiles)
@@ -665,13 +672,13 @@ export default function Subscriptions() {
     loadSubscriptionRef.current = loadSubscription;
 
     useEffect(() => {
-        if (searchParams || isAdmin) {
+        if (searchParams || isStaff) {
             syncFromQueryRef.current();
         }
-    }, [searchParams, isAdmin]);
+    }, [searchParams, isStaff]);
 
     useEffect(() => {
-        if (!isAdmin) {
+        if (!isStaff) {
             loadUsersRef.current({ preserveCurrent: false });
             return;
         }
@@ -679,10 +686,11 @@ export default function Subscriptions() {
             preserveCurrent: bootstrapRef.current != null
                 && (bootstrapRef.current.users.length > 0 || bootstrapRef.current.usersAccessDenied === true),
         });
-    }, [isAdmin]);
+    }, [isStaff]);
 
     useEffect(() => {
-        const handlePageRefresh = () => {
+        const handlePageRefresh = (event?: Event) => {
+            event?.preventDefault?.();
             loadUsersRef.current({ preserveCurrent: true });
             if (normalizedEmailRef.current) {
                 loadSubscriptionRef.current(normalizedEmailRef.current, {
@@ -737,6 +745,7 @@ export default function Subscriptions() {
     }, [locale]);
 
     useEffect(() => {
+        if (!hasHydratedLiveRef.current) return;
         writeSessionSnapshot(SUBSCRIPTIONS_SNAPSHOT_KEY, {
             users,
             usersAccessDenied,
@@ -756,11 +765,11 @@ export default function Subscriptions() {
     }, [canShowQr]);
 
     const handleResetLink = async () => {
-        if (!normalizedEmail) return;
-        const scopeLabel = isAdmin && selectedServerId && selectedServerId !== 'all'
+        if (!normalizedEmail || !canResetSubscriptionLink) return;
+        const scopeLabel = isStaff && selectedServerId && selectedServerId !== 'all'
             ? ui.currentNode.replace('{id}', selectedServerDisplayName)
             : t('comp.subscriptions.currentScope');
-        const resetMessage = isAdmin
+        const resetMessage = isStaff
             ? t('comp.subscriptions.resetAdminMsg')
             : t('comp.subscriptions.resetUserMsg');
         const ok = await confirmAction({
@@ -774,7 +783,7 @@ export default function Subscriptions() {
         setResetLoading(true);
         try {
             const payload: Record<string, any> = {};
-            if (isAdmin && selectedServerId && selectedServerId !== 'all') {
+            if (isStaff && selectedServerId && selectedServerId !== 'all') {
                 payload.serverId = selectedServerId;
             }
             await api.post(`/subscriptions/${encodeURIComponent(normalizedEmail)}/reset-link`, payload);
@@ -795,11 +804,7 @@ export default function Subscriptions() {
             {activeProfile?.url && result.subscriptionActive ? (
                 <>
                     <div className="subscription-inline-qr-title">{ui.scanImport}</div>
-                    <div
-                        className="qr-surface subscription-inline-qr-surface"
-                        role="img"
-                        aria-label={ui.qrAriaLabel.replace('{label}', activeProfileLabel || activeProfile.label)}
-                    >
+                    <div className="qr-surface subscription-inline-qr-surface">
                         <ExpandableQRCode
                             value={activeProfile.url}
                             size={136}
@@ -1055,7 +1060,7 @@ export default function Subscriptions() {
         <>
             <Header title={t('pages.subscriptions.title')} />
             <div className="page-content page-content--wide page-enter subscriptions-page">
-                {isAdmin && (
+                {isStaff && (
                     <ListToolbar
                         className="card mb-8 subscriptions-toolbar"
                         stackOnTablet
@@ -1147,7 +1152,7 @@ export default function Subscriptions() {
                                         <SectionHeader
                                             compact divider
                                             title={ui.adminTitle}
-                                            actions={(
+                                            actions={canResetSubscriptionLink ? (
                                                 <button
                                                     type="button"
                                                     className="btn btn-secondary btn-sm"
@@ -1156,7 +1161,7 @@ export default function Subscriptions() {
                                                 >
                                                     {resetLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {ui.resetLink}</>}
                                                 </button>
-                                            )}
+                                            ) : undefined}
                                         />
                                     )}
                                     {isUserOnly ? userImportPanel : (
@@ -1274,12 +1279,8 @@ export default function Subscriptions() {
                                                         {activeProfile?.url && result.subscriptionActive ? (
                                                             <>
                                                                 <div className="subscription-inline-qr-title">{ui.scanImport}</div>
-                                                                <div
-                                                                    className="qr-surface subscription-inline-qr-surface"
-                                                                    role="img"
-                                                                    aria-label={ui.qrAriaLabel.replace('{label}', activeProfile.label)}
-                                                            >
-                                                                <ExpandableQRCode
+                                                                <div className="qr-surface subscription-inline-qr-surface">
+                                                                    <ExpandableQRCode
                                                                     value={activeProfile.url}
                                                                     size={124}
                                                                     level="M"
@@ -1371,7 +1372,7 @@ export default function Subscriptions() {
                                         <div className="subscription-summary-grid">
                                             <div className="subscription-summary-item">
                                                 <div className="subscription-summary-label">{ui.summaryUser}</div>
-                                            {isAdmin ? (
+                                            {isStaff ? (
                                                 <div className="subscription-summary-value subscription-summary-value--email">
                                                     <Link className="subscription-email-link" to={linkedUserHref}>
                                                         {result.email}
@@ -1422,11 +1423,7 @@ export default function Subscriptions() {
                         <div className="modal-body">
                             {canShowQr ? (
                                 <div className="subscription-qr-modal-body">
-                                    <div
-                                        className="qr-surface subscription-qr-modal-surface"
-                                        role="img"
-                                        aria-label={ui.qrAriaLabel.replace('{label}', activeProfileLabel || activeProfile?.label || ui.scanImport)}
-                                    >
+                                    <div className="qr-surface subscription-qr-modal-surface">
                                         <ExpandableQRCode
                                             value={activeProfile?.url || ''}
                                             size={220}

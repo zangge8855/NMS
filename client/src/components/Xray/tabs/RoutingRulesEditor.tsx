@@ -3,6 +3,25 @@ import XrayJsonEditor from '../XrayJsonEditor';
 import { HiOutlineCodeBracket, HiOutlineSquares2X2, HiOutlinePlus, HiOutlineTrash, HiOutlineArrowUp, HiOutlineArrowDown } from 'react-icons/hi2';
 import toast from 'react-hot-toast';
 
+function sanitizeRoutingRule(rule: any) {
+    if (!rule || typeof rule !== 'object' || Array.isArray(rule)) return rule;
+    const next: Record<string, any> = {};
+    Object.entries(rule).forEach(([key, val]) => {
+        if (Array.isArray(val) && val.length === 0) return;
+        next[key] = val;
+    });
+    return next;
+}
+
+function sanitizeRoutingConfig(rawConfig: any) {
+    if (!rawConfig || typeof rawConfig !== 'object' || Array.isArray(rawConfig)) return rawConfig;
+    if (!Array.isArray(rawConfig.rules)) return rawConfig;
+    return {
+        ...rawConfig,
+        rules: rawConfig.rules.map(sanitizeRoutingRule),
+    };
+}
+
 export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, saving = false }) {
     const [mode, setMode] = useState('visual'); // 'visual' or 'json'
     const [config, setConfig] = useState(() => {
@@ -54,12 +73,12 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
     };
 
     const handleVisualSave = () => {
-        onSave(config);
+        onSave(sanitizeRoutingConfig(config));
     };
 
     const addRule = () => {
         const newRules = [...(config.rules || [])];
-        newRules.push({ type: 'field', outboundTag: 'direct', domain: [], ip: [] });
+        newRules.push({ type: 'field', outboundTag: 'direct' });
         setConfig({ ...config, rules: newRules });
     };
 
@@ -161,7 +180,7 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
                     }
                     initialValue={config}
                     onChangeText={setJsonText}
-                    onSave={onSave}
+                    onSave={(parsed) => onSave(sanitizeRoutingConfig(parsed))}
                     saving={saving}
                     hint="Schema: { domainStrategy?, rules: [...], balancers: [...] }"
                 />

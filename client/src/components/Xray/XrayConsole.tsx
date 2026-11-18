@@ -119,13 +119,23 @@ export default function XrayConsole() {
 
     const isMountedRef = useRef(true);
     const configRequestIdRef = useRef(0);
+    const saveSeqRef = useRef(0);
+    const targetServerIdRef = useRef(targetServerId);
+    targetServerIdRef.current = targetServerId;
 
     useEffect(() => {
         isMountedRef.current = true;
         return () => {
             isMountedRef.current = false;
             configRequestIdRef.current += 1;
+            saveSeqRef.current += 1;
         };
+    }, []);
+
+    const applyConfigPayload = useCallback((obj) => {
+        setSnapshot(obj.snapshot);
+        setTemplate(obj.template || null);
+        setSource(String(obj.source || ''));
     }, []);
 
     const loadConfig = useCallback(async () => {
@@ -142,9 +152,7 @@ export default function XrayConsole() {
             if (!obj || !obj.snapshot) {
                 throw new Error(copy.unsupported);
             }
-            setSnapshot(obj.snapshot);
-            setTemplate(obj.template || null);
-            setSource(String(obj.source || ''));
+            applyConfigPayload(obj);
         } catch (err) {
             if (!isMountedRef.current || requestId !== configRequestIdRef.current) return;
             const message = getErrorMessage(err, copy.loadError, locale);
@@ -157,10 +165,13 @@ export default function XrayConsole() {
                 setLoading(false);
             }
         }
-    }, [copy.loadError, copy.unsupported, hasTargetServer, locale, targetServerId]);
+    }, [applyConfigPayload, copy.loadError, copy.unsupported, hasTargetServer, locale, targetServerId]);
 
     useEffect(() => {
+        saveSeqRef.current += 1;
+        setSaving(false);
         if (!hasTargetServer) {
+            configRequestIdRef.current += 1;
             setSnapshot(null);
             setTemplate(null);
             setSource('');
@@ -170,7 +181,8 @@ export default function XrayConsole() {
     }, [hasTargetServer, loadConfig, targetServerId]);
 
     useEffect(() => {
-        const handlePageRefresh = () => {
+        const handlePageRefresh = (event?: Event) => {
+            event?.preventDefault?.();
             if (hasTargetServer) {
                 loadConfig();
             }
@@ -181,19 +193,30 @@ export default function XrayConsole() {
 
     const handleSave = useCallback(async (section, payload) => {
         if (!hasTargetServer || saving) return;
+        const savingServerId = targetServerId;
+        const startRequestId = configRequestIdRef.current;
+        const saveSeq = ++saveSeqRef.current;
         setSaving(true);
         try {
-            const res = await api.put(`/xray/${targetServerId}/${section}`, payload, {
+            const res = await api.put(`/xray/${savingServerId}/${section}`, payload, {
                 headers: { 'Content-Type': 'application/json' },
                 transformRequest: [(data) => JSON.stringify(data)]
             });
+            if (
+                !isMountedRef.current
+                || targetServerIdRef.current !== savingServerId
+                || configRequestIdRef.current !== startRequestId
+            ) {
+                return;
+            }
             const next = res?.data?.obj;
             if (next?.snapshot) {
-                setSnapshot(next.snapshot);
-                if (next?.source) setSource(String(next.source));
-                if (next?.template) {
-                    setTemplate(next.template);
-                } else {
+                applyConfigPayload({
+                    snapshot: next.snapshot,
+                    template: next.template || template,
+                    source: next.source || source,
+                });
+                if (!next?.template) {
                     // The save response is expected to echo the template; if it
                     // is missing, refetch instead of keeping a stale one that a
                     // later save would push back to the node.
@@ -202,13 +225,21 @@ export default function XrayConsole() {
             } else {
                 await loadConfig();
             }
+            if (!isMountedRef.current || targetServerIdRef.current !== savingServerId) {
+                return;
+            }
             toast.success(locale === 'en-US' ? 'Saved' : '已保存');
         } catch (err) {
+            if (!isMountedRef.current || targetServerIdRef.current !== savingServerId) {
+                return;
+            }
             toast.error(getErrorMessage(err) || (locale === 'en-US' ? 'Save failed' : '保存失败'));
         } finally {
-            setSaving(false);
+            if (isMountedRef.current && saveSeqRef.current === saveSeq) {
+                setSaving(false);
+            }
         }
-    }, [hasTargetServer, loadConfig, locale, saving, targetServerId]);
+    }, [applyConfigPayload, hasTargetServer, loadConfig, locale, saving, source, targetServerId, template]);
 
     const serverSelectionAction = hasServers ? (
         <div className="page-server-selection-action">

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
     HiOutlineArrowPath,
@@ -18,17 +18,46 @@ import {
     getConflictTypeLabels,
 } from '../../utils/clientConflict';
 import { useI18n } from '../../contexts/LanguageContext';
+import {
+    UUID_PROTOCOLS,
+    PASSWORD_PROTOCOLS,
+    normalizeProtocol,
+} from '../../utils/protocol';
 import ModalShell from '../UI/ModalShell';
 import EmptyState from '../UI/EmptyState';
 import SkeletonTable from '../UI/SkeletonTable';
 import Table from '../UI/Table';
 
-const UUID_PROTOCOLS = new Set(['vmess', 'vless']);
-const PASSWORD_PROTOCOLS = new Set(['trojan', 'shadowsocks']);
-
-function normalizeProtocol(value) {
-    return String(value || '').trim().toLowerCase();
-}
+const DIFF_FIELD_LABELS: Record<'zh-CN' | 'en-US', Record<string, string>> = {
+    'zh-CN': {
+        id: 'UUID/ID',
+        uuid: 'UUID/ID',
+        password: '密码',
+        auth: '密码',
+        auth_str: '密码',
+        expiryTime: '有效期',
+        totalGB: '总流量',
+        enable: '启用状态',
+        limitIp: 'IP 限制',
+        flow: '流控参数',
+        subId: '订阅标识',
+        email: '邮箱',
+    },
+    'en-US': {
+        id: 'UUID / ID',
+        uuid: 'UUID / ID',
+        password: 'Password',
+        auth: 'Password',
+        auth_str: 'Password',
+        expiryTime: 'Expiry Time',
+        totalGB: 'Total Traffic',
+        enable: 'Status',
+        limitIp: 'IP Limit',
+        flow: 'Flow',
+        subId: 'Subscription ID',
+        email: 'Email',
+    },
+};
 
 function toNumber(value, fallback = 0) {
     const parsed = Number(value);
@@ -63,19 +92,27 @@ function buildClientPayload(entry: any = {}) {
     };
 
     if (UUID_PROTOCOLS.has(protocol)) {
-        payload.id = entry.id || entry.password || '';
+        const resolvedUuid = entry.uuid || entry.id || entry.password || '';
+        payload.id = resolvedUuid;
+        if (protocol === 'tuic') {
+            (payload as any).uuid = resolvedUuid;
+        }
         payload.password = entry.password || '';
         return payload;
     }
 
     if (PASSWORD_PROTOCOLS.has(protocol)) {
+        const resolvedPassword = entry.auth || entry.auth_str || entry.password || entry.id || '';
         payload.id = entry.id || '';
-        payload.password = entry.password || entry.id || '';
+        payload.password = resolvedPassword;
+        if (protocol === 'hysteria' || protocol === 'hysteria2' || protocol === 'hy2') {
+            (payload as any).auth = resolvedPassword;
+        }
         return payload;
     }
 
-    payload.id = entry.id || entry.password || entry.email || '';
-    payload.password = entry.password || entry.id || entry.email || '';
+    payload.id = entry.id || entry.uuid || entry.password || entry.email || '';
+    payload.password = entry.password || entry.auth || entry.auth_str || entry.id || entry.email || '';
     return payload;
 }
 
@@ -91,7 +128,8 @@ export default function ConflictScannerModal({
     onShowBatchResult,
 }) {
     const { t, locale } = useI18n();
-    const [report, setReport] = useState(() => buildClientConflictReport([]));
+    const diffFieldLabels = DIFF_FIELD_LABELS[locale === 'en-US' ? 'en-US' : 'zh-CN'];
+    const [report, setReport] = useState(() => buildClientConflictReport([], locale));
     const [selectionMap, setSelectionMap] = useState({});
     const [scanning, setScanning] = useState(false);
     const [resolvingKey, setResolvingKey] = useState('');
@@ -107,17 +145,17 @@ export default function ConflictScannerModal({
         };
     }, [report]);
 
-    const runScan = (sourceClients) => {
+    const runScan = useCallback((sourceClients) => {
         setScanning(true);
-        const next = buildClientConflictReport(sourceClients);
+        const next = buildClientConflictReport(sourceClients, locale);
         setReport(next);
         setScanning(false);
-    };
+    }, [locale]);
 
     useEffect(() => {
         if (!isOpen) return;
         runScan(clients);
-    }, [isOpen, clients]);
+    }, [isOpen, clients, runScan]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -277,7 +315,7 @@ export default function ConflictScannerModal({
                                     </div>
 
                                     <div className="flex flex-wrap gap-2 mt-3">
-                                        {getConflictTypeLabels(group.conflictTypes).map((label) => (
+                                        {getConflictTypeLabels(group.conflictTypes, locale).map((label) => (
                                             <span key={`${group.groupKey}-${label}`} className="badge badge-neutral">
                                                 {label}
                                             </span>
@@ -297,7 +335,9 @@ export default function ConflictScannerModal({
                                                             {t('comp.clients.protocolEntries', { protocol: String(protocolGroup.protocol || '').toUpperCase(), count: protocolGroup.entryCount })}
                                                         </div>
                                                         <div className="text-xs text-muted">
-                                                            {t('comp.clients.diffFields', { fields: protocolGroup.diffFields.join(', ') || '—' })}
+                                                            {t('comp.clients.diffFields', {
+                                                                fields: (protocolGroup.diffFields || []).map((field) => diffFieldLabels[field] || field).join(', ') || '—',
+                                                            })}
                                                         </div>
                                                     </div>
 

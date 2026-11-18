@@ -48,6 +48,7 @@ export default function XrayJsonEditor({
     }, [initialText]);
 
     const dirty = text !== initialText;
+    const hasLabel = typeof label === 'string' ? label.trim().length > 0 : Boolean(label);
 
     const handleSubmit = () => {
         let parsed;
@@ -87,7 +88,7 @@ export default function XrayJsonEditor({
         <div className="xray-json-editor">
             <div className="flex items-start justify-between gap-3">
                 <div>
-                    <h3 className="text-base font-bold text-primary">{label}</h3>
+                    {hasLabel ? <h3 className="text-base font-bold text-primary">{label}</h3> : null}
                     {description ? (
                         <p className="text-sm text-secondary mt-1">{description}</p>
                     ) : null}

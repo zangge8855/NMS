@@ -19,8 +19,8 @@ const PROTOCOL_SCHEMA_FALLBACK = [
     { key: 'wireguard', label: 'WireGuard', legacyKeys: [], supports: { transports: ['udp'], securities: [] } },
     { key: 'tun', label: 'TUN', legacyKeys: [], supports: { transports: [], securities: [] } },
     { key: 'mtproto', label: 'MTProto', legacyKeys: [], supports: { transports: ['tcp'], securities: [] } },
-    { key: 'hysteria', label: 'Hysteria', legacyKeys: [], supports: { transports: ['udp'], securities: ['tls', 'none'] } },
-    { key: 'hysteria2', label: 'Hysteria2', legacyKeys: ['hy2'], supports: { transports: ['udp'], securities: ['tls', 'none'] } },
+    { key: 'hysteria', label: 'Hysteria', legacyKeys: [], supports: { transports: ['udp', 'hysteria'], securities: ['tls', 'none'] } },
+    { key: 'hysteria2', label: 'Hysteria2', legacyKeys: ['hy2'], supports: { transports: ['udp', 'hysteria'], securities: ['tls', 'none'] } },
     { key: 'tuic', label: 'TUIC', legacyKeys: [], supports: { transports: ['udp'], securities: ['tls'] } },
 ];
 const _PROTOCOL_FALLBACK = PROTOCOL_SCHEMA_FALLBACK.map((item) => item.key);
@@ -31,9 +31,12 @@ const NETWORK_LABELS = {
     grpc: 'gRPC',
     kcp: 'KCP',
     quic: 'QUIC',
+    http: 'HTTP',
+    h2: 'HTTP/2',
     httpupgrade: 'HTTP Upgrade',
     xhttp: 'XHTTP',
     udp: 'UDP',
+    hysteria: 'Hysteria',
 };
 
 const SECURITY_LABELS = {
@@ -257,7 +260,7 @@ function createBaseClient() {
     };
 }
 
-function createDefaultSettings(protocolKey = 'vmess') {
+export function createDefaultSettings(protocolKey = 'vmess') {
     const protocol = String(protocolKey || '').toLowerCase();
     if (protocol === 'vmess') {
         return {
@@ -303,6 +306,11 @@ function createDefaultSettings(protocolKey = 'vmess') {
     if (protocol === 'shadowsocks') {
         const method = '2022-blake3-aes-256-gcm';
         const password = randomShadowsocksPassword(method);
+        const isSs2022 = method.toLowerCase().includes('2022-blake3');
+        let clientPassword = isSs2022 ? randomShadowsocksPassword(method) : password;
+        if (isSs2022 && clientPassword === password) {
+            clientPassword = randomShadowsocksPassword(method);
+        }
         return {
             method,
             password,
@@ -310,7 +318,7 @@ function createDefaultSettings(protocolKey = 'vmess') {
             clients: [
                 {
                     method,
-                    password,
+                    password: clientPassword,
                     ...createBaseClient(),
                 },
             ],
@@ -463,7 +471,7 @@ function createDefaultRealitySettings() {
     };
 }
 
-function createDefaultTransportSettings(network = 'tcp') {
+export function createDefaultTransportSettings(network = 'tcp') {
     const norm = String(network || 'tcp').toLowerCase();
     if (norm === 'kcp') {
         return { kcpSettings: { mtu: 1350, tti: 20, uplinkCapacity: 5, downlinkCapacity: 20, congestion: false, readBufferSize: 1, writeBufferSize: 1 } };
@@ -473,6 +481,12 @@ function createDefaultTransportSettings(network = 'tcp') {
     }
     if (norm === 'grpc') {
         return { grpcSettings: { serviceName: '', authority: '', multiMode: false } };
+    }
+    if (norm === 'http' || norm === 'h2') {
+        return { httpSettings: { host: [], path: '/' } };
+    }
+    if (norm === 'quic') {
+        return { quicSettings: { security: 'none', key: '', header: { type: 'none' } } };
     }
     if (norm === 'httpupgrade') {
         return { httpupgradeSettings: { acceptProxyProtocol: false, path: '/', host: '', headers: {} } };
@@ -505,7 +519,7 @@ function createDefaultTransportSettings(network = 'tcp') {
             },
         };
     }
-    if (norm === 'udp') {
+    if (norm === 'udp' || norm === 'hysteria') {
         return {};
     }
     return { tcpSettings: { acceptProxyProtocol: false, header: { type: 'none' } } };
@@ -538,8 +552,8 @@ function hasKeys(value) {
     return isObject(value) && Object.keys(value).length > 0;
 }
 
-function normalizeStreamForSubmission(rawStream, protocolKey) {
-    const protocol = String(protocolKey || '').toLowerCase();
+export function normalizeStreamForSubmission(rawStream, protocolKey) {
+    const protocol = normalizeProtocolName(protocolKey);
     const source = isObject(rawStream) ? rawStream : {};
     if (!STREAM_PROTOCOLS.has(protocol)) {
         if (hasKeys(source.sockopt)) {
@@ -561,6 +575,8 @@ function normalizeStreamForSubmission(rawStream, protocolKey) {
     if (network === 'kcp' && hasKeys(source.kcpSettings)) normalized.kcpSettings = source.kcpSettings;
     if (network === 'ws' && hasKeys(source.wsSettings)) normalized.wsSettings = source.wsSettings;
     if (network === 'grpc' && hasKeys(source.grpcSettings)) normalized.grpcSettings = source.grpcSettings;
+    if ((network === 'http' || network === 'h2') && hasKeys(source.httpSettings)) normalized.httpSettings = source.httpSettings;
+    if (network === 'quic' && hasKeys(source.quicSettings)) normalized.quicSettings = source.quicSettings;
     if (network === 'httpupgrade' && hasKeys(source.httpupgradeSettings)) normalized.httpupgradeSettings = source.httpupgradeSettings;
     if (network === 'xhttp' && hasKeys(source.xhttpSettings)) normalized.xhttpSettings = source.xhttpSettings;
 
@@ -606,8 +622,10 @@ function parseStreamToSimpleState(streamInput: unknown) {
         ? realityServerNames.map((item: unknown) => String(item || '').trim()).filter(Boolean).join(',')
         : String(realityServerNames || '').trim();
     const realityShortIds = stream.realitySettings?.shortIds;
+    const realityPreserveEmptyShortId = Array.isArray(realityShortIds)
+        && realityShortIds.some((item: unknown) => String(item ?? '').trim() === '');
     const realityShortId = Array.isArray(realityShortIds)
-        ? realityShortIds.map((item: unknown) => String(item || '').trim()).filter(Boolean).join(',')
+        ? realityShortIds.map((item: unknown) => String(item ?? '').trim()).filter(Boolean).join(',')
         : String(realityShortIds || '').trim();
     const defaultRealitySni = DEFAULT_REALITY_TARGET.sni.split(',')[0] || 'www.apple.com';
     return {
@@ -643,6 +661,7 @@ function parseStreamToSimpleState(streamInput: unknown) {
             : DEFAULT_REALITY_TARGET.target,
         realitySNI: hasReality ? realitySNI : defaultRealitySni,
         realityShortId,
+        realityPreserveEmptyShortId,
         realityPrivateKey: stream.realitySettings?.privateKey || '',
         realityMinClientVer: stream.realitySettings?.minClientVer || '',
         realityMaxClientVer: stream.realitySettings?.maxClientVer || '',
@@ -958,6 +977,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
         realityDest: string;
         realitySNI: string;
         realityShortId: string;
+        realityPreserveEmptyShortId: boolean;
         realityPrivateKey: string;
         realityMinClientVer: string;
         realityMaxClientVer: string;
@@ -998,6 +1018,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
         realityDest: DEFAULT_REALITY_TARGET.target,
         realitySNI: DEFAULT_REALITY_TARGET.sni.split(',')[0] || 'www.apple.com',
         realityShortId: '',
+        realityPreserveEmptyShortId: false,
         realityPrivateKey: '',
         realityMinClientVer: '',
         realityMaxClientVer: '',
@@ -1078,6 +1099,25 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
         return draft.clients[0];
     };
 
+    const syncHysteriaClientSecret = (draft: any, nextSecret: string) => {
+        const client = ensurePrimaryClient(draft);
+        const isLegacyHysteriaV1 = normalizedProtocol === 'hysteria' && (
+            Object.prototype.hasOwnProperty.call(client, 'auth_str')
+            || (Number(draft.version || 0) !== 2
+                && !Object.prototype.hasOwnProperty.call(client, 'auth')
+                && !Object.prototype.hasOwnProperty.call(client, 'password'))
+        );
+        if (isLegacyHysteriaV1) {
+            client.auth_str = nextSecret;
+            if (Object.prototype.hasOwnProperty.call(client, 'auth')) client.auth = nextSecret;
+            if (Object.prototype.hasOwnProperty.call(client, 'password')) client.password = nextSecret;
+        } else {
+            client.password = nextSecret;
+            client.auth = nextSecret;
+            if (Object.prototype.hasOwnProperty.call(client, 'auth_str')) client.auth_str = nextSecret;
+        }
+    };
+
     const protocolSchemas = useMemo(() => {
         if (!Array.isArray(schemaProtocols) || schemaProtocols.length === 0) return PROTOCOL_SCHEMA_FALLBACK;
         return schemaProtocols;
@@ -1109,15 +1149,16 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
 
     const networkOptions = useMemo(() => {
         const supports = currentProtocolSchema?.supports?.transports;
-        if (Array.isArray(supports) && supports.length > 0) {
-            return supports.map((item) => String(item).toLowerCase());
+        if (Array.isArray(supports)) {
+            return supports.map((item) => String(item).toLowerCase()).filter(Boolean);
         }
         return ['tcp'];
     }, [currentProtocolSchema]);
 
     const securityOptions = useMemo(() => {
         const supports = currentProtocolSchema?.supports?.securities;
-        if (!Array.isArray(supports) || supports.length === 0) return ['none'];
+        if (!Array.isArray(supports)) return ['none'];
+        if (supports.length === 0) return [];
         const network = simpleStream.network || 'tcp';
         const tlsTransports = currentProtocolSchema?.supports?.tlsTransports;
         const realityTransports = currentProtocolSchema?.supports?.realityTransports;
@@ -1264,6 +1305,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                 realityDest: DEFAULT_REALITY_TARGET.target,
                 realitySNI: DEFAULT_REALITY_TARGET.sni.split(',')[0] || 'www.apple.com',
                 realityShortId: '',
+                realityPreserveEmptyShortId: false,
                 realityPrivateKey: '',
                 realityMinClientVer: '',
                 realityMaxClientVer: '',
@@ -1296,22 +1338,35 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
             try {
                 const res = await api.get('/protocol-schemas');
                 const list = Array.isArray(res.data?.obj?.protocols) ? res.data.obj.protocols : [];
+                const fallbackByKey = new Map(PROTOCOL_SCHEMA_FALLBACK.map((entry) => [entry.key, entry]));
                 const normalized = list
-                    .map((item) => ({
-                        key: String(item?.key || '').toLowerCase(),
-                        label: String(item?.label || item?.key || '').trim() || String(item?.key || '').toUpperCase(),
-                        legacyKeys: Array.isArray(item?.legacyKeys) ? item.legacyKeys : [],
-                        supports: {
-                            transports: Array.isArray(item?.supports?.transports) && item.supports.transports.length > 0
-                                ? item.supports.transports
-                                : ['tcp'],
-                            securities: Array.isArray(item?.supports?.securities) && item.supports.securities.length > 0
-                                ? item.supports.securities
-                                : ['none'],
-                            tlsTransports: Array.isArray(item?.supports?.tlsTransports) ? item.supports.tlsTransports : undefined,
-                            realityTransports: Array.isArray(item?.supports?.realityTransports) ? item.supports.realityTransports : undefined,
-                        },
-                    }))
+                    .map((item) => {
+                        const key = String(item?.key || '').toLowerCase();
+                        const fallbackItem = fallbackByKey.get(key);
+                        const rawTransports = Array.isArray(item?.supports?.transports)
+                            ? item.supports.transports.map((tItem) => String(tItem || '').toLowerCase()).filter(Boolean)
+                            : (fallbackItem?.supports?.transports || []);
+                        const transports = (key === 'hysteria' || key === 'hysteria2')
+                            ? Array.from(new Set([...rawTransports, 'udp', 'hysteria']))
+                            : rawTransports;
+                        const rawSecurities = Array.isArray(item?.supports?.securities)
+                            ? item.supports.securities.map((sItem) => String(sItem || '').toLowerCase()).filter(Boolean)
+                            : (fallbackItem?.supports?.securities || []);
+                        const securities = (key === 'hysteria' || key === 'hysteria2')
+                            ? Array.from(new Set([...rawSecurities, 'tls', 'none']))
+                            : rawSecurities;
+                        return {
+                            key,
+                            label: String(item?.label || item?.key || '').trim() || String(item?.key || '').toUpperCase(),
+                            legacyKeys: Array.isArray(item?.legacyKeys) ? item.legacyKeys : [],
+                            supports: {
+                                transports,
+                                securities,
+                                tlsTransports: Array.isArray(item?.supports?.tlsTransports) ? item.supports.tlsTransports : undefined,
+                                realityTransports: Array.isArray(item?.supports?.realityTransports) ? item.supports.realityTransports : undefined,
+                            },
+                        };
+                    })
                     .filter((item) => item.key);
                 if (!cancelled && normalized.length > 0) {
                     setSchemaProtocols(normalized);
@@ -1327,7 +1382,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
     }, [isOpen]);
 
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen || !STREAM_PROTOCOLS.has(normalizedProtocol)) return;
         setSimpleStream((prev) => {
             const nextNetwork = networkOptions.includes(prev.network)
                 ? prev.network
@@ -1345,7 +1400,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                 security: nextSecurity,
             };
         });
-    }, [isOpen, networkOptions, securityOptions]);
+    }, [isOpen, networkOptions, normalizedProtocol, securityOptions]);
 
     // Simple Mode -> Update JSON (skips when hydrating from Expert JSON or modal init)
     useEffect(() => {
@@ -1424,9 +1479,12 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
             stream.realitySettings.serverNames = simpleStream.realitySNI
                 ? simpleStream.realitySNI.split(',').map(s => s.trim()).filter(Boolean)
                 : [];
-            stream.realitySettings.shortIds = simpleStream.realityShortId
+            const parsedShortIds = simpleStream.realityShortId
                 ? simpleStream.realityShortId.split(',').map(s => s.trim()).filter(Boolean)
                 : [];
+            stream.realitySettings.shortIds = simpleStream.realityPreserveEmptyShortId
+                ? ['', ...parsedShortIds]
+                : parsedShortIds;
             stream.realitySettings.privateKey = simpleStream.realityPrivateKey;
             stream.realitySettings.minClientVer = simpleStream.realityMinClientVer || '';
             stream.realitySettings.maxClientVer = simpleStream.realityMaxClientVer || '';
@@ -1476,20 +1534,33 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
     };
 
     const resolveToolServerId = () => {
-        if (editingInbound?.serverId) return editingInbound.serverId;
+        const editServerId = String(editingInbound?.serverId || '').trim();
+        if (editServerId && editServerId !== 'global') return editServerId;
         if (Array.isArray(selectedServerIds) && selectedServerIds.length > 0) {
-            return selectedServerIds[0];
+            const validSelected = selectedServerIds.find((sid) => {
+                const text = String(sid || '').trim();
+                return text && text !== 'global';
+            });
+            if (validSelected) return validSelected;
         }
         if (servers.length > 0) {
-            return servers[0].id;
+            const validServer = servers.find((s) => {
+                const text = String(s?.id || '').trim();
+                return text && text !== 'global';
+            });
+            if (validServer) return validServer.id;
         }
         return '';
     };
 
     const callPanelTool = async (serverId, method, path, payload = undefined) => {
         const lowerMethod = String(method || 'get').toLowerCase();
-        if (serverId) {
-            const base = `/panel/${serverId}${path}`;
+        const normalizedServerId = String(serverId || '').trim();
+        if (normalizedServerId === 'global') {
+            throw new Error(t('comp.inbounds.selectServerFirst'));
+        }
+        if (normalizedServerId) {
+            const base = `/panel/${normalizedServerId}${path}`;
             if (lowerMethod === 'post') return api.post(base, payload || {});
             return api.get(base);
         }
@@ -1527,7 +1598,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
 
     const generateShortId = async () => {
         const sid = Array.from({ length: 8 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
-        setSimpleStream(prev => ({ ...prev, realityShortId: sid }));
+        setSimpleStream(prev => ({ ...prev, realityShortId: sid, realityPreserveEmptyShortId: false }));
     };
 
     const createShortId = () =>
@@ -1539,17 +1610,22 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
             '/panel/api/inbounds/getNewX25519Cert',
             '/server/getNewX25519Cert',
         ];
+        let lastErrorMessage = '';
         for (const ep of endpoints) {
             try {
                 const res = await callPanelTool(serverId, 'get', ep);
-                if (res.data?.obj?.privateKey && res.data?.obj?.publicKey) {
+                if (res?.data?.success === false) {
+                    lastErrorMessage = String(res?.data?.msg || res?.data?.message || '').trim() || lastErrorMessage;
+                    continue;
+                }
+                if (res?.data?.obj?.privateKey && res?.data?.obj?.publicKey) {
                     return res.data.obj;
                 }
-            } catch {
-                // fallback to next endpoint
+            } catch (err: any) {
+                lastErrorMessage = String(err?.response?.data?.msg || err?.message || '').trim() || lastErrorMessage;
             }
         }
-        throw new Error('Reality key pair generation failed');
+        throw new Error(lastErrorMessage || 'Reality key pair generation failed');
     };
 
     const fetchMlkemKeyPair = async (serverId) => {
@@ -1558,17 +1634,22 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
             '/panel/api/inbounds/getNewmlkem768',
             '/server/getNewmlkem768',
         ];
+        let lastErrorMessage = '';
         for (const ep of endpoints) {
             try {
                 const res = await callPanelTool(serverId, 'get', ep);
-                if (res.data?.obj?.privateKey && res.data?.obj?.publicKey) {
+                if (res?.data?.success === false) {
+                    lastErrorMessage = String(res?.data?.msg || res?.data?.message || '').trim() || lastErrorMessage;
+                    continue;
+                }
+                if (res?.data?.obj?.privateKey && res?.data?.obj?.publicKey) {
                     return res.data.obj;
                 }
-            } catch {
-                // fallback to next endpoint
+            } catch (err: any) {
+                lastErrorMessage = String(err?.response?.data?.msg || err?.message || '').trim() || lastErrorMessage;
             }
         }
-        throw new Error('ML-KEM-768 key pair generation failed');
+        throw new Error(lastErrorMessage || 'ML-KEM-768 key pair generation failed');
     };
 
     const generateMlkemKeys = async () => {
@@ -1601,6 +1682,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
 
     const fetchVlessEncOptions = async (serverId) => {
         const res = await callPanelTool(serverId, 'get', '/panel/api/server/getNewVlessEnc');
+        if (res?.data?.success === false) {
+            throw new Error(res?.data?.msg || res?.data?.message || t('comp.inbounds.genVlessFailed'));
+        }
         return Array.isArray(res.data?.obj?.auths) ? res.data.obj.auths : [];
     };
 
@@ -1643,6 +1727,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
 
     const fetchMldsa65Seed = async (serverId) => {
         const res = await callPanelTool(serverId, 'get', '/panel/api/server/getNewmldsa65');
+        if (res?.data?.success === false) {
+            throw new Error(res?.data?.msg || res?.data?.message || t('comp.inbounds.genMldsaFailed'));
+        }
         if (res.data?.obj?.seed && res.data?.obj?.verify) {
             return { seed: String(res.data.obj.seed), verify: String(res.data.obj.verify) };
         }
@@ -1690,6 +1777,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
 
     const fetchEchCert = async (serverId, sni) => {
         const res = await callPanelTool(serverId, 'post', '/panel/api/server/getNewEchCert', { sni: sni || '' });
+        if (res?.data?.success === false) {
+            throw new Error(res?.data?.msg || res?.data?.message || t('comp.inbounds.genEchFailed'));
+        }
         if (res.data?.obj?.echServerKeys !== undefined && res.data?.obj?.echConfigList !== undefined) {
             return {
                 echServerKeys: String(res.data.obj.echServerKeys || ''),
@@ -1895,7 +1985,12 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
             }
 
             if (editingInbound) {
-                const serverId = editingInbound.serverId;
+                const serverId = String(editingInbound.serverId || '').trim();
+                if (serverId === 'global') {
+                    toast.error(t('comp.inbounds.selectTargetServer'));
+                    setLoading(false);
+                    return;
+                }
                 let streamForTarget = parsedStreamSettings;
                 if (isStreamProtocol) {
                     streamForTarget = await ensureRealityStreamForServer(parsedStreamSettings, serverId);
@@ -1916,26 +2011,31 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                     expiryTimeValue: resolvedExpiryTime,
                 });
 
-                if (serverId) {
-                    await api.post(`/panel/${serverId}/panel/api/inbounds/update/${editingInbound.id}`, params, {
+                const updateRes = serverId
+                    ? await api.post(`/panel/${serverId}/panel/api/inbounds/update/${editingInbound.id}`, params, {
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+                    })
+                    : await panelApi('post', `/panel/api/inbounds/update/${editingInbound.id}`, params, {
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
                     });
-                } else {
-                    await panelApi('post', `/panel/api/inbounds/update/${editingInbound.id}`, params, {
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-                    });
+                if (updateRes?.data?.success === false) {
+                    throw new Error(updateRes?.data?.msg || updateRes?.data?.message || t('comp.common.updateFailed'));
                 }
                 toast.success(t('comp.inbounds.inboundUpdated'));
                 onSuccess();
                 onClose();
             } else {
-                if (selectedServerIds.length === 0) {
+                const validServerIds = selectedServerIds.filter((sid) => {
+                    const text = String(sid || '').trim();
+                    return text && text !== 'global';
+                });
+                if (validServerIds.length === 0) {
                     toast.error(t('comp.inbounds.selectTargetServer'));
                     setLoading(false);
                     return;
                 }
 
-                const targets = await Promise.all(selectedServerIds.map(async (sid) => {
+                const targets = await Promise.all(validServerIds.map(async (sid) => {
                     let streamForTarget = parsedStreamSettings;
                     if (isStreamProtocol) {
                         streamForTarget = await ensureRealityStreamForServer(parsedStreamSettings, sid);
@@ -1975,6 +2075,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                     targetCount: targets.length,
                 });
                 const res = await api.post('/batch/inbounds', batchPayload);
+                if (res?.data?.success === false) {
+                    throw new Error(res?.data?.msg || res?.data?.message || t('comp.common.createFailed'));
+                }
                 const output = res.data?.obj;
                 const summary = output?.summary || {
                     success: 0,
@@ -2582,10 +2685,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                             <div className="flex gap-2">
                                                 <input id="inbound-modal-client-password" name="inboundModalClientPassword"
                                                     className="form-input font-mono"
-                                                    value={String(primaryClient?.password || '')}
+                                                    value={String(primaryClient?.password || primaryClient?.auth || primaryClient?.auth_str || '')}
                                                     onChange={(e) => updateSettingsJson((draft) => {
-                                                        const client = ensurePrimaryClient(draft);
-                                                        client.password = e.target.value;
+                                                        syncHysteriaClientSecret(draft, e.target.value);
                                                     })}
                                                 />
                                                 <button
@@ -2593,12 +2695,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     className="btn btn-secondary btn-sm"
                                                     title={deepCopy.randomPassword}
                                                     onClick={() => updateSettingsJson((draft) => {
-                                                        const client = ensurePrimaryClient(draft);
-                                                        client.password = Array.from({ length: 16 }, () =>
-                                                            'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[
-                                                                Math.floor(Math.random() * 62)
-                                                            ]
-                                                        ).join('');
+                                                        syncHysteriaClientSecret(draft, randomString(16, ALPHA_NUM_CHARS));
                                                     })}
                                                 >
                                                     {locale === 'en-US' ? 'Random' : '随机'}
@@ -3101,29 +3198,33 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     </div>
                                 )}
 
-                                <h4 className="text-secondary text-sm font-bold mb-4">{deepCopy.transport}</h4>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="form-group">
-                                        <label htmlFor="inbound-modal-inbounds-label-network" className="form-label">{t('comp.inbounds.labelNetwork')}</label>
-                                        <select id="inbound-modal-inbounds-label-network" name="inboundModalInboundsLabelNetwork" className="form-select" value={simpleStream.network} onChange={e => setSimpleStream({ ...simpleStream, network: e.target.value })}>
-                                            {networkOptions.map((item) => (
-                                                <option key={item} value={item}>
-                                                    {NETWORK_LABELS[item] || item.toUpperCase()}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="form-group">
-                                        <label htmlFor="inbound-modal-inbounds-label-security" className="form-label">{t('comp.inbounds.labelSecurity')}</label>
-                                        <select id="inbound-modal-inbounds-label-security" name="inboundModalInboundsLabelSecurity" className="form-select" value={simpleStream.security} onChange={e => setSimpleStream({ ...simpleStream, security: e.target.value })}>
-                                            {securityOptions.map((item) => (
-                                                <option key={item} value={item}>
-                                                    {SECURITY_LABELS[item] || item.toUpperCase()}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
+                                {STREAM_PROTOCOLS.has(normalizedProtocol) && (
+                                    <>
+                                        <h4 className="text-secondary text-sm font-bold mb-4">{deepCopy.transport}</h4>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="form-group">
+                                                <label htmlFor="inbound-modal-inbounds-label-network" className="form-label">{t('comp.inbounds.labelNetwork')}</label>
+                                                <select id="inbound-modal-inbounds-label-network" name="inboundModalInboundsLabelNetwork" className="form-select" value={simpleStream.network} onChange={e => setSimpleStream({ ...simpleStream, network: e.target.value })}>
+                                                    {networkOptions.map((item) => (
+                                                        <option key={item} value={item}>
+                                                            {NETWORK_LABELS[item] || item.toUpperCase()}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label htmlFor="inbound-modal-inbounds-label-security" className="form-label">{t('comp.inbounds.labelSecurity')}</label>
+                                                <select id="inbound-modal-inbounds-label-security" name="inboundModalInboundsLabelSecurity" className="form-select" value={simpleStream.security} onChange={e => setSimpleStream({ ...simpleStream, security: e.target.value })}>
+                                                    {securityOptions.map((item) => (
+                                                        <option key={item} value={item}>
+                                                            {SECURITY_LABELS[item] || item.toUpperCase()}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
 
                                 <div className="border-t border-stroke-soft pt-4 mt-4">
                                     <div className="flex items-center justify-between mb-2">
@@ -3141,11 +3242,11 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="form-group">
-                                            <label htmlFor="inbound-modal-inbounds-label-dest-override" className="form-label">{t('comp.inbounds.labelDestOverride')}</label>
+                                            <span className="form-label">{t('comp.inbounds.labelDestOverride')}</span>
                                             <div className="flex flex-wrap gap-2">
                                                 {['http', 'tls', 'quic', 'fakedns'].map(p => (
-                                                    <label key={p} className="badge badge-neutral flex items-center gap-1 cursor-pointer">
-                                                        <input id="inbound-modal-inbounds-label-dest-override" name="inboundModalInboundsLabelDestOverride"
+                                                    <label key={p} htmlFor={`inbound-modal-inbounds-label-dest-override-${p}`} className="badge badge-neutral flex items-center gap-1 cursor-pointer">
+                                                        <input id={`inbound-modal-inbounds-label-dest-override-${p}`} name={`inboundModalInboundsLabelDestOverride-${p}`}
                                                             type="checkbox"
                                                             checked={Array.isArray(sniffingObj.destOverride) && sniffingObj.destOverride.includes(p)}
                                                             onChange={(e) => updateSniffingJson((s) => {
@@ -3188,7 +3289,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                 </div>
 
                                 {/* Dynamic Fields based on selection */}
-                                {simpleStream.network === 'tcp' && (
+                                {STREAM_PROTOCOLS.has(normalizedProtocol) && simpleStream.network === 'tcp' && (
                                     <div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="form-group">
@@ -3325,7 +3426,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     </div>
                                 )}
 
-                                {simpleStream.network === 'kcp' && (
+                                {STREAM_PROTOCOLS.has(normalizedProtocol) && simpleStream.network === 'kcp' && (
                                     <div className="grid grid-cols-3 gap-4">
                                         <div className="form-group">
                                             <label htmlFor="inbound-modal-kcp-mtu" className="form-label">MTU</label>
@@ -3409,7 +3510,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     </div>
                                 )}
 
-                                {simpleStream.network === 'ws' && (
+                                {STREAM_PROTOCOLS.has(normalizedProtocol) && simpleStream.network === 'ws' && (
                                     <div>
                                         <div className="grid grid-cols-3 gap-4">
                                             <div className="form-group">
@@ -3474,7 +3575,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     </div>
                                 )}
 
-                                {simpleStream.network === 'grpc' && (
+                                {STREAM_PROTOCOLS.has(normalizedProtocol) && simpleStream.network === 'grpc' && (
                                     <div className="grid grid-cols-3 gap-4">
                                         <div className="form-group">
                                             <label htmlFor="inbound-modal-grpc-service-name" className="form-label">gRPC Service Name</label>
@@ -3510,7 +3611,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     </div>
                                 )}
 
-                                {simpleStream.network === 'httpupgrade' && (
+                                {STREAM_PROTOCOLS.has(normalizedProtocol) && simpleStream.network === 'httpupgrade' && (
                                     <div>
                                         <div className="grid grid-cols-3 gap-4">
                                             <div className="form-group">
@@ -3550,7 +3651,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     </div>
                                 )}
 
-                                {simpleStream.network === 'xhttp' && (
+                                {STREAM_PROTOCOLS.has(normalizedProtocol) && simpleStream.network === 'xhttp' && (
                                     <div>
                                         <div className="grid grid-cols-3 gap-4">
                                             <div className="form-group">
@@ -3852,7 +3953,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     </div>
                                 )}
 
-                                {simpleStream.security === 'tls' && (
+                                {STREAM_PROTOCOLS.has(normalizedProtocol) && simpleStream.security === 'tls' && (
                                     <div>
                                         <div className="grid grid-cols-3 gap-4">
                                             <div className="form-group">
@@ -4112,7 +4213,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     </div>
                                 )}
 
-                                {simpleStream.security === 'reality' && (
+                                {STREAM_PROTOCOLS.has(normalizedProtocol) && simpleStream.security === 'reality' && (
                                     <div className="border-t border-stroke-soft pt-4 mt-2">
                                         <div className="flex justify-between items-center mb-2">
                                             <span className="form-label">Reality Settings</span>
@@ -4172,7 +4273,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                         <div className="form-group">
                                             <label htmlFor="inbound-modal-reality-short-id" className="form-label">ShortId</label>
                                             <div className="flex gap-2">
-                                                <input id="inbound-modal-reality-short-id" name="inboundModalRealityShortId" className="form-input" value={simpleStream.realityShortId} onChange={e => setSimpleStream({ ...simpleStream, realityShortId: e.target.value })} />
+                                                <input id="inbound-modal-reality-short-id" name="inboundModalRealityShortId" className="form-input" value={simpleStream.realityShortId} onChange={e => setSimpleStream({ ...simpleStream, realityShortId: e.target.value, realityPreserveEmptyShortId: false })} />
                                                 <button type="button" className="btn btn-secondary btn-sm" onClick={generateShortId}>{deepCopy.generate}</button>
                                             </div>
                                         </div>
@@ -4477,7 +4578,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     />
                                                 </div>
                                                 <div className="form-group">
-                                                    <label htmlFor="inbound-modal-sockopt-flags" className="form-label">Sockopt Flags</label>
+                                                    <span className="form-label">Sockopt Flags</span>
                                                     <div className="flex flex-wrap gap-2">
                                                         {[
                                                             ['acceptProxyProtocol', 'Accept Proxy'],
@@ -4486,8 +4587,8 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                             ['penetrate', 'Penetrate'],
                                                             ['V6Only', 'V6Only'],
                                                         ].map(([key, label]) => (
-                                                            <label key={key} className="badge badge-neutral flex items-center gap-1 cursor-pointer">
-                                                                <input id="inbound-modal-sockopt-flags" name="inboundModalSockoptFlags"
+                                                            <label key={key} htmlFor={`inbound-modal-sockopt-flags-${key}`} className="badge badge-neutral flex items-center gap-1 cursor-pointer">
+                                                                <input id={`inbound-modal-sockopt-flags-${key}`} name={`inboundModalSockoptFlags-${key}`}
                                                                     type="checkbox"
                                                                     checked={!!streamObj?.sockopt?.[key]}
                                                                     onChange={(e) => updateStreamJson((draft) => {
