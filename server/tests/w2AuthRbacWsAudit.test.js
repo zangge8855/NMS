@@ -4,10 +4,16 @@ import http from 'http';
 import net from 'net';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
 import jwt from 'jsonwebtoken';
 import { WebSocket } from 'ws';
 import { invokeApp } from './helpers/invokeApp.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const SERVER_DIR = path.resolve(__dirname, '..');
+const WORKSPACE_ROOT = path.resolve(SERVER_DIR, '..');
 
 const { default: app } = await import('../index.js');
 const { default: config } = await import('../config.js');
@@ -978,7 +984,7 @@ test('W2-6 server/index setupGracefulShutdown closes HTTP+WS+SQLite and exits cl
             process.execPath,
             ['--import', 'tsx', '--import', './server/tests/setup/isolateDataDir.js', '--input-type=module', '-e', childScript],
             {
-                cwd: process.cwd(),
+                cwd: WORKSPACE_ROOT,
                 env: {
                     ...process.env,
                     SERVE_CLIENT: 'false',
