@@ -402,12 +402,15 @@ export default function Tools() {
             }
     ), [locale]);
 
+    const hydratedToolsServerIdRef = useRef('');
     const fetchCatalog = async (options: { preserveCurrent?: boolean } = {}) => {
         if (!hasTargetServer) {
             toolsCatalogRequestIdRef.current += 1;
+            hydratedToolsServerIdRef.current = '';
             setTools([]);
             return;
         }
+        const requestServerId = targetServerId;
         const preserveCurrent = options.preserveCurrent === true;
         const requestId = toolsCatalogRequestIdRef.current + 1;
         toolsCatalogRequestIdRef.current = requestId;
@@ -415,7 +418,7 @@ export default function Tools() {
             setCatalogLoading(true);
         }
         try {
-            const res = await api.get(`/capabilities/${targetServerId}`);
+            const res = await api.get(`/capabilities/${requestServerId}`);
             if (!isMountedRef.current || requestId !== toolsCatalogRequestIdRef.current) return;
             const entries = Object.values<any>(res.data?.obj?.tools || {})
                 .filter((item) => item.uiAction === 'node_console' || item.uiAction === 'node_tools')
@@ -423,6 +426,7 @@ export default function Tools() {
                 // Unprobed entries are console actions (restart core, import DB, install Xray…)
                 // that must not sit behind a one-click "generate" button.
                 .filter((item) => item.source !== 'unprobed' && !String(item.path || '').includes('/:'));
+            hydratedToolsServerIdRef.current = requestServerId;
             setTools(entries);
         } catch (error) {
             if (!isMountedRef.current || requestId !== toolsCatalogRequestIdRef.current) return;
@@ -443,12 +447,14 @@ export default function Tools() {
     useEffect(() => {
         if (!hasTargetServer) {
             toolsCatalogRequestIdRef.current += 1;
+            hydratedToolsServerIdRef.current = '';
             toolExecutionRequestIdRef.current = {};
             setResults({});
             setTools([]);
             setCatalogLoading(false);
             return;
         }
+        hydratedToolsServerIdRef.current = '';
         toolExecutionRequestIdRef.current = {};
         const snapshot = readToolsSnapshot(targetServerId);
         setResults(snapshot?.results || {});
@@ -458,7 +464,7 @@ export default function Tools() {
     }, [targetServerId, hasTargetServer]);
 
     useEffect(() => {
-        if (!hasTargetServer) return;
+        if (!hasTargetServer || hydratedToolsServerIdRef.current !== targetServerId) return;
         writeSessionSnapshot(buildToolsSnapshotKey(targetServerId), {
             tools,
             results,
@@ -534,7 +540,8 @@ export default function Tools() {
     fetchCertificatesRef.current = fetchCertificates;
 
     useEffect(() => {
-        const handlePageRefresh = () => {
+        const handlePageRefresh = (event: Event) => {
+            event.preventDefault();
             if (hasTargetServerRef.current) {
                 fetchCatalogRef.current({ preserveCurrent: true });
             }

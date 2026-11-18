@@ -140,13 +140,27 @@ export default function SubscriptionHostsPanel({ serverId, canManage, inbounds }
     const { busyKey, run } = usePanelAction();
     const [editing, setEditing] = useState<{ original?: HostGroup } | null>(null);
     const [draft, setDraft] = useState<HostDraft>(() => toDraft());
+    const [transportOpen, setTransportOpen] = useState(false);
     const [formError, setFormError] = useState('');
     const inboundById = useMemo(() => new Map(inbounds.map((item) => [Number(item.id), item])), [inbounds]);
 
     const update = <K extends keyof HostDraft>(key: K, value: HostDraft[K]) => setDraft((current) => ({ ...current, [key]: value }));
 
     const openEditor = (original?: HostGroup) => {
-        setDraft(toDraft(original));
+        const nextDraft = toDraft(original);
+        setDraft(nextDraft);
+        setTransportOpen(
+            nextDraft.security !== 'same'
+            || Boolean(
+                nextDraft.sni
+                || nextDraft.hostHeader
+                || nextDraft.path
+                || nextDraft.alpn
+                || nextDraft.fingerprint
+                || nextDraft.allowInsecure
+                || nextDraft.tags
+            )
+        );
         setFormError('');
         setEditing({ original });
     };
@@ -341,7 +355,11 @@ export default function SubscriptionHostsPanel({ serverId, canManage, inbounds }
                     <PanelToggle id="pf-host-hidden" label={tr('hosts.hideInSub')} hint={tr('hosts.hideInSubHint')} checked={draft.isHidden} onChange={(value) => update('isHidden', value)} />
                 </div>
 
-                <details className="pf-disclosure" open={draft.security !== 'same' || Boolean(draft.sni || draft.hostHeader || draft.path)}>
+                <details
+                    className="pf-disclosure"
+                    open={transportOpen}
+                    onToggle={(event) => setTransportOpen(event.currentTarget.open)}
+                >
                     <summary>{tr('hosts.transportSection')}</summary>
                     <div className="pf-form-grid">
                         <PanelField id="pf-host-security" label={tr('hosts.security')}>

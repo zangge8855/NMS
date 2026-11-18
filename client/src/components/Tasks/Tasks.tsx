@@ -304,8 +304,8 @@ export default function Tasks({ embedded = false }) {
         try {
             const res = await api.get('/jobs?page=1&pageSize=100&includeResults=true');
             if (requestId !== tasksRequestIdRef.current) return;
-            setTasks(res.data?.obj?.items || []);
             liveTasksUpdatedAtRef.current = Date.now();
+            setTasks(res.data?.obj?.items || []);
         } catch (err) {
             if (requestId !== tasksRequestIdRef.current) return;
             const msg = err.response?.data?.msg || err.message || copy.loadFailed;
@@ -328,7 +328,8 @@ export default function Tasks({ embedded = false }) {
     }, []);
 
     useEffect(() => {
-        const handlePageRefresh = () => {
+        const handlePageRefresh = (event: Event) => {
+            event.preventDefault();
             fetchTasksRef.current({ preserveCurrent: true });
         };
         window.addEventListener('nms:page-refresh', handlePageRefresh);
@@ -336,6 +337,7 @@ export default function Tasks({ embedded = false }) {
     }, []);
 
     useEffect(() => {
+        if (liveTasksUpdatedAtRef.current <= 0) return;
         writeSessionSnapshot(TASKS_SNAPSHOT_KEY, {
             tasks,
         });

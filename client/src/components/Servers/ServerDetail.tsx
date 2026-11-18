@@ -12,6 +12,7 @@ import ClientHwidSection from './panelFeatures/ClientHwidSection';
 import useAnimatedCounter from '../../hooks/useAnimatedCounter';
 import useMediaQuery from '../../hooks/useMediaQuery';
 import { formatBytes, formatDateTime, formatUptime, getErrorMessage } from '../../utils/format';
+import { extractInboundClients } from '../../utils/inboundClients';
 import { isUnsupportedPanelClientIpsError, normalizePanelClientIps } from '../../utils/panelClientIps';
 import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot';
 import toast from 'react-hot-toast';
@@ -95,16 +96,16 @@ function formatTime(ts, locale = 'zh-CN') {
     return formatDateTime(ts, locale);
 }
 
+function parseInboundClientCount(inbound) {
+    return extractInboundClients(inbound).length;
+}
+
 function ServerDetailInboundMobileList({ inbounds = [] }) {
     const { t } = useI18n();
     return (
         <div className="server-detail-mobile-list">
             {inbounds.map((ib) => {
-                let clients = 0;
-                try {
-                    const settings = typeof ib.settings === 'string' ? JSON.parse(ib.settings) : (ib.settings || {});
-                    clients = (settings.clients || []).length;
-                } catch {}
+                const clients = parseInboundClientCount(ib);
                 return (
                     <div key={ib.id} className="server-detail-mobile-card">
                         <div className="server-detail-mobile-card-head">
@@ -355,7 +356,8 @@ export default function ServerDetail() {
     }, [activeTab, serverId]);
 
     useEffect(() => {
-        const handlePageRefresh = () => {
+        const handlePageRefresh = (event: Event) => {
+            event.preventDefault();
             fetchSnapshotRef.current({ preserveCurrent: true, force: true });
             if (activeTab === 'audit') fetchAuditRef.current();
         };
@@ -415,16 +417,10 @@ export default function ServerDetail() {
         });
     }, [lastOnline, onlines]);
 
-    const clientCount = useMemo(() => {
-        let count = 0;
-        for (const ib of inbounds) {
-            try {
-                const settings = typeof ib.settings === 'string' ? JSON.parse(ib.settings) : (ib.settings || {});
-                count += (settings.clients || []).length;
-            } catch { /* ignore */ }
-        }
-        return count;
-    }, [inbounds]);
+    const clientCount = useMemo(
+        () => inbounds.reduce((sum, ib) => sum + parseInboundClientCount(ib), 0),
+        [inbounds]
+    );
 
     const refreshAll = () => {
         fetchSnapshot({ preserveCurrent: true, force: true });
@@ -709,9 +705,16 @@ export default function ServerDetail() {
 
                 {/* Tabs */}
                 <div className="user-detail-tabs detail-tabs">
-                    <div className="tabs">
+                    <div className="tabs" role="tablist">
                         {tabs.map(t => (
-                            <button key={t.key} type="button" className={`tab ${activeTab === t.key ? 'active' : ''}`} onClick={() => selectTab(t.key)}>
+                            <button
+                                key={t.key}
+                                type="button"
+                                role="tab"
+                                aria-selected={activeTab === t.key}
+                                className={`tab ${activeTab === t.key ? 'active' : ''}`}
+                                onClick={() => selectTab(t.key)}
+                            >
                                 {t.label}
                             </button>
                         ))}
@@ -788,11 +791,7 @@ export default function ServerDetail() {
                                             </thead>
                                             <tbody>
                                                 {inbounds.map(ib => {
-                                                    let clients = 0;
-                                                    try {
-                                                        const s = typeof ib.settings === 'string' ? JSON.parse(ib.settings) : (ib.settings || {});
-                                                        clients = (s.clients || []).length;
-                                                    } catch {}
+                                                    const clients = parseInboundClientCount(ib);
                                                     return (
                                                         <tr key={ib.id}>
                                                             <td data-label={t('pages.serverDetail.inboundCols.remark')} className="server-detail-remark-cell">
