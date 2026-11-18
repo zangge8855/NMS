@@ -430,15 +430,18 @@ export default function Capabilities({ serverId = '', embedded = false }: Capabi
     const copy = useMemo(() => getCapabilitiesCopy(locale), [locale]);
     const cachedData = hasTargetServer ? readCapabilitiesSnapshot(targetServerId) : null;
     const capabilitiesRequestIdRef = useRef(0);
+    const hydratedCapabilitiesServerIdRef = useRef('');
     const [loading, setLoading] = useState(() => hasTargetServer && !cachedData);
     const [data, setData] = useState<any>(() => cachedData);
 
     const fetchCapabilities = async (options: { preserveCurrent?: boolean } = {}) => {
         if (!hasTargetServer) {
             capabilitiesRequestIdRef.current += 1;
+            hydratedCapabilitiesServerIdRef.current = '';
             setData(null);
             return;
         }
+        const requestServerId = targetServerId;
         const preserveCurrent = options.preserveCurrent === true;
         const requestId = capabilitiesRequestIdRef.current + 1;
         capabilitiesRequestIdRef.current = requestId;
@@ -446,8 +449,9 @@ export default function Capabilities({ serverId = '', embedded = false }: Capabi
             setLoading(true);
         }
         try {
-            const res = await api.get(`/capabilities/${targetServerId}`);
+            const res = await api.get(`/capabilities/${requestServerId}`);
             if (requestId !== capabilitiesRequestIdRef.current) return;
+            hydratedCapabilitiesServerIdRef.current = requestServerId;
             setData(res.data?.obj || null);
         } catch (err) {
             if (requestId !== capabilitiesRequestIdRef.current) return;
@@ -468,10 +472,12 @@ export default function Capabilities({ serverId = '', embedded = false }: Capabi
     useEffect(() => {
         if (!hasTargetServer) {
             capabilitiesRequestIdRef.current += 1;
+            hydratedCapabilitiesServerIdRef.current = '';
             setData(null);
             setLoading(false);
             return;
         }
+        hydratedCapabilitiesServerIdRef.current = '';
         const snapshot = readCapabilitiesSnapshot(targetServerId);
         setData(snapshot);
         setLoading(snapshot == null);
@@ -479,7 +485,8 @@ export default function Capabilities({ serverId = '', embedded = false }: Capabi
     }, [targetServerId, hasTargetServer]);
 
     useEffect(() => {
-        const handlePageRefresh = () => {
+        const handlePageRefresh = (event: Event) => {
+            event.preventDefault();
             if (hasTargetServer) {
                 fetchCapabilitiesRef.current({ preserveCurrent: true });
             }
@@ -489,7 +496,7 @@ export default function Capabilities({ serverId = '', embedded = false }: Capabi
     }, [hasTargetServer]);
 
     useEffect(() => {
-        if (!hasTargetServer || !data) return;
+        if (!hasTargetServer || !data || hydratedCapabilitiesServerIdRef.current !== targetServerId) return;
         writeSessionSnapshot(buildCapabilitiesSnapshotKey(targetServerId), {
             data,
         });

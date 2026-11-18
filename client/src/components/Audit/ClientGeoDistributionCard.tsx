@@ -55,7 +55,7 @@ export default function ClientGeoDistributionCard({ items = [], locale = 'zh-CN'
             }
             const entry = countMap.get(key)!;
             entry.count += 1;
-            const carrier = normalizeCarrierLabel(item?.ipCarrier);
+            const carrier = (normalizeCarrierLabel as (value?: string | null, locale?: string) => string)(item?.ipCarrier, locale);
             if (carrier) entry.carriers.set(carrier, (entry.carriers.get(carrier) || 0) + 1);
         }
 
@@ -85,7 +85,7 @@ export default function ClientGeoDistributionCard({ items = [], locale = 'zh-CN'
 
         sorted.sort((a, b) => b.count - a.count);
         return { geoStats: sorted.slice(0, 8), ipCount: total };
-    }, [items, isEn]);
+    }, [items, isEn, locale]);
 
     return (
         <div className="card p-6 space-y-4 border border-stroke-soft bg-surface-panel/80 backdrop-blur-md shadow-lg rounded-2xl">

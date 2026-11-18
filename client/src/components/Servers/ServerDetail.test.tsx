@@ -312,13 +312,13 @@ describe('ServerDetail', () => {
         renderWithRouter(<ServerDetail />);
 
         await screen.findByText('服务器 · Test Server');
-        await user.click(screen.getByRole('button', { name: '入站列表' }));
+        await user.click(screen.getByRole('tab', { name: '入站列表' }));
         await screen.findByText('JP Relay');
 
         expect(document.querySelector('.server-detail-mobile-card')).toBeTruthy();
         expect(screen.queryByRole('table')).not.toBeInTheDocument();
 
-        await user.click(screen.getByRole('button', { name: '在线用户' }));
+        await user.click(screen.getByRole('tab', { name: '在线用户' }));
         expect(await screen.findByText('alice@example.com')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /节点 IP/ })).toBeInTheDocument();
     });
@@ -338,7 +338,7 @@ describe('ServerDetail', () => {
 
         await screen.findByText('服务器 · Test Server');
 
-        expect(screen.getByRole('button', { name: '节点能力' })).toHaveClass('active');
+        expect(screen.getByRole('tab', { name: '节点能力' })).toHaveClass('active');
         expect(screen.getByTestId('embedded-capabilities')).toHaveTextContent('capabilities true server-1');
     });
 
@@ -361,7 +361,7 @@ describe('ServerDetail', () => {
         renderWithRouter(<ServerDetail />);
 
         await screen.findByText('服务器 · Test Server');
-        await user.click(screen.getByRole('button', { name: '在线用户' }));
+        await user.click(screen.getByRole('tab', { name: '在线用户' }));
 
         expect(await screen.findByText('alice@example.com')).toBeInTheDocument();
         expect(screen.getByText('最后在线')).toBeInTheDocument();
@@ -397,7 +397,7 @@ describe('ServerDetail', () => {
 
         await screen.findByText('服务器 · Test Server');
 
-        await user.click(screen.getByRole('button', { name: '在线用户' }));
+        await user.click(screen.getByRole('tab', { name: '在线用户' }));
         await user.click(screen.getAllByRole('button', { name: '刷新' })[1]);
 
         latestOnlineDeferred.resolve(buildServerSnapshot({
@@ -493,7 +493,7 @@ describe('ServerDetail', () => {
         renderWithRouter(<ServerDetail />);
 
         await screen.findByText('服务器 · Test Server');
-        await user.click(screen.getByRole('button', { name: '审计日志' }));
+        await user.click(screen.getByRole('tab', { name: '审计日志' }));
 
         expect(await screen.findByRole('alert')).toHaveTextContent('Audit service down');
         await user.click(screen.getAllByRole('button', { name: '重试' })[0]);

@@ -208,6 +208,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
         source: initialResolvedSource,
     });
     const logsBootstrapRef = useRef(readLogsSnapshot(initialSnapshotKey));
+    const hydratedSnapshotKeyRef = useRef('');
     const logRequestIdRef = useRef(0);
     const [scopeSnapshotState, setScopeSnapshotState] = useState(() => ({
         key: initialSnapshotKey,
@@ -292,6 +293,8 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
     activeServerNameRef.current = activeServer?.name || '';
     const serversRef = useRef(servers);
     serversRef.current = servers;
+    const logsSnapshotKeyRef = useRef(logsSnapshotKey);
+    logsSnapshotKeyRef.current = logsSnapshotKey;
     const fetchSummaryMeta = getSummaryToneMeta(fetchSummary?.tone);
     // Reuse the shared form surface and rounded tokens so controls stay visually consistent.
     const filterSelectClassName = 'form-select rounded-lg';
@@ -303,6 +306,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
             logRequestIdRef.current += 1;
             return;
         }
+        const requestSnapshotKey = logsSnapshotKeyRef.current;
         const preserveCurrent = options.preserveCurrent === true;
         const requestId = logRequestIdRef.current + 1;
         logRequestIdRef.current = requestId;
@@ -323,6 +327,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                 },
             });
             if (requestId !== logRequestIdRef.current) return;
+            hydratedSnapshotKeyRef.current = requestSnapshotKey;
             const payload = res.data?.obj || {};
             const error = payload?.error && typeof payload.error === 'object' ? payload.error : null;
             if (error) {
@@ -368,6 +373,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
     }, [activeServerId, count, resolvedSource]);
 
     const fetchGlobalLogs = useCallback(async (options: { preserveCurrent?: boolean; force?: boolean } = {}) => {
+        const requestSnapshotKey = logsSnapshotKeyRef.current;
         const preserveCurrent = options.preserveCurrent === true;
         const requestId = logRequestIdRef.current + 1;
         logRequestIdRef.current = requestId;
@@ -401,6 +407,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                 },
             });
             if (requestId !== logRequestIdRef.current) return;
+            hydratedSnapshotKeyRef.current = requestSnapshotKey;
             const items = Array.isArray(res.data?.obj?.items) ? res.data.obj.items : [];
             const allLogs: LogEntry[] = [];
             const failedServers: string[] = [];
@@ -464,6 +471,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
     const logRequestPending = loading || refreshing;
 
     useEffect(() => {
+        hydratedSnapshotKeyRef.current = '';
         const snapshot = readLogsSnapshot(logsSnapshotKey);
         const nextHasSnapshot = snapshot != null;
         logsBootstrapRef.current = snapshot;
@@ -483,7 +491,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
     }, [activeServerId, fetchLogs, logsSnapshotKey, scopeSnapshotState]);
 
     useEffect(() => {
-        if (!activeServerId) return;
+        if (!activeServerId || hydratedSnapshotKeyRef.current !== logsSnapshotKey) return;
         writeSessionSnapshot(logsSnapshotKey, {
             logs,
             fetchSummary,
@@ -497,7 +505,8 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
     }, [autoScrollEnabled, logs]);
 
     useEffect(() => {
-        const handlePageRefresh = () => {
+        const handlePageRefresh = (event: Event) => {
+            event.preventDefault();
             fetchLogs({ preserveCurrent: true, force: true });
         };
         window.addEventListener('nms:page-refresh', handlePageRefresh);

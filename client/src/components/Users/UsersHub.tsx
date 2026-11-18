@@ -3383,12 +3383,12 @@ export default function UsersHub() {
                                         </div>
 
                                         <div className="form-group">
-                                            <label htmlFor="users-hub-users-provision-inbound-label" className="form-label">
+                                            <div id="users-hub-users-provision-inbound-label" className="form-label">
                                                 {t('comp.users.provisionInboundLabel')}
                                                 <span className="text-muted text-xs ml-2">
                                                     {t('comp.users.provisionInboundSelected', { count: provisionSelectedInboundKeys.size, total: allInbounds.length })}
                                                 </span>
-                                            </label>
+                                            </div>
                                             <div className="flex gap-2 mb-2">
                                                 <button
                                                     type="button"
@@ -3405,20 +3405,29 @@ export default function UsersHub() {
                                                     {t('comp.users.selectNone')}
                                                 </button>
                                             </div>
-                                            <div className="list-selection-container" style={{ maxHeight: '240px' }}>
+                                            <div
+                                                className="list-selection-container"
+                                                role="group"
+                                                aria-labelledby="users-hub-users-provision-inbound-label"
+                                                style={{ maxHeight: '240px' }}
+                                            >
                                                 {allInbounds.length === 0 ? (
                                                     <EmptyState title={t('comp.users.provisionNoInbounds')} size="compact" />
                                                 ) : allInbounds.map((ib) => {
                                                     const checked = provisionSelectedInboundKeys.has(ib.key);
+                                                    const inboundCheckboxId = `users-hub-users-provision-inbound-${ib.key}`;
                                                     const expiryLabel = ib.expiryTime > 0
                                                         ? formatDateOnly(ib.expiryTime, locale)
                                                         : t('comp.users.permanent');
                                                     return (
                                                         <label
                                                             key={ib.key}
+                                                            htmlFor={inboundCheckboxId}
                                                             className={`list-selection-item ${checked ? 'is-selected' : ''}`}
                                                         >
-                                                            <input id="users-hub-users-provision-inbound-label" name="usersHubUsersProvisionInboundLabel"
+                                                            <input
+                                                                id={inboundCheckboxId}
+                                                                name={inboundCheckboxId}
                                                                 type="checkbox"
                                                                 checked={checked}
                                                                 onChange={(e) => {

@@ -13,7 +13,7 @@ import BatchResultModal from '../Batch/BatchResultModal';
 import useAnimatedCounter from '../../hooks/useAnimatedCounter';
 import { formatBytes, formatDateOnly, formatDateTime, getErrorMessage } from '../../utils/format';
 import { attachBatchRiskToken } from '../../utils/riskConfirm';
-import { resolveAccessGeoDisplay } from '../../utils/accessGeo';
+import { type AccessGeoDisplay, resolveAccessGeoDisplay } from '../../utils/accessGeo';
 import { mergeInboundClientStats, resolveClientUsed } from '../../utils/inboundClients';
 import { buildOnlineMatchMap, countClientOnlineSessions } from '../../utils/clientPresence';
 import { isUnsupportedPanelClientIpsError, normalizePanelClientIps } from '../../utils/panelClientIps';
@@ -534,11 +534,15 @@ function formatOutcomeLabel(item, copy) {
     return copy.labels.unknown;
 }
 
-function formatSummaryText(item, copy) {
+function resolveAccessGeoDisplayForLocale(item: any, locale = 'zh-CN'): AccessGeoDisplay {
+    return (resolveAccessGeoDisplay as (entry: any, currentLocale?: string) => AccessGeoDisplay)(item, locale);
+}
+
+function formatSummaryText(item, copy, locale = 'zh-CN') {
     const parts = [];
 
     if (item.type === 'access') {
-        const geoDisplay = resolveAccessGeoDisplay(item);
+        const geoDisplay = resolveAccessGeoDisplayForLocale(item, locale);
         if (item.reason) parts.push(item.reason);
         if (item.mode) parts.push(`${copy.labels.mode} ${item.mode}`);
         if (item.format) parts.push(`${copy.labels.format} ${item.format}`);
@@ -564,9 +568,9 @@ function formatTimelineUserAgent(item, copy) {
     return '';
 }
 
-function buildTimelineFacts(item, copy) {
+function buildTimelineFacts(item, copy, locale = 'zh-CN') {
     const facts = [];
-    const geoDisplay = resolveAccessGeoDisplay(item);
+    const geoDisplay = resolveAccessGeoDisplayForLocale(item, locale);
     const userAgent = formatTimelineUserAgent(item, copy);
     const resource = [item.resourceType, item.resourceId].filter(Boolean).join(' / ');
 
@@ -738,9 +742,9 @@ function TimelineEntry({ item, index, copy, locale }) {
                     {item.serverId && <span className="badge badge-info">{copy.labels.node} {item.serverId}</span>}
                     {item.tokenId && <span className="badge badge-neutral">Token {item.tokenId}</span>}
                 </div>
-                {formatSummaryText(item, copy) && <div className="text-sm text-muted mt-2">{formatSummaryText(item, copy)}</div>}
+                {formatSummaryText(item, copy, locale) && <div className="text-sm text-muted mt-2">{formatSummaryText(item, copy, locale)}</div>}
                 <div className="timeline-fact-grid mt-3">
-                    {buildTimelineFacts(item, copy).map((fact) => (
+                    {buildTimelineFacts(item, copy, locale).map((fact) => (
                         <div key={`${item.id}-${fact.label}`} className="timeline-fact-card">
                             <div className="timeline-fact-label">{fact.label}</div>
                             <div className="timeline-fact-value">{fact.value}</div>
@@ -1026,7 +1030,8 @@ export default function UserDetail() {
     };
 
     useEffect(() => {
-        const handlePageRefresh = () => {
+        const handlePageRefresh = (event: Event) => {
+            event.preventDefault();
             fetchActionsRef.current.fetchDetail({ preserveCurrent: true });
             fetchActionsRef.current.fetchClients({ preserveCurrent: true, force: true });
         };
@@ -1687,11 +1692,13 @@ export default function UserDetail() {
                 </div>
 
                 <div className="user-detail-tabs detail-tabs">
-                    <div className="tabs">
+                    <div className="tabs" role="tablist">
                         {tabs.map(t => (
                             <button
                                 key={t.key}
                                 type="button"
+                                role="tab"
+                                aria-selected={activeTab === t.key}
                                 className={`tab ${activeTab === t.key ? 'active' : ''}`}
                                 onClick={() => applyTab(t.key)}
                             >

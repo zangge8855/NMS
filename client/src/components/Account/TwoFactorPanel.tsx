@@ -10,7 +10,7 @@ import {
     HiOutlineEyeSlash,
 } from 'react-icons/hi2';
 import api from '../../api/client';
-import { formatDateTime, getErrorMessage } from '../../utils/format';
+import { copyToClipboard, formatDateTime, getErrorMessage } from '../../utils/format';
 
 function getCopy(locale = 'zh-CN') {
     if (locale === 'en-US') {
@@ -153,10 +153,10 @@ export default function TwoFactorPanel({ locale = 'zh-CN' }: TwoFactorPanelProps
     };
 
     const copyText = async (text: string, msg: string) => {
-        try {
-            await navigator.clipboard.writeText(text);
+        const ok = await copyToClipboard(text);
+        if (ok) {
             toast.success(msg);
-        } catch {
+        } else {
             toast.error(copy.generic);
         }
     };

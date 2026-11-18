@@ -15,6 +15,7 @@ import { PANEL_TYPE_3XUI, isSuiServer, normalizePanelType } from '../../utils/pa
 import { showAggregateToast } from '../UI/AggregateToast';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../utils/format';
+import { invalidateServerPanelDataCache } from '../../utils/serverPanelDataCache';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import api from '../../api/client';
 import {
@@ -120,7 +121,7 @@ export default function Servers() {
                 setPingResults(res.data.results || {});
             }
         } catch (err) {
-            toast.error(getErrorMessage(err, 'Ping all failed'));
+            toast.error(getErrorMessage(err, locale === 'en-US' ? 'Ping all failed' : '一键测速失败', locale));
         } finally {
             setPingingAll(false);
         }
@@ -535,10 +536,11 @@ export default function Servers() {
     };
 
     const handleBulkDelete = async () => {
-        const selectedVisibleCount = filteredServers.filter(item => selectedIds.has(item.id)).length;
+        const targetIds = Array.from(selectedIds).filter((id) => visibleServerIdSet.has(id));
+        if (targetIds.length === 0) return;
         const ok = await confirmAction({
             title: t('comp.servers.batchDeleteTitle'),
-            message: t('comp.servers.batchDeleteMessage', { count: selectedVisibleCount }),
+            message: t('comp.servers.batchDeleteMessage', { count: targetIds.length }),
             details: t('comp.servers.batchDeleteDetails'),
             confirmText: t('comp.common.confirmDelete'),
             tone: 'danger',
@@ -557,7 +559,8 @@ export default function Servers() {
                 }),
             });
             if (report.successCount > 0) {
-                await fetchServers();
+                invalidateServerPanelDataCache();
+                await fetchServers({ force: true });
                 refreshTelemetry({ quiet: true });
             }
             setSelectedIds((previous) => {
@@ -572,10 +575,12 @@ export default function Servers() {
             );
             return report;
         };
-        await runDelete(Array.from(selectedIds));
+        await runDelete(targetIds);
     };
 
     const handleBulkTest = async () => {
+        const targetIds = Array.from(selectedIds).filter((id) => visibleServerIdSet.has(id));
+        if (targetIds.length === 0) return;
         const executeTest = async (id) => {
             const res = await testConnection(id);
             const authCode = getAuthRepairCode(res);
@@ -615,7 +620,7 @@ export default function Servers() {
             );
             return report;
         };
-        await runTest(Array.from(selectedIds));
+        await runTest(targetIds);
     };
 
     const handleCredentialRepairSubmit = async (e) => {
@@ -629,7 +634,7 @@ export default function Servers() {
         }
 
         const selectedTargetIds = credentialRepair.applyToSelected
-            ? Array.from(selectedIds)
+            ? Array.from(selectedIds).filter((id) => visibleServerIdSet.has(id))
             : [];
         const baseTarget = credentialRepair.serverId ? [credentialRepair.serverId] : [];
         const targetIds = Array.from(new Set([...(selectedTargetIds.length > 0 ? selectedTargetIds : baseTarget)]));
@@ -661,7 +666,8 @@ export default function Servers() {
             }
         }
 
-        await fetchServers();
+        invalidateServerPanelDataCache();
+        await fetchServers({ force: true });
         setLoading((prev) => ({ ...prev, repairCredentials: false }));
 
         if (successCount > 0) {
@@ -763,6 +769,31 @@ export default function Servers() {
             return text.includes(keyword);
         });
     }, [orderedServers, deferredSearchKeyword, filterGroup, telemetryByServerId, statusFilter, credentialFilter, latencyFilter]);
+    const visibleServerIdSet = useMemo(
+        () => new Set(filteredServers.map((item) => item.id)),
+        [filteredServers]
+    );
+    const visibleSelectedCount = useMemo(
+        () => filteredServers.filter((item) => selectedIds.has(item.id)).length,
+        [filteredServers, selectedIds]
+    );
+
+    useEffect(() => {
+        setSelectedIds((prev) => {
+            if (prev.size === 0) return prev;
+            let changed = false;
+            const next = new Set<string>();
+            prev.forEach((id) => {
+                if (visibleServerIdSet.has(id)) {
+                    next.add(id);
+                } else {
+                    changed = true;
+                }
+            });
+            return changed ? next : prev;
+        });
+    }, [visibleServerIdSet]);
+
     const allVisibleSelected = filteredServers.length > 0 && filteredServers.every((item) => selectedIds.has(item.id));
     const repairTargetServer = servers.find((item) => item.id === credentialRepair.serverId) || null;
     const uiText = useMemo(() => (
@@ -1081,9 +1112,9 @@ export default function Servers() {
                             </select>
                         </>
                     )}
-                    summary={canMutate && selectedIds.size > 0 ? (
+                    summary={canMutate && visibleSelectedCount > 0 ? (
                         <div className="flex gap-2 items-center animate-fade-in servers-selection-bar servers-selection-bar-takeover">
-                            <span className="text-sm font-bold px-2 bulk-toolbar-count">{t('pages.servers.toolbar.selectedItems', { count: selectedIds.size })}</span>
+                            <span className="text-sm font-bold px-2 bulk-toolbar-count">{t('pages.servers.toolbar.selectedItems', { count: visibleSelectedCount })}</span>
                             <button type="button" className="btn btn-secondary btn-sm" onClick={handleBulkTest} disabled={bulkActionBusy}>
                                 {bulkTestAction.pendingIds.length > 0 ? <span className="spinner" /> : <HiOutlineSignal />} {t('pages.servers.toolbar.bulkTest')}
                             </button>
@@ -1113,7 +1144,7 @@ export default function Servers() {
                             ) : null}
                         </div>
                     )}
-                    actions={!canMutate || selectedIds.size > 0 ? null : (
+                    actions={!canMutate || visibleSelectedCount > 0 ? null : (
                         <>
                             <button
                                 type="button"

@@ -364,7 +364,7 @@ function getMonitorReasonLabel(reasonCode, t) {
     return '';
 }
 
-function SettingsToggleCard({
+export function SettingsToggleCard({
     checked,
     onChange,
     disabled = false,
@@ -399,7 +399,7 @@ function SettingsToggleCard({
             <div className="settings-toggle-side">
                 {!compact ? (
                     <span className={`badge settings-toggle-badge ${checked ? 'badge-success' : 'badge-neutral'}`}>
-                        {checked ? activeLabel : inactiveLabel}
+                        {checked ? effectiveActiveLabel : effectiveInactiveLabel}
                     </span>
                 ) : null}
                 <input name="systemSettingsField"
@@ -2183,8 +2183,12 @@ export default function SystemSettings() {
                                                 type="button"
                                                 className="btn btn-secondary btn-sm"
                                                 onClick={async () => {
-                                                    await copyToClipboard(latestInviteCodes.join('\n'));
-                                                    toast.success(latestInviteCodes.length > 1 ? t('pages.settings.inviteCodesCopied', { count: latestInviteCodes.length }) : t('pages.settings.theInvitationCodeHasBeenCopiedToThe'));
+                                                    const ok = await copyToClipboard(latestInviteCodes.join('\n'));
+                                                    if (ok) {
+                                                        toast.success(latestInviteCodes.length > 1 ? t('pages.settings.inviteCodesCopied', { count: latestInviteCodes.length }) : t('pages.settings.theInvitationCodeHasBeenCopiedToThe'));
+                                                    } else {
+                                                        toast.error(t('comp.common.copyFailed'));
+                                                    }
                                                 }}
                                             >
                                                 {latestInviteCodes.length > 1 ? t('pages.settings.copyAllBtn') : t('pages.settings.copyBtn')}

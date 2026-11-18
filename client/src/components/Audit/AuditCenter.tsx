@@ -26,7 +26,7 @@ import ModalShell from '../UI/ModalShell';
 import { ListPagination } from '../UI/ListToolbar';
 import { useI18n } from '../../contexts/LanguageContext';
 import SectionHeader from '../UI/SectionHeader';
-import { resolveAccessGeoDisplay } from '../../utils/accessGeo';
+import { type AccessGeoDisplay, resolveAccessGeoDisplay } from '../../utils/accessGeo';
 import useMediaQuery from '../../hooks/useMediaQuery';
 import MiniSparkline from '../UI/MiniSparkline';
 import useTrafficLeaderboardTrends from '../../hooks/useTrafficLeaderboardTrends';
@@ -1138,11 +1138,15 @@ function AuditEventsMobileList({ items = [], copy, locale, onSelect, resolveServ
     );
 }
 
+function resolveAccessGeoDisplayForLocale(item: any, locale = 'zh-CN'): AccessGeoDisplay {
+    return (resolveAccessGeoDisplay as (entry: any, currentLocale?: string) => AccessGeoDisplay)(item, locale);
+}
+
 function AuditAccessMobileList({ items = [], copy, locale }) {
     return (
         <div className="audit-mobile-list">
             {items.map((item) => {
-                const geoDisplay = resolveAccessGeoDisplay(item);
+                const geoDisplay = resolveAccessGeoDisplayForLocale(item, locale);
                 const userLabel = formatAccessUserLabel(item, copy);
                 const userMeta = formatAccessUserMeta(item, copy);
                 return (
@@ -1230,6 +1234,7 @@ export default function AuditCenter() {
     const accessLiveUpdatedAtRef = useRef(0);
     const isMountedRef = useRef(true);
     const eventsRequestIdRef = useRef(0);
+    const trafficRequestIdRef = useRef(0);
     const accessRequestIdRef = useRef(0);
     const liveActionsRef = useRef<any>({});
 
@@ -1238,6 +1243,7 @@ export default function AuditCenter() {
         return () => {
             isMountedRef.current = false;
             eventsRequestIdRef.current += 1;
+            trafficRequestIdRef.current += 1;
             accessRequestIdRef.current += 1;
         };
     }, []);
@@ -1489,6 +1495,8 @@ export default function AuditCenter() {
     };
 
     const fetchTrafficOverview = async (force = false, windowKey = selectedTrafficWindowRef.current, rangeOptions: any = {}) => {
+        const requestId = trafficRequestIdRef.current + 1;
+        trafficRequestIdRef.current = requestId;
         const normalizedWindowKey = normalizeTrafficWindowKey(windowKey);
         const rangeFrom = rangeOptions.from ?? customFromDate;
         const rangeTo = rangeOptions.to ?? customToDate;
@@ -1510,6 +1518,7 @@ export default function AuditCenter() {
             params.append('top', String(AUDIT_TRAFFIC_TOP_LIMIT));
             if (force) params.append('refresh', 'true');
             const res = await api.get(`/traffic/overview?${params.toString()}`);
+            if (!isMountedRef.current || requestId !== trafficRequestIdRef.current) return;
             const payload = res.data?.obj || null;
             const nextTrafficStatus = normalizeTrafficStatus(payload?.status, payload);
             const nextTrafficWindows = {
@@ -1527,11 +1536,19 @@ export default function AuditCenter() {
             if (normalizedWindowKey === selectedTrafficWindowRef.current) {
                 setTrafficOverview(payload);
                 setTrafficStatus(nextTrafficStatus);
-                if (!Array.isArray(payload?.topUsers) || !payload.topUsers.some((item) => item.email === selectedUser)) {
-                    setSelectedUser(payload?.topUsers?.[0]?.email || '');
+                if (!Array.isArray(payload?.topUsers) || !payload.topUsers.some((item) => item.email === selectedUserRef.current)) {
+                    setSelectedUser((current) => (
+                        Array.isArray(payload?.topUsers) && payload.topUsers.some((item) => item.email === current)
+                            ? current
+                            : (payload?.topUsers?.[0]?.email || '')
+                    ));
                 }
-                if (!Array.isArray(payload?.topServers) || !payload.topServers.some((item) => item.serverId === selectedServerId)) {
-                    setSelectedServerId(payload?.topServers?.[0]?.serverId || '');
+                if (!Array.isArray(payload?.topServers) || !payload.topServers.some((item) => item.serverId === selectedServerIdRef.current)) {
+                    setSelectedServerId((current) => (
+                        Array.isArray(payload?.topServers) && payload.topServers.some((item) => item.serverId === current)
+                            ? current
+                            : (payload?.topServers?.[0]?.serverId || '')
+                    ));
                 }
             }
             const warningCount = Array.isArray(payload?.collection?.warnings)
@@ -1542,6 +1559,7 @@ export default function AuditCenter() {
                 toast.error(copy.toast.trafficSampleFailed.replace('{count}', String(warningCount)));
             }
         } catch (err) {
+            if (!isMountedRef.current || requestId !== trafficRequestIdRef.current) return;
             setTrafficStatus((current) => ({
                 ...current,
                 collecting: false,
@@ -1551,8 +1569,11 @@ export default function AuditCenter() {
                 setTrafficWindows(buildEmptyTrafficWindows());
             }
             toast.error(getErrorMessage(err, copy.toast.trafficLoadFailed, locale));
+        } finally {
+            if (isMountedRef.current && requestId === trafficRequestIdRef.current) {
+                setTrafficLoading(false);
+            }
         }
-        setTrafficLoading(false);
     };
 
     const fetchUserTrend = async (email, windowKey = selectedTrafficWindowRef.current, rangeOptions: any = {}) => {
@@ -1785,7 +1806,8 @@ export default function AuditCenter() {
     }, [selectedTrafficWindow, tab, customFromDate, customToDate]);
 
     useEffect(() => {
-        const handlePageRefresh = () => {
+        const handlePageRefresh = (event: Event) => {
+            event.preventDefault();
             const current = liveActionsRef.current;
             if (current.tab === 'events') {
                 current.fetchEvents(current.eventsPage);
@@ -2932,7 +2954,7 @@ export default function AuditCenter() {
                                     </thead>
                                     <tbody>
                                         {accessData.items.map((item) => {
-                                            const geoDisplay = resolveAccessGeoDisplay(item);
+                                            const geoDisplay = resolveAccessGeoDisplayForLocale(item, locale);
                                             const userLabel = formatAccessUserLabel(item, copy);
                                             const userMeta = formatAccessUserMeta(item, copy);
                                             const userAgentLabel = formatAuditUserAgent(item.userAgent, locale, item.userAgentMasked === true);
