@@ -24,6 +24,11 @@ import { getManagedUsersSnapshotMeta } from '../../utils/managedUsersCache';
 import { SESSION_SNAPSHOT_EVENT } from '../../utils/sessionSnapshot';
 import useMediaQuery from '../../hooks/useMediaQuery';
 import { acquireModalStackSlot, hasOpenModal } from './ModalShell';
+import {
+    canMutateOperations,
+    isAdminRole,
+    isStaffRole,
+} from '../../utils/permissions';
 
 const MANAGED_USERS_SNAPSHOT_KEY = 'managed_users_v1';
 const BLOCKING_OVERLAY_SELECTOR = '.modal-overlay, .expandable-qr-overlay, .security-bootstrap-overlay';
@@ -129,9 +134,10 @@ export default function CommandPalette() {
     const navigate = useNavigate();
     const location = useLocation();
 
-    const isAdmin = user?.role === 'admin';
-    const role = user?.role || (isAdmin ? 'admin' : 'user');
-    const isStaff = isAdmin || role === 'operator' || role === 'auditor';
+    const role = user?.role || 'user';
+    const isAdmin = isAdminRole(role);
+    const isStaff = isStaffRole(role);
+    const canMutate = canMutateOperations(role);
     const isGlobalView = activeServerId === 'global';
     const copy = useMemo(() => getCommandCopy(locale), [locale]);
     const [managedUsers, setManagedUsers] = useState<any[]>(() => getManagedUsersSnapshotMeta().users);
@@ -305,7 +311,7 @@ export default function CommandPalette() {
             },
         ];
 
-        if (isAdmin) {
+        if (canMutate) {
             actions.push(
                 {
                     id: 'action-create-user',
@@ -393,7 +399,7 @@ export default function CommandPalette() {
         }
 
         return items;
-    }, [copy, cycleTheme, isAdmin, isStaff, isGlobalView, locale, location.pathname, logout, managedUsers, resolvedTheme, role, servers, toggleLocale]);
+    }, [canMutate, copy, cycleTheme, isAdmin, isStaff, isGlobalView, locale, location.pathname, logout, managedUsers, resolvedTheme, role, servers, toggleLocale]);
 
     // Filter items according to search input
     const filteredItems = useMemo(() => {

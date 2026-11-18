@@ -13,6 +13,13 @@ import {
     HiOutlineCommandLine,
     HiOutlineDocumentText,
 } from 'react-icons/hi2';
+import {
+    canAccessSystemSettings,
+    canAccessXraySettings,
+    isStaffRole,
+    normalizeRole,
+    type EffectiveRole,
+} from '../../utils/permissions';
 
 export interface LocalizedString {
     'zh-CN': string;
@@ -126,14 +133,20 @@ export function getNavItemForPath(pathname?: string | null): NavItem | null {
         .find((item) => currentPath.startsWith(`${item.path}/`)) || null;
 }
 
+function resolveNavRole(isAdmin?: boolean, role?: string): EffectiveRole {
+    const normalized = normalizeRole(role);
+    if (normalized) return normalized;
+    return isAdmin ? 'admin' : 'user';
+}
+
 function shouldIncludeNavItem(item: NavItem, { isAdmin, role, isGlobalView }: { isAdmin?: boolean; role?: string; isGlobalView?: boolean }): boolean {
-    const effectiveRole = role || (isAdmin ? 'admin' : 'user');
-    const isStaff = isAdmin || effectiveRole === 'admin' || effectiveRole === 'operator' || effectiveRole === 'auditor';
+    const effectiveRole = resolveNavRole(isAdmin, role);
+    const isStaff = isStaffRole(effectiveRole);
     if (!isStaff) return item.userOnly === true || item.path === '/subscriptions';
     if (item.userOnly && isStaff) return false;
-    if (effectiveRole === 'auditor' && (item.path === '/settings' || item.path === '/xray')) return false;
-    if (effectiveRole === 'operator' && item.path === '/xray') return false;
-    if (item.adminOnly && !isAdmin && effectiveRole !== 'admin' && effectiveRole !== 'operator' && effectiveRole !== 'auditor') return false;
+    if (item.path === '/settings' && !canAccessSystemSettings(effectiveRole)) return false;
+    if (item.path === '/xray' && !canAccessXraySettings(effectiveRole)) return false;
+    if (item.adminOnly && !isStaff) return false;
     if (isGlobalView && item.supportsGlobal === false) return false;
     return true;
 }
@@ -146,8 +159,8 @@ export interface NavFilterOptions {
 }
 
 export function getVisibleNavSections({ isAdmin, role, isGlobalView, locale = 'zh-CN' }: NavFilterOptions) {
-    const effectiveRole = role || (isAdmin ? 'admin' : 'user');
-    const isStaff = isAdmin || ['admin', 'operator', 'auditor'].includes(effectiveRole);
+    const effectiveRole = resolveNavRole(isAdmin, role);
+    const isStaff = isStaffRole(effectiveRole);
     return navSections
         .map((section) => ({
             ...section,
@@ -179,7 +192,7 @@ export function getVisibleFooterNavItems({ isAdmin, role, isGlobalView, locale =
 }
 
 export function getVisibleMobileNavItems({ isAdmin, role, isGlobalView, locale = 'zh-CN' }: NavFilterOptions) {
-    const isStaff = isAdmin || role === 'admin' || role === 'operator' || role === 'auditor';
+    const isStaff = isStaffRole(resolveNavRole(isAdmin, role));
     const preset = isStaff ? mobileNavPresets.admin : mobileNavPresets.user;
 
     return preset

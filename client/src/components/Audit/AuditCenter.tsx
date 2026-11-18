@@ -34,6 +34,8 @@ import { readSessionSnapshot, SESSION_SNAPSHOT_EVENT, writeSessionSnapshot } fro
 import { lazyWithRetry } from '../../utils/lazyWithRetry';
 import { AUDIT_EVENT_LABELS } from '../../utils/auditEventLabels';
 import { useOptionalServer } from '../../contexts/ServerContext';
+import { useOptionalAuth } from '../../contexts/AuthContext';
+import { canClearAuditLogs, resolveOptionalAuthActor } from '../../utils/permissions';
 
 const Logs = lazyWithRetry(() => import('../Logs/Logs'), 'AuditLogs');
 const TrafficLineChart = lazyWithRetry(() => import('./TrafficLineChart'), 'TrafficLineChart');
@@ -1184,6 +1186,9 @@ function AuditAccessMobileList({ items = [], copy, locale }) {
 }
 
 export default function AuditCenter() {
+    const auth = useOptionalAuth();
+    const { role: actorRole } = resolveOptionalAuthActor(auth);
+    const canClearLogs = canClearAuditLogs(actorRole);
     const { locale, t } = useI18n();
     const isCompactLayout = useMediaQuery('(max-width: 1100px)');
     const copy = getAuditCopy(locale);
@@ -1705,6 +1710,7 @@ export default function AuditCenter() {
     };
 
     const handleClearEvents = async () => {
+        if (!canClearLogs) return;
         const ok = await confirm({
             title: copy.confirm.clearEventsTitle,
             message: copy.confirm.clearEventsMessage,
@@ -1722,6 +1728,7 @@ export default function AuditCenter() {
     };
 
     const handleClearAccessLogs = async () => {
+        if (!canClearLogs) return;
         const ok = await confirm({
             title: copy.confirm.clearAccessTitle,
             message: copy.confirm.clearAccessMessage,
@@ -2027,9 +2034,11 @@ export default function AuditCenter() {
                                             <button type="button" className="btn btn-secondary btn-sm" onClick={handleExportAuditCSV} disabled={exportingAuditCsv} title="CSV">
                                                 {exportingAuditCsv ? <span className="spinner" /> : <HiOutlineArrowDownTray />} {copy.actions.export}
                                             </button>
-                                            <button type="button" className="btn btn-danger btn-sm" onClick={handleClearEvents} title={copy.confirm.clearEventsTitle}>
-                                                <HiOutlineTrash /> {copy.actions.clear}
-                                            </button>
+                                            {canClearLogs && (
+                                                <button type="button" className="btn btn-danger btn-sm" onClick={handleClearEvents} title={copy.confirm.clearEventsTitle}>
+                                                    <HiOutlineTrash /> {copy.actions.clear}
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -2765,11 +2774,13 @@ export default function AuditCenter() {
                                             </button>
                                         )}
                                     </div>
-                                    <div className="audit-control-action-group audit-control-action-group--secondary">
-                                        <button type="button" className="btn btn-danger btn-sm" onClick={handleClearAccessLogs} title={copy.confirm.clearAccessTitle}>
-                                            <HiOutlineTrash /> {copy.actions.clear}
-                                        </button>
-                                    </div>
+                                    {canClearLogs && (
+                                        <div className="audit-control-action-group audit-control-action-group--secondary">
+                                            <button type="button" className="btn btn-danger btn-sm" onClick={handleClearAccessLogs} title={copy.confirm.clearAccessTitle}>
+                                                <HiOutlineTrash /> {copy.actions.clear}
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             {activeAccessFilterCount > 0 ? (
