@@ -4,30 +4,44 @@
 
 ### Who Uses NMS
 
-- Admins: full access to servers, inbounds, users, subscriptions, audit, tools, and system settings
-- End users: access limited to their own subscription experience
+NMS uses a 4-tier RBAC model:
 
-NMS is designed so admins can operate multiple nodes from one control plane, while end users only see the subscription actions that matter to them.
+- **Admin (`admin`)**: full access to servers, Panel API Tokens & Panel Nodes, inbounds, users (including staff accounts), subscriptions, audit clearing, Xray console (`/xray`), and system settings (`/settings`)
+- **Operator (`operator`)**: operational access to Dashboard, Servers, Inbounds, Users (non-staff `user` accounts only), Audit, Logs, Tools, and Capabilities; cannot open `/settings` or `/xray`, manage staff accounts, clear audit logs, or invoke panel-admin proxy endpoints
+- **Auditor (`auditor`, legacy alias `viewer`)**: read-only staff access across Dashboard, Servers, Inbounds, Users, Audit, Logs, Tools, and Capabilities; write controls are hidden/disabled, marking notifications read is disabled, `/settings` and `/xray` are hidden, and Panel Features only exposes `Client Groups`, `Client Directory`, `Subscription Hosts`, and `Sub Balancers`
+- **End user (`user`)**: self-service access limited to `Subscriptions`, `Downloads`, and `Account`
+
+NMS is designed so admins and operators can run multi-node operations from one control plane while auditors inspect state safely and end users only see subscription actions that matter to them.
 
 ### Main Navigation
 
-#### Global command search
+#### Global command search & Notification Bell
 
 - Use the header search field, or `Ctrl K` / `Cmd K`, to jump across pages, users, and nodes without opening the sidebar first
-- Admins can also run common actions from the same surface, including refreshing the current view, creating a user, and adding a server
+- Staff with mutation rights can run common actions from the command palette, including refreshing the current view, creating a user, and adding a server
 - Page refresh commands reuse each page's live-data loader, so they avoid a full browser reload when the current page supports it
+- Open the header **Notification Bell** to filter alerts by severity (`All`, `Critical`, `Warning`, `Info`), toggle **Unread only**, jump directly to the referenced server (`View Node`) or `Audit` center (`View Audit`), or mark alerts read (`admin` / `operator` only; auditors are shown a read-only hint)
 
 #### Dashboard
 
 - Review node health, headline metrics, alerts, quick actions, and operational summaries
-- Use it as the first stop after login or after any major change
-- Online-user detail now shows username and email together, so operators can identify the account without opening `Users`
-- The dashboard now prefers live cluster snapshots and only hydrates heavier online detail when needed, so the page should feel faster on first load
+- Use **Customize** (`视图定制`) to toggle any of the five dashboard sections (`kpis`, `trafficWindows`, `systemTrends`, `nodeHealth`, `onlineSessions`) — preferences save per user in `localStorage` and can be reset with **Reset default**
+- Use **Export** (`导出快照`) to download a UTF-8 BOM CSV snapshot covering current cluster KPIs, traffic windows, and node health/throughput metrics
+- Online-user detail shows username and email together, so operators can identify the account without opening `Users`
+- The dashboard prefers live cluster snapshots and only hydrates heavier online detail when needed, so the page stays responsive on first load
 
 #### Servers
 
-- Add, edit, and remove panel nodes
+- Add, edit, and remove panel nodes (`admin` and `operator`; read-only for `auditor`)
 - Check connectivity, credentials, and onboarding status
+- Open **Server Detail** to inspect:
+  - **API Tokens** (`admin` only): create, enable/disable, and delete 3x-ui/s-ui panel API tokens (plaintext token shown once on creation)
+  - **Panel Features** (3x-ui v3): manage **Client Groups**, **Client Directory** (paged `clients/list/paged` table with search, inbound/group/status filters, plus exact lookup by **SubID** or **Telegram ID**), **Subscription Hosts**, **Sub Balancers**, **Outbound Subs** (`admin` / `operator`), and **Panel Nodes** (`admin` only). Unsupported older panels automatically show a clear compatibility notice
+
+#### Keyboard & Accessibility Navigation
+
+- Horizontal tab strips on **Server Detail**, **User Detail**, **Audit**, and **Users** support WAI-ARIA **roving tabindex** (`ArrowLeft`, `ArrowRight`, `Home`, `End` with wrap-around)
+- Wide data tables across `Servers`, `Inbounds`, `Users`, and `Audit` expose keyboard-focusable scrollable regions (`role="region"`, `tabIndex={0}`) with sticky headers so keyboard-only users can scroll with arrow keys
 
 #### Inbounds
 
@@ -148,6 +162,11 @@ NMS is designed so admins can operate multiple nodes from one control plane, whi
 4. Once enabled, Telegram delivers structured summaries for system notifications, security audits, expiry reminders, and periodic operations digests.
 5. In Telegram itself, send `/help` or type commands such as `/status` directly. The Telegram command menu is optional and can stay disabled.
 
+#### Review Harness (3x-ui v3 & s-ui)
+
+1. Run `npm run review:fake-panel`, `npm run review:seed`, and `npm run review:server` inside `server/` (see [Review Harness](REVIEW_HARNESS.md)).
+2. `review_fake_panel.js` simulates 3x-ui v3 endpoints (`clients/list/paged`, `get/subId`, `get/tgId`, `clients/groups`, `hosts`, `sub-balancers`, `xray/outbound-subs`, `nodes`, `clients/hwids`, `setting/apiTokens`) alongside legacy 3x-ui and s-ui nodes so operators can safely verify RBAC roles, Panel Features, and UI workflows locally without touching production panels.
+
 ### Why Daily Operations Feel Easier
 
 - One interface covers nodes, users, subscriptions, and system controls
@@ -171,30 +190,44 @@ NMS is designed so admins can operate multiple nodes from one control plane, whi
 
 ### 谁会使用 NMS
 
-- 管理员: 可以访问服务器、入站、用户、订阅、审计、工具和系统设置
-- 普通用户: 只看到与自己订阅相关的使用入口
+NMS 采用四层 RBAC 角色体系：
 
-NMS 的设计重点是让管理员在一个后台里管理多个节点，而普通用户只接触真正需要的订阅动作，不被后台运维细节打扰。
+- **管理员（`admin`）**：拥有完整权限，可管理服务器与面板 API Token/多节点、入站、用户（含运维/审计等工作人员账号）、订阅、审计清空、Xray 控制台（`/xray`）和系统设置（`/settings`）
+- **运维（`operator`）**：可操作仪表盘、服务器、入站、用户（仅限普通 `user` 账号，禁止创建/修改/禁用/删除任何非 `user` 工作人员账号）、审计、日志、节点工具与能力探测；不可访问 `/settings` 或 `/xray`、不可清空审计日志、不可调用面板底层管理代理接口
+- **审计员（`auditor`，兼容旧别名 `viewer`）**：只读运维审计角色，可查看仪表盘、服务器、入站、用户、审计、日志、工具和能力页面；所有写操作按钮均隐藏或禁用，无法标记通知已读，不可访问 `/settings` 与 `/xray`，在「面板功能」中仅可查看客户端分组、客户端目录（含 SubID / TG ID 查询）、订阅 Hosts 与均衡器
+- **普通用户（`user`）**：自助服务角色，仅访问 `Subscriptions`（订阅中心）、`Downloads`（软件下载）和 `Account`（账户中心）
+
+NMS 的设计重点是让管理员和运维在一个后台安全协作，让审计员以最小权限核查状态，而普通用户只接触真正需要的订阅动作。
 
 ### 主要导航
 
-#### 全局命令搜索
+#### 全局命令搜索与通知铃铛
 
 - 使用顶部搜索框，或按 `Ctrl K` / `Cmd K`，可以直接跳转页面、用户和节点，不必先展开侧边栏查找
-- 管理员还可以在同一个入口执行常用动作，包括刷新当前页、添加账号和添加服务器
+- 具备写权限的工作人员还可以在命令面板执行刷新当前页、添加账号和添加服务器等常用动作
 - 支持的页面会复用自己的实时数据加载逻辑刷新内容，避免不必要的整页重载
+- 点击顶部**通知铃铛**可打开通知中心，按严重级别（`全部`、`严重`、`警告`、`信息`）与`仅未读`筛选告警，直接点击**查看节点**或**查看审计**跳转上下文；`admin` / `operator` 可标记已读，审计员界面会显示只读提示
 
 #### Dashboard
 
 - 查看节点健康状态、关键统计、告警、快捷入口和运行摘要
-- 登录后、批量变更后，建议先回到这里看全局状态
+- 点击**视图定制**可按个人偏好显隐 5 个仪表盘区块（核心指标 KPI、流量周期统计、系统资源趋势、节点健康状态、在线会话明细），按用户名保存在 `localStorage` 中，并支持一键**恢复默认**
+- 点击**导出快照**可下载包含当前集群 KPI、用户流量周期和节点健康/吞吐明细的 UTF-8 BOM CSV 快照
 - 在线用户明细会同时显示用户名和邮箱，方便直接识别账号，不必再切去用户管理
-- 仪表盘首屏会优先使用集群实时快照，只有在需要时才继续补更重的在线明细，因此现在登录后进入后台会更快
+- 仪表盘首屏会优先使用集群实时快照，只有在需要时才继续补更重的在线明细，因此登录后进入后台会更快
 
 #### Servers
 
-- 新增、编辑、删除面板节点
+- 新增、编辑、删除面板节点（`admin` / `operator` 可操作，`auditor` 只读）
 - 检查连通性、凭据和接入状态
+- 进入**节点详情**可使用：
+  - **API Token**（仅 `admin`）：创建、启停与删除 3x-ui / s-ui 面板 API Token（明文仅在创建后展示一次）
+  - **面板功能**（3x-ui v3）：包含**客户端分组**、**客户端目录**（支持 `clients/list/paged` 分页目录、关键字/入站/分组/状态筛选，以及按 **SubID** 或 **Telegram ID** 精确查询）、**订阅 Hosts**、**订阅均衡器**、**Xray 出站订阅**（`admin` / `operator`）和**面板多节点**（仅 `admin`）。若目标面板版本过旧不支持某项能力，会统一显示兼容提示
+
+#### 键盘与无障碍导航
+
+- **节点详情**、**用户详情**、**审计中心**与**用户管理**的水平标签条支持 WAI-ARIA **Roving Tabindex**（`ArrowLeft` / `ArrowRight` / `Home` / `End` 循环切换并自动滚动到可见区域）
+- `Servers`、`Inbounds`、`Users` 与 `Audit` 中的宽表格提供键盘可聚焦滚动容器（`role="region"`、`tabIndex={0}`）与吸顶表头，纯键盘用户也可直接用方向键左右滚动查看列数据
 
 #### Inbounds
 
@@ -323,6 +356,11 @@ NMS 的设计重点是让管理员在一个后台里管理多个节点，而普�
 3. 先发送测试通知确认投递正常。
 4. 启用后，Telegram 会接收结构化的系统通知、安全审计、到期提醒与周期运维汇总。
 5. 在 Telegram 对话框里可以直接发送 `/help`，或手动输入 `/status` 等命令；Telegram 命令菜单可以保持关闭。
+
+#### Review Harness（3x-ui v3 与 s-ui 本地仿真）
+
+1. 在 `server/` 下依次执行 `npm run review:fake-panel`、`npm run review:seed` 与 `npm run review:server`（详见 [Review Harness](REVIEW_HARNESS.md)）。
+2. `review_fake_panel.js` 完整支持 3x-ui v3 接口（`clients/list/paged`、`get/subId`、`get/tgId`、`clients/groups`、`hosts`、`sub-balancers`、`xray/outbound-subs`、`nodes`、`clients/hwids`、`setting/apiTokens`）以及旧版 3x-ui 与 s-ui 节点，可用于本地验证四层 RBAC 权限、面板功能页签与订阅流程。
 
 ### 为什么日常运维更轻松
 

@@ -44,6 +44,12 @@ It is built for operators who want a practical deployment path: start with file-
 - Generate a random hidden UI entry path in `Settings` when you want a high-entropy access path without typing one manually
 - Test SMTP, export backups, restore snapshots, inspect storage mode state, and use the embedded node console from the system area
 - Let end users access a dedicated downloads center and self-service account center separate from the subscription page
+- Enforce 4-tier RBAC (`admin`, `operator`, `auditor`, `user`) across API mounts, panel proxy allowlists, operator staff-account protection, and frontend route/action gating
+- Align with 3x-ui v3.11 capabilities including Panel API Tokens, Panel Features (`Client Groups`, paged `Client Directory` with exact `SubID` & `TG ID` lookup, `Subscription Hosts`, `Sub Balancers`, `Outbound Subs`, `Panel Nodes`), and per-client HWID device management
+- Filter Header notifications by severity (`Critical`, `Warning`, `Info`) and unread status, and jump directly to referenced servers or audit logs
+- Customize Dashboard card visibility per user (`localStorage`) with one-click reset and export cluster KPI / traffic / node health snapshots to UTF-8 BOM CSV
+- Harden runtime security and resilience with gated Cloudflare/XFF IP resolution, unified AES-256-GCM secret rotation (`POST /api/system/credentials/rotate`), scrypt v3 encrypted backups, single-use WebSocket tickets (`jti` replay protection & graceful HTTP/WS/SQLite shutdown), SQLite/PostgreSQL snapshot queue fixes, SS-2022/Clash/Surge/sing-box/TUIC/Hysteria2 protocol alignment, and a dynamic-port E2E + v3 Review Harness
+- Modernize UI and JS to ES2023 (`AbortSignal.timeout`, `.toSorted()`, `structuredClone()`, `0` `modern-web-guidance` legacy-scan findings) with Forced-Colors-safe WAI-ARIA roving tabs, scroll-driven tab edge-fade masks, keyboard-scrollable sticky-header tables, `viewport-fit=cover` + `scroll-padding-bottom` safe-area adaptation, 44px coarse-pointer targets, compositor press/spring popover animations, and `accent-color` + `scrollbar-color` theming
 
 ### Deploy In Minutes
 
@@ -66,7 +72,7 @@ npm ci
 NODE_ENV=production node scripts/start_production.js
 ```
 
-Verified source-install path on August 17, 2026:
+Verified source-install path on November 18, 2026:
 
 ```bash
 cd client
@@ -81,10 +87,10 @@ npm test
 
 Current verification result:
 
-- `client`: 100% TypeScript (`client/src/**/*.{ts,tsx}`), `npm run build` passed (`client/dist`), and `npm test` passed (`265/265` tests across `48` suites)
-- `server`: 100% TypeScript (`server/**/*.ts`), `npx tsc --noEmit` clean (`0` errors), and `npm test` passed (`541/541` tests)
+- `client`: 100% TypeScript (`client/src/**/*.{ts,tsx}`), `npm run lint` (`eslint . --max-warnings=0 && tsc --noEmit`) passed, `npm run build` passed (`client/dist`, `873` modules), `npx modern-web-guidance legacy-scan client/src --json` reported `0` findings (`38` guides / `52` rules), and `npm test` passed (`442/442` tests across `70` test files)
+- `server`: 100% TypeScript (`server/**/*.ts`), `npm run typecheck` (`tsc --noEmit`) clean (`0` errors), and `npm test` passed (`756/756` tests across `71` suites, including `60/60` E2E tests)
 - `backward-compat`: 100% compatibility for existing `/data` JSON files, database schemas, password hashes, and startup commands
-- `client` and `server`: `npm audit --audit-level=high` reports `0` vulnerabilities
+- `client` and `server` (runtime): `npm audit --omit=dev --audit-level=high` reports `0` vulnerabilities
 - Browser review: desktop and mobile admin/user surfaces were checked across Chinese/English and light/dark schemes with no document-level overflow, console errors, or page errors
 
 Process supervision with PM2:
@@ -228,6 +234,12 @@ NMS 是一套面向 3x-ui（Xray）与 s-ui（sing-box）运维场景的双语�
 - 在系统页测试 SMTP、导出备份、恢复快照、查看存储模式状态，并直接打开内嵌节点控制台
 - 普通用户可以使用独立的软件下载中心和自助账户中心，与订阅页分开
 - 为下拉菜单和筛选框提供稳定的主题表面，避免 Chromium 点击时先闪一层黑色原生菜单
+- 通过四层 RBAC 角色体系（`admin`、`operator`、`auditor`、`user`）隔离接口挂载、面板代理白名单、运维人员越权修改工作人员账号保护与前端只读/管理菜单权限
+- 全面对齐 3x-ui v3.11 面板能力，包括 Panel API Token、面板功能页签（客户端分组、支持 `SubID`/`TG ID` 精确查询的分页客户端目录、订阅 Hosts、订阅均衡器、Xray 出站订阅、面板多节点）以及客户端 HWID 设备管理
+- 在顶部通知铃铛中按严重级别（`严重`、`警告`、`信息`）与`仅未读`筛选告警，并一键跳转至对应节点详情或审计中心
+- 按用户偏好在 `localStorage` 中定制仪表盘卡片显示与恢复默认，并支持导出含集群 KPI、流量周期和节点健康状态的 UTF-8 BOM CSV 快照
+- 强化全栈安全与存储弹性，涵盖受控 Cloudflare/XFF IP 解析、多存储统一密钥轮换（`POST /api/system/credentials/rotate`）、AES-256-GCM scrypt v3 加密备份、单次 WebSocket Ticket 防重放与优雅停机、SQLite/PostgreSQL 快照队列修复、SS-2022/Clash/Surge/sing-box/TUIC/Hysteria2 协议对齐及动态端口 E2E 与 v3 Review Harness
+- 落地 `modern-web-guidance` ES2023 JS 现代化（`AbortSignal.timeout`、`.toSorted()`、`structuredClone()`，遗留扫描 `0` 项告警）、Forced-Colors 安全的 WAI-ARIA Roving Tabs 与横向标签滚动渐隐遮罩、键盘可聚焦吸顶表头表格、移动端 `viewport-fit=cover` 与 `scroll-padding-bottom` 安全区适配、44px 粗指针触控区、合成层按压与弹簧弹窗动效及 `accent-color` + `scrollbar-color` 主题体系
 
 普通用户看到的订阅页面会尽量保持简单:
 
@@ -257,7 +269,7 @@ npm ci
 NODE_ENV=production node scripts/start_production.js
 ```
 
-已在 2026 年 8 月 17 日完成全栈 TypeScript 重构与全量测试验证:
+已在 2026 年 11 月 18 日完成全栈更新与全量测试验证:
 
 ```bash
 cd client
@@ -272,10 +284,10 @@ npm test
 
 当前验证结果:
 
-- `client`: 100% TypeScript (`client/src/**/*.{ts,tsx}`)，`npm run build` 生产构建成功，`npm test` 全部通过（`48` 套件 / `265/265` 测试）
-- `server`: 100% TypeScript (`server/**/*.ts`)，`npx tsc --noEmit` 严格类型检查通过（`0` 错误），`npm test` 全部通过（`541/541` 测试）
+- `client`: 100% TypeScript (`client/src/**/*.{ts,tsx}`)，`npm run lint`（`eslint . --max-warnings=0 && tsc --noEmit`）通过，`npm run build` 生产构建成功（`client/dist`，`873` 模块），`npx modern-web-guidance legacy-scan client/src --json` 报告 `0` 项告警（`38` 项指南 / `52` 条规则），`npm test` 全部通过（`70` 测试文件 / `442/442` 测试）
+- `server`: 100% TypeScript (`server/**/*.ts`)，`npm run typecheck`（`tsc --noEmit`）严格类型检查通过（`0` 错误），`npm test` 全部通过（`71` 套件 / `756/756` 测试，含 `60/60` 端到端测试）
 - `平滑升级兼容性`: 现存 `/data` JSON 文件存储、PostgreSQL 数据库、密码哈希与启动命令 100% 向下兼容
-- `client` 与 `server`: `npm audit --audit-level=high` 均为 `0` 漏洞
+- `client` 与 `server`（生产依赖）: `npm audit --omit=dev --audit-level=high` 报告 `0` 漏洞
 - 浏览器验收：桌面端与移动端的管理员 / 普通用户界面已覆盖中英双语和明暗主题，无文档级横向溢出、控制台错误或页面错误
 
 如需常驻运行，可配合 PM2:
