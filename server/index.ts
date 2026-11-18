@@ -5,7 +5,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import config from './config.js';
-import { initWebSocket } from './wsServer.js';
+import { closeWebSocketServer, initWebSocket } from './wsServer.js';
 import { authMiddleware, adminOnly, auditorOrAbove } from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
 import serverRoutes from './routes/servers.js';
@@ -28,9 +28,11 @@ import { bootstrapDatabase } from './db/bootstrap.js';
 import { flushSnapshotQueue } from './db/snapshots.js';
 import { getStoreModes } from './db/runtimeModes.js';
 import { closeDb } from './db/client.js';
+import { closeSqliteDb } from './db/sqliteClient.js';
 import { backfillStoresToDatabase, hydrateStoresFromDatabase } from './store/storeRegistry.js';
 import systemSettingsStore from './store/systemSettingsStore.js';
 import auditStore from './store/auditStore.js';
+import notificationService from './lib/notifications.js';
 import { closeSecurityAuditLog } from './lib/securityAudit.js';
 import { pickRequestText } from './lib/requestLocale.js';
 import { createResponseMessageLocalizer } from './lib/responseMessageLocalizer.js';
@@ -304,13 +306,18 @@ function setupGracefulShutdown(httpServer: HttpServer) {
         const flushAndExit = (code: number) => {
             // Audit writes are coalesced on a timer; persist anything still pending
             // before the DB snapshot queue drains.
-            auditStore.flush()
+            Promise.resolve()
+                .then(() => (notificationService as any).flush?.())
+                .catch(() => {})
+                .then(() => auditStore.flush())
                 .catch(() => {})
                 .then(() => closeSecurityAuditLog())
                 .catch(() => {})
                 .then(() => flushSnapshotQueue())
                 .catch(() => {})
                 .then(() => closeDb())
+                .catch(() => {})
+                .then(() => closeSqliteDb())
                 .catch(() => {})
                 .finally(() => process.exit(code));
         };
@@ -320,12 +327,15 @@ function setupGracefulShutdown(httpServer: HttpServer) {
                 console.log('  ✅ HTTP server closed');
                 flushAndExit(0);
             });
+            void closeWebSocketServer().then(() => {
+                activeHttpServer?.closeIdleConnections?.();
+            });
             setTimeout(() => {
                 console.warn('  ⚠️  Forcing shutdown after timeout');
                 flushAndExit(1);
             }, 10_000).unref();
         } else {
-            flushAndExit(0);
+            void closeWebSocketServer().finally(() => flushAndExit(0));
         }
     }
 
@@ -344,33 +354,35 @@ export function createHttpServer(options: { app?: Express; enableWebSocket?: boo
     return { app: serverApp, httpServer };
 }
 
-async function bootstrapRuntime() {
+export async function bootstrapRuntime() {
     const dbBoot = await bootstrapDatabase();
-    if (dbBoot.enabled) {
+    if ((dbBoot.enabled && dbBoot.ready) || dbBoot.sqliteReady) {
+        const modes = getStoreModes();
         if (dbBoot.ready) {
-            const modes = getStoreModes();
             console.log(`  🗄️  Database ready (schema: ${dbBoot.schema || 'n/a'})`);
-            console.log(`  🧭 Store modes: read=${modes.readMode}, write=${modes.writeMode}`);
-            if (dbBoot.error) {
-                console.warn(`  ⚠️  Database bootstrap warning: ${dbBoot.error}`);
-            }
-
-            if (modes.readMode === 'db') {
-                const hydration = await hydrateStoresFromDatabase();
-                console.log(`  ♻️  Store hydration from DB: ${hydration.loaded}/${hydration.total} loaded`);
-            }
-
-            if (modes.writeMode === 'dual' || modes.writeMode === 'db') {
-                const baseline = await backfillStoresToDatabase({
-                    dryRun: false,
-                    redact: config.db?.backfillRedact !== false,
-                });
-                console.log(`  💾 DB baseline sync: ${baseline.success}/${baseline.total} stores synced`);
-            }
-        } else {
-            console.warn(`  ⚠️  Database init failed: ${dbBoot.error || 'unknown error'}`);
-            console.warn('  ⚠️  Falling back to file-backed stores');
+        } else if (dbBoot.sqliteReady) {
+            console.log('  🗄️  SQLite snapshot storage ready');
         }
+        console.log(`  🧭 Store modes: read=${modes.readMode}, write=${modes.writeMode}`);
+        if (dbBoot.error) {
+            console.warn(`  ⚠️  Database bootstrap warning: ${dbBoot.error}`);
+        }
+
+        if (modes.readMode === 'db' || dbBoot.sqliteReady) {
+            const hydration = await hydrateStoresFromDatabase();
+            console.log(`  ♻️  Store hydration from DB: ${hydration.loaded}/${hydration.total} loaded`);
+        }
+
+        if (modes.writeMode === 'dual' || modes.writeMode === 'db' || dbBoot.sqliteReady) {
+            const baseline = await backfillStoresToDatabase({
+                dryRun: false,
+                redact: config.db?.backfillRedact !== false,
+            });
+            console.log(`  💾 DB baseline sync: ${baseline.success}/${baseline.total} stores synced`);
+        }
+    } else if (dbBoot.enabled) {
+        console.warn(`  ⚠️  Database init failed: ${dbBoot.error || 'unknown error'}`);
+        console.warn('  ⚠️  Falling back to file-backed stores');
     }
 }
 

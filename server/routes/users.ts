@@ -15,8 +15,11 @@ import { autoDeployClients } from '../services/subscriptionSyncService.js';
 import { pickLocalizedText, resolveRequestLocale } from '../lib/requestLocale.js';
 import config from '../config.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
+import { resolvePublicBase } from './subscriptions.js';
 
-function resolveGuestPassSubscriptionBase(req: Request): string {
+const SAFE_HOST_HEADER_RE = /^(?:\[[0-9a-fA-F:]+\]|[a-zA-Z0-9.-]+)(?::\d{1,5})?$/;
+
+export function resolveGuestPassSubscriptionBase(req: Request): string {
     const configured = String(
         systemSettingsStore.getSubscription()?.publicBaseUrl
         || config.subscription?.publicBaseUrl
@@ -25,7 +28,28 @@ function resolveGuestPassSubscriptionBase(req: Request): string {
     if (configured) {
         return configured;
     }
-    return `${req.protocol}://${req.get('host')}`;
+    const rawHost = String(typeof req.get === 'function' ? req.get('host') : req.headers?.host || '').trim();
+    if (!rawHost || !SAFE_HOST_HEADER_RE.test(rawHost)) {
+        return '';
+    }
+    return resolvePublicBase(req);
+}
+
+function assertOperatorCanManageUserTokens(req: Request, res: Response, user: any, locale: string): boolean {
+    const actorRole = String((req as any).user?.role || '').trim().toLowerCase();
+    const targetRole = String(user?.role || 'user').trim().toLowerCase();
+    if (actorRole !== 'admin' && targetRole !== 'user') {
+        res.status(403).json({
+            success: false,
+            msg: pickLocalizedText(
+                locale as any,
+                '权限不足：仅超级管理员可管理非普通用户账号的订阅令牌',
+                'Insufficient permissions: only administrators may manage subscription tokens for staff accounts'
+            ),
+        });
+        return false;
+    }
+    return true;
 }
 
 const router = Router();
@@ -187,6 +211,9 @@ router.post('/:id/tokens', operatorOrAbove, (req: Request, res: Response) => {
     if (!user) {
         return res.status(404).json({ success: false, msg: pickLocalizedText(locale, '用户不存在', 'User not found') });
     }
+    if (!assertOperatorCanManageUserTokens(req, res, user, locale)) {
+        return;
+    }
     const email = normalizeEmail(user.subscriptionEmail || user.email);
     if (!email) {
         return res.status(400).json({ success: false, msg: pickLocalizedText(locale, '用户未配置邮箱', 'User has no email configured') });
@@ -223,6 +250,9 @@ router.delete('/:id/tokens/:tid', operatorOrAbove, (req: Request, res: Response)
     const user = userStore.getById(req.params.id);
     if (!user) {
         return res.status(404).json({ success: false, msg: pickLocalizedText(locale, '用户不存在', 'User not found') });
+    }
+    if (!assertOperatorCanManageUserTokens(req, res, user, locale)) {
+        return;
     }
     const email = normalizeEmail(user.subscriptionEmail || user.email);
     if (!email) {

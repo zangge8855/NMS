@@ -5,6 +5,7 @@ import jobStore from '../store/jobStore.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import { toHttpError } from '../lib/httpError.js';
 import { pickLocalizedText, resolveRequestLocale } from '../lib/requestLocale.js';
+import { invalidatePublicSubCache } from './subscriptions.js';
 import {
     buildManagedUserSyncJobPayload,
     createUserGroup,
@@ -123,6 +124,7 @@ router.post('/', operatorOrAbove, async (req: Request, res: Response) => {
         const payload = normalizeGroupPayload(req.body);
         validateServerIds(payload);
         const result = await createUserGroup(payload, actor, { locale });
+        invalidatePublicSubCache();
         const syncHistoryIds = appendGroupSyncHistory(req, result.sync, 'group_policy_create');
         appendSecurityAudit('user_group_created', req, {
             groupId: result.group.id,
@@ -158,6 +160,7 @@ router.put('/:id', operatorOrAbove, async (req: Request, res: Response) => {
         const payload = normalizeGroupPayload(req.body);
         validateServerIds(payload);
         const result = await updateUserGroup(req.params.id, payload, actor, { locale });
+        invalidatePublicSubCache();
         const syncHistoryIds = appendGroupSyncHistory(req, result.sync, 'group_policy_update');
         appendSecurityAudit('user_group_updated', req, {
             groupId: result.group.id,
@@ -191,6 +194,7 @@ router.post('/:id/sync', operatorOrAbove, async (req: Request, res: Response) =>
     try {
         const actor = (req as any).user?.username || (req as any).user?.role || 'admin';
         const sync = await syncUserGroupMembers(req.params.id, actor, { locale });
+        invalidatePublicSubCache();
         const syncHistoryIds = appendGroupSyncHistory(req, sync, 'group_policy_sync');
         appendSecurityAudit('user_group_synced', req, {
             groupId: sync.group.id,
@@ -220,6 +224,7 @@ router.delete('/:id', operatorOrAbove, async (req: Request, res: Response) => {
     try {
         const actor = (req as any).user?.username || (req as any).user?.role || 'admin';
         const result = await deleteUserGroup(req.params.id, actor, { locale });
+        invalidatePublicSubCache();
         const syncHistoryIds = appendGroupSyncHistory(req, result.sync, 'group_policy_delete');
         appendSecurityAudit('user_group_deleted', req, {
             groupId: result.group.id,

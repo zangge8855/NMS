@@ -28,7 +28,7 @@ export function resolveRegisteredUserNoticeRecipients(users: any[] = [], options
     const skipped: any[] = [];
 
     (Array.isArray(users) ? users : []).forEach((user) => {
-        if (user?.role === 'admin') return;
+        if ((user?.role || 'user') !== 'user') return;
         if (!includeDisabled && user?.enabled === false) {
             skipped.push({ userId: user?.id || '', username: user?.username || '', reason: 'disabled' });
             return;

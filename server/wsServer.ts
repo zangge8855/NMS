@@ -43,11 +43,65 @@ interface CustomWebSocket extends WebSocket {
 const BROADCAST_INTERVAL = Math.max(5_000, Number(config.performance?.wsBroadcastIntervalMs || 10_000));
 const HEARTBEAT_INTERVAL = 30_000;   // 30 秒心跳检测
 const MAX_TASK_SUBSCRIPTIONS = 100;  // 单连接最大任务订阅数
+const WS_MAX_PAYLOAD_BYTES = 64 * 1024;
 const DASHBOARD_FOLLOWUP_DELAY_MS = 1_200;
 const FRESH_CONNECTION_SNAPSHOT_MAX_AGE_MS = 1_000;
+const STAFF_WS_ROLES = new Set(['admin', 'operator', 'auditor']);
+const activeWssInstances = new Set<WebSocketServer>();
+
+function normalizeTokenVersion(value: unknown): number {
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed >= 1 ? parsed : 1;
+}
+
+function validateWsUserSession(ticketUser: any): { valid: boolean; code?: number; reason?: string; stored?: any } {
+    const userId = String(ticketUser?.userId || '').trim();
+    const username = String(ticketUser?.username || '').trim();
+    const stored = userId ? userStore.getById(userId) : (username ? userStore.getByUsername(username) : null);
+    if (!stored) {
+        return { valid: false, code: 401, reason: 'User session not found' };
+    }
+    if (stored.enabled === false) {
+        return { valid: false, code: 403, reason: 'Account disabled' };
+    }
+    const storedRole = String(stored.role || 'user').toLowerCase();
+    if (!STAFF_WS_ROLES.has(storedRole)) {
+        return { valid: false, code: 403, reason: 'Staff role required' };
+    }
+    if (ticketUser?.role && String(ticketUser.role).toLowerCase() !== storedRole) {
+        return { valid: false, code: 401, reason: 'Role mismatch' };
+    }
+    if (normalizeTokenVersion(ticketUser?.tokenVersion) !== normalizeTokenVersion(stored.tokenVersion)) {
+        return { valid: false, code: 401, reason: 'Session revoked' };
+    }
+    return { valid: true, stored };
+}
+
+export async function closeWebSocketServer(): Promise<void> {
+    const instances = Array.from(activeWssInstances);
+    activeWssInstances.clear();
+    await Promise.all(instances.map((wss) => new Promise<void>((resolve) => {
+        for (const client of wss.clients as Set<CustomWebSocket>) {
+            if (client.dashboardFollowupTimer) {
+                clearTimeout(client.dashboardFollowupTimer);
+                client.dashboardFollowupTimer = null;
+            }
+            try {
+                client.terminate();
+            } catch {
+                // ignore
+            }
+        }
+        try {
+            wss.close(() => resolve());
+        } catch {
+            resolve();
+        }
+    })));
+}
 
 function buildDashboardAccountSummary() {
-    const rows = userStore.getAll().filter((item: any) => item?.role !== 'admin');
+    const rows = userStore.getAll().filter((item: any) => (item?.role || 'user') === 'user');
     return {
         totalUsers: rows.length,
         pendingUsers: rows.filter((item: any) => item?.enabled === false).length,
@@ -73,7 +127,7 @@ function buildDashboardPresenceSummary(panelSnapshots: any[] = []) {
         const activeSinceTs = Date.now() - 3 * 60 * 1000;
         const enabledManagedEmails = new Set(
             users
-                .filter((user: any) => user?.role !== 'admin' && user?.enabled !== false)
+                .filter((user: any) => (user?.role || 'user') === 'user' && user?.enabled !== false)
                 .flatMap((user: any) => [normalizeEmail(user?.subscriptionEmail), normalizeEmail(user?.email)])
                 .filter(Boolean)
         );
@@ -245,7 +299,7 @@ function maybeScheduleDashboardFollowup(ws: CustomWebSocket) {
                 includeDetails: true,
                 force: true,
             });
-            if (!Array.isArray(snapshot?.items) || snapshot.items.length === 0) {
+            if (!Array.isArray(snapshot?.items)) {
                 return;
             }
             safeSend(ws, await buildClusterStatusMessage(snapshot));
@@ -266,6 +320,7 @@ export function initWebSocket(httpServer: HttpServer) {
     const wss = new WebSocketServer({
         server: httpServer,
         path: '/ws',
+        maxPayload: WS_MAX_PAYLOAD_BYTES,
         verifyClient: ({ req }: { req: IncomingMessage & { wsUser?: any } }, done: (res: boolean, code?: number, message?: string) => void) => {
             try {
                 const url = new URL(req.url || '', 'http://nms.local');
@@ -274,17 +329,39 @@ export function initWebSocket(httpServer: HttpServer) {
                     done(false, 401, 'Missing ticket');
                     return;
                 }
-                req.wsUser = verifyWsTicket(ticket);
+                const decoded = verifyWsTicket(ticket);
+                const validation = validateWsUserSession(decoded);
+                if (!validation.valid || !validation.stored) {
+                    done(false, validation.code || 401, validation.reason || 'Unauthorized');
+                    return;
+                }
+                req.wsUser = {
+                    ...decoded,
+                    userId: validation.stored.id,
+                    username: validation.stored.username,
+                    role: validation.stored.role,
+                    tokenVersion: normalizeTokenVersion(validation.stored.tokenVersion),
+                };
                 done(true);
             } catch {
                 done(false, 401, 'Invalid ticket');
             }
         },
     });
+    activeWssInstances.add(wss);
 
     // ── Heartbeat ──────────────────────────────────
     const heartbeatInterval = setInterval(() => {
         for (const ws of wss.clients as Set<CustomWebSocket>) {
+            const validation = validateWsUserSession(ws.user);
+            if (!validation.valid) {
+                try {
+                    ws.close(4401, validation.reason || 'Session invalidated');
+                } catch {
+                    ws.terminate();
+                }
+                continue;
+            }
             if (ws.isAlive === false) {
                 ws.terminate();
                 continue;
@@ -293,8 +370,14 @@ export function initWebSocket(httpServer: HttpServer) {
             ws.ping();
         }
     }, HEARTBEAT_INTERVAL);
+    if (typeof heartbeatInterval?.unref === 'function') {
+        heartbeatInterval.unref();
+    }
 
-    wss.on('close', () => clearInterval(heartbeatInterval));
+    wss.on('close', () => {
+        clearInterval(heartbeatInterval);
+        activeWssInstances.delete(wss);
+    });
 
     wss.on('connection', async (ws: CustomWebSocket, req: IncomingMessage & { wsUser?: any }) => {
         ws.isAlive = true;
@@ -343,7 +426,7 @@ export function initWebSocket(httpServer: HttpServer) {
         }
 
         const cachedSnapshot = getCachedClusterStatusSnapshot();
-        if (Array.isArray(cachedSnapshot?.items) && cachedSnapshot.items.length > 0) {
+        if (Array.isArray(cachedSnapshot?.items)) {
             const message = await buildClusterStatusMessage(cachedSnapshot);
             safeSend(ws, message);
             if (dashboardMessageNeedsFollowup(message)) {
@@ -355,7 +438,7 @@ export function initWebSocket(httpServer: HttpServer) {
             includeDetails: true,
             maxAgeMs: FRESH_CONNECTION_SNAPSHOT_MAX_AGE_MS,
         }).then(async (snapshot) => {
-            if (!Array.isArray(snapshot?.items) || snapshot.items.length === 0) {
+            if (!Array.isArray(snapshot?.items)) {
                 return;
             }
             const message = await buildClusterStatusMessage(snapshot);
@@ -381,7 +464,7 @@ export function initWebSocket(httpServer: HttpServer) {
                 includeDetails: true,
                 maxAgeMs: BROADCAST_INTERVAL,
             });
-            if (!Array.isArray(snapshot?.items) || snapshot.items.length === 0) {
+            if (!Array.isArray(snapshot?.items)) {
                 return;
             }
 
@@ -406,6 +489,9 @@ export function initWebSocket(httpServer: HttpServer) {
             broadcasting = false;
         }
     }, BROADCAST_INTERVAL);
+    if (typeof broadcastLoop?.unref === 'function') {
+        broadcastLoop.unref();
+    }
 
     // ── Task Progress Broadcast ─────────────────────────
     const onTaskProgress = (task: any) => {

@@ -3,6 +3,61 @@ import net from 'net';
 import config from '../config.js';
 import { isPrivateOrLocalIp, normalizeIpAddress } from './ipGeoResolver.js';
 
+const CLOUDFLARE_EDGE_BLOCKLIST = (() => {
+    const blockList = new net.BlockList();
+    const ipv4Cidrs: Array<[string, number]> = [
+        ['173.245.48.0', 20],
+        ['103.21.244.0', 22],
+        ['103.22.200.0', 22],
+        ['103.31.4.0', 22],
+        ['141.101.64.0', 18],
+        ['108.162.192.0', 18],
+        ['190.93.240.0', 20],
+        ['188.114.96.0', 20],
+        ['197.234.240.0', 22],
+        ['198.41.128.0', 17],
+        ['162.158.0.0', 15],
+        ['104.16.0.0', 13],
+        ['104.24.0.0', 14],
+        ['172.64.0.0', 13],
+        ['131.0.72.0', 22],
+    ];
+    const ipv6Cidrs: Array<[string, number]> = [
+        ['2400:cb00::', 32],
+        ['2606:4700::', 32],
+        ['2803:f800::', 32],
+        ['2405:b500::', 32],
+        ['2405:8100::', 32],
+        ['2a06:98c0::', 29],
+        ['2c0f:f248::', 32],
+    ];
+    for (const [prefix, mask] of ipv4Cidrs) {
+        blockList.addSubnet(prefix, mask, 'ipv4');
+    }
+    for (const [prefix, mask] of ipv6Cidrs) {
+        blockList.addSubnet(prefix, mask, 'ipv6');
+    }
+    return blockList;
+})();
+
+function isCloudflareEdgeIp(value: unknown): boolean {
+    const normalized = normalizeIpAddress(String(value || ''));
+    if (!normalized) return false;
+    const family = net.isIP(normalized);
+    if (family === 4) {
+        return CLOUDFLARE_EDGE_BLOCKLIST.check(normalized, 'ipv4');
+    }
+    if (family === 6) {
+        return CLOUDFLARE_EDGE_BLOCKLIST.check(normalized, 'ipv6');
+    }
+    return false;
+}
+
+function isTrustCloudflareEnabled(): boolean {
+    return process.env.TRUST_CLOUDFLARE_HEADERS === 'true'
+        || (config.security as any)?.trustCloudflareHeaders === true;
+}
+
 function firstHeaderValue(raw: unknown): string {
     if (Array.isArray(raw)) return String(raw[0] || '').trim();
     return String(raw || '').trim();
@@ -56,7 +111,7 @@ function parseSingleIpHeader(raw: unknown): string {
     return normalizeForwardedToken(value);
 }
 
-function collectForwardedIps(req: any): string[] {
+function collectForwardedIps(req: any, includeCloudflare: boolean = false): string[] {
     const expressIps = Array.isArray(req?.ips)
         ? req.ips
             .map((ip: any) => normalizeForwardedToken(ip))
@@ -66,8 +121,12 @@ function collectForwardedIps(req: any): string[] {
         ...expressIps,
         ...parseXForwardedFor(req?.headers?.['x-forwarded-for']),
         parseSingleIpHeader(req?.headers?.['x-real-ip']),
-        parseSingleIpHeader(req?.headers?.['cf-connecting-ip']),
-        parseSingleIpHeader(req?.headers?.['true-client-ip']),
+        ...(includeCloudflare
+            ? [
+                parseSingleIpHeader(req?.headers?.['cf-connecting-ip']),
+                parseSingleIpHeader(req?.headers?.['true-client-ip']),
+            ]
+            : []),
         parseSingleIpHeader(req?.headers?.['x-client-ip']),
         ...parseForwardedHeader(req?.headers?.forwarded),
     ].filter(Boolean);
@@ -115,22 +174,31 @@ function resolveCloudflareClientIp(req: any): { clientIp: string; source: string
 }
 
 function resolveForwardedClientIp(req: any): { clientIp: string; source: string } | null {
+    const ipFromReq = normalizeIpAddress(req?.ip || '');
+    const ipFromSocket = normalizeIpAddress(req?.socket?.remoteAddress || '');
     const expressIps = Array.isArray(req?.ips)
         ? req.ips
             .map((ip: any) => normalizeForwardedToken(ip))
             .filter(Boolean)
         : [];
     if (expressIps.length > 0) {
-        const publicIp = expressIps.find((ip: string) => !isPrivateOrLocalIp(ip));
+        const publicIp = [...expressIps].reverse().find((ip: string) => !isPrivateOrLocalIp(ip));
         return {
             clientIp: publicIp || expressIps[0],
             source: 'req.ips',
         };
     }
 
+    if (ipFromReq && ipFromSocket && ipFromReq !== ipFromSocket && !isPrivateOrLocalIp(ipFromReq)) {
+        return {
+            clientIp: ipFromReq,
+            source: 'req.ip',
+        };
+    }
+
     const xForwardedFor = parseXForwardedFor(req?.headers?.['x-forwarded-for']);
     if (xForwardedFor.length > 0) {
-        const publicIp = xForwardedFor.find((ip) => !isPrivateOrLocalIp(ip));
+        const publicIp = [...xForwardedFor].reverse().find((ip) => !isPrivateOrLocalIp(ip));
         return {
             clientIp: publicIp || xForwardedFor[0],
             source: 'x-forwarded-for',
@@ -139,7 +207,7 @@ function resolveForwardedClientIp(req: any): { clientIp: string; source: string 
 
     const forwardedHeader = parseForwardedHeader(req?.headers?.forwarded);
     if (forwardedHeader.length > 0) {
-        const publicIp = forwardedHeader.find((ip) => !isPrivateOrLocalIp(ip));
+        const publicIp = [...forwardedHeader].reverse().find((ip) => !isPrivateOrLocalIp(ip));
         return {
             clientIp: publicIp || forwardedHeader[0],
             source: 'forwarded',
@@ -176,14 +244,30 @@ export interface ClientIpDetails {
 export function canTrustForwardedHeaders(req: any): boolean {
     const ipFromReq = normalizeIpAddress(req?.ip || '');
     const ipFromSocket = normalizeIpAddress(req?.socket?.remoteAddress || '');
-    const upstreamIp = ipFromReq || ipFromSocket;
+    const upstreamIp = ipFromSocket || ipFromReq;
     const trustProxy = config.security?.trustProxy;
     const hasExpressProxyChain = Array.isArray(req?.ips) && req.ips.length > 0;
     return trustProxy === true || (
         trustProxy !== false && (
-            hasExpressProxyChain || (ipFromSocket ? isPrivateOrLocalIp(ipFromSocket) : isPrivateOrLocalIp(upstreamIp))
+            hasExpressProxyChain || isPrivateOrLocalIp(upstreamIp) || isCloudflareEdgeIp(upstreamIp)
         )
     );
+}
+
+export function canTrustCloudflareHeaders(req: any): boolean {
+    if (config.security?.trustProxy === false) {
+        return false;
+    }
+    const ipFromReq = normalizeIpAddress(req?.ip || '');
+    const ipFromSocket = normalizeIpAddress(req?.socket?.remoteAddress || '');
+    const upstreamIp = ipFromSocket || ipFromReq;
+    if (isCloudflareEdgeIp(upstreamIp)) {
+        return true;
+    }
+    if (isTrustCloudflareEnabled()) {
+        return canTrustForwardedHeaders(req);
+    }
+    return false;
 }
 
 export function resolveClientIpDetails(req: any): ClientIpDetails {
@@ -192,12 +276,13 @@ export function resolveClientIpDetails(req: any): ClientIpDetails {
     const upstreamIp = ipFromReq || ipFromSocket;
     const proxyIp = upstreamIp || '';
     const canTrustForwarded = canTrustForwardedHeaders(req);
-    const forwardedIps = canTrustForwarded ? collectForwardedIps(req) : [];
-    const cfCountry = canTrustForwarded
+    const canTrustCloudflare = canTrustCloudflareHeaders(req);
+    const forwardedIps = canTrustForwarded ? collectForwardedIps(req, canTrustCloudflare) : [];
+    const cfCountry = canTrustCloudflare
         ? String(req?.headers?.['cf-ipcountry'] || '').trim().toUpperCase()
         : '';
 
-    if (canTrustForwarded) {
+    if (canTrustCloudflare) {
         const cloudflareResolved = resolveCloudflareClientIp(req);
         if (cloudflareResolved?.clientIp) {
             return {
@@ -208,7 +293,9 @@ export function resolveClientIpDetails(req: any): ClientIpDetails {
                 cfCountry,
             };
         }
+    }
 
+    if (canTrustForwarded) {
         const forwardedResolved = resolveForwardedClientIp(req);
         if (forwardedResolved?.clientIp) {
             return {

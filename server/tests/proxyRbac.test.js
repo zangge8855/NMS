@@ -46,7 +46,7 @@ const OPERATOR_ALLOWED = [
     ['POST', '/panel/api/clients/clearIps/a@example.com'],
     ['POST', '/panel/api/server/restartXray'],
     ['POST', '/panel/api/server/installXray/v25.1.1'],
-    ['POST', '/sui/save'],
+    ['POST', '/sui/save', { object: 'clients', action: 'set', data: '{}' }],
     ['POST', '/sui/restartSb'],
     ['GET', '/sub/abc123'],
     ['POST', '/panel/api/clients/groups/create'],
@@ -116,17 +116,21 @@ test('proxy policy: admins reach every endpoint', () => {
 });
 
 test('proxy policy: operators manage nodes but not the panel administration surface', () => {
-    for (const [method, path] of ADMIN_ONLY) {
-        const decision = evaluateProxyAccess('operator', method, path);
+    for (const [method, path, body] of ADMIN_ONLY) {
+        const decision = evaluateProxyAccess('operator', method, path, body);
         assert.equal(decision.allowed, false, `operator ${method} ${path}`);
         assert.equal(decision.reason, 'admin_only_endpoint');
     }
-    for (const [method, path] of OPERATOR_ALLOWED) {
-        assert.equal(evaluateProxyAccess('operator', method, path).allowed, true, `operator ${method} ${path}`);
+    for (const [method, path, body] of OPERATOR_ALLOWED) {
+        assert.equal(evaluateProxyAccess('operator', method, path, body).allowed, true, `operator ${method} ${path}`);
     }
     assert.equal(evaluateProxyAccess('operator', 'POST', '/sui/save', { object: 'settings' }).allowed, false);
     assert.equal(evaluateProxyAccess('operator', 'POST', '/sui/save', { object: 'Settings ' }).allowed, false);
+    assert.equal(evaluateProxyAccess('operator', 'POST', '/sui/save', { object: 'users' }).allowed, false);
+    assert.equal(evaluateProxyAccess('operator', 'POST', '/sui/save', undefined).allowed, false);
+    assert.equal(evaluateProxyAccess('operator', 'POST', '/sui/save', 'raw-text-body').allowed, false);
     assert.equal(evaluateProxyAccess('operator', 'POST', '/sui/save', { object: 'clients' }).allowed, true);
+    assert.equal(evaluateProxyAccess('admin', 'POST', '/sui/save', { object: 'users' }).allowed, true);
 });
 
 test('proxy policy: auditors only reach allow-listed read-only queries', () => {

@@ -694,7 +694,7 @@ function updateOwnProfile(payload: any = {}, currentUser: any = {}, deps: any = 
     if (!String(user?.profileVerifyCode || '').trim()) {
         throw createHttpError(400, pickLocalizedText(locale, '请先发送邮箱验证码', 'Please send an email verification code first'));
     }
-    if (String(user.profileVerifyCode).trim() !== code) {
+    if (!timingSafeStringEqual(code, String(user.profileVerifyCode).trim())) {
         if (typeof userRepo.recordProfileVerifyFailure === 'function') {
             const failure = userRepo.recordProfileVerifyFailure(user.id, 5);
             if (failure?.invalidated) {
@@ -736,6 +736,23 @@ function updateOwnProfile(payload: any = {}, currentUser: any = {}, deps: any = 
 }
 
 function createDirectUserSession(user: any, deps: any = {}): any {
+    const locale = normalizeAppLocale(deps?.locale, 'zh-CN');
+    if (!user || !user.id) {
+        throw createHttpError(401, pickLocalizedText(locale, '用户不存在', 'User not found'));
+    }
+    if (user.isGuest === true || user.role === 'guest') {
+        throw createHttpError(
+            403,
+            pickLocalizedText(
+                locale,
+                '访客体验账号仅限节点订阅使用，禁止登录 Web 管理后台',
+                'Guest accounts are restricted to node subscriptions and cannot sign in to the web console.'
+            )
+        );
+    }
+    if (user.enabled === false) {
+        throw createHttpError(403, pickLocalizedText(locale, '该账号已被停用', 'This account has been disabled'));
+    }
     const tokenPayload = {
         userId: user.id,
         role: user.role,

@@ -3,6 +3,7 @@ import * as mailer from '../lib/mailer.js';
 import { checkAccountPassword } from '../lib/passwordValidator.js';
 import { createHttpError } from '../lib/httpError.js';
 import { localizeUserStoreErrorMessage, normalizeAppLocale, pickLocalizedText } from '../lib/requestLocale.js';
+import { timingSafeStringEqual } from '../lib/safeCompare.js';
 import subscriptionTokenRepository from '../repositories/subscriptionTokenRepository.js';
 import userRepository from '../repositories/userRepository.js';
 import userPolicyRepository from '../repositories/userPolicyRepository.js';
@@ -226,7 +227,7 @@ function verifyEmailCode(payload: any = {}, deps: any = {}) {
         };
     }
 
-    if (!user.verifyCode || user.verifyCode !== code) {
+    if (!user.verifyCode || !timingSafeStringEqual(code, String(user.verifyCode).trim())) {
         if (user.verifyCode && typeof userRepo.recordVerifyCodeFailure === 'function') {
             const failure = userRepo.recordVerifyCodeFailure(user.id, 5);
             if (failure?.invalidated) {
@@ -267,16 +268,15 @@ async function resendVerificationCode(payload: any = {}, deps: any = {}): Promis
     }
 
     const user = userRepo.getByEmail(email);
-    if (!user) {
-        throw createHttpError(404, pickLocalizedText(locale, '邮箱未注册', 'Email is not registered'));
-    }
-
-    if (user.emailVerified) {
-        return {
-            user,
-            email,
-            alreadyVerified: true,
-        };
+    if (!user || user.emailVerified) {
+        throw createHttpError(
+            400,
+            pickLocalizedText(
+                locale,
+                '当前无需重发验证码，请确认是否已发起注册',
+                'Verification code cannot be resent; please check if registration was initiated'
+            )
+        );
     }
 
     const code = emailSender.generateVerifyCode();
@@ -387,7 +387,7 @@ function resetPasswordWithCode(payload: any = {}, deps: any = {}) {
     if (!user) {
         throw createHttpError(400, pickLocalizedText(locale, '邮箱或验证码错误', 'Email or verification code is incorrect'));
     }
-    if (!user.resetCode || user.resetCode !== code) {
+    if (!user.resetCode || !timingSafeStringEqual(code, String(user.resetCode).trim())) {
         if (user.resetCode && typeof userRepo.recordResetCodeFailure === 'function') {
             const failure = userRepo.recordResetCodeFailure(user.id, 5);
             if (failure?.invalidated) {

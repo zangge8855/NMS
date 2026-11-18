@@ -3,6 +3,7 @@ import { authMiddleware, auditorOrAbove, operatorOrAbove } from '../middleware/a
 import { pickLocalizedText, resolveRequestLocale } from '../lib/requestLocale.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
 import serverStore from '../store/serverStore.js';
+import userStore from '../store/userStore.js';
 import userPolicyStore, { ALLOWED_PROTOCOLS, POLICY_SCOPE_MODES } from '../store/userPolicyStore.js';
 import { updateManagedUserPolicyByEmail } from '../services/userAdminService.js';
 import { invalidatePublicSubCache } from './subscriptions.js';
@@ -122,6 +123,24 @@ router.put('/:email', operatorOrAbove, async (req: Request, res: Response) => {
         return res.status(400).json({ success: false, msg: 'Email is required' });
     }
 
+    const actorRole = String((req as any).user?.role || '').trim().toLowerCase();
+    const matchingStaff = userStore.getAll().find((item: any) => {
+        const role = String(item?.role || 'user').trim().toLowerCase();
+        if (role === 'user') return false;
+        return normalizeEmail(item?.subscriptionEmail) === email || normalizeEmail(item?.email) === email;
+    });
+    if (actorRole !== 'admin' && matchingStaff) {
+        const locale = resolveRequestLocale(req);
+        return res.status(403).json({
+            success: false,
+            msg: pickLocalizedText(
+                locale,
+                '权限不足：仅超级管理员可修改运维或审计账号策略',
+                'Insufficient permissions: only administrators may modify policies for staff accounts'
+            ),
+        });
+    }
+
     const currentPolicy = userPolicyStore.get(email);
     const hasAllowedServerIds = Object.prototype.hasOwnProperty.call(req.body || {}, 'allowedServerIds');
     const hasBlockedServerIds = Object.prototype.hasOwnProperty.call(req.body || {}, 'blockedServerIds');
@@ -205,7 +224,7 @@ router.put('/:email', operatorOrAbove, async (req: Request, res: Response) => {
                     : (currentPolicy.overrideFields || []),
             },
             (req as any).user?.username || (req as any).user?.role || 'admin',
-            { locale }
+            { locale, actorRole }
         );
         invalidatePublicSubCache(result.subscriptionEmail || email);
         appendSecurityAudit('user_policy_updated', req, {
@@ -234,7 +253,8 @@ router.put('/:email', operatorOrAbove, async (req: Request, res: Response) => {
             obj: sanitizePolicyResult(result),
         });
     } catch (error: any) {
-        return res.status(400).json({
+        const status = Number(error?.status || 400);
+        return res.status(status).json({
             success: false,
             msg: error.message || 'Update policy failed',
         });

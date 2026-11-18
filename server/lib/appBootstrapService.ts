@@ -53,7 +53,7 @@ function firstFiniteNumber(...values: unknown[]): number {
 }
 
 function buildDashboardAccountSummary() {
-    const rows = userStore.getAll().filter((item: any) => item?.role !== 'admin');
+    const rows = userStore.getAll().filter((item: any) => (item?.role || 'user') === 'user');
     return {
         totalUsers: rows.length,
         pendingUsers: rows.filter((item: any) => item?.enabled === false).length,
@@ -61,7 +61,7 @@ function buildDashboardAccountSummary() {
 }
 
 function buildManagedUsersBootstrap() {
-    return userStore.getAll().filter((item: any) => item?.role !== 'admin');
+    return userStore.getAll().filter((item: any) => (item?.role || 'user') === 'user');
 }
 
 function buildRegistrationRuntimeSnapshot() {

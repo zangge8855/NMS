@@ -157,7 +157,7 @@ function maskEmail(value: unknown): string {
 function buildTrafficUserDirectoryVersion(users: any[] = []): string {
     return crypto.createHash('sha1').update(
         (Array.isArray(users) ? users : [])
-            .filter((user) => user?.role !== 'admin')
+            .filter((user) => (user?.role || 'user') === 'user')
             .map((user) => [
                 String(user?.id || '').trim(),
                 String(user?.username || '').trim(),
@@ -171,7 +171,7 @@ function buildTrafficUserDirectoryVersion(users: any[] = []): string {
 
 function buildResolvedTrafficUserDirectory(users: any[] = []): { aliasMap: Map<string, any>; totalUsers: number; versionToken: string } {
     const aliasMap = new Map<string, any>();
-    const registeredUsers = (Array.isArray(users) ? users : []).filter((user) => user?.role !== 'admin');
+    const registeredUsers = (Array.isArray(users) ? users : []).filter((user) => (user?.role || 'user') === 'user');
 
     registeredUsers.forEach((user) => {
         const loginEmail = normalizeClientEmail(user?.email);

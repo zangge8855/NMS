@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import net from 'node:net';
+import config from '../config.js';
 import {
     isBlockedHostname,
     normalizePanelTokenScope,
@@ -68,11 +69,18 @@ describe('validateServerUrl', () => {
         }
 
         if (ipv6Supported) {
+            const prevAllowPrivate = config.servers.allowPrivateServerUrl;
             try {
+                config.servers.allowPrivateServerUrl = false;
+                const blockedResult = await pingServer(`http://[::1]:${port}`);
+                assert.equal(blockedResult.online, false);
+
+                config.servers.allowPrivateServerUrl = true;
                 const probeResult = await pingServer(`http://[::1]:${port}`);
                 assert.equal(probeResult.online, true);
                 assert.ok(probeResult.latencyMs >= 0);
             } finally {
+                config.servers.allowPrivateServerUrl = prevAllowPrivate;
                 await new Promise((resolve) => server.close(resolve));
             }
         }

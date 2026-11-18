@@ -184,7 +184,7 @@ function buildManagedOnlineSummary(users: any[], serverPayloads: any[] = [], act
     let rawTotalSessions = 0;
 
     (Array.isArray(users) ? users : [])
-        .filter((user) => user?.role !== 'admin')
+        .filter((user) => (user?.role || 'user') === 'user')
         .forEach((user) => {
             const subscriptionEmail = normalizeEmail(user?.subscriptionEmail);
             const loginEmail = normalizeEmail(user?.email);
@@ -339,7 +339,7 @@ function buildManagedOnlineSummary(users: any[], serverPayloads: any[] = [], act
     });
 
     const rows = (Array.isArray(users) ? users : [])
-        .filter((user) => user?.role !== 'admin')
+        .filter((user) => (user?.role || 'user') === 'user')
         .map((user) => {
             const subscriptionEmail = normalizeEmail(user?.subscriptionEmail);
             const loginEmail = normalizeEmail(user?.email);
@@ -689,7 +689,7 @@ async function buildGlobalDashboardSnapshot(options: any = {}, deps: any = {}): 
     const activeSinceTs = Date.now() - 3 * 60 * 1000;
     const enabledManagedEmailsGlobal = new Set<string>(
         (Array.isArray(users) ? users : [])
-            .filter((user) => user?.role !== 'admin' && user?.enabled !== false)
+            .filter((user) => (user?.role || 'user') === 'user' && user?.enabled !== false)
             .flatMap((user) => [normalizeEmail(user?.subscriptionEmail), normalizeEmail(user?.email)])
             .filter(Boolean)
     );
@@ -847,7 +847,7 @@ async function buildSingleDashboardSnapshot(serverId: string, options: any = {},
     const activeSinceTs = Date.now() - 3 * 60 * 1000;
     const enabledManagedEmailsServer = new Set<string>(
         (Array.isArray(users) ? users : [])
-            .filter((user) => user?.role !== 'admin' && user?.enabled !== false)
+            .filter((user) => (user?.role || 'user') === 'user' && user?.enabled !== false)
             .flatMap((user) => [normalizeEmail(user?.subscriptionEmail), normalizeEmail(user?.email)])
             .filter(Boolean)
     );

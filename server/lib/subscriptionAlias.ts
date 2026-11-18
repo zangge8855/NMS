@@ -1,3 +1,5 @@
+import systemSettingsStore from '../store/systemSettingsStore.js';
+
 const RESERVED_EXACT_PATHS = new Set<string>([
     '/',
     '/login',
@@ -6,6 +8,12 @@ const RESERVED_EXACT_PATHS = new Set<string>([
     '/manifest.json',
     '/manifest.webmanifest',
     '/vite.svg',
+    '/theme-init.js',
+    '/sw.js',
+    '/feed.xml',
+    '/sitemap.xml',
+    '/about',
+    '/archive',
 ]);
 
 const RESERVED_PREFIXES = [
@@ -14,6 +22,16 @@ const RESERVED_PREFIXES = [
     '/src',
     '/node_modules',
     '/@vite',
+    '/ws',
+    '/stories',
+    '/posts',
+    '/guides',
+    '/section',
+    '/media',
+    '/archive',
+    '/about',
+    '/feed.xml',
+    '/sitemap.xml',
 ];
 
 const RESERVED_APP_ROUTES = [
@@ -59,6 +77,12 @@ export function isReservedSubscriptionAliasPath(value: unknown): boolean {
     if (RESERVED_EXACT_PATHS.has(normalized)) return true;
     if (RESERVED_PREFIXES.some((prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`))) {
         return true;
+    }
+    const configuredAccessPath = normalizeSubscriptionAliasPath(systemSettingsStore.getSite?.()?.accessPath);
+    if (configuredAccessPath && configuredAccessPath !== '/') {
+        if (normalized === configuredAccessPath || normalized.startsWith(`${configuredAccessPath}/`)) {
+            return true;
+        }
     }
     return RESERVED_APP_ROUTES.some((prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`));
 }

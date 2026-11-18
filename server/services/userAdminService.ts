@@ -245,6 +245,40 @@ function isPolicyInboundBlocked(policy: any = {}, serverId: string = '', inbound
     return normalizeStringList(policy?.blockedInboundKeys).includes(key);
 }
 
+function assertOperatorCanManageTargetUser(
+    target: any,
+    deps: any = {},
+    locale: string = 'zh-CN',
+    requestedRole?: unknown
+): void {
+    const actorRole = String(deps?.actorRole || '').trim().toLowerCase();
+    if (actorRole !== 'operator') return;
+    if (requestedRole !== undefined && requestedRole !== null) {
+        const nextRole = String(requestedRole).trim().toLowerCase();
+        if (nextRole && nextRole !== 'user') {
+            throw createHttpError(
+                403,
+                pickLocalizedText(
+                    locale as any,
+                    '仅超级管理员可创建或修改管理角色账号',
+                    'Only administrators can assign or modify staff account roles'
+                )
+            );
+        }
+    }
+    const targetRole = String(target?.role || 'user').trim().toLowerCase();
+    if (target && targetRole !== 'user') {
+        throw createHttpError(
+            403,
+            pickLocalizedText(
+                locale as any,
+                '仅超级管理员可管理非普通用户账号（admin / operator / auditor）',
+                'Only administrators can manage staff accounts (admin, operator, or auditor)'
+            )
+        );
+    }
+}
+
 async function syncAddedInboundsToExistingUsers(addedInbounds: any[] = [], actor: string = 'admin', deps: any = {}): Promise<any> {
     const userRepo = deps.userRepository || userRepository;
     const serverRepo = deps.serverRepository || serverRepository;
@@ -283,7 +317,7 @@ async function syncAddedInboundsToExistingUsers(addedInbounds: any[] = [], actor
 
     const allServers = Array.isArray(serverRepo.list()) ? serverRepo.list() : [];
     const serverMap = new Map(allServers.map((item: any) => [String(item?.id || '').trim(), item]));
-    const users = (Array.isArray(userRepo.list()) ? userRepo.list() : []).filter((item: any) => item?.role !== 'admin');
+    const users = (Array.isArray(userRepo.list()) ? userRepo.list() : []).filter((item: any) => (item?.role || 'user') === 'user');
 
     for (const targetUser of users) {
         result.totalUsers += 1;
@@ -755,6 +789,7 @@ async function updateManagedUser(id: string, payload: any = {}, actorOrDeps: any
     if (!target) {
         throw createHttpError(404, pickLocalizedText(locale, '用户不存在', 'User not found'));
     }
+    assertOperatorCanManageTargetUser(target, runtimeDeps, locale, payload?.role);
 
     const nextData: any = {};
     const currentUsername = String(target.username || '').trim();
@@ -1022,6 +1057,7 @@ async function setManagedUserEnabled(id: string, payload: any = {}, actor: strin
     if (target.role === 'admin') {
         throw createHttpError(400, pickLocalizedText(locale, '管理员账号无法停用', 'Administrator accounts cannot be disabled'));
     }
+    assertOperatorCanManageTargetUser(target, deps, locale);
 
     const enabled = !!payload?.enabled;
     const updated = userRepo.setEnabled(id, enabled);
@@ -1062,6 +1098,7 @@ async function updateManagedUserExpiry(id: string, payload: any = {}, actor: str
     if (!target) {
         throw createHttpError(404, pickLocalizedText(locale, '用户不存在', 'User not found'));
     }
+    assertOperatorCanManageTargetUser(target, deps, locale);
 
     const subscriptionEmail = resolveUserSubscriptionEmail(target);
     if (!subscriptionEmail) {
@@ -1112,6 +1149,7 @@ async function updateManagedUserPolicyByEmail(email: string, payload: any = {}, 
     }
 
     const target = userRepo.getBySubscriptionEmail(requestedEmail) || userRepo.getByEmail(requestedEmail) || null;
+    assertOperatorCanManageTargetUser(target, deps, locale);
     const subscriptionEmail = normalizeEmailInput(target?.subscriptionEmail || target?.email || requestedEmail);
     const emailAliases = buildManagedUserEmailAliases(target, subscriptionEmail);
     const currentPolicy = policyRepo.get(subscriptionEmail);
@@ -1210,6 +1248,7 @@ async function provisionManagedUserSubscription(id: string, payload: any = {}, a
     if (target.role === 'admin') {
         throw createHttpError(400, pickLocalizedText(locale, '管理员账号无需开通订阅', 'Administrator accounts do not require subscription provisioning'));
     }
+    assertOperatorCanManageTargetUser(target, deps, locale);
 
     const requestedEmail = Object.prototype.hasOwnProperty.call(payload || {}, 'subscriptionEmail')
         ? payload?.subscriptionEmail
@@ -1264,6 +1303,7 @@ function adminResetUserPassword(id: string, payload: any = {}, deps: any = {}) {
     if (!target) {
         throw createHttpError(404, pickLocalizedText(locale, '用户不存在', 'User not found'));
     }
+    assertOperatorCanManageTargetUser(target, deps, locale);
 
     userRepo.update(id, { password: newPassword });
     userRepo.clearPasswordResetCode(id);
@@ -1285,6 +1325,7 @@ async function deleteManagedUser(id: string, deps: any = {}): Promise<any> {
     if (targetUser.role === 'admin') {
         throw createHttpError(400, pickLocalizedText(locale, '管理员账号不支持在此处删除', 'Administrator accounts cannot be deleted here'));
     }
+    assertOperatorCanManageTargetUser(targetUser, deps, locale);
 
     const cleanupEmails = Array.from(new Set([
         normalizeEmailInput(targetUser.email),
@@ -1377,12 +1418,14 @@ async function deleteManagedUser(id: string, deps: any = {}): Promise<any> {
     if (clientCleanup.failed > 0 && cleanupEmails.length > 0) {
         try {
             const jobRecorder = deps.jobRepository || jobStore;
+            const summaryTotal = clientCleanup.total || cleanupDetails.length || allServers.length;
             const jobEntry = jobRecorder?.appendBatch?.({
+                type: 'user_sync',
                 action: 'delete_user_cleanup',
                 target: 'clients',
                 actor: String(deps.actor || 'system'),
                 strategy: 'compensating',
-                total: clientCleanup.total || cleanupDetails.length || allServers.length,
+                total: summaryTotal,
                 successCount: clientCleanup.removed,
                 failedCount: clientCleanup.failed,
                 failedServerIds: clientCleanup.failedServerIds,
@@ -1392,6 +1435,19 @@ async function deleteManagedUser(id: string, deps: any = {}): Promise<any> {
                     serverIds: clientCleanup.failedServerIds,
                 },
                 results: cleanupDetails,
+                output: {
+                    summary: {
+                        total: summaryTotal,
+                        success: clientCleanup.removed,
+                        failed: clientCleanup.failed,
+                    },
+                    results: cleanupDetails,
+                },
+                requestSnapshot: {
+                    operation: 'delete_user_cleanup',
+                    emails: cleanupEmails,
+                    serverIds: clientCleanup.failedServerIds,
+                },
             });
             compensatingJobId = String(jobEntry?.id || '');
         } catch {

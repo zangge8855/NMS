@@ -1,5 +1,8 @@
 import serverStore from '../store/serverStore.js';
+import userStore from '../store/userStore.js';
 import userPolicyStore from '../store/userPolicyStore.js';
+import userGroupStore from '../store/userGroupStore.js';
+import { resolveEffectivePolicyForSubscription } from '../lib/userPolicyResolver.js';
 import { ensureAuthenticated } from '../lib/panelClient.js';
 import { getClientIpsCompat, clearClientIpsCompat } from '../lib/panelApiCompat.js';
 import { appendSecurityAudit } from '../lib/securityAudit.js';
@@ -74,21 +77,66 @@ export async function sweepClusterConcurrency(options: {
     targetEmail?: string;
     autoKick?: boolean;
     force?: boolean;
+    userStore?: any;
+    userPolicyStore?: any;
+    userGroupStore?: any;
+    serverStore?: any;
+    ensureAuthenticated?: (serverId: string) => Promise<any>;
+    getClientIps?: (client: any, email: string) => Promise<any>;
+    clearClientIps?: (client: any, email: string) => Promise<any>;
 } = {}): Promise<ConcurrencyReport> {
     const now = Date.now();
-    if (!options.force && cache.report && (now - cache.timestamp < CACHE_TTL_MS) && !options.targetEmail) {
+    const hasCustomDeps = Boolean(
+        options.userStore
+        || options.userPolicyStore
+        || options.userGroupStore
+        || options.serverStore
+        || options.ensureAuthenticated
+        || options.getClientIps
+        || options.clearClientIps
+    );
+    if (!options.force && !hasCustomDeps && cache.report && (now - cache.timestamp < CACHE_TTL_MS) && !options.targetEmail) {
         return cache.report;
     }
 
     const targetEmail = options.targetEmail ? normalizeEmail(options.targetEmail) : null;
-    const policies = userPolicyStore.getAll ? userPolicyStore.getAll() : [];
-    
-    // Map email -> limitIp
+    const userRepo = options.userStore || userStore;
+    const policyRepo = options.userPolicyStore || userPolicyStore;
+    const groupRepo = options.userGroupStore || userGroupStore;
+    const serverRepo = options.serverStore || serverStore;
+    const ensureAuth = options.ensureAuthenticated || ensureAuthenticated;
+    const fetchClientIps = options.getClientIps || getClientIpsCompat;
+    const clearIps = options.clearClientIps || clearClientIpsCompat;
+    const policies = typeof policyRepo?.getAll === 'function' ? policyRepo.getAll() : [];
+    const users = typeof userRepo?.getAll === 'function' ? userRepo.getAll() : [];
+
+    // Map email -> limitIp (resolving group inheritance for active managed users first)
     const limitMap = new Map<string, number>();
-    for (const pol of policies) {
-        const email = normalizeEmail(pol.email);
-        if (!email) continue;
-        const limit = Number(pol.limitIp || pol.ipLimit || 0);
+    const resolvedEmails = new Set<string>();
+
+    for (const user of Array.isArray(users) ? users : []) {
+        if (!user || String(user.role || 'user').trim().toLowerCase() !== 'user' || user.enabled === false) {
+            continue;
+        }
+        const subEmail = normalizeEmail(user.subscriptionEmail || user.email);
+        if (!subEmail) continue;
+        resolvedEmails.add(subEmail);
+        const rawPolicy = typeof policyRepo?.get === 'function'
+            ? policyRepo.get(subEmail)
+            : (Array.isArray(policies) ? policies.find((p: any) => normalizeEmail(p?.email) === subEmail) : null);
+        const effective = resolveEffectivePolicyForSubscription(user, rawPolicy || {}, {
+            userGroupRepository: groupRepo,
+        });
+        const limit = Number(effective?.limitIp || 0);
+        if (limit > 0) {
+            limitMap.set(subEmail, limit);
+        }
+    }
+
+    for (const pol of Array.isArray(policies) ? policies : []) {
+        const email = normalizeEmail(pol?.email);
+        if (!email || resolvedEmails.has(email)) continue;
+        const limit = Number(pol?.limitIp || pol?.ipLimit || 0);
         if (limit > 0) {
             limitMap.set(email, limit);
         }
@@ -108,24 +156,24 @@ export async function sweepClusterConcurrency(options: {
             violations: [],
             records: [],
         };
-        if (!targetEmail) {
+        if (!targetEmail && !hasCustomDeps) {
             cache.report = emptyReport;
             cache.timestamp = now;
         }
         return emptyReport;
     }
 
-    const enabledServers = (serverStore.getAll() || []).filter((s: any) => s.enabled !== false);
+    const enabledServers = (serverRepo.getAll() || []).filter((s: any) => s.enabled !== false);
     const userSessionMap = new Map<string, ConcurrencySession[]>();
 
     // Query servers concurrently
     await Promise.allSettled(
         enabledServers.map(async (server: any) => {
             try {
-                const client = await ensureAuthenticated(server.id);
+                const client = await ensureAuth(server.id);
                 for (const email of emailsToCheck) {
                     try {
-                        const res = await getClientIpsCompat(client, email);
+                        const res = await fetchClientIps(client, email);
                         const ips = extractIpList(res);
                         if (ips.length > 0) {
                             const existing = userSessionMap.get(email) || [];
@@ -202,8 +250,8 @@ export async function sweepClusterConcurrency(options: {
                     allowedCount += session.ips.length;
                     if (allowedCount > limitIp) {
                         try {
-                            const client = await ensureAuthenticated(session.serverId);
-                            await clearClientIpsCompat(client, email);
+                            const client = await ensureAuth(session.serverId);
+                            await clearIps(client, email);
                             appendSecurityAudit('concurrency_auto_mitigated', null, {
                                 email,
                                 serverId: session.serverId,
@@ -227,7 +275,7 @@ export async function sweepClusterConcurrency(options: {
         records,
     };
 
-    if (!targetEmail) {
+    if (!targetEmail && !hasCustomDeps) {
         cache.report = report;
         cache.timestamp = now;
     }
