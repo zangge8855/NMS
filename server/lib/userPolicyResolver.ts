@@ -232,6 +232,37 @@ function resolveEffectivePolicy(user: any = null, rawPolicy: any = {}, group: an
     };
 }
 
+export interface UserPolicyLookupDeps {
+    policyRepository?: { get?: (email: string) => any };
+    policyStore?: { get?: (email: string) => any };
+    groupRepository?: { getById?: (groupId: string) => any; getAll?: () => any[] };
+    userGroupRepository?: { getById?: (groupId: string) => any; getAll?: () => any[] };
+    userGroupStore?: { getById?: (groupId: string) => any; getAll?: () => any[] };
+}
+
+export function resolveEffectivePolicyForSubscription(
+    user: any = null,
+    rawPolicy: any = null,
+    deps: UserPolicyLookupDeps = {}
+): any {
+    const groupRepo = deps.userGroupRepository || deps.userGroupStore || deps.groupRepository;
+    const groupId = normalizeText(user?.groupId);
+    let group: any = null;
+    if (groupId && groupRepo) {
+        if (typeof groupRepo.getById === 'function') {
+            group = groupRepo.getById(groupId);
+        } else if (typeof groupRepo.getAll === 'function') {
+            group = groupRepo.getAll().find((item: any) => normalizeText(item?.id) === groupId) || null;
+        }
+    }
+    const policyRepo = deps.policyRepository || deps.policyStore;
+    const email = normalizeEmail(user?.subscriptionEmail || user?.email);
+    const resolvedRawPolicy = rawPolicy !== null && rawPolicy !== undefined
+        ? rawPolicy
+        : (email && typeof policyRepo?.get === 'function' ? policyRepo.get(email) : {});
+    return resolveEffectivePolicy(user, resolvedRawPolicy || {}, group);
+}
+
 export {
     ALLOWED_PROTOCOLS,
     IP_LIMIT_POLICIES,

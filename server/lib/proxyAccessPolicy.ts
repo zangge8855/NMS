@@ -111,15 +111,34 @@ export function isMutatingProxyRequest(method: string, canonicalPath: string): b
     return false;
 }
 
-/** `/sui/save` writes any s-ui object; saving `settings` changes the panel itself. */
-function isSuiSettingsSave(canonicalPath: string, body: unknown): boolean {
+const SUI_OPERATOR_ALLOWED_SAVE_OBJECTS = new Set([
+    'inbounds',
+    'outbounds',
+    'endpoints',
+    'services',
+    'tls',
+    'clients',
+    'config',
+]);
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+    if (!value || typeof value !== 'object' || Array.isArray(value) || Buffer.isBuffer(value)) {
+        return false;
+    }
+    const proto = Object.getPrototypeOf(value);
+    return proto === Object.prototype || proto === null;
+}
+
+/** `/sui/save` writes an s-ui object; operators may only write explicitly allowlisted non-admin objects. */
+function isDisallowedSuiSaveForOperator(canonicalPath: string, body: unknown): boolean {
     if (canonicalPath !== '/sui/save') return false;
-    const object = body && typeof body === 'object' ? (body as Record<string, unknown>).object : undefined;
-    return String(object || '').trim().toLowerCase() === 'settings';
+    if (!isPlainObject(body)) return true;
+    const object = String(body.object || '').trim().toLowerCase();
+    return !SUI_OPERATOR_ALLOWED_SAVE_OBJECTS.has(object);
 }
 
 export function isAdminOnlyProxyRequest(canonicalPath: string, body?: unknown): boolean {
-    return matchesAny(ADMIN_ONLY_PATHS, canonicalPath) || isSuiSettingsSave(canonicalPath, body);
+    return matchesAny(ADMIN_ONLY_PATHS, canonicalPath) || isDisallowedSuiSaveForOperator(canonicalPath, body);
 }
 
 export function evaluateProxyAccess(

@@ -436,7 +436,7 @@ router.all('/:serverId/*', upload.any(), async (req: Request, res: Response) => 
     const serverRecord = serverStore.getById(serverId);
     const isSuiServer = Boolean(serverRecord && isSuiPanelServer(serverRecord));
     const panelLabel = isSuiServer ? 's-ui' : '3x-ui';
-    if (panelPath.startsWith(SUI_NATIVE_PREFIX) && serverRecord && !isSuiServer) {
+    if (canonicalPath.startsWith(SUI_NATIVE_PREFIX) && serverRecord && !isSuiServer) {
         return res.status(400).json({
             success: false,
             msg: pickLocalizedText(locale, '该接口仅适用于 s-ui 节点', 'This endpoint is only available on s-ui nodes'),
@@ -448,10 +448,10 @@ router.all('/:serverId/*', upload.any(), async (req: Request, res: Response) => 
 
         const axiosConfig: any = {
             method: method.toLowerCase(),
-            url: panelPath,
+            url: canonicalPath,
             timeout: 60000,
         };
-        if (panelPath === '/panel/api/server/database/export' || panelPath === '/panel/api/server/getDb') {
+        if (canonicalPath === '/panel/api/server/database/export' || canonicalPath === '/panel/api/server/getDb') {
             axiosConfig.responseType = 'arraybuffer';
         }
 
@@ -501,8 +501,8 @@ router.all('/:serverId/*', upload.any(), async (req: Request, res: Response) => 
 
         let responseData = panelRes.data;
         if (
-            panelPath.startsWith('/panel/api/inbounds/clientIps/')
-            || panelPath.startsWith('/panel/api/clients/ips/')
+            canonicalPath.startsWith('/panel/api/inbounds/clientIps/')
+            || canonicalPath.startsWith('/panel/api/clients/ips/')
         ) {
             if (responseData && typeof responseData === 'object' && responseData.obj !== undefined) {
                 responseData = {
@@ -542,8 +542,8 @@ router.all('/:serverId/*', upload.any(), async (req: Request, res: Response) => 
             try {
                 const client = await ensureAuthenticated(serverId);
                 const compatRes = method === 'GET'
-                    ? await tryCompatPanelGetRequest(client, panelPath)
-                    : await tryCompatPanelRequest(client, method, panelPath, req.body || {}, req.files as Express.Multer.File[]);
+                    ? await tryCompatPanelGetRequest(client, canonicalPath)
+                    : await tryCompatPanelRequest(client, method, canonicalPath, req.body || {}, req.files as Express.Multer.File[]);
                 if (compatRes) {
                     const compatStatus = Number(compatRes.status || 200);
                     if (compatStatus < 400 && isMutatingProxyRequest(method, canonicalPath)) {

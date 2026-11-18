@@ -100,4 +100,49 @@ describe('resolveClientIpDetails', () => {
         assert.equal(details.ipSource, 'req.ip');
         assert.equal(details.cfCountry, '');
     });
+
+    it('rejects spoofed cloudflare headers behind private reverse proxy by default and allows opt-in via env', () => {
+        const req = {
+            ip: '127.0.0.1',
+            headers: {
+                'cf-connecting-ip': '1.2.3.4',
+                'true-client-ip': '5.6.7.8',
+                'cf-ipcountry': 'ZZ',
+                'x-forwarded-for': '9.9.9.9, 198.51.100.42',
+            },
+            socket: { remoteAddress: '127.0.0.1' },
+        };
+
+        const prev = process.env.TRUST_CLOUDFLARE_HEADERS;
+        delete process.env.TRUST_CLOUDFLARE_HEADERS;
+        try {
+            const details = resolveClientIpDetails(req);
+            assert.equal(details.clientIp, '198.51.100.42');
+            assert.equal(details.ipSource, 'x-forwarded-for');
+            assert.equal(details.cfCountry, '');
+
+            process.env.TRUST_CLOUDFLARE_HEADERS = 'true';
+            const trustedDetails = resolveClientIpDetails(req);
+            assert.equal(trustedDetails.clientIp, '1.2.3.4');
+            assert.equal(trustedDetails.ipSource, 'cf-connecting-ip');
+            assert.equal(trustedDetails.cfCountry, 'ZZ');
+        } finally {
+            if (prev === undefined) {
+                delete process.env.TRUST_CLOUDFLARE_HEADERS;
+            } else {
+                process.env.TRUST_CLOUDFLARE_HEADERS = prev;
+            }
+        }
+    });
+
+    it('picks rightmost non-private x-forwarded-for address to defeat leftmost client spoofing', () => {
+        const ip = resolveClientIp({
+            ip: '127.0.0.1',
+            headers: {
+                'x-forwarded-for': '8.8.8.8, 198.51.100.99, 10.0.0.2',
+            },
+            socket: { remoteAddress: '127.0.0.1' },
+        });
+        assert.equal(ip, '198.51.100.99');
+    });
 });

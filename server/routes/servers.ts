@@ -20,6 +20,7 @@ import { buildServerDetailSnapshot } from '../lib/serverDetailSnapshotService.js
 import { buildErrorSnapshot, getServerLogSnapshot, getServerLogSnapshots } from '../lib/serverLogsSnapshotService.js';
 import { invalidateServerPanelSnapshotCache } from '../lib/serverPanelSnapshotService.js';
 import { isReservedOrPrivateIp, stripIpv6Brackets } from '../lib/ipGeoResolver.js';
+import { pingServer } from '../lib/probe.js';
 import { fetchServerLogPayload as fetchServerLogResult, normalizeLogCount as normalizeRequestedLogCount, normalizeLogSource as normalizeRequestedLogSource } from '../services/panelLogsService.js';
 import { invalidatePublicSubCache } from './subscriptions.js';
 
@@ -1118,54 +1119,7 @@ router.patch('/batch', operatorOrAbove, (req, res) => {
 });
 
 function probeServer(urlStr: string): Promise<{ latencyMs: number, online: boolean, httpStatus?: number }> {
-    try {
-        if (!urlStr || typeof urlStr !== 'string') {
-            return Promise.resolve({ online: false, latencyMs: -1 });
-        }
-        const trimmed = urlStr.trim();
-        const urlStrWithProto = trimmed.includes('://') ? trimmed : `http://${trimmed}`;
-        const url = new URL(urlStrWithProto);
-        const port = url.port ? parseInt(url.port, 10) : (url.protocol === 'https:' ? 443 : 80);
-        const host = stripIpv6Brackets(url.hostname);
-
-        if (!host) {
-            return Promise.resolve({ online: false, latencyMs: -1 });
-        }
-
-        const start = Date.now();
-        return new Promise((resolve) => {
-            let settled = false;
-            const socket = new net.Socket();
-            socket.setTimeout(2500);
-
-            const finish = (online: boolean, latencyMs: number) => {
-                if (settled) return;
-                settled = true;
-                try { socket.destroy(); } catch {}
-                resolve({ online, latencyMs });
-            };
-            
-            socket.on('connect', () => {
-                finish(true, Date.now() - start);
-            });
-
-            socket.on('timeout', () => {
-                finish(false, -1);
-            });
-
-            socket.on('error', () => {
-                finish(false, -1);
-            });
-
-            try {
-                socket.connect(port, host);
-            } catch {
-                finish(false, -1);
-            }
-        });
-    } catch {
-        return Promise.resolve({ online: false, latencyMs: -1 });
-    }
+    return pingServer(urlStr, { timeoutMs: 2500 });
 }
 
 router.post('/ping-all', authMiddleware, operatorOrAbove, async (req: any, res: any) => {

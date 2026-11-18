@@ -1,7 +1,9 @@
 import userStore from '../store/userStore.js';
 import userPolicyStore from '../store/userPolicyStore.js';
+import userGroupStore from '../store/userGroupStore.js';
 import notificationService, { SEVERITY, type SeverityType } from './notifications.js';
 import { isEnglishLocale, resolveNotificationLocale, type AppLocale } from './requestLocale.js';
+import { resolveEffectivePolicyForSubscription } from './userPolicyResolver.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_INTERVAL_MS = 30 * 60 * 1000;
@@ -114,12 +116,13 @@ export function collectSubscriptionExpirySnapshot(options: any = {}): Subscripti
     const now = Number(options.now || Date.now());
     const userRepo = options.userStore || options.userRepository || userStore;
     const policyRepo = options.policyStore || userPolicyStore;
+    const groupRepo = options.userGroupStore || options.userGroupRepository || userGroupStore;
     const limit = Math.max(1, Number(options.limit || 8));
     const users = normalizeUserList(userRepo);
     const items: SubscriptionExpirySnapshotItem[] = [];
 
     users.forEach((user) => {
-        if (!user || String(user.role || '').trim().toLowerCase() !== 'user' || user.enabled === false) {
+        if (!user || String(user.role || 'user').trim().toLowerCase() !== 'user' || user.enabled === false) {
             return;
         }
 
@@ -127,10 +130,13 @@ export function collectSubscriptionExpirySnapshot(options: any = {}): Subscripti
         const subscriptionEmail = String(user.subscriptionEmail || email).trim().toLowerCase();
         if (!subscriptionEmail) return;
 
-        const policy = typeof policyRepo?.get === 'function'
+        const rawPolicy = typeof policyRepo?.get === 'function'
             ? policyRepo.get(subscriptionEmail)
             : null;
-        const expiryTime = Number(policy?.expiryTime || 0);
+        const effectivePolicy = resolveEffectivePolicyForSubscription(user, rawPolicy, {
+            userGroupRepository: groupRepo,
+        });
+        const expiryTime = Number(effectivePolicy?.expiryTime || 0);
         const stage = resolveSubscriptionExpiryStage(expiryTime, now);
         if (!stage) return;
 
@@ -238,6 +244,7 @@ export function createSubscriptionExpiryNotifier(options: any = {}) {
     const notifications = options.notificationService || notificationService;
     const userRepo = options.userStore || options.userRepository || userStore;
     const policyRepo = options.policyStore || userPolicyStore;
+    const groupRepo = options.userGroupStore || options.userGroupRepository || userGroupStore;
     const defaultLocale = options.locale;
     const stageCache = new Map<string, string>();
     let timer: NodeJS.Timeout | null = null;
@@ -255,6 +262,7 @@ export function createSubscriptionExpiryNotifier(options: any = {}) {
             now: now(),
             userStore: userRepo,
             policyStore: policyRepo,
+            userGroupStore: groupRepo,
             // No limit for notification dispatch: the 50-item cap is only for the
             // admin display snapshot. Truncating here both skipped users ranked
             // 51+ entirely and — because clearResolvedUsers() purges dedup keys

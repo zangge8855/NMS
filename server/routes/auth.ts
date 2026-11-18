@@ -53,6 +53,7 @@ import {
     updateUserSubscriptionBinding,
 } from '../services/userAdminService.js';
 import { authMiddleware, auditorOrAbove, operatorOrAbove, anyRole } from '../middleware/auth.js';
+import { invalidatePublicSubCache } from './subscriptions.js';
 
 const router = Router();
 
@@ -181,29 +182,64 @@ function clearAccountLoginRate(username = '') {
     loginAccountThrottle.clear(normalizeRateUsername(username));
 }
 
+function pruneBoundedRateMap(
+    attempts: Map<string, { count: number; firstAttempt: number }>,
+    windowMs: number,
+    now: number
+): void {
+    for (const [key, entry] of attempts) {
+        if (now - entry.firstAttempt > windowMs) {
+            attempts.delete(key);
+        }
+    }
+}
+
+export function checkBoundedRateLimit(
+    attempts: Map<string, { count: number; firstAttempt: number }>,
+    windowMs: number,
+    maxAttempts: number,
+    mapLimit: number,
+    key: string,
+    now: number = Date.now()
+): boolean {
+    const normalizedKey = String(key || 'unknown');
+    const data = attempts.get(normalizedKey);
+    if (!data || now - data.firstAttempt > windowMs) {
+        if (data) {
+            attempts.delete(normalizedKey);
+        }
+        if (attempts.size >= mapLimit) {
+            pruneBoundedRateMap(attempts, windowMs, now);
+        }
+        while (attempts.size >= mapLimit) {
+            const oldestKey = attempts.keys().next().value;
+            if (oldestKey === undefined) break;
+            attempts.delete(oldestKey);
+        }
+        if (attempts.size >= mapLimit) {
+            return false;
+        }
+        attempts.set(normalizedKey, { count: 1, firstAttempt: now });
+        return true;
+    }
+    attempts.delete(normalizedKey);
+    data.count += 1;
+    attempts.set(normalizedKey, data);
+    return data.count <= maxAttempts;
+}
+
 // --- Register rate limiter ---
 const REGISTER_RATE_WINDOW = 60 * 60 * 1000; // 1 hour
 const REGISTER_RATE_MAX = 5;
 const REGISTER_RATE_MAP_LIMIT = 10000;
-const registerAttempts = new Map();
+const registerAttempts = new Map<string, { count: number; firstAttempt: number }>();
 
 startCleanupInterval(() => {
-    const now = Date.now();
-    for (const [ip, data] of registerAttempts) {
-        if (now - data.firstAttempt > REGISTER_RATE_WINDOW) registerAttempts.delete(ip);
-    }
+    pruneBoundedRateMap(registerAttempts, REGISTER_RATE_WINDOW, Date.now());
 }, 60_000);
 
 function checkRegisterRate(ip) {
-    const now = Date.now();
-    const data = registerAttempts.get(ip);
-    if (!data || now - data.firstAttempt > REGISTER_RATE_WINDOW) {
-        if (registerAttempts.size >= REGISTER_RATE_MAP_LIMIT) return true;
-        registerAttempts.set(ip, { count: 1, firstAttempt: now });
-        return true;
-    }
-    data.count++;
-    return data.count <= REGISTER_RATE_MAX;
+    return checkBoundedRateLimit(registerAttempts, REGISTER_RATE_WINDOW, REGISTER_RATE_MAX, REGISTER_RATE_MAP_LIMIT, ip);
 }
 // --- End rate limiters ---
 
@@ -211,50 +247,28 @@ function checkRegisterRate(ip) {
 const RESET_RATE_WINDOW = 60 * 60 * 1000; // 1 hour
 const RESET_RATE_MAX = 8;
 const RESET_RATE_MAP_LIMIT = 10000;
-const resetAttempts = new Map();
+const resetAttempts = new Map<string, { count: number; firstAttempt: number }>();
 
 startCleanupInterval(() => {
-    const now = Date.now();
-    for (const [ip, data] of resetAttempts) {
-        if (now - data.firstAttempt > RESET_RATE_WINDOW) resetAttempts.delete(ip);
-    }
+    pruneBoundedRateMap(resetAttempts, RESET_RATE_WINDOW, Date.now());
 }, 60_000);
 
 function checkResetRate(ip) {
-    const now = Date.now();
-    const data = resetAttempts.get(ip);
-    if (!data || now - data.firstAttempt > RESET_RATE_WINDOW) {
-        if (resetAttempts.size >= RESET_RATE_MAP_LIMIT) return true;
-        resetAttempts.set(ip, { count: 1, firstAttempt: now });
-        return true;
-    }
-    data.count++;
-    return data.count <= RESET_RATE_MAX;
+    return checkBoundedRateLimit(resetAttempts, RESET_RATE_WINDOW, RESET_RATE_MAX, RESET_RATE_MAP_LIMIT, ip);
 }
 
 // --- Verification code rate limiter ---
 const VERIFY_RATE_WINDOW = 15 * 60 * 1000; // 15 minutes
 const VERIFY_RATE_MAX = 10;
 const VERIFY_RATE_MAP_LIMIT = 10000;
-const verifyAttempts = new Map();
+const verifyAttempts = new Map<string, { count: number; firstAttempt: number }>();
 
 startCleanupInterval(() => {
-    const now = Date.now();
-    for (const [ip, data] of verifyAttempts) {
-        if (now - data.firstAttempt > VERIFY_RATE_WINDOW) verifyAttempts.delete(ip);
-    }
+    pruneBoundedRateMap(verifyAttempts, VERIFY_RATE_WINDOW, Date.now());
 }, 60_000);
 
 function checkVerifyRate(ip) {
-    const now = Date.now();
-    const data = verifyAttempts.get(ip);
-    if (!data || now - data.firstAttempt > VERIFY_RATE_WINDOW) {
-        if (verifyAttempts.size >= VERIFY_RATE_MAP_LIMIT) return true;
-        verifyAttempts.set(ip, { count: 1, firstAttempt: now });
-        return true;
-    }
-    data.count++;
-    return data.count <= VERIFY_RATE_MAX;
+    return checkBoundedRateLimit(verifyAttempts, VERIFY_RATE_WINDOW, VERIFY_RATE_MAX, VERIFY_RATE_MAP_LIMIT, ip);
 }
 
 function buildUserAuditDetails(target, extra: any = {}) {
@@ -613,9 +627,13 @@ router.post('/resend-code', async (req, res) => {
     try {
         const result = await resendVerificationCode(req.body, { locale });
         if (result.alreadyVerified) {
-            return res.json({
-                success: true,
-                msg: pickLocalizedText(locale, '邮箱已验证，无需重发', 'Email is already verified; no need to resend'),
+            return res.status(400).json({
+                success: false,
+                msg: pickLocalizedText(
+                    locale,
+                    '当前无需重发验证码，请确认是否已发起注册',
+                    'Verification code cannot be resent; please check if registration was initiated'
+                ),
             });
         }
 
@@ -834,6 +852,7 @@ router.post('/users/bulk-set-enabled', authMiddleware, operatorOrAbove, async (r
             String(req.user?.username || 'admin'),
             { locale }
         );
+        invalidatePublicSubCache();
         const syncHistoryIds = [];
         result.results = result.results.map((item) => {
             if (!item?.success || item?.partialFailure !== true || !item.target) return item;
@@ -919,6 +938,7 @@ router.put('/users/:id', authMiddleware, operatorOrAbove, async (req, res) => {
             String(req.user?.username || 'admin'),
             { locale }
         );
+        invalidatePublicSubCache();
         appendSecurityAudit('user_updated', req, buildUserAuditDetails(result.user, {
             targetUser: result.user.username,
             previousSubscriptionEmail: result.target?.subscriptionEmail || '',
@@ -946,6 +966,7 @@ router.put('/users/:id/subscription-binding', authMiddleware, operatorOrAbove, a
             String(req.user?.username || 'admin'),
             { locale }
         );
+        invalidatePublicSubCache();
         appendSecurityAudit('user_subscription_binding_updated', req, buildUserAuditDetails(result.updated, {
             targetUserId: result.target.id,
             targetUsername: result.target.username,
@@ -1007,6 +1028,7 @@ router.put('/users/:id/set-enabled', authMiddleware, operatorOrAbove, async (req
             syncFailureCount,
             syncHistoryId: syncHistory?.id || '',
         }));
+        invalidatePublicSubCache();
         return res.json({
             success: true,
             msg: syncMessage,
@@ -1039,6 +1061,7 @@ router.put('/users/:id/update-expiry', authMiddleware, operatorOrAbove, async (r
             String(req.user?.username || 'admin'),
             { locale }
         );
+        invalidatePublicSubCache();
         const syncJobPayload = buildManagedUserSyncJobPayload({
             operation: 'update_expiry',
             target: result.target,
@@ -1089,6 +1112,7 @@ router.post('/users/:id/provision-subscription', authMiddleware, operatorOrAbove
     try {
         const actor = String(req.user?.username || req.user?.role || 'admin');
         const result = await provisionManagedUserSubscription(req.params.id, req.body, actor, { locale });
+        invalidatePublicSubCache();
         const { user, policy, subscription, deployment, context, target } = result;
         const syncJobPayload = buildManagedUserSyncJobPayload({
             operation: 'provision_subscription',
@@ -1169,6 +1193,7 @@ router.delete('/users/:id', authMiddleware, operatorOrAbove, async (req, res) =>
     const locale = resolveRequestLocale(req);
     try {
         const result = await deleteManagedUser(req.params.id, { locale });
+        invalidatePublicSubCache();
         appendSecurityAudit('user_deleted', req, buildUserAuditDetails(result.targetUser, {
             targetUser: result.targetUser.username,
             cleanupEmails: result.cleanupEmails,

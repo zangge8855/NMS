@@ -1258,8 +1258,18 @@ test('deleteManagedUser records compensating cleanup job on remote failure and s
     assert.equal(result.compensatingJobId, 'job-comp-1');
     assert.deepEqual(result.clientCleanup.failedServerIds, ['srv-offline']);
     assert.equal(recordedJobs.length, 1);
+    assert.equal(recordedJobs[0].type, 'user_sync');
     assert.equal(recordedJobs[0].action, 'delete_user_cleanup');
     assert.deepEqual(recordedJobs[0].failedServerIds, ['srv-offline']);
+    assert.deepEqual(recordedJobs[0].output, {
+        summary: { total: 1, success: 0, failed: 1 },
+        results: [{ email: 'comp@example.com', serverId: 'srv-offline', status: 'failed', reason: 'timeout' }],
+    });
+    assert.deepEqual(recordedJobs[0].requestSnapshot, {
+        operation: 'delete_user_cleanup',
+        emails: ['comp@example.com'],
+        serverIds: ['srv-offline'],
+    });
 });
 
 test('userAdminService localizes user-not-found and group-membership errors for en-US while keeping zh-CN defaults', async () => {
