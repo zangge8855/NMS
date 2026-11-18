@@ -278,7 +278,9 @@ export function ServerProvider({ children, enabled = true }: ServerProviderProps
 
     // Helper: make a proxied API call to the active server
     const panelApi = useCallback((method: string, path: string, data?: any, config?: any) => {
-        if (!activeServerId) throw new Error('No server selected');
+        if (!activeServerId || activeServerId === 'global') {
+            return Promise.reject(new Error('No active node selected'));
+        }
         const url = `/panel/${activeServerId}${path}`;
         return api({ method, url, data, ...config });
     }, [activeServerId]);

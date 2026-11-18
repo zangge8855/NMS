@@ -26,6 +26,7 @@ function toneToButtonClass(tone: string = 'danger'): string {
 }
 
 interface DialogState {
+    open: boolean;
     title: string;
     message: string;
     details: string;
@@ -46,8 +47,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
             resolverRef.current(Boolean(result));
             resolverRef.current = null;
         }
-        setDialog(null);
-        setTypedText('');
+        setDialog((prev) => (prev ? { ...prev, open: false } : prev));
     }, []);
 
     const confirm: ConfirmFunction = useCallback((options: ConfirmOptions = {}) => {
@@ -60,6 +60,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
             resolverRef.current = resolve;
             setTypedText('');
             setDialog({
+                open: true,
                 title: String(options.title || t('comp.common.confirmActionTitle')),
                 message: String(options.message || ''),
                 details: String(options.details || ''),
@@ -77,7 +78,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     return (
         <ConfirmContext.Provider value={confirm}>
             {children}
-            <ModalShell isOpen={!!dialog} onClose={() => closeDialog(false)}>
+            <ModalShell isOpen={Boolean(dialog?.open)} onClose={() => closeDialog(false)}>
                 {dialog && (
                     <div className="modal confirm-modal" onClick={(event) => event.stopPropagation()}>
                         <div className="modal-header">

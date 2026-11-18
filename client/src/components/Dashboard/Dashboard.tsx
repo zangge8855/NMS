@@ -3,7 +3,7 @@ import { useServer } from '../../contexts/ServerContext';
 import api from '../../api/client';
 import Header from '../Layout/Header';
 import { formatBytes, formatUptime } from '../../utils/format';
-import useWebSocket from '../../hooks/useWebSocket';
+import useWebSocket, { type WebSocketStatus } from '../../hooks/useWebSocket';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import {
@@ -830,7 +830,15 @@ function ClusterSystemTrendsCard({
     );
 }
 
-export default function Dashboard() {
+export interface DashboardProps {
+    wsStatus?: WebSocketStatus;
+    wsLastMessage?: any;
+}
+
+export default function Dashboard({
+    wsStatus: sharedWsStatus,
+    wsLastMessage: sharedWsLastMessage,
+}: DashboardProps = {}) {
     const { activeServerId, activeServer, servers, loading: serverContextLoading } = useServer();
     const { token, user } = useAuth();
     const { t, locale } = useI18n();
@@ -845,8 +853,10 @@ export default function Dashboard() {
     );
     const lastSectionsStorageKeyRef = useRef(sectionsStorageKey);
     const [customizeOpen, setCustomizeOpen] = useState(false);
+    const hasSharedWs = sharedWsStatus !== undefined || sharedWsLastMessage !== undefined;
     const [wsTicket, setWsTicket] = useState('');
     const lastWsTicketFetchAtRef = useRef(0);
+    const wsTicketFailedRef = useRef(false);
     const dashboardBootstrapRef = useRef(readDashboardBootstrapSnapshot());
 
     // Single Server State
@@ -1013,7 +1023,7 @@ export default function Dashboard() {
     }, []);
 
     const fetchWsTicket = useCallback(async ({ force = false }: any = {}) => {
-        if (!token) {
+        if (hasSharedWs || !token || wsTicketFailedRef.current) {
             setWsTicket('');
             return;
         }
@@ -1024,32 +1034,53 @@ export default function Dashboard() {
         lastWsTicketFetchAtRef.current = now;
         try {
             const res = await api.post('/ws/ticket');
-            const issued = res.data?.obj || {};
-            setWsTicket(String(issued.ticket || ''));
-        } catch (err) {
+            const issued = res?.data?.obj || {};
+            const ticket = String(issued.ticket || '').trim();
+            if (!ticket) {
+                setWsTicket('');
+                return;
+            }
+            setWsTicket(ticket);
+        } catch (err: any) {
+            const status = Number(err?.response?.status || 0);
+            if (status === 401 || status === 403) {
+                wsTicketFailedRef.current = true;
+                setWsTicket('');
+            }
             console.error('Failed to fetch websocket ticket:', err?.response?.data || err?.message || err);
         }
-    }, [token]);
+    }, [hasSharedWs, token]);
 
     useEffect(() => {
-        if (!token) {
+        wsTicketFailedRef.current = false;
+        if (hasSharedWs || !token) {
             setWsTicket('');
             return undefined;
         }
-        fetchWsTicket({ force: true });
+        void fetchWsTicket({ force: true });
         return undefined;
-    }, [fetchWsTicket, token]);
+    }, [fetchWsTicket, hasSharedWs, token]);
 
     // ── WebSocket Connection ─────────────────────────────
-    const wsUrl = useMemo(() => getWsUrl(wsTicket), [wsTicket]);
-    const { status: wsStatus, lastMessage } = useWebSocket(wsUrl);
-
-    useEffect(() => {
-        if (!token) return;
-        if (wsStatus === 'reconnecting' || wsStatus === 'disconnected') {
-            fetchWsTicket();
+    const wsUrl = useMemo(() => (hasSharedWs ? null : getWsUrl(wsTicket)), [hasSharedWs, wsTicket]);
+    const handleLocalWsClose = useCallback((details: { didOpen: boolean }) => {
+        if (hasSharedWs || !token || wsTicketFailedRef.current) return;
+        if (!details.didOpen) {
+            setWsTicket('');
+            return;
         }
-    }, [fetchWsTicket, token, wsStatus]);
+        void fetchWsTicket();
+    }, [fetchWsTicket, hasSharedWs, token]);
+    const shouldReconnectLocalWs = useCallback((details: { didOpen: boolean }) => {
+        if (hasSharedWs || !token || wsTicketFailedRef.current) return false;
+        return details.didOpen;
+    }, [hasSharedWs, token]);
+    const { status: localWsStatus, lastMessage: localLastMessage } = useWebSocket(wsUrl, {
+        onClose: handleLocalWsClose,
+        shouldReconnect: shouldReconnectLocalWs,
+    });
+    const wsStatus = hasSharedWs ? (sharedWsStatus ?? 'disconnected') : localWsStatus;
+    const lastMessage = hasSharedWs ? (sharedWsLastMessage ?? null) : localLastMessage;
 
     // Process WebSocket messages for global view
     useEffect(() => {

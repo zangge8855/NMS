@@ -5,7 +5,7 @@ import { HiOutlineXMark, HiOutlineArrowsPointingOut, HiOutlineClipboard } from '
 import { copyToClipboard } from '../../utils/format';
 import toast from 'react-hot-toast';
 import { useI18n } from '../../contexts/LanguageContext';
-import { acquireModalStackSlot } from './ModalShell';
+import { acquireModalStackSlot, isolateAppRoot, lockBodyScroll } from './ModalShell';
 
 export interface ExpandableQRCodeProps {
     value?: string;
@@ -62,7 +62,11 @@ export default function ExpandableQRCode({
             ? document.activeElement
             : triggerRef.current;
 
-        const slot = acquireModalStackSlot();
+        const slot = typeof acquireModalStackSlot === 'function'
+            ? acquireModalStackSlot()
+            : { isTopmost: () => true, release: () => {} };
+        const unlockScroll = typeof lockBodyScroll === 'function' ? lockBodyScroll() : () => {};
+        const restoreAppRootIsolation = typeof isolateAppRoot === 'function' ? isolateAppRoot() : () => {};
         const getOverlayFocusable = (): HTMLElement[] => {
             const overlay = overlayRef.current;
             if (!overlay) return [];
@@ -112,6 +116,8 @@ export default function ExpandableQRCode({
             window.cancelAnimationFrame(animationFrame);
             document.removeEventListener('keydown', handleKeyDown);
             document.removeEventListener('focusin', handleFocusIn);
+            unlockScroll();
+            restoreAppRootIsolation();
             slot.release();
             const restoreTarget = previousFocusRef.current || restoreTrigger;
             previousFocusRef.current = null;

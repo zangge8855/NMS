@@ -7,6 +7,7 @@ import { NotificationProvider } from './contexts/NotificationContext';
 import { Toaster } from 'react-hot-toast';
 import useMediaQuery from './hooks/useMediaQuery';
 import { getLocaleMessage } from './i18n/messages';
+import { useI18n } from './contexts/LanguageContext';
 import { clearStoredToken } from './api/client';
 import { clearAppSessionState } from './utils/appBootstrap';
 import { HiOutlineExclamationTriangle } from 'react-icons/hi2';
@@ -252,6 +253,7 @@ function getWsUrl(ticket: string | null): string | null {
 
 function ProtectedLayout() {
     const { user, token } = useAuth();
+    const { t } = useI18n();
     const role = user?.role || 'user';
     const isAdmin = isAdminRole(role);
     const isStaff = isStaffRole(role);
@@ -409,7 +411,6 @@ function ProtectedLayout() {
                     throw new Error('Empty websocket ticket');
                 }
 
-                wsTicketRetryAttemptRef.current = 0;
                 wsTicketExpiresAtRef.current = expiresAtMs;
                 rootWsTicketRef.current = nextTicket;
                 setRootWsTicket(nextTicket);
@@ -448,6 +449,10 @@ function ProtectedLayout() {
         return request;
     }, [clearWsTicketRetryTimer, isRootWsTicketStale, isStaff, token]);
 
+    const handleRootWsOpen = useCallback(() => {
+        wsTicketRetryAttemptRef.current = 0;
+    }, []);
+
     const handleRootWsClose = useCallback((details: { didOpen: boolean }) => {
         if (!isStaff || !token) return;
         const staleOrRejected = !details.didOpen || isRootWsTicketStale();
@@ -467,7 +472,8 @@ function ProtectedLayout() {
         return true;
     }, [isRootWsTicketStale, isStaff, token]);
 
-    const { lastMessage: rootWsLastMessage } = useWebSocket(rootWsUrl, {
+    const { status: rootWsStatus, lastMessage: rootWsLastMessage } = useWebSocket(rootWsUrl, {
+        onOpen: handleRootWsOpen,
         onClose: handleRootWsClose,
         shouldReconnect: shouldReconnectRootWs,
     });
@@ -504,19 +510,12 @@ function ProtectedLayout() {
         setSidebarCollapsed((current) => !current);
     }, [isMobile]);
 
-    const skipToContentLabel = getLocaleMessage(
-        typeof document !== 'undefined' && String(document.documentElement.lang || '').toLowerCase().startsWith('en')
-            ? 'en-US'
-            : 'zh-CN',
-        'shell.skipToContent'
-    );
-
     return (
         <ServerProvider enabled={isStaff}>
         <NotificationProvider enabled={isStaff} wsLastMessage={isStaff ? rootWsLastMessage : null}>
             <div className="app-layout">
                 <a href="#main-content" className="skip-link">
-                    {skipToContentLabel}
+                    {t('shell.skipToContent')}
                 </a>
                 <div
                     className={`sidebar-backdrop ${sidebarOpen ? 'show' : ''}`}
@@ -535,7 +534,7 @@ function ProtectedLayout() {
                 <main id="main-content" tabIndex={-1} className={`main-content ${effectiveCollapsed ? 'collapsed' : ''}`}>
                     <div className="main-scroll-region">
                         <Routes>
-                            <Route path="/" element={isStaff ? <LazyPage><Dashboard /></LazyPage> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/" element={isStaff ? <LazyPage><Dashboard wsStatus={rootWsStatus} wsLastMessage={rootWsLastMessage} /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                             <Route path="/inbounds" element={isStaff ? <LazyPage><Inbounds /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                             <Route path="/clients" element={isStaff ? <LazyPage><UsersHub /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                             <Route path="/clients/:userId" element={isStaff ? <LazyPage><UserDetail /></LazyPage> : <Navigate to="/subscriptions" replace />} />

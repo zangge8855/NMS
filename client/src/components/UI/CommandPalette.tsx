@@ -23,7 +23,7 @@ import { getSearchableNavItems } from '../Layout/navConfig';
 import { getManagedUsersSnapshotMeta } from '../../utils/managedUsersCache';
 import { SESSION_SNAPSHOT_EVENT } from '../../utils/sessionSnapshot';
 import useMediaQuery from '../../hooks/useMediaQuery';
-import { acquireModalStackSlot, hasOpenModal } from './ModalShell';
+import { acquireModalStackSlot, hasOpenModal, isolateAppRoot, lockBodyScroll } from './ModalShell';
 import {
     canMutateOperations,
     isAdminRole,
@@ -124,6 +124,7 @@ export default function CommandPalette() {
     const modalRef = useRef<HTMLDivElement | null>(null);
     const previousFocusRef = useRef<HTMLElement | null>(null);
     const shouldRestoreFocusRef = useRef(true);
+    const shouldScrollActiveRef = useRef(false);
     const modalSlotRef = useRef<{ isTopmost: () => boolean; release: () => void } | null>(null);
     const isCompactViewport = useMediaQuery('(max-width: 480px)');
 
@@ -169,7 +170,7 @@ export default function CommandPalette() {
         };
 
         const handleKeyDown = (e: KeyboardEvent) => {
-            if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+            if ((e.metaKey || e.ctrlKey) && !e.altKey && (e.key === 'k' || e.key === 'K')) {
                 if (!isOpen && hasBlockingOverlayOpen()) return;
                 if (e.defaultPrevented && !e.shiftKey) return;
                 if (isEditableTarget(e.target) && !isOpen) return;
@@ -208,7 +209,11 @@ export default function CommandPalette() {
             : null;
         shouldRestoreFocusRef.current = true;
 
-        const slot = acquireModalStackSlot();
+        const slot = typeof acquireModalStackSlot === 'function'
+            ? acquireModalStackSlot()
+            : { isTopmost: () => true, release: () => {} };
+        const unlockScroll = typeof lockBodyScroll === 'function' ? lockBodyScroll() : () => {};
+        const restoreAppRootIsolation = typeof isolateAppRoot === 'function' ? isolateAppRoot() : () => {};
         modalSlotRef.current = slot;
 
         setSearchTerm('');
@@ -228,6 +233,8 @@ export default function CommandPalette() {
         return () => {
             window.clearTimeout(focusTimer);
             document.removeEventListener('focusin', handleFocusIn);
+            unlockScroll();
+            restoreAppRootIsolation();
             slot.release();
             if (modalSlotRef.current === slot) {
                 modalSlotRef.current = null;
@@ -446,15 +453,27 @@ export default function CommandPalette() {
         }
     }, [navigate]);
 
+    useEffect(() => {
+        if (!isOpen || !shouldScrollActiveRef.current) return;
+        shouldScrollActiveRef.current = false;
+        const activeOption = filteredItems[highlightedIndex]
+            ? document.getElementById(`command-palette-option-${filteredItems[highlightedIndex].id}`)
+            : null;
+        const target = activeOption || listRef.current?.querySelector<HTMLElement>('.command-palette-item.is-highlighted');
+        target?.scrollIntoView?.({ block: 'nearest' });
+    }, [filteredItems, highlightedIndex, isOpen]);
+
     // Keyboard navigation
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'ArrowDown') {
             if (filteredItems.length === 0) return;
             e.preventDefault();
+            shouldScrollActiveRef.current = true;
             setHighlightedIndex((prev) => (prev + 1) % filteredItems.length);
         } else if (e.key === 'ArrowUp') {
             if (filteredItems.length === 0) return;
             e.preventDefault();
+            shouldScrollActiveRef.current = true;
             setHighlightedIndex((prev) => (prev - 1 + filteredItems.length) % filteredItems.length);
         } else if (e.key === 'Enter') {
             if (e.nativeEvent?.isComposing || e.keyCode === 229) return;

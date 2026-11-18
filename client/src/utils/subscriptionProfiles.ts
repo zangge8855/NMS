@@ -251,6 +251,10 @@ export function buildSubscriptionProfileBundle(payload: Record<string, any> = {}
     const externalConverterConfigured = wrappedProfileUrls.length > 0 && !!externalConverterBaseUrl;
     const singboxImportUrl = buildSingboxImportUrl(singboxUrl);
     const clashFamilyLinks = TOOL_SITES.find((item) => item.key === 'clash-family')?.links || [];
+    const clashFamilyLabel = locale === 'en-US' ? 'Clash / Mihomo' : 'Clash / Mihomo 系列';
+    const localizedToolSites = TOOL_SITES.map((item) => (
+        item.key === 'clash-family' ? { ...item, label: clashFamilyLabel } : item
+    ));
     const importActions: ImportActionItem[] = [
         {
             key: 'shadowrocket',
@@ -262,7 +266,7 @@ export function buildSubscriptionProfileBundle(payload: Record<string, any> = {}
         },
         {
             key: 'clash-family',
-            label: 'Clash / Mihomo 系列',
+            label: clashFamilyLabel,
             platform: 'Desktop / iPhone / iPad',
             hint: copy.clashFamilyHint,
             actions: [
@@ -356,7 +360,7 @@ export function buildSubscriptionProfileBundle(payload: Record<string, any> = {}
         externalConverterBaseUrl,
         externalConverterHost,
         importActions,
-        toolSites: TOOL_SITES,
+        toolSites: localizedToolSites,
         profiles,
         availableProfiles,
         defaultProfileKey,

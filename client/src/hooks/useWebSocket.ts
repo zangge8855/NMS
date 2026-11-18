@@ -12,6 +12,7 @@ export interface WebSocketCloseDetails {
 export interface UseWebSocketOptions {
     reconnectDelay?: number;
     maxReconnectDelay?: number;
+    onOpen?: () => void;
     onMessage?: (data: any) => void;
     onClose?: (details: WebSocketCloseDetails) => void;
     shouldReconnect?: (details: WebSocketCloseDetails) => boolean;
@@ -37,6 +38,7 @@ export default function useWebSocket(
     const {
         reconnectDelay = 2000,
         maxReconnectDelay = 30000,
+        onOpen,
         onMessage,
         onClose,
         shouldReconnect,
@@ -50,9 +52,11 @@ export default function useWebSocket(
     const delayRef = useRef<number>(reconnectDelay);
     const mountedRef = useRef<boolean>(true);
     const openedRef = useRef<boolean>(false);
+    const onOpenRef = useRef<(() => void) | undefined>(onOpen);
     const onMessageRef = useRef<((data: any) => void) | undefined>(onMessage);
     const onCloseRef = useRef<((details: WebSocketCloseDetails) => void) | undefined>(onClose);
     const shouldReconnectRef = useRef<((details: WebSocketCloseDetails) => boolean) | undefined>(shouldReconnect);
+    onOpenRef.current = onOpen;
     onMessageRef.current = onMessage;
     onCloseRef.current = onClose;
     shouldReconnectRef.current = shouldReconnect;
@@ -87,6 +91,7 @@ export default function useWebSocket(
             openedRef.current = true;
             setStatus('connected');
             delayRef.current = reconnectDelay; // reset backoff
+            onOpenRef.current?.();
         };
 
         ws.onmessage = (event) => {

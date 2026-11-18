@@ -20,6 +20,7 @@ import { getNavItemForPath, getSearchableNavItems } from './navConfig';
 import useFloatingPanel, { type ComputePositionParams } from '../../hooks/useFloatingPanel';
 import { getManagedUsersSnapshotMeta } from '../../utils/managedUsersCache';
 import { SESSION_SNAPSHOT_EVENT } from '../../utils/sessionSnapshot';
+import { canMutateOperations, isAdminRole, isStaffRole } from '../../utils/permissions';
 import { hasOpenModal } from '../UI/ModalShell';
 
 const MAX_SEARCH_RESULTS = 10;
@@ -30,8 +31,7 @@ function normalizeKeyword(value: any): string {
 }
 
 function getShortcutLabel(): string {
-    if (typeof navigator === 'undefined') return 'Ctrl K';
-    return /Mac|iPhone|iPad/i.test(navigator.platform) ? '⌘K' : 'Ctrl K';
+    return '/';
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -131,12 +131,14 @@ export default function Header({
     const searchRef = useRef<HTMLDivElement | null>(null);
     const inputRef = useRef<HTMLInputElement | null>(null);
     const searchResultsRef = useRef<HTMLDivElement | null>(null);
+    const shouldScrollActiveRef = useRef(false);
     const searchResultsId = useId();
     const [managedUsers, setManagedUsers] = useState<any[]>(() => getManagedUsersSnapshotMeta().users);
 
-    const isAdmin = user?.role === 'admin';
-    const role = user?.role || (isAdmin ? 'admin' : 'user');
-    const isStaff = isAdmin || role === 'operator' || role === 'auditor';
+    const role = user?.role || 'user';
+    const isAdmin = isAdminRole(role);
+    const isStaff = isStaffRole(role);
+    const canMutate = canMutateOperations(role);
     const isGlobalView = activeServerId === 'global';
     const shortcutLabel = useMemo(() => getShortcutLabel(), []);
     const matchedNavItem = useMemo(() => getNavItemForPath(location.pathname), [location.pathname]);
@@ -159,26 +161,28 @@ export default function Header({
 
             const commandItems = [
                 createRefreshCommand(copy, location.pathname),
-                {
-                    kind: 'command',
-                    id: 'create-user',
-                    label: copy.createUser,
-                    section: copy.actions,
-                    description: copy.createUserMeta,
-                    icon: HiOutlinePlusCircle,
-                    path: '/clients?action=create',
-                    keywords: ['create', 'add', 'user', 'client', '新增', '添加', '账号', '用户'],
-                },
-                {
-                    kind: 'command',
-                    id: 'create-server',
-                    label: copy.createServer,
-                    section: copy.actions,
-                    description: copy.createServerMeta,
-                    icon: HiOutlinePlusCircle,
-                    path: '/servers?action=create',
-                    keywords: ['create', 'add', 'server', 'node', '新增', '添加', '服务器', '节点'],
-                },
+                ...(canMutate ? [
+                    {
+                        kind: 'command',
+                        id: 'create-user',
+                        label: copy.createUser,
+                        section: copy.actions,
+                        description: copy.createUserMeta,
+                        icon: HiOutlinePlusCircle,
+                        path: '/clients?action=create',
+                        keywords: ['create', 'add', 'user', 'client', '新增', '添加', '账号', '用户'],
+                    },
+                    {
+                        kind: 'command',
+                        id: 'create-server',
+                        label: copy.createServer,
+                        section: copy.actions,
+                        description: copy.createServerMeta,
+                        icon: HiOutlinePlusCircle,
+                        path: '/servers?action=create',
+                        keywords: ['create', 'add', 'server', 'node', '新增', '添加', '服务器', '节点'],
+                    },
+                ] : []),
             ];
 
             const serverItems = (Array.isArray(servers) ? servers : [])
@@ -241,7 +245,7 @@ export default function Header({
 
             return [...commandItems, ...navItems, ...serverItems, ...userItems];
         },
-        [isAdmin, isStaff, role, isGlobalView, locale, location.pathname, managedUsers, servers]
+        [canMutate, isAdmin, isStaff, role, isGlobalView, locale, location.pathname, managedUsers, servers]
     );
 
     const filteredItems = useMemo(() => {
@@ -332,10 +336,13 @@ export default function Header({
 
     useEffect(() => {
         const handleGlobalShortcut = (event: KeyboardEvent) => {
-            const isShortcut = (event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === 'k';
+            const isShortcut = event.key === '/' && !event.ctrlKey && !event.metaKey && !event.altKey;
             if (!isShortcut) return;
             if (isEditableShortcutTarget(event.target)) return;
-            if (hasOpenModal() || document.querySelector('.modal-overlay, .expandable-qr-overlay, .security-bootstrap-overlay, .command-palette-backdrop')) {
+            if (
+                (typeof hasOpenModal === 'function' && hasOpenModal())
+                || document.querySelector('.modal-overlay, .expandable-qr-overlay, .security-bootstrap-overlay, .command-palette-backdrop')
+            ) {
                 return;
             }
             event.preventDefault();
@@ -349,6 +356,13 @@ export default function Header({
     useEffect(() => {
         setHighlightedIndex(0);
     }, [searchTerm, searchOpen]);
+
+    useEffect(() => {
+        if (!searchOpen || !shouldScrollActiveRef.current) return;
+        shouldScrollActiveRef.current = false;
+        const activeOption = document.getElementById(`${searchResultsId}-${highlightedIndex}`);
+        activeOption?.scrollIntoView?.({ block: 'nearest' });
+    }, [highlightedIndex, searchOpen, searchResultsId]);
 
     const openSearch = () => {
         setSearchOpen(true);
@@ -371,12 +385,14 @@ export default function Header({
     const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
         if (event.key === 'ArrowDown') {
             event.preventDefault();
+            shouldScrollActiveRef.current = true;
             setSearchOpen(true);
             setHighlightedIndex((prev) => (filteredItems.length === 0 ? 0 : (prev + 1) % filteredItems.length));
             return;
         }
         if (event.key === 'ArrowUp') {
             event.preventDefault();
+            shouldScrollActiveRef.current = true;
             setSearchOpen(true);
             setHighlightedIndex((prev) => (filteredItems.length === 0 ? 0 : (prev - 1 + filteredItems.length) % filteredItems.length));
             return;

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { startAuthentication } from '@simplewebauthn/browser';
 import api, { setStoredToken } from '../../api/client';
+import { clearAppSessionState } from '../../utils/appBootstrap';
 import { useAuth } from '../../contexts/AuthContext';
 import { useI18n } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -245,6 +246,7 @@ export default function Login() {
                 response: asseResp,
             });
             if (verifyRes.data?.success) {
+                clearAppSessionState();
                 setStoredToken(verifyRes.data.token);
                 await refreshAuth();
                 navigate('/', { replace: true });

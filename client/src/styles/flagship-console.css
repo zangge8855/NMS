@@ -2263,7 +2263,7 @@ main .servers-mobile-tags .badge-info {
 
 .command-palette-item.is-highlighted .command-palette-item-icon {
   background: var(--accent-primary);
-  color: #fff;
+  color: var(--text-on-accent);
   border-color: transparent;
 }
 
