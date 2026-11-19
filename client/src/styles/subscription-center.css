@@ -46,25 +46,24 @@
   --notch: 11px;
   --pass-pad: clamp(20px, 2.6vw, 32px);
   container: pass / inline-size;
-  filter: var(--pass-edge);
+  filter: none;
 }
 
 :root .subscription-user-workbench .subscription-user-pass-sheet {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-pass);
   background: var(--surface-panel);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
 }
 
-/* Stub on the right: notches top and bottom where the perforation runs. */
+/* Stub on the right: clean split without fragile mask+drop-shadow resize glitches. */
 :root .subscription-user-workbench .subscription-user-pass--with-stub .subscription-user-pass-sheet {
   grid-template-columns: minmax(0, 1fr) var(--stub-w);
-  -webkit-mask:
-    radial-gradient(circle var(--notch) at calc(100% - var(--stub-w)) 0, #0000 97%, #000) top / 100% 51% no-repeat,
-    radial-gradient(circle var(--notch) at calc(100% - var(--stub-w)) 100%, #0000 97%, #000) bottom / 100% 51% no-repeat;
-  mask:
-    radial-gradient(circle var(--notch) at calc(100% - var(--stub-w)) 0, #0000 97%, #000) top / 100% 51% no-repeat,
-    radial-gradient(circle var(--notch) at calc(100% - var(--stub-w)) 100%, #0000 97%, #000) bottom / 100% 51% no-repeat;
+  -webkit-mask: none;
+  mask: none;
 }
 
 :root .subscription-user-workbench .subscription-user-pass-body {
@@ -630,12 +629,8 @@
 @container pass (max-width: 860px) {
   :root .subscription-user-workbench .subscription-user-pass--with-stub .subscription-user-pass-sheet {
     grid-template-columns: minmax(0, 1fr);
-    -webkit-mask:
-      radial-gradient(circle var(--notch) at 0 calc(100% - var(--stub-h)), #0000 97%, #000) left / 51% 100% no-repeat,
-      radial-gradient(circle var(--notch) at 100% calc(100% - var(--stub-h)), #0000 97%, #000) right / 51% 100% no-repeat;
-    mask:
-      radial-gradient(circle var(--notch) at 0 calc(100% - var(--stub-h)), #0000 97%, #000) left / 51% 100% no-repeat,
-      radial-gradient(circle var(--notch) at 100% calc(100% - var(--stub-h)), #0000 97%, #000) right / 51% 100% no-repeat;
+    -webkit-mask: none;
+    mask: none;
   }
 
   :root .subscription-user-workbench .subscription-user-pass-stub {

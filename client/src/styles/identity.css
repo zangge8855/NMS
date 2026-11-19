@@ -550,18 +550,20 @@
    -------------------------------------------------------------------------- */
 :root .login-page,
 :root[data-theme] .login-page {
-  background: var(--bg-canvas);
-  background-image: none;
+  padding: 0 !important;
+  min-height: 100dvh;
+  background-color: var(--bg-canvas);
+  background-image: radial-gradient(
+    ellipse 75% 420px at 50% -90px,
+    var(--accent-primary-soft),
+    transparent 72%
+  );
+  background-repeat: no-repeat;
 }
 
 :root .login-page::before,
 :root .login-page::after {
   content: none;
-}
-
-:root .login-page {
-  padding: 0 !important;
-  min-height: 100dvh;
 }
 
 :root .login-shell[class*="login-shell--"] {
@@ -577,9 +579,13 @@
 }
 
 :root .login-shell .login-card-column {
-  width: min(100%, 784px);
+  width: min(100%, 432px);
   max-width: none;
   filter: none;
+}
+
+:root .login-shell.login-shell--register .login-card-column {
+  width: min(100%, 460px);
 }
 
 :root[data-theme="light"] .login-shell .login-card-column {
@@ -588,21 +594,18 @@
 
 :root .login-card.login-pass,
 :root[data-theme] .login-card.login-pass {
-  --stub-w: 272px;
-  --perf: 2px;
-  --notch: 12px;
-  --gutter: 44px;
+  --gutter: 34px;
   position: relative;
   width: 100%;
   max-width: none;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: stretch;
   padding: 0;
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-pass);
+  border-radius: 18px;
   background: var(--surface-panel);
-  box-shadow: 0 20px 48px -18px rgba(2, 8, 16, 0.36);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 24px 48px -18px rgba(2, 8, 18, 0.55);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   overflow: hidden;
@@ -611,7 +614,7 @@
 }
 
 :root[data-theme="light"] .login-card.login-pass {
-  box-shadow: 0 1px 2px rgba(13, 27, 45, 0.06), 0 22px 44px -18px rgba(13, 27, 45, 0.14);
+  box-shadow: 0 1px 3px rgba(13, 27, 45, 0.05), 0 20px 44px -16px rgba(13, 27, 45, 0.10);
 }
 
 :root .login-card.login-pass::before,
@@ -619,133 +622,131 @@
   content: none;
 }
 
-/* Stub: dark mode lifts it a step above the body; light mode prints it in
-   the navy of the mark so the logo sits on its own ink. */
+/* Integrated brand header inside the single-surface card (no dark stub bar) */
 :root .login-pass .login-brand-row.login-pass-stub {
-  flex: 0 0 var(--stub-w);
-  width: var(--stub-w);
+  flex: none;
+  width: auto;
   max-width: none;
   height: auto;
   margin: 0;
-  padding: 40px 36px;
+  padding: 28px var(--gutter) 20px;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  flex-direction: row;
+  align-items: center;
   justify-content: flex-start;
-  gap: 0;
+  gap: 14px;
   border: 0;
-  border-radius: var(--radius-pass) 0 0 var(--radius-pass);
-  background-color: var(--pass-stub-bg);
-  background-image:
-    radial-gradient(circle at 18% 14%, rgba(98, 216, 198, 0.14), transparent 52%),
-    radial-gradient(rgba(227, 237, 242, 0.08) 1px, transparent 1px);
-  background-size: 100% 100%, 20px 20px;
+  border-radius: 0;
+  background: transparent !important;
+  background-image: none !important;
   text-align: left;
 }
 
-/* The mark is an opaque PNG with pale corners; crop them away. */
 :root .login-pass .login-brand-mark {
   flex: none;
-  width: 52px;
-  height: 52px;
+  width: 42px;
+  height: 42px;
   margin: 0;
-  border-radius: 0;
+  border-radius: 11px;
   clip-path: inset(4% round 22%);
-  box-shadow: none;
+  box-shadow: 0 2px 8px rgba(2, 8, 18, 0.16);
   filter: none;
 }
 
-/* Only the mark and the name: the mark heads the stub, the name sits on
-   its foot, the way a ticket carries its issuer. */
+:root .login-pass .login-brand-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
 :root .login-pass .login-brand-name {
-  margin-top: auto;
+  margin: 0;
   font-family: var(--font-display);
-  font-size: 2.5rem;
-  font-weight: 650;
-  line-height: 1;
-  letter-spacing: 0.06em;
-  color: var(--pass-stub-text);
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: 0.03em;
+  color: var(--text-primary);
   background: none;
   -webkit-text-fill-color: currentColor;
 }
 
+:root .login-pass .login-brand-subtitle {
+  font-size: 12.5px;
+  font-weight: 450;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
 
+/* Subtle 1px hairline divider between brand header and form body */
 :root .login-pass .login-pass-perf {
   position: relative;
-  flex: 0 0 var(--perf);
-  width: var(--perf);
-  height: auto;
-  margin: calc(var(--notch) + 8px) 0;
-  background: radial-gradient(circle, var(--stroke-medium) 1px, transparent 1.4px) 50% 0 / var(--perf) 9px repeat-y;
+  flex: none;
+  width: auto;
+  height: 1px;
+  margin: 0 var(--gutter);
+  background: var(--border-subtle);
 }
 
 :root .login-pass .login-pass-perf::before,
 :root .login-pass .login-pass-perf::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  width: calc(var(--notch) * 2);
-  height: calc(var(--notch) * 2);
-  border-radius: 50%;
-  background: var(--bg-canvas);
-  border: 1px solid var(--border-color);
-  transform: translateX(-50%);
-  pointer-events: none;
-  z-index: 2;
-}
-
-:root .login-pass .login-pass-perf::before {
-  top: calc((var(--notch) * -2) - 8px);
-}
-
-:root .login-pass .login-pass-perf::after {
-  bottom: calc((var(--notch) * -2) - 8px);
+  content: none !important;
+  display: none !important;
 }
 
 :root .login-pass .login-pass-body {
   flex: 1 1 auto;
   min-width: 0;
-  padding: 40px var(--gutter);
+  padding: 22px var(--gutter) 30px;
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
 
 :root .login-pass .login-form-heading {
-  margin: 0 0 20px;
+  margin: 0 0 18px;
   text-align: left;
 }
 
 :root .login-pass .login-form-heading h1 {
   margin: 0;
-  font-size: 1.375rem;
+  font-size: 1.25rem;
   font-weight: 650;
 }
 
-/* Login / register switch: text tabs with the signal edge */
+/* Segmented pill switcher for Sign In / Register */
 :root .login-pass .auth-tabs {
-  gap: 24px;
-  padding: 0;
-  border: 0;
-  border-bottom: 1px solid var(--border-color);
-  border-radius: 0;
-  background: transparent;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: var(--surface-panel-soft);
   box-shadow: none;
-  margin: 0 0 24px;
+  margin: 0 0 22px;
+  overflow: visible;
 }
 
 :root .login-pass .auth-tabs .auth-tab {
   position: relative;
-  flex: 0 0 auto;
-  min-height: 44px;
-  padding: 0;
-  margin-bottom: 0;
-  border-radius: 0;
-  font-size: 1rem;
+  flex: 1 1 auto;
+  min-height: 34px;
+  height: 34px;
+  padding: 0 12px;
+  margin: 0;
+  border: 0;
+  border-radius: 7px;
+  font-size: 13.5px;
   font-weight: 600;
   background: transparent !important;
   box-shadow: none !important;
-  color: var(--text-muted) !important;
+  color: var(--text-secondary) !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 140ms ease, color 140ms ease !important;
 }
 
 :root .login-pass .auth-tabs .auth-tab:hover:not(.active) {
@@ -753,18 +754,29 @@
 }
 
 :root .login-pass .auth-tabs .auth-tab.active {
+  background: var(--surface-panel) !important;
   color: var(--text-primary) !important;
   font-weight: 600;
-  box-shadow: none !important;
+  box-shadow: 0 1px 2px rgba(2, 8, 18, 0.14) !important;
+}
+
+:root[data-theme="light"] .login-pass .auth-tabs .auth-tab.active {
+  box-shadow: 0 1px 3px rgba(13, 27, 45, 0.08), 0 0 0 1px rgba(13, 27, 45, 0.04) !important;
+}
+
+:root .login-pass .auth-tabs .auth-tab.active::after,
+:root .login-pass .auth-tabs .auth-tab[aria-selected="true"]::after {
+  content: none !important;
+  display: none !important;
 }
 
 :root .login-pass .auth-form .form-group {
-  margin: 0 0 18px;
+  margin: 0 0 16px;
 }
 
 :root .login-pass .auth-form .form-label {
   display: block;
-  margin: 0 0 8px;
+  margin: 0 0 7px;
   font-size: 13px;
   font-weight: 550;
   letter-spacing: 0;
@@ -777,7 +789,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin: 0 0 8px;
+  margin: 0 0 7px;
 }
 
 :root .login-pass .login-label-row .form-label {
@@ -789,7 +801,7 @@
   padding: 0;
   border: 0;
   background: none;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 500;
   color: var(--text-secondary);
   text-decoration: none;
@@ -801,12 +813,11 @@
   text-underline-offset: 3px;
 }
 
-/* One control height on the pass: fields, the send-code button and the
-   full-width actions all sit at 42px. The global control heights are
-   !important, so these have to be as well. */
+/* One control height on the login card: 42px */
 :root .login-pass .auth-form :is(.form-input, .btn.w-full, .verify-code-send-btn) {
   height: 42px !important;
   min-height: 42px !important;
+  border-radius: 10px;
 }
 
 :root .login-pass .auth-form .btn.w-full {
@@ -814,18 +825,17 @@
 }
 
 :root .login-pass .auth-form > .btn-primary {
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
-/* An empty form keeps its primary action recognisable, just quieter.
-   (The global disabled grey is !important, so this has to be too.) */
+/* Confident disabled primary action: clean subtle tint instead of washed-out slab */
 :root[data-theme] .login-pass .auth-form .btn-primary:disabled {
-  background-color: var(--btn-primary-bg) !important;
-  border-color: transparent !important;
-  color: var(--text-on-accent) !important;
+  background-color: color-mix(in srgb, var(--btn-primary-bg) 18%, var(--surface-panel-soft)) !important;
+  border-color: color-mix(in srgb, var(--btn-primary-bg) 28%, var(--border-color)) !important;
+  color: color-mix(in srgb, var(--text-primary) 72%, var(--text-muted)) !important;
   box-shadow: none !important;
   text-shadow: none !important;
-  opacity: 0.62 !important;
+  opacity: 1 !important;
 }
 
 :root .login-pass .login-divider {
@@ -842,7 +852,7 @@
   content: "";
   flex: 1;
   height: 1px;
-  background: var(--border-color);
+  background: var(--border-subtle);
 }
 
 :root .login-pass .login-passkey-btn {
@@ -856,14 +866,13 @@
   color: var(--text-secondary);
 }
 
-/* Verify, reset and two-factor open with a heading on the same left edge
-   as the fields; the shield above it only repeated the title. */
+/* Verify, reset and two-factor open with a heading on the same left edge */
 :root .login-pass .verify-header {
   display: block;
-  margin: 0 0 22px;
-  padding: 0 0 18px;
+  margin: 0 0 20px;
+  padding: 0 0 16px;
   border: 0;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-subtle);
   text-align: left;
 }
 
@@ -873,7 +882,7 @@
 
 :root .login-pass .verify-header :is(h1, h2) {
   margin: 0 0 6px;
-  font-size: 1.375rem;
+  font-size: 1.25rem;
   font-weight: 650;
   text-align: left;
 }
@@ -919,16 +928,14 @@
   letter-spacing: 0;
 }
 
-/* Register keeps one column inside the pass; side by side, the
-   placeholders would be cut off. */
 :root .login-pass .login-form-grid {
   grid-template-columns: minmax(0, 1fr);
   column-gap: 0;
 }
 
 :root .login-top-actions :is(.theme-toggle-btn, .language-toggle-btn) {
-  background: transparent;
-  box-shadow: none;
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-xs);
 }
 
 @media (max-width: 760px) {
@@ -937,66 +944,20 @@
   }
 
   :root .login-shell .login-card-column {
-    width: min(100%, 460px);
+    width: min(100%, 420px);
   }
 
   :root .login-card.login-pass,
   :root[data-theme] .login-card.login-pass {
-    --stub-h: 72px;
-    --gutter: 24px;
-    flex-direction: column;
-    -webkit-mask: none;
-    mask: none;
+    --gutter: 22px;
   }
 
   :root .login-pass .login-brand-row.login-pass-stub {
-    flex: 0 0 var(--stub-h);
-    width: auto;
-    height: var(--stub-h);
-    padding: 0 var(--gutter);
-    flex-direction: row;
-    align-items: center;
-    gap: 14px;
-    border-radius: 0;
-  }
-
-  :root .login-pass .login-brand-mark {
-    width: 42px;
-    height: 42px;
-    margin: 0;
-  }
-
-  :root .login-pass .login-brand-name {
-    margin-top: 0;
-    font-size: 1.5rem;
-  }
-
-  :root .login-pass .login-pass-perf {
-    flex: 0 0 var(--perf);
-    width: auto;
-    height: var(--perf);
-    margin: 0 calc(var(--notch) + 8px);
-    background: radial-gradient(circle, var(--stroke-medium) 1px, transparent 1.4px) 0 50% / 9px var(--perf) repeat-x;
-  }
-
-  :root .login-pass .login-pass-perf::before,
-  :root .login-pass .login-pass-perf::after {
-    top: 50%;
-    bottom: auto;
-    transform: translateY(-50%);
-  }
-
-  :root .login-pass .login-pass-perf::before {
-    left: calc((var(--notch) * -2) - 8px);
-  }
-
-  :root .login-pass .login-pass-perf::after {
-    left: auto;
-    right: calc((var(--notch) * -2) - 8px);
+    padding: 22px var(--gutter) 16px;
   }
 
   :root .login-pass .login-pass-body {
-    padding: 24px var(--gutter) var(--gutter);
+    padding: 18px var(--gutter) 24px;
   }
 }
 
@@ -1754,7 +1715,22 @@ body {
   .users-toolbar,
   .servers-toolbar,
   .inbounds-toolbar,
-  .subscriptions-toolbar
+  .subscriptions-toolbar,
+  .audit-nav,
+  .audit-filter-card,
+  .audit-traffic-toolbar,
+  .settings-save-dock,
+  .settings-toolbar,
+  .subscription-user-hero-strip,
+  .subscription-user-meter-pill,
+  .subscription-user-import-stage,
+  .dashboard-quick-card,
+  .dashboard-toolbar,
+  .chart-tooltip,
+  .expandable-qr-overlay,
+  .modal-backdrop,
+  .mobile-menu-btn,
+  .mobile-batch-bar
 ) {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
@@ -1774,6 +1750,20 @@ body {
   background: var(--surface-panel);
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-xs);
+}
+
+:root .logs-toolbar {
+  top: calc(var(--header-height, 60px) + 12px);
+}
+
+:root :is(.pf-nav, .user-detail-subscription-qr) {
+  top: calc(var(--header-height, 60px) + 16px);
+}
+
+:root .settings-save-dock {
+  background: var(--floating-panel-bg);
+  border: 1px solid var(--border-color-hover);
+  box-shadow: var(--shadow-lg);
 }
 
 :root .mobile-bottom-nav {
