@@ -6,6 +6,7 @@ import { attachBatchRiskToken } from '../../utils/riskConfirm';
 import { copyToClipboard, getErrorMessage } from '../../utils/format';
 import { useI18n } from '../../contexts/LanguageContext';
 import ModalShell from '../UI/ModalShell';
+import { invalidateServerPanelDataCache } from '../../utils/serverPanelDataCache';
 import toast from 'react-hot-toast';
 
 const PROTOCOL_SCHEMA_FALLBACK = [
@@ -1881,9 +1882,9 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
         return stream;
     };
 
-    const createInboundParams = ({ settingsValue, streamSettingsValue, sniffingValue, expiryTimeValue }: any) => {
+    const createInboundParams = ({ settingsValue, streamSettingsValue, sniffingValue, expiryTimeValue, remarkOverride }: any) => {
         const params = new URLSearchParams();
-        params.append('remark', remark);
+        params.append('remark', remarkOverride !== undefined ? String(remarkOverride) : remark);
         params.append('protocol', protocol);
         params.append('port', String(port));
         params.append('listen', listen);
@@ -2004,11 +2005,23 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                         return;
                     }
                 }
+                const originalPanelRemark = String(
+                    editingInbound.panelRemark !== undefined
+                        ? editingInbound.panelRemark
+                        : (editingInbound.remark || '')
+                ).trim();
+                const initialEffectiveRemark = String(editingInbound.remark || '').trim();
+                const trimmedRemark = String(remark || '').trim();
+                const nextOverride = trimmedRemark === originalPanelRemark ? '' : trimmedRemark;
+                const shouldSaveLocalRemark = trimmedRemark !== initialEffectiveRemark
+                    || (Boolean(editingInbound.hasCustomRemark) && nextOverride === '');
+
                 const params = createInboundParams({
                     settingsValue: parsedSettings,
                     streamSettingsValue: streamPayload,
                     sniffingValue: parsedSniffing,
                     expiryTimeValue: resolvedExpiryTime,
+                    remarkOverride: originalPanelRemark,
                 });
 
                 const updateRes = serverId
@@ -2021,6 +2034,17 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                 if (updateRes?.data?.success === false) {
                     throw new Error(updateRes?.data?.msg || updateRes?.data?.message || t('comp.common.updateFailed'));
                 }
+                if (shouldSaveLocalRemark && serverId) {
+                    const remarkRes = await api.put('/system/inbounds/remarks', {
+                        serverId,
+                        inboundId: editingInbound.id,
+                        remark: nextOverride,
+                    });
+                    if (remarkRes?.data?.success === false) {
+                        throw new Error(remarkRes?.data?.msg || remarkRes?.data?.message || t('comp.inbounds.remarkSaveFailed'));
+                    }
+                }
+                invalidateServerPanelDataCache();
                 toast.success(t('comp.inbounds.inboundUpdated'));
                 onSuccess();
                 onClose();
@@ -2202,7 +2226,35 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                         <div className="grid grid-cols-2 gap-4 mb-4">
                             <div className="form-group">
                                 <label htmlFor="inbound-modal-name" className="form-label">{t('comp.inbounds.labelRemark')}</label>
-                                <input id="inbound-modal-name" name="inboundModalName" className="form-input" value={remark} onChange={e => setRemark(e.target.value)} placeholder="Name" />
+                                <input id="inbound-modal-name" name="inboundModalName" className="form-input" value={remark} onChange={e => setRemark(e.target.value)} placeholder="Name" maxLength={120} />
+                                {editingInbound && (
+                                    <div className="inbound-modal-remark-meta">
+                                        <span className="text-xs text-muted">{t('comp.inbounds.remarkLocalOnlyHint')}</span>
+                                        {(() => {
+                                            const originalPanelRemark = String(
+                                                editingInbound.panelRemark !== undefined
+                                                    ? editingInbound.panelRemark
+                                                    : (editingInbound.remark || '')
+                                            ).trim();
+                                            const showOrigin = Boolean(editingInbound.hasCustomRemark) || remark.trim() !== originalPanelRemark;
+                                            if (!showOrigin) return null;
+                                            return (
+                                                <div className="inbound-modal-remark-origin">
+                                                    <span className="text-xs text-secondary">
+                                                        {t('comp.inbounds.remarkPanelOrigin', { remark: originalPanelRemark || '—' })}
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        className="btn-link inbound-modal-remark-reset-btn"
+                                                        onClick={() => setRemark(originalPanelRemark)}
+                                                    >
+                                                        {t('comp.inbounds.remarkResetToPanel')}
+                                                    </button>
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+                                )}
                             </div>
                             <div className="form-group">
                                 <label htmlFor="inbound-modal-inbounds-label-protocol" className="form-label">{t('comp.inbounds.labelProtocol')}</label>

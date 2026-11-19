@@ -545,9 +545,6 @@ export default function Login() {
                             <img src={logoSrc} alt="" className="login-brand-mark" />
                             <div className="login-brand-copy">
                                 <span className="login-brand-name">NMS</span>
-                                <span className="login-brand-subtitle">
-                                    {locale === 'en-US' ? 'Node & Cluster Management Console' : '节点与集群管理控制台'}
-                                </span>
                             </div>
                         </div>
                         <div className="login-pass-perf" aria-hidden="true" />

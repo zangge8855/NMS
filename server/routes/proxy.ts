@@ -3,6 +3,7 @@ import { Router, type Request, type Response, type NextFunction } from 'express'
 import { ensureAuthenticated } from '../lib/panelClient.js';
 import { isSuiPanelServer } from '../lib/panelType.js';
 import serverStore from '../store/serverStore.js';
+import systemSettingsStore from '../store/systemSettingsStore.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { ROLES } from '../store/userStore.js';
 import multer from 'multer';
@@ -500,6 +501,28 @@ router.all('/:serverId/*', upload.any(), async (req: Request, res: Response) => 
         }
 
         let responseData = panelRes.data;
+        const delInboundMatch = canonicalPath.match(/^\/panel\/(?:api\/)?inbounds?\/del\/([^/]+)$/);
+        if (method === 'POST' && delInboundMatch && panelRes.status < 400 && responseData?.success !== false) {
+            systemSettingsStore.removeInboundRemark(serverId, safeDecodePathSegment(delInboundMatch[1]));
+        }
+        if (method === 'GET' && panelRes.status < 400 && responseData?.success !== false) {
+            if (/^\/panel\/(?:api\/)?inbounds?\/list$/.test(canonicalPath) && Array.isArray(responseData?.obj)) {
+                responseData = {
+                    ...responseData,
+                    obj: systemSettingsStore.applyInboundRemarks(serverId, responseData.obj),
+                };
+            } else if (
+                /^\/panel\/(?:api\/)?inbounds?\/get\/[^/]+$/.test(canonicalPath)
+                && responseData?.obj
+                && typeof responseData.obj === 'object'
+                && !Array.isArray(responseData.obj)
+            ) {
+                responseData = {
+                    ...responseData,
+                    obj: systemSettingsStore.applyInboundRemark(serverId, responseData.obj),
+                };
+            }
+        }
         if (
             canonicalPath.startsWith('/panel/api/inbounds/clientIps/')
             || canonicalPath.startsWith('/panel/api/clients/ips/')
@@ -546,6 +569,10 @@ router.all('/:serverId/*', upload.any(), async (req: Request, res: Response) => 
                     : await tryCompatPanelRequest(client, method, canonicalPath, req.body || {}, req.files as Express.Multer.File[]);
                 if (compatRes) {
                     const compatStatus = Number(compatRes.status || 200);
+                    const delInboundMatch = canonicalPath.match(/^\/panel\/(?:api\/)?inbounds?\/del\/([^/]+)$/);
+                    if (method === 'POST' && delInboundMatch && compatStatus < 400 && compatRes?.data?.success !== false) {
+                        systemSettingsStore.removeInboundRemark(serverId, safeDecodePathSegment(delInboundMatch[1]));
+                    }
                     if (compatStatus < 400 && isMutatingProxyRequest(method, canonicalPath)) {
                         invalidateServerPanelSnapshotCache(serverId);
                         invalidatePublicSubCache();

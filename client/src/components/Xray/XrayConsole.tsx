@@ -346,6 +346,20 @@ export default function XrayConsole() {
                                 size="compact"
                                 icon={<span className="spinner spinner-20" aria-hidden="true" />}
                             />
+                        ) : !snapshot ? (
+                            <EmptyState
+                                icon={<HiOutlineExclamationTriangle />}
+                                size="compact"
+                                title={copy.loadError}
+                                subtitle={locale === 'en-US'
+                                    ? 'Unable to connect to the target node. Check node connectivity and try again.'
+                                    : '暂时无法读取该节点的 Xray 配置，请确认节点在线后重试。'}
+                                action={(
+                                    <button type="button" className="btn btn-secondary btn-sm" onClick={loadConfig}>
+                                        <HiOutlineArrowPath /> {copy.refresh}
+                                    </button>
+                                )}
+                            />
                         ) : null}
 
                         {snapshot ? (

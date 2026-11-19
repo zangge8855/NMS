@@ -800,4 +800,112 @@ describe('Inbounds', () => {
             expect(screen.queryByText('Alpha Inbound')).not.toBeInTheDocument();
         });
     });
+
+    it('edits local NMS inbound remark independently per server without syncing to upstream panel and resets cleanly', async () => {
+        const user = userEvent.setup();
+        useServer.mockReturnValue({
+            servers: [
+                { id: 'server-v4', name: 'HK-IPv4' },
+                { id: 'server-v6', name: 'HK-IPv6' },
+            ],
+            activeServerId: undefined,
+        });
+
+        api.get.mockImplementation((url) => {
+            if (url === '/system/inbounds/order') {
+                return Promise.resolve({ data: { obj: {} } });
+            }
+            if (url === '/system/servers/order') {
+                return Promise.resolve({ data: { obj: [] } });
+            }
+            if (url === '/clients/entitlement-overrides') {
+                return Promise.resolve({ data: { obj: [] } });
+            }
+            if (url === '/panel/server-v4/panel/api/inbounds/list' || url === '/panel/server-v6/panel/api/inbounds/list') {
+                return Promise.resolve({
+                    data: {
+                        obj: [{
+                            id: 1,
+                            remark: 'Shared Inbound',
+                            panelRemark: 'Shared Inbound',
+                            hasCustomRemark: false,
+                            protocol: 'vless',
+                            listen: '0.0.0.0',
+                            port: 443,
+                            enable: true,
+                            up: 0,
+                            down: 0,
+                            settings: JSON.stringify({ clients: [] }),
+                        }],
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        api.post.mockImplementation((url) => {
+            if (url === '/panel/server-v4/panel/api/inbounds/onlines' || url === '/panel/server-v6/panel/api/inbounds/onlines') {
+                return Promise.resolve({ data: { obj: [] } });
+            }
+            throw new Error(`Unexpected POST ${url}`);
+        });
+
+        api.put.mockImplementation((url, body: any) => {
+            if (url === '/system/inbounds/remarks') {
+                return Promise.resolve({
+                    data: {
+                        success: true,
+                        obj: {
+                            serverId: body.serverId,
+                            inboundId: String(body.inboundId),
+                            remark: body.remark,
+                            hasCustomRemark: Boolean(body.remark),
+                        },
+                    },
+                });
+            }
+            throw new Error(`Unexpected PUT ${url}`);
+        });
+
+        renderInbounds();
+
+        const rows = await screen.findAllByText('Shared Inbound');
+        expect(rows).toHaveLength(2);
+
+        const editButtons = screen.getAllByRole('button', { name: '编辑 Shared Inbound:443 的 NMS 本地备注' });
+        await user.click(editButtons[0]);
+
+        const input = screen.getByRole('textbox', { name: '编辑 Shared Inbound:443 的 NMS 本地备注' });
+        await user.clear(input);
+        await user.type(input, '香港-IPv4{enter}');
+
+        await waitFor(() => {
+            expect(api.put).toHaveBeenCalledWith('/system/inbounds/remarks', {
+                serverId: 'server-v4',
+                inboundId: 1,
+                remark: '香港-IPv4',
+            });
+        });
+        expect(api.post).not.toHaveBeenCalledWith(expect.stringContaining('/inbounds/update'), expect.anything());
+        expect(screen.getByText('香港-IPv4')).toBeInTheDocument();
+        expect(screen.getByText('NMS')).toBeInTheDocument();
+        expect(screen.getByText('Shared Inbound')).toBeInTheDocument();
+
+        // Reset back to upstream panel remark
+        const updatedEditBtn = screen.getByRole('button', { name: '编辑 香港-IPv4:443 的 NMS 本地备注' });
+        await user.click(updatedEditBtn);
+        await user.click(screen.getByRole('button', { name: '恢复面板备注' }));
+
+        await waitFor(() => {
+            expect(api.put).toHaveBeenCalledWith('/system/inbounds/remarks', {
+                serverId: 'server-v4',
+                inboundId: 1,
+                remark: '',
+            });
+        });
+        await waitFor(() => {
+            expect(screen.getAllByText('Shared Inbound')).toHaveLength(2);
+        });
+        expect(screen.queryByText('NMS')).not.toBeInTheDocument();
+    });
 });

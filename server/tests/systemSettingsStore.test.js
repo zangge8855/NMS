@@ -50,6 +50,50 @@ describe('SystemSettingsStore ordering', { concurrency: false }, () => {
         assert.deepEqual(systemSettingsStore.getServerOrder(), ['server-b', 'server-a']);
     });
 
+    it('persists independent local inbound remarks per server and clears back to panel default', () => {
+        const savedV4 = systemSettingsStore.setInboundRemark('srv-v4', 1, '  HK-IPv4  ');
+        const savedV6 = systemSettingsStore.setInboundRemark('srv-v6', '1', 'HK-IPv6');
+        assert.deepEqual(savedV4, { serverId: 'srv-v4', inboundId: '1', remark: 'HK-IPv4', hasCustomRemark: true });
+        assert.deepEqual(savedV6, { serverId: 'srv-v6', inboundId: '1', remark: 'HK-IPv6', hasCustomRemark: true });
+
+        assert.deepEqual(systemSettingsStore.getInboundRemarks(), {
+            'srv-v4': { 1: 'HK-IPv4' },
+            'srv-v6': { 1: 'HK-IPv6' },
+        });
+        assert.deepEqual(systemSettingsStore.getInboundRemarks('srv-v4'), { 1: 'HK-IPv4' });
+
+        // Decorates identically named upstream inbounds independently & is idempotent
+        const raw = [{ id: 1, remark: 'shared-3xui', protocol: 'vless', port: 443 }];
+        const decoratedV4Once = systemSettingsStore.applyInboundRemarks('srv-v4', raw);
+        const decoratedV4Twice = systemSettingsStore.applyInboundRemarks('srv-v4', decoratedV4Once);
+        const decoratedV6 = systemSettingsStore.applyInboundRemarks('srv-v6', raw);
+        assert.equal(decoratedV4Once[0].remark, 'HK-IPv4');
+        assert.equal(decoratedV4Once[0].panelRemark, 'shared-3xui');
+        assert.equal(decoratedV4Once[0].nmsRemark, 'HK-IPv4');
+        assert.equal(decoratedV4Once[0].hasCustomRemark, true);
+        assert.deepEqual(decoratedV4Twice, decoratedV4Once);
+        assert.equal(decoratedV6[0].remark, 'HK-IPv6');
+        assert.equal(decoratedV6[0].panelRemark, 'shared-3xui');
+
+        // Survives unrelated systemSettingsStore.update()
+        systemSettingsStore.update({ jobs: { retentionDays: 45 } });
+        assert.equal(systemSettingsStore.getInboundRemark('srv-v4', 1), 'HK-IPv4');
+        assert.equal(systemSettingsStore.getInboundRemark('srv-v6', 1), 'HK-IPv6');
+
+        // Clearing restores panel default without affecting sibling server
+        const cleared = systemSettingsStore.setInboundRemark('srv-v4', 1, '');
+        assert.deepEqual(cleared, { serverId: 'srv-v4', inboundId: '1', remark: '', hasCustomRemark: false });
+        const afterClearV4 = systemSettingsStore.applyInboundRemarks('srv-v4', raw);
+        assert.equal(afterClearV4[0].remark, 'shared-3xui');
+        assert.equal(afterClearV4[0].hasCustomRemark, false);
+        assert.equal(systemSettingsStore.getInboundRemark('srv-v6', 1), 'HK-IPv6');
+
+        // Remove server bucket cleanly
+        assert.equal(systemSettingsStore.removeInboundRemark('srv-v6'), true);
+        assert.equal(systemSettingsStore.removeInboundRemark('srv-v6'), false);
+        assert.deepEqual(systemSettingsStore.getInboundRemarks('srv-v6'), {});
+    });
+
     it('defaults invite-only registration to disabled and persists updates', () => {
         assert.equal(systemSettingsStore.getRegistration().inviteOnlyEnabled, false);
 

@@ -33,6 +33,7 @@ import {
     HiOutlineInbox,
     HiOutlineXMark,
     HiOutlineCalendarDays,
+    HiOutlineTag,
 } from 'react-icons/hi2';
 import {
     normalizeInboundOrderMap,
@@ -211,6 +212,9 @@ export default function Inbounds() {
     const [serverOrder, setServerOrder] = useState(() => bootstrapRef.current?.serverOrder || []);
     const [savingOrderServerId, setSavingOrderServerId] = useState('');
     const [inboundOrderDrafts, setInboundOrderDrafts] = useState({});
+    const [editingRemarkKey, setEditingRemarkKey] = useState('');
+    const [remarkDraft, setRemarkDraft] = useState('');
+    const [savingRemarkKey, setSavingRemarkKey] = useState('');
 
     // Batch Selection State
     const [selectedKeys, setSelectedKeys] = useState(new Set());
@@ -274,6 +278,8 @@ export default function Inbounds() {
             setSelectedKeys(new Set());
             setSelectedClientKeys(new Set());
             setInboundOrderDrafts({});
+            setEditingRemarkKey('');
+            setRemarkDraft('');
         }
         let orderMap = inboundOrder;
         let nextServerOrder = serverOrder;
@@ -658,7 +664,7 @@ export default function Inbounds() {
             serverId: target.serverId,
             serverName: target.serverName,
             id: target.id,
-            remark: target.remark,
+            remark: target.panelRemark ?? target.remark,
             protocol: target.protocol,
             port: target.port,
             listen: target.listen,
@@ -744,7 +750,7 @@ export default function Inbounds() {
                     serverId: inbound.serverId,
                     serverName: inbound.serverName,
                     id: inbound.id,
-                    remark: inbound.remark,
+                    remark: inbound.panelRemark ?? inbound.remark,
                     protocol: inbound.protocol,
                     port: inbound.port,
                     listen: inbound.listen,
@@ -895,6 +901,62 @@ export default function Inbounds() {
 
         await handleMoveInbound(inbound, nextPosition - 1);
     };
+
+    const startEditingRemark = (inbound) => {
+        if (!canMutate || !inbound?.uiKey) return;
+        setEditingRemarkKey(inbound.uiKey);
+        setRemarkDraft(String(inbound.remark || ''));
+    };
+
+    const cancelEditingRemark = () => {
+        if (savingRemarkKey) return;
+        setEditingRemarkKey('');
+        setRemarkDraft('');
+    };
+
+    const commitEditingRemark = async (inbound, overrideValue?: string) => {
+        if (!canMutate || !inbound?.serverId || inbound?.id === undefined || inbound?.id === null) return;
+        const rowKey = String(inbound.uiKey || '').trim();
+        if (!rowKey || savingRemarkKey === rowKey) return;
+
+        const panelRemark = String(inbound.panelRemark ?? inbound.remark ?? '').trim();
+        const nextDraft = overrideValue !== undefined ? overrideValue : remarkDraft;
+        const trimmed = String(nextDraft || '').trim();
+        const nextOverride = trimmed === panelRemark ? '' : trimmed;
+
+        setSavingRemarkKey(rowKey);
+        try {
+            const res = await api.put('/system/inbounds/remarks', {
+                serverId: inbound.serverId,
+                inboundId: inbound.id,
+                remark: nextOverride,
+            });
+            if (res?.data?.success === false) {
+                throw new Error(res?.data?.msg || res?.data?.message || t('comp.inbounds.remarkSaveFailed'));
+            }
+            const savedOverride = String(res?.data?.obj?.remark ?? nextOverride).trim();
+            const effectiveRemark = savedOverride || panelRemark;
+            setInbounds((prev) => prev.map((item) => (
+                item.uiKey === rowKey
+                    ? {
+                        ...item,
+                        remark: effectiveRemark,
+                        panelRemark,
+                        nmsRemark: savedOverride,
+                        hasCustomRemark: Boolean(savedOverride),
+                    }
+                    : item
+            )));
+            invalidateServerPanelDataCache();
+            setEditingRemarkKey('');
+            setRemarkDraft('');
+            toast.success(savedOverride ? t('comp.inbounds.remarkSaved') : t('comp.inbounds.remarkReset'));
+        } catch (err) {
+            toast.error(getErrorMessage(err, t('comp.inbounds.remarkSaveFailed'), locale));
+        }
+        setSavingRemarkKey('');
+    };
+
     const parseClients = (ib) => {
         if (Array.isArray(ib?.clients)) {
             return ib.clients.map((client) => ({
@@ -1752,8 +1814,105 @@ export default function Inbounds() {
                                                 <td
                                                     data-label={t('pages.inbounds.cols.remark')}
                                                     className="inbounds-remark-cell"
+                                                    onClick={editingRemarkKey === ib.uiKey ? (e) => e.stopPropagation() : undefined}
                                                 >
-                                                    <InboundRemarkPill remark={ib.remark} protocol={ib.protocol} />
+                                                    {(() => {
+                                                        const panelRemark = String(ib.panelRemark ?? '').trim();
+                                                        const customRemark = String(ib.nmsRemark ?? (ib.hasCustomRemark ? ib.remark : '')).trim();
+                                                        const hasDifferentPanelRemark = Boolean(ib.hasCustomRemark) && customRemark !== panelRemark;
+                                                        const remarkTooltip = hasDifferentPanelRemark
+                                                            ? t('comp.inbounds.remarkCustomTooltip', {
+                                                                remark: ib.remark || customRemark,
+                                                                panelRemark: panelRemark || '—',
+                                                            })
+                                                            : undefined;
+                                                        const isSavingThisRemark = savingRemarkKey === ib.uiKey;
+                                                        if (editingRemarkKey === ib.uiKey) {
+                                                            return (
+                                                                <div className="inbounds-remark-editor" onClick={(e) => e.stopPropagation()}>
+                                                                    <input
+                                                                        name={`inboundRemark-${index}`}
+                                                                        type="text"
+                                                                        maxLength={120}
+                                                                        autoFocus
+                                                                        disabled={isSavingThisRemark}
+                                                                        aria-label={t('comp.inbounds.editLocalRemarkAria', { name: inboundLabel })}
+                                                                        placeholder={t('comp.inbounds.remarkPlaceholder')}
+                                                                        className="form-input form-input-sm inbounds-remark-inline-input"
+                                                                        value={remarkDraft}
+                                                                        onChange={(e) => setRemarkDraft(e.target.value)}
+                                                                        onKeyDown={(event) => {
+                                                                            if (event.key === 'Enter') {
+                                                                                if (event.nativeEvent?.isComposing || event.keyCode === 229) return;
+                                                                                event.preventDefault();
+                                                                                commitEditingRemark(ib);
+                                                                            }
+                                                                            if (event.key === 'Escape') {
+                                                                                event.preventDefault();
+                                                                                cancelEditingRemark();
+                                                                            }
+                                                                        }}
+                                                                    />
+                                                                    <button
+                                                                        type="button"
+                                                                        className="inbounds-remark-inline-btn is-save"
+                                                                        aria-label={t('comp.inbounds.saveLocalRemarkAria')}
+                                                                        title={t('comp.inbounds.saveLocalRemarkAria')}
+                                                                        disabled={isSavingThisRemark}
+                                                                        onClick={() => commitEditingRemark(ib)}
+                                                                    >
+                                                                        <HiOutlineCheck aria-hidden="true" />
+                                                                    </button>
+                                                                    {ib.hasCustomRemark && (
+                                                                        <button
+                                                                            type="button"
+                                                                            className="inbounds-remark-inline-btn"
+                                                                            aria-label={t('comp.inbounds.remarkResetToPanel')}
+                                                                            title={t('comp.inbounds.remarkResetToPanel')}
+                                                                            disabled={isSavingThisRemark}
+                                                                            onClick={() => commitEditingRemark(ib, '')}
+                                                                        >
+                                                                            <HiOutlineArrowPath aria-hidden="true" />
+                                                                        </button>
+                                                                    )}
+                                                                    <button
+                                                                        type="button"
+                                                                        className="inbounds-remark-inline-btn"
+                                                                        aria-label={t('comp.inbounds.cancelLocalRemarkAria')}
+                                                                        title={t('comp.inbounds.cancelLocalRemarkAria')}
+                                                                        disabled={isSavingThisRemark}
+                                                                        onClick={cancelEditingRemark}
+                                                                    >
+                                                                        <HiOutlineXMark aria-hidden="true" />
+                                                                    </button>
+                                                                </div>
+                                                            );
+                                                        }
+                                                        return (
+                                                            <div className="inbounds-remark-display">
+                                                                <InboundRemarkPill remark={ib.remark} protocol={ib.protocol} title={remarkTooltip} />
+                                                                {hasDifferentPanelRemark && (
+                                                                    <span className="inbounds-remark-origin-tag" title={remarkTooltip}>
+                                                                        {t('comp.inbounds.remarkBadgeLabel')}
+                                                                    </span>
+                                                                )}
+                                                                {canMutate && (
+                                                                    <button
+                                                                        type="button"
+                                                                        className="inbounds-remark-edit-btn"
+                                                                        aria-label={t('comp.inbounds.editLocalRemarkAria', { name: inboundLabel })}
+                                                                        title={t('comp.inbounds.editLocalRemarkTitle')}
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            startEditingRemark(ib);
+                                                                        }}
+                                                                    >
+                                                                        <HiOutlinePencilSquare aria-hidden="true" />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })()}
                                                     {isCondensedLayout ? <div className="inbounds-condensed-summary">
                                                         <span className="badge badge-info" title={t('pages.inbounds.cols.protocol')}>{ib.protocol}</span>
                                                         <span className="inbounds-condensed-meta cell-mono" title={t('pages.inbounds.cols.listenPort')}>
@@ -1821,6 +1980,11 @@ export default function Inbounds() {
                                                                             setClientTargets([ib]);
                                                                             setIsClientModalOpen(true);
                                                                         },
+                                                                    },
+                                                                    {
+                                                                        label: t('comp.inbounds.editLocalRemarkAction'),
+                                                                        icon: HiOutlineTag,
+                                                                        onClick: () => startEditingRemark(ib),
                                                                     },
                                                                     {
                                                                         label: ib.enable ? t('comp.common.disable') : t('comp.common.enable'),

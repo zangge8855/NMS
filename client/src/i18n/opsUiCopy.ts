@@ -167,7 +167,7 @@ const OPS_UI_COPY: Record<ClientLocale, OpsUiCopy> = {
         },
         downloads: {
             regionLabel: '客户端下载列表',
-            filterPlaceholder: '筛选客户端或平台 (如 FlClash, iOS, sing-box)',
+            filterPlaceholder: '搜索客户端或平台（如 Clash、iOS）',
             filterAriaLabel: '筛选客户端或平台',
             clearFilter: '清除筛选',
             emptyTitle: '暂无可用客户端下载',

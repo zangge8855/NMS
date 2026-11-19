@@ -953,6 +953,7 @@ router.delete('/:id', operatorOrAbove, (req, res) => {
             msg: pickLocalizedText(locale, '节点不存在，请刷新节点列表后重试', 'Node not found; refresh the server list and try again'),
         });
     }
+    systemSettingsStore.removeInboundRemark(serverId);
     const actor = String(req.user?.username || req.user?.role || 'admin');
     const affectedPolicies = userPolicyStore.removeServerId(serverId, actor);
     const affectedGroups = userGroupStore.removeServerId(serverId, actor);

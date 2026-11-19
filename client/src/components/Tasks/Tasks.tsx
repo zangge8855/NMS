@@ -51,7 +51,7 @@ const TASKS_COPY = {
         retryDone: '重试完成: {success}/{total} 成功',
         retryFailed: '重试失败',
         embeddedTitle: '批量操作历史',
-        embeddedSubtitle: '与上方操作审计配套，集中查看批量任务与重试结果',
+        embeddedSubtitle: '集中查看批量任务执行记录与重试结果',
         pageTitle: '批量任务历史',
         pageSubtitle: '记录批量用户/入站操作的执行结果',
         refresh: '刷新',

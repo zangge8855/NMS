@@ -118,6 +118,37 @@ function compareInboundFallback(a: any, b: any): number {
     return normalizeId(a?.id).localeCompare(normalizeId(b?.id));
 }
 
+function sanitizeInboundRemark(value: unknown): string {
+    return String(value ?? '')
+        .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+        .trim()
+        .slice(0, 120);
+}
+
+function normalizeInboundRemarksMap(input: unknown = {}): Record<string, Record<string, string>> {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) return {};
+
+    const output: Record<string, Record<string, string>> = {};
+    for (const [rawServerId, rawServerMap] of Object.entries(input)) {
+        const serverId = normalizeId(rawServerId);
+        if (!serverId || !rawServerMap || typeof rawServerMap !== 'object' || Array.isArray(rawServerMap)) continue;
+
+        const nextServerMap: Record<string, string> = {};
+        for (const [rawInboundId, rawRemark] of Object.entries(rawServerMap as Record<string, unknown>)) {
+            const inboundId = normalizeId(rawInboundId);
+            const cleanedRemark = sanitizeInboundRemark(rawRemark);
+            if (!inboundId || !cleanedRemark) continue;
+            nextServerMap[inboundId] = cleanedRemark;
+        }
+
+        if (Object.keys(nextServerMap).length > 0) {
+            output[serverId] = nextServerMap;
+        }
+    }
+
+    return output;
+}
+
 function normalizeInboundOrderMap(input: unknown = {}): Record<string, string[]> {
     if (!input || typeof input !== 'object' || Array.isArray(input)) return {};
 
@@ -586,6 +617,7 @@ export class SystemSettingsStore {
             },
             serverOrder: [],
             inboundOrder: {},
+            inboundRemarks: {},
             userOrder: [],
         };
     }
@@ -759,6 +791,7 @@ export class SystemSettingsStore {
         const geofilesFallback = mergeSection(defaults.geofiles, fallbackRoot.geofiles);
         const serverOrderFallback = normalizeIdList(fallbackRoot.serverOrder);
         const inboundOrderFallback = normalizeInboundOrderMap(fallbackRoot.inboundOrder);
+        const inboundRemarksFallback = normalizeInboundRemarksMap(fallbackRoot.inboundRemarks);
         const userOrderFallback = normalizeIdList(fallbackRoot.userOrder);
 
         const siteInput = mergeSection(defaults.site, input.site);
@@ -773,11 +806,14 @@ export class SystemSettingsStore {
         const geofilesInput = mergeSection(defaults.geofiles, input.geofiles);
         const serverOrderInput = normalizeIdList(input.serverOrder);
         const inboundOrderInput = normalizeInboundOrderMap(input.inboundOrder);
+        const inboundRemarksInput = normalizeInboundRemarksMap(input.inboundRemarks);
         const userOrderInput = normalizeIdList(input.userOrder);
 
         const hasServerOrder = Object.prototype.hasOwnProperty.call(input, 'serverOrder') && Array.isArray(input.serverOrder);
         const hasInboundOrder = Object.prototype.hasOwnProperty.call(input, 'inboundOrder')
             && input.inboundOrder && typeof input.inboundOrder === 'object' && !Array.isArray(input.inboundOrder);
+        const hasInboundRemarks = Object.prototype.hasOwnProperty.call(input, 'inboundRemarks')
+            && input.inboundRemarks && typeof input.inboundRemarks === 'object' && !Array.isArray(input.inboundRemarks);
         const hasUserOrder = Object.prototype.hasOwnProperty.call(input, 'userOrder') && Array.isArray(input.userOrder);
 
         return {
@@ -793,6 +829,7 @@ export class SystemSettingsStore {
             geofiles: this._normalizeGeofiles(geofilesInput, geofilesFallback),
             serverOrder: hasServerOrder ? serverOrderInput : (serverOrderInput.length > 0 ? serverOrderInput : serverOrderFallback),
             inboundOrder: hasInboundOrder ? inboundOrderInput : (Object.keys(inboundOrderInput).length > 0 ? inboundOrderInput : inboundOrderFallback),
+            inboundRemarks: hasInboundRemarks ? inboundRemarksInput : (Object.keys(inboundRemarksInput).length > 0 ? inboundRemarksInput : inboundRemarksFallback),
             userOrder: hasUserOrder ? userOrderInput : (userOrderInput.length > 0 ? userOrderInput : userOrderFallback),
             updatedAt: String(input.updatedAt || '').trim() || new Date().toISOString(),
         };
@@ -1000,6 +1037,115 @@ export class SystemSettingsStore {
         return this.getInboundOrder(normalizedServerId);
     }
 
+    getInboundRemarks(serverId: string = ''): any {
+        const normalizedServerId = normalizeId(serverId);
+        const all = safeClone(this.settings?.inboundRemarks || {}) || {};
+        if (!normalizedServerId) return all;
+        const perServer = all[normalizedServerId];
+        return perServer && typeof perServer === 'object' ? { ...perServer } : {};
+    }
+
+    getInboundRemark(serverId: string, inboundId: string | number): string {
+        const normalizedServerId = normalizeId(serverId);
+        const normalizedInboundId = normalizeId(inboundId);
+        if (!normalizedServerId || !normalizedInboundId) return '';
+        return String(this.settings?.inboundRemarks?.[normalizedServerId]?.[normalizedInboundId] || '').trim();
+    }
+
+    setInboundRemark(
+        serverId: string,
+        inboundId: string | number,
+        remark: unknown
+    ): { serverId: string; inboundId: string; remark: string; hasCustomRemark: boolean } {
+        const normalizedServerId = normalizeId(serverId);
+        const normalizedInboundId = normalizeId(inboundId);
+        if (!normalizedServerId) {
+            throw new Error('serverId is required');
+        }
+        if (!normalizedInboundId) {
+            throw new Error('inboundId is required');
+        }
+
+        const cleaned = sanitizeInboundRemark(remark);
+        const nextInboundRemarks = normalizeInboundRemarksMap(this.settings?.inboundRemarks || {});
+        const nextServerMap = { ...(nextInboundRemarks[normalizedServerId] || {}) };
+
+        if (cleaned) {
+            nextServerMap[normalizedInboundId] = cleaned;
+            nextInboundRemarks[normalizedServerId] = nextServerMap;
+        } else {
+            delete nextServerMap[normalizedInboundId];
+            if (Object.keys(nextServerMap).length > 0) {
+                nextInboundRemarks[normalizedServerId] = nextServerMap;
+            } else {
+                delete nextInboundRemarks[normalizedServerId];
+            }
+        }
+
+        this.settings = this._normalizeSettings({
+            ...this.settings,
+            inboundRemarks: nextInboundRemarks,
+            updatedAt: new Date().toISOString(),
+        }, this.settings);
+        this._save();
+
+        return {
+            serverId: normalizedServerId,
+            inboundId: normalizedInboundId,
+            remark: cleaned,
+            hasCustomRemark: Boolean(cleaned),
+        };
+    }
+
+    removeInboundRemark(serverId: string, inboundId?: string | number): boolean {
+        const normalizedServerId = normalizeId(serverId);
+        if (!normalizedServerId) return false;
+
+        const nextInboundRemarks = normalizeInboundRemarksMap(this.settings?.inboundRemarks || {});
+        if (!nextInboundRemarks[normalizedServerId]) return false;
+
+        if (inboundId !== undefined && inboundId !== null && String(inboundId).trim() !== '') {
+            const normalizedInboundId = normalizeId(inboundId);
+            if (!normalizedInboundId || !Object.prototype.hasOwnProperty.call(nextInboundRemarks[normalizedServerId], normalizedInboundId)) {
+                return false;
+            }
+            const nextServerMap = { ...nextInboundRemarks[normalizedServerId] };
+            delete nextServerMap[normalizedInboundId];
+            if (Object.keys(nextServerMap).length > 0) {
+                nextInboundRemarks[normalizedServerId] = nextServerMap;
+            } else {
+                delete nextInboundRemarks[normalizedServerId];
+            }
+        } else {
+            delete nextInboundRemarks[normalizedServerId];
+        }
+
+        this.settings = this._normalizeSettings({
+            ...this.settings,
+            inboundRemarks: nextInboundRemarks,
+            updatedAt: new Date().toISOString(),
+        }, this.settings);
+        this._save();
+        return true;
+    }
+
+    applyInboundRemark(serverId: string, inbound: any): any {
+        if (!inbound || typeof inbound !== 'object') return inbound;
+        const panelRemark = String(inbound.panelRemark !== undefined ? inbound.panelRemark : (inbound.remark ?? '')).trim();
+        const customRemark = this.getInboundRemark(serverId, inbound.id ?? inbound.inboundId ?? '');
+        return {
+            ...inbound,
+            panelRemark,
+            nmsRemark: customRemark,
+            hasCustomRemark: Boolean(customRemark),
+            remark: customRemark || panelRemark,
+        };
+    }
+
+    applyInboundRemarks(serverId: string, inbounds: any[] = []): any[] {
+        return (Array.isArray(inbounds) ? inbounds : []).map((inbound) => this.applyInboundRemark(serverId, inbound));
+    }
+
     setUserOrder(userIds: string[] = []): string[] {
         if (!Array.isArray(userIds)) {
             throw new Error('userIds must be an array');
@@ -1063,6 +1209,7 @@ export class SystemSettingsStore {
             geofiles: mergeSection(this.settings.geofiles, sanitizedPatch.geofiles),
             serverOrder: this.settings.serverOrder,
             inboundOrder: this.settings.inboundOrder,
+            inboundRemarks: this.settings.inboundRemarks,
             userOrder: this.settings.userOrder,
             updatedAt: new Date().toISOString(),
         };

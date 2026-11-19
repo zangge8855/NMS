@@ -2466,20 +2466,31 @@ export default function AuditCenter() {
                                     </span>
                                 </div>
                                 <div className="dashboard-chart audit-chart-body">
-                                    <Suspense fallback={<div className="skeleton w-full h-full opacity-10" />}>
-                                        <TrafficLineChart
-                                            data={userTrend.points || []}
-                                            color="var(--accent-primary)"
-                                            granularity={userTrend.granularity}
-                                            locale={locale}
-                                            margin={AUDIT_TRAFFIC_CHART_MARGIN}
-                                            yAxisWidth={AUDIT_TRAFFIC_CHART_Y_AXIS_WIDTH}
-                                            formatAxis={formatTrafficAxisBytes}
-                                            formatValue={formatBytes}
-                                            formatLabel={formatDateTime}
-                                            trendLabel={trendLabel}
+                                    {Array.isArray(userTrend.points) && userTrend.points.length > 0 ? (
+                                        <Suspense fallback={<div className="skeleton w-full h-full opacity-10" />}>
+                                            <TrafficLineChart
+                                                data={userTrend.points || []}
+                                                color="var(--accent-primary)"
+                                                granularity={userTrend.granularity}
+                                                locale={locale}
+                                                margin={AUDIT_TRAFFIC_CHART_MARGIN}
+                                                yAxisWidth={AUDIT_TRAFFIC_CHART_Y_AXIS_WIDTH}
+                                                formatAxis={formatTrafficAxisBytes}
+                                                formatValue={formatBytes}
+                                                formatLabel={formatDateTime}
+                                                trendLabel={trendLabel}
+                                            />
+                                        </Suspense>
+                                    ) : (
+                                        <EmptyState
+                                            hideIcon
+                                            size="compact"
+                                            title={selectedTrafficUser ? copy.states.noData : copy.workspace.noUserSelected}
+                                            subtitle={locale === 'en-US'
+                                                ? 'Select a user above or wait for traffic sampling to view trends.'
+                                                : '在上方选择用户或等待流量采样后即可查看趋势曲线。'}
                                         />
-                                    </Suspense>
+                                    )}
                                 </div>
                             </div>
 

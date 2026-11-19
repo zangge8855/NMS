@@ -658,7 +658,7 @@ describe('SystemSettings', () => {
         expect(document.querySelector('[data-workspace="operations"] .settings-workspace-highlight-card')).toBeNull();
         expect(screen.getByText('Telegram 机器人')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: '测试 SMTP' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: '发变更通知' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '发送变更通知' })).toBeInTheDocument();
         const chatIdInput = screen.getByLabelText('Chat ID / 群组 ID');
         expect(chatIdInput).toHaveValue('********7890');
         expect(chatIdInput).toHaveAttribute('readonly');

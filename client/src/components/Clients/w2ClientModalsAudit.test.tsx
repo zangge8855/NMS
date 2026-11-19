@@ -484,6 +484,7 @@ describe('Wave 2 Frontend Modals, Scanner, Subscriptions & Xray Fixes', () => {
                 throw new Error(`Unexpected GET ${url}`);
             });
             (api.post as any).mockResolvedValue({ data: { success: true } });
+            (api.put as any).mockResolvedValue({ data: { success: true, obj: { remark: 'Reality Updated' } } });
 
             const user = userEvent.setup();
             const onSuccess = vi.fn();
@@ -534,6 +535,12 @@ describe('Wave 2 Frontend Modals, Scanner, Subscriptions & Xray Fixes', () => {
                 expect(onSuccess).toHaveBeenCalledTimes(1);
             });
             const sentParams = (api.post as any).mock.calls[0][1] as URLSearchParams;
+            expect(sentParams.get('remark')).toBe('Reality Empty Sid');
+            expect(api.put).toHaveBeenCalledWith('/system/inbounds/remarks', {
+                serverId: 's1',
+                inboundId: 5,
+                remark: 'Reality Updated',
+            });
             const sentStream = JSON.parse(sentParams.get('streamSettings') || '{}');
             expect(sentStream.realitySettings.shortIds).toEqual(['']);
 

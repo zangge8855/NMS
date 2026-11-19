@@ -1,4 +1,5 @@
 import serverStore from '../store/serverStore.js';
+import systemSettingsStore from '../store/systemSettingsStore.js';
 import config from '../config.js';
 import { getAuthenticatedPanelClient } from '../services/panelGateway.js';
 import { fetchPanelLastOnlineClients, fetchPanelOnlineClients } from './panelApiCompat.js';
@@ -118,7 +119,7 @@ async function fetchServerPanelSnapshot(server: any, options: any = {}): Promise
             message: String(inboundsResult.value?.data?.msg || 'api success false'),
         };
     } else if (Array.isArray(inboundsResult.value?.data?.obj)) {
-        inbounds = inboundsResult.value.data.obj;
+        inbounds = systemSettingsStore.applyInboundRemarks(server.id, inboundsResult.value.data.obj);
     } else {
         inboundsError = {
             code: 'PANEL_INVALID_RESPONSE',
@@ -164,6 +165,15 @@ async function fetchServerPanelSnapshot(server: any, options: any = {}): Promise
     };
 }
 
+function withAppliedInboundRemarks(serverId: string, snapshot: any) {
+    if (!snapshot || typeof snapshot !== 'object') return snapshot;
+    if (!Array.isArray(snapshot.inbounds)) return snapshot;
+    return {
+        ...snapshot,
+        inbounds: systemSettingsStore.applyInboundRemarks(serverId, snapshot.inbounds),
+    };
+}
+
 export async function getServerPanelSnapshot(server: any, options: any = {}): Promise<any> {
     const includeOnlines = options.includeOnlines !== false;
     const force = options.force === true;
@@ -174,7 +184,7 @@ export async function getServerPanelSnapshot(server: any, options: any = {}): Pr
     const pendingSupportsRequest = !includeOnlines || record.promiseIncludesOnlines === true;
 
     if (!force && record.value && cachedSupportsRequest && ageMs >= 0 && ageMs <= ttlMs) {
-        return record.value;
+        return withAppliedInboundRemarks(server?.id, record.value);
     }
 
     if (!force && record.promise && pendingSupportsRequest) {
@@ -220,7 +230,7 @@ export function getCachedServerPanelSnapshots(options: any = {}): any[] {
             const record = getRecord(server?.id);
             if (!record.value) return null;
             if (includeOnlines && record.valueIncludesOnlines !== true) return null;
-            return record.value;
+            return withAppliedInboundRemarks(server?.id, record.value);
         })
         .filter(Boolean);
 }

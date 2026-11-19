@@ -112,7 +112,13 @@ function ServerDetailInboundMobileList({ inbounds = [] }) {
                         <div className="server-detail-mobile-card-head">
                             <div className="server-detail-mobile-card-copy">
                                 <div className="server-detail-mobile-card-title">
-                                    <InboundRemarkPill remark={ib.remark} protocol={ib.protocol} />
+                                    <InboundRemarkPill
+                                        remark={ib.remark}
+                                        protocol={ib.protocol}
+                                        title={ib.hasCustomRemark && ib.panelRemark !== ib.remark
+                                            ? t('comp.inbounds.remarkCustomTooltip', { remark: ib.remark, panelRemark: ib.panelRemark || '—' })
+                                            : undefined}
+                                    />
                                 </div>
                                 <div className="server-detail-mobile-card-subtitle">
                                     <span className="badge badge-neutral">{ib.protocol}</span>
@@ -805,7 +811,13 @@ export default function ServerDetail() {
                                                     return (
                                                         <tr key={ib.id}>
                                                             <td data-label={t('pages.serverDetail.inboundCols.remark')} className="server-detail-remark-cell">
-                                                                <InboundRemarkPill remark={ib.remark} protocol={ib.protocol} />
+                                                                <InboundRemarkPill
+                                                                    remark={ib.remark}
+                                                                    protocol={ib.protocol}
+                                                                    title={ib.hasCustomRemark && ib.panelRemark !== ib.remark
+                                                                        ? t('comp.inbounds.remarkCustomTooltip', { remark: ib.remark, panelRemark: ib.panelRemark || '—' })
+                                                                        : undefined}
+                                                                />
                                                             </td>
                                                             <td data-label={t('pages.serverDetail.inboundCols.protocol')} className="table-cell-center server-detail-protocol-cell"><span className="badge badge-neutral">{ib.protocol}</span></td>
                                                             <td data-label={t('pages.serverDetail.inboundCols.port')} className="table-cell-right cell-mono-right server-detail-port-cell">{ib.port}</td>

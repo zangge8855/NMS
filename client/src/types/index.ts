@@ -88,6 +88,9 @@ export interface InboundConfig {
     down: number;
     total: number;
     remark: string;
+    panelRemark?: string;
+    nmsRemark?: string;
+    hasCustomRemark?: boolean;
     enable: boolean;
     expiryTime: number;
     listen?: string;

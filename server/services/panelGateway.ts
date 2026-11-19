@@ -1,4 +1,5 @@
 import { ensureAuthenticated } from '../lib/panelClient.js';
+import systemSettingsStore from '../store/systemSettingsStore.js';
 import type { AxiosInstance } from 'axios';
 
 async function getAuthenticatedPanelClient(serverId: string, options: any = {}): Promise<AxiosInstance> {
@@ -38,7 +39,7 @@ async function listPanelInbounds(serverId: string, options: any = {}): Promise<{
     }
     return {
         client,
-        inbounds: data.obj,
+        inbounds: systemSettingsStore.applyInboundRemarks(serverId, data.obj),
     };
 }
 

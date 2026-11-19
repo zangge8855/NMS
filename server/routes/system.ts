@@ -37,7 +37,7 @@ import notificationService from '../lib/notifications.js';
 import { getEmailStatus, verifySmtpConnection } from '../lib/mailer.js';
 import alertEngine from '../lib/alertEngine.js';
 import { sendWebhookAlert } from '../lib/alertWebhookService.js';
-import { getServerPanelSnapshots } from '../lib/serverPanelSnapshotService.js';
+import { getServerPanelSnapshots, invalidateServerPanelSnapshotCache } from '../lib/serverPanelSnapshotService.js';
 import serverHealthMonitor from '../lib/serverHealthMonitor.js';
 import telegramAlertService from '../lib/telegramAlertService.js';
 import {
@@ -968,6 +968,69 @@ router.put('/inbounds/order', operatorOrAbove, (req, res) => {
         return res.status(400).json({
             success: false,
             msg: error.message || 'Failed to update inbound order',
+        });
+    }
+});
+
+router.get('/inbounds/remarks', auditorOrAbove, (req, res) => {
+    const serverId = String(req.query?.serverId || '').trim();
+    return res.json({
+        success: true,
+        obj: systemSettingsStore.getInboundRemarks(serverId),
+    });
+});
+
+router.put('/inbounds/remarks', operatorOrAbove, (req, res) => {
+    const serverId = String(req.body?.serverId || '').trim();
+    const inboundId = String(req.body?.inboundId ?? '').trim();
+    const rawRemark = req.body?.remark;
+
+    if (!serverId) {
+        return res.status(400).json({
+            success: false,
+            msg: pickRequestText(req, '请选择所属节点', 'Select a target node'),
+        });
+    }
+    if (!serverStore.getById(serverId)) {
+        return res.status(404).json({
+            success: false,
+            msg: pickRequestText(req, '节点不存在，请刷新节点列表后重试', 'Node not found. Refresh the node list and try again.'),
+        });
+    }
+    if (!inboundId) {
+        return res.status(400).json({
+            success: false,
+            msg: pickRequestText(req, '请指定需要修改备注的入站', 'Specify the inbound to update'),
+        });
+    }
+    if (rawRemark !== undefined && rawRemark !== null && typeof rawRemark !== 'string') {
+        return res.status(400).json({
+            success: false,
+            msg: pickRequestText(req, '入站备注格式无效', 'Invalid inbound remark format'),
+        });
+    }
+
+    try {
+        const saved = systemSettingsStore.setInboundRemark(serverId, inboundId, rawRemark ?? '');
+        invalidateServerPanelSnapshotCache(serverId);
+        invalidatePublicSubCache();
+        appendSecurityAudit('inbound_remark_updated', req, {
+            serverId,
+            inboundId: saved.inboundId,
+            remark: saved.remark,
+            cleared: !saved.hasCustomRemark,
+        });
+        return res.json({
+            success: true,
+            msg: saved.hasCustomRemark
+                ? pickRequestText(req, '入站本地备注已保存', 'Inbound local remark saved')
+                : pickRequestText(req, '已恢复面板默认备注', 'Restored panel default remark'),
+            obj: saved,
+        });
+    } catch (error: any) {
+        return res.status(400).json({
+            success: false,
+            msg: error?.message || 'Failed to update inbound remark',
         });
     }
 });

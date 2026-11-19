@@ -765,6 +765,7 @@ async function executeInboundAction({ action, target, payload, targetIndex }) {
 
         if (action === 'delete') {
             await postDeleteInboundCompat(client, inboundId);
+            systemSettingsStore.removeInboundRemark(target.serverId, inboundId);
             invalidateBatchMutationCaches(target.serverId);
             return {
                 ...baseResult,
@@ -794,6 +795,7 @@ async function executeInboundAction({ action, target, payload, targetIndex }) {
             ...existingInbound,
             ...target,
             ...(payload || {}),
+            remark: existingInbound.remark,
         };
         const inboundData = normalizeInboundSnapshot(merged, enableOverride);
 
@@ -801,6 +803,11 @@ async function executeInboundAction({ action, target, payload, targetIndex }) {
             await setInboundEnableCompat(client, inboundId, enableOverride, inboundData);
         } else {
             await postUpdateInboundCompat(client, inboundId, inboundData);
+            if (payload && Object.prototype.hasOwnProperty.call(payload, 'remark')) {
+                const nextRemark = toStringValue(payload.remark).trim();
+                const panelRemark = toStringValue(existingInbound.remark).trim();
+                systemSettingsStore.setInboundRemark(target.serverId, inboundId, nextRemark === panelRemark ? '' : nextRemark);
+            }
         }
         invalidateBatchMutationCaches(target.serverId);
 

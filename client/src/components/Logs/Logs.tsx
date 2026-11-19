@@ -649,7 +649,8 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                             <div className="logs-toolbar-toggle-group" role="group" aria-label={locale === 'en-US' ? 'Viewer controls' : '查看控制'}>
                                 <button
                                     type="button"
-                                    className="btn btn-ghost btn-sm"
+                                    className="btn btn-secondary btn-sm"
+                                    aria-pressed={!autoScrollEnabled}
                                     onClick={() => setAutoScrollEnabled((value) => !value)}
                                     title={autoScrollEnabled ? t('pages.logs.pauseScrollTitle') : t('pages.logs.resumeScrollTitle')}
                                 >
@@ -658,7 +659,8 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                 </button>
                                 <button
                                     type="button"
-                                    className={`btn btn-sm ${wrapLines ? 'btn-secondary' : 'btn-ghost'}`}
+                                    className="btn btn-secondary btn-sm"
+                                    aria-pressed={wrapLines}
                                     onClick={() => setWrapLines((value) => !value)}
                                     title={wrapLines ? t('pages.logs.wrapDisableTitle') : t('pages.logs.wrapEnableTitle')}
                                 >
@@ -666,7 +668,8 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                 </button>
                                 <button
                                     type="button"
-                                    className={`btn btn-sm ${immersiveMode ? 'btn-secondary' : 'btn-ghost'}`}
+                                    className="btn btn-secondary btn-sm"
+                                    aria-pressed={immersiveMode}
                                     onClick={() => setImmersiveMode((value) => !value)}
                                     title={immersiveMode ? t('pages.logs.immersiveExitTitle') : t('pages.logs.immersiveEnterTitle')}
                                 >
@@ -675,7 +678,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                 </button>
                             </div>
                             <div className="logs-toolbar-primary-group">
-                                <button type="button" className="btn btn-ghost btn-sm" onClick={clearViewer} title={t('pages.logs.clearViewTitle')}>
+                                <button type="button" className="btn btn-secondary btn-sm" onClick={clearViewer} title={t('pages.logs.clearViewTitle')}>
                                     <HiOutlineTrash /> {t('pages.logs.clearView')}
                                 </button>
                                 <CopyFeedbackButton

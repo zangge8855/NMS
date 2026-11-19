@@ -92,6 +92,9 @@ describe('Login', () => {
         expect(container.querySelectorAll('.login-bg-glow')).toHaveLength(0);
         expect(container.querySelector('.login-pass-perf')).toHaveAttribute('aria-hidden', 'true');
         expect(container.querySelector('.login-brand-mark')).toHaveAttribute('alt', '');
+        expect(container.querySelector('.login-brand-subtitle')).toBeNull();
+        expect(screen.queryByText('节点与集群管理控制台')).not.toBeInTheDocument();
+        expect(screen.queryByText('Node & Cluster Management Console')).not.toBeInTheDocument();
     });
 
     it('submits the login form with an email identifier', async () => {
