@@ -9,6 +9,7 @@
 .agents/
 
 # ---- Runtime data (contains sensitive/user data) ----
+data/runtime.env
 data/*.json
 data/*.log
 data/**/*.json

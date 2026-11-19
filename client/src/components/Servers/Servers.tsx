@@ -103,7 +103,7 @@ export default function Servers() {
     const canMutate = canMutateOperations(actorRole);
     const { locale, t } = useI18n();
     const isCompactLayout = useMediaQuery('(max-width: 1100px)');
-    const isCondensedLayout = useMediaQuery('(min-width: 769px) and (max-width: 1320px)');
+    const isCondensedLayout = useMediaQuery('(min-width: 769px) and (max-width: 1100px)');
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const {

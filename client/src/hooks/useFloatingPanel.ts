@@ -77,13 +77,13 @@ export default function useFloatingPanel({
         };
 
         scheduleSync();
-        window.addEventListener('resize', scheduleSync);
-        window.addEventListener('scroll', scheduleSync, true);
+        window.addEventListener('resize', scheduleSync, { passive: true });
+        window.addEventListener('scroll', scheduleSync, { capture: true, passive: true });
 
         return () => {
             window.cancelAnimationFrame(animationFrame);
             window.removeEventListener('resize', scheduleSync);
-            window.removeEventListener('scroll', scheduleSync, true);
+            window.removeEventListener('scroll', scheduleSync, { capture: true });
             setPanelStyle(HIDDEN_STYLE);
             setIsReady(false);
         };

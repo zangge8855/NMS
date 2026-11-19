@@ -11,16 +11,32 @@ export function useMouseMove<T extends HTMLElement = HTMLElement>(): RefObject<T
         const el = ref.current;
         if (!el) return;
 
-        const handleMouseMove = (e: MouseEvent) => {
+        let rafId = 0;
+        let lastClientX = 0;
+        let lastClientY = 0;
+
+        const updatePosition = () => {
+            rafId = 0;
             const rect = el.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            const x = lastClientX - rect.left;
+            const y = lastClientY - rect.top;
             el.style.setProperty('--mouse-x', `${x}px`);
             el.style.setProperty('--mouse-y', `${y}px`);
         };
 
-        el.addEventListener('mousemove', handleMouseMove);
-        return () => el.removeEventListener('mousemove', handleMouseMove);
+        const handleMouseMove = (e: MouseEvent) => {
+            lastClientX = e.clientX;
+            lastClientY = e.clientY;
+            if (!rafId) {
+                rafId = window.requestAnimationFrame(updatePosition);
+            }
+        };
+
+        el.addEventListener('mousemove', handleMouseMove, { passive: true });
+        return () => {
+            if (rafId) window.cancelAnimationFrame(rafId);
+            el.removeEventListener('mousemove', handleMouseMove);
+        };
     }, []);
 
     return ref;

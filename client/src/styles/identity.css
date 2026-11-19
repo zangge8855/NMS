@@ -22,6 +22,7 @@
   --radius-panel: 12px;
   --radius-control: 8px;
   --radius-chip: 6px;
+  --header-height: 60px;
 }
 
 @property --tab-fade-start {
@@ -199,6 +200,8 @@
   border-color: var(--border-color) !important;
   color: var(--text-muted) !important;
   box-shadow: none !important;
+  text-shadow: none !important;
+  opacity: 0.78 !important;
 }
 
 /* --------------------------------------------------------------------------
@@ -403,7 +406,7 @@
 /* --------------------------------------------------------------------------
    Tabs: the current tab gets the same signal edge as the current page
    -------------------------------------------------------------------------- */
-:root :is([role="tablist"], .tabs, .audit-tabs, .users-tabs, .xray-tabs, .pf-nav-list, .user-detail-tabs .tabs) {
+:root :is([role="tablist"], .tabs, .audit-tabs, .users-tabs, .xray-tabs, .pf-nav-list, .user-detail-tabs .tabs, .settings-nav-list--workspace) {
   display: flex;
   flex-wrap: nowrap;
   overflow-x: auto;
@@ -414,17 +417,17 @@
 }
 
 @supports not (scrollbar-color: auto) {
-  :root :is([role="tablist"], .tabs, .audit-tabs, .users-tabs, .xray-tabs, .pf-nav-list, .user-detail-tabs .tabs) {
+  :root :is([role="tablist"], .tabs, .audit-tabs, .users-tabs, .xray-tabs, .pf-nav-list, .user-detail-tabs .tabs, .settings-nav-list--workspace) {
     scrollbar-width: auto;
   }
 
-  :root :is([role="tablist"], .tabs, .audit-tabs, .users-tabs, .xray-tabs, .pf-nav-list, .user-detail-tabs .tabs)::-webkit-scrollbar {
+  :root :is([role="tablist"], .tabs, .audit-tabs, .users-tabs, .xray-tabs, .pf-nav-list, .user-detail-tabs .tabs, .settings-nav-list--workspace)::-webkit-scrollbar {
     display: none;
   }
 }
 
-:root :is([role="tab"], .tab, .audit-tab, .users-tab, .auth-tab),
-:root :is(.tabs, .audit-tabs, .users-tabs, .xray-tabs, .user-detail-tabs .tabs) > :is([role="tab"], .tab, .audit-tab, .users-tab) {
+:root :is([role="tab"], .tab, .audit-tab, .users-tab, .auth-tab, .settings-nav-item),
+:root :is(.tabs, .audit-tabs, .users-tabs, .xray-tabs, .user-detail-tabs .tabs, .settings-nav-list--workspace) > :is([role="tab"], .tab, .audit-tab, .users-tab, .settings-nav-item) {
   position: relative;
   flex: none;
   scroll-snap-align: start;
@@ -483,7 +486,7 @@
 }
 
 @supports (animation-timeline: scroll()) {
-  :root :is(.tabs, .audit-tabs, .users-tabs, .xray-tabs):not(.auth-tabs) {
+  :root :is(.tabs, .audit-tabs, .users-tabs, .xray-tabs, .settings-nav-list--workspace):not(.auth-tabs) {
     mask-image: linear-gradient(
       to right,
       transparent,
@@ -556,12 +559,18 @@
   content: none;
 }
 
+:root .login-page {
+  padding: 0 !important;
+  min-height: 100dvh;
+}
+
 :root .login-shell[class*="login-shell--"] {
   width: 100%;
   max-width: none;
-  min-height: 100svh;
+  min-height: 100dvh;
+  box-sizing: border-box;
   margin: 0;
-  padding: 72px 24px 48px;
+  padding: clamp(20px, 4dvh, 48px) 24px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -570,11 +579,11 @@
 :root .login-shell .login-card-column {
   width: min(100%, 784px);
   max-width: none;
-  filter: drop-shadow(0 18px 30px rgba(2, 8, 16, 0.32));
+  filter: none;
 }
 
 :root[data-theme="light"] .login-shell .login-card-column {
-  filter: drop-shadow(0 1px 1px rgba(13, 27, 45, 0.08)) drop-shadow(0 20px 40px rgba(13, 27, 45, 0.1));
+  filter: none;
 }
 
 :root .login-card.login-pass,
@@ -590,18 +599,19 @@
   flex-direction: row;
   align-items: stretch;
   padding: 0;
-  border: 0;
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-pass);
   background: var(--surface-panel);
-  box-shadow: none;
+  box-shadow: 0 20px 48px -18px rgba(2, 8, 16, 0.36);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-  -webkit-mask:
-    radial-gradient(circle var(--notch) at calc(var(--stub-w) + var(--perf) / 2) 0, #0000 97%, #000) top / 100% 51% no-repeat,
-    radial-gradient(circle var(--notch) at calc(var(--stub-w) + var(--perf) / 2) 100%, #0000 97%, #000) bottom / 100% 51% no-repeat;
-  mask:
-    radial-gradient(circle var(--notch) at calc(var(--stub-w) + var(--perf) / 2) 0, #0000 97%, #000) top / 100% 51% no-repeat,
-    radial-gradient(circle var(--notch) at calc(var(--stub-w) + var(--perf) / 2) 100%, #0000 97%, #000) bottom / 100% 51% no-repeat;
+  overflow: hidden;
+  -webkit-mask: none;
+  mask: none;
+}
+
+:root[data-theme="light"] .login-card.login-pass {
+  box-shadow: 0 1px 2px rgba(13, 27, 45, 0.06), 0 22px 44px -18px rgba(13, 27, 45, 0.14);
 }
 
 :root .login-card.login-pass::before,
@@ -625,7 +635,11 @@
   gap: 0;
   border: 0;
   border-radius: var(--radius-pass) 0 0 var(--radius-pass);
-  background: var(--pass-stub-bg);
+  background-color: var(--pass-stub-bg);
+  background-image:
+    radial-gradient(circle at 18% 14%, rgba(98, 216, 198, 0.14), transparent 52%),
+    radial-gradient(rgba(227, 237, 242, 0.08) 1px, transparent 1px);
+  background-size: 100% 100%, 20px 20px;
   text-align: left;
 }
 
@@ -657,11 +671,35 @@
 
 
 :root .login-pass .login-pass-perf {
+  position: relative;
   flex: 0 0 var(--perf);
   width: var(--perf);
   height: auto;
   margin: calc(var(--notch) + 8px) 0;
   background: radial-gradient(circle, var(--stroke-medium) 1px, transparent 1.4px) 50% 0 / var(--perf) 9px repeat-y;
+}
+
+:root .login-pass .login-pass-perf::before,
+:root .login-pass .login-pass-perf::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: calc(var(--notch) * 2);
+  height: calc(var(--notch) * 2);
+  border-radius: 50%;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-color);
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+:root .login-pass .login-pass-perf::before {
+  top: calc((var(--notch) * -2) - 8px);
+}
+
+:root .login-pass .login-pass-perf::after {
+  bottom: calc((var(--notch) * -2) - 8px);
 }
 
 :root .login-pass .login-pass-body {
@@ -786,7 +824,8 @@
   border-color: transparent !important;
   color: var(--text-on-accent) !important;
   box-shadow: none !important;
-  opacity: 0.45 !important;
+  text-shadow: none !important;
+  opacity: 0.62 !important;
 }
 
 :root .login-pass .login-divider {
@@ -894,7 +933,7 @@
 
 @media (max-width: 760px) {
   :root .login-shell[class*="login-shell--"] {
-    padding: 72px 16px 32px;
+    padding: 64px 16px 24px;
   }
 
   :root .login-shell .login-card-column {
@@ -903,15 +942,11 @@
 
   :root .login-card.login-pass,
   :root[data-theme] .login-card.login-pass {
-    --stub-h: 76px;
+    --stub-h: 72px;
     --gutter: 24px;
     flex-direction: column;
-    -webkit-mask:
-      radial-gradient(circle var(--notch) at 0 calc(var(--stub-h) + var(--perf) / 2), #0000 97%, #000) left / 51% 100% no-repeat,
-      radial-gradient(circle var(--notch) at 100% calc(var(--stub-h) + var(--perf) / 2), #0000 97%, #000) right / 51% 100% no-repeat;
-    mask:
-      radial-gradient(circle var(--notch) at 0 calc(var(--stub-h) + var(--perf) / 2), #0000 97%, #000) left / 51% 100% no-repeat,
-      radial-gradient(circle var(--notch) at 100% calc(var(--stub-h) + var(--perf) / 2), #0000 97%, #000) right / 51% 100% no-repeat;
+    -webkit-mask: none;
+    mask: none;
   }
 
   :root .login-pass .login-brand-row.login-pass-stub {
@@ -922,7 +957,7 @@
     flex-direction: row;
     align-items: center;
     gap: 14px;
-    border-radius: var(--radius-pass) var(--radius-pass) 0 0;
+    border-radius: 0;
   }
 
   :root .login-pass .login-brand-mark {
@@ -942,6 +977,22 @@
     height: var(--perf);
     margin: 0 calc(var(--notch) + 8px);
     background: radial-gradient(circle, var(--stroke-medium) 1px, transparent 1.4px) 0 50% / 9px var(--perf) repeat-x;
+  }
+
+  :root .login-pass .login-pass-perf::before,
+  :root .login-pass .login-pass-perf::after {
+    top: 50%;
+    bottom: auto;
+    transform: translateY(-50%);
+  }
+
+  :root .login-pass .login-pass-perf::before {
+    left: calc((var(--notch) * -2) - 8px);
+  }
+
+  :root .login-pass .login-pass-perf::after {
+    left: auto;
+    right: calc((var(--notch) * -2) - 8px);
   }
 
   :root .login-pass .login-pass-body {
@@ -1491,4 +1542,416 @@
     opacity: 1;
     visibility: visible;
   }
+}
+
+/* --------------------------------------------------------------------------
+   Global UI refinements: single-chevron selects, mobile shell, KPI grids,
+   settings header alignment, and users degraded banner
+   -------------------------------------------------------------------------- */
+:root[data-theme] :is(select, select.form-select, select.form-input, .inbounds-filter-select, .servers-filter-select) {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  background-position: right 12px center !important;
+  background-repeat: no-repeat !important;
+  background-size: 12px 12px !important;
+  padding-right: 34px !important;
+}
+
+:root[data-theme] :is(select, select.form-select, select.form-input, .inbounds-filter-select, .servers-filter-select)::picker-icon {
+  display: none !important;
+}
+
+:root :is(select, select.form-select, select.form-input, .inbounds-filter-select, .servers-filter-select)::-ms-expand {
+  display: none;
+}
+
+:root :is(.subscription-guide-list li, .subscription-guide-step) {
+  text-wrap: pretty;
+}
+
+/* Degraded node warning banner on UsersHub */
+:root .users-degraded-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+}
+
+:root .users-degraded-title {
+  white-space: normal;
+}
+
+/* SystemSettings dual-card header alignment */
+:root .settings-status-grid .card-header {
+  min-height: 78px;
+  align-items: flex-start;
+}
+
+/* Keep Users table within viewport on 1280px desktop */
+:root .users-table {
+  table-layout: auto;
+}
+
+:root .users-identity-copy {
+  min-width: 0;
+  max-width: 260px;
+}
+
+@media (max-width: 768px) {
+  /* Prevent desktop sidebar margin from sticking on dynamic viewport resize */
+  :root .main-content,
+  :root .main-content.collapsed {
+    margin-left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  :root .sidebar:not(.open) {
+    transform: translateX(-100%);
+  }
+
+  /* Ensure mobile bottom nav spans full viewport width even with scrollbar */
+  :root .mobile-bottom-nav {
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Keep mobile header title visible and prevent utility buttons/bell from clipping */
+  :root .header {
+    padding: 8px 12px !important;
+    height: auto !important;
+    min-height: 56px !important;
+  }
+
+  :root .header-shell {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  :root .header-left {
+    display: flex !important;
+    align-items: center !important;
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+  }
+
+  :root .header-left .header-title-group {
+    display: flex !important;
+    min-width: 0 !important;
+  }
+
+  :root .header-title {
+    font-size: 1.0625rem !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  :root .header-actions {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    width: auto !important;
+    max-width: 100% !important;
+    flex: 0 0 auto !important;
+    gap: 6px !important;
+  }
+
+  :root .header-primary-actions {
+    display: none !important;
+  }
+
+  :root .header-controls {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+  }
+
+  /* Stack Dashboard Row-1 KPI cards cleanly on mobile */
+  :root .dashboard-hero-kpis {
+    grid-template-columns: 1fr !important;
+  }
+
+  :root .dashboard-hero-kpi {
+    min-height: 0 !important;
+    padding: 13px 16px !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--border-color) !important;
+  }
+
+  :root .dashboard-hero-kpi:last-child {
+    border-bottom: 0 !important;
+  }
+
+  /* Keep Inbounds mobile toolbar add + refresh buttons on one row */
+  :root .inbounds-toolbar .page-toolbar-actions {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: 100%;
+  }
+
+  :root .inbounds-toolbar .page-toolbar-actions > .btn-primary {
+    flex: 1 1 auto;
+  }
+
+  :root .inbounds-toolbar .page-toolbar-actions > .inbounds-refresh-btn {
+    flex: 0 0 auto;
+  }
+}
+
+/* ==========================================================================
+   v2.1.0: Zero-Jank Scroll Performance & Flagship Visual Craft
+   ========================================================================== */
+
+/* 1. Fast CJK/tabular text shaping during scroll */
+body {
+  text-rendering: auto;
+}
+
+/* 2. Remove per-frame GPU backdrop-filter readbacks across scrolling, fixed,
+   sticky, and interactive surfaces */
+:root :is(
+  .header,
+  .sidebar,
+  .sidebar-toggle,
+  .mobile-bottom-nav,
+  .settings-nav,
+  .logs-toolbar,
+  .logs-viewer-card .card-header,
+  .batch-action-bar,
+  .floating-bulk-dock,
+  .btn,
+  .btn-secondary,
+  .btn-danger,
+  .btn-success,
+  .btn-icon,
+  .badge,
+  .card,
+  .glass-panel,
+  .table-container,
+  .settings-panel,
+  .modal,
+  .modal-shell,
+  .modal-overlay,
+  .command-palette-backdrop,
+  .security-bootstrap-overlay,
+  .login-top-actions .theme-toggle-btn,
+  .login-top-actions .language-toggle-btn,
+  .dashboard-hero-kpis,
+  .dashboard-stat-card,
+  .dashboard-trend-card,
+  .node-health-tile,
+  .server-card,
+  .users-toolbar,
+  .servers-toolbar,
+  .inbounds-toolbar,
+  .subscriptions-toolbar
+) {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Crisp opaque surfaces replacing blur on fixed/sticky/overlay chrome */
+:root .header {
+  height: 60px;
+  min-height: 60px;
+  background: var(--bg-canvas);
+  border-bottom: 1px solid var(--border-subtle);
+  box-shadow: none;
+}
+
+:root .settings-nav,
+:root .logs-toolbar {
+  background: var(--surface-panel);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-xs);
+}
+
+:root .mobile-bottom-nav {
+  background: var(--surface-panel);
+  border-top: 1px solid var(--border-color);
+  box-shadow: 0 -4px 16px -8px rgba(13, 27, 45, 0.14);
+}
+
+:root .modal-overlay,
+:root .command-palette-backdrop {
+  background: var(--overlay-backdrop) !important;
+}
+
+:root .batch-action-bar,
+:root .floating-bulk-dock {
+  background: var(--floating-panel-bg);
+  border: 1px solid var(--border-color-hover);
+  box-shadow: var(--shadow-lg);
+}
+
+/* 3. Stop infinite main-thread background-position shimmer on progress fills */
+:root .inbound-client-usage-fill {
+  animation: none !important;
+  background-size: 100% 100%;
+}
+
+/* 4. Constrain legacy "transition: all" to paint-light properties */
+:root :is(
+  .card,
+  .glass-panel,
+  .table-container,
+  .settings-panel,
+  .dashboard-stat-card,
+  .node-health-tile,
+  .server-card
+) {
+  transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease !important;
+}
+
+:root :is(
+  .btn,
+  .nav-item,
+  .form-input,
+  .form-select,
+  .form-textarea,
+  .table tbody tr,
+  .table tbody td
+) {
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, opacity 140ms ease !important;
+}
+
+/* 5. Layout/style containment on modular cards & off-screen deferment */
+:root :is(
+  .dashboard-stat-card,
+  .node-health-tile,
+  .dashboard-trend-metric,
+  .settings-kpi-card,
+  .audit-kpi-card,
+  .server-card
+) {
+  contain: layout style;
+}
+
+:root .node-health-grid .node-health-tile:nth-child(n + 4) {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 180px;
+}
+
+:root .audit-chart-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 320px;
+}
+
+/* 6. Machined surface depth & flagship header/sidebar/KPI/table polish */
+:root[data-theme="dark"] :is(.card, .glass-panel, .table-container, .settings-panel, .dashboard-hero-kpis) {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 1px 2px rgba(2, 8, 18, 0.24);
+}
+
+:root[data-theme="light"] :is(.card, .glass-panel, .table-container, .settings-panel, .dashboard-hero-kpis) {
+  box-shadow: var(--shadow-xs);
+}
+
+:root .sidebar .nav-section + .nav-section {
+  margin-top: 14px;
+}
+
+:root .sidebar .nav-section-title {
+  padding: 0 12px 6px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+:root .sidebar .nav-item {
+  min-height: 36px;
+  padding: 7px 12px;
+  gap: 10px;
+  font-size: 13.5px;
+}
+
+:root .sidebar-utility {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 10px;
+}
+
+:root .header-search {
+  height: 34px;
+  background: var(--surface-panel);
+  border: 1px solid var(--border-color);
+  box-shadow: none;
+}
+
+:root .header-search:hover {
+  border-color: var(--border-color-hover);
+}
+
+:root .header-controls :is(.theme-toggle-btn, .language-toggle-btn, .notification-trigger) {
+  height: 34px;
+  min-height: 34px;
+  min-width: 34px;
+  box-shadow: none;
+  background: var(--surface-panel);
+}
+
+:root .header-controls :is(.theme-toggle-btn, .notification-trigger) {
+  width: 34px;
+}
+
+:root .header-primary-actions .btn {
+  height: 34px;
+  min-height: 34px;
+}
+
+:root .dashboard-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--signal);
+  display: inline-block;
+  flex: none;
+}
+
+:root .dashboard-hero-kpi {
+  padding: 20px 24px;
+  gap: 8px;
+}
+
+:root .dashboard-hero-kpi:hover {
+  background: var(--surface-subtle);
+}
+
+:root .dashboard-hero .dashboard-hero-kpi .dashboard-hero-kpi-value,
+:root .dashboard-stat-card-value-text {
+  letter-spacing: -0.025em;
+  font-weight: 650;
+}
+
+:root .dashboard-stat-card {
+  padding: 18px 22px;
+}
+
+:root .dashboard-stat-card:hover,
+:root .node-health-tile:hover {
+  border-color: var(--border-color-hover);
+  background: var(--bg-card-hover);
+  transform: none;
+}
+
+:root .table thead th {
+  border-bottom: 1px solid var(--border-color);
+}
+
+:root .table tbody td {
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+:root .page-toolbar,
+:root .list-toolbar {
+  padding: 12px 16px;
+  gap: 10px;
 }

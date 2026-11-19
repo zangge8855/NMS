@@ -33,52 +33,52 @@
 :root[data-theme="dark"] {
 
   /* Ink, darkest to most raised */
-  --ink-rail: #061222;
-  --ink-canvas: #09172a;
-  --ink-panel: #102034;
-  --ink-raised: #18283e;
-  --ink-input: #0c1a2c;
+  --ink-rail: #06101e;
+  --ink-canvas: #0a1524;
+  --ink-panel: #101f33;
+  --ink-raised: #162942;
+  --ink-input: #0b1829;
 
   --bg-canvas: var(--ink-canvas);
   --bg-primary: var(--ink-canvas);
   --bg-secondary: var(--ink-panel);
   --bg-tertiary: var(--ink-raised);
   --bg-card: var(--ink-panel);
-  --bg-card-hover: #132438;
+  --bg-card-hover: #14263d;
   --bg-surface: var(--ink-raised);
   --bg-surface-hover: #1e3049;
   --bg-surface-soft: rgba(150, 190, 214, 0.045);
   --bg-overlay: #14253a;
   --bg-input: var(--ink-input);
-  --bg-glass: rgba(16, 32, 52, 0.94);
+  --bg-glass: rgba(16, 32, 52, 0.96);
   --surface-panel: var(--ink-panel);
-  --surface-panel-hover: #132438;
-  --surface-panel-soft: #0d1b2e;
+  --surface-panel-hover: #14263d;
+  --surface-panel-soft: #0d1a2c;
   --surface-overlay: #14253a;
   --surface-soft: rgba(150, 190, 214, 0.055);
   --surface-subtle: rgba(150, 190, 214, 0.03);
   --surface-hover: rgba(150, 190, 214, 0.075);
-  --surface-table-header: #0d1b2e;
+  --surface-table-header: #0d1a2c;
   --surface-table-row-hover: rgba(98, 216, 198, 0.045);
   --table-container-bg: var(--ink-panel);
   --floating-panel-bg: #14253a;
   --mobile-sheet-bg: var(--ink-panel);
-  --overlay-backdrop: rgba(3, 9, 18, 0.7);
+  --overlay-backdrop: rgba(4, 10, 20, 0.58);
 
   /* Lines */
-  --border-color: rgba(150, 190, 214, 0.13);
-  --border-color-hover: rgba(150, 190, 214, 0.26);
-  --border-subtle: rgba(150, 190, 214, 0.08);
-  --border-neutral: rgba(150, 190, 214, 0.13);
-  --stroke-soft: rgba(150, 190, 214, 0.08);
-  --stroke-medium: rgba(150, 190, 214, 0.2);
+  --border-color: rgba(150, 190, 214, 0.15);
+  --border-color-hover: rgba(150, 190, 214, 0.28);
+  --border-subtle: rgba(150, 190, 214, 0.09);
+  --border-neutral: rgba(150, 190, 214, 0.15);
+  --stroke-soft: rgba(150, 190, 214, 0.09);
+  --stroke-medium: rgba(150, 190, 214, 0.22);
   --border-focus: #62d8c6;
   --border-highlight: rgba(98, 216, 198, 0.42);
 
   /* Text */
-  --text-primary: #e3edf2;
-  --text-secondary: #b1c0ca;
-  --text-muted: #90a1ad;
+  --text-primary: #e6eef3;
+  --text-secondary: #b4c4d0;
+  --text-muted: #93a6b5;
   --text-inverse: var(--ink-canvas);
   --text-on-accent: #002123;
 
@@ -149,9 +149,9 @@
   --log-text: #c9d6de;
   /* the pass: stub one step above the sheet; edge is a hairline drop-shadow
      because the notches are cut with a mask, which clips borders */
-  --pass-stub-bg: var(--ink-raised);
-  --pass-stub-text: #e3edf2;
-  --pass-stub-muted: #b1c0ca;
+  --pass-stub-bg: #071324;
+  --pass-stub-text: #e6eef3;
+  --pass-stub-muted: #b4c4d0;
   --pass-edge: drop-shadow(0 0 0.6px rgba(150, 190, 214, 0.34));
   --skeleton-from: rgba(150, 190, 214, 0.05);
   --skeleton-via: rgba(150, 190, 214, 0.1);
@@ -169,10 +169,10 @@
 
 :root[data-theme="light"] {
 
-  --ink-rail: #f5f9fa;
-  --ink-canvas: #ebf3f4;
+  --ink-rail: #f8fafb;
+  --ink-canvas: #f3f6f8;
   --ink-panel: #ffffff;
-  --ink-raised: #f0f7f7;
+  --ink-raised: #f4f8f9;
   --ink-input: #ffffff;
 
   --bg-canvas: var(--ink-canvas);
@@ -180,33 +180,33 @@
   --bg-secondary: #ffffff;
   --bg-tertiary: var(--ink-raised);
   --bg-card: #ffffff;
-  --bg-card-hover: #f9fcfc;
+  --bg-card-hover: #fbfdfe;
   --bg-surface: var(--ink-raised);
-  --bg-surface-hover: #e4eef0;
+  --bg-surface-hover: #e7eff2;
   --bg-surface-soft: rgba(13, 27, 45, 0.035);
   --bg-overlay: #ffffff;
   --bg-input: #ffffff;
-  --bg-glass: rgba(255, 255, 255, 0.95);
+  --bg-glass: rgba(255, 255, 255, 0.98);
   --surface-panel: #ffffff;
-  --surface-panel-hover: #f9fcfc;
-  --surface-panel-soft: #f5fafa;
+  --surface-panel-hover: #fbfdfe;
+  --surface-panel-soft: #f6f9fa;
   --surface-overlay: #ffffff;
   --surface-soft: rgba(13, 27, 45, 0.04);
   --surface-subtle: rgba(13, 27, 45, 0.022);
-  --surface-hover: rgba(13, 27, 45, 0.05);
-  --surface-table-header: #f5fafa;
+  --surface-hover: rgba(13, 27, 45, 0.045);
+  --surface-table-header: #f7fafb;
   --surface-table-row-hover: rgba(0, 122, 109, 0.04);
   --table-container-bg: #ffffff;
   --floating-panel-bg: #ffffff;
   --mobile-sheet-bg: #ffffff;
-  --overlay-backdrop: rgba(13, 27, 45, 0.4);
+  --overlay-backdrop: rgba(13, 27, 45, 0.34);
 
-  --border-color: #d8e4e6;
-  --border-color-hover: #bfcfd3;
-  --border-subtle: #e5eef0;
+  --border-color: #e1e9ed;
+  --border-color-hover: #c8d5dc;
+  --border-subtle: #eaf0f3;
   --border-neutral: rgba(13, 27, 45, 0.1);
-  --stroke-soft: #e5eef0;
-  --stroke-medium: #bfcfd3;
+  --stroke-soft: #eaf0f3;
+  --stroke-medium: #c8d5dc;
   --border-focus: #007a6d;
   --border-highlight: rgba(0, 122, 109, 0.3);
 
@@ -264,8 +264,8 @@
   --accent-info-border: rgba(40, 108, 171, 0.26);
   --accent-info-glow: rgba(40, 108, 171, 0.14);
 
-  --shadow-xs: 0 1px 1px rgba(13, 27, 45, 0.04);
-  --shadow-sm: 0 1px 2px rgba(13, 27, 45, 0.05);
+  --shadow-xs: 0 1px 2px rgba(13, 27, 45, 0.04), 0 4px 12px -4px rgba(13, 27, 45, 0.04);
+  --shadow-sm: 0 1px 3px rgba(13, 27, 45, 0.06), 0 6px 16px -6px rgba(13, 27, 45, 0.05);
   --shadow-md: 0 8px 24px -14px rgba(13, 27, 45, 0.18);
   --shadow-lg: 0 18px 40px -22px rgba(13, 27, 45, 0.24);
   --shadow-xl: 0 26px 56px -26px rgba(13, 27, 45, 0.3);
@@ -285,7 +285,7 @@
   --skeleton-via: rgba(13, 27, 45, 0.08);
 
   --rail-bg: var(--ink-rail);
-  --rail-border: #dfe9eb;
+  --rail-border: #e4ecef;
 
   accent-color: var(--signal);
   --scrollbar-thumb: rgba(13, 27, 45, 0.22);

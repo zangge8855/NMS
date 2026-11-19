@@ -1107,9 +1107,11 @@ export default function Subscriptions() {
                                             {ui.manageUsers}
                                         </Link>
                                     )}
-                                    <button type="button" className="btn btn-secondary" onClick={loadUsers} disabled={usersLoading}>
-                                        {usersLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {ui.refreshUsers}</>}
-                                    </button>
+                                    {result && (
+                                        <button type="button" className="btn btn-secondary" onClick={loadUsers} disabled={usersLoading}>
+                                            {usersLoading ? <span className="spinner" /> : <><HiOutlineArrowPath /> {ui.refreshUsers}</>}
+                                        </button>
+                                    )}
                                 </div>
                                 <div className="subscriptions-toolbar-primary">
                                     <button type="button" className="btn btn-primary" onClick={() => loadSubscription()} disabled={subscriptionBusy || !normalizedEmail}>

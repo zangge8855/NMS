@@ -1647,7 +1647,8 @@ export default function Dashboard({
                 aria-label={autoRefresh ? t('pages.dashboardCommon.autoRefreshOn') : t('pages.dashboardCommon.autoRefreshOff')}
                 title={autoRefresh ? t('pages.dashboardCommon.autoRefreshOffTitle') : t('pages.dashboardCommon.autoRefreshOnTitle')}
             >
-                <HiOutlineArrowPath className={autoRefresh ? 'spinning' : ''} style={{ fontSize: '13px' }} />
+                <HiOutlineArrowPath className={loading ? 'spinning' : ''} style={{ fontSize: '13px' }} />
+                {autoRefresh && <span className="dashboard-live-dot" aria-hidden="true" />}
                 <span className="hidden sm:inline-block ml-1">
                     {autoRefresh ? t('pages.dashboardCommon.autoRefreshOn') : t('pages.dashboardCommon.autoRefreshOff')}
                 </span>

@@ -71,6 +71,55 @@ const SECURITY_BOOTSTRAP_COPY = {
     },
 };
 
+const ISSUE_LOCALIZATION = {
+    'zh-CN': {
+        unsafe_admin_username: {
+            title: '管理员用户名过弱',
+            message: '不能使用 admin / root 等默认用户名，请设置独立的管理员账号。',
+        },
+        unsafe_admin_password: {
+            title: '管理员密码强度不足',
+            message: '至少 8 位字符，且需包含大写字母、小写字母、数字、符号中的至少 3 类。',
+        },
+        weak_jwt_secret: {
+            title: 'JWT 密钥需加固',
+            message: '当前 JWT 签名密钥为默认值或长度不足，请生成至少 32 位高强度随机密钥。',
+        },
+        weak_credentials_secret: {
+            title: '凭据加密密钥需加固',
+            message: '当前凭据加密密钥为默认值或长度不足，请生成至少 32 位高强度随机密钥。',
+        },
+    },
+    'en-US': {
+        unsafe_admin_username: {
+            title: 'Default Admin Username',
+            message: 'Use a non-default admin username instead of admin or root.',
+        },
+        unsafe_admin_password: {
+            title: 'Weak Admin Password',
+            message: 'Use at least 8 characters spanning 3 of: lowercase, uppercase, digits, symbols.',
+        },
+        weak_jwt_secret: {
+            title: 'Weak JWT Secret',
+            message: 'Generate a strong random JWT signing secret of at least 32 characters.',
+        },
+        weak_credentials_secret: {
+            title: 'Weak Credential Secret',
+            message: 'Generate a strong random credential encryption secret of at least 32 characters.',
+        },
+    },
+};
+
+function formatBootstrapIssue(item: { code?: string; message?: string }, locale = 'zh-CN') {
+    const lang = locale === 'en-US' ? 'en-US' : 'zh-CN';
+    const mapped = item?.code ? (ISSUE_LOCALIZATION[lang] as Record<string, { title: string; message: string }>)[item.code] : undefined;
+    if (mapped) return mapped;
+    return {
+        title: item?.code || (lang === 'en-US' ? 'Security Check' : '安全检查'),
+        message: item?.message || '',
+    };
+}
+
 function generateSecret(length = 48) {
     const size = Math.max(24, Number(length) || 48);
     const bytes = new Uint8Array(size);
@@ -307,12 +356,15 @@ export default function SecurityBootstrapWizard() {
                     <div className="security-bootstrap-callout">
                         <div className="security-bootstrap-callout-title">{copy.issueTitle}</div>
                         <div className="security-bootstrap-issue-list">
-                            {status.issues.map((item) => (
-                                <div key={item.code || item.message} className="security-bootstrap-issue">
-                                    <span className="security-bootstrap-issue-code">{item.code}</span>
-                                    <span className="security-bootstrap-issue-text">{item.message}</span>
-                                </div>
-                            ))}
+                            {status.issues.map((item) => {
+                                const formatted = formatBootstrapIssue(item, locale);
+                                return (
+                                    <div key={item.code || item.message} className="security-bootstrap-issue">
+                                        <span className="security-bootstrap-issue-code">{formatted.title}</span>
+                                        <span className="security-bootstrap-issue-text">{formatted.message}</span>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                     <div className="security-bootstrap-meta-grid">
