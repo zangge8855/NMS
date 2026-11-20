@@ -766,6 +766,7 @@ async function executeInboundAction({ action, target, payload, targetIndex }) {
         if (action === 'delete') {
             await postDeleteInboundCompat(client, inboundId);
             systemSettingsStore.removeInboundRemark(target.serverId, inboundId);
+            systemSettingsStore.removeInboundHidden(target.serverId, inboundId);
             invalidateBatchMutationCaches(target.serverId);
             return {
                 ...baseResult,

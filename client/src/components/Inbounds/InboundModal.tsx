@@ -928,6 +928,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
 
     // Form State
     const [remark, setRemark] = useState('');
+    const [hiddenFromUsers, setHiddenFromUsers] = useState(false);
     const [protocol, setProtocol] = useState(defaultProtocol);
     const [port, setPort] = useState<string | number>('');
     const [listen, setListen] = useState('');
@@ -1216,6 +1217,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
         const targetInbound = latestEditingInboundRef.current;
         if (targetInbound) {
             setRemark(targetInbound.remark || '');
+            setHiddenFromUsers(targetInbound.hiddenFromUsers === true);
             const resolvedProto = normalizeProtocolName(targetInbound.protocol, latestSchemasRef.current) || defaultProtocol;
             setProtocol(resolvedProto);
             setPort(targetInbound.port);
@@ -1261,6 +1263,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
         } else {
             // Reset
             setRemark('');
+            setHiddenFromUsers(false);
             setProtocol(defaultProtocol);
             setPort(Math.floor(Math.random() * 20000) + 10000);
             setListen('');
@@ -2044,6 +2047,17 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                         throw new Error(remarkRes?.data?.msg || remarkRes?.data?.message || t('comp.inbounds.remarkSaveFailed'));
                     }
                 }
+                const initialHidden = editingInbound.hiddenFromUsers === true;
+                if (hiddenFromUsers !== initialHidden && serverId) {
+                    const visibilityRes = await api.put('/system/inbounds/visibility', {
+                        serverId,
+                        inboundId: editingInbound.id,
+                        hidden: hiddenFromUsers,
+                    });
+                    if (visibilityRes?.data?.success === false) {
+                        throw new Error(visibilityRes?.data?.msg || visibilityRes?.data?.message || t('comp.inbounds.visibilitySaveFailed'));
+                    }
+                }
                 invalidateServerPanelDataCache();
                 toast.success(t('comp.inbounds.inboundUpdated'));
                 onSuccess();
@@ -2103,6 +2117,26 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                     throw new Error(res?.data?.msg || res?.data?.message || t('comp.common.createFailed'));
                 }
                 const output = res.data?.obj;
+                if (hiddenFromUsers && Array.isArray(output?.results)) {
+                    const createdTargets = output.results
+                        .filter((item) => item?.success && item?.serverId && item?.inboundId !== undefined && item?.inboundId !== null && String(item.inboundId).trim() !== '')
+                        .map((item) => ({
+                            serverId: item.serverId,
+                            inboundId: item.inboundId,
+                        }));
+                    if (createdTargets.length > 0) {
+                        try {
+                            await api.put('/system/inbounds/visibility', {
+                                targets: createdTargets,
+                                hidden: true,
+                            });
+                            invalidateServerPanelDataCache();
+                        } catch (visibilityErr) {
+                            console.error('Failed to apply initial hidden visibility:', visibilityErr);
+                            toast.error(getErrorMessage(visibilityErr, t('comp.inbounds.visibilitySaveFailed'), locale));
+                        }
+                    }
+                }
                 const summary = output?.summary || {
                     success: 0,
                     total: targets.length,
@@ -2335,6 +2369,18 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     <input name="inboundModalField5" type="checkbox" checked={inboundEnabled} onChange={(e) => setInboundEnabled(e.target.checked)} />
                                     {t('comp.inbounds.enableInbound')}
                                 </label>
+                            </div>
+                            <div className="form-group inbound-inline-checkbox-group">
+                                <label className="inbound-inline-checkbox-label" title={t('comp.inbounds.modalHideFromUsersHint')}>
+                                    <input
+                                        name="inboundModalHiddenFromUsers"
+                                        type="checkbox"
+                                        checked={hiddenFromUsers}
+                                        onChange={(e) => setHiddenFromUsers(e.target.checked)}
+                                    />
+                                    {t('comp.inbounds.modalHideFromUsersLabel')}
+                                </label>
+                                <span className="text-xs text-muted">{t('comp.inbounds.modalHideFromUsersHint')}</span>
                             </div>
                         </div>
 

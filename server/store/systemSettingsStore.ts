@@ -618,6 +618,7 @@ export class SystemSettingsStore {
             serverOrder: [],
             inboundOrder: {},
             inboundRemarks: {},
+            hiddenInbounds: {},
             userOrder: [],
         };
     }
@@ -792,6 +793,7 @@ export class SystemSettingsStore {
         const serverOrderFallback = normalizeIdList(fallbackRoot.serverOrder);
         const inboundOrderFallback = normalizeInboundOrderMap(fallbackRoot.inboundOrder);
         const inboundRemarksFallback = normalizeInboundRemarksMap(fallbackRoot.inboundRemarks);
+        const hiddenInboundsFallback = normalizeInboundOrderMap(fallbackRoot.hiddenInbounds);
         const userOrderFallback = normalizeIdList(fallbackRoot.userOrder);
 
         const siteInput = mergeSection(defaults.site, input.site);
@@ -807,6 +809,7 @@ export class SystemSettingsStore {
         const serverOrderInput = normalizeIdList(input.serverOrder);
         const inboundOrderInput = normalizeInboundOrderMap(input.inboundOrder);
         const inboundRemarksInput = normalizeInboundRemarksMap(input.inboundRemarks);
+        const hiddenInboundsInput = normalizeInboundOrderMap(input.hiddenInbounds);
         const userOrderInput = normalizeIdList(input.userOrder);
 
         const hasServerOrder = Object.prototype.hasOwnProperty.call(input, 'serverOrder') && Array.isArray(input.serverOrder);
@@ -814,6 +817,8 @@ export class SystemSettingsStore {
             && input.inboundOrder && typeof input.inboundOrder === 'object' && !Array.isArray(input.inboundOrder);
         const hasInboundRemarks = Object.prototype.hasOwnProperty.call(input, 'inboundRemarks')
             && input.inboundRemarks && typeof input.inboundRemarks === 'object' && !Array.isArray(input.inboundRemarks);
+        const hasHiddenInbounds = Object.prototype.hasOwnProperty.call(input, 'hiddenInbounds')
+            && input.hiddenInbounds && typeof input.hiddenInbounds === 'object' && !Array.isArray(input.hiddenInbounds);
         const hasUserOrder = Object.prototype.hasOwnProperty.call(input, 'userOrder') && Array.isArray(input.userOrder);
 
         return {
@@ -830,6 +835,7 @@ export class SystemSettingsStore {
             serverOrder: hasServerOrder ? serverOrderInput : (serverOrderInput.length > 0 ? serverOrderInput : serverOrderFallback),
             inboundOrder: hasInboundOrder ? inboundOrderInput : (Object.keys(inboundOrderInput).length > 0 ? inboundOrderInput : inboundOrderFallback),
             inboundRemarks: hasInboundRemarks ? inboundRemarksInput : (Object.keys(inboundRemarksInput).length > 0 ? inboundRemarksInput : inboundRemarksFallback),
+            hiddenInbounds: hasHiddenInbounds ? hiddenInboundsInput : (Object.keys(hiddenInboundsInput).length > 0 ? hiddenInboundsInput : hiddenInboundsFallback),
             userOrder: hasUserOrder ? userOrderInput : (userOrderInput.length > 0 ? userOrderInput : userOrderFallback),
             updatedAt: String(input.updatedAt || '').trim() || new Date().toISOString(),
         };
@@ -1129,16 +1135,164 @@ export class SystemSettingsStore {
         return true;
     }
 
+    getHiddenInbounds(serverId: string = ''): any {
+        const normalizedServerId = normalizeId(serverId);
+        const all = normalizeInboundOrderMap(this.settings?.hiddenInbounds || {});
+        if (!normalizedServerId) return all;
+        return Array.isArray(all[normalizedServerId]) ? [...all[normalizedServerId]] : [];
+    }
+
+    isInboundHidden(serverId: string, inboundId: string | number): boolean {
+        const normalizedServerId = normalizeId(serverId);
+        const normalizedInboundId = normalizeId(inboundId);
+        if (!normalizedServerId || !normalizedInboundId) return false;
+        const list = this.settings?.hiddenInbounds?.[normalizedServerId];
+        return Array.isArray(list) && list.includes(normalizedInboundId);
+    }
+
+    setInboundHidden(
+        serverId: string,
+        inboundId: string | number,
+        hidden: boolean
+    ): { serverId: string; inboundId: string; hidden: boolean } {
+        const normalizedServerId = normalizeId(serverId);
+        const normalizedInboundId = normalizeId(inboundId);
+        if (!normalizedServerId) {
+            throw new Error('serverId is required');
+        }
+        if (!normalizedInboundId) {
+            throw new Error('inboundId is required');
+        }
+        const nextHidden = hidden === true;
+        const nextMap = normalizeInboundOrderMap(this.settings?.hiddenInbounds || {});
+        const currentSet = new Set<string>(nextMap[normalizedServerId] || []);
+
+        if (nextHidden) {
+            currentSet.add(normalizedInboundId);
+            nextMap[normalizedServerId] = Array.from(currentSet);
+        } else {
+            currentSet.delete(normalizedInboundId);
+            if (currentSet.size > 0) {
+                nextMap[normalizedServerId] = Array.from(currentSet);
+            } else {
+                delete nextMap[normalizedServerId];
+            }
+        }
+
+        this.settings = this._normalizeSettings({
+            ...this.settings,
+            hiddenInbounds: nextMap,
+            updatedAt: new Date().toISOString(),
+        }, this.settings);
+        this._save();
+
+        return {
+            serverId: normalizedServerId,
+            inboundId: normalizedInboundId,
+            hidden: nextHidden,
+        };
+    }
+
+    setInboundsHidden(
+        targets: Array<{ serverId: string; inboundId: string | number }> = [],
+        hidden: boolean = true
+    ): { updated: Array<{ serverId: string; inboundId: string; hidden: boolean }>; hidden: boolean } {
+        if (!Array.isArray(targets) || targets.length === 0) {
+            throw new Error('targets must be a non-empty array');
+        }
+        const nextHidden = hidden === true;
+        const nextMap = normalizeInboundOrderMap(this.settings?.hiddenInbounds || {});
+        const updated: Array<{ serverId: string; inboundId: string; hidden: boolean }> = [];
+        const seenKeys = new Set<string>();
+
+        for (const target of targets) {
+            const normalizedServerId = normalizeId(target?.serverId);
+            const normalizedInboundId = normalizeId(target?.inboundId);
+            if (!normalizedServerId || !normalizedInboundId) {
+                throw new Error('Each target requires serverId and inboundId');
+            }
+            const dedupKey = `${normalizedServerId}:${normalizedInboundId}`;
+            if (seenKeys.has(dedupKey)) continue;
+            seenKeys.add(dedupKey);
+
+            const currentSet = new Set<string>(nextMap[normalizedServerId] || []);
+            if (nextHidden) {
+                currentSet.add(normalizedInboundId);
+                nextMap[normalizedServerId] = Array.from(currentSet);
+            } else {
+                currentSet.delete(normalizedInboundId);
+                if (currentSet.size > 0) {
+                    nextMap[normalizedServerId] = Array.from(currentSet);
+                } else {
+                    delete nextMap[normalizedServerId];
+                }
+            }
+
+            updated.push({
+                serverId: normalizedServerId,
+                inboundId: normalizedInboundId,
+                hidden: nextHidden,
+            });
+        }
+
+        this.settings = this._normalizeSettings({
+            ...this.settings,
+            hiddenInbounds: nextMap,
+            updatedAt: new Date().toISOString(),
+        }, this.settings);
+        this._save();
+
+        return {
+            updated,
+            hidden: nextHidden,
+        };
+    }
+
+    removeInboundHidden(serverId: string, inboundId?: string | number): boolean {
+        const normalizedServerId = normalizeId(serverId);
+        if (!normalizedServerId) return false;
+
+        const nextMap = normalizeInboundOrderMap(this.settings?.hiddenInbounds || {});
+        if (!nextMap[normalizedServerId]) return false;
+
+        if (inboundId !== undefined && inboundId !== null && String(inboundId).trim() !== '') {
+            const normalizedInboundId = normalizeId(inboundId);
+            const currentList = nextMap[normalizedServerId];
+            if (!normalizedInboundId || !currentList.includes(normalizedInboundId)) {
+                return false;
+            }
+            const filtered = currentList.filter((item) => item !== normalizedInboundId);
+            if (filtered.length > 0) {
+                nextMap[normalizedServerId] = filtered;
+            } else {
+                delete nextMap[normalizedServerId];
+            }
+        } else {
+            delete nextMap[normalizedServerId];
+        }
+
+        this.settings = this._normalizeSettings({
+            ...this.settings,
+            hiddenInbounds: nextMap,
+            updatedAt: new Date().toISOString(),
+        }, this.settings);
+        this._save();
+        return true;
+    }
+
     applyInboundRemark(serverId: string, inbound: any): any {
         if (!inbound || typeof inbound !== 'object') return inbound;
+        const inboundId = inbound.id ?? inbound.inboundId ?? '';
         const panelRemark = String(inbound.panelRemark !== undefined ? inbound.panelRemark : (inbound.remark ?? '')).trim();
-        const customRemark = this.getInboundRemark(serverId, inbound.id ?? inbound.inboundId ?? '');
+        const customRemark = this.getInboundRemark(serverId, inboundId);
+        const hiddenFromUsers = this.isInboundHidden(serverId, inboundId);
         return {
             ...inbound,
             panelRemark,
             nmsRemark: customRemark,
             hasCustomRemark: Boolean(customRemark),
             remark: customRemark || panelRemark,
+            hiddenFromUsers,
         };
     }
 
@@ -1210,6 +1364,7 @@ export class SystemSettingsStore {
             serverOrder: this.settings.serverOrder,
             inboundOrder: this.settings.inboundOrder,
             inboundRemarks: this.settings.inboundRemarks,
+            hiddenInbounds: this.settings.hiddenInbounds,
             userOrder: this.settings.userOrder,
             updatedAt: new Date().toISOString(),
         };

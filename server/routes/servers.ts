@@ -954,6 +954,7 @@ router.delete('/:id', operatorOrAbove, (req, res) => {
         });
     }
     systemSettingsStore.removeInboundRemark(serverId);
+    systemSettingsStore.removeInboundHidden(serverId);
     const actor = String(req.user?.username || req.user?.role || 'admin');
     const affectedPolicies = userPolicyStore.removeServerId(serverId, actor);
     const affectedGroups = userGroupStore.removeServerId(serverId, actor);

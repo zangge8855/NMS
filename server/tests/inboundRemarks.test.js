@@ -344,6 +344,101 @@ describe('NMS local inbound remarks (per-server override isolated from 3x-ui / s
         assert.deepEqual(getAll.json?.obj?.[srvV4.id], { 1: '香港-IPv4' });
     });
 
+    it('enforces RBAC, supports single and batch visibility updates, and hides inbounds from user subscriptions immediately', async () => {
+        invalidatePublicSubCache();
+        const secret = subToken.token.split('.')[1];
+        const subUrl = `/api/subscriptions/public/t/${encodeURIComponent(subToken.publicTokenId)}/${encodeURIComponent(secret)}?format=raw`;
+
+        // Prime public subscription: both srvV4 and srvV6 links appear
+        const beforeRes = await invokeApp(app, { method: 'GET', url: subUrl });
+        assert.equal(beforeRes.statusCode, 200);
+        const beforeLines = beforeRes.text.trim().split(/\r?\n/).filter(Boolean);
+        assert.equal(beforeLines.length, 2);
+        assert.ok(getPublicSubCacheSize() >= 1);
+
+        // Auditor cannot mutate visibility
+        const auditorPut = await invokeApp(app, {
+            method: 'PUT',
+            url: '/api/system/inbounds/visibility',
+            headers: { Authorization: makeAuthHeader(auditorUser) },
+            body: { serverId: srvV4.id, inboundId: 1, hidden: true },
+        });
+        assert.equal(auditorPut.statusCode, 403);
+
+        // Non-boolean hidden -> 400
+        const invalidPut = await invokeApp(app, {
+            method: 'PUT',
+            url: '/api/system/inbounds/visibility',
+            headers: { Authorization: makeAuthHeader(operatorUser) },
+            body: { serverId: srvV4.id, inboundId: 1, hidden: 'yes' },
+        });
+        assert.equal(invalidPut.statusCode, 400);
+
+        // Operator hides srvV4 inbound 1 -> invalidates cache and removes it from user subscription
+        const hideV4 = await invokeApp(app, {
+            method: 'PUT',
+            url: '/api/system/inbounds/visibility',
+            headers: { Authorization: makeAuthHeader(operatorUser) },
+            body: { serverId: srvV4.id, inboundId: 1, hidden: true },
+        });
+        assert.equal(hideV4.statusCode, 200);
+        assert.equal(hideV4.json?.obj?.hidden, true);
+        assert.equal(getPublicSubCacheSize(), 0);
+
+        const getVisibility = await invokeApp(app, {
+            method: 'GET',
+            url: '/api/system/inbounds/visibility',
+            headers: { Authorization: makeAuthHeader(auditorUser) },
+        });
+        assert.equal(getVisibility.statusCode, 200);
+        assert.deepEqual(getVisibility.json?.obj?.[srvV4.id], ['1']);
+
+        const snapAfterHide = await getServerPanelSnapshot(srvV4, { force: true });
+        assert.equal(snapAfterHide.inbounds[0].hiddenFromUsers, true);
+
+        const afterHideRes = await invokeApp(app, { method: 'GET', url: subUrl });
+        assert.equal(afterHideRes.statusCode, 200);
+        const afterHideLines = afterHideRes.text.trim().split(/\r?\n/).filter(Boolean);
+        assert.equal(afterHideLines.length, 1);
+
+        // Batch hide both -> no links delivered; batch show both -> 2 links restored
+        const batchHide = await invokeApp(app, {
+            method: 'PUT',
+            url: '/api/system/inbounds/visibility',
+            headers: { Authorization: makeAuthHeader(operatorUser) },
+            body: {
+                targets: [
+                    { serverId: srvV4.id, inboundId: 1 },
+                    { serverId: srvV6.id, inboundId: 1 },
+                ],
+                hidden: true,
+            },
+        });
+        assert.equal(batchHide.statusCode, 200);
+        assert.equal(batchHide.json?.obj?.updated?.length, 2);
+
+        const allHiddenSub = await invokeApp(app, { method: 'GET', url: subUrl });
+        assert.notEqual(allHiddenSub.statusCode, 200);
+
+        const batchShow = await invokeApp(app, {
+            method: 'PUT',
+            url: '/api/system/inbounds/visibility',
+            headers: { Authorization: makeAuthHeader(operatorUser) },
+            body: {
+                targets: [
+                    { serverId: srvV4.id, inboundId: 1 },
+                    { serverId: srvV6.id, inboundId: 1 },
+                ],
+                hidden: false,
+            },
+        });
+        assert.equal(batchShow.statusCode, 200);
+
+        const restoredRes = await invokeApp(app, { method: 'GET', url: subUrl });
+        assert.equal(restoredRes.statusCode, 200);
+        assert.equal(restoredRes.text.trim().split(/\r?\n/).filter(Boolean).length, 2);
+    });
+
     it('applies distinct NMS local remarks to dual-stack entries backed by the same 3x-ui panel across snapshots, proxy, gateway, and subscriptions without mutating upstream panel', async () => {
         const authHeader = makeAuthHeader(adminUser);
 

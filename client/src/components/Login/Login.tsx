@@ -195,13 +195,20 @@ export default function Login() {
     };
 
     // ── Login ───────────────────────────────────────────────
-    const handleLogin = async (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setError('');
         setSuccess('');
+        const formData = new FormData(e.currentTarget);
+        const resolvedIdentifier = (loginIdentifier || String(formData.get('username') || '')).trim();
+        const resolvedPassword = password || String(formData.get('password') || '');
+        if (!resolvedIdentifier || !resolvedPassword) {
+            setError(locale === 'en-US' ? 'Please enter your username/email and password.' : '请输入用户名或邮箱及密码');
+            return;
+        }
         setLoading(true);
         try {
-            const result = await login(loginIdentifier.trim(), password);
+            const result = await login(resolvedIdentifier, resolvedPassword);
             if (result.success) {
                 navigate('/', { replace: true });
             } else if (result.needTwoFactor) {
@@ -594,17 +601,20 @@ export default function Login() {
                                             <HiOutlineUser className="input-icon" aria-hidden="true" />
                                             <input
                                                 id="login-identifier"
+                                                name="username"
                                                 type="text"
                                                 className="form-input input-with-icon"
                                                 placeholder={t('pages.login.loginIdentifierPlaceholder')}
                                                 value={loginIdentifier}
                                                 onChange={(e) => setLoginIdentifier(e.target.value)}
                                                 autoFocus
+                                                required
                                                 disabled={loading}
                                                 autoComplete="username"
                                                 autoCapitalize="none"
                                                 autoCorrect="off"
                                                 spellCheck={false}
+                                                enterKeyHint="next"
                                             />
                                         </div>
                                     </div>
@@ -625,13 +635,16 @@ export default function Login() {
                                             <HiOutlineLockClosed className="input-icon" aria-hidden="true" />
                                             <input
                                                 id="login-password"
+                                                name="password"
                                                 type={showPassword ? 'text' : 'password'}
                                                 className="form-input input-with-icon input-with-trailing-action"
                                                 placeholder={t('pages.login.passwordPlaceholder')}
                                                 value={password}
                                                 onChange={(e) => setPassword(e.target.value)}
+                                                required
                                                 disabled={loading}
                                                 autoComplete="current-password"
+                                                enterKeyHint="done"
                                             />
                                             <button
                                                 type="button"
@@ -646,8 +659,8 @@ export default function Login() {
                                     </div>
                                     <button
                                         type="submit"
-                                        className="btn btn-primary w-full h-11 text-sm font-semibold"
-                                        disabled={loading || !loginIdentifier.trim() || !password}
+                                        className="btn btn-primary w-full h-11 text-sm font-semibold login-submit-btn"
+                                        disabled={loading}
                                     >
                                         {loading ? <span className="spinner" /> : t('pages.login.loginButton')}
                                     </button>

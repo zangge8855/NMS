@@ -20,8 +20,10 @@ import {
     HiOutlineArrowPath,
 } from 'react-icons/hi2';
 
+// 6 is the LCM of desktop (3 cols), tablet (2 cols), and mobile (1 col),
+// so collapsed priority view always fills complete grid rows with no trailing blank slots.
 const NODE_HEALTH_INITIAL_LIMIT = 6;
-const NODE_HEALTH_DENSE_LIMIT = 4;
+const NODE_HEALTH_DENSE_LIMIT = 6;
 const NODE_HEALTH_DENSE_THRESHOLD = 8;
 
 interface NodeHealthCopy {
@@ -430,7 +432,7 @@ export default function NodeHealthGrid({ servers, serverStatuses, trendHistory =
         }
         return acc;
     }, { healthy: 0, warning: 0, critical: 0, offline: 0 });
-    const canToggle = !normalizedQuery && filteredEntries.length > NODE_HEALTH_INITIAL_LIMIT;
+    const canToggle = !normalizedQuery && filteredEntries.length > initialLimit;
     const shownLabel = copy.shown
         .replace('{shown}', String(visibleEntries.length))
         .replace('{total}', String(filteredEntries.length));

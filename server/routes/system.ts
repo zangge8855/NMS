@@ -1035,6 +1035,121 @@ router.put('/inbounds/remarks', operatorOrAbove, (req, res) => {
     }
 });
 
+router.get('/inbounds/visibility', auditorOrAbove, (req, res) => {
+    const serverId = String(req.query?.serverId || '').trim();
+    return res.json({
+        success: true,
+        obj: systemSettingsStore.getHiddenInbounds(serverId),
+    });
+});
+
+router.put('/inbounds/visibility', operatorOrAbove, (req, res) => {
+    const rawHidden = req.body?.hidden;
+    if (typeof rawHidden !== 'boolean') {
+        return res.status(400).json({
+            success: false,
+            msg: pickRequestText(req, 'hidden 必须为布尔值', 'hidden must be a boolean'),
+        });
+    }
+
+    const rawTargets = Array.isArray(req.body?.targets) ? req.body.targets : null;
+    if (rawTargets) {
+        if (rawTargets.length === 0) {
+            return res.status(400).json({
+                success: false,
+                msg: pickRequestText(req, '请至少选择一个入站', 'Select at least one inbound'),
+            });
+        }
+        const normalizedTargets: Array<{ serverId: string; inboundId: string }> = [];
+        for (const item of rawTargets) {
+            const serverId = String(item?.serverId || '').trim();
+            const inboundId = String(item?.inboundId ?? item?.id ?? '').trim();
+            if (!serverId || !inboundId) {
+                return res.status(400).json({
+                    success: false,
+                    msg: pickRequestText(req, '目标入站参数不完整', 'Each target requires serverId and inboundId'),
+                });
+            }
+            if (!serverStore.getById(serverId)) {
+                return res.status(404).json({
+                    success: false,
+                    msg: pickRequestText(req, '节点不存在，请刷新节点列表后重试', 'Node not found. Refresh the node list and try again.'),
+                });
+            }
+            normalizedTargets.push({ serverId, inboundId });
+        }
+
+        try {
+            const saved = systemSettingsStore.setInboundsHidden(normalizedTargets, rawHidden);
+            const affectedServerIds = Array.from(new Set(saved.updated.map((item) => item.serverId)));
+            affectedServerIds.forEach((sid) => invalidateServerPanelSnapshotCache(sid));
+            invalidatePublicSubCache();
+            appendSecurityAudit('inbound_visibility_updated', req, {
+                hidden: saved.hidden,
+                targetCount: saved.updated.length,
+                targets: saved.updated.map((item) => `${item.serverId}:${item.inboundId}`),
+            });
+            return res.json({
+                success: true,
+                msg: saved.hidden
+                    ? pickRequestText(req, `已将 ${saved.updated.length} 个入站设为对用户隐藏`, `Hidden ${saved.updated.length} inbound(s) from users`)
+                    : pickRequestText(req, `已将 ${saved.updated.length} 个入站恢复对用户显示`, `Restored ${saved.updated.length} inbound(s) to users`),
+                obj: saved,
+            });
+        } catch (error: any) {
+            return res.status(400).json({
+                success: false,
+                msg: error?.message || 'Failed to update inbound visibility',
+            });
+        }
+    }
+
+    const serverId = String(req.body?.serverId || '').trim();
+    const inboundId = String(req.body?.inboundId ?? '').trim();
+
+    if (!serverId) {
+        return res.status(400).json({
+            success: false,
+            msg: pickRequestText(req, '请选择所属节点', 'Select a target node'),
+        });
+    }
+    if (!serverStore.getById(serverId)) {
+        return res.status(404).json({
+            success: false,
+            msg: pickRequestText(req, '节点不存在，请刷新节点列表后重试', 'Node not found. Refresh the node list and try again.'),
+        });
+    }
+    if (!inboundId) {
+        return res.status(400).json({
+            success: false,
+            msg: pickRequestText(req, '请指定需要设置可见性的入站', 'Specify the inbound to update'),
+        });
+    }
+
+    try {
+        const saved = systemSettingsStore.setInboundHidden(serverId, inboundId, rawHidden);
+        invalidateServerPanelSnapshotCache(serverId);
+        invalidatePublicSubCache();
+        appendSecurityAudit('inbound_visibility_updated', req, {
+            serverId: saved.serverId,
+            inboundId: saved.inboundId,
+            hidden: saved.hidden,
+        });
+        return res.json({
+            success: true,
+            msg: saved.hidden
+                ? pickRequestText(req, '已对用户隐藏该入站', 'Inbound hidden from users')
+                : pickRequestText(req, '已恢复对用户显示该入站', 'Inbound visible to users again'),
+            obj: saved,
+        });
+    } catch (error: any) {
+        return res.status(400).json({
+            success: false,
+            msg: error?.message || 'Failed to update inbound visibility',
+        });
+    }
+});
+
 router.get('/users/order', auditorOrAbove, (req, res) => {
     return res.json({
         success: true,

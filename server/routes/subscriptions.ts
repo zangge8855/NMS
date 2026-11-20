@@ -1183,7 +1183,11 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options: any =
         const fallbackSubIds = new Set();
 
         for (const inbound of inbounds) {
-            if (inbound?.excludeFromSub === true) {
+            if (
+                inbound?.excludeFromSub === true
+                || inbound?.hiddenFromUsers === true
+                || systemSettingsStore.isInboundHidden(serverMeta.id, inbound?.id)
+            ) {
                 hasExcludedInbound = true;
                 continue;
             }

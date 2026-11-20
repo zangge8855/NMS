@@ -122,6 +122,8 @@ export interface InboundConfig {
     panelRemark?: string;
     nmsRemark?: string;
     hasCustomRemark?: boolean;
+    hiddenFromUsers?: boolean;
+    excludeFromSub?: boolean;
     enable: boolean;
     expiryTime: number;
     listen?: string;

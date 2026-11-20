@@ -503,7 +503,9 @@ router.all('/:serverId/*', upload.any(), async (req: Request, res: Response) => 
         let responseData = panelRes.data;
         const delInboundMatch = canonicalPath.match(/^\/panel\/(?:api\/)?inbounds?\/del\/([^/]+)$/);
         if (method === 'POST' && delInboundMatch && panelRes.status < 400 && responseData?.success !== false) {
-            systemSettingsStore.removeInboundRemark(serverId, safeDecodePathSegment(delInboundMatch[1]));
+            const deletedInboundId = safeDecodePathSegment(delInboundMatch[1]);
+            systemSettingsStore.removeInboundRemark(serverId, deletedInboundId);
+            systemSettingsStore.removeInboundHidden(serverId, deletedInboundId);
         }
         if (method === 'GET' && panelRes.status < 400 && responseData?.success !== false) {
             if (/^\/panel\/(?:api\/)?inbounds?\/list$/.test(canonicalPath) && Array.isArray(responseData?.obj)) {

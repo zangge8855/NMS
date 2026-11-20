@@ -94,6 +94,51 @@ describe('SystemSettingsStore ordering', { concurrency: false }, () => {
         assert.deepEqual(systemSettingsStore.getInboundRemarks('srv-v6'), {});
     });
 
+    it('persists hidden inbounds per server, supports batch updates, decorates inbound payloads, and cleans up on removal', () => {
+        const hidden1 = systemSettingsStore.setInboundHidden('srv-h1', 10, true);
+        assert.deepEqual(hidden1, { serverId: 'srv-h1', inboundId: '10', hidden: true });
+        assert.equal(systemSettingsStore.isInboundHidden('srv-h1', 10), true);
+        assert.equal(systemSettingsStore.isInboundHidden('srv-h1', 11), false);
+        assert.deepEqual(systemSettingsStore.getHiddenInbounds('srv-h1'), ['10']);
+
+        const batch = systemSettingsStore.setInboundsHidden([
+            { serverId: 'srv-h1', inboundId: 11 },
+            { serverId: 'srv-h2', inboundId: '20' },
+        ], true);
+        assert.equal(batch.hidden, true);
+        assert.equal(batch.updated.length, 2);
+        assert.deepEqual(systemSettingsStore.getHiddenInbounds(), {
+            'srv-h1': ['10', '11'],
+            'srv-h2': ['20'],
+        });
+
+        // Decorates inbound objects with hiddenFromUsers
+        const decorated = systemSettingsStore.applyInboundRemarks('srv-h1', [
+            { id: 10, remark: 'Private Relay' },
+            { id: 12, remark: 'Public Node' },
+        ]);
+        assert.equal(decorated[0].hiddenFromUsers, true);
+        assert.equal(decorated[1].hiddenFromUsers, false);
+
+        // Survives unrelated systemSettingsStore.update()
+        systemSettingsStore.update({ jobs: { retentionDays: 60 } });
+        assert.equal(systemSettingsStore.isInboundHidden('srv-h1', 10), true);
+        assert.equal(systemSettingsStore.isInboundHidden('srv-h2', '20'), true);
+
+        // Unhiding single inbound removes only that entry
+        const shown = systemSettingsStore.setInboundHidden('srv-h1', 10, false);
+        assert.deepEqual(shown, { serverId: 'srv-h1', inboundId: '10', hidden: false });
+        assert.deepEqual(systemSettingsStore.getHiddenInbounds('srv-h1'), ['11']);
+
+        // Removing single inbound and whole server cleans up cleanly
+        assert.equal(systemSettingsStore.removeInboundHidden('srv-h1', 11), true);
+        assert.equal(systemSettingsStore.removeInboundHidden('srv-h1', 11), false);
+        assert.deepEqual(systemSettingsStore.getHiddenInbounds('srv-h1'), []);
+        assert.equal(systemSettingsStore.removeInboundHidden('srv-h2'), true);
+        assert.equal(systemSettingsStore.removeInboundHidden('srv-h2'), false);
+        assert.deepEqual(systemSettingsStore.getHiddenInbounds(), {});
+    });
+
     it('defaults invite-only registration to disabled and persists updates', () => {
         assert.equal(systemSettingsStore.getRegistration().inviteOnlyEnabled, false);
 

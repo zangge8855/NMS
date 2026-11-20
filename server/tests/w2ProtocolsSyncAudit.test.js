@@ -58,6 +58,7 @@ import serverStore from '../store/serverStore.js';
 import subscriptionTokenStore, {
     signLegacySubscriptionEmail,
 } from '../store/subscriptionTokenStore.js';
+import systemSettingsStore from '../store/systemSettingsStore.js';
 import userGroupStore from '../store/userGroupStore.js';
 import userPolicyStore from '../store/userPolicyStore.js';
 import userStore from '../store/userStore.js';
@@ -632,6 +633,19 @@ describe('Wave 2 Proxy Protocols, Subscription Converters, Adapters & Sync Fixes
         assert.equal(subFetchedCount, 0);
         assert.equal(autoRes.links.length, 1);
         assert.ok(autoRes.links[0].startsWith('vless://'));
+
+        // Hiding the remaining VLESS inbound via NMS hiddenInbounds excludes it immediately and keeps /sub blocked
+        systemSettingsStore.setInboundHidden(xuiSrv.id, 1, true);
+        try {
+            const hiddenRes = await collectByServer(xuiSrv, 'iso@example.com', 'auto', { policy: {} });
+            assert.equal(subFetchedCount, 0);
+            assert.equal(hiddenRes.links.length, 0);
+        } finally {
+            systemSettingsStore.setInboundHidden(xuiSrv.id, 1, false);
+        }
+        const restoredRes = await collectByServer(xuiSrv, 'iso@example.com', 'auto', { policy: {} });
+        assert.equal(restoredRes.links.length, 1);
+        assert.ok(restoredRes.links[0].startsWith('vless://'));
 
         // Native mode without excludeFromSub, with protocolScopeMode='selected', filters /sub links by allowedProtocols
         const protocolOnlyMock = await startMockHttpServer((req, res) => {

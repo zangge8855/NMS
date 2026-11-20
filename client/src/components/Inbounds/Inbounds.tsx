@@ -34,6 +34,8 @@ import {
     HiOutlineXMark,
     HiOutlineCalendarDays,
     HiOutlineTag,
+    HiOutlineEye,
+    HiOutlineEyeSlash,
 } from 'react-icons/hi2';
 import {
     normalizeInboundOrderMap,
@@ -215,6 +217,7 @@ export default function Inbounds() {
     const [editingRemarkKey, setEditingRemarkKey] = useState('');
     const [remarkDraft, setRemarkDraft] = useState('');
     const [savingRemarkKey, setSavingRemarkKey] = useState('');
+    const [savingVisibilityKey, setSavingVisibilityKey] = useState('');
 
     // Batch Selection State
     const [selectedKeys, setSelectedKeys] = useState(new Set());
@@ -957,6 +960,70 @@ export default function Inbounds() {
         setSavingRemarkKey('');
     };
 
+    const handleToggleInboundVisibility = async (inbound) => {
+        if (!canMutate || !inbound?.serverId || inbound?.id === undefined || inbound?.id === null) return;
+        const rowKey = String(inbound.uiKey || '').trim();
+        if (!rowKey || savingVisibilityKey === rowKey) return;
+
+        const nextHidden = inbound.hiddenFromUsers !== true;
+        setSavingVisibilityKey(rowKey);
+        try {
+            const res = await api.put('/system/inbounds/visibility', {
+                serverId: inbound.serverId,
+                inboundId: inbound.id,
+                hidden: nextHidden,
+            });
+            if (res?.data?.success === false) {
+                throw new Error(res?.data?.msg || res?.data?.message || t('comp.inbounds.visibilitySaveFailed'));
+            }
+            const savedHidden = typeof res?.data?.obj?.hidden === 'boolean' ? res.data.obj.hidden : nextHidden;
+            setInbounds((prev) => prev.map((item) => (
+                item.uiKey === rowKey
+                    ? { ...item, hiddenFromUsers: savedHidden }
+                    : item
+            )));
+            invalidateServerPanelDataCache();
+            toast.success(savedHidden ? t('comp.inbounds.inboundHiddenSuccess') : t('comp.inbounds.inboundShownSuccess'));
+        } catch (err) {
+            toast.error(getErrorMessage(err, t('comp.inbounds.visibilitySaveFailed'), locale));
+        }
+        setSavingVisibilityKey('');
+    };
+
+    const handleBulkSetVisibility = async (hidden: boolean) => {
+        if (!canMutate || selectedVisibleCount === 0 || savingVisibilityKey) return;
+
+        const targets = selectedVisibleInbounds.map((target) => ({
+            serverId: target.serverId,
+            inboundId: target.id,
+        }));
+        const targetKeySet = new Set(selectedVisibleInbounds.map((target) => target.uiKey));
+
+        setSavingVisibilityKey('batch');
+        try {
+            const res = await api.put('/system/inbounds/visibility', {
+                targets,
+                hidden,
+            });
+            if (res?.data?.success === false) {
+                throw new Error(res?.data?.msg || res?.data?.message || t('comp.inbounds.visibilitySaveFailed'));
+            }
+            setInbounds((prev) => prev.map((item) => (
+                targetKeySet.has(item.uiKey)
+                    ? { ...item, hiddenFromUsers: hidden }
+                    : item
+            )));
+            invalidateServerPanelDataCache();
+            setSelectedKeys(new Set());
+            toast.success(hidden
+                ? t('comp.inbounds.batchHiddenSuccess', { count: targets.length })
+                : t('comp.inbounds.batchShownSuccess', { count: targets.length }));
+        } catch (err) {
+            toast.error(getErrorMessage(err, t('comp.inbounds.visibilitySaveFailed'), locale));
+        }
+        setSavingVisibilityKey('');
+    };
+
     const parseClients = (ib) => {
         if (Array.isArray(ib?.clients)) {
             return ib.clients.map((client) => ({
@@ -1509,6 +1576,11 @@ export default function Inbounds() {
     const bulkToggleLabel = bulkToggleEnable ? t('comp.inbounds.enableSelected') : t('comp.inbounds.disableSelected');
     const bulkToggleIcon = bulkToggleEnable ? <HiOutlineCheck /> : <HiOutlineXMark />;
     const bulkToggleClassName = bulkToggleEnable ? 'btn btn-success btn-sm' : 'btn btn-danger btn-sm';
+    const bulkToggleHide = selectedVisibleCount > 0
+        ? !selectedVisibleInbounds.every((item) => item.hiddenFromUsers === true)
+        : true;
+    const bulkVisibilityLabel = bulkToggleHide ? t('comp.inbounds.hideSelected') : t('comp.inbounds.showSelected');
+    const bulkVisibilityIcon = bulkToggleHide ? <HiOutlineEyeSlash /> : <HiOutlineEye />;
     const visibleServerIds = Array.from(new Set(filteredInbounds.map((item) => String(item?.serverId || '').trim()).filter(Boolean)));
     const visibleServerIndexMap = new Map(visibleServerIds.map((id, index) => [id, index]));
     const tableColSpan = (filterServerId === 'all' ? 11 : 10) - (canMutate ? 0 : 2);
@@ -1562,6 +1634,15 @@ export default function Inbounds() {
                             <button type="button" className={bulkToggleClassName} onClick={() => handleBulkSetEnable(bulkToggleEnable)}>
                                 {bulkToggleIcon}
                                 {bulkToggleLabel}
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                disabled={Boolean(savingVisibilityKey)}
+                                onClick={() => handleBulkSetVisibility(bulkToggleHide)}
+                            >
+                                {bulkVisibilityIcon}
+                                {bulkVisibilityLabel}
                             </button>
                             <button type="button" className="btn btn-danger btn-sm" onClick={handleBulkDelete}>
                                 <HiOutlineTrash /> {t('pages.inbounds.toolbar.delete')}
@@ -1705,10 +1786,11 @@ export default function Inbounds() {
                                             </div>
                                         </div>
                                     );
+                                    const isHiddenFromUsers = ib.hiddenFromUsers === true || ib.excludeFromSub === true;
                                     return (
                                         <React.Fragment key={ib.uiKey}>
                                             <tr
-                                                className={`cursor-pointer transition-colors inbounds-row${isSelected ? ' inbounds-row-selected' : ''}`}
+                                                className={`cursor-pointer transition-colors inbounds-row${isSelected ? ' inbounds-row-selected' : ''}${isHiddenFromUsers ? ' inbounds-row-hidden' : ''}`}
                                                 onClick={() => setExpandedId(isExpanded ? null : ib.uiKey)}
                                             >
                                                 {canMutate && (
@@ -1945,6 +2027,15 @@ export default function Inbounds() {
                                                         <span className={`badge ${ib.enable ? 'badge-success' : 'badge-danger'}`}>
                                                             {ib.enable ? t('comp.common.enabled') : t('comp.common.disabled')}
                                                         </span>
+                                                        {isHiddenFromUsers && (
+                                                            <span
+                                                                className="badge badge-warning inbounds-hidden-badge"
+                                                                title={t('comp.inbounds.hiddenFromUsersTitle')}
+                                                            >
+                                                                <HiOutlineEyeSlash size={11} aria-hidden="true" />
+                                                                {t('comp.inbounds.hiddenFromUsers')}
+                                                            </span>
+                                                        )}
                                                         {ib.hasOnlineUsers && (
                                                             <span
                                                                 className="inbounds-online-indicator"
@@ -1985,6 +2076,14 @@ export default function Inbounds() {
                                                                         label: t('comp.inbounds.editLocalRemarkAction'),
                                                                         icon: HiOutlineTag,
                                                                         onClick: () => startEditingRemark(ib),
+                                                                    },
+                                                                    {
+                                                                        label: ib.hiddenFromUsers === true
+                                                                            ? t('comp.inbounds.showToUsersAction')
+                                                                            : t('comp.inbounds.hideFromUsersAction'),
+                                                                        icon: ib.hiddenFromUsers === true ? HiOutlineEye : HiOutlineEyeSlash,
+                                                                        onClick: () => handleToggleInboundVisibility(ib),
+                                                                        disabled: savingVisibilityKey === ib.uiKey,
                                                                     },
                                                                     {
                                                                         label: ib.enable ? t('comp.common.disable') : t('comp.common.enable'),

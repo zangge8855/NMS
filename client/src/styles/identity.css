@@ -553,12 +553,11 @@
   padding: 0 !important;
   min-height: 100dvh;
   background-color: var(--bg-canvas);
-  background-image: radial-gradient(
-    ellipse 75% 420px at 50% -90px,
-    var(--accent-primary-soft),
-    transparent 72%
-  );
-  background-repeat: no-repeat;
+  background-image:
+    radial-gradient(ellipse 68% 360px at 50% -80px, var(--accent-primary-soft), transparent 72%),
+    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--border-color) 42%, transparent) 1px, transparent 0);
+  background-size: 100% 100%, 24px 24px;
+  background-repeat: no-repeat, repeat;
 }
 
 :root .login-page::before,
@@ -572,7 +571,7 @@
   min-height: 100dvh;
   box-sizing: border-box;
   margin: 0;
-  padding: clamp(20px, 4dvh, 48px) 24px;
+  padding: clamp(16px, 3dvh, 36px) 20px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -580,7 +579,7 @@
 
 :root .login-shell .login-card-column,
 :root .login-shell.login-shell--register .login-card-column {
-  width: min(100%, 440px);
+  width: min(100%, 416px);
   max-width: none;
   filter: none;
 }
@@ -591,7 +590,7 @@
 
 :root .login-card.login-pass,
 :root[data-theme] .login-card.login-pass {
-  --gutter: 34px;
+  --gutter: 28px;
   position: relative;
   width: 100%;
   max-width: none;
@@ -599,10 +598,13 @@
   flex-direction: column;
   align-items: stretch;
   padding: 0;
-  border: 1px solid var(--border-color);
-  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 88%, transparent);
+  border-radius: 20px;
   background: var(--surface-panel);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 24px 48px -18px rgba(2, 8, 18, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 24px 52px -18px rgba(2, 8, 18, 0.58),
+    0 2px 6px rgba(2, 8, 18, 0.24);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   overflow: hidden;
@@ -611,7 +613,12 @@
 }
 
 :root[data-theme="light"] .login-card.login-pass {
-  box-shadow: 0 1px 3px rgba(13, 27, 45, 0.05), 0 20px 44px -16px rgba(13, 27, 45, 0.10);
+  border-color: color-mix(in srgb, var(--border-color) 92%, rgba(13, 27, 45, 0.08));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 1px 2px rgba(13, 27, 45, 0.05),
+    0 12px 28px -10px rgba(13, 27, 45, 0.09),
+    0 28px 56px -20px rgba(13, 27, 45, 0.12);
 }
 
 :root .login-card.login-pass::before,
@@ -619,34 +626,34 @@
   content: none;
 }
 
-/* Integrated brand header inside the single-surface card (no dark stub bar) */
+/* Centered compact brand mark integrated seamlessly into the card header */
 :root .login-pass .login-brand-row.login-pass-stub {
   flex: none;
   width: auto;
   max-width: none;
   height: auto;
   margin: 0;
-  padding: 28px var(--gutter) 20px;
+  padding: 26px var(--gutter) 14px;
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: flex-start;
-  gap: 12px;
+  justify-content: center;
+  gap: 11px;
   border: 0;
   border-radius: 0;
   background: transparent !important;
   background-image: none !important;
-  text-align: left;
+  text-align: center;
 }
 
 :root .login-pass .login-brand-mark {
   flex: none;
-  width: 42px;
-  height: 42px;
+  width: 38px;
+  height: 38px;
   margin: 0;
-  border-radius: 11px;
+  border-radius: 10px;
   clip-path: inset(4% round 22%);
-  box-shadow: 0 2px 8px rgba(2, 8, 18, 0.16);
+  box-shadow: 0 4px 12px rgba(2, 8, 18, 0.18);
   filter: none;
 }
 
@@ -663,20 +670,20 @@
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.15;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   color: var(--text-primary);
   background: none;
   -webkit-text-fill-color: currentColor;
 }
 
-/* Subtle 1px hairline divider between brand header and form body */
+/* Keep perforation element out of visual flow so the card reads as one cohesive surface */
 :root .login-pass .login-pass-perf {
   position: relative;
   flex: none;
   width: auto;
-  height: 1px;
-  margin: 0 var(--gutter);
-  background: var(--border-subtle);
+  height: 0;
+  margin: 0;
+  background: transparent;
 }
 
 :root .login-pass .login-pass-perf::before,
@@ -688,20 +695,20 @@
 :root .login-pass .login-pass-body {
   flex: 1 1 auto;
   min-width: 0;
-  padding: 22px var(--gutter) 30px;
+  padding: 6px var(--gutter) 26px;
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
 
 :root .login-pass .login-form-heading {
-  margin: 0 0 18px;
-  text-align: left;
+  margin: 0 0 14px;
+  text-align: center;
 }
 
 :root .login-pass .login-form-heading h1 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   font-weight: 650;
 }
 
@@ -712,10 +719,10 @@
   gap: 4px;
   padding: 4px;
   border: 1px solid var(--border-subtle);
-  border-radius: 10px;
+  border-radius: 11px;
   background: var(--surface-panel-soft);
   box-shadow: none;
-  margin: 0 0 22px;
+  margin: 0 0 18px;
   overflow: visible;
 }
 
@@ -782,12 +789,12 @@
 }
 
 :root .login-pass .auth-form .form-group {
-  margin: 0 0 16px;
+  margin: 0 0 14px;
 }
 
 :root .login-pass .auth-form .form-label {
   display: block;
-  margin: 0 0 7px;
+  margin: 0 0 6px;
   font-size: 13px;
   font-weight: 550;
   letter-spacing: 0;
@@ -800,7 +807,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin: 0 0 7px;
+  margin: 0 0 6px;
 }
 
 :root .login-pass .login-label-row .form-label {
@@ -819,9 +826,27 @@
 }
 
 :root .login-pass .login-forgot-link:hover {
-  color: var(--text-primary);
+  color: var(--accent-primary);
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+/* Harmonized autofill styling: opaque surface fill + non-color inset ring indicator */
+:root .login-pass .auth-form .form-input:is(:autofill, :-webkit-autofill) {
+  border-color: color-mix(in srgb, var(--accent-primary) 42%, var(--border-color));
+  box-shadow:
+    inset 0 0 0 1.5px color-mix(in srgb, var(--accent-primary) 26%, transparent),
+    inset 0 0 0 100vmax var(--surface-panel);
+  -webkit-text-fill-color: var(--text-primary);
+  caret-color: var(--text-primary);
+}
+
+:root .login-pass .auth-form .form-input:is(:autofill, :-webkit-autofill):focus-visible {
+  border-color: var(--accent-primary);
+  box-shadow:
+    inset 0 0 0 1.5px color-mix(in srgb, var(--accent-primary) 35%, transparent),
+    inset 0 0 0 100vmax var(--surface-panel),
+    0 0 0 3px var(--focus-ring-border, color-mix(in srgb, var(--accent-primary) 24%, transparent));
 }
 
 /* One control height on the login card: 42px */
@@ -836,33 +861,34 @@
 }
 
 :root .login-pass .auth-form > .btn-primary {
-  margin-top: 8px;
+  margin-top: 6px;
+  box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--accent-primary) 55%, transparent);
 }
 
-/* Clear disabled primary action state across themes */
+/* Keep brand anchor visible on disabled primary action while preserving clear disabled cue */
 :root[data-theme="dark"] .login-pass .auth-form .btn-primary:disabled {
-  background-color: rgba(150, 190, 214, 0.1) !important;
-  border-color: rgba(150, 190, 214, 0.18) !important;
-  color: #8ea3b5 !important;
+  background-color: color-mix(in srgb, var(--accent-primary) 36%, var(--surface-panel)) !important;
+  border-color: color-mix(in srgb, var(--accent-primary) 42%, transparent) !important;
+  color: rgba(255, 255, 255, 0.72) !important;
   box-shadow: none !important;
   text-shadow: none !important;
-  opacity: 1 !important;
+  opacity: 0.78 !important;
 }
 
 :root[data-theme="light"] .login-pass .auth-form .btn-primary:disabled {
-  background-color: #e6eef1 !important;
-  border-color: #d4e0e5 !important;
-  color: #5f7282 !important;
+  background-color: color-mix(in srgb, var(--accent-primary) 45%, #ffffff) !important;
+  border-color: color-mix(in srgb, var(--accent-primary) 45%, #ffffff) !important;
+  color: #ffffff !important;
   box-shadow: none !important;
   text-shadow: none !important;
-  opacity: 1 !important;
+  opacity: 0.84 !important;
 }
 
 :root .login-pass .login-divider {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 16px 0;
+  margin: 14px 0;
   font-size: 12px;
   color: var(--text-muted);
 }
@@ -880,6 +906,10 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
+}
+
+:root .login-pass .login-passkey-btn:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent-primary) 38%, var(--border-color));
 }
 
 :root .login-pass .login-passkey-btn svg {
@@ -954,17 +984,20 @@
 }
 
 :root .login-top-actions :is(.theme-toggle-btn, .language-toggle-btn) {
-  background: var(--surface-panel);
-  box-shadow: var(--shadow-xs);
+  background: color-mix(in srgb, var(--surface-panel) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border-color) 85%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 2px 8px rgba(13, 27, 45, 0.06);
 }
 
 @media (max-width: 760px) {
   :root .login-shell[class*="login-shell--"] {
-    padding: 64px 16px 24px;
+    padding: 58px 16px 22px;
   }
 
   :root .login-shell .login-card-column {
-    width: min(100%, 420px);
+    width: min(100%, 400px);
   }
 
   :root .login-card.login-pass,
@@ -973,11 +1006,11 @@
   }
 
   :root .login-pass .login-brand-row.login-pass-stub {
-    padding: 22px var(--gutter) 16px;
+    padding: 22px var(--gutter) 12px;
   }
 
   :root .login-pass .login-pass-body {
-    padding: 18px var(--gutter) 24px;
+    padding: 6px var(--gutter) 22px;
   }
 }
 
@@ -1677,7 +1710,8 @@
   }
 
   /* Keep Inbounds mobile toolbar add + refresh buttons on one row */
-  :root .inbounds-toolbar .page-toolbar-actions {
+  :root .inbounds-toolbar .page-toolbar-actions,
+  :root .inbounds-toolbar .list-toolbar-actions-inner {
     display: flex !important;
     flex-wrap: nowrap !important;
     align-items: center !important;
@@ -1685,12 +1719,16 @@
     width: 100%;
   }
 
+  :root .inbounds-toolbar .list-toolbar-actions-inner > .btn-primary,
   :root .inbounds-toolbar .page-toolbar-actions > .btn-primary {
     flex: 1 1 auto;
+    min-inline-size: 0;
   }
 
+  :root .inbounds-toolbar .list-toolbar-actions-inner > .inbounds-refresh-btn,
   :root .inbounds-toolbar .page-toolbar-actions > .inbounds-refresh-btn {
     flex: 0 0 auto;
+    width: auto !important;
   }
 }
 
@@ -2063,7 +2101,8 @@ body {
 /* 6. Downloads Center cross-card head alignment on desktop */
 @media (min-width: 769px) {
   :root .subscription-device-card:not(.subscription-device-card--compact) .subscription-device-card-head {
-    min-height: 76px;
+    min-height: 0;
+    margin-bottom: 10px;
   }
 }
 
@@ -2096,6 +2135,17 @@ body {
   font-weight: 700;
   letter-spacing: 0.03em;
   line-height: 1;
+}
+
+:root .inbounds-hidden-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+:root .inbounds-row-hidden .inbounds-remark-display {
+  opacity: 0.82;
 }
 
 :root .inbounds-remark-edit-btn {
@@ -2202,5 +2252,379 @@ body {
 @media (max-width: 768px) {
   :root .inbounds-remark-editor {
     max-width: none;
+  }
+}
+
+/* ==========================================================================
+   v2.2.1: Cross-Page Layout Polish (1280x720 Desktop + 390x844 Mobile Audit)
+   ========================================================================== */
+
+/* 1. Desktop Sidebar: fit all admin sections cleanly inside 720px viewport height
+      without triggering a secondary internal vertical scrollbar */
+@media (min-width: 769px) {
+  :root .sidebar-nav {
+    padding: 10px 10px 8px;
+    overscroll-behavior: contain;
+  }
+
+  :root .sidebar .nav-section + .nav-section {
+    margin-top: 8px;
+    padding-top: 8px;
+  }
+
+  :root .sidebar .nav-section-title {
+    margin-bottom: 4px;
+  }
+
+  :root .sidebar .nav-item,
+  :root[data-theme="light"] .sidebar .nav-item {
+    min-height: 35px;
+    padding-block: 6px;
+  }
+
+  :root .sidebar-utility,
+  :root[data-theme="light"] .sidebar-utility {
+    padding: 8px 10px 10px;
+  }
+}
+
+/* 2. Inbounds Desktop Table (>= 1101px): prevent horizontal clipping of Actions
+      at 1280px and keep node pills cleanly single-line */
+@media (min-width: 1101px) {
+  :root .inbounds-table {
+    table-layout: fixed;
+    width: 100%;
+    min-width: 0;
+  }
+
+  :root .inbounds-table th,
+  :root .inbounds-table td {
+    padding-inline: 6px;
+  }
+
+  :root .inbounds-table th.cell-checkbox,
+  :root .inbounds-table td.mobile-checkbox-cell {
+    width: 34px;
+    min-width: 34px;
+    padding-inline: 4px !important;
+  }
+
+  :root .inbounds-table .inbounds-expand-col,
+  :root .inbounds-table .inbounds-expand-cell {
+    width: 46px;
+    min-width: 46px;
+  }
+
+  :root .inbounds-table .inbounds-sequence-col.is-compact {
+    width: 42px;
+    min-width: 42px;
+  }
+
+  :root .inbounds-table .inbounds-node-col {
+    width: 132px;
+    min-width: 132px;
+  }
+
+  :root .inbounds-table .inbounds-remark-col {
+    width: auto;
+  }
+
+  :root .inbounds-table .inbounds-protocol-col {
+    width: 108px;
+    min-width: 108px;
+  }
+
+  :root .inbounds-table .inbounds-port-col {
+    width: 88px;
+    min-width: 88px;
+  }
+
+  :root .inbounds-table .inbounds-users-col {
+    width: 50px;
+    min-width: 50px;
+  }
+
+  :root .inbounds-table .inbounds-traffic-col {
+    width: 92px;
+    min-width: 92px;
+  }
+
+  :root .inbounds-table .inbounds-status-col {
+    width: 112px;
+    min-width: 112px;
+  }
+
+  :root .inbounds-table .inbounds-status-cell {
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 4px;
+  }
+
+  :root .inbounds-table .inbounds-actions-col,
+  :root .inbounds-table .inbounds-actions-cell {
+    width: 80px;
+    min-width: 80px;
+    padding-inline: 4px 8px !important;
+  }
+
+  :root .inbounds-table .inbounds-node-badge {
+    align-items: center;
+    max-width: 100%;
+    white-space: nowrap;
+  }
+
+  :root .inbounds-table .inbounds-node-badge svg {
+    margin-top: 0;
+  }
+
+  :root .inbounds-table .inbounds-node-name {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    -webkit-line-clamp: unset;
+  }
+
+  :root .inbounds-table .inbounds-remark-cell .inbound-remark-pill {
+    max-width: 100%;
+  }
+}
+
+@media (min-width: 1400px) {
+  :root .inbounds-table .inbounds-node-col {
+    width: 168px;
+    min-width: 168px;
+    max-width: 168px;
+  }
+}
+
+/* 3. UsersHub Desktop Table & Filter Toolbar (>= 1101px): eliminate right-edge
+      table overflow and compact the 3-row filter bar */
+@media (min-width: 1101px) {
+  :root .users-table {
+    table-layout: fixed;
+    width: 100%;
+    min-width: 0;
+  }
+
+  :root .users-table th,
+  :root .users-table td {
+    padding-inline: 8px;
+  }
+
+  :root .users-table .users-select-column { width: 36px; }
+  :root .users-table .users-sequence-column { width: 64px; }
+  :root .users-table .users-identity-column { width: auto; min-width: 0; }
+  :root .users-table .users-status-column { width: 78px; }
+  :root .users-table .users-online-column { width: 76px; }
+  :root .users-table .users-node-count-column { width: 64px; }
+  :root .users-table .users-traffic-column { width: 136px; }
+  :root .users-table .users-expiry-column { width: 102px; }
+  :root .users-table .users-actions-column { width: 92px; }
+
+  :root .users-identity-copy {
+    max-width: 100%;
+  }
+
+  :root .users-toolbar .users-filter-composite {
+    flex-wrap: nowrap;
+    gap: 10px;
+  }
+
+  :root .users-toolbar .users-filter-composite > :first-child {
+    flex: 1 1 210px;
+    min-inline-size: 180px;
+    max-width: 260px;
+  }
+
+  :root .users-toolbar .filter-chips-bar {
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  :root .users-toolbar .filter-chip {
+    padding-inline: 9px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 1340px) and (min-width: 1101px) {
+  :root .users-toolbar .users-filter-composite {
+    flex-wrap: wrap;
+  }
+
+  :root .users-toolbar .users-filter-composite > :first-child {
+    max-width: 320px;
+  }
+}
+
+/* 4. Audit Center: balanced Subscription KPI grid, zero-hole 7-item filter grid,
+      readable Traffic mini cards, and balanced Event table columns */
+:root .audit-stats-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
+  gap: 10px !important;
+}
+
+:root .audit-stat-card {
+  padding: 10px 12px !important;
+}
+
+:root .audit-stat-card .text-muted {
+  font-size: 11px !important;
+  line-height: 1.35 !important;
+  text-wrap: balance;
+}
+
+@media (min-width: 961px) {
+  :root .audit-filter-grid--subscriptions {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  /* 7 fields in a 4-column grid: span email search across 2 tracks -> clean 4 + 4 rows */
+  :root .audit-filter-grid--subscriptions > input[name="auditCenterFiltersUserEmailFilter"] {
+    grid-column: span 2;
+  }
+}
+
+@media (min-width: 1025px) {
+  :root .audit-traffic-overview-body {
+    grid-template-columns: minmax(270px, 0.94fr) minmax(420px, 1.2fr);
+  }
+
+  :root .audit-traffic-mini-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  :root .audit-traffic-mini-card {
+    padding: 12px 10px !important;
+    min-inline-size: 0;
+  }
+
+  :root .audit-traffic-mini-label {
+    white-space: nowrap;
+    font-size: 11.5px;
+  }
+
+  :root .audit-traffic-mini-note {
+    font-size: 11px;
+    line-height: 1.35;
+    text-wrap: balance;
+  }
+}
+
+@media (min-width: 1101px) {
+  :root .audit-events-table {
+    table-layout: fixed;
+    width: 100%;
+  }
+
+  :root .audit-events-table .audit-event-time-column { width: 142px; }
+  :root .audit-events-table .audit-event-result-column { width: 70px; }
+  :root .audit-events-table .audit-event-node-column,
+  :root .audit-events-table .audit-event-node-cell {
+    width: 156px;
+    min-width: 156px;
+    max-width: 156px;
+  }
+  :root .audit-events-table .audit-event-action-column { width: 80px; }
+  :root .audit-events-table thead th:nth-child(2) { width: 148px; }
+  :root .audit-events-table thead th:nth-child(4) { width: 122px; }
+  :root .audit-events-table thead th:nth-child(6) { width: auto; }
+}
+
+/* 5. Downloads Center: clean spacing and crisp two-column profile rule alignment */
+:root .subscription-device-card:not(.subscription-device-card--compact) .subscription-device-card-head {
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+:root .subscription-device-rule {
+  align-items: center;
+  padding-block: 4px;
+  line-height: 1.4;
+}
+
+:root .subscription-device-rule-tools {
+  font-size: 12.5px;
+  text-wrap: balance;
+}
+
+:root .subscription-device-rule-profile {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--surface-panel-soft, rgba(148, 163, 184, 0.1));
+}
+
+/* 6. System Settings (Data & Backup): keep section header action right-aligned */
+:root .settings-db-panel .section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  gap: 12px;
+}
+
+:root .settings-db-panel .section-header-copy {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+:root .settings-db-panel .section-header-side,
+:root .settings-db-panel .section-header-actions {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* 7. Inbounds Mobile Card Layout (<= 768px): left-align all labels, keep node pill
+      single-line beside reorder controls, and give action buttons clean right breathing room */
+@media (max-width: 768px) {
+  :root .inbounds-page .inbounds-table .inbounds-status-cell-wrap,
+  :root .inbounds-page .inbounds-table .inbounds-actions-cell {
+    text-align: left !important;
+    justify-content: space-between !important;
+    padding-inline: 2px !important;
+  }
+
+  :root .inbounds-page .inbounds-table .inbounds-status-cell-wrap::before,
+  :root .inbounds-page .inbounds-table .inbounds-actions-cell::before {
+    text-align: left !important;
+    margin-right: auto !important;
+  }
+
+  :root .inbounds-page .inbounds-table .inbounds-status-cell {
+    justify-content: flex-end !important;
+    flex-wrap: wrap !important;
+  }
+
+  :root .inbounds-page .inbounds-table .inbounds-node-cell-inner {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+    min-inline-size: 0;
+    max-width: 100%;
+  }
+
+  :root .inbounds-page .inbounds-table .inbounds-node-badge {
+    align-items: center !important;
+    max-width: 170px !important;
+    white-space: nowrap !important;
+  }
+
+  :root .inbounds-page .inbounds-table .inbounds-node-name {
+    display: block !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    -webkit-line-clamp: unset !important;
+  }
+
+  :root .inbounds-page .inbounds-table .inbounds-row-actions {
+    gap: 8px !important;
+    padding-right: 2px !important;
   }
 }

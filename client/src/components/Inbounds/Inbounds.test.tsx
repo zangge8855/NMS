@@ -908,4 +908,89 @@ describe('Inbounds', () => {
         });
         expect(screen.queryByText('NMS')).not.toBeInTheDocument();
     });
+
+    it('toggles single-row and batch user visibility via /system/inbounds/visibility and displays the hidden badge', async () => {
+        const user = userEvent.setup();
+        api.put.mockImplementation((url, body: any) => {
+            if (url === '/system/inbounds/visibility') {
+                if (Array.isArray(body?.targets)) {
+                    return Promise.resolve({
+                        data: {
+                            success: true,
+                            obj: {
+                                hidden: body.hidden,
+                                updated: body.targets.map((target: any) => ({
+                                    serverId: target.serverId,
+                                    inboundId: String(target.inboundId),
+                                    hidden: body.hidden,
+                                })),
+                            },
+                        },
+                    });
+                }
+                return Promise.resolve({
+                    data: {
+                        success: true,
+                        obj: {
+                            serverId: body.serverId,
+                            inboundId: String(body.inboundId),
+                            hidden: body.hidden,
+                        },
+                    },
+                });
+            }
+            throw new Error(`Unexpected PUT ${url}`);
+        });
+
+        renderInbounds();
+
+        const mainRow = (await screen.findByText('Main Inbound')).closest('tr');
+        expect(mainRow).toBeTruthy();
+        expect(within(mainRow!).queryByText('对用户隐藏')).not.toBeInTheDocument();
+
+        // Hide single inbound from users via row actions dropdown
+        await user.click(within(mainRow!).getByRole('button', { name: '操作菜单' }));
+        await user.click(await screen.findByRole('menuitem', { name: '对用户隐藏' }));
+
+        await waitFor(() => {
+            expect(api.put).toHaveBeenCalledWith('/system/inbounds/visibility', {
+                serverId: 'server-a',
+                inboundId: 1,
+                hidden: true,
+            });
+        });
+        expect(await within(mainRow!).findByText('对用户隐藏')).toBeInTheDocument();
+
+        // Batch hide all rows on the page
+        await user.click(screen.getByRole('checkbox', { name: '选择全部网关规则' }));
+        await user.click(screen.getByRole('button', { name: '隐藏选中' }));
+
+        await waitFor(() => {
+            expect(api.put).toHaveBeenCalledWith('/system/inbounds/visibility', {
+                targets: [
+                    { serverId: 'server-a', inboundId: 1 },
+                    { serverId: 'server-a', inboundId: 2 },
+                ],
+                hidden: true,
+            });
+        });
+        expect(await screen.findAllByText('对用户隐藏')).toHaveLength(2);
+
+        // Select all again -> button flips to 显示选中 and restores visibility
+        await user.click(screen.getByRole('checkbox', { name: '选择全部网关规则' }));
+        await user.click(screen.getByRole('button', { name: '显示选中' }));
+
+        await waitFor(() => {
+            expect(api.put).toHaveBeenCalledWith('/system/inbounds/visibility', {
+                targets: [
+                    { serverId: 'server-a', inboundId: 1 },
+                    { serverId: 'server-a', inboundId: 2 },
+                ],
+                hidden: false,
+            });
+        });
+        await waitFor(() => {
+            expect(screen.queryByText('对用户隐藏')).not.toBeInTheDocument();
+        });
+    });
 });
