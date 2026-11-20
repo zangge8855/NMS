@@ -210,6 +210,7 @@ textarea {
 }
 
 .sidebar {
+  flex-shrink: 0;
   width: var(--sidebar-width);
   background: var(--surface-panel);
   border-right: 1px solid var(--border-color);
@@ -1082,7 +1083,7 @@ select {
   background: var(--surface-soft);
   border: 1px solid var(--border-color);
   border-radius: 6px;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .node-health-summary-item strong {
@@ -1337,6 +1338,16 @@ select {
   box-shadow: -6px 0 10px -12px rgba(13, 27, 47, 0.1);
 }
 
+/* A sticky cell's background paints over collapsed table borders, so the
+   row separator would stop short of the action column; redraw it here. */
+.servers-table tbody tr:not(:last-child) .servers-actions-cell {
+  box-shadow: inset 0 -1px 0 var(--stroke-soft), -6px 0 10px -12px rgba(0, 0, 0, 0.18);
+}
+
+[data-theme="light"] .servers-table tbody tr:not(:last-child) .servers-actions-cell {
+  box-shadow: inset 0 -1px 0 var(--stroke-soft), -6px 0 10px -12px rgba(13, 27, 47, 0.1);
+}
+
 .servers-table .servers-row-actions {
   display: flex;
   flex-wrap: nowrap;
@@ -1582,8 +1593,8 @@ select {
     content: attr(data-label) !important;
     flex: 0 0 auto !important;
     color: var(--text-muted) !important;
-    font-size: 10px !important;
-    font-weight: 650 !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
     line-height: 1.35 !important;
   }
 
@@ -1632,24 +1643,32 @@ select {
     grid-area: traffic !important;
   }
 
-  .inbounds-page .inbounds-table .inbounds-protocol-cell,
-  .inbounds-page .inbounds-table .inbounds-port-cell,
-  .inbounds-page .inbounds-table .inbounds-users-cell,
-  .inbounds-page .inbounds-table .inbounds-traffic-cell {
+  /* Metric cells read as a definition grid: muted label above a left-aligned
+     value. The :is() keeps this above the `tr.inbounds-row > td` reset. */
+  .inbounds-page .inbounds-table tr.inbounds-row > :is(.inbounds-protocol-cell, .inbounds-port-cell, .inbounds-users-cell, .inbounds-traffic-cell) {
     display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    gap: 8px !important;
-    flex-wrap: wrap !important;
-    padding: 7px 10px !important;
-    border-radius: 8px !important;
-    border: 1px solid var(--stroke-soft) !important;
-    background: color-mix(in srgb, var(--surface-soft) 65%, transparent) !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+    gap: 4px !important;
     text-align: left !important;
   }
 
+  .inbounds-page .inbounds-table tr.inbounds-row > .inbounds-protocol-cell > .badge {
+    margin-inline: 0;
+  }
+
+  /* The 116px node-badge cap is sized for the desktop column; cards have room. */
+  .inbounds-page .inbounds-table tr.inbounds-row .inbounds-node-badge {
+    max-width: 100%;
+  }
+
+  .inbounds-page .inbounds-table tr.inbounds-row > .inbounds-remark-cell::before {
+    margin-right: 8px;
+  }
+
   .inbounds-page .inbounds-table tr.inbounds-row .inbounds-traffic-stack {
-    align-items: flex-end !important;
+    align-items: flex-start !important;
     font-variant-numeric: proportional-nums;
   }
 
@@ -2221,7 +2240,8 @@ select {
 .account-shell,
 .downloads-center {
   width: min(100%, 980px);
-  margin-inline: auto;
+  /* Start-aligned so the content shares the page title's left edge. */
+  margin-inline: 0 auto;
 }
 
 .subscription-user-hero-strip {

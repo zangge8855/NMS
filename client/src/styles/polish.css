@@ -828,7 +828,8 @@ body {
 :root .servers-telemetry-cell {
   display: grid;
   gap: 6px;
-  min-width: 170px;
+  /* Matches the 130px sparkline; wider only steals room from the name column. */
+  min-width: 130px;
   max-width: 220px;
 }
 
@@ -2422,11 +2423,11 @@ body {
   }
 
   :root .servers-table .servers-name-column {
-    min-width: 152px;
+    min-width: 196px;
   }
 
   :root .servers-table .servers-telemetry-column {
-    min-width: 162px;
+    min-width: 150px;
   }
 
   :root .servers-table .servers-group-column {
@@ -2602,12 +2603,18 @@ body {
 }
 
 /* Unified segmented tab track & active pill elevation across workspaces */
-:root :is(.tabs, .audit-tabs, .users-tabs, .xray-tabs, .user-detail-tabs .tabs, .settings-nav-list--workspace) {
+:root :is(.tabs, .audit-tabs, .users-tabs, .xray-tabs, .user-detail-tabs .tabs) {
   gap: 4px;
   padding: 4px;
   border-radius: 10px;
   border: 1px solid var(--border-color);
   background: var(--surface-panel);
+}
+
+/* The settings track already lives inside its own `.card.settings-nav`
+   surface, so it only needs spacing, not a second border. */
+:root .settings-nav-list--workspace {
+  gap: 4px;
 }
 
 :root :is(.tabs, .audit-tabs, .users-tabs, .xray-tabs, .user-detail-tabs .tabs) {

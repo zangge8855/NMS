@@ -6761,10 +6761,6 @@ body::before {
   justify-content: end;
   width: auto;
   margin-left: auto;
-  padding: 4px;
-  border-radius: 14px;
-  border: 1px solid var(--stroke-soft);
-  background: color-mix(in srgb, var(--surface-soft) 92%, transparent 8%);
 }
 
 .inbounds-row-actions .btn {
@@ -7828,10 +7824,6 @@ body::before {
   width: fit-content;
   max-width: 170px;
   margin-left: auto;
-  padding: 4px;
-  border-radius: 16px;
-  border: 1px solid var(--stroke-soft);
-  background: color-mix(in srgb, var(--surface-soft) 94%, transparent 6%);
 }
 
 .users-row-actions .btn {
@@ -16505,7 +16497,9 @@ input[type="radio"]:focus-visible {
   box-shadow: none !important;
 }
 
-[data-theme="light"] .form-input,
+/* Autofilled fields are excluded so the inset-fill autofill treatment in
+   styles/identity.css can paint over Chrome's blue autofill background. */
+[data-theme="light"] .form-input:not(:-webkit-autofill),
 [data-theme="light"] .form-select,
 [data-theme="light"] .form-textarea {
   background: rgba(255, 255, 255, 0.98) !important;

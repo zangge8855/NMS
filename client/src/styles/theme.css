@@ -370,9 +370,8 @@ body {
 }
 
 /* --------------------------------------------------------------------------
-   Node health: state lives in a slim rail on the leading edge (::after,
-   since a legacy layer pins ::before to display:none), not in a
-   tinted border round the whole card.
+   Node health: healthy tiles stay neutral. Tiles that need a look get a
+   faint tint in their own border; the status icon and pill carry the rest.
    -------------------------------------------------------------------------- */
 :root .node-health-tile {
   border-color: var(--border-color);
@@ -380,21 +379,27 @@ body {
   box-shadow: var(--shadow-card);
 }
 
-:root .node-health-tile::after {
-  content: "";
-  display: block;
-  position: absolute;
-  inset: 12px auto 12px 0;
-  width: 3px;
-  border-radius: 0 3px 3px 0;
-  background: var(--node-color, var(--text-muted));
-  opacity: 0.9;
-}
-
-/* Healthy tiles carry no edge: colour is kept for nodes that need a look. */
-:root .node-health-tile:not([data-tone="warning"], [data-tone="danger"])::after { display: none; }
 :root .node-health-tile[data-tone="warning"] { --node-color: var(--accent-warning); }
 :root .node-health-tile[data-tone="danger"] { --node-color: var(--accent-danger); }
+:root .node-health-tile:is([data-tone="warning"], [data-tone="danger"]) {
+  border-color: color-mix(in srgb, var(--node-color) 32%, var(--border-color));
+}
+
+:root .node-health-tile-message {
+  margin-top: 4px;
+  gap: 6px;
+  font-size: 12px;
+}
+
+:root .node-health-tile-message strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+:root .node-health-tile-message span {
+  font-size: 12px;
+  white-space: normal;
+}
 
 :root .node-health-tile:hover,
 :root .node-health-tile:focus-visible {

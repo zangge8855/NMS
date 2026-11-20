@@ -1255,10 +1255,8 @@ main .servers-table .servers-actions-cell,
 main .servers-table thead .servers-actions-column {
   background: var(--surface-panel) !important;
   border-left-color: var(--border-color) !important;
-  box-shadow: -14px 0 22px -22px color-mix(in srgb, var(--text-primary) 45%, transparent) !important;
 }
 
-main .inbounds-row-actions,
 main .inbounds-clients-cell,
 main .inbounds-clients-panel,
 main .inbounds-saving-note,

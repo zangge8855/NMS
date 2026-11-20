@@ -2328,8 +2328,8 @@
    group columns so the table fits instead of sliding the status column under the sticky actions */
 @media (min-width: 1321px) and (max-width: 1520px) {
     :root .servers-page .servers-table .servers-telemetry-column {
-        min-width: 172px;
-        width: 172px;
+        min-width: 150px;
+        width: 150px;
     }
 
     :root .servers-page .servers-table .servers-group-column {
