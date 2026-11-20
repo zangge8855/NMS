@@ -4,7 +4,7 @@ import ModalShell from './ModalShell';
 import Table from './Table';
 import { useI18n } from '../../contexts/LanguageContext';
 import { formatDateTime } from '../../utils/format';
-import { resolveAccessGeoDisplay } from '../../utils/accessGeo';
+import { GEO_PLACEHOLDER, resolveAccessGeoDisplay } from '../../utils/accessGeo';
 
 export interface ClientIpItem {
     ip: string;
@@ -151,7 +151,7 @@ export default function ClientIpModal({
                                 <tr key={item.ip}>
                                     <td data-label={copy.ip} className="font-mono client-ip-address-cell">{item.ip}</td>
                                     <td data-label={copy.location} className="text-xs client-ip-location-cell">
-                                        <div>{geo.location && geo.location !== '-' ? geo.location : copy.unresolved}</div>
+                                        <div>{geo.location && geo.location !== GEO_PLACEHOLDER ? geo.location : copy.unresolved}</div>
                                         {geo.carrier ? <div className="text-muted">{geo.carrier}</div> : null}
                                     </td>
                                     <td data-label={copy.count} className="table-cell-center client-ip-count-cell">{item.count > 0 ? item.count : '—'}</td>

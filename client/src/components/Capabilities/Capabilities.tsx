@@ -81,6 +81,8 @@ function getCapabilitiesCopy(locale = 'zh-CN') {
             toolbarSummary: (protocolCount: number, toolCount: number) => `Protocols ${protocolCount} · Tools ${toolCount}`,
             selectServerTitle: 'Select a server first',
             selectServerSubtitle: 'Pick a node below to see the protocols and features it supports.',
+            confirmServerTitle: 'Confirm target node',
+            confirmServerHint: 'A node is preselected. Open it to load its protocols and features.',
             goToServers: 'Open Servers',
             loadingTitle: 'Loading...',
             noDataTitle: 'No capability data yet',
@@ -152,6 +154,8 @@ function getCapabilitiesCopy(locale = 'zh-CN') {
         toolbarSummary: (protocolCount: number, toolCount: number) => `协议 ${protocolCount} · 工具 ${toolCount}`,
         selectServerTitle: '请先选择一台服务器',
         selectServerSubtitle: '在下方选择节点，查看它支持的协议与功能。',
+        confirmServerTitle: '确认目标节点',
+        confirmServerHint: '已预选节点，点击打开节点后加载协议与功能。',
         goToServers: '前往服务器管理',
         loadingTitle: '加载中...',
         noDataTitle: '暂无能力数据',
@@ -550,8 +554,8 @@ export default function Capabilities({ serverId = '', embedded = false }: Capabi
     if (!hasTargetServer) {
         return renderFrame(
             <EmptyState
-                title={copy.selectServerTitle}
-                subtitle={copy.selectServerSubtitle}
+                title={hasDraftServer ? copy.confirmServerTitle : copy.selectServerTitle}
+                subtitle={hasDraftServer ? copy.confirmServerHint : copy.selectServerSubtitle}
                 icon={<HiOutlineCircleStack className="empty-state-svg" />}
                 surface
                 action={!embedded ? (

@@ -2780,6 +2780,7 @@ export default function UsersHub() {
                                     <div className="password-field">
                                         <input id="users-hub-create-modal-initial-password" name="usersHubCreateModalInitialPassword"
                                             type={showCreatePassword ? 'text' : 'password'}
+                                            autoComplete="new-password"
                                             className="form-input font-mono"
                                             value={createPassword}
                                             onChange={(e) => setCreatePassword(e.target.value)}
@@ -2947,6 +2948,7 @@ export default function UsersHub() {
                                     <div className="flex gap-2">
                                         <input id="users-hub-users-edit-password" name="usersHubUsersEditPassword"
                                             type={showEditPassword ? 'text' : 'password'}
+                                            autoComplete="new-password"
                                             className="form-input font-mono"
                                             value={editPassword}
                                             onChange={(e) => setEditPassword(e.target.value)}

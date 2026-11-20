@@ -103,7 +103,7 @@ export default function ClientGeoDistributionCard({ items = [], locale = 'zh-CN'
                         </p>
                     </div>
                 </div>
-                <span className="badge badge-primary text-xs font-mono px-2.5 py-1">
+                <span className="badge badge-primary text-xs px-2.5 py-1">
                     {ipCount} {isEn ? 'Active IPs' : '个活跃 IP'}
                 </span>
             </div>

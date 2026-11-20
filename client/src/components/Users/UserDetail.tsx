@@ -13,7 +13,7 @@ import BatchResultModal from '../Batch/BatchResultModal';
 import useAnimatedCounter from '../../hooks/useAnimatedCounter';
 import { formatBytes, formatDateOnly, formatDateTime, getErrorMessage } from '../../utils/format';
 import { attachBatchRiskToken } from '../../utils/riskConfirm';
-import { type AccessGeoDisplay, resolveAccessGeoDisplay } from '../../utils/accessGeo';
+import { type AccessGeoDisplay, GEO_PLACEHOLDER, resolveAccessGeoDisplay } from '../../utils/accessGeo';
 import { mergeInboundClientStats, resolveClientUsed } from '../../utils/inboundClients';
 import { buildOnlineMatchMap, countClientOnlineSessions } from '../../utils/clientPresence';
 import { isUnsupportedPanelClientIpsError, normalizePanelClientIps } from '../../utils/panelClientIps';
@@ -547,7 +547,7 @@ function formatSummaryText(item, copy, locale = 'zh-CN') {
         if (item.reason) parts.push(item.reason);
         if (item.mode) parts.push(`${copy.labels.mode} ${item.mode}`);
         if (item.format) parts.push(`${copy.labels.format} ${item.format}`);
-        if (geoDisplay.location && geoDisplay.location !== '-') parts.push(`${copy.labels.location} ${geoDisplay.location}`);
+        if (geoDisplay.location && geoDisplay.location !== GEO_PLACEHOLDER) parts.push(`${copy.labels.location} ${geoDisplay.location}`);
         if (geoDisplay.carrier) parts.push(`${copy.labels.carrier} ${geoDisplay.carrier}`);
         return parts.join(' · ');
     }
@@ -576,7 +576,7 @@ function buildTimelineFacts(item, copy, locale = 'zh-CN') {
     const resource = [item.resourceType, item.resourceId].filter(Boolean).join(' / ');
 
     facts.push({ label: copy.labels.ip, value: formatTimelineIp(item, copy) });
-    if (geoDisplay.location && geoDisplay.location !== '-') {
+    if (geoDisplay.location && geoDisplay.location !== GEO_PLACEHOLDER) {
         facts.push({ label: copy.labels.location, value: geoDisplay.location });
     }
     if (geoDisplay.carrier) {

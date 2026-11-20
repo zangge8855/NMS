@@ -381,6 +381,17 @@ export default function AccountCenter() {
                                 handleChangePassword();
                             }}
                         >
+                            {/* Lets password managers attach the new password to the right account. */}
+                            <input
+                                type="text"
+                                name="username"
+                                autoComplete="username"
+                                value={loginUsername}
+                                readOnly
+                                hidden
+                                aria-hidden="true"
+                                tabIndex={-1}
+                            />
                             <div className="form-group mb-0">
                                 <label className="form-label" htmlFor="account-current-password">{copy.currentPassword}</label>
                                 <div className="input-icon-wrapper">

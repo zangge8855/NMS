@@ -391,6 +391,10 @@ export default function ServerDetail() {
     }, [auditEvents, inbounds, lastOnline, onlines, server, serverId, status, statusMeta]);
 
     const isSui = isSuiServer(server);
+    // An unreachable node reports a zeroed status; show "—" rather than a measured 0%.
+    const cpuLabel = statusMeta?.online !== false && Number.isFinite(status?.cpu)
+        ? `${status.cpu.toFixed(1)}%`
+        : '—';
     const tabs = useMemo(() => SERVER_DETAIL_TABS
         .filter((tab) => (isAdmin || !tab.adminOnly) && (!isSui || !tab.xuiOnly))
         .map((tab) => ({
@@ -684,7 +688,7 @@ export default function ServerDetail() {
                             <div className="user-profile-meta">
                                 {status && (
                                     <>
-                                        <div className="user-profile-meta-item"><HiOutlineCpuChip /> {t('pages.serverDetail.xrayLabels.cpu')} {Number.isFinite(status?.cpu) ? `${status.cpu.toFixed(1)}%` : '—'}</div>
+                                        <div className="user-profile-meta-item"><HiOutlineCpuChip /> {t('pages.serverDetail.xrayLabels.cpu')} {cpuLabel}</div>
                                         <div className="user-profile-meta-item"><HiOutlineCircleStack /> {t('pages.serverDetail.xrayLabels.memory')} {status.mem && Number(status.mem.total) > 0 ? `${((Number(status.mem.current || 0) / Number(status.mem.total)) * 100).toFixed(1)}%` : '—'}</div>
                                         <div className="user-profile-meta-item"><HiOutlineClock /> {t('pages.serverDetail.xrayLabels.uptime')} {status.uptime ? formatUptime(status.uptime, locale) : '—'}</div>
                                     </>
@@ -764,7 +768,7 @@ export default function ServerDetail() {
                                         <dl className="server-detail-kv">
                                             <div><dt>{kvLabel(isSui ? 'pages.serverDetail.panelVersion' : 'pages.serverDetail.xrayLabels.version')}</dt><dd>{status.xray?.version || '—'}</dd></div>
                                             <div><dt>{kvLabel('pages.serverDetail.xrayLabels.uptime')}</dt><dd>{status.uptime ? formatUptime(status.uptime, locale) : '—'}</dd></div>
-                                            <div><dt>{kvLabel('pages.serverDetail.xrayLabels.cpu')}</dt><dd>{Number.isFinite(status?.cpu) ? `${status.cpu.toFixed(1)}%` : '—'}</dd></div>
+                                            <div><dt>{kvLabel('pages.serverDetail.xrayLabels.cpu')}</dt><dd>{cpuLabel}</dd></div>
                                             <div><dt>{kvLabel('pages.serverDetail.xrayLabels.memory')}</dt><dd>{status.mem && Number(status.mem.total) > 0 ? `${formatBytes(status.mem.current)} / ${formatBytes(status.mem.total)}` : '—'}</dd></div>
                                             <div><dt>{kvLabel('pages.serverDetail.xrayLabels.disk')}</dt><dd>{status.disk && Number(status.disk.total) > 0 ? `${formatBytes(status.disk.current)} / ${formatBytes(status.disk.total)}` : '—'}</dd></div>
                                             <div><dt>{kvLabel('pages.serverDetail.xrayLabels.tcpCount')}</dt><dd>{status.tcpCount || '—'}</dd></div>

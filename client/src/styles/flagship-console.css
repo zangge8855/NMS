@@ -1714,7 +1714,7 @@ main .servers-mobile-tags .badge-info {
 .settings-status-grid .settings-kpi-card-title {
   grid-area: label;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0;
   text-transform: none;
@@ -3744,7 +3744,7 @@ input:focus {
 }
 
 .audit-stat-card .card-title {
-  font-size: 10.5px !important;
+  font-size: 12px !important;
   font-weight: 500 !important;
   color: var(--text-muted) !important;
   letter-spacing: 0 !important;

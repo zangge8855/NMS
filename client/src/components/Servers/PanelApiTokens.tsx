@@ -186,7 +186,7 @@ export default function PanelApiTokens({ serverId, isSui }: PanelApiTokensProps)
                 subtitle={t('pages.serverDetail.apiTokensSubtitle')}
                 actions={(
                     <button type="button" className="btn btn-secondary btn-sm" onClick={() => load()} disabled={loading}>
-                        <HiOutlineArrowPath /> {t('pages.serverDetail.empty.refreshAction')}
+                        <HiOutlineArrowPath /> {t('pages.serverDetail.refresh')}
                     </button>
                 )}
             />

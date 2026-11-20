@@ -664,6 +664,17 @@
   flex: 0 0 auto;
 }
 
+/* Match the 36px input beside it (.btn-sm pins 28px with !important). */
+:root .settings-inline-action-row > .btn {
+  height: 36px !important;
+  min-height: 36px !important;
+}
+
+/* The card body is a flex column with its own gap; drop the stacked form-group margin. */
+.settings-db-card-body > .form-group {
+  margin-bottom: 0;
+}
+
 /* Entry and subscription */
 .settings-access-grid {
   display: grid;
@@ -2237,6 +2248,58 @@
   overflow-wrap: anywhere;
 }
 
+/* A control head with nothing below it needs no divider. */
+:root .audit-control-card > .audit-control-head:only-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+/* Traffic toolbar: one bottom-aligned row (it was plain block flow, so controls sat on text baselines). */
+:root .audit-traffic-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+}
+
+:root .audit-traffic-window-tabs {
+  margin-bottom: 0;
+}
+
+/* Custom range: from - to on one line (previously unstyled, so it stacked). */
+:root .audit-traffic-custom-range {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+:root .audit-traffic-custom-range input.form-input {
+  width: 150px;
+  height: 36px !important;
+  min-height: 36px !important;
+  padding-block: 6px;
+}
+
+:root .audit-traffic-custom-range-separator {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  color: var(--text-muted);
+}
+
+/* Traffic toolbar: sample pill, granularity select and button share one height. */
+:root .audit-traffic-toolbar-actions > .audit-traffic-sample-pill {
+  min-height: 36px;
+  height: 36px;
+}
+
+:root .audit-traffic-toolbar-actions > .btn {
+  height: 36px !important;
+  min-height: 36px !important;
+}
+
 /* Audit events: node column now shows names, not UUIDs */
 :root .audit-event-node-cell {
   min-width: 150px;
@@ -2447,5 +2510,175 @@
     :root .client-ip-last-seen-column,
     :root .client-ip-last-seen-cell {
         width: auto;
+    }
+}
+
+/* polish.css boxes the subscription card at every width, but an older phone rule still
+   zeroed its padding, so the heading, format tabs and copy panel ran into the border. */
+@media (max-width: 768px) {
+    :root .subscriptions-page .subscription-primary-card:not(.subscription-primary-card--user) {
+        padding: 16px;
+    }
+}
+
+/* Stacked audit control heads stretch their children. restrained-ui's unscoped
+   `align-items: center` loads later and re-centred the title between 769 and 980px. */
+@media (max-width: 980px) {
+    :root .audit-control-head {
+        align-items: stretch;
+    }
+
+    /* Once stacked under the title, the traffic controls start from the left edge too. */
+    :root .audit-traffic-toolbar-actions {
+        justify-content: flex-start;
+    }
+}
+
+/* Inbound cards size their own labels; the generic card label reserved min(35%, 100px)
+   plus a 12px margin, which squeezed the node chip down to "Revie…". */
+@media (max-width: 1100px) {
+    :root .inbounds-page .inbounds-table tr.inbounds-row > td::before {
+        width: auto;
+        max-width: none;
+        margin-right: 0;
+    }
+
+    /* The remark cell is block flow (no flex gap), so its inline label keeps a margin. */
+    :root .inbounds-page .inbounds-table tr.inbounds-row > td.inbounds-remark-cell::before {
+        margin-right: 8px;
+    }
+
+    /* Chip and sort arrows share one line in every card width (the base rule stacks them
+       for the desktop column; only phones had the row layout, so tablets wrapped). */
+    :root .inbounds-page .inbounds-table .inbounds-node-cell-inner {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        flex-wrap: nowrap;
+        gap: 6px;
+    }
+
+    /* The sort arrows sit beside the chip here; width: 100% claimed half the row. */
+    :root .inbounds-page .inbounds-table .inbounds-node-order-actions {
+        flex: 0 0 auto;
+        width: auto;
+    }
+}
+
+/* Audit cards (phone/tablet lists): fields read as a quiet label/value grid under a
+   hairline instead of a stack of nested bordered boxes. */
+:root .audit-mobile-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-subtle);
+}
+
+:root .audit-mobile-card-item {
+    gap: 3px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+}
+
+@media (max-width: 768px) {
+    /* Keep the status badge beside the title; stretched, it became a full-width grey bar. */
+    :root .audit-mobile-card-head {
+        flex-direction: row;
+        align-items: flex-start;
+    }
+
+    :root .audit-mobile-card-head > .badge {
+        flex: 0 0 auto;
+    }
+}
+
+/* Traffic leaderboards on phones: a ranked row instead of the generic label/value card.
+   [rank] name
+          sparkline ............ 276 MB */
+@media (max-width: 768px) {
+    /* The rows are cards already; drop the bordered box and its inner scroll around them. */
+    :root .audit-leaderboard-card .audit-scrollable {
+        max-height: none;
+        overflow-y: visible;
+        border: 0;
+        border-radius: 0;
+        background: none;
+    }
+
+    :root .audit-leaderboard-table tbody tr:last-child {
+        margin-bottom: 0;
+    }
+
+    :root .audit-leaderboard-table tbody tr {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas:
+            "label label"
+            "trend traffic";
+        align-items: center;
+        gap: 6px 12px;
+        padding: 12px 14px;
+    }
+
+    /* tr > td outranks identity.css `:root .table tbody td` (11px 16px + divider). */
+    :root .audit-leaderboard-table tbody tr > td {
+        width: auto;
+        height: auto;
+        min-height: 0;
+        margin: 0;
+        padding: 0;
+        border: 0;
+    }
+
+    :root .audit-leaderboard-table tbody tr > td::before {
+        display: none;
+    }
+
+    :root .audit-leaderboard-table .audit-leaderboard-label-cell {
+        grid-area: label;
+        overflow-wrap: anywhere;
+    }
+
+    /* Indent past the 24px rank badge and its 10px gap so the sparkline sits under the name. */
+    :root .audit-leaderboard-table .audit-leaderboard-trend-cell {
+        grid-area: trend;
+        padding-left: 34px;
+    }
+
+    :root .audit-leaderboard-table .audit-leaderboard-trend-cell .mini-sparkline {
+        width: 132px;
+        height: 28px;
+    }
+
+    :root .audit-leaderboard-table .audit-leaderboard-traffic-cell {
+        grid-area: traffic;
+        justify-content: flex-end;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+}
+
+/* Inbound modal header on phones: title and close share the first row, the expert-mode
+   toggle drops to its own row, instead of the title breaking into "批量添 / 加入站". */
+@media (max-width: 560px) {
+    :root .inbound-modal-header {
+        flex-wrap: wrap;
+        row-gap: 10px;
+    }
+
+    :root .inbound-modal-header > .modal-title {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+
+    :root .inbound-modal-header-actions {
+        display: contents;
+    }
+
+    :root .inbound-modal-expert-toggle {
+        order: 2;
+        flex-basis: 100%;
     }
 }

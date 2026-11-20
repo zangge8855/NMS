@@ -2009,6 +2009,8 @@ body {
 
 :root .table thead th {
   border-bottom: 1px solid var(--border-color);
+  /* Same inline padding as the cells, so headers line up with their column values. */
+  padding-inline: 16px;
 }
 
 :root .table tbody td {
@@ -2310,8 +2312,8 @@ body {
     min-width: 0;
   }
 
-  :root .inbounds-table th,
-  :root .inbounds-table td {
+  /* :is(thead th, tbody td) outranks the generic `:root .table` paddings, so header and cell agree. */
+  :root .inbounds-table :is(thead th, tbody td) {
     padding-inline: 6px;
   }
 
@@ -2331,6 +2333,11 @@ body {
   :root .inbounds-table .inbounds-sequence-col.is-compact {
     width: 42px;
     min-width: 42px;
+  }
+
+  /* Checkbox and sequence cells are centered; center their headers to match. */
+  :root .inbounds-table thead :is(th.cell-checkbox, th.inbounds-sequence-col) {
+    text-align: center;
   }
 
   :root .inbounds-table .inbounds-node-col {
@@ -2378,6 +2385,18 @@ body {
     width: 80px;
     min-width: 80px;
     padding-inline: 4px 8px !important;
+  }
+
+  /* Edit and "more" share one size so the pair fits the 80px column. */
+  :root .inbounds-table .inbounds-row-actions {
+    grid-auto-columns: 30px;
+    gap: 6px;
+  }
+
+  :root .inbounds-table .inbounds-row-actions :is(.btn, .actions-dropdown-trigger) {
+    flex: 0 0 30px;
+    width: 30px !important;
+    min-width: 30px !important;
   }
 
   :root .inbounds-table .inbounds-node-badge {
@@ -2535,12 +2554,16 @@ body {
   }
 
   :root .audit-events-table .audit-event-time-column { width: 142px; }
-  :root .audit-events-table .audit-event-result-column { width: 70px; }
+  :root .audit-events-table .audit-event-result-column { width: 76px; }
+  /* The status badge needs ~46px; 16px cell padding left only 38px. */
+  :root .audit-events-table :is(.audit-event-result-column, .audit-event-result-cell) {
+    padding-inline: 8px;
+  }
   :root .audit-events-table .audit-event-node-column,
   :root .audit-events-table .audit-event-node-cell {
-    width: 156px;
-    min-width: 156px;
-    max-width: 156px;
+    width: 184px;
+    min-width: 184px;
+    max-width: 184px;
   }
   :root .audit-events-table .audit-event-action-column { width: 80px; }
   :root .audit-events-table thead th:nth-child(2) { width: 148px; }

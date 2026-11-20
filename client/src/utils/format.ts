@@ -85,7 +85,7 @@ export function formatUptime(seconds: number | string | null | undefined, locale
  */
 export function formatDate(dateStr: string | number | Date | null | undefined, locale: string = 'zh-CN'): string {
     const date = toValidDate(dateStr);
-    if (!date) return '-';
+    if (!date) return '—';
     return getDateTimeFormatter(locale, {
         year: 'numeric',
         month: '2-digit',
@@ -99,7 +99,7 @@ export function formatDateTime(
     options: Intl.DateTimeFormatOptions = {}
 ): string {
     const date = toValidDate(value);
-    if (!date) return '-';
+    if (!date) return '—';
     return getDateTimeFormatter(locale, {
         year: 'numeric',
         month: '2-digit',
@@ -117,7 +117,7 @@ export function formatDateOnly(
     options: Intl.DateTimeFormatOptions = {}
 ): string {
     const date = toValidDate(value);
-    if (!date) return '-';
+    if (!date) return '—';
     return getDateTimeFormatter(locale, {
         year: 'numeric',
         month: '2-digit',
@@ -132,7 +132,7 @@ export function formatTimeOnly(
     options: Intl.DateTimeFormatOptions = {}
 ): string {
     const date = toValidDate(value);
-    if (!date) return '-';
+    if (!date) return '—';
     return getDateTimeFormatter(locale, {
         hour: '2-digit',
         minute: '2-digit',

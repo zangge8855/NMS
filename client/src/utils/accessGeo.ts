@@ -47,6 +47,9 @@ export interface AccessGeoDisplay {
     carrier: string;
 }
 
+/** Location shown when neither a location nor a carrier is known; callers compare against it. */
+export const GEO_PLACEHOLDER = '—';
+
 export function resolveAccessGeoDisplay(
     item?: { ipLocation?: string; cfCountry?: string; ipCarrier?: string } | null,
     locale: string = 'zh-CN'
@@ -56,7 +59,7 @@ export function resolveAccessGeoDisplay(
     const carrier = normalizeCarrierLabel(item?.ipCarrier || '', locale);
 
     if (!rawLocation) {
-        return { location: carrier || '-', carrier: '' };
+        return { location: carrier || GEO_PLACEHOLDER, carrier: '' };
     }
 
     const country = resolveAccessCountry(item, locale);

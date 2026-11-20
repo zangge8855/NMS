@@ -66,13 +66,13 @@ function resolveLocale(locale: string = 'zh-CN'): 'en-US' | 'zh-CN' {
 export function formatTaskTypeLabel(type?: string | null, locale: string = 'zh-CN'): string {
     const normalizedLocale = resolveLocale(locale);
     const key = String(type || '').trim();
-    return TYPE_LABELS[normalizedLocale][key] || key || '-';
+    return TYPE_LABELS[normalizedLocale][key] || key || '—';
 }
 
 export function formatTaskActionLabel(action?: string | null, locale: string = 'zh-CN'): string {
     const normalizedLocale = resolveLocale(locale);
     const key = String(action || '').trim();
-    return ACTION_LABELS[normalizedLocale][key] || key || '-';
+    return ACTION_LABELS[normalizedLocale][key] || key || '—';
 }
 
 export function formatTaskActionPair(type?: string | null, action?: string | null, locale: string = 'zh-CN'): string {
@@ -82,5 +82,5 @@ export function formatTaskActionPair(type?: string | null, action?: string | nul
 export function formatRetryGroupLabel(mode?: string | null, locale: string = 'zh-CN'): string {
     const normalizedLocale = resolveLocale(locale);
     const key = String(mode || '').trim();
-    return RETRY_GROUP_LABELS[normalizedLocale][key] || key || '-';
+    return RETRY_GROUP_LABELS[normalizedLocale][key] || key || '—';
 }

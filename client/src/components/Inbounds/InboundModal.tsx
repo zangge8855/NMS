@@ -2194,10 +2194,10 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
     return (
         <ModalShell isOpen={isOpen} onClose={onClose}>
             <div className="modal modal-lg inbound-modal" onClick={e => e.stopPropagation()}>
-                <div className="modal-header">
+                <div className="modal-header inbound-modal-header">
                     <h3 className="modal-title">{editingInbound ? t('comp.inbounds.modalEditTitle') : t('comp.inbounds.modalBatchAddTitle')}</h3>
-                    <div className="flex items-center gap-4">
-                        <label className="flex items-center gap-2 cursor-pointer text-sm text-secondary">
+                    <div className="inbound-modal-header-actions flex items-center gap-4">
+                        <label className="inbound-modal-expert-toggle flex items-center gap-2 cursor-pointer text-sm text-secondary">
                             <input name="inboundModalField"
                                 type="checkbox"
                                 checked={isAdvanced}

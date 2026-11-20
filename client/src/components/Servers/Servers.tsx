@@ -1492,6 +1492,7 @@ export default function Servers() {
                                         <div className="form-group">
                                             <label htmlFor="servers-admin" className="form-label">{t('comp.servers.username')}</label>
                                             <input id="servers-admin" name="serversAdmin" className="form-input" placeholder="admin"
+                                                autoComplete="off"
                                                 value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
                                         </div>
                                         <div className="form-group">
@@ -1499,6 +1500,7 @@ export default function Servers() {
                                             <div className="input-icon-wrapper">
                                                 <input id="servers-servers-password" name="serversServersPassword"
                                                     className="form-input input-with-trailing-action"
+                                                    autoComplete="new-password"
                                                     type={showFormPassword ? 'text' : 'password'}
                                                     placeholder={t('comp.servers.password')}
                                                     value={form.password}
@@ -1521,6 +1523,7 @@ export default function Servers() {
                                         <div className="input-icon-wrapper">
                                             <input id="servers-servers-token-keep-placeholder" name="serversServersTokenKeepPlaceholder"
                                                 className="form-input input-with-trailing-action"
+                                                autoComplete="new-password"
                                                 type={showFormApiToken ? 'text' : 'password'}
                                                 placeholder={editingId ? t('comp.servers.tokenKeepPlaceholder') : t('comp.servers.tokenPlaceholder')}
                                                 value={form.apiToken}
@@ -1571,6 +1574,7 @@ export default function Servers() {
                                                 <label htmlFor="servers-root" className="form-label">{t('comp.servers.sharedUsername')}</label>
                                                 <input id="servers-root" name="serversRoot"
                                                     className="form-input"
+                                                    autoComplete="off"
                                                     placeholder="root"
                                                     value={batchForm.username}
                                                     onChange={(e) => setBatchForm((prev) => ({ ...prev, username: e.target.value }))}
@@ -1581,6 +1585,7 @@ export default function Servers() {
                                                 <div className="input-icon-wrapper">
                                                     <input id="servers-servers-shared-password" name="serversServersSharedPassword"
                                                         className="form-input input-with-trailing-action"
+                                                        autoComplete="new-password"
                                                         type={showBatchFormPassword ? 'text' : 'password'}
                                                         placeholder={t('comp.servers.password')}
                                                         value={batchForm.password}
@@ -1730,6 +1735,7 @@ export default function Servers() {
                                         <label htmlFor="servers-root-2" className="form-label">{t('comp.servers.xuiUsername')}</label>
                                         <input id="servers-root-2" name="serversRoot2"
                                             className="form-input"
+                                            autoComplete="off"
                                             value={credentialRepair.username}
                                             onChange={(e) => setCredentialRepair((prev) => ({ ...prev, username: e.target.value }))}
                                             placeholder="root"
@@ -1740,6 +1746,7 @@ export default function Servers() {
                                         <div className="input-icon-wrapper">
                                             <input id="servers-servers-xui-password" name="serversServersXuiPassword"
                                                 className="form-input input-with-trailing-action"
+                                                autoComplete="new-password"
                                                 type={showRepairPassword ? 'text' : 'password'}
                                                 value={credentialRepair.password}
                                                 onChange={(e) => setCredentialRepair((prev) => ({ ...prev, password: e.target.value }))}

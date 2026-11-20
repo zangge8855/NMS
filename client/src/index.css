@@ -1403,6 +1403,8 @@ input[type="radio"]:focus {
   border: none;
   border-bottom: 1px solid var(--border-color);
   width: fit-content;
+  /* Cap at the container so long tab rows scroll (overflow-x: auto) instead of widening the page. */
+  max-width: 100%;
 }
 
 .tab {
@@ -3317,10 +3319,9 @@ input[type="radio"]:focus-visible {
   flex-direction: column;
 }
 
+/* Full modal width so fields line up with the header like the single add-server form. */
 .server-batch-form-shell {
   width: 100%;
-  max-width: 560px;
-  margin: 0 auto 24px;
 }
 
 @keyframes nms-skeleton-shimmer {
@@ -7403,7 +7404,7 @@ body::before {
 }
 
 .servers-mobile-meta-label {
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.4;
   letter-spacing: 0;
   text-transform: none;
@@ -7640,6 +7641,15 @@ body::before {
   flex-wrap: wrap;
 }
 
+/* Button groups: without flex the <a> and <button> touch and sit on different baselines. */
+.subscriptions-toolbar-secondary,
+.subscriptions-toolbar-primary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .subscriptions-toolbar-status {
   width: 100%;
   padding-top: 2px;
@@ -7672,8 +7682,9 @@ body::before {
 .users-degraded-copy,
 .users-degraded-detail {
   margin-top: 0;
-  max-width: 84ch;
+  max-width: 56rem;
   line-height: 1.55;
+  text-wrap: pretty;
 }
 
 .users-degraded-detail {
@@ -12043,9 +12054,9 @@ body::before {
 }
 
 /* ── Table hover accent ───────────────────────────────────── */
+/* Rows stay unpositioned: a positioned <tr> paints over the collapsed row borders. */
 .table tbody tr {
   transition: background 0.14s ease;
-  position: relative;
 }
 
 .table tbody tr:hover td {
