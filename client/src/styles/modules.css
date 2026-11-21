@@ -2682,3 +2682,98 @@
         flex-basis: 100%;
     }
 }
+
+/* Phone header: the title takes only the room left beside the action buttons and
+   truncates. With identity.css's `flex: 1 1 auto` a long detail-page title
+   ("服务器 · Review Healthy Node") claimed the whole row and pushed the buttons onto a
+   second one; the full name is shown in the page hero directly below. */
+@media (max-width: 768px) {
+    :root .header-shell > .header-left {
+        flex: 1 1 0% !important;
+    }
+}
+
+/* The "显示 x / y" count is padded away from the chips beside it on desktop; on phones it
+   wraps under them, so it starts its own line flush with the chips instead. */
+@media (max-width: 768px) {
+    :root .servers-toolbar-summary .servers-filter-summary {
+        flex-basis: 100%;
+        padding-left: 0;
+    }
+}
+
+/* Tablet / narrow-desktop header (769–1279px beside the sidebar). The search kept a 288px
+   floor and the dashboard's labelled buttons another 304px, which together overflowed the
+   header row: the search slid left over the page title (under the sidebar on the dashboard)
+   and short titles such as "仪表盘" were clipped. The title now keeps its natural width (up
+   to 45% of the row; wrap-enabled detail titles wrap inside that), the search absorbs the
+   squeeze (down to an icon-sized field; its results panel keeps its own width), and page
+   actions drop to their icons — each already carries a title/aria-label. Range syntax keeps
+   fractional viewport widths (e.g. 1199.5px at 150% zoom) from slipping between breakpoints. */
+@media (width > 768px) and (width < 1280px) {
+    :root .header-shell > .header-left {
+        flex: 0 0 auto;
+        max-width: 45%;
+        min-width: 0;
+    }
+
+    :root .header-actions > .header-search {
+        flex: 0 1 300px;
+        width: auto;
+        min-width: var(--control-h);
+    }
+
+    :root .header-actions > .header-search .header-search-kbd {
+        display: none;
+    }
+
+    :root .header-actions > .header-search .header-search-input {
+        text-overflow: ellipsis;
+    }
+
+    :root .header-actions > .header-primary-actions .btn {
+        min-width: 34px;
+        padding: 0 9px;
+        justify-content: center;
+    }
+
+    :root .header-actions > .header-primary-actions .btn > span:not([aria-hidden="true"]) {
+        display: none;
+    }
+}
+
+/* Servers table on desktop: polish.css trims the cell padding so all nine columns fit a 1440px
+   window, but identity.css's later `:root .table tbody td` (11px 16px) out-ranks it, leaving
+   the table ~7px wider than its card and a stray horizontal scrollbar under it. Re-assert the
+   trim; the select / move / order utility columns keep their tighter 4px. */
+@media (width > 1100px) {
+    :root .table.servers-table :is(thead th, tbody td) {
+        padding-inline: 10px;
+    }
+
+    :root .table.servers-table :is(thead th, tbody td):is(.servers-select-column, .servers-move-column, .servers-order-column, .mobile-checkbox-cell, .servers-move-cell, .servers-order-cell) {
+        padding-inline: 4px;
+    }
+}
+
+/* 1321–1439px (e.g. 1366px laptops) still shows all nine columns but has ~1008–1120px for them;
+   the 1440px column floors summed to 1060px. Relax the floors that sit above their content
+   (the name column can wrap; the others are measured from their widest cell) so the table fits
+   without a horizontal scrollbar. */
+@media (width > 1320px) and (width < 1440px) {
+    :root .servers-page .servers-table .servers-name-column {
+        min-width: 176px;
+    }
+
+    :root .servers-page .servers-table .servers-group-column {
+        min-width: 112px;
+    }
+
+    :root .servers-page .servers-table .servers-account-column {
+        min-width: 108px;
+    }
+
+    :root .servers-page .servers-table :is(.servers-actions-column, .servers-actions-cell) {
+        min-width: 220px;
+    }
+}

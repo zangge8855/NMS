@@ -7684,7 +7684,7 @@ body::before {
   margin-top: 0;
   max-width: 56rem;
   line-height: 1.55;
-  text-wrap: pretty;
+  text-wrap-style: pretty;
 }
 
 .users-degraded-detail {

@@ -25,7 +25,6 @@ import {
     HiOutlineTrash,
     HiOutlinePencilSquare,
     HiOutlineSignal,
-    HiOutlineServerStack,
     HiOutlineEye,
     HiOutlineEyeSlash,
     HiOutlineXMark,
@@ -1172,35 +1171,37 @@ export default function Servers() {
                 />
 
                 {/* Server List */}
+                {/* Empty states sit in the list's card, matching the user list. */}
                 {servers.length === 0 ? (
-                    <EmptyState
-                        title={t('pages.servers.empty.noServersTitle')}
-                        subtitle={t('pages.servers.empty.noServersSubtitle')}
-                        action={canMutate ? <button type="button" className="btn btn-primary" onClick={openCreateServerModal}><HiOutlinePlusCircle /> {t('pages.servers.empty.addAction')}</button> : undefined}
-                    />
+                    <div className="table-container p-4">
+                        <EmptyState
+                            title={t('pages.servers.empty.noServersTitle')}
+                            subtitle={t('pages.servers.empty.noServersSubtitle')}
+                            action={canMutate ? <button type="button" className="btn btn-primary btn-sm" onClick={openCreateServerModal}><HiOutlinePlusCircle /> {t('pages.servers.empty.addAction')}</button> : undefined}
+                        />
+                    </div>
                 ) : filteredServers.length === 0 ? (
-                    <EmptyState
-                        title={uiText.noMatchTitle}
-                        subtitle={uiText.noMatchSubtitle}
-                        icon={<HiOutlineServerStack />}
-                        size="compact"
-                        surface
-                        action={(
-                            <button
-                                type="button"
-                                className="btn btn-secondary btn-sm"
-                                onClick={() => {
-                                    setSearchKeyword('');
-                                    setFilterGroup('all');
-                                    setStatusFilter('all');
-                                    setCredentialFilter('all');
-                                    setLatencyFilter('all');
-                                }}
-                            >
-                                {t('pages.servers.empty.clearFilters')}
-                            </button>
-                        )}
-                    />
+                    <div className="table-container p-4">
+                        <EmptyState
+                            title={uiText.noMatchTitle}
+                            subtitle={uiText.noMatchSubtitle}
+                            action={(
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={() => {
+                                        setSearchKeyword('');
+                                        setFilterGroup('all');
+                                        setStatusFilter('all');
+                                        setCredentialFilter('all');
+                                        setLatencyFilter('all');
+                                    }}
+                                >
+                                    {t('pages.servers.empty.clearFilters')}
+                                </button>
+                            )}
+                        />
+                    </div>
                 ) : isCompactLayout ? (
                     <div className="servers-mobile-list">
                         {filteredServers.map((server, index) => renderMobileServerCard(server, index))}

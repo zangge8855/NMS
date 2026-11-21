@@ -241,8 +241,11 @@ describe('Wave 3: HTML viewport, tsconfig ES2023 & CSS modernization invariants'
         expect(identityCss).toContain('scroll-padding-bottom: calc(var(--mobile-bottom-nav-height, 78px) + env(safe-area-inset-bottom, 0px) + 1rem);');
         expect(identityCss).toMatch(/@media\s*\(pointer:\s*coarse\)[\s\S]*min-height:\s*44px;/);
         expect(identityCss).toMatch(/@media\s*\(pointer:\s*coarse\)[\s\S]*\.btn-icon::after[\s\S]*inset:\s*-6px;/);
-        expect(identityCss).toContain('text-wrap: balance;');
-        expect(identityCss).toContain('text-wrap: pretty;');
+        // Longhand only: the `text-wrap` shorthand also resets text-wrap-mode to `wrap`,
+        // silently overriding earlier `white-space: nowrap` on titles and table headers.
+        expect(identityCss).toContain('text-wrap-style: balance;');
+        expect(identityCss).toContain('text-wrap-style: pretty;');
+        expect(identityCss).not.toMatch(/text-wrap:\s*(balance|pretty)/);
         expect(identityCss).toContain('overflow-wrap: anywhere;');
 
         // Responsive sticky table headers & inline-size container

@@ -849,7 +849,11 @@ export default function UserDetail() {
             }
         } catch (err) {
             if (!isMountedRef.current || requestId !== detailRequestIdRef.current) return null;
-            toast.error(err.response?.data?.msg || copy.labels.loadUserFailed);
+            // A missing user on first load already gets the full-page "user not found" state.
+            const isMissingOnFirstLoad = !preserveCurrent && Number(err?.response?.status || 0) === 404;
+            if (!isMissingOnFirstLoad) {
+                toast.error(err.response?.data?.msg || copy.labels.loadUserFailed);
+            }
         } finally {
             if (isMountedRef.current && requestId === detailRequestIdRef.current) {
                 setLoading(false);

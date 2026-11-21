@@ -774,7 +774,7 @@
 }
 
 :root .login-pass :is(.password-hint, .form-hint, .text-xs) {
-  text-wrap: pretty;
+  text-wrap-style: pretty;
 }
 
 :root .login-pass .auth-form > p.text-xs {
@@ -1498,11 +1498,11 @@
 }
 
 :root :is(h1, h2, h3, .header-title, .modal-title, .empty-state-title) {
-  text-wrap: balance;
+  text-wrap-style: balance;
 }
 
 :root :is(.empty-state-desc, .empty-state-sub, .empty-state-text, .card-subtitle, .header-subtitle) {
-  text-wrap: pretty;
+  text-wrap-style: pretty;
 }
 
 :where(a, code) {
@@ -1594,7 +1594,7 @@
 }
 
 :root :is(.subscription-guide-list li, .subscription-guide-step) {
-  text-wrap: pretty;
+  text-wrap-style: pretty;
 }
 
 /* Degraded node warning banner on UsersHub */
@@ -2506,7 +2506,7 @@ body {
 :root .audit-stat-card .text-muted {
   font-size: 11px !important;
   line-height: 1.35 !important;
-  text-wrap: balance;
+  text-wrap-style: balance;
 }
 
 @media (min-width: 961px) {
@@ -2543,7 +2543,7 @@ body {
   :root .audit-traffic-mini-note {
     font-size: 11px;
     line-height: 1.35;
-    text-wrap: balance;
+    text-wrap-style: balance;
   }
 }
 
@@ -2585,7 +2585,7 @@ body {
 
 :root .subscription-device-rule-tools {
   font-size: 12.5px;
-  text-wrap: balance;
+  text-wrap-style: balance;
 }
 
 :root .subscription-device-rule-profile {

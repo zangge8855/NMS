@@ -251,6 +251,12 @@ export default function ServerDetail() {
     const fetchSnapshot = async (options: any = {}) => {
         const preserveCurrent = options.preserveCurrent === true;
         const force = options.force === true;
+        // With nothing rendered yet, the full-page empty state already shows the error;
+        // a toast on top would repeat it.
+        const hasRenderedServer = preserveCurrent || Boolean(server);
+        const notifyError = (message: string) => {
+            if (hasRenderedServer) toast.error(message);
+        };
         const requestId = snapshotRequestIdRef.current + 1;
         snapshotRequestIdRef.current = requestId;
         if (!preserveCurrent) {
@@ -277,10 +283,10 @@ export default function ServerDetail() {
                 const msg = String(res.data?.msg || '').trim();
                 if (msg) {
                     setSnapshotError(msg);
-                    toast.error(msg);
+                    notifyError(msg);
                 } else {
                     setIsNotFound(true);
-                    toast.error(t('pages.serverDetail.errors.serverNotFound'));
+                    notifyError(t('pages.serverDetail.errors.serverNotFound'));
                 }
             }
         } catch (err) {
@@ -296,12 +302,13 @@ export default function ServerDetail() {
                     setInbounds([]);
                     setOnlines([]);
                 }
-                toast.error(t('pages.serverDetail.errors.serverNotFound'));
+                // Without preserveCurrent the server is cleared and the empty state takes over.
+                if (preserveCurrent) toast.error(t('pages.serverDetail.errors.serverNotFound'));
             } else {
                 const errMsg = getErrorMessage(err, t('pages.serverDetail.errors.loadSnapshotFailed'), locale);
                 setIsNotFound(false);
                 setSnapshotError(errMsg);
-                toast.error(errMsg);
+                notifyError(errMsg);
             }
         } finally {
             if (isMountedRef.current && requestId === snapshotRequestIdRef.current) {
