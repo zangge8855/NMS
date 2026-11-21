@@ -970,8 +970,10 @@ export default function UserDetail() {
                     if (ibClients.length === 0) return;
                     const protocol = String(ib.protocol || '').toLowerCase();
                     ibClients.forEach((cl) => {
-                        const clientEmail = String(cl.email || '').trim().toLowerCase();
-                        if (!emailSet.has(clientEmail)) return;
+                        // Match case-insensitively, but keep the panel's spelling: it is the
+                        // case-sensitive client name sent back for adjust / IP / HWID actions.
+                        const clientEmail = String(cl.email || '').trim();
+                        if (!emailSet.has(clientEmail.toLowerCase())) return;
                         const clientIdentifier = String(getClientIdentifier(cl, protocol) || '').trim();
                         clients.push({
                             serverId: server.id,

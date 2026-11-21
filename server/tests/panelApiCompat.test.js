@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+    clientUpdateMatches,
     fetchClientRecordCompat,
     fetchPanelLastOnlineClients,
     fetchPanelOnlineClients,
@@ -823,4 +824,156 @@ test('postUpdateClientCompat falls back to v3 update when legacy readback verifi
 
     assert.equal(calls.at(-1).method, 'post');
     assert.equal(calls.at(-1).path, '/panel/api/clients/update/user%40example.com');
+});
+
+// Issue #13: a client's `email` is the panel's client name (e.g. `PH-菲律宾`),
+// which 3x-ui looks up case-sensitively. This fake v3 panel answers like the real
+// one: any lookup under another spelling gets `record not found`.
+function createCaseSensitiveV3Panel(inbounds) {
+    const calls = [];
+    const records = new Map();
+    for (const inbound of inbounds) {
+        for (const client of JSON.parse(inbound.settings).clients) {
+            const record = records.get(client.email) || { client, inboundIds: [] };
+            record.inboundIds.push(inbound.id);
+            records.set(client.email, record);
+        }
+    }
+    const recordNotFound = () => ({ status: 200, data: { success: false, msg: 'record not found' } });
+    const emailRoutes = [
+        /^\/panel\/api\/clients\/get\/([^/]+)$/,
+        /^\/panel\/api\/clients\/del\/([^/]+)$/,
+        /^\/panel\/api\/clients\/resetTraffic\/([^/]+)$/,
+        /^\/panel\/api\/clients\/([^/]+)\/(?:attach|detach)$/,
+    ];
+    const lookup = (path) => {
+        for (const route of emailRoutes) {
+            const match = path.match(route);
+            if (match) return { matched: true, record: records.get(decodeURIComponent(match[1])) };
+        }
+        return { matched: false };
+    };
+    return {
+        calls,
+        async get(path) {
+            calls.push({ method: 'get', path });
+            const { matched, record } = lookup(path);
+            if (matched) return record ? { data: { success: true, obj: record } } : recordNotFound();
+            const inboundMatch = path.match(/^\/panel\/api\/inbounds\/get\/([^/]+)$/);
+            if (inboundMatch) {
+                const inbound = inbounds.find((item) => String(item.id) === inboundMatch[1]);
+                return inbound ? { data: { success: true, obj: inbound } } : recordNotFound();
+            }
+            if (path === '/panel/api/inbounds/list') return { data: { success: true, obj: inbounds } };
+            throw notFound();
+        },
+        async post(path, data) {
+            calls.push({ method: 'post', path, data });
+            if (path.includes('/delClient')) throw notFound();
+            if (/^\/panel\/api\/inbounds\/[^/]+\/resetTraffic$/.test(path)) return { data: { success: true } };
+            const { matched, record } = lookup(path);
+            if (matched) return record ? { data: { success: true } } : recordNotFound();
+            throw notFound();
+        },
+    };
+}
+
+const PH_NAME = 'PH-菲律宾';
+const PH_PATH = encodeURIComponent(PH_NAME);
+
+function hysteriaInbound(id, clients) {
+    return { id, protocol: 'hysteria', settings: JSON.stringify({ clients }) };
+}
+
+test('postDeleteClientFromInboundCompat detaches mixed-case client names under their stored spelling (#13)', async () => {
+    const phClient = { email: PH_NAME, auth: 'auth-ph' };
+    const panel = createCaseSensitiveV3Panel([
+        hysteriaInbound(1, [phClient]),
+        hysteriaInbound(5, [phClient]),
+    ]);
+
+    // NMS only knew a case-folded copy of the name; it must still unbind inbound 1.
+    await postDeleteClientFromInboundCompat(panel, 1, 'auth-ph', {
+        email: 'ph-菲律宾',
+        protocol: 'hysteria',
+    });
+
+    assert.deepEqual(panel.calls.at(-1), {
+        method: 'post',
+        path: `/panel/api/clients/${PH_PATH}/detach`,
+        data: { inboundIds: [1] },
+    });
+});
+
+test('postDeleteClientFromInboundCompat keeps an exact mixed-case name and deletes orphan clients', async () => {
+    const panel = createCaseSensitiveV3Panel([
+        hysteriaInbound(1, [{ email: PH_NAME, auth: 'auth-ph' }]),
+    ]);
+
+    await postDeleteClientFromInboundCompat(panel, 1, 'auth-ph', { email: PH_NAME });
+
+    assert.equal(panel.calls.at(-1).path, `/panel/api/clients/del/${PH_PATH}`);
+});
+
+test('postDeleteClientFromInboundCompat resolves the stored spelling from the inbound when no email is given', async () => {
+    const panel = createCaseSensitiveV3Panel([
+        hysteriaInbound(1, [{ email: PH_NAME, auth: 'auth-ph' }]),
+        hysteriaInbound(5, [{ email: PH_NAME, auth: 'auth-ph' }]),
+    ]);
+
+    await postDeleteClientFromInboundCompat(panel, 5, 'auth-ph', { protocol: 'hysteria' });
+
+    assert.equal(panel.calls.at(-1).path, `/panel/api/clients/${PH_PATH}/detach`);
+    assert.deepEqual(panel.calls.at(-1).data, { inboundIds: [5] });
+});
+
+test('postDetachClientFromInboundsCompat and fetchClientRecordCompat never case-fold client names', async () => {
+    const panel = createCaseSensitiveV3Panel([
+        hysteriaInbound(1, [{ email: PH_NAME, auth: 'auth-ph' }]),
+        hysteriaInbound(5, [{ email: PH_NAME, auth: 'auth-ph' }]),
+    ]);
+
+    await postDetachClientFromInboundsCompat(panel, PH_NAME, [5]);
+    assert.equal(panel.calls.at(-1).path, `/panel/api/clients/${PH_PATH}/detach`);
+
+    const record = await fetchClientRecordCompat(panel, PH_NAME);
+    assert.equal(panel.calls.at(-1).path, `/panel/api/clients/get/${PH_PATH}`);
+    assert.equal(record.client.email, PH_NAME);
+    assert.deepEqual(record.inboundIds, [1, 5]);
+});
+
+test('fetchClientRecordCompat legacy scan prefers the exact spelling, then falls back to case-insensitive', async () => {
+    const inbounds = [
+        { id: 7, settings: JSON.stringify({ clients: [{ email: 'ph-x', id: 'uuid-lower' }] }) },
+        { id: 8, settings: JSON.stringify({ clients: [{ email: 'PH-x', id: 'uuid-upper' }] }) },
+    ];
+    const client = {
+        async get(path) {
+            if (path.startsWith('/panel/api/clients/get/')) throw notFound();
+            return { data: { obj: inbounds } };
+        },
+    };
+
+    const exact = await fetchClientRecordCompat(client, 'PH-x');
+    assert.equal(exact.client.id, 'uuid-upper');
+    assert.deepEqual(exact.inboundIds, [8]);
+
+    const folded = await fetchClientRecordCompat(client, 'Ph-X');
+    assert.equal(folded.client.id, 'uuid-lower');
+    assert.deepEqual(folded.inboundIds, [7]);
+});
+
+test('resetInboundTrafficCompat resets each client under its stored mixed-case name', async () => {
+    const panel = createCaseSensitiveV3Panel([
+        hysteriaInbound(1, [{ email: PH_NAME, auth: 'auth-ph' }]),
+    ]);
+
+    await resetInboundTrafficCompat(panel, 1);
+
+    assert.equal(panel.calls.at(-1).path, `/panel/api/clients/resetTraffic/${PH_PATH}`);
+});
+
+test('clientUpdateMatches treats a case-only email rename as not yet applied', () => {
+    assert.equal(clientUpdateMatches({ email: 'ph-x' }, { email: 'PH-x' }), false);
+    assert.equal(clientUpdateMatches({ email: ' PH-x ' }, { email: 'PH-x' }), true);
 });

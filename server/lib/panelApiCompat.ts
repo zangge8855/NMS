@@ -13,8 +13,25 @@ function normalizeProtocol(value: unknown): string {
     return normalizeText(value).toLowerCase();
 }
 
-function normalizeEmail(value: unknown): string {
+// A client's `email` is the panel's client name, not necessarily an address
+// (e.g. `PH-菲律宾`), and 3x-ui looks it up case-sensitively. Fold case only to
+// compare names; anything sent to the panel keeps the stored spelling.
+function clientEmailKey(value: unknown): string {
     return normalizeText(value).toLowerCase();
+}
+
+function normalizeClientEmail(value: unknown): string {
+    return normalizeText(value);
+}
+
+// Exact spelling first, so `PH-x` and `ph-x` on one panel stay distinct.
+function findClientByEmail(clients: any[] = [], email: unknown): any {
+    const exact = normalizeClientEmail(email);
+    if (!exact) return null;
+    const key = clientEmailKey(exact);
+    return clients.find((item) => normalizeClientEmail(item?.email) === exact)
+        || clients.find((item) => clientEmailKey(item?.email) === key)
+        || null;
 }
 
 function encodePathSegment(value: unknown): string {
@@ -280,7 +297,8 @@ function assertPanelResponseSuccess(response: any, fallbackMessage: string): any
 }
 
 function valuesEqual(field: string, left: any, right: any): boolean {
-    if (field === 'email') return normalizeEmail(left) === normalizeEmail(right);
+    // Exact: a case-only rename that the legacy route ignored must not pass as applied.
+    if (field === 'email') return normalizeClientEmail(left) === normalizeClientEmail(right);
     if (['expiryTime', 'limitIp', 'totalGB'].includes(field)) {
         return Number(left || 0) === Number(right || 0);
     }
@@ -318,10 +336,10 @@ function findUpdatedClient(clients: any[] = [], clientIdentifier: string = '', p
         options.currentEmail,
         options.email,
         options.sourceClient?.email,
-    ].map(normalizeEmail).filter(Boolean);
+    ].map(normalizeClientEmail).filter(Boolean);
 
     for (const email of emailCandidates) {
-        const match = clients.find((item) => normalizeEmail(item?.email) === email);
+        const match = findClientByEmail(clients, email);
         if (match) return match;
     }
 
@@ -387,22 +405,31 @@ export async function fetchPanelInboundByIdCompat(panelClient: any, inboundId: a
 }
 
 async function resolveClientEmailForInbound(panelClient: any, inboundId: any, clientIdentifier: string, options: any = {}): Promise<string> {
-    const explicitEmail = normalizeEmail(options.currentEmail || options.email || options.sourceClient?.email);
-    if (explicitEmail) return explicitEmail;
+    const explicitEmail = normalizeClientEmail(options.currentEmail || options.email || options.sourceClient?.email);
 
     if (typeof panelClient?.get === 'function') {
-        const inbound = await fetchInboundById(panelClient, inboundId);
+        let inbound: any = null;
+        try {
+            inbound = await fetchInboundById(panelClient, inboundId);
+        } catch (error) {
+            if (!explicitEmail) throw error;
+        }
         const protocol = normalizeProtocol(options.protocol || inbound?.protocol);
-        const clients = parseInboundClients(inbound);
-        const match = clients.find((item) => clientMatchesIdentifier(item, clientIdentifier, protocol));
-        const matchedEmail = normalizeEmail(match?.email);
+        const clients = parseInboundClients(inbound || {});
+        // Callers may only hold a case-folded copy of the name (NMS stores
+        // subscription emails lowercased), so resolve the panel's own spelling.
+        const match = explicitEmail
+            ? findClientByEmail(clients, explicitEmail)
+            : clients.find((item) => clientMatchesIdentifier(item, clientIdentifier, protocol));
+        const matchedEmail = normalizeClientEmail(match?.email);
         if (matchedEmail) return matchedEmail;
     }
+    if (explicitEmail) return explicitEmail;
 
-    const identifierAsEmail = normalizeEmail(clientIdentifier);
+    const identifierAsEmail = normalizeClientEmail(clientIdentifier);
     if (identifierAsEmail.includes('@')) return identifierAsEmail;
 
-    return normalizeEmail(options.clientData?.email);
+    return normalizeClientEmail(options.clientData?.email);
 }
 
 function parseLegacyClientSettingsPayload(payload: any = {}): any {
@@ -632,7 +659,7 @@ function normalizeClientRecordPayload(payload: any = {}): { client: any; inbound
 }
 
 export async function fetchClientRecordCompat(panelClient: any, email: string): Promise<{ client: any; inboundIds: (string | number)[] }> {
-    const normalizedEmail = normalizeEmail(email);
+    const normalizedEmail = normalizeClientEmail(email);
     if (!normalizedEmail) return { client: null, inboundIds: [] };
 
     const latest = await fetchClientRecordByEmailV3(panelClient, normalizedEmail);
@@ -642,11 +669,14 @@ export async function fetchClientRecordCompat(panelClient: any, email: string): 
 
     const response = await panelClient.get('/panel/api/inbounds/list');
     const inbounds = Array.isArray(response?.data?.obj) ? response.data.obj : [];
+    // Settle on one stored spelling first, then collect only that client's inbounds.
+    const storedEmail = normalizeClientEmail(
+        findClientByEmail(inbounds.flatMap((inbound: any) => parseInboundClients(inbound)), normalizedEmail)?.email
+    );
     const inboundIds: (string | number)[] = [];
     let found: any = null;
-    for (const inbound of inbounds) {
-        const match = parseInboundClients(inbound)
-            .find((item) => normalizeEmail(item?.email) === normalizedEmail);
+    for (const inbound of storedEmail ? inbounds : []) {
+        const match = parseInboundClients(inbound).find((item) => normalizeClientEmail(item?.email) === storedEmail);
         if (!match) continue;
         inboundIds.push(normalizeInboundId(inbound?.id));
         found = found || match;
@@ -675,7 +705,7 @@ async function removeClientFromInboundV3(panelClient: any, inboundId: any, email
 }
 
 export async function postAttachClientToInboundsCompat(panelClient: any, email: string, inboundIds: any[] = [], options: any = {}): Promise<any> {
-    const normalizedEmail = normalizeEmail(email || options.clientData?.email);
+    const normalizedEmail = normalizeClientEmail(email || options.clientData?.email);
     const targetInboundIds = normalizeInboundIds(inboundIds);
     if (!normalizedEmail || targetInboundIds.length === 0) {
         throw new Error('email and inboundIds are required');
@@ -692,9 +722,12 @@ export async function postAttachClientToInboundsCompat(panelClient: any, email: 
     }
 
     let sourceClient = options.clientData || null;
+    let attachEmail = normalizedEmail;
     if (!sourceClient) {
         const record = await fetchClientRecordCompat(panelClient, normalizedEmail);
         sourceClient = record.client;
+        // Copy the existing client under its stored spelling, not a case-folded duplicate.
+        attachEmail = normalizeClientEmail(sourceClient?.email) || normalizedEmail;
     }
     if (!sourceClient) {
         throw new Error('Unable to resolve client data for legacy attach API');
@@ -703,7 +736,7 @@ export async function postAttachClientToInboundsCompat(panelClient: any, email: 
     for (const inboundId of targetInboundIds) {
         await postAddClientCompat(panelClient, inboundId, {
             ...sourceClient,
-            email: normalizedEmail,
+            email: attachEmail,
         });
     }
     return {
@@ -716,7 +749,7 @@ export async function postAttachClientToInboundsCompat(panelClient: any, email: 
 }
 
 export async function postDetachClientFromInboundsCompat(panelClient: any, email: string, inboundIds: any[] = []): Promise<any> {
-    const normalizedEmail = normalizeEmail(email);
+    const normalizedEmail = normalizeClientEmail(email);
     const targetInboundIds = normalizeInboundIds(inboundIds);
     if (!normalizedEmail || targetInboundIds.length === 0) {
         throw new Error('email and inboundIds are required');
@@ -749,7 +782,7 @@ export async function postDetachClientFromInboundsCompat(panelClient: any, email
 export async function postBulkAdjustClientsCompat(panelClient: any, payload: any = {}): Promise<any> {
     const emails = Array.from(new Set(
         (Array.isArray(payload.emails) ? payload.emails : [])
-            .map((item) => normalizeEmail(item))
+            .map((item) => normalizeClientEmail(item))
             .filter(Boolean)
     ));
     const addDays = Number(payload.addDays || 0) || 0;
@@ -816,7 +849,7 @@ async function resetInboundClientTrafficsByEmail(panelClient: any, inboundId: an
     const inbound = await fetchInboundById(panelClient, inboundId);
     const clients = parseInboundClients(inbound);
     const emails = Array.from(new Set(
-        clients.map((item) => normalizeEmail(item?.email)).filter(Boolean)
+        clients.map((item) => normalizeClientEmail(item?.email)).filter(Boolean)
     ));
     for (const email of emails) {
         await assertPanelResponseSuccess(
@@ -865,8 +898,8 @@ export async function resetInboundTrafficCompat(panelClient: any, inboundId: any
 }
 
 function resolveClientTraffic(client: any = {}, statsByEmail: Map<string, any> = new Map()): any {
-    const email = normalizeEmail(client?.email);
-    const stat = statsByEmail.get(email) || {};
+    const email = normalizeClientEmail(client?.email);
+    const stat = statsByEmail.get(clientEmailKey(email)) || {};
     return {
         email,
         up: Number(stat.up ?? client.up ?? 0) || 0,
@@ -897,7 +930,7 @@ export async function cleanupDepletedClientsCompat(panelClient: any, inboundId: 
     }
 
     const stats = Array.isArray(inbound.clientStats) ? inbound.clientStats : [];
-    const statsByEmail = new Map<string, any>(stats.map((item: any) => [normalizeEmail(item?.email), item] as [string, any]).filter(([email]) => email));
+    const statsByEmail = new Map<string, any>(stats.map((item: any) => [clientEmailKey(item?.email), item] as [string, any]).filter(([email]) => email));
     const now = Date.now();
     let deleted = 0;
 

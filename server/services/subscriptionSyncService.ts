@@ -60,6 +60,14 @@ function shouldCanonicalizeManagedClientEmail(client: any = {}, canonicalEmail: 
     return Boolean(normalizedCanonicalEmail) && normalizeEmailInput(client?.email) !== normalizedCanonicalEmail;
 }
 
+// Panels match client names case-sensitively, so updates keep the stored
+// spelling (e.g. `PH-x`) unless the name really changes, instead of
+// silently renaming the client to NMS's lowercased subscription email.
+function resolveManagedClientEmail(client: any = {}, canonicalEmail: string = ''): string {
+    if (shouldCanonicalizeManagedClientEmail(client, canonicalEmail)) return canonicalEmail;
+    return String(client?.email || '').trim() || canonicalEmail;
+}
+
 function markServerPanelSnapshotStale(serverId: string = ''): void {
     const normalizedServerId = String(serverId || '').trim();
     if (!normalizedServerId) return;
@@ -520,6 +528,7 @@ async function autoDeployClients(subscriptionEmail: string, policy: any, options
             try {
                 if (match) {
                     const clientIdentifier = resolveClientIdentifier(match, protocol);
+                    const clientEmail = resolveManagedClientEmail(match, email);
                     const override = overrideRepository.get(server.id, inbound.id, clientIdentifier);
                     const targetEntitlement = forcedExpiryTime === undefined
                         ? (override || baseEntitlement)
@@ -529,7 +538,7 @@ async function autoDeployClients(subscriptionEmail: string, policy: any, options
                         };
                     const updatedClientBase = forceCredentialRotation
                         ? applyManagedCredentialsToClient(match, {
-                            email,
+                            email: clientEmail,
                             protocol,
                             inbound,
                             sharedCredentials,
@@ -538,7 +547,7 @@ async function autoDeployClients(subscriptionEmail: string, policy: any, options
                         })
                         : {
                             ...applyEntitlementToClient(match, targetEntitlement),
-                            email,
+                            email: clientEmail,
                         };
                     const updatedClient = clientEnabled === undefined
                         ? updatedClientBase
@@ -886,7 +895,7 @@ async function autoSetManagedClientsEnabled(subscriptionEmail: string, enabled: 
                 const clientIdentifier = resolveClientIdentifier(match, protocol);
                 await updateClient(client, inbound.id, clientIdentifier, {
                     ...match,
-                    email,
+                    email: resolveManagedClientEmail(match, email),
                     enable: Boolean(enabled),
                 });
                 markServerPanelSnapshotStale(server.id);

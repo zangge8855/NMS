@@ -790,4 +790,52 @@ describe('subscriptionSyncService', () => {
         assert.equal(updates[0].clientData.speedLimitUp, 1000);
         assert.equal(updates[0].clientData.speedLimitDown, 2000);
     });
+
+    // Issue #13: panels match client names case-sensitively, so a sync update must
+    // not rename `PH-菲律宾` to NMS's lowercased subscription email.
+    it('keeps the panel spelling of mixed-case client names when updating managed clients', async () => {
+        const updates = [];
+        const deps = {
+            serverRepository: {
+                list: () => [{ id: 'srv-hk', name: 'HK' }],
+            },
+            listPanelInbounds: async () => ({
+                client: { post: async () => ({}) },
+                inbounds: [
+                    {
+                        id: 1,
+                        protocol: 'vless',
+                        enable: true,
+                        remark: 'HK',
+                        settings: JSON.stringify({
+                            clients: [{
+                                email: 'PH-菲律宾',
+                                id: '22222222-2222-2222-2222-222222222222',
+                                enable: true,
+                                expiryTime: 0,
+                                limitIp: 0,
+                                totalGB: 0,
+                            }],
+                        }),
+                    },
+                ],
+            }),
+            postUpdateClient: async (panelClient, inboundId, clientIdentifier, clientData) => {
+                updates.push({ inboundId, clientIdentifier, clientData });
+                return { panelClient, inboundId, clientIdentifier, clientData };
+            },
+        };
+
+        const toggled = await autoSetManagedClientsEnabled('ph-菲律宾', false, {}, deps);
+        const deployed = await autoDeployClients('ph-菲律宾', {
+            expiryTime: 0,
+            limitIp: 2,
+            trafficLimitBytes: 0,
+        }, {}, deps);
+
+        assert.equal(toggled.updated, 1);
+        assert.equal(deployed.updated, 1);
+        assert.deepEqual(updates.map((item) => item.clientData.email), ['PH-菲律宾', 'PH-菲律宾']);
+        assert.equal(updates[1].clientData.limitIp, 2);
+    });
 });
