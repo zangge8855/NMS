@@ -5,6 +5,7 @@ import {
     HiOutlineArrowUp,
     HiOutlineCheck,
     HiOutlineNoSymbol,
+    HiOutlinePencilSquare,
     HiOutlinePlus,
     HiOutlineTrash,
 } from 'react-icons/hi2';
@@ -262,7 +263,7 @@ export default function OutboundSubsPanel({ serverId, canManage }: OutboundSubsP
                                         </button>
                                         <ActionsDropdown
                                             actions={[
-                                                { label: tr('common.edit'), onClick: () => openEditor(row), disabled: rowBusy },
+                                                { label: tr('common.edit'), icon: HiOutlinePencilSquare, onClick: () => openEditor(row), disabled: rowBusy },
                                                 disabled
                                                     ? { label: tr('common.enable'), icon: HiOutlineCheck, onClick: () => setEnabled(row, true), disabled: rowBusy }
                                                     : { label: tr('common.disable'), icon: HiOutlineNoSymbol, onClick: () => setEnabled(row, false), disabled: rowBusy },

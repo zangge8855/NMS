@@ -198,7 +198,7 @@ export default function PanelApiTokens({ serverId, isSui }: PanelApiTokensProps)
             ) : (
                 <>
                     <form className="card p-4 mb-4" onSubmit={handleCreate} aria-label={t('pages.serverDetail.apiTokensCreate')}>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="form-group">
                                 <label htmlFor="panel-api-token-name" className="form-label">{t('pages.serverDetail.apiTokensName')}</label>
                                 <input
@@ -278,7 +278,7 @@ export default function PanelApiTokens({ serverId, isSui }: PanelApiTokensProps)
                     )}
 
                     {loading && rows.length === 0 ? (
-                        <SkeletonTable rows={3} cols={5} />
+                        <SkeletonTable rows={3} cols={6} />
                     ) : rows.length === 0 ? (
                         !error && <EmptyState title={t('pages.serverDetail.apiTokensEmpty')} subtitle={t('pages.serverDetail.apiTokensEmptyHint')} />
                     ) : (

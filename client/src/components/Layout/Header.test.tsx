@@ -41,6 +41,7 @@ describe('Header', () => {
         );
 
         expect(screen.getByRole('heading', { name: '集群仪表盘' })).toBeInTheDocument();
+        expect(document.title).toBe('仪表盘 · NMS');
         expect(screen.queryByText('跨节点观察在线态、容量与异常分布')).not.toBeInTheDocument();
         expect(screen.queryByText('Operations Overview')).not.toBeInTheDocument();
         expect(container.querySelector('.header-eyebrow')).toBeNull();

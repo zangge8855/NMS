@@ -26,9 +26,13 @@ vi.mock('../../contexts/ServerContext', () => ({
     }),
 }));
 
+const mockOverlayState = vi.hoisted(() => ({
+    user: { role: 'admin', username: 'admin' },
+}));
+
 vi.mock('../../contexts/AuthContext', () => ({
     useAuth: () => ({
-        user: { role: 'admin', username: 'admin' },
+        user: mockOverlayState.user,
         logout: vi.fn(),
     }),
 }));
@@ -88,8 +92,12 @@ describe('ActionsDropdown', () => {
         );
 
         const trigger = screen.getByRole('button', { name: '操作菜单' });
+        expect(trigger).toHaveAttribute('aria-haspopup', 'menu');
+        expect(trigger).not.toHaveAttribute('aria-controls');
         await user.click(trigger);
 
+        const menu = await screen.findByRole('menu', { name: '操作菜单' });
+        expect(trigger).toHaveAttribute('aria-controls', menu.id);
         const firstItem = await screen.findByRole('menuitem', { name: 'First' });
         const lastItem = screen.getByRole('menuitem', { name: 'Last' });
 
@@ -115,6 +123,47 @@ describe('ActionsDropdown', () => {
             window.dispatchEvent(new CustomEvent('nms:close-popovers'));
         });
         expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    });
+
+    it('dispatches nms:close-popovers on open and lets a menuitem open ModalShell without stealing focus back', async () => {
+        const user = userEvent.setup();
+        const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+
+        function ModalMenuHarness() {
+            const [open, setOpen] = useState(false);
+            return (
+                <>
+                    <ActionsDropdown
+                        actions={[
+                            { label: 'Edit item', onClick: () => setOpen(true) },
+                        ]}
+                    />
+                    <ModalShell isOpen={open} onClose={() => setOpen(false)}>
+                        <div className="modal">
+                            <input aria-label="Modal field" data-modal-initial-focus="" />
+                        </div>
+                    </ModalShell>
+                </>
+            );
+        }
+
+        renderWithRouter(<ModalMenuHarness />);
+
+        const trigger = screen.getByRole('button', { name: '操作菜单' });
+        await user.click(trigger);
+
+        expect(dispatchSpy.mock.calls.some(([ev]) => (
+            ev instanceof CustomEvent && ev.type === 'nms:close-popovers'
+        ))).toBe(true);
+
+        const editItem = await screen.findByRole('menuitem', { name: 'Edit item' });
+        await user.click(editItem);
+
+        const modalInput = await screen.findByLabelText('Modal field');
+        await waitFor(() => {
+            expect(modalInput).toHaveFocus();
+        });
+        dispatchSpy.mockRestore();
     });
 });
 
@@ -158,6 +207,7 @@ describe('ExpandableQRCode', () => {
 describe('CommandPalette', () => {
     beforeEach(() => {
         window.localStorage.clear();
+        mockOverlayState.user = { role: 'admin', username: 'admin' };
     });
 
     it('blocks opening when a modal overlay is active, renders listbox semantics, and localizes Clear search', async () => {
@@ -212,6 +262,24 @@ describe('CommandPalette', () => {
             expect(screen.queryByRole('dialog', { name: 'Command Palette' })).not.toBeInTheDocument();
         });
         expect(openHostBtn).toHaveFocus();
+    });
+
+    it('matches bilingual navConfig keywords and avoids duplicating /subscriptions for regular users', async () => {
+        const user = userEvent.setup();
+        const adminRender = renderWithRouter(<CommandPalette />);
+
+        fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+        const input = await screen.findByRole('combobox');
+        await user.type(input, 'backup');
+        expect(screen.getByRole('option', { name: /系统设置/ })).toBeInTheDocument();
+        adminRender.unmount();
+
+        mockOverlayState.user = { role: 'user', username: 'alice' };
+        renderWithRouter(<CommandPalette />);
+        fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+        const options = await screen.findAllByRole('option');
+        const subOptions = options.filter((opt) => (opt.textContent || '').includes('订阅中心'));
+        expect(subOptions).toHaveLength(1);
     });
 });
 

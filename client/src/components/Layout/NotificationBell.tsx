@@ -428,7 +428,15 @@ function NotificationBellContent({ navigate }: { navigate: NavigateFunction | nu
                                         className="notification-item-main"
                                         onClick={() => activateNotification(unreadIds)}
                                         onKeyDown={(event) => {
-                                            if (event.key === 'Enter' || event.key === ' ') {
+                                            if (event.key === 'Enter') {
+                                                event.preventDefault();
+                                                activateNotification(unreadIds);
+                                            } else if (event.key === ' ') {
+                                                event.preventDefault();
+                                            }
+                                        }}
+                                        onKeyUp={(event) => {
+                                            if (event.key === ' ') {
                                                 event.preventDefault();
                                                 activateNotification(unreadIds);
                                             }
@@ -510,7 +518,7 @@ function NotificationBellContent({ navigate }: { navigate: NavigateFunction | nu
                     title={copy.triggerTitle}
                     aria-label={copy.triggerTitle}
                     aria-expanded={open}
-                    aria-controls={dropdownId}
+                    aria-controls={open ? dropdownId : undefined}
                 >
                     <HiOutlineBell className="notification-trigger-icon" aria-hidden="true" />
                     {unreadCount > 0 && (

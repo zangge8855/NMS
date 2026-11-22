@@ -314,10 +314,6 @@ export default function Header({
     }, [searchOpen]);
 
     useEffect(() => {
-        setSearchOpen(false);
-    }, [location.pathname]);
-
-    useEffect(() => {
         if (!searchOpen) return undefined;
         const handleClickOutside = (event: Event) => {
             const clickedInsideSearch = searchRef.current?.contains(event.target as Node);

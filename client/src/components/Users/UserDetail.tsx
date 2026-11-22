@@ -432,7 +432,7 @@ function getUserDetailCopy(locale = 'zh-CN') {
             converterBuiltin: '使用 NMS 内置订阅生成',
             matchedNodes: '活跃节点 {active} / 匹配节点 {raw}',
             filteredStats: '过滤情况',
-            filteredSummary: '已过滤: 过期 {expired} / 禁用 {disabled} / 策略限制 {policy}',
+            filteredSummary: '已过滤：过期 {expired} / 禁用 {disabled} / 策略限制 {policy}',
             justThreeSteps: '就这三步',
             justThreeStepsText: '选类型，复制地址，导入客户端。',
             availableProfiles: '共 {count} 个配置文件',
@@ -446,7 +446,7 @@ function getUserDetailCopy(locale = 'zh-CN') {
             qrHint: '使用 {label} 扫码导入',
             qrUnavailable: '当前格式暂无二维码',
             clientIpNotice: '若节点 3x-ui 版本较低无 clientIps 接口，节点 IP 按钮会自动禁用。',
-            batchAdjustClients: '批量调整到期/流量',
+            batchAdjustClients: '批量调整到期 / 流量',
             noClientsTitle: '暂无节点记录',
             noClientsSubtitle: '该用户在各节点上还没有关联配置',
             server: '服务器',
@@ -1656,7 +1656,7 @@ export default function UserDetail() {
                             </div>
                             <div className="user-profile-meta">
                                 <div className="user-profile-meta-item">
-                                    <HiOutlineKey /> {copy.labels.userId}: {user.id}
+                                    <HiOutlineKey /> {copy.labels.userId}{locale === 'en-US' ? ': ' : '：'}{user.id}
                                     <CopyFeedbackButton
                                         text={user.id}
                                         successText={copy.labels.copiedUserId}
@@ -1665,14 +1665,14 @@ export default function UserDetail() {
                                     />
                                 </div>
                                 <div className="user-profile-meta-item">
-                                    <HiOutlineCalendarDays /> {copy.labels.registeredAt}: {formatTime(user.createdAt, locale)}
+                                    <HiOutlineCalendarDays /> {copy.labels.registeredAt}{locale === 'en-US' ? ': ' : '：'}{formatTime(user.createdAt, locale)}
                                 </div>
                                 <div className="user-profile-meta-item">
-                                    <HiOutlineClock /> {copy.labels.lastLoginAt}: {formatTime(user.lastLoginAt, locale)}
+                                    <HiOutlineClock /> {copy.labels.lastLoginAt}{locale === 'en-US' ? ': ' : '：'}{formatTime(user.lastLoginAt, locale)}
                                 </div>
                                 {user.subscriptionEmail && user.subscriptionEmail !== user.email && (
                                     <div className="user-profile-meta-item">
-                                        <HiOutlineEnvelope /> {copy.labels.subscriptionEmail}: {user.subscriptionEmail}
+                                        <HiOutlineEnvelope /> {copy.labels.subscriptionEmail}{locale === 'en-US' ? ': ' : '：'}{user.subscriptionEmail}
                                     </div>
                                 )}
                             </div>
@@ -1703,6 +1703,7 @@ export default function UserDetail() {
                     <div
                         className="tabs"
                         role="tablist"
+                        aria-label={t('pages.userDetail.title')}
                         onKeyDown={(e) => handleRovingTabKeyDown(e, rovingTabs, activeTab, applyTab)}
                     >
                         {tabs.map((tabItem) => {
@@ -1710,6 +1711,7 @@ export default function UserDetail() {
                             return (
                                 <button
                                     key={tabItem.key}
+                                    id={`user-detail-tab-${tabItem.key}`}
                                     type="button"
                                     role="tab"
                                     aria-selected={isActive}
@@ -1723,7 +1725,12 @@ export default function UserDetail() {
                         })}
                     </div>
 
-                    <div className="user-detail-tab-content tab-content-enter" key={activeTab}>
+                    <div
+                        className="user-detail-tab-content tab-content-enter"
+                        key={activeTab}
+                        role="tabpanel"
+                        aria-labelledby={`user-detail-tab-${activeTab}`}
+                    >
                         {activeTab === 'overview' && (
                             <div>
                                 <div className="stat-mini-grid detail-stats-grid">
@@ -1737,16 +1744,16 @@ export default function UserDetail() {
                                 )}
                                 {!clientSummaryLoading && (
                                     <p className="text-muted text-sm mb-4">
-                                        {copy.labels.liveUsageSpeed}: {liveTrafficSummaryText}
-                                        {liveTrafficSplitText ? ` (${liveTrafficSplitText})` : ''}
+                                        {copy.labels.liveUsageSpeed}{locale === 'en-US' ? ': ' : '：'}{liveTrafficSummaryText}
+                                        {liveTrafficSplitText ? (locale === 'en-US' ? ` (${liveTrafficSplitText})` : `（${liveTrafficSplitText}）`) : ''}
                                     </p>
                                 )}
                                 {detail?.policy && (
                                     <div className="card user-detail-policy-card">
                                         <div className="user-detail-policy-title"><HiOutlineShieldCheck /> {copy.labels.accessPolicy}</div>
                                         <div className="user-detail-policy-items">
-                                            <span>{copy.labels.server}: <strong>{detail.policy.serverScopeMode === 'all' ? copy.labels.unlimited : detail.policy.serverScopeMode === 'none' ? copy.labels.blocked : `${(detail.policy.allowedServerIds || []).length}`}</strong></span>
-                                            <span>{copy.labels.protocol}: <strong>{detail.policy.protocolScopeMode === 'all' ? copy.labels.unlimited : detail.policy.protocolScopeMode === 'none' ? copy.labels.blocked : (detail.policy.allowedProtocols || []).join(', ')}</strong></span>
+                                            <span>{copy.labels.server}{locale === 'en-US' ? ': ' : '：'}<strong>{detail.policy.serverScopeMode === 'all' ? copy.labels.unlimited : detail.policy.serverScopeMode === 'none' ? copy.labels.blocked : `${(detail.policy.allowedServerIds || []).length}`}</strong></span>
+                                            <span>{copy.labels.protocol}{locale === 'en-US' ? ': ' : '：'}<strong>{detail.policy.protocolScopeMode === 'all' ? copy.labels.unlimited : detail.policy.protocolScopeMode === 'none' ? copy.labels.blocked : (detail.policy.allowedProtocols || []).join(', ')}</strong></span>
                                         </div>
                                     </div>
                                 )}
@@ -1794,12 +1801,13 @@ export default function UserDetail() {
                                     <div className="user-detail-subscription-layout">
                                         <div className="subscription-link-with-qr user-detail-subscription-main">
                                             <div className="subscription-link-card subscription-link-card--import-focus user-detail-subscription-card">
-                                                <div className="subscription-profile-switches">
+                                                <div className="subscription-profile-switches" role="group" aria-label={copy.labels.selectedProfile}>
                                                     {availableSubscriptionProfiles.map((item) => (
                                                         <button
                                                             key={item.key}
                                                             type="button"
-                                                            className={`btn btn-sm ${subscriptionProfileKey === item.key ? 'btn-primary' : 'btn-secondary'}`}
+                                                            className="btn btn-sm btn-secondary"
+                                                            aria-pressed={subscriptionProfileKey === item.key}
                                                             onClick={() => setSubscriptionProfileKey(item.key)}
                                                         >
                                                             {item.label}
@@ -1852,7 +1860,7 @@ export default function UserDetail() {
                                                 </div>
 
                                                 <div className="subscription-user-address-note">
-                                                    {copy.labels.subscriptionEmail}: {subscriptionResult.email}
+                                                    {copy.labels.subscriptionEmail}{locale === 'en-US' ? ': ' : '：'}{subscriptionResult.email}
                                                     {subscriptionResult.bundle?.externalConverterConfigured ? ` · ${copy.labels.converterEnabled}` : ` · ${copy.labels.converterBuiltin}`}
                                                 </div>
 
@@ -1934,7 +1942,7 @@ export default function UserDetail() {
                                     <div className="text-xs text-muted mb-3">{copy.labels.clientIpNotice}</div>
                                 )}
                                 {clientsPanelLoading ? (
-                                    <SkeletonTable rows={4} cols={6} />
+                                    <SkeletonTable rows={4} cols={7} />
                                 ) : clientData.length === 0 ? (
                                     <EmptyState
                                         title={copy.labels.noClientsTitle}

@@ -159,12 +159,14 @@ describe('Wave 3: rovingTabs WAI-ARIA horizontal keyboard navigation', () => {
         expect(overviewTab).toHaveAttribute('tabindex', '0');
     });
 
-    it('wires rovingTabs into AuditCenter, ServerDetail, UserDetail, and UsersHub tablists', () => {
+    it('wires rovingTabs into AuditCenter, ServerDetail, UserDetail, UsersHub, XrayConsole, and Login tablists', () => {
         const targets = [
             'src/components/Audit/AuditCenter.tsx',
             'src/components/Servers/ServerDetail.tsx',
             'src/components/Users/UserDetail.tsx',
             'src/components/Users/UsersHub.tsx',
+            'src/components/Xray/XrayConsole.tsx',
+            'src/components/Login/Login.tsx',
         ];
 
         for (const rel of targets) {
@@ -215,6 +217,8 @@ describe('Wave 3: HTML viewport, tsconfig ES2023 & CSS modernization invariants'
         for (const filePath of cssFiles) {
             const css = fs.readFileSync(filePath, 'utf8');
             expect(css, filePath).not.toMatch(/transition[^;]*scrollbar-color/i);
+            expect(css, `${path.relative(CLIENT_ROOT, filePath)} must not use tabular-nums`).not.toMatch(/font-variant-numeric[^;]*tabular-nums/i);
+            expect(css, `${path.relative(CLIENT_ROOT, filePath)} must not reference undefined --accent-soft`).not.toContain('var(--accent-soft');
             const result = isRuleWrappedInSupportsScrollbar(css);
             expect(result.unwrappedLines, `${path.relative(CLIENT_ROOT, filePath)} unwrapped ::-webkit-scrollbar lines`).toEqual([]);
         }

@@ -352,7 +352,7 @@ describe('Logs', () => {
         renderWithRouter(<Logs embedded />);
 
         await waitFor(() => {
-            expect(toast.error).toHaveBeenCalledWith('获取全局日志失败: 节点日志聚合失败');
+            expect(toast.error).toHaveBeenCalledWith('获取全局日志失败：节点日志聚合失败');
         });
     });
 });

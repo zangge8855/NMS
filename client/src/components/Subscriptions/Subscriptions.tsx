@@ -884,7 +884,7 @@ export default function Subscriptions() {
                                                 <button
                                                     key={item.key}
                                                     type="button"
-                                                    className={`btn btn-sm ${profileKey === item.key ? 'btn-primary' : 'btn-secondary'}`}
+                                                    className="btn btn-sm btn-secondary"
                                                     aria-pressed={profileKey === item.key}
                                                     onClick={() => setProfileKey(item.key)}
                                                 >
@@ -1182,15 +1182,14 @@ export default function Subscriptions() {
                                                 ))}
                                             </div>
 
-                                            <div className="subscription-routing-policy" style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>
-                                                <label htmlFor="subscription-routing-policy-select" className="text-sm font-medium" style={{ marginRight: '0.5rem' }}>
-                                                    {locale === 'en-US' ? 'Routing Policy:' : '路由策略:'}
+                                            <div className="subscription-routing-policy mt-2 mb-2">
+                                                <label htmlFor="subscription-routing-policy-select" className="subscription-routing-policy-label">
+                                                    {locale === 'en-US' ? 'Routing policy' : '路由策略'}
                                                 </label>
                                                 <select
                                                     id="subscription-routing-policy-select"
-                                                    className="form-select form-select-sm"
-                                                    style={{ width: 'auto', display: 'inline-block' }}
-                                                    aria-label={locale === 'en-US' ? 'Routing Policy' : '路由策略'}
+                                                    className="form-select form-select-sm subscription-routing-policy-select"
+                                                    aria-label={locale === 'en-US' ? 'Routing policy' : '路由策略'}
                                                     value={routingPolicy}
                                                     onChange={e => setRoutingPolicy(e.target.value)}
                                                 >

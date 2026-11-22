@@ -2396,12 +2396,12 @@ export default function UsersHub() {
                                                 <td
                                                     data-label={t('pages.usersHub.cols.account')}
                                                     className="users-identity-cell"
-                                                    onClick={(e) => { e.stopPropagation(); navigate(`/clients/${user.id}`); }}
                                                 >
                                                     <button
                                                         type="button"
                                                         className="table-cell-link table-cell-link-button users-identity-link"
                                                         title={displayEmail ? `${user.username}\n${displayEmail}` : user.username}
+                                                        onClick={(e) => { e.stopPropagation(); navigate(`/clients/${user.id}`); }}
                                                     >
                                                         <span className="user-avatar-badge" aria-hidden="true">
                                                             {String(user.username || user.email || 'U').slice(0, 1).toUpperCase()}
@@ -2637,7 +2637,7 @@ export default function UsersHub() {
                                         </div>
                                         <span className="badge badge-info">{t('pages.usersHub.groups.modal.selectedCount', { count: groupMemberIds.length })}</span>
                                     </div>
-                                    <div className="flex items-center gap-2 mb-2">
+                                    <div className="flex items-center flex-wrap gap-2 mb-2">
                                         <input name="usersHubGroupMemberQuery"
                                             className="form-input"
                                             value={groupMemberQuery}

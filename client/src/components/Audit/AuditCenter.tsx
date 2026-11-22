@@ -309,7 +309,7 @@ const AUDIT_COPY = {
         },
         roles: {
             admin: '管理员',
-            operator: '运维',
+            operator: '运维员',
             auditor: '审计员',
             user: '用户',
             anonymous: '未登录',
@@ -2017,6 +2017,7 @@ export default function AuditCenter() {
                                 const isActive = tab === item.id;
                                 return (
                                     <button
+                                        id={`audit-tab-${item.id}`}
                                         type="button"
                                         key={item.id}
                                         className={`tab ${isActive ? 'active' : ''}`}
@@ -2034,7 +2035,7 @@ export default function AuditCenter() {
                     </div>
 
                     <div className="audit-main">
-                        <div className="audit-tab-panel">
+                        <div className="audit-tab-panel" role="tabpanel" aria-labelledby={`audit-tab-${tab}`}>
                 {tab === 'events' && (
                     <div className="audit-events-layout">
                         <div className="audit-events-main">
@@ -2331,7 +2332,7 @@ export default function AuditCenter() {
                                                     onChange={(e) => setCustomFromDate(e.target.value)}
                                                 />
                                             </div>
-                                            <span className="audit-traffic-custom-range-separator">-</span>
+                                            <span className="audit-traffic-custom-range-separator" aria-hidden="true">—</span>
                                             <div className="audit-traffic-window-bar">
                                                 <span className="audit-traffic-window-label">{copy.filters.toDate}</span>
                                                 <input name="auditCenterFiltersToDate2"

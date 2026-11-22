@@ -776,7 +776,7 @@ function ClusterSystemTrendsCard({
 }) {
     const availabilityPercent = clusterSummaryReady && clusterServerCount > 0
         ? `${Math.round((onlineServers / clusterServerCount) * 100)}%`
-        : '--';
+        : '—';
 
     return (
         <section className="card dashboard-trends-card mb-6" aria-label={opsCopy.dashboard.trendsTitle}>
@@ -790,7 +790,7 @@ function ClusterSystemTrendsCard({
                     <span className="dashboard-trend-label">{opsCopy.dashboard.avgCpuLabel}</span>
                     <div className="dashboard-trend-primary">
                         <span className="dashboard-trend-value">
-                            {trends.avgCpu !== null ? `${trends.avgCpu.toFixed(1)}%` : '--'}
+                            {trends.avgCpu !== null ? `${trends.avgCpu.toFixed(1)}%` : '—'}
                         </span>
                         {trends.cpuSparkline.length > 1 && (
                             <StatSparkline points={trends.cpuSparkline} domain={[0, 100]} />
@@ -800,13 +800,13 @@ function ClusterSystemTrendsCard({
                 <div className="dashboard-trend-metric">
                     <span className="dashboard-trend-label">{opsCopy.dashboard.avgMemoryLabel}</span>
                     <span className="dashboard-trend-value">
-                        {trends.avgMem !== null ? `${trends.avgMem.toFixed(1)}%` : '--'}
+                        {trends.avgMem !== null ? `${trends.avgMem.toFixed(1)}%` : '—'}
                     </span>
                 </div>
                 <div className="dashboard-trend-metric">
                     <span className="dashboard-trend-label">{opsCopy.dashboard.liveThroughputLabel}</span>
                     <span className="dashboard-trend-value">
-                        {throughput.ready ? `${formatBytes(throughput.total)}/s` : '--'}
+                        {throughput.ready ? `${formatBytes(throughput.total)}/s` : '—'}
                     </span>
                     <span className="dashboard-trend-meta">
                         {throughput.ready
@@ -1623,7 +1623,7 @@ export default function Dashboard({
                 className={`btn btn-sm btn-secondary dashboard-customize-btn${customizeOpen ? ' is-open' : ''}`}
                 onClick={() => setCustomizeOpen((value) => !value)}
                 aria-expanded={customizeOpen}
-                aria-controls={customizePanelId}
+                aria-controls={customizeOpen ? customizePanelId : undefined}
                 aria-label={opsCopy.dashboard.customizeAriaLabel}
                 title={opsCopy.dashboard.customizeAriaLabel}
             >
@@ -1710,7 +1710,7 @@ export default function Dashboard({
                     renderAnimatedValue: (value) => formatBytes(value),
                     sub: buildTrafficWindowSubtitle(trafficWindowTotals.day, t),
                 } : {
-                    value: '--',
+                    value: '—',
                     sub: t('pages.dashboardCommon.trafficPending'),
                 }),
                 ...DASHBOARD_ACCENT.primary,
@@ -1725,7 +1725,7 @@ export default function Dashboard({
                     renderAnimatedValue: (value) => formatBytes(value),
                     sub: buildTrafficWindowSubtitle(trafficWindowTotals.week, t),
                 } : {
-                    value: '--',
+                    value: '—',
                     sub: t('pages.dashboardCommon.trafficPending'),
                 }),
                 ...DASHBOARD_ACCENT.warning,
@@ -1740,7 +1740,7 @@ export default function Dashboard({
                     renderAnimatedValue: (value) => formatBytes(value),
                     sub: buildTrafficWindowSubtitle(trafficWindowTotals.month, t),
                 } : {
-                    value: '--',
+                    value: '—',
                     sub: t('pages.dashboardCommon.trafficPending'),
                 }),
                 ...DASHBOARD_ACCENT.primary,
@@ -1753,7 +1753,7 @@ export default function Dashboard({
                 label: t('pages.dashboardHero.kpiOnlineUsers'),
                 value: isOnlineCountReady
                     ? Number(effectiveManagedOnlineCount ?? globalStats.totalOnline ?? 0).toLocaleString()
-                    : '--',
+                    : '—',
                 meta: globalOnlineSummary,
                 onClick: () => setShowOnlineDetail((value) => !value),
                 expanded: showOnlineDetail,
@@ -1762,7 +1762,7 @@ export default function Dashboard({
                 label: t('pages.dashboardHero.kpiNodesOnline'),
                 value: clusterSummaryReady
                     ? `${globalStats.onlineServers}/${clusterServerCount}`
-                    : `--/${clusterServerCount}`,
+                    : `—/${clusterServerCount}`,
                 meta: clusterSummaryReady
                     ? t('pages.dashboardGlobal.inboundSummary', {
                         active: globalStats.activeInbounds,
@@ -1970,7 +1970,7 @@ export default function Dashboard({
         {
             icon: HiOutlineCpuChip,
             label: t('pages.dashboardNode.cards.cpuUsage'),
-            value: Number.isFinite(status?.cpu) ? `${status.cpu.toFixed(1)}%` : '--',
+            value: Number.isFinite(status?.cpu) ? `${status.cpu.toFixed(1)}%` : '—',
             ...DASHBOARD_ACCENT.primary,
             skeletonWidth: '5.5rem',
             sparkline: singleServerCpuSparkline,
@@ -1981,14 +1981,14 @@ export default function Dashboard({
             label: t('pages.dashboardNode.cards.memoryUsage'),
             value: status?.mem && Number(status.mem.total) > 0
                 ? `${((Number(status.mem.current || 0) / Number(status.mem.total)) * 100).toFixed(1)}%`
-                : '--',
+                : '—',
             sub: status?.mem && Number(status.mem.total) > 0
                 ? `${formatBytes(status.mem.current)} / ${formatBytes(status.mem.total)}`
                 : '',
             ...DASHBOARD_ACCENT.primary,
             skeletonWidth: '7rem',
         },
-        { icon: HiOutlineClock, label: t('pages.dashboardNode.cards.runtime'), value: status ? formatUptime(status.uptime, locale) : '--', ...DASHBOARD_ACCENT.success, skeletonWidth: '8rem' },
+        { icon: HiOutlineClock, label: t('pages.dashboardNode.cards.runtime'), value: status ? formatUptime(status.uptime, locale) : '—', ...DASHBOARD_ACCENT.success, skeletonWidth: '8rem' },
         {
             icon: HiOutlineArrowsUpDown,
             label: t('pages.dashboardNode.cards.totalTraffic'),

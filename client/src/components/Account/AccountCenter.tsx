@@ -71,7 +71,7 @@ function getAccountCopy(locale = 'zh-CN') {
         verified: '已验证',
         unverified: '未验证',
         userRole: '用户',
-        operatorRole: '运维',
+        operatorRole: '运维员',
         auditorRole: '审计员',
         adminRole: '管理员',
         saveProfile: '保存账户',

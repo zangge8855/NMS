@@ -63,7 +63,7 @@ export default function XrayJsonEditor({
             try {
                 parsed = JSON.parse(trimmed);
             } catch (err) {
-                setError(locale === 'en-US' ? `Invalid JSON: ${err.message}` : `JSON 无效: ${err.message}`);
+                setError(locale === 'en-US' ? `Invalid JSON: ${err.message}` : `JSON 无效：${err.message}`);
                 return;
             }
             if (expectArray && !Array.isArray(parsed)) {
@@ -82,18 +82,19 @@ export default function XrayJsonEditor({
     const handleReset = () => {
         setText(initialText);
         setError('');
+        onChangeTextRef.current?.(initialText);
     };
 
     return (
         <div className="xray-json-editor">
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start justify-between flex-wrap gap-3">
                 <div>
                     {hasLabel ? <h3 className="text-base font-bold text-primary">{label}</h3> : null}
                     {description ? (
                         <p className="text-sm text-secondary mt-1">{description}</p>
                     ) : null}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                     {dirty ? (
                         <button type="button" className="btn btn-secondary btn-sm flex items-center gap-1" onClick={handleReset}>
                             <HiOutlineXMark /> {locale === 'en-US' ? 'Reset' : '撤销'}
@@ -130,7 +131,7 @@ export default function XrayJsonEditor({
             />
 
             {error ? (
-                <div className="text-sm text-danger">{error}</div>
+                <div className="text-sm text-danger" role="alert">{error}</div>
             ) : (
                 dirty ? (
                     <div className="text-xs text-warning">

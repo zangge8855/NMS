@@ -727,6 +727,7 @@ export default function ServerDetail() {
                     <div
                         className="tabs"
                         role="tablist"
+                        aria-label={t('pages.serverDetail.title')}
                         onKeyDown={(e) => handleRovingTabKeyDown(e, rovingTabs, activeTab, selectTab)}
                     >
                         {tabs.map((tabItem) => {
@@ -734,6 +735,7 @@ export default function ServerDetail() {
                             return (
                                 <button
                                     key={tabItem.key}
+                                    id={`server-detail-tab-${tabItem.key}`}
                                     type="button"
                                     role="tab"
                                     aria-selected={isActive}
@@ -747,7 +749,12 @@ export default function ServerDetail() {
                         })}
                     </div>
 
-                    <div className="user-detail-tab-content tab-content-enter" key={activeTab}>
+                    <div
+                        className="user-detail-tab-content tab-content-enter"
+                        key={activeTab}
+                        role="tabpanel"
+                        aria-labelledby={`server-detail-tab-${activeTab}`}
+                    >
                         {/* Overview Tab */}
                         {activeTab === 'overview' && (
                             <div>
@@ -790,7 +797,7 @@ export default function ServerDetail() {
                         {activeTab === 'inbounds' && (
                             <div>
                                 {inboundsLoading && inbounds.length === 0 ? (
-                                    <SkeletonTable rows={4} cols={5} />
+                                    <SkeletonTable rows={4} cols={6} />
                                 ) : inbounds.length === 0 ? (
                                     <EmptyState
                                         title={t('pages.serverDetail.empty.noInboundsTitle')}
@@ -863,7 +870,7 @@ export default function ServerDetail() {
                                     )}
                                 />
                                 {onlinesLoading ? (
-                                    <SkeletonTable rows={4} cols={3} />
+                                    <SkeletonTable rows={4} cols={5} />
                                 ) : onlineUsers.length === 0 ? (
                                     <EmptyState
                                         title={t('pages.serverDetail.empty.noOnlineUsersTitle')}

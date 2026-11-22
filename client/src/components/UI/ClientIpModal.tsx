@@ -96,7 +96,7 @@ export default function ClientIpModal({
                         <h3 className="modal-title">{title || copy.title}</h3>
                         {subtitle && <div className="text-sm text-muted mt-1">{subtitle}</div>}
                     </div>
-                    <button className="modal-close" onClick={onClose} aria-label={copy.close} title={copy.close}>
+                    <button type="button" className="modal-close" onClick={onClose} aria-label={copy.close} title={copy.close}>
                         <HiOutlineXMark />
                     </button>
                 </div>
@@ -146,7 +146,7 @@ export default function ClientIpModal({
                         ]}
                     >
                         {items.map((item) => {
-                            const geo = resolveAccessGeoDisplay(item);
+                            const geo = resolveAccessGeoDisplay(item, locale);
                             return (
                                 <tr key={item.ip}>
                                     <td data-label={copy.ip} className="font-mono client-ip-address-cell">{item.ip}</td>

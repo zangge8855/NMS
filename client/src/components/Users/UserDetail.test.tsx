@@ -464,7 +464,7 @@ describe('UserDetail', () => {
 
         await screen.findByText('用户详情 · alice');
         await screen.findByText('3 KB');
-        expect(screen.getByText('实时速度: 计算中')).toBeInTheDocument();
+        expect(screen.getByText('实时速度：计算中')).toBeInTheDocument();
         await waitFor(() => {
             expect(intervalRegistrations.some((item) => item.delay === 15000)).toBe(true);
         });
@@ -476,7 +476,7 @@ describe('UserDetail', () => {
         });
 
         expect(snapshotCall).toBe(2);
-        expect(screen.getByText('实时速度: 160 B/s (上行 60 B/s · 下行 100 B/s)')).toBeInTheDocument();
+        expect(screen.getByText('实时速度：160 B/s（上行 60 B/s · 下行 100 B/s）')).toBeInTheDocument();
     });
 
     it('renders audit events with structured facts and hides masked audit values', async () => {

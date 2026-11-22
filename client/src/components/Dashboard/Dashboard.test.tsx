@@ -595,11 +595,11 @@ describe('Dashboard', () => {
         if (!trafficCard) throw new Error('Missing monthly traffic card');
 
         await waitFor(() => {
-            expect(weekTrafficCard).toHaveTextContent('--');
+            expect(weekTrafficCard).toHaveTextContent('—');
             expect(weekTrafficCard).toHaveTextContent('统计当前用户流量中');
-            expect(trafficCard).toHaveTextContent('--');
+            expect(trafficCard).toHaveTextContent('—');
             expect(trafficCard).toHaveTextContent('统计当前用户流量中');
-            expect(onlineKpi).toHaveTextContent('--');
+            expect(onlineKpi).toHaveTextContent('—');
             expect(onlineKpi).toHaveTextContent('已注册 1 · 正在统计在线');
         });
 

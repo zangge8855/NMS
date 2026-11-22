@@ -209,7 +209,7 @@
   font-family: var(--font-figure, var(--font-display));
   font-size: 1.25rem;
   font-weight: 600;
-  font-variant-numeric: tabular-nums lining-nums;
+  font-variant-numeric: proportional-nums lining-nums;
   letter-spacing: -0.01em;
   line-height: 1.2;
   white-space: nowrap;
@@ -279,7 +279,7 @@
 .pf-more {
   margin-inline-start: 6px;
   color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
 }
 
 /* --------------------------------------------------------------------------
@@ -400,7 +400,7 @@
   color: var(--text-muted);
   font-family: var(--font-figure, var(--font-display));
   font-size: 0.75rem;
-  font-variant-numeric: tabular-nums lining-nums;
+  font-variant-numeric: proportional-nums lining-nums;
   text-align: end;
   white-space: nowrap;
 }
@@ -777,7 +777,7 @@
   color: var(--text-muted);
   font-family: var(--font-figure, var(--font-display));
   font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
 }
 
 .pf-weight-input.form-input {
@@ -785,7 +785,7 @@
   min-block-size: 0;
   block-size: 30px;
   padding: 4px 8px;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
   text-align: end;
 }
 
@@ -875,7 +875,7 @@
 
 .pf-hwid-limit-input.form-input {
   inline-size: 5rem;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
   text-align: end;
 }
 
@@ -935,7 +935,7 @@
   color: var(--text-secondary);
   font-family: var(--font-figure, var(--font-display));
   font-size: 0.75rem;
-  font-variant-numeric: tabular-nums lining-nums;
+  font-variant-numeric: proportional-nums lining-nums;
   white-space: nowrap;
 }
 

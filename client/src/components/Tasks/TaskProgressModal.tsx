@@ -87,15 +87,23 @@ function getTaskProgressCopy(locale = 'zh-CN') {
     return TASK_PROGRESS_COPY[locale === 'en-US' ? 'en-US' : 'zh-CN'];
 }
 
-function ProgressBar({ percent, color }) {
+function ProgressBar({ percent, color, label }) {
+    const safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
     return (
-        <div className="w-full h-2 rounded overflow-hidden" style={{ background: 'var(--bg-tertiary)' }}>
+        <div
+            className="w-full h-2 rounded overflow-hidden"
+            style={{ background: 'var(--bg-tertiary)' }}
+            role="progressbar"
+            aria-label={label}
+            aria-valuenow={Math.round(safePercent)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+        >
             <div
                 className="h-full rounded transition-all duration-300 ease-out"
                 style={{
-                    width: `${percent}%`,
+                    width: `${safePercent}%`,
                     background: color || 'var(--accent-primary)',
-                    boxShadow: `0 0 8px ${color || 'var(--accent-primary-glow)'}`,
                 }}
             />
         </div>
@@ -217,6 +225,7 @@ export default function TaskProgressModal({ taskId, title, onClose }) {
                         <ProgressBar
                             percent={task?.progress?.percent ?? 0}
                             color={statusConf.color}
+                            label={title || copy.title}
                         />
                         {task?.progress?.step !== undefined && task?.progress?.total !== undefined && (
                             <div className="text-xs text-muted mt-1.5 text-right">
@@ -253,13 +262,13 @@ export default function TaskProgressModal({ taskId, title, onClose }) {
 
                     {/* 任务元信息 */}
                     <div className="grid grid-cols-2 gap-2 text-xs text-muted">
-                        <div>{copy.taskId}: <span className="font-mono">{taskId?.slice(0, 8)}...</span></div>
-                        <div>{copy.actor}: {task?.actor || '—'}</div>
+                        <div>{copy.taskId}{locale === 'en-US' ? ': ' : '：'}<span className="font-mono">{taskId?.slice(0, 8)}...</span></div>
+                        <div>{copy.actor}{locale === 'en-US' ? ': ' : '：'}{task?.actor || '—'}</div>
                         {task?.startedAt && (
-                            <div>{copy.startedAt}: {formatTimeOnly(task.startedAt, locale)}</div>
+                            <div>{copy.startedAt}{locale === 'en-US' ? ': ' : '：'}{formatTimeOnly(task.startedAt, locale)}</div>
                         )}
                         {task?.completedAt && (
-                            <div>{copy.completedAt}: {formatTimeOnly(task.completedAt, locale)}</div>
+                            <div>{copy.completedAt}{locale === 'en-US' ? ': ' : '：'}{formatTimeOnly(task.completedAt, locale)}</div>
                         )}
                     </div>
                 </div>

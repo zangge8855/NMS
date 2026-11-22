@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import XrayJsonEditor from '../XrayJsonEditor';
+import EmptyState from '../../UI/EmptyState';
 import { HiOutlineCodeBracket, HiOutlineSquares2X2, HiOutlinePlus, HiOutlineTrash, HiOutlineArrowUp, HiOutlineArrowDown } from 'react-icons/hi2';
 import toast from 'react-hot-toast';
 
@@ -149,19 +150,21 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
 
     return (
         <div className="xray-routing-editor">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
                 <h3 className="text-lg font-medium text-primary">{locale === 'en-US' ? 'Routing Rules' : '路由规则'}</h3>
-                <div className="btn-group">
+                <div className="btn-group" role="group" aria-label={locale === 'en-US' ? 'Editor mode' : '编辑模式'}>
                     <button
                         type="button"
-                        className={`btn btn-sm ${mode === 'visual' ? 'btn-primary' : 'btn-secondary'}`}
+                        className="btn btn-sm btn-secondary"
+                        aria-pressed={mode === 'visual'}
                         onClick={handleSwitchToVisual}
                     >
                         <HiOutlineSquares2X2 className="mr-1" /> {locale === 'en-US' ? 'Visual' : '可视化'}
                     </button>
                     <button
                         type="button"
-                        className={`btn btn-sm ${mode === 'json' ? 'btn-primary' : 'btn-secondary'}`}
+                        className="btn btn-sm btn-secondary"
+                        aria-pressed={mode === 'json'}
                         onClick={handleSwitchToJSON}
                     >
                         <HiOutlineCodeBracket className="mr-1" /> {locale === 'en-US' ? 'JSON' : '代码'}
@@ -187,7 +190,7 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
             ) : (
                 <div className="visual-routing-container">
                     <div className="form-group mb-6">
-                        <label htmlFor="routing-rules-editor-config-domain-strategy" className="form-label">{locale === 'en-US' ? 'Domain Strategy' : '域名解析策略 (domainStrategy)'}</label>
+                        <label htmlFor="routing-rules-editor-config-domain-strategy" className="form-label">{locale === 'en-US' ? 'Domain Strategy' : '域名解析策略（domainStrategy）'}</label>
                         <select id="routing-rules-editor-config-domain-strategy" name="routingRulesEditorConfigDomainStrategy"
                             className="form-select"
                             value={config.domainStrategy || 'AsIs'}
@@ -208,16 +211,19 @@ export default function RoutingRulesEditor({ locale = 'zh-CN', value, onSave, sa
                         </div>
 
                         {(!config.rules || config.rules.length === 0) ? (
-                            <div className="p-8 text-center text-muted border border-dashed border-[var(--border-color)] rounded-lg">
-                                {locale === 'en-US' ? 'No rules defined' : '暂无路由规则'}
-                            </div>
+                            <EmptyState
+                                size="compact"
+                                hideIcon
+                                surface
+                                title={locale === 'en-US' ? 'No rules defined' : '暂无路由规则'}
+                            />
                         ) : (
                             <div className="flex flex-col gap-3">
                                 {config.rules.map((rule, index) => (
                                     <div key={index} className="p-4 bg-[var(--surface-panel-soft)] border border-[var(--border-color)] rounded-lg relative">
                                         <div className="flex flex-col sm:flex-row sm:items-end gap-3 mb-3">
                                             <div className="flex-1 min-w-0">
-                                                <label htmlFor={`routing-rules-editor-e-g-block-direct-proxy-${index}`} className="block text-xs text-muted mb-1">{locale === 'en-US' ? 'Outbound Tag' : '目标出站 (outboundTag)'}</label>
+                                                <label htmlFor={`routing-rules-editor-e-g-block-direct-proxy-${index}`} className="block text-xs text-muted mb-1">{locale === 'en-US' ? 'Outbound Tag' : '目标出站（outboundTag）'}</label>
                                                 <input id={`routing-rules-editor-e-g-block-direct-proxy-${index}`} name={`routingRulesEditorEGBlockDirectProxy-${index}`}
                                                     type="text"
                                                     className="form-input form-input-sm"

@@ -132,11 +132,11 @@ interface SparklineData {
 function buildSparkline(points: any[], width = 132, height = 34, padding = 3): SparklineData | null {
     const values = (Array.isArray(points) ? points : [])
         .map((item) => Math.max(0, Math.min(100, Number(item?.cpu || 0))));
-    if (values.length === 0) return null;
+    if (values.length < 2) return null;
 
     const drawableWidth = Math.max(1, width - (padding * 2));
     const drawableHeight = Math.max(1, height - (padding * 2));
-    const step = values.length === 1 ? 0 : drawableWidth / (values.length - 1);
+    const step = drawableWidth / (values.length - 1);
     const coords = values.map((value, index) => ({
         x: padding + (step * index),
         y: padding + (((100 - value) / 100) * drawableHeight),
@@ -194,7 +194,15 @@ function NodeTile({ server, serverData, trend = [], showSparkline = false, ping 
     const sparkline = buildSparkline(trend);
     const handleOpen = () => navigate(`/servers/${server.id}`);
     const handleKeyDown = (event: React.KeyboardEvent) => {
-        if (event.key === 'Enter' || event.key === ' ') {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            handleOpen();
+        } else if (event.key === ' ') {
+            event.preventDefault();
+        }
+    };
+    const handleKeyUp = (event: React.KeyboardEvent) => {
+        if (event.key === ' ') {
             event.preventDefault();
             handleOpen();
         }
@@ -205,6 +213,7 @@ function NodeTile({ server, serverData, trend = [], showSparkline = false, ping 
             className="node-health-tile"
             onClick={handleOpen}
             onKeyDown={handleKeyDown}
+            onKeyUp={handleKeyUp}
             role="button"
             tabIndex={0}
             aria-label={statusLabel}
@@ -292,7 +301,7 @@ function NodeTile({ server, serverData, trend = [], showSparkline = false, ping 
                     <div className="node-health-metric-cell">
                         <div className="node-health-metric-label">{t('pages.nodeHealth.traffic')}</div>
                         <div className="node-health-tile-value">
-                            {trafficReady && traffic !== null ? formatBytes(traffic) : '--'}
+                            {trafficReady && traffic !== null ? formatBytes(traffic) : '—'}
                         </div>
                     </div>
                 </div>
@@ -460,19 +469,19 @@ export default function NodeHealthGrid({ servers, serverStatuses, trendHistory =
                 <div className="node-health-summary-strip" aria-label={t('pages.dashboardGlobal.nodeHealthTitle')}>
                     <div className="node-health-summary-item" data-tone="success">
                         <span>{copy.healthy}</span>
-                        <strong>{hasStatuses ? summary.healthy : '--'}</strong>
+                        <strong>{hasStatuses ? summary.healthy : '—'}</strong>
                     </div>
                     <div className="node-health-summary-item" data-tone="warning">
                         <span>{copy.warning}</span>
-                        <strong>{hasStatuses ? summary.warning : '--'}</strong>
+                        <strong>{hasStatuses ? summary.warning : '—'}</strong>
                     </div>
                     <div className="node-health-summary-item" data-tone="danger">
                         <span>{copy.critical}</span>
-                        <strong>{hasStatuses ? summary.critical : '--'}</strong>
+                        <strong>{hasStatuses ? summary.critical : '—'}</strong>
                     </div>
                     <div className="node-health-summary-item" data-tone="neutral">
                         <span>{copy.offline}</span>
-                        <strong>{hasStatuses ? summary.offline : '--'}</strong>
+                        <strong>{hasStatuses ? summary.offline : '—'}</strong>
                     </div>
                 </div>
 

@@ -53,15 +53,40 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
     const isGlobalView = activeServerId === 'global';
     const isAdmin = user?.role === 'admin';
     const role = user?.role || (isAdmin ? 'admin' : 'user');
-    const visibleSections = getVisibleNavSections({ isAdmin, role, isGlobalView, locale });
+    const rawVisibleSections = getVisibleNavSections({ isAdmin, role, isGlobalView, locale });
+    // The utility footer already links the signed-in user identity to /account,
+    // so avoid rendering a second simultaneous /account active item in the main nav.
+    const visibleSections = user
+        ? rawVisibleSections
+            .map((section) => ({
+                ...section,
+                items: section.items.filter((item) => item.path !== '/account'),
+            }))
+            .filter((section) => section.items.length > 0)
+        : rawVisibleSections;
     const visibleFooterItems = getVisibleFooterNavItems({ isAdmin, role, isGlobalView, locale });
 
     const onCloseRef = useRef(onClose);
     onCloseRef.current = onClose;
 
     useEffect(() => {
+        if (!isMobile || !open) return undefined;
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key !== 'Escape') return;
+            event.preventDefault();
+            onCloseRef.current?.();
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [isMobile, open]);
+
+    const lastPathnameRef = useRef(location.pathname);
+    useEffect(() => {
         setNavFlyout(null);
-        onCloseRef.current?.();
+        if (lastPathnameRef.current !== location.pathname) {
+            lastPathnameRef.current = location.pathname;
+            onCloseRef.current?.();
+        }
     }, [location.pathname]);
 
     useEffect(() => {
@@ -116,7 +141,6 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
                 onMouseLeave: () => closeNavFlyout(id),
                 onFocus: (event: React.FocusEvent<HTMLElement>) => openNavFlyout(id, label, event.currentTarget),
                 onBlur: () => closeNavFlyout(id),
-                title: label,
             }
             : {}
     );
@@ -127,7 +151,7 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
                 ref={navFlyoutRef}
                 className={`sidebar-nav-flyout${isNavFlyoutReady ? ' is-ready' : ''}`}
                 style={navFlyoutStyle}
-                role="tooltip"
+                aria-hidden="true"
             >
                 {navFlyout.label}
             </div>,
@@ -181,7 +205,7 @@ export default function Sidebar({ collapsed, open = false, isMobile = false, onC
                                                 onClose?.();
                                             }}
                                             data-tooltip={item.label}
-                                            aria-label={collapsed && item.path === '/audit' && unreadCount > 0 ? `${item.label} (${unreadCount})` : undefined}
+                                            aria-label={collapsed ? (item.path === '/audit' && unreadCount > 0 ? `${item.label} (${unreadCount})` : item.label) : undefined}
                                             {...getNavFlyoutProps(item.path, item.label)}
                                             className={({ isActive }) =>
                                                 `nav-item ${isActive ? 'active' : ''}`

@@ -660,8 +660,8 @@ describe('UsersHub ordering', () => {
         expect(await screen.findByText('alice')).toBeInTheDocument();
         await waitFor(() => {
             expect(screen.getByText('节点数据已降级显示')).toBeInTheDocument();
-            expect(screen.getByText(/入站配置失败: Node A/)).toBeInTheDocument();
-            expect(screen.getByText(/在线状态失败: Node A/)).toBeInTheDocument();
+            expect(screen.getByText(/入站配置失败：Node A/)).toBeInTheDocument();
+            expect(screen.getByText(/在线状态失败：Node A/)).toBeInTheDocument();
         });
     });
 

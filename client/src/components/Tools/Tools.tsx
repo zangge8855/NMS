@@ -228,7 +228,7 @@ export default function Tools() {
                 refreshCatalog: 'Refresh Tool Catalog',
                 ssl: {
                     title: 'Cloudflare ACME Automated Certificate Generator',
-                    subtitle: 'Generate standard one-click acme.sh wildcard TLS certificate deployment scripts for 3X-UI nodes.',
+                    subtitle: 'Generate standard one-click acme.sh wildcard TLS certificate deployment scripts for 3x-ui nodes.',
                     domainLabel: 'Domain Name (Root or Subdomain)',
                     domainPlaceholder: 'e.g. node.yourdomain.com or *.yourdomain.com',
                     emailLabel: 'Cloudflare Account Email (Optional)',
@@ -239,7 +239,7 @@ export default function Tools() {
                     keyPathLabel: 'Target Private Key Path on Node',
                     scriptTitle: 'Generated One-Click Execution Script',
                     copyScript: 'Copy ACME Bash Script',
-                    pathTip: 'Copy the certificate path and fill into your 3X-UI / Xray Inbound TLS configuration.',
+                    pathTip: 'Copy the certificate path and fill into your 3x-ui / Xray Inbound TLS configuration.',
                     managedTitle: 'Managed TLS & ACME Certificates',
                     managedSubtitle: 'Issue real X.509 v3 / RFC 8555 ACME v2 certificates and push inline PEM to matching 3x-ui TLS inbounds.',
                     sansLabel: 'SAN Domains / IPs (Optional, IPv6 supported)',
@@ -330,15 +330,15 @@ export default function Tools() {
                 refreshCatalog: '刷新工具目录',
                 ssl: {
                     title: 'Cloudflare ACME 证书自动化签发脚本助手',
-                    subtitle: '快速生成基于 acme.sh 与 Cloudflare DNS API 的通配符证书一键申请与 3X-UI 自动配置脚本。',
+                    subtitle: '快速生成基于 acme.sh 与 Cloudflare DNS API 的通配符证书一键申请与 3x-ui 自动配置脚本。',
                     domainLabel: '申请域名（支持通配符）',
                     domainPlaceholder: '例如 node.example.com 或 *.example.com',
                     emailLabel: 'Cloudflare 账号邮箱（可选）',
                     emailPlaceholder: '例如 your-cloudflare-account@example.com',
                     tokenLabel: 'Cloudflare DNS API Token',
                     tokenPlaceholder: '输入 Cloudflare API Token',
-                    certPathLabel: '节点目标公钥路径 (Public Cert)',
-                    keyPathLabel: '节点目标私钥路径 (Private Key)',
+                    certPathLabel: '节点目标公钥路径（Public Cert）',
+                    keyPathLabel: '节点目标私钥路径（Private Key）',
                     scriptTitle: '生成的一键执行 Shell 脚本',
                     copyScript: '复制完整 ACME 脚本',
                     pathTip: '申请成功后，请将公钥与私钥路径直接填写入站节点的 TLS 证书路径中。',
@@ -1061,7 +1061,7 @@ export default function Tools() {
                                     <select
                                         id="tools-ssl-provider"
                                         name="sslProvider"
-                                        className="form-input"
+                                        className="form-select"
                                         value={sslProvider}
                                         onChange={(e) => {
                                             const next = e.target.value as any;
@@ -1085,7 +1085,7 @@ export default function Tools() {
                                     <select
                                         id="tools-ssl-challenge"
                                         name="sslChallengeType"
-                                        className="form-input"
+                                        className="form-select"
                                         value={sslProvider === 'selfsigned' ? 'manual' : sslChallengeType}
                                         disabled={sslProvider === 'selfsigned'}
                                         onChange={(e) => setSslChallengeType(e.target.value as any)}
@@ -1162,7 +1162,8 @@ export default function Tools() {
                                                 <button
                                                     key={sid}
                                                     type="button"
-                                                    className={`btn btn-sm ${checked ? 'btn-primary' : 'btn-secondary'}`}
+                                                    className="btn btn-sm btn-secondary"
+                                                    aria-pressed={checked}
                                                     onClick={() => toggleSslTargetServer(sid)}
                                                 >
                                                     {srv?.name || sid}
@@ -1189,10 +1190,13 @@ export default function Tools() {
 
                             <div className="pt-4 border-t border-stroke-soft space-y-3">
                                 {certificates.length === 0 && !certsLoading ? (
-                                    <div className="p-4 rounded-xl bg-surface-panel border border-stroke-soft text-sm text-secondary">
-                                        <div className="font-semibold text-primary">{copy.ssl.noCerts}</div>
-                                        <div className="text-xs text-muted mt-1">{copy.ssl.noCertsHint}</div>
-                                    </div>
+                                    <EmptyState
+                                        size="compact"
+                                        hideIcon
+                                        surface
+                                        title={copy.ssl.noCerts}
+                                        subtitle={copy.ssl.noCertsHint}
+                                    />
                                 ) : (
                                     <div className="space-y-3">
                                         {certificates.map((cert) => {

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback, type ReactElement, type ReactNode } from 'react';
+import React, { useEffect, useId, useRef, useState, useCallback, type ReactElement } from 'react';
 import { createPortal } from 'react-dom';
 import useFloatingPanel, { type ComputePositionParams } from '../../hooks/useFloatingPanel';
 import { HiOutlineEllipsisVertical } from 'react-icons/hi2';
@@ -27,21 +27,10 @@ export default function ActionsDropdown({
     align = 'right',
 }: ActionsDropdownProps) {
     const { t } = useI18n();
+    const menuId = useId();
     const [isOpen, setIsOpen] = useState(false);
     const triggerRef = useRef<HTMLElement | null>(null);
     const panelRef = useRef<HTMLDivElement | null>(null);
-
-    const toggleOpen = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setIsOpen((prev) => !prev);
-    };
-
-    const handleActionClick = (e: React.MouseEvent, onClick: () => void, disabled?: boolean) => {
-        e.stopPropagation();
-        if (disabled) return;
-        onClick();
-        setIsOpen(false);
-    };
 
     const getEnabledMenuItems = useCallback((): HTMLButtonElement[] => {
         if (!panelRef.current) return [];
@@ -49,6 +38,49 @@ export default function ActionsDropdown({
             panelRef.current.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not([disabled])')
         );
     }, []);
+
+    const focusMenuEdge = useCallback((toEnd = false) => {
+        window.requestAnimationFrame(() => {
+            const items = getEnabledMenuItems();
+            if (items.length > 0) {
+                (toEnd ? items[items.length - 1] : items[0]).focus({ preventScroll: true });
+            }
+        });
+    }, [getEnabledMenuItems]);
+
+    const openMenu = useCallback((options: { focusFirst?: boolean; focusLast?: boolean } = {}) => {
+        window.dispatchEvent(new CustomEvent('nms:close-popovers', {
+            detail: { source: menuId },
+        }));
+        setIsOpen(true);
+        if (options.focusFirst || options.focusLast) {
+            focusMenuEdge(Boolean(options.focusLast));
+        }
+    }, [focusMenuEdge, menuId]);
+
+    const toggleOpen = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (isOpen) {
+            setIsOpen(false);
+            return;
+        }
+        // Keyboard Enter/Space activation produces a click with detail === 0.
+        openMenu({ focusFirst: e.detail === 0 });
+    };
+
+    const handleActionClick = (e: React.MouseEvent, onClick: () => void, disabled?: boolean) => {
+        e.stopPropagation();
+        if (disabled) return;
+        const fromPointer = e.detail !== 0;
+        setIsOpen(false);
+        // Restore focus to the menu trigger before invoking onClick so any modal
+        // opened by the action captures the trigger instead of the unmounting menuitem.
+        const focusOpts: FocusOptions & { focusVisible?: boolean } = fromPointer
+            ? { preventScroll: true, focusVisible: false }
+            : { preventScroll: true };
+        triggerRef.current?.focus?.(focusOpts);
+        onClick();
+    };
 
     useEffect(() => {
         if (!isOpen) return undefined;
@@ -63,7 +95,9 @@ export default function ActionsDropdown({
             setIsOpen(false);
         };
 
-        const handleClosePopovers = () => {
+        const handleClosePopovers = (event: Event) => {
+            const source = (event as CustomEvent<{ source?: string }>).detail?.source;
+            if (source === menuId) return;
             setIsOpen(false);
         };
 
@@ -112,7 +146,7 @@ export default function ActionsDropdown({
             document.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('nms:close-popovers', handleClosePopovers);
         };
-    }, [getEnabledMenuItems, isOpen]);
+    }, [getEnabledMenuItems, isOpen, menuId]);
 
     const computePosition = useCallback(({ anchorRect, panelRect, viewport }: ComputePositionParams) => {
         const gap = 6;
@@ -159,16 +193,14 @@ export default function ActionsDropdown({
         if (isOpen) return;
         if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
             event.preventDefault();
-            const openToEnd = event.key === 'ArrowUp';
-            setIsOpen(true);
-            window.requestAnimationFrame(() => {
-                const items = getEnabledMenuItems();
-                if (items.length > 0) {
-                    (openToEnd ? items[items.length - 1] : items[0]).focus();
-                }
+            openMenu({
+                focusFirst: event.key === 'ArrowDown',
+                focusLast: event.key === 'ArrowUp',
             });
         }
     };
+
+    const menuLabel = t('comp.common.actionsMenu');
 
     const renderedTrigger = trigger ? (
         React.cloneElement(trigger, {
@@ -182,7 +214,8 @@ export default function ActionsDropdown({
                 handleTriggerKeyDown(e);
             },
             'aria-expanded': isOpen,
-            'aria-haspopup': 'true',
+            'aria-haspopup': 'menu',
+            'aria-controls': isOpen ? menuId : undefined,
         })
     ) : (
         <button
@@ -192,8 +225,9 @@ export default function ActionsDropdown({
             onClick={toggleOpen}
             onKeyDown={handleTriggerKeyDown}
             aria-expanded={isOpen}
-            aria-haspopup="true"
-            aria-label={t('comp.common.actionsMenu')}
+            aria-haspopup="menu"
+            aria-controls={isOpen ? menuId : undefined}
+            aria-label={menuLabel}
         >
             <HiOutlineEllipsisVertical />
         </button>
@@ -202,10 +236,12 @@ export default function ActionsDropdown({
     const dropdownMenu = isOpen && typeof document !== 'undefined'
         ? createPortal(
             <div
+                id={menuId}
                 ref={panelRef}
                 className={`actions-dropdown-panel glass-panel${isReady ? ' is-ready' : ''}`}
                 style={panelStyle}
                 role="menu"
+                aria-label={menuLabel}
             >
                 {visibleActions.map((action, index) => {
                     const Icon = action.icon || null;

@@ -783,6 +783,7 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                                     key={item.value}
                                     type="button"
                                     className={`logs-level-chip logs-level-chip--${item.value}${levelFilter === item.value ? ' is-active' : ''}`}
+                                    aria-pressed={levelFilter === item.value}
                                     onClick={() => setLevelFilter((current) => (current === item.value ? '' : item.value))}
                                 >
                                     <span className="logs-level-chip-label">{item.label}</span>
@@ -794,6 +795,10 @@ export default function Logs({ embedded = false, sourceMode = 'auto', displayLab
                     <div
                         ref={shouldVirtualizeLogs ? undefined : logContainerRef}
                         className={`log-container log-pane ${wrapLines ? 'is-wrapped' : 'is-nowrap'}`}
+                        role="log"
+                        aria-live="off"
+                        tabIndex={0}
+                        aria-label={sourceLabel}
                     >
                         {loading && filteredLogs.length === 0 ? (
                             <EmptyState

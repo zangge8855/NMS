@@ -1574,8 +1574,12 @@ input[type="radio"]:focus {
 }
 
 @media (max-width: 768px) {
+  .modal .grid-cols-2,
+  .modal .grid-cols-3,
+  .modal .grid-cols-4,
   .inbound-modal .grid-cols-2,
   .inbound-modal .grid-cols-3,
+  .inbound-modal .grid-cols-4,
   .inbound-modal .grid-auto-160,
   .inbound-modal .grid-auto-220,
   .inbound-modal .grid-auto-240 {

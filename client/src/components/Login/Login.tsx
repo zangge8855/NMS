@@ -21,6 +21,7 @@ import {
     HiOutlineComputerDesktop,
 } from 'react-icons/hi2';
 import { getPasswordPolicyError, getPasswordPolicyHint } from '../../utils/passwordPolicy';
+import { handleRovingTabKeyDown } from '../../utils/rovingTabs';
 import { buildSiteAssetPath } from '../../utils/sitePath';
 import PasswordStrengthMeter from '../UI/PasswordStrengthMeter';
 
@@ -29,6 +30,10 @@ const MODE_REGISTER = 'register';
 const MODE_VERIFY = 'verify';
 const MODE_FORGOT = 'forgot';
 const MODE_TWO_FACTOR = 'two_factor';
+const AUTH_TABS = [
+    { id: MODE_LOGIN },
+    { id: MODE_REGISTER },
+] as const;
 
 type AuthMode = typeof MODE_LOGIN | typeof MODE_REGISTER | typeof MODE_VERIFY | typeof MODE_FORGOT | typeof MODE_TWO_FACTOR;
 
@@ -513,6 +518,11 @@ export default function Login() {
                 ? t('pages.login.forgotTitle')
                 : t('pages.login.title');
 
+    useEffect(() => {
+        if (typeof document === 'undefined') return;
+        document.title = modeTitle ? `${modeTitle} · NMS` : 'NMS';
+    }, [modeTitle]);
+
     // ── Render ───────────────────────────────────────────────
     return (
         <div className={`login-page login-page--${mode}`}>
@@ -565,21 +575,30 @@ export default function Login() {
                             ) : null}
 
                             {registrationEnabled && (mode === MODE_LOGIN || mode === MODE_REGISTER) && (
-                                <div className="auth-tabs" role="tablist" aria-label={t('pages.login.title')}>
+                                <div
+                                    className="auth-tabs"
+                                    role="tablist"
+                                    aria-label={t('pages.login.title')}
+                                    onKeyDown={(e) => handleRovingTabKeyDown(e, AUTH_TABS, mode, switchMode)}
+                                >
                                     <button
+                                        id="auth-tab-login"
                                         type="button"
                                         className={`auth-tab ${mode === MODE_LOGIN ? 'active' : ''}`}
                                         role="tab"
                                         aria-selected={mode === MODE_LOGIN}
+                                        tabIndex={mode === MODE_LOGIN ? 0 : -1}
                                         onClick={() => switchMode(MODE_LOGIN)}
                                     >
                                         {t('pages.login.title')}
                                     </button>
                                     <button
+                                        id="auth-tab-register"
                                         type="button"
                                         className={`auth-tab ${mode === MODE_REGISTER ? 'active' : ''}`}
                                         role="tab"
                                         aria-selected={mode === MODE_REGISTER}
+                                        tabIndex={mode === MODE_REGISTER ? 0 : -1}
                                         onClick={() => switchMode(MODE_REGISTER)}
                                     >
                                         {t('pages.login.registerTitle')}
@@ -594,7 +613,12 @@ export default function Login() {
                             )}
 
                             {mode === MODE_LOGIN && (
-                                <form onSubmit={handleLogin} className="auth-form">
+                                <form
+                                    onSubmit={handleLogin}
+                                    className="auth-form"
+                                    role={registrationEnabled ? 'tabpanel' : undefined}
+                                    aria-labelledby={registrationEnabled ? 'auth-tab-login' : undefined}
+                                >
                                     <div className="form-group">
                                         <label className="form-label" htmlFor="login-identifier">{t('pages.login.loginIdentifier')}</label>
                                         <div className="input-icon-wrapper">
@@ -682,7 +706,12 @@ export default function Login() {
                             )}
 
                             {mode === MODE_REGISTER && (
-                                <form onSubmit={handleRegister} className="auth-form">
+                                <form
+                                    onSubmit={handleRegister}
+                                    className="auth-form"
+                                    role="tabpanel"
+                                    aria-labelledby="auth-tab-register"
+                                >
                                     <div className="login-form-grid">
                                         <div className="form-group">
                                             <label className="form-label" htmlFor="register-username">{t('pages.login.username')}</label>

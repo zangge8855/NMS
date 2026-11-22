@@ -137,7 +137,7 @@ export function buildNodeRequest(draft: NodeDraft) {
 function nodeEndpoint(row: PanelNode) {
     const scheme = row.scheme || 'https';
     const port = row.port ? `:${row.port}` : '';
-    return `${scheme}://${row.address || '-'}${port}${row.basePath || ''}`;
+    return `${scheme}://${row.address || '—'}${port}${row.basePath || ''}`;
 }
 
 function statusBadge(status: string | undefined) {

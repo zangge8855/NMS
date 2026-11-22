@@ -15,6 +15,7 @@ import {
 import api from '../../api/client';
 import { getErrorMessage, formatDateOnly } from '../../utils/format';
 import ModalShell from '../UI/ModalShell';
+import EmptyState from '../UI/EmptyState';
 
 function getCopy(locale = 'zh-CN') {
     if (locale === 'en-US') {
@@ -36,6 +37,7 @@ function getCopy(locale = 'zh-CN') {
             deviceNamePlaceholder: 'e.g. MacBook Pro Touch ID, iPhone Face ID',
             save: 'Save',
             cancel: 'Cancel',
+            close: 'Close',
             confirmDelete: 'Confirm Delete',
             registeredSuccess: 'Passkey added successfully!',
             registerFailed: 'Failed to add passkey',
@@ -62,9 +64,10 @@ function getCopy(locale = 'zh-CN') {
         deleteTitle: '解绑通行密钥',
         deleteConfirm: '确定要解绑此通行密钥吗？解绑后将无法使用该设备直接免密登录。',
         deviceNameLabel: '设备 / 密钥备注名称',
-        deviceNamePlaceholder: '例如: MacBook Pro 指纹, iPhone 面容',
+        deviceNamePlaceholder: '例如：MacBook Pro 指纹、iPhone 面容',
         save: '保存',
         cancel: '取消',
+        close: '关闭',
         confirmDelete: '确认解绑',
         registeredSuccess: '通行密钥添加成功！',
         registerFailed: '添加通行密钥失败',
@@ -261,11 +264,13 @@ export default function PasskeyPanel({ locale = 'zh-CN' }: PasskeyPanelProps) {
                     {locale === 'en-US' ? 'Loading...' : '正在加载...'}
                 </div>
             ) : passkeys.length === 0 ? (
-                <div className="py-8 text-center border border-dashed border-stroke-soft rounded-xl bg-surface-panel/40">
-                    <HiOutlineFingerPrint className="w-10 h-10 text-muted mx-auto mb-2 opacity-60" />
-                    <div className="text-sm font-semibold text-primary">{copy.noPasskeysTitle}</div>
-                    <div className="text-xs text-muted mt-1 max-w-md mx-auto">{copy.noPasskeysSubtitle}</div>
-                </div>
+                <EmptyState
+                    icon={<HiOutlineFingerPrint className="empty-state-svg" />}
+                    title={copy.noPasskeysTitle}
+                    subtitle={copy.noPasskeysSubtitle}
+                    size="compact"
+                    surface
+                />
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {passkeys.map((pk) => (
@@ -282,10 +287,10 @@ export default function PasskeyPanel({ locale = 'zh-CN' }: PasskeyPanelProps) {
                                         {pk.deviceName || 'Passkey'}
                                     </div>
                                     <div className="text-xs text-muted flex items-center gap-1.5">
-                                        <span>{copy.createdOn}: {formatDateOnly(pk.createdAt, locale)}</span>
+                                        <span>{copy.createdOn}{locale === 'en-US' ? ': ' : '：'}{formatDateOnly(pk.createdAt, locale)}</span>
                                     </div>
                                     <div className="text-xs text-muted">
-                                        {pk.lastUsedAt ? `${copy.lastUsed}: ${formatDateOnly(pk.lastUsedAt, locale)}` : copy.neverUsed}
+                                        {pk.lastUsedAt ? `${copy.lastUsed}${locale === 'en-US' ? ': ' : '：'}${formatDateOnly(pk.lastUsedAt, locale)}` : copy.neverUsed}
                                     </div>
                                 </div>
                             </div>
@@ -293,7 +298,7 @@ export default function PasskeyPanel({ locale = 'zh-CN' }: PasskeyPanelProps) {
                             <div className="flex items-center gap-1 opacity-90 group-hover:opacity-100 shrink-0">
                                 <button
                                     type="button"
-                                    className="p-1.5 rounded-lg hover:bg-surface-input text-muted hover:text-primary transition-colors"
+                                    className="btn btn-ghost btn-sm btn-icon"
                                     title={copy.rename}
                                     aria-label={copy.rename}
                                     onClick={() => {
@@ -306,7 +311,7 @@ export default function PasskeyPanel({ locale = 'zh-CN' }: PasskeyPanelProps) {
                                 </button>
                                 <button
                                     type="button"
-                                    className="p-1.5 rounded-lg hover:bg-danger/10 text-muted hover:text-danger transition-colors"
+                                    className="btn btn-ghost btn-sm btn-icon text-danger"
                                     title={copy.delete}
                                     aria-label={copy.delete}
                                     onClick={() => {
@@ -339,8 +344,8 @@ export default function PasskeyPanel({ locale = 'zh-CN' }: PasskeyPanelProps) {
                                 type="button"
                                 className="modal-close"
                                 onClick={() => !savingName && setNameModalOpen(false)}
-                                aria-label={copy.cancel}
-                                title={copy.cancel}
+                                aria-label={copy.close}
+                                title={copy.close}
                                 disabled={savingName}
                             >
                                 <HiOutlineXMark />
@@ -363,7 +368,7 @@ export default function PasskeyPanel({ locale = 'zh-CN' }: PasskeyPanelProps) {
                                         onChange={(e) => setEditName(e.target.value)}
                                         maxLength={50}
                                         disabled={savingName}
-                                        autoFocus
+                                        data-modal-initial-focus=""
                                     />
                                 </div>
                             </div>
@@ -397,8 +402,8 @@ export default function PasskeyPanel({ locale = 'zh-CN' }: PasskeyPanelProps) {
                                 type="button"
                                 className="modal-close"
                                 onClick={() => !deleting && setDeleteModalOpen(false)}
-                                aria-label={copy.cancel}
-                                title={copy.cancel}
+                                aria-label={copy.close}
+                                title={copy.close}
                                 disabled={deleting}
                             >
                                 <HiOutlineXMark />

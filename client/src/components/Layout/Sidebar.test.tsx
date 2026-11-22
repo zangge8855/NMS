@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithRouter } from '../../test/render';
 import Sidebar from './Sidebar';
+
+const mockSidebarState = vi.hoisted(() => ({
+    user: { role: 'admin', username: 'review-admin' },
+}));
 
 vi.mock('../../contexts/ServerContext', () => ({
     useServer: () => ({
@@ -18,7 +22,7 @@ vi.mock('../../contexts/ServerContext', () => ({
 vi.mock('../../contexts/AuthContext', () => ({
     useAuth: () => ({
         logout: vi.fn(),
-        user: { role: 'admin', username: 'review-admin' },
+        user: mockSidebarState.user,
     }),
 }));
 
@@ -42,6 +46,10 @@ function SidebarHarness() {
 }
 
 describe('Sidebar', () => {
+    beforeEach(() => {
+        mockSidebarState.user = { role: 'admin', username: 'review-admin' };
+    });
+
     it('expands again after being collapsed', async () => {
         renderWithRouter(<SidebarHarness />, { route: '/' });
 
@@ -54,17 +62,20 @@ describe('Sidebar', () => {
         expect(screen.getByRole('button', { name: '收起侧边栏' })).toBeInTheDocument();
     }, 15000);
 
-    it('renders collapsed nav flyout in a portal without clipping', async () => {
+    it('renders collapsed nav flyout in a portal without clipping or duplicate native title tooltips', async () => {
         const { container } = renderWithRouter(<SidebarHarness />, { route: '/' });
 
         const navItem = container.querySelector('.nav-item');
         expect(navItem).not.toBeNull();
+        expect(navItem).not.toHaveAttribute('title');
+        expect(navItem).toHaveAttribute('aria-label', '仪表盘');
 
         fireEvent.mouseEnter(navItem!);
 
         await waitFor(() => {
             const flyout = document.body.querySelector('.sidebar-nav-flyout');
             expect(flyout).toBeInTheDocument();
+            expect(flyout).toHaveAttribute('aria-hidden', 'true');
             expect(flyout).toHaveTextContent('仪表盘');
         });
     });
@@ -126,5 +137,27 @@ describe('Sidebar', () => {
         fireEvent.click(navLink);
 
         expect(onCloseMock).toHaveBeenCalled();
+    });
+
+    it('closes the mobile navigation drawer on Escape', () => {
+        const onCloseMock = vi.fn();
+        renderWithRouter(
+            <Sidebar collapsed={false} open={true} isMobile={true} onClose={onCloseMock} onToggle={vi.fn()} />,
+            { route: '/' }
+        );
+
+        fireEvent.keyDown(document, { key: 'Escape' });
+        expect(onCloseMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not render duplicate /account navigation links for regular users', () => {
+        mockSidebarState.user = { role: 'user', username: 'alice' };
+        const { container } = renderWithRouter(
+            <Sidebar collapsed={false} open={false} onClose={vi.fn()} onToggle={vi.fn()} />,
+            { route: '/account' }
+        );
+
+        expect(container.querySelectorAll('.sidebar-nav a[href="/account"]')).toHaveLength(0);
+        expect(container.querySelectorAll('.sidebar-utility a[href="/account"]')).toHaveLength(1);
     });
 });

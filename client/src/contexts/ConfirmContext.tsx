@@ -99,10 +99,17 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                                     <input
                                         id="confirm-modal-type-input"
                                         name="confirmTypeText"
-                                        autoFocus
+                                        data-modal-initial-focus=""
                                         className="form-input"
                                         value={typedText}
                                         onChange={(e) => setTypedText(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && !confirmDisabled) {
+                                                if (e.nativeEvent?.isComposing || e.keyCode === 229) return;
+                                                e.preventDefault();
+                                                closeDialog(true);
+                                            }
+                                        }}
                                         placeholder={requireText}
                                         aria-label={t('comp.common.typeConfirmAria')}
                                     />
@@ -114,7 +121,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                                 type="button"
                                 className="btn btn-secondary"
                                 onClick={() => closeDialog(false)}
-                                autoFocus={!requireText}
+                                data-modal-initial-focus={!requireText ? '' : undefined}
                             >
                                 {dialog.cancelText}
                             </button>

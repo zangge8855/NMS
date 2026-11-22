@@ -12,6 +12,7 @@ import api from '../../api/client';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../utils/format';
 import { isSuiServer } from '../../utils/panelType';
+import { handleRovingTabKeyDown } from '../../utils/rovingTabs';
 import RoutingRulesEditor from './tabs/RoutingRulesEditor';
 import OutboundsEditor from './tabs/OutboundsEditor';
 import DnsEditor from './tabs/DnsEditor';
@@ -21,6 +22,7 @@ import PolicyEditor from './tabs/PolicyEditor';
 import AdvancedEditor from './tabs/AdvancedEditor';
 
 const TABS = ['routing', 'outbounds', 'dns', 'balancers', 'log', 'policy', 'advanced'];
+const ROVING_TABS = TABS.map((id) => ({ id }));
 
 function getCopy(locale = 'zh-CN') {
     if (locale === 'en-US') {
@@ -325,19 +327,29 @@ export default function XrayConsole() {
                     />
                 ) : (
                     <div className="card xray-workbench">
-                        <div className="tabs xray-tabs" role="tablist" aria-label={copy.title}>
-                            {TABS.map((tab) => (
-                                <button
-                                    key={tab}
-                                    type="button"
-                                    className={`tab ${activeTab === tab ? 'active' : ''}`}
-                                    role="tab"
-                                    aria-selected={activeTab === tab}
-                                    onClick={() => setActiveTab(tab)}
-                                >
-                                    {copy.sectionLabels[tab]}
-                                </button>
-                            ))}
+                        <div
+                            className="tabs xray-tabs"
+                            role="tablist"
+                            aria-label={copy.title}
+                            onKeyDown={(e) => handleRovingTabKeyDown(e, ROVING_TABS, activeTab, setActiveTab)}
+                        >
+                            {TABS.map((tab) => {
+                                const isActive = activeTab === tab;
+                                return (
+                                    <button
+                                        key={tab}
+                                        id={`xray-tab-${tab}`}
+                                        type="button"
+                                        className={`tab ${isActive ? 'active' : ''}`}
+                                        role="tab"
+                                        aria-selected={isActive}
+                                        tabIndex={isActive ? 0 : -1}
+                                        onClick={() => setActiveTab(tab)}
+                                    >
+                                        {copy.sectionLabels[tab]}
+                                    </button>
+                                );
+                            })}
                         </div>
 
                         {loading && !snapshot ? (
@@ -363,7 +375,11 @@ export default function XrayConsole() {
                         ) : null}
 
                         {snapshot ? (
-                            <div className="xray-tab-panel">
+                            <div
+                                className="xray-tab-panel"
+                                role="tabpanel"
+                                aria-labelledby={`xray-tab-${activeTab}`}
+                            >
                                 {activeTab === 'routing' && (
                                     <RoutingRulesEditor
                                         locale={locale}

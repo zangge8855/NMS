@@ -64,4 +64,21 @@ describe('NodeHealthGrid', () => {
         expect(container.querySelectorAll('.node-health-tile')).toHaveLength(19);
         expect(screen.getByText('显示 19/19')).toBeInTheDocument();
     });
+
+    it('omits the CPU sparkline when fewer than two samples exist and renders it once >= 2 samples exist', async () => {
+        const user = userEvent.setup();
+        const { servers, serverStatuses } = buildNodes(7);
+        const { container } = renderWithRouter(
+            <NodeHealthGrid
+                servers={servers}
+                serverStatuses={serverStatuses}
+                trendHistory={{
+                    'srv-1': [{ cpu: 25 }],
+                    'srv-2': [{ cpu: 25 }, { cpu: 42 }],
+                }}
+            />
+        );
+        await user.click(screen.getByRole('button', { name: '展开全部' }));
+        expect(container.querySelectorAll('.node-health-sparkline')).toHaveLength(1);
+    });
 });

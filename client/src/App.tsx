@@ -1,5 +1,5 @@
 import React, { Component, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { ServerProvider } from './contexts/ServerContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -249,6 +249,12 @@ function getWsUrl(ticket: string | null): string | null {
     const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
     const host = String((import.meta as any).env?.VITE_WS_HOST || '').trim() || window.location.host;
     return `${proto}://${host}/ws?ticket=${encodeURIComponent(ticket)}`;
+}
+
+function LegacyUserDetailRedirect() {
+    const { userId } = useParams();
+    const target = userId ? `/clients/${encodeURIComponent(userId)}` : '/clients';
+    return <Navigate to={target} replace />;
 }
 
 function ProtectedLayout() {
@@ -539,7 +545,7 @@ function ProtectedLayout() {
                             <Route path="/clients" element={isStaff ? <LazyPage><UsersHub /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                             <Route path="/clients/:userId" element={isStaff ? <LazyPage><UserDetail /></LazyPage> : <Navigate to="/subscriptions" replace />} />
                             <Route path="/users" element={isStaff ? <Navigate to="/clients" replace /> : <Navigate to="/subscriptions" replace />} />
-                            <Route path="/users/:userId" element={isStaff ? <Navigate to="/clients" replace /> : <Navigate to="/subscriptions" replace />} />
+                            <Route path="/users/:userId" element={isStaff ? <LegacyUserDetailRedirect /> : <Navigate to="/subscriptions" replace />} />
                             <Route path="/subscriptions" element={<LazyPage><Subscriptions /></LazyPage>} />
                             <Route path="/downloads" element={isStaff ? <Navigate to="/subscriptions" replace /> : <LazyPage><DownloadsCenter /></LazyPage>} />
                             <Route path="/account" element={<LazyPage><AccountCenter /></LazyPage>} />
@@ -601,10 +607,10 @@ export default function App() {
                         fontSize: '13px',
                     },
                     success: {
-                        iconTheme: { primary: '#10b981', secondary: '#fff' },
+                        iconTheme: { primary: 'var(--accent-success)', secondary: 'var(--bg-secondary)' },
                     },
                     error: {
-                        iconTheme: { primary: '#ef4444', secondary: '#fff' },
+                        iconTheme: { primary: 'var(--accent-danger)', secondary: 'var(--bg-secondary)' },
                     },
                 }}
             />

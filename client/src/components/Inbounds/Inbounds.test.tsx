@@ -665,7 +665,7 @@ describe('Inbounds', () => {
 
         const aliceRow = (await screen.findByText('alice@example.com')).closest('tr');
         if (!aliceRow) throw new Error('Missing Alice row');
-        const panel = screen.getByText('用户列表 (2)').closest('.inbounds-clients-panel');
+        const panel = screen.getByText('用户列表（2）').closest('.inbounds-clients-panel');
         if (!panel) throw new Error('Missing clients panel');
 
         const aliceCheckbox = within(aliceRow).getByRole('checkbox');

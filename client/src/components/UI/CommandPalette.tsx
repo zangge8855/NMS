@@ -75,11 +75,11 @@ function getCommandCopy(locale = 'zh-CN') {
             createServer: 'Add 3x-ui / s-ui Node',
             createServerMeta: 'Connect and manage a new node server',
             toggleTheme: 'Cycle Appearance Mode',
-            toggleThemeMeta: 'Switch between light and dark theme mode',
+            toggleThemeMeta: 'Cycle between Auto, Light, and Dark themes',
             toggleLanguage: 'Switch Language',
             toggleLanguageMeta: 'Toggle between 中文 and English',
             copySubscription: 'My Subscriptions',
-            copySubscriptionMeta: 'Open subscriptions and client download center',
+            copySubscriptionMeta: 'Open subscription profiles and import links',
             logout: 'Sign Out',
             logoutMeta: 'Safely end active session',
             noResults: 'No matching commands or resources found',
@@ -103,11 +103,11 @@ function getCommandCopy(locale = 'zh-CN') {
         createServer: '添加 3x-ui / s-ui 节点',
         createServerMeta: '接入并纳管新的节点服务器',
         toggleTheme: '切换界面外观模式',
-        toggleThemeMeta: '在深色与浅色外观间切换',
+        toggleThemeMeta: '在自动、浅色与深色外观间切换',
         toggleLanguage: '切换系统语言',
         toggleLanguageMeta: '在中英文之间快速切换',
         copySubscription: '我的订阅中心',
-        copySubscriptionMeta: '打开个人订阅及客户端配置中心',
+        copySubscriptionMeta: '打开订阅配置与快速导入链接',
         logout: '退出登录',
         logoutMeta: '安全退出当前管理会话',
         noResults: '未找到匹配的命令、页面或资源',
@@ -204,6 +204,10 @@ export default function CommandPalette() {
     useEffect(() => {
         if (!isOpen) return undefined;
 
+        window.dispatchEvent(new CustomEvent('nms:close-popovers', {
+            detail: { source: 'command-palette' },
+        }));
+
         previousFocusRef.current = document.activeElement instanceof HTMLElement
             ? document.activeElement
             : null;
@@ -260,7 +264,12 @@ export default function CommandPalette() {
             description: nav.section || copy.pages,
             icon: nav.icon,
             path: nav.path,
-            keywords: [nav.label, nav.path, nav.section],
+            keywords: [
+                nav.label,
+                nav.path,
+                nav.section,
+                ...(Array.isArray(nav.keywords) ? nav.keywords : []),
+            ].filter(Boolean),
         }));
         items.push(...navPages);
 
@@ -292,7 +301,7 @@ export default function CommandPalette() {
                 action: () => {
                     cycleTheme();
                 },
-                keywords: ['theme', 'dark', 'light', 'mode', '主题', '外观', '深色', '浅色'],
+                keywords: ['theme', 'dark', 'light', 'auto', 'mode', '主题', '外观', '自动', '深色', '浅色'],
             },
             {
                 id: 'action-toggle-language',
@@ -306,7 +315,10 @@ export default function CommandPalette() {
                 },
                 keywords: ['language', 'locale', 'chinese', 'english', '语言', '中英文'],
             },
-            {
+        ];
+
+        if (!navPages.some((item) => item.path === '/subscriptions')) {
+            actions.push({
                 id: 'action-my-subscription',
                 kind: 'command',
                 label: copy.copySubscription,
@@ -315,8 +327,8 @@ export default function CommandPalette() {
                 icon: HiOutlineSparkles,
                 path: '/subscriptions',
                 keywords: ['subscription', 'clash', 'singbox', 'v2ray', '订阅', '复制'],
-            },
-        ];
+            });
+        }
 
         if (canMutate) {
             actions.push(

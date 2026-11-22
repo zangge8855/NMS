@@ -2057,6 +2057,7 @@ export default function Inbounds() {
                                                                 type="button"
                                                                 className="btn btn-secondary btn-sm btn-icon table-action-btn inbounds-action-btn"
                                                                 title={t('comp.common.edit')}
+                                                                aria-label={t('comp.common.edit')}
                                                                 onClick={() => handleEdit(ib)}
                                                             >
                                                                 <HiOutlinePencilSquare />
@@ -2113,7 +2114,7 @@ export default function Inbounds() {
                                                         <div className="p-4 inbounds-clients-panel">
                                                             <div className="inbounds-clients-toolbar">
                                                                 <div className="text-xs font-bold text-muted inbounds-clients-label">
-                                                                    {locale === 'en-US' ? `Users (${clients.length})` : `用户列表 (${clients.length})`}
+                                                                    {locale === 'en-US' ? `Users (${clients.length})` : `用户列表（${clients.length}）`}
                                                                 </div>
                                                                 {canMutate && selectedClientCount > 0 && (
                                                                     <div className="inbounds-clients-selection-bar">
@@ -2167,7 +2168,7 @@ export default function Inbounds() {
                                                                                 />
                                                                             </th>
                                                                         )}
-                                                                        <th className="inbounds-clients-col-email">Email</th>
+                                                                        <th className="inbounds-clients-col-email">{deepCopy.user}</th>
                                                                         <th className="inbounds-clients-col-id">{deepCopy.maskedCredential}</th>
                                                                         <th className="inbounds-clients-col-usage">{deepCopy.usedTraffic}</th>
                                                                         <th className="table-cell-right inbounds-clients-col-total">{deepCopy.total}</th>
