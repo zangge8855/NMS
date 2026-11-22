@@ -2043,7 +2043,6 @@ export default function AuditCenter() {
                                 <div className="audit-control-head">
                                     <div className="audit-control-copy">
                                         <div className="audit-control-title">{copy.workspace.eventsFiltersTitle}</div>
-                                        <div className="audit-control-text">{copy.workspace.eventsFiltersSubtitle}</div>
                                     </div>
                                     <div className="audit-control-actions">
                                         <div className="audit-control-action-group">
@@ -2820,7 +2819,6 @@ export default function AuditCenter() {
                             <div className="audit-control-head">
                                 <div className="audit-control-copy">
                                     <div className="audit-control-title">{copy.workspace.subscriptionsFiltersTitle}</div>
-                                    <div className="audit-control-text">{copy.workspace.subscriptionsFiltersSubtitle}</div>
                                 </div>
                                 <div className="audit-control-actions">
                                     <div className="audit-control-action-group">

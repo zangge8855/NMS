@@ -3291,7 +3291,6 @@ export default function SystemSettings() {
                         className="mb-4"
                         compact
                         title={t("pages.settings.notificationAndInspectionStatus")}
-                        subtitle={t("pages.settings.centrallyViewSmtpNodeInspectionAbno")}
                         actions={(
                             <button
                                 type="button"
@@ -3393,7 +3392,6 @@ export default function SystemSettings() {
                         className="mb-4"
                         compact
                         title={t("pages.settings.databaseAndBackupStatus")}
-                        subtitle={t("pages.settings.checkTheConnectionStatusCurrentRead")}
                     />
                     <div className="settings-status-grid">
                         {/* DB Connection */}

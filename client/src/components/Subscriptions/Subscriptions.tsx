@@ -18,7 +18,6 @@ import SectionHeader from '../UI/SectionHeader';
 import EmptyState from '../UI/EmptyState';
 import ModalShell from '../UI/ModalShell';
 import CopyFeedbackButton from '../UI/CopyFeedbackButton';
-import CircularMeter from '../UI/CircularMeter';
 import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot';
 
 const SUBSCRIPTIONS_SNAPSHOT_KEY = 'subscriptions_center_bootstrap_v1';
@@ -107,12 +106,12 @@ function pickProgressTone(progress, { inverse = false } = {}) {
 function buildExpiryProgress(expiryTime, locale = 'zh-CN') {
     const timestamp = Number(expiryTime || 0);
     if (!(timestamp > 0)) {
-        // Permanent: nothing is running down, so the meter stays empty.
+        // Permanent: nothing is running down, so there is no bar to draw.
         return {
             progress: 0,
             tone: 'success',
             meta: '',
-            center: '∞',
+            bounded: false,
         };
     }
 
@@ -123,7 +122,7 @@ function buildExpiryProgress(expiryTime, locale = 'zh-CN') {
             progress: 0,
             tone: 'danger',
             meta: expiredLabel,
-            center: expiredLabel,
+            bounded: false,
         };
     }
 
@@ -133,8 +132,44 @@ function buildExpiryProgress(expiryTime, locale = 'zh-CN') {
         progress: clampProgress((remainingDays / 30) * 100),
         tone: remainingDays <= 3 ? 'danger' : remainingDays <= 7 ? 'warning' : 'success',
         meta: remainingLabel,
-        center: remainingLabel,
+        bounded: true,
     };
+}
+
+interface SubscriptionMeterItem {
+    key: string;
+    label: string;
+    value: string;
+    meta: string;
+    progress: number;
+    tone: string;
+    /** False when there is no limit (unlimited traffic, permanent account), so no bar is drawn. */
+    bounded: boolean;
+}
+
+// Usage figures: label, value, and a thin bar only when there is a real limit to measure against.
+function SubscriptionMeterStrip({ items, label }: { items: SubscriptionMeterItem[]; label: string }) {
+    return (
+        <div className="subscription-user-meter-strip" role="group" aria-label={label}>
+            {items.map((item) => (
+                <div key={item.key} className={`subscription-user-meter-pill subscription-user-meter-pill--${item.tone}`}>
+                    <div className="subscription-user-meter-header">
+                        <span className="subscription-user-meter-label">{item.label}</span>
+                        {item.meta ? <span className="subscription-user-meter-meta">{item.meta}</span> : null}
+                    </div>
+                    <span className="subscription-user-meter-value">{item.value}</span>
+                    {item.bounded ? (
+                        <div className="subscription-user-meter-track" aria-hidden="true">
+                            <div
+                                className={`subscription-user-meter-bar subscription-user-meter-bar--${item.tone}`}
+                                style={{ width: item.progress > 0 ? `${Math.max(4, Math.min(100, item.progress))}%` : '0%' }}
+                            />
+                        </div>
+                    ) : null}
+                </div>
+            ))}
+        </div>
+    );
 }
 
 function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } = {}) {
@@ -499,8 +534,8 @@ export default function Subscriptions() {
     const expiryTimeLabel = Number(result?.expiryTime || 0) > 0
         ? formatDateOnly(Number(result.expiryTime), locale)
         : ui.permanent;
-    // Without a quota there is nothing to fill: unlimited meters stay empty
-    // and show "∞" instead of a misleading 100%.
+    // Without a quota there is nothing to fill: unlimited meters show the
+    // figure alone instead of an empty or misleadingly full bar.
     const hasTrafficLimit = trafficLimitBytes > 0;
     const usedTrafficProgress = hasTrafficLimit
         ? clampProgress((usedTrafficBytes / trafficLimitBytes) * 100)
@@ -509,36 +544,33 @@ export default function Subscriptions() {
         ? clampProgress((remainingTrafficBytes / trafficLimitBytes) * 100)
         : 0;
     const expiryProgressState = buildExpiryProgress(result?.expiryTime, locale);
-    const statusCards = [
+    const statusCards: SubscriptionMeterItem[] = [
         {
             key: 'used',
             label: ui.usedTraffic,
             value: usedTrafficLabel,
             meta: hasTrafficLimit ? `${Math.round(usedTrafficProgress)}%` : '',
-            center: hasTrafficLimit ? `${Math.round(usedTrafficProgress)}%` : '∞',
             progress: usedTrafficProgress,
             tone: hasTrafficLimit ? pickProgressTone(usedTrafficProgress) : 'info',
-            pulse: usedTrafficProgress >= 95,
+            bounded: hasTrafficLimit,
         },
         {
             key: 'available',
             label: ui.availableTraffic,
             value: availableTrafficLabel,
             meta: hasTrafficLimit ? `${Math.round(availableTrafficProgress)}%` : '',
-            center: hasTrafficLimit ? `${Math.round(availableTrafficProgress)}%` : '∞',
             progress: availableTrafficProgress,
             tone: hasTrafficLimit ? pickProgressTone(availableTrafficProgress, { inverse: true }) : 'success',
-            pulse: hasTrafficLimit && availableTrafficProgress <= 5,
+            bounded: hasTrafficLimit,
         },
         {
             key: 'expiry',
             label: ui.expiryTime,
             value: expiryTimeLabel,
             meta: expiryProgressState.meta,
-            center: expiryProgressState.center,
             progress: expiryProgressState.progress,
             tone: expiryProgressState.tone,
-            pulse: expiryProgressState.tone === 'danger',
+            bounded: expiryProgressState.bounded,
         },
     ];
     const canShowQr = Boolean(activeProfile?.url && result?.subscriptionActive);
@@ -847,23 +879,7 @@ export default function Subscriptions() {
                             </div>
                         </div>
 
-                        <div className="subscription-user-meter-strip" role="group" aria-label={ui.summaryTitle}>
-                            {statusCards.map((item) => (
-                                <div key={item.key} className={`subscription-user-meter-pill subscription-user-meter-pill--${item.tone}`}>
-                                    <div className="subscription-user-meter-header">
-                                        <span className="subscription-user-meter-label">{item.label}</span>
-                                        <span className="subscription-user-meter-meta">{item.meta}</span>
-                                    </div>
-                                    <span className="subscription-user-meter-value">{item.value}</span>
-                                    <div className="subscription-user-meter-track" aria-hidden="true">
-                                        <div
-                                            className={`subscription-user-meter-bar subscription-user-meter-bar--${item.tone}`}
-                                            style={{ width: item.progress > 0 ? `${Math.max(4, Math.min(100, item.progress))}%` : '0%' }}
-                                        />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                        <SubscriptionMeterStrip items={statusCards} label={ui.summaryTitle} />
 
                         <div className="subscription-user-import-stage">
                             <div className="subscription-user-import-main">
@@ -1039,19 +1055,10 @@ export default function Subscriptions() {
                 </span>
             </div>
             <div className="subscription-user-status-block subscription-user-status-block--summary">
-                <div className="subscription-meter-grid" aria-label={locale === 'en-US' ? 'Subscription status summary' : '订阅状态摘要'}>
-                    {statusCards.map((item) => (
-                        <CircularMeter
-                            key={item.key}
-                            label={item.label}
-                            value={item.value}
-                            center={item.center}
-                            progress={item.progress}
-                            tone={item.tone}
-                            pulse={item.pulse}
-                        />
-                    ))}
-                </div>
+                <SubscriptionMeterStrip
+                    items={statusCards}
+                    label={locale === 'en-US' ? 'Subscription status summary' : '订阅状态摘要'}
+                />
             </div>
         </div>
     ) : null;
@@ -1262,19 +1269,10 @@ export default function Subscriptions() {
                                                             {ui.copyAddress}
                                                         </CopyFeedbackButton>
                                                     </div>
-                                                    <div className="subscription-meter-grid" aria-label={locale === 'en-US' ? 'Subscription status summary' : '订阅状态摘要'}>
-                                                        {statusCards.map((item) => (
-                                                            <CircularMeter
-                                                                key={item.key}
-                                                                label={item.label}
-                                                                value={item.value}
-                                                                center={item.center}
-                                                                progress={item.progress}
-                                                                tone={item.tone}
-                                                                pulse={item.pulse}
-                                                            />
-                                                        ))}
-                                                    </div>
+                                                    <SubscriptionMeterStrip
+                                                        items={statusCards}
+                                                        label={locale === 'en-US' ? 'Subscription status summary' : '订阅状态摘要'}
+                                                    />
                                                 </div>
                                                     <div className="subscription-inline-qr">
                                                         {activeProfile?.url && result.subscriptionActive ? (

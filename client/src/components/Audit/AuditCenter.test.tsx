@@ -173,7 +173,7 @@ describe('AuditCenter localization', () => {
         // The tab strip no longer repeats the active tab as a second headline.
         expect(screen.queryByText('按事件、结果、目标用户和节点回看系统操作历史，优先定位敏感变更。')).not.toBeInTheDocument();
         expect(screen.getByText('筛选操作记录')).toBeInTheDocument();
-        expect(screen.getByText('按关键词、事件类型、结果、目标用户和节点缩小范围。')).toBeInTheDocument();
+        expect(screen.queryByText('按关键词、事件类型、结果、目标用户和节点缩小范围。')).not.toBeInTheDocument();
         expect(screen.queryByPlaceholderText('节点 ID')).not.toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: '更多筛选' }));

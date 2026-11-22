@@ -917,7 +917,6 @@ export default function Tools() {
                                     main={(
                                         <div className="tools-toolbar-copy">
                                             <div className="tools-toolbar-title">{copy.toolbarTitle}</div>
-                                            <div className="tools-toolbar-note">{copy.toolbarSubtitle}</div>
                                         </div>
                                     )}
                                     actions={(

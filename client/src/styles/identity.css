@@ -2665,3 +2665,387 @@ body {
     padding-right: 2px !important;
   }
 }
+
+/* ==========================================================================
+   Restraint
+   An operator keeps this console open all day, so it should look settled,
+   not eager. Four rules, applied last so no older layer can undo them:
+   - Nothing moves unless the operator moved it. Pages do not slide in;
+     buttons, cards and chips do not lift or grow on hover. Hover answers
+     with a tone change only.
+   - Panels rest flat on the canvas behind one hairline. Only layers that
+     float above the page (menus, dialogs, toasts) cast a shadow.
+   - One container level. A group inside a panel is separated by space and
+     hairlines, never by another bordered, tinted box.
+   - Healthy is the normal case and reads as plain text with a small dot.
+     A filled chip is kept for states that ask for action, so a problem is
+     the only thing in a list that stands out.
+   ========================================================================== */
+
+/* --- Motion -------------------------------------------------------------- */
+:root .page-enter {
+  animation: none !important;
+}
+
+:root :is(
+  .btn, .btn-icon, .badge, .card, .dashboard-stat-card, .node-health-tile,
+  .settings-nav-item, .subscription-inline-qr-surface, .expandable-qr-trigger,
+  .filter-chip, .tab, .users-tab, .audit-tab, .theme-toggle-btn,
+  .language-toggle-btn
+):is(:hover, :active),
+:root :is(.btn, .btn-icon):is(:hover, :active) > svg {
+  transform: none !important;
+}
+
+/* --- Depth: flat at rest, shadow only when floating ------------------------ */
+:root[data-theme] :is(
+  .card, .glass-panel, .table-container, .settings-panel, .stats-grid,
+  .dashboard-stat-card, .node-health-tile, .settings-kpi-card
+):not(.modal, .dropdown-menu, .popover, .notification-panel),
+:root[data-theme] :is(
+  .card, .glass-panel, .table-container, .settings-panel, .stats-grid,
+  .dashboard-stat-card, .node-health-tile, .settings-kpi-card
+):not(.modal, .dropdown-menu, .popover, .notification-panel):hover {
+  box-shadow: none !important;
+}
+
+/* The dashboard's figure tiles are cells of one strip, so they never draw
+   their own edge inside it. */
+:root[data-theme] .stats-grid > .dashboard-stat-card {
+  box-shadow: none !important;
+}
+
+/* A tile that opens something says so with its edge, not by rising. */
+:root[data-theme] .node-health-tile:hover {
+  border-color: var(--border-color-hover);
+}
+
+:root[data-theme] .node-health-tile[data-tone="warning"]:hover {
+  border-color: var(--accent-warning-border);
+}
+
+:root[data-theme] .node-health-tile[data-tone="danger"]:hover {
+  border-color: var(--accent-danger-border);
+}
+
+/* Glows: dots, checkboxes and primary buttons stay crisp. */
+:root[data-theme] :is(.filter-chip-dot, .pulse-dot, .status-dot, .inbounds-online-dot),
+:root[data-theme] input:is([type="checkbox"], [type="radio"]),
+:root[data-theme] input:is([type="checkbox"], [type="radio"]):is(:checked, :hover, :focus) {
+  box-shadow: none !important;
+}
+
+:root[data-theme] input:is([type="checkbox"], [type="radio"]):focus-visible {
+  box-shadow: var(--focus-ring-shadow) !important;
+}
+
+:root[data-theme] .filter-chip-dot.dot-success { background: var(--accent-success); }
+:root[data-theme] .filter-chip-dot.dot-warning { background: var(--accent-warning); }
+:root[data-theme] .filter-chip-dot.dot-danger { background: var(--accent-danger); }
+
+/* --- Status: healthy is text, problems carry the fill ---------------------- */
+:root[data-theme] .badge.badge-success,
+:root[data-theme] :is(
+  .inbounds-online-indicator, .inbounds-client-online-status.is-online,
+  .cap-status-pill--success, .audit-nav-status-chip.is-ready,
+  .logs-scroll-chip.is-live
+),
+:root[data-theme] .node-health-tile[data-tone="success"] .node-health-tone-pill {
+  background: transparent !important;
+  border-color: transparent !important;
+  padding-inline: 0 !important;
+  color: var(--text-secondary) !important;
+  font-weight: 500;
+}
+
+:root[data-theme] .badge:is(.badge-warning, .badge-danger, .badge-info, .badge-neutral),
+:root[data-theme] .node-health-tile:is([data-tone="warning"], [data-tone="danger"]) .node-health-tone-pill {
+  border-color: transparent !important;
+}
+
+/* Categories (protocols, node names on log lines, tags) are labels, not
+   states: a soft tone with no outline. */
+:root[data-theme] :is(.server-card-tags, .inbounds-protocol-cell, .log-line.has-server) > .badge,
+:root[data-theme] :is(.badge-vmess, .badge-vless, .badge-trojan, .badge-shadowsocks, .badge-hysteria, .badge-hysteria2, .badge-tuic, .badge-wireguard, .badge-socks, .badge-http, .badge-dokodemo, .badge-protocol) {
+  border-color: transparent !important;
+}
+
+/* The node column repeated a server icon in a chip on every row; the name
+   is enough. */
+:root[data-theme] .inbounds-table .inbounds-node-badge {
+  padding-inline: 0 !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  color: var(--text-secondary) !important;
+  font-weight: 500;
+}
+
+:root .inbounds-table .inbounds-node-badge > svg {
+  display: none;
+}
+
+/* --- One container level ---------------------------------------------------- */
+/* Dashboard trends: four figures, each under a hairline, not four boxes in
+   a box. */
+:root[data-theme] .dashboard-trends-grid > .dashboard-trend-metric {
+  background: transparent !important;
+  border: 0 !important;
+  border-block-start: 1px solid var(--border-color) !important;
+  border-radius: 0 !important;
+  padding: 12px 0 0 !important;
+  box-shadow: none !important;
+}
+
+/* Settings status rows: the icon is a glyph, not a tile. */
+:root[data-theme] .settings-kpi-card-icon,
+:root[data-theme] .settings-status-grid .settings-kpi-card-icon {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: var(--text-muted);
+}
+
+:root[data-theme] .settings-kpi-card-icon:is(.settings-kpi-card-icon--warning, .settings-kpi-card-icon--danger) {
+  color: var(--accent-warning);
+}
+
+/* The status list is the panel content, so it needs no frame of its own:
+   rows keep their hairlines and align with the panel title. */
+:root[data-theme] .settings-status-grid {
+  border: 0;
+  border-radius: 0;
+}
+
+:root[data-theme] .settings-status-grid .settings-kpi-card {
+  padding-inline: 0;
+}
+
+/* Subscription view: link, figures, QR, steps and summary all sit on their
+   panel. Groups are told apart by hairlines and space, not nested frames. */
+:root[data-theme] :is(
+  .subscription-link-card--import-focus, .subscription-link-card-meta,
+  .subscription-guide-step, .subscription-summary-item,
+  .subscription-inline-qr
+) {
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+:root[data-theme] :is(.subscription-link-card--import-focus, .subscription-link-card-meta) {
+  padding: 0 !important;
+}
+
+:root[data-theme] :is(.subscription-guide-step, .subscription-summary-item) {
+  border-block-start: 1px solid var(--border-color) !important;
+  padding-inline: 0 !important;
+}
+
+/* The QR is a second column of the same panel: a hairline divides them,
+   or sits above it once the columns stack. */
+:root[data-theme] .subscription-link-with-qr > .subscription-inline-qr {
+  border-block-start: 1px solid var(--border-color) !important;
+}
+
+@media (min-width: 881px) {
+  :root[data-theme] .subscription-link-with-qr:not(.subscription-link-with-qr--user) > .subscription-inline-qr {
+    border-block-start: 0 !important;
+    border-inline-start: 1px solid var(--border-color) !important;
+    padding-block: 0 !important;
+    padding-inline: 20px 0 !important;
+  }
+}
+
+:root[data-theme] .subscription-inline-qr-surface,
+:root[data-theme] .subscription-inline-qr-surface:hover {
+  box-shadow: none !important;
+}
+
+/* Step numbers mark a real order, so they stay, but as quiet outlined
+   figures rather than tinted badges. */
+:root[data-theme] .subscription-guide-index {
+  background: transparent !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: none !important;
+  color: var(--text-secondary) !important;
+}
+
+/* Usage figures: label, value, and a hairline bar only when a limit exists.
+   Shared by the admin and end-user views. */
+:root[data-theme] .subscription-user-meter-strip {
+  gap: 0 20px !important;
+}
+
+:root[data-theme] .subscription-user-meter-pill {
+  background: transparent !important;
+  border: 0 !important;
+  border-block-start: 1px solid var(--border-color) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 12px 0 0 !important;
+  min-width: 0;
+  transition: none !important;
+}
+
+:root[data-theme] .subscription-user-meter-label,
+:root[data-theme] .subscription-user-meter-meta {
+  font-family: inherit !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: var(--text-muted) !important;
+}
+
+:root[data-theme] .subscription-user-meter-meta {
+  padding: 0 !important;
+  background: transparent !important;
+  font-family: var(--font-figure) !important;
+}
+
+:root[data-theme] .subscription-user-meter-pill--warning .subscription-user-meter-meta {
+  color: var(--accent-warning) !important;
+}
+
+:root[data-theme] .subscription-user-meter-pill--danger .subscription-user-meter-meta {
+  color: var(--accent-danger) !important;
+}
+
+:root[data-theme] .subscription-user-meter-value {
+  margin: 4px 0 0 !important;
+  font-family: var(--font-figure) !important;
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.3 !important;
+  color: var(--text-primary) !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:root[data-theme] .subscription-user-meter-track {
+  height: 3px !important;
+  margin-top: 10px !important;
+  border-radius: 2px !important;
+  background: var(--surface-soft) !important;
+}
+
+:root[data-theme] .subscription-user-meter-bar {
+  border-radius: inherit !important;
+  box-shadow: none !important;
+  transition: none !important;
+}
+
+/* Empty and pick-a-node states: the icon stands alone, without a tinted
+   tile behind it. */
+:root[data-theme] .empty-state-icon {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: var(--text-muted);
+}
+
+/* --- Page tabs sit on the canvas ------------------------------------------- */
+/* A tab row is navigation, not content, so it gets no panel of its own:
+   a hairline underneath and the signal edge under the current tab. */
+:root[data-theme] .tabs.users-tabs,
+:root[data-theme] .card.audit-nav,
+:root[data-theme] .card.settings-nav {
+  background: transparent !important;
+  border: 0 !important;
+  border-block-end: 1px solid var(--border-color) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding-inline: 0 !important;
+  padding-block: 0 !important;
+}
+
+:root[data-theme] .tabs.users-tabs {
+  display: flex;
+  width: 100%;
+}
+
+:root[data-theme] :is(.tabs, .audit-tabs, .users-tabs, .xray-tabs, .user-detail-tabs .tabs) > :is([role="tab"][aria-selected="true"], .tab.active, .audit-tab.active, .users-tab.active),
+:root[data-theme] .settings-nav-list--workspace > .settings-nav-item.is-active {
+  background: transparent !important;
+}
+
+:root[data-theme] :is(.users-tabs, .audit-tabs, .settings-nav-list--workspace) > :is(.tab, .users-tab, .audit-tab, .settings-nav-item) {
+  border-radius: 0 !important;
+  padding-block: 10px 12px !important;
+}
+
+/* --- Header: icon controls are quiet until pointed at ---------------------- */
+:root[data-theme] .header :is(.theme-toggle-btn, .language-toggle-btn, .notification-trigger) {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+:root[data-theme] .header :is(.theme-toggle-btn, .language-toggle-btn, .notification-trigger):hover {
+  background: var(--surface-hover) !important;
+}
+
+:root .language-toggle-label {
+  letter-spacing: 0;
+}
+
+/* --- Login: a form on a plain canvas ---------------------------------------- */
+:root .login-page,
+:root[data-theme] .login-page {
+  background-image: none;
+}
+
+:root[data-theme] .login-card.login-pass {
+  border-radius: var(--radius-panel);
+  box-shadow: none !important;
+}
+
+:root[data-theme] .login-card .btn-primary,
+:root[data-theme] .login-card .btn-primary:hover {
+  box-shadow: none !important;
+}
+
+/* Status dots: flex centring puts a dot on the line box middle, which sits
+   about a pixel above the optical middle of both CJK and lower-case Latin
+   text. Drop it to meet the glyphs. */
+:root[data-theme] :is(.badge.badge-success, .node-health-tone-pill)::before,
+:root[data-theme] .inbounds-online-dot-shell {
+  position: relative;
+  top: 1px;
+}
+
+/* Older layers framed the figure strip as a card; it is a row on the panel. */
+:root[data-theme] .subscription-user-meter-strip {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+/* Rows below a divided section header bring their own hairline, so the
+   header drops its divider instead of doubling the line. */
+:root[data-theme] .card:has(> :is(.subscription-guide-grid, .subscription-summary-grid)) > .section-header--divided {
+  border-block-end: 0 !important;
+  padding-block-end: 0 !important;
+}
+
+/* Filter chips: the active chip is marked by its fill and edge alone. */
+:root[data-theme] .filter-chip,
+:root[data-theme] .filter-chip:is(.active, :hover, [aria-pressed="true"]) {
+  box-shadow: none !important;
+}
+
+:root[data-theme] .filter-chip:focus-visible {
+  box-shadow: var(--focus-ring-shadow) !important;
+}
+
+/* Phone and tablet user cards: the four figures sit on the card under one
+   hairline instead of inside a second framed box. */
+:root[data-theme] .users-mobile-metrics {
+  border: 0 !important;
+  border-block-start: 1px solid var(--border-color) !important;
+  border-radius: 0 !important;
+}

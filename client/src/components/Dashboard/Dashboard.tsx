@@ -783,7 +783,6 @@ function ClusterSystemTrendsCard({
             <SectionHeader
                 className="dashboard-section-head"
                 title={opsCopy.dashboard.trendsTitle}
-                subtitle={opsCopy.dashboard.trendsSubtitle}
             />
             <div className="dashboard-trends-grid">
                 <div className="dashboard-trend-metric">

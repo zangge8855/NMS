@@ -17,7 +17,7 @@ import {
     HiOutlineLanguage,
     HiOutlineArrowRightOnRectangle,
     HiOutlineCommandLine,
-    HiOutlineSparkles,
+    HiOutlineLink,
 } from 'react-icons/hi2';
 import { getSearchableNavItems } from '../Layout/navConfig';
 import { getManagedUsersSnapshotMeta } from '../../utils/managedUsersCache';
@@ -324,7 +324,7 @@ export default function CommandPalette() {
                 label: copy.copySubscription,
                 section: copy.actions,
                 description: copy.copySubscriptionMeta,
-                icon: HiOutlineSparkles,
+                icon: HiOutlineLink,
                 path: '/subscriptions',
                 keywords: ['subscription', 'clash', 'singbox', 'v2ray', '订阅', '复制'],
             });

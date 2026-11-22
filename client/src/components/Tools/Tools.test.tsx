@@ -136,7 +136,7 @@ describe('Tools', () => {
 
         expect(await screen.findByText('可执行 1 / 1')).toBeInTheDocument();
         expect(screen.getByText('节点工具集')).toBeInTheDocument();
-        expect(screen.getByText('执行当前节点暴露的辅助工具接口，并支持直接复制结果。')).toBeInTheDocument();
+        expect(screen.queryByText('执行当前节点暴露的辅助工具接口，并支持直接复制结果。')).not.toBeInTheDocument();
         expect(screen.getByText('诊断工具')).toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: /生成/ }));

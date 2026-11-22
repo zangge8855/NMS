@@ -59,7 +59,7 @@ import {
     HiOutlineNoSymbol,
     HiOutlinePlayCircle,
     HiOutlineArrowDownTray,
-    HiOutlineSparkles,
+    HiOutlineTicket,
 } from 'react-icons/hi2';
 import SkeletonTable from '../UI/SkeletonTable';
 import EmptyState from '../UI/EmptyState';
@@ -2174,7 +2174,7 @@ export default function UsersHub() {
                                     onClick={openGuestModal}
                                     title={locale === 'en-US' ? 'Guest Pass (Temporary Trial)' : '生成临时访客试用码'}
                                 >
-                                    <HiOutlineSparkles />
+                                    <HiOutlineTicket />
                                     <span>{locale === 'en-US' ? 'Guest Pass' : '访客试用码'}</span>
                                 </button>
                                 <button type="button" className="btn btn-primary btn-sm" onClick={openCreateModal} title={t('pages.usersHub.toolbar.addAccountTitle')}>
@@ -3531,7 +3531,7 @@ export default function UsersHub() {
                     <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title flex items-center gap-2">
-                                <HiOutlineSparkles className="w-5 h-5" />
+                                <HiOutlineTicket className="w-5 h-5" />
                                 {locale === 'en-US' ? 'Generate Guest Temporary Pass' : '生成访客临时试用订阅码'}
                             </h3>
                             <button
@@ -3613,7 +3613,7 @@ export default function UsersHub() {
                                         className="btn btn-primary"
                                         disabled={guestCreating}
                                     >
-                                        {guestCreating ? <span className="spinner" /> : <><HiOutlineSparkles /> {locale === 'en-US' ? 'Generate Pass' : '立即生成试用码'}</>}
+                                        {guestCreating ? <span className="spinner" /> : <><HiOutlineTicket /> {locale === 'en-US' ? 'Generate Pass' : '立即生成试用码'}</>}
                                     </button>
                                 </div>
                             </form>
