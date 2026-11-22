@@ -15,6 +15,17 @@ const USER_TYPES = new Set([
     'mixed', 'socks', 'http', 'shadowsocks', 'vmess', 'trojan', 'naive', 'hysteria',
     'shadowtls', 'tuic', 'hysteria2', 'vless', 'anytls', 'snell',
 ]);
+const TLS_REQUIRED_TYPES = new Set(['naive', 'hysteria', 'tuic', 'hysteria2', 'anytls']);
+// Options sing-box accepts on the inbounds NMS writes (a superset across types).
+const KNOWN_INBOUND_FIELDS = new Set([
+    'id', 'type', 'tag', 'enable', 'listen', 'listen_port', 'tls_id', 'addrs', 'out_json', 'transport',
+    'tcp_fast_open', 'tcp_multi_path', 'udp_fragment', 'detour', 'sniff', 'sniff_override_destination',
+    'method', 'password', 'network', 'managed', 'up_mbps', 'down_mbps', 'obfs', 'masquerade', 'ignore_client_bandwidth',
+    'congestion_control', 'auth_timeout', 'zero_rtt_handshake', 'heartbeat', 'quic_congestion_control',
+    'version', 'handshake', 'handshake_for_server_name', 'strict_mode', 'wildcard_sni', 'psk', 'obfs_mode', 'mode',
+    'padding_scheme', 'override_address', 'override_port', 'interface_name', 'address', 'mtu', 'stack',
+    'auto_route', 'strict_route', 'udp_timeout', 'token', 'protocol', 'ha_connections', 'users',
+]);
 const LINK_TYPES = new Set([
     'socks', 'http', 'mixed', 'shadowsocks', 'naive', 'hysteria', 'hysteria2', 'anytls', 'tuic',
     'vless', 'trojan', 'vmess',
@@ -131,6 +142,7 @@ export function createFakeSuiState(seed = {}) {
         importedDb: null,
         closedSessions: [],
         restarts: 0,
+        settings: clone(seed.settings || {}),
     };
     for (const kind of ['inbounds', 'clients', 'tls']) {
         const maxId = state[kind].reduce((max, item) => Math.max(max, Number(item.id) || 0), 0);
@@ -274,6 +286,18 @@ export function createFakeSuiPanelApp(state, options = {}) {
         throw new Error(`unknown action: ${action}`);
     }
 
+    // The checks sing-box makes when s-ui starts an inbound; a failure rolls the save back.
+    function validateForCore(inbound, userCount) {
+        if (inbound.enable === false || !state.running) return;
+        if (TLS_REQUIRED_TYPES.has(inbound.type) && !inbound.tls_id) throw new Error(`create inbound[${inbound.tag}]: TLS required`);
+        if (inbound.tls_id && !state.tls.some((item) => item.id === inbound.tls_id)) throw new Error('record not found');
+        for (const key of Object.keys(inbound)) {
+            if (!KNOWN_INBOUND_FIELDS.has(key)) throw new Error(`decode config: json: unknown field "${key}"`);
+        }
+        const needsUsers = inbound.type === 'naive' || (inbound.type === 'shadowtls' && Number(inbound.version || 3) === 3);
+        if (needsUsers && userCount === 0) throw new Error(`create inbound[${inbound.tag}]: missing users`);
+    }
+
     function saveInbounds(action, data, initUsers, hostname) {
         if (action === 'new' || action === 'edit') {
             const inbound = { ...data };
@@ -285,6 +309,9 @@ export function createFakeSuiPanelApp(state, options = {}) {
             }
             inbound.tls_id = Number(inbound.tls_id || 0);
             inbound.addrs = inbound.addrs || [];
+            validateForCore(inbound, action === 'new'
+                ? String(initUsers || '').split(',').map(Number).filter(Boolean).length
+                : state.clients.filter((item) => item.inbounds.includes(inbound.id)).length);
             if (action === 'new') {
                 inbound.id = state.nextIds.inbounds++;
                 state.inbounds.push(inbound);
@@ -381,7 +408,7 @@ export function createFakeSuiPanelApp(state, options = {}) {
                         res.set('Content-Disposition', 'attachment; filename=s-ui_2026-10-27.db');
                         return res.send(Buffer.from('SQLite format 3\u0000fake'));
                     case 'settings':
-                        return send(res, { webPort: '2095', subPort: '2096' });
+                        return send(res, { webPort: '2095', subPort: '2096', ...(state.settings || {}) });
                     case 'tokens':
                         // s-ui masks the secret when listing.
                         return send(res, state.tokens.map((item) => ({ id: item.id, desc: item.desc, token: '****', expiry: item.expiry, userId: 1 })));

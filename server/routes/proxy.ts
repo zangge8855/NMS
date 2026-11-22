@@ -150,6 +150,12 @@ function safeDecodePathSegment(value: unknown = ''): string {
     }
 }
 
+function matchInboundWritePath(panelPath: string): { kind: 'add' | 'update'; id?: string } | null {
+    if (/^\/panel\/(?:api\/)?inbounds?\/add$/.test(panelPath)) return { kind: 'add' };
+    const match = panelPath.match(/^\/panel\/(?:api\/)?inbounds?\/update\/([^/]+)$/);
+    return match ? { kind: 'update', id: safeDecodePathSegment(match[1]) } : null;
+}
+
 async function tryCompatPanelRequest(client: any, method: string, panelPath: string, body: any = {}, files: any[] = []): Promise<any> {
     if (method !== 'POST') return null;
 
@@ -485,9 +491,22 @@ router.all('/:serverId/*', upload.any(), async (req: Request, res: Response) => 
             }
         }
 
-        const panelRes = await client(axiosConfig);
+        // 3x-ui inbound writes go through the compat layer up front: it reshapes
+        // the payload into what Xray runs and applies client/enable edits that
+        // 3x-ui 3.x ignores on a plain inbound update.
+        const inboundWrite = !isSuiServer && method === 'POST' && !(files && files.length > 0)
+            ? matchInboundWritePath(canonicalPath)
+            : null;
+        let panelRes: any;
+        if (inboundWrite?.kind === 'add') {
+            panelRes = await postAddInboundCompat(client, req.body || {});
+        } else if (inboundWrite?.kind === 'update') {
+            panelRes = await postUpdateInboundCompat(client, inboundWrite.id, req.body || {});
+        } else {
+            panelRes = await client(axiosConfig);
+        }
 
-        if (String(panelRes.headers['content-type'] || '').includes('application/octet-stream')) {
+        if (String(panelRes.headers?.['content-type'] || '').includes('application/octet-stream')) {
             res.set({
                 'Content-Type': 'application/octet-stream',
                 'Content-Disposition': panelRes.headers['content-disposition'] || 'attachment; filename=x-ui.db',

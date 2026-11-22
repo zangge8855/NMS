@@ -999,7 +999,13 @@ describe('Wave 2 Proxy Protocols, Subscription Converters, Adapters & Sync Fixes
                 clients: [{ auth_str: 'old-v1', email: 'h1@example.com' }],
             }),
         });
-        assert.equal(JSON.parse(v1Normalized.settings).obfs, 'v1-obfs-key');
+        // Converted to v2: auth_str -> auth, string obfs -> salamander finalmask.
+        const v1Settings = JSON.parse(v1Normalized.settings);
+        assert.equal(v1Settings.version, 2);
+        assert.equal(v1Settings.obfs, undefined);
+        assert.equal(v1Settings.clients[0].auth, 'old-v1');
+        const v1Stream = JSON.parse(v1Normalized.streamSettings);
+        assert.deepEqual(v1Stream.finalmask.udp, [{ type: 'salamander', settings: { password: 'v1-obfs-key' } }]);
 
         const v2Normalized = normalizeHysteriaInboundForXui({
             protocol: 'hysteria2',
@@ -1065,8 +1071,8 @@ describe('Wave 2 Proxy Protocols, Subscription Converters, Adapters & Sync Fixes
         assert.match(seenCookies[2], /cf_clearance=cf-1/);
 
         // protocolCatalog hysteria / hysteria2 supports.transports
-        assert.deepEqual(getProtocolSchema('hysteria')?.supports?.transports, ['udp', 'hysteria']);
-        assert.deepEqual(getProtocolSchema('hysteria2')?.supports?.transports, ['udp', 'hysteria']);
+        assert.deepEqual(getProtocolSchema('hysteria')?.supports?.transports, ['hysteria']);
+        assert.deepEqual(getProtocolSchema('hysteria2')?.supports?.transports, ['hysteria']);
     });
 
     it('Group 4 & Board #29: fails explicitly on upstream HTML/success:false, keeps probing fallback xray routes, and retries delete_user_cleanup', async () => {

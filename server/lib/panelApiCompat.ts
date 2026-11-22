@@ -1,5 +1,6 @@
 import { normalizePanelErrorMessage } from './panelClient.js';
 import { normalizePanelType, PANEL_TYPE_SUI } from './panelType.js';
+import { normalizeInboundPayloadForXui } from './xuiInboundNormalizer.js';
 
 const UUID_PROTOCOLS = new Set<string>(['vmess', 'vless', 'tuic']);
 const PASSWORD_PROTOCOLS = new Set<string>(['trojan', 'shadowsocks']);
@@ -166,75 +167,26 @@ export function sanitizeInboundPayloadForPanel(inboundData: any = {}): any {
     return payload;
 }
 
-function parseJsonField(value: unknown): { parsed: any; isString: boolean } {
-    if (typeof value === 'string') {
-        try {
-            return { parsed: JSON.parse(value || '{}'), isString: true };
-        } catch {
-            return { parsed: null, isString: true };
-        }
-    }
-    return { parsed: value && typeof value === 'object' ? value : {}, isString: false };
-}
-
 /**
  * 3x-ui has no `hysteria2` protocol: Hysteria2 is `protocol: "hysteria"` with
  * `version: 2`, clients keyed by `auth` and a `hysteria` stream network.
+ * Xray only runs version 2, so v1-shaped payloads are converted too.
  * s-ui keeps its own `hysteria2` type, so this only runs for 3x-ui panels.
  */
 export function normalizeHysteriaInboundForXui(inboundData: any = {}): any {
     if (!inboundData || typeof inboundData !== 'object') return inboundData;
     const protocol = normalizeProtocol(inboundData.protocol);
     if (protocol !== 'hysteria2' && protocol !== 'hy2' && protocol !== 'hysteria') return inboundData;
-    if (protocol === 'hysteria' && !parseJsonField(inboundData.settings).parsed) return inboundData;
+    return normalizeInboundPayloadForXui(inboundData);
+}
 
-    const payload = { ...inboundData, protocol: 'hysteria' };
-    const settingsField = parseJsonField(payload.settings);
-    const streamField = parseJsonField(payload.streamSettings);
-    if (settingsField.parsed) {
-        const settings = { ...settingsField.parsed };
-        const hasExplicitVersion = settings.version !== undefined && settings.version !== null && settings.version !== '';
-        const hasV2Stream = Number(streamField.parsed?.hysteriaSettings?.version) === 2;
-        const hasV1StringObfs = typeof settings.obfs === 'string';
-        const hasV1AuthStr = Array.isArray(settings.clients)
-            && settings.clients.some((client: any) => (
-                client
-                && typeof client === 'object'
-                && Object.prototype.hasOwnProperty.call(client, 'auth_str')
-            ));
-        const isV2 = protocol !== 'hysteria'
-            || Number(settings.version) === 2
-            || (!hasExplicitVersion && (hasV2Stream || (!hasV1StringObfs && !hasV1AuthStr)));
-        if (!isV2) return inboundData;
-        settings.version = 2;
-        if (Array.isArray(settings.clients)) {
-            settings.clients = settings.clients.map((client: any) => {
-                if (!client || typeof client !== 'object') return client;
-                const auth = normalizeText(client.password) || normalizeText(client.auth);
-                const next = { ...client, auth };
-                delete next.password;
-                return next;
-            });
-        }
-        payload.settings = settingsField.isString ? JSON.stringify(settings) : settings;
-    }
-
-    if (streamField.parsed) {
-        const stream = { ...streamField.parsed, network: 'hysteria' };
-        stream.hysteriaSettings = {
-            udpIdleTimeout: 60,
-            ...(stream.hysteriaSettings && typeof stream.hysteriaSettings === 'object' ? stream.hysteriaSettings : {}),
-            version: 2,
-        };
-        if (!stream.security || stream.security === 'none') stream.security = 'tls';
-        payload.streamSettings = streamField.isString ? JSON.stringify(stream) : stream;
-    }
-    return payload;
+function isSuiPanelClient(panelClient: any): boolean {
+    return normalizePanelType(panelClient?.nmsPanelType) === PANEL_TYPE_SUI;
 }
 
 function prepareInboundPayload(panelClient: any, inboundData: any): any {
     const payload = sanitizeInboundPayloadForPanel(inboundData);
-    return normalizePanelType(panelClient?.nmsPanelType) === PANEL_TYPE_SUI ? payload : normalizeHysteriaInboundForXui(payload);
+    return isSuiPanelClient(panelClient) ? payload : normalizeInboundPayloadForXui(payload);
 }
 
 export function parseInboundClients(inbound: any = {}): any[] {
@@ -1097,8 +1049,131 @@ export async function getTlsCertPathsCompat(panelClient: any): Promise<any> {
     }
 }
 
+function joinPem(value: unknown): string {
+    return Array.isArray(value) ? value.join('\n').trim() : normalizeText(value);
+}
+
+function hasTlsServerCertificate(tlsSettings: any): boolean {
+    const certificates = Array.isArray(tlsSettings?.certificates) ? tlsSettings.certificates : [];
+    return certificates.some((cert: any) => {
+        if (!cert || typeof cert !== 'object') return false;
+        if (normalizeText(cert.usage).toLowerCase() === 'verify') return false;
+        const certificate = normalizeText(cert.certificateFile) || joinPem(cert.certificate);
+        const key = normalizeText(cert.keyFile) || joinPem(cert.key);
+        return Boolean(certificate && key);
+    });
+}
+
+/**
+ * The certificate files the node panel serves HTTPS with. `null` means the panel
+ * answered but has none; `undefined` means the panel could not tell us (older
+ * version or request failed), so the inbound is sent unchanged.
+ */
+async function fetchPanelWebCertFiles(panelClient: any): Promise<{ certFile: string; keyFile: string } | null | undefined> {
+    if (typeof panelClient?.get !== 'function') return undefined;
+    try {
+        const response = await panelClient.get('/panel/api/server/getWebCertFiles');
+        if (panelResponseIsFailure(response) || !response?.data?.obj || typeof response.data.obj !== 'object') return undefined;
+        const certFile = normalizeText(response.data.obj.webCertFile);
+        const keyFile = normalizeText(response.data.obj.webKeyFile);
+        return certFile && keyFile ? { certFile, keyFile } : null;
+    } catch {
+        return undefined;
+    }
+}
+
+function writeJsonFieldLike(original: any, value: any): any {
+    return typeof original === 'string' ? JSON.stringify(value) : value;
+}
+
+/**
+ * A TLS inbound (or TUIC) saved without a certificate is rejected by the panel.
+ * When none was entered, use the certificate the node panel itself serves HTTPS
+ * with, so "TLS" works without having to know file paths on the node.
+ */
+export async function fillMissingXuiCertificates(panelClient: any, payload: any): Promise<any> {
+    if (!payload || typeof payload !== 'object' || isSuiPanelClient(panelClient)) return payload;
+    const protocol = normalizeProtocol(payload.protocol);
+    const stream = parseMaybeJson(payload.streamSettings, null);
+    const settings = parseMaybeJson(payload.settings, null);
+    const streamNeedsCert = Boolean(stream && normalizeText(stream.security).toLowerCase() === 'tls' && !hasTlsServerCertificate(stream.tlsSettings));
+    const tuicServer = protocol === 'tuic' && settings && typeof settings.server === 'object' ? settings.server : null;
+    const tuicNeedsCert = Boolean(tuicServer && (!normalizeText(tuicServer.certificate) || !normalizeText(tuicServer.private_key)));
+    if (!streamNeedsCert && !tuicNeedsCert) return payload;
+
+    const files = await fetchPanelWebCertFiles(panelClient);
+    if (files === undefined) return payload;
+    if (files === null) {
+        const msg = 'TLS needs a certificate: this node panel has no HTTPS certificate configured. '
+            + 'Enter the certificate and key file paths under Security, or set a certificate in the node panel settings first.';
+        throw createPanelResponseError({ status: 400, data: { success: false, msg } }, msg);
+    }
+    const next = { ...payload };
+    if (streamNeedsCert) {
+        const tlsSettings = { ...(stream.tlsSettings || {}) };
+        const previous = Array.isArray(tlsSettings.certificates) ? tlsSettings.certificates : [];
+        const kept = previous.filter((cert: any) => normalizeText(cert?.usage).toLowerCase() === 'verify');
+        tlsSettings.certificates = [
+            { certificateFile: files.certFile, keyFile: files.keyFile, oneTimeLoading: false, usage: 'encipherment', buildChain: false },
+            ...kept,
+        ];
+        next.streamSettings = writeJsonFieldLike(payload.streamSettings, { ...stream, tlsSettings });
+    }
+    if (tuicNeedsCert) {
+        const server = { ...tuicServer, certificate: files.certFile, private_key: files.keyFile };
+        next.settings = writeJsonFieldLike(payload.settings, { ...settings, server });
+    }
+    return next;
+}
+
+const TUNNEL_CLIENT_PROTOCOLS = new Set<string>(['wireguard', 'amneziawg']);
+
+function replaceSettingsClients(payload: any, clients: any[] | undefined): any {
+    if (!payload || typeof payload !== 'object' || payload.settings === undefined) return payload;
+    const isString = typeof payload.settings === 'string';
+    const settings = parseMaybeJson(payload.settings, null);
+    if (!settings || typeof settings !== 'object') return payload;
+    const next = { ...settings };
+    if (clients === undefined) delete next.clients;
+    else next.clients = clients;
+    return { ...payload, settings: isString ? JSON.stringify(next) : next };
+}
+
+/**
+ * WireGuard/AmneziaWG clients get their keys and tunnel address from the panel's
+ * client endpoint; an inbound create rejects them without an address. Create
+ * the inbound with the complete clients and add the rest afterwards.
+ */
 export async function postAddInboundCompat(panelClient: any, inboundData: any): Promise<any> {
-    const payload = prepareInboundPayload(panelClient, { ...inboundData, id: undefined });
+    let payload = await fillMissingXuiCertificates(panelClient, prepareInboundPayload(panelClient, { ...inboundData, id: undefined }));
+    const protocol = normalizeProtocol(payload?.protocol);
+    let deferred: any[] = [];
+    if (!isSuiPanelClient(panelClient) && TUNNEL_CLIENT_PROTOCOLS.has(protocol)) {
+        const clients = parseInboundClients(payload).filter((client: any) => client && typeof client === 'object');
+        const ready = clients.filter((client: any) => Array.isArray(client.allowedIPs) && client.allowedIPs.length > 0 && normalizeText(client.publicKey));
+        deferred = clients.filter((client: any) => !ready.includes(client));
+        if (deferred.length > 0) payload = replaceSettingsClients(payload, ready);
+    }
+    const response = await postAddInboundRequest(panelClient, payload);
+    if (deferred.length > 0) {
+        const inboundId = response?.data?.obj?.id;
+        const failures: string[] = [];
+        for (const client of deferred) {
+            try {
+                await postAddClientCompat(panelClient, inboundId, client, { protocol });
+            } catch (error: any) {
+                failures.push(`${normalizeClientEmail(client.email) || 'client'}: ${normalizePanelErrorMessage(error, error?.message || 'failed')}`);
+            }
+        }
+        if (failures.length > 0) {
+            const msg = `Inbound created, but some clients were not added: ${failures.join('; ')}`;
+            throw createPanelResponseError({ status: 502, data: { success: false, msg } }, msg);
+        }
+    }
+    return response;
+}
+
+async function postAddInboundRequest(panelClient: any, payload: any): Promise<any> {
     try {
         return assertPanelResponseSuccess(
             await postForm(panelClient, '/panel/api/inbounds/add', payload),
@@ -1138,8 +1213,129 @@ export async function postAddInboundCompat(panelClient: any, inboundData: any): 
     );
 }
 
+const CLIENT_SYNC_FIELDS = [
+    'id', 'uuid', 'password', 'auth', 'secret', 'flow', 'security', 'email', 'limitIp', 'totalGB',
+    'expiryTime', 'enable', 'tgId', 'subId', 'comment', 'reset', 'publicKey', 'privateKey',
+    'preSharedKey', 'allowedIPs', 'keepAlive', 'adTag',
+];
+
+function comparableClientValue(value: any): string {
+    if (value === undefined || value === null) return '';
+    if (typeof value === 'object') return JSON.stringify(value);
+    return String(value);
+}
+
+function clientNeedsUpdate(stored: any = {}, desired: any = {}): boolean {
+    const left = sanitizeClientPayloadForPanel(stored);
+    const right = sanitizeClientPayloadForPanel(desired);
+    return CLIENT_SYNC_FIELDS.some((field) => (
+        Object.prototype.hasOwnProperty.call(right, field)
+        && comparableClientValue(left[field]) !== comparableClientValue(right[field])
+    ));
+}
+
+function toBooleanFlag(value: any): boolean {
+    return !(value === false || value === 'false' || value === 0 || value === '0');
+}
+
+/**
+ * 3x-ui 3.x ignores `clients` and `enable` on an inbound update (each has its
+ * own endpoint), so a client added or removed in the inbound editor was dropped
+ * without an error. After the update, apply whatever still differs through the
+ * dedicated endpoints. On panels that did apply the update this finds nothing.
+ */
+async function syncXuiInboundClientsAndEnable(panelClient: any, inboundId: any, payload: any = {}): Promise<void> {
+    const desiredSettings = parseMaybeJson(payload?.settings, null);
+    const desiredClients = Array.isArray(desiredSettings?.clients)
+        ? desiredSettings.clients.filter((client: any) => client && typeof client === 'object')
+        : null;
+    const hasEnable = payload && payload.enable !== undefined && payload.enable !== null && payload.enable !== '';
+    if (!desiredClients && !hasEnable) return;
+
+    const stored = await fetchInboundById(panelClient, inboundId);
+    if (!stored) return;
+
+    if (hasEnable) {
+        const desiredEnable = toBooleanFlag(payload.enable);
+        if (toBooleanFlag(stored.enable) !== desiredEnable) {
+            await postForm(panelClient, `/panel/api/inbounds/setEnable/${encodePathSegment(inboundId)}`, { enable: desiredEnable });
+        }
+    }
+    if (!desiredClients) return;
+
+    const protocol = normalizeProtocol(stored.protocol || payload.protocol);
+    const storedClients = parseInboundClients(stored).filter((client: any) => client && typeof client === 'object');
+    const unmatched = new Set<any>(storedClients);
+    const takeMatch = (desired: any): any => {
+        const email = normalizeClientEmail(desired.email);
+        const identifier = resolveClientIdentifier(desired, protocol);
+        const byEmail = email ? storedClients.find((client) => unmatched.has(client) && normalizeClientEmail(client.email) === email) : null;
+        const match = byEmail || (identifier
+            ? storedClients.find((client) => unmatched.has(client) && resolveClientIdentifier(client, protocol) === identifier)
+            : null);
+        if (match) unmatched.delete(match);
+        return match || null;
+    };
+    const pairs = desiredClients.map((desired: any) => ({ desired, stored: takeMatch(desired) }));
+
+    const failures: string[] = [];
+    const attempt = async (label: string, run: () => Promise<any>) => {
+        try {
+            await run();
+        } catch (error: any) {
+            failures.push(`${label}: ${normalizePanelErrorMessage(error, error?.message || 'failed')}`);
+        }
+    };
+    for (const client of unmatched) {
+        await attempt(`remove ${normalizeClientEmail(client.email) || 'client'}`, () => postDeleteClientFromInboundCompat(
+            panelClient,
+            inboundId,
+            resolveClientIdentifier(client, protocol),
+            { protocol, email: client.email }
+        ));
+    }
+    for (const { desired, stored: current } of pairs) {
+        if (!current) {
+            await attempt(`add ${normalizeClientEmail(desired.email) || 'client'}`, () => postAddClientCompat(panelClient, inboundId, desired, { protocol }));
+        } else if (clientNeedsUpdate(current, desired)) {
+            await attempt(`update ${normalizeClientEmail(current.email) || 'client'}`, () => postUpdateClientCompat(
+                panelClient,
+                inboundId,
+                resolveClientIdentifier(current, protocol),
+                desired,
+                { protocol, email: current.email }
+            ));
+        }
+    }
+    if (failures.length > 0) {
+        const msg = `Inbound saved, but some clients were not applied: ${failures.join('; ')}`;
+        throw createPanelResponseError({ status: 502, data: { success: false, msg } }, msg);
+    }
+}
+
 export async function postUpdateInboundCompat(panelClient: any, inboundId: any, inboundData: any): Promise<any> {
-    const payload = prepareInboundPayload(panelClient, inboundData);
+    if (isSuiPanelClient(panelClient)) {
+        return postUpdateInboundRequest(panelClient, inboundId, prepareInboundPayload(panelClient, inboundData));
+    }
+    const payload = await fillMissingXuiCertificates(panelClient, prepareInboundPayload(panelClient, inboundData));
+    // The update carries the clients the panel already has (3x-ui 3.x keeps
+    // those anyway, but validates whatever is sent); client changes go through
+    // the client endpoints so new clients get panel-assigned keys/addresses.
+    let request = payload;
+    const desiredSettings = parseMaybeJson(payload?.settings, null);
+    if (Array.isArray(desiredSettings?.clients)) {
+        const stored = await fetchInboundById(panelClient, inboundId).catch(() => null);
+        if (stored) {
+            const storedSettings = parseMaybeJson(stored.settings, {});
+            request = replaceSettingsClients(payload, Array.isArray(storedSettings?.clients) ? storedSettings.clients : undefined);
+        }
+    }
+    const response = await postUpdateInboundRequest(panelClient, inboundId, request);
+    await syncXuiInboundClientsAndEnable(panelClient, inboundId, payload);
+    return response;
+}
+
+async function postUpdateInboundRequest(panelClient: any, inboundId: any, payload: any): Promise<any> {
     const encodedId = encodePathSegment(inboundId);
     try {
         return assertPanelResponseSuccess(

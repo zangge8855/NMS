@@ -8,21 +8,35 @@ import { useI18n } from '../../contexts/LanguageContext';
 import ModalShell from '../UI/ModalShell';
 import { invalidateServerPanelDataCache } from '../../utils/serverPanelDataCache';
 import toast from 'react-hot-toast';
+import ProtocolSettingsPanel from './ProtocolSettingsPanel';
+import {
+    ALPHA_NUM_CHARS,
+    DEFAULT_MTPROTO_FAKE_TLS_DOMAIN,
+    HEX_CHARS,
+    LOWER_NUM_CHARS,
+    randomMtprotoSecret,
+    randomShadowsocksPassword,
+    randomString,
+    randomUuid,
+    randomWireguardPrivateKey,
+} from './inboundRandom';
 
 const PROTOCOL_SCHEMA_FALLBACK = [
     { key: 'vless', label: 'VLESS', legacyKeys: [], supports: { transports: ['tcp', 'ws', 'grpc', 'kcp', 'httpupgrade', 'xhttp'], securities: ['none', 'tls', 'reality'], tlsTransports: ['tcp', 'ws', 'grpc', 'httpupgrade', 'xhttp'], realityTransports: ['tcp', 'http', 'grpc', 'xhttp'] } },
     { key: 'vmess', label: 'VMess', legacyKeys: [], supports: { transports: ['tcp', 'ws', 'grpc', 'kcp', 'httpupgrade', 'xhttp'], securities: ['none', 'tls'], tlsTransports: ['tcp', 'ws', 'grpc', 'httpupgrade', 'xhttp'] } },
     { key: 'trojan', label: 'Trojan', legacyKeys: [], supports: { transports: ['tcp', 'ws', 'grpc', 'kcp', 'httpupgrade', 'xhttp'], securities: ['none', 'tls', 'reality'], tlsTransports: ['tcp', 'ws', 'grpc', 'httpupgrade', 'xhttp'], realityTransports: ['tcp', 'http', 'grpc', 'xhttp'] } },
     { key: 'shadowsocks', label: 'Shadowsocks', legacyKeys: [], supports: { transports: ['tcp', 'ws', 'grpc', 'kcp', 'httpupgrade', 'xhttp'], securities: ['none', 'tls'], tlsTransports: ['tcp', 'ws', 'grpc', 'httpupgrade', 'xhttp'] } },
-    { key: 'http', label: 'HTTP', legacyKeys: [], supports: { transports: ['tcp'], securities: ['none'] } },
-    { key: 'tunnel', label: 'Tunnel', legacyKeys: ['dokodemo-door'], supports: { transports: [], securities: [] } },
-    { key: 'mixed', label: 'Mixed', legacyKeys: ['socks'], supports: { transports: [], securities: [] } },
-    { key: 'wireguard', label: 'WireGuard', legacyKeys: [], supports: { transports: ['udp'], securities: [] } },
-    { key: 'tun', label: 'TUN', legacyKeys: [], supports: { transports: [], securities: [] } },
-    { key: 'mtproto', label: 'MTProto', legacyKeys: [], supports: { transports: ['tcp'], securities: [] } },
-    { key: 'hysteria', label: 'Hysteria', legacyKeys: [], supports: { transports: ['udp', 'hysteria'], securities: ['tls', 'none'] } },
-    { key: 'hysteria2', label: 'Hysteria2', legacyKeys: ['hy2'], supports: { transports: ['udp', 'hysteria'], securities: ['tls', 'none'] } },
+    { key: 'hysteria2', label: 'Hysteria2', legacyKeys: ['hy2'], supports: { transports: ['hysteria'], securities: ['tls'] } },
+    { key: 'hysteria', label: 'Hysteria', legacyKeys: [], supports: { transports: ['hysteria'], securities: ['tls'] } },
     { key: 'tuic', label: 'TUIC', legacyKeys: [], supports: { transports: ['udp'], securities: ['tls'] } },
+    { key: 'masque', label: 'MASQUE', legacyKeys: [], supports: { transports: ['masque'], securities: ['tls'] } },
+    { key: 'wireguard', label: 'WireGuard', legacyKeys: [], supports: { transports: [], securities: [] } },
+    { key: 'amneziawg', label: 'AmneziaWG', legacyKeys: [], supports: { transports: [], securities: [] } },
+    { key: 'mtproto', label: 'MTProto', legacyKeys: [], supports: { transports: [], securities: [] } },
+    { key: 'mixed', label: 'Mixed (SOCKS5/HTTP)', legacyKeys: ['socks'], supports: { transports: [], securities: [] } },
+    { key: 'http', label: 'HTTP', legacyKeys: [], supports: { transports: [], securities: [] } },
+    { key: 'tunnel', label: 'Tunnel', legacyKeys: ['dokodemo-door'], supports: { transports: [], securities: [] } },
+    { key: 'tun', label: 'TUN', legacyKeys: [], supports: { transports: [], securities: [] } },
 ];
 const _PROTOCOL_FALLBACK = PROTOCOL_SCHEMA_FALLBACK.map((item) => item.key);
 
@@ -38,6 +52,7 @@ const NETWORK_LABELS = {
     xhttp: 'XHTTP',
     udp: 'UDP',
     hysteria: 'Hysteria',
+    masque: 'MASQUE',
 };
 
 const SECURITY_LABELS = {
@@ -100,77 +115,12 @@ const XHTTP_PADDING_METHOD_OPTIONS = ['', 'repeat-x', 'tokenish'];
 const XHTTP_HTTP_METHOD_OPTIONS = ['', 'POST', 'PUT', 'GET'];
 const XHTTP_SESSION_SEQ_PLACEMENT_OPTIONS = ['', 'path', 'header', 'cookie', 'query'];
 const XHTTP_UPLINK_DATA_PLACEMENT_OPTIONS = ['', 'body', 'header', 'query'];
-const DEFAULT_MTPROTO_FAKE_TLS_DOMAIN = 'www.cloudflare.com';
 
-const STREAM_PROTOCOLS = new Set(['vmess', 'vless', 'trojan', 'shadowsocks', 'hysteria', 'hysteria2', 'tuic']);
-const LOWER_NUM_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
-const ALPHA_NUM_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-const HEX_CHARS = '0123456789abcdef';
+const STREAM_PROTOCOLS = new Set(['vmess', 'vless', 'trojan', 'shadowsocks', 'hysteria', 'hysteria2', 'tuic', 'masque']);
+// Protocols that only run over QUIC and so need ALPN h3.
+const QUIC_TLS_PROTOCOLS = new Set(['hysteria', 'hysteria2', 'hy2', 'tuic', 'masque']);
+const DEFAULT_MASQUE_PATH = '/.well-known/masque/ip/*/*/';
 const DEFAULT_REALITY_TARGET = { target: 'www.apple.com:443', sni: 'www.apple.com,apple.com' };
-
-function randomString(length, charset) {
-    const size = Math.max(0, Number(length) || 0);
-    if (size === 0) return '';
-    const chars = charset || ALPHA_NUM_CHARS;
-    let result = '';
-    for (let i = 0; i < size; i += 1) {
-        result += chars[Math.floor(Math.random() * chars.length)];
-    }
-    return result;
-}
-
-function randomBase64(byteLength = 32) {
-    const bytes = new Uint8Array(byteLength);
-    if (typeof globalThis !== 'undefined' && globalThis.crypto?.getRandomValues) {
-        globalThis.crypto.getRandomValues(bytes);
-    } else {
-        for (let i = 0; i < byteLength; i += 1) {
-            bytes[i] = Math.floor(Math.random() * 256);
-        }
-    }
-    let binary = '';
-    for (let i = 0; i < bytes.length; i += 1) {
-        binary += String.fromCharCode(bytes[i]);
-    }
-    return btoa(binary);
-}
-
-function randomUuid() {
-    if (typeof globalThis !== 'undefined' && globalThis.crypto?.randomUUID) {
-        return globalThis.crypto.randomUUID();
-    }
-    const raw = randomString(32, HEX_CHARS).split('');
-    raw[12] = '4';
-    raw[16] = HEX_CHARS[(parseInt(raw[16], 16) & 0x3) | 0x8];
-    return `${raw.slice(0, 8).join('')}-${raw.slice(8, 12).join('')}-${raw.slice(12, 16).join('')}-${raw.slice(16, 20).join('')}-${raw.slice(20, 32).join('')}`;
-}
-
-function randomShadowsocksPassword(method = '2022-blake3-aes-256-gcm') {
-    const normalizedMethod = String(method || '').toLowerCase();
-    if (normalizedMethod.includes('128-gcm')) {
-        return randomBase64(16);
-    }
-    if (normalizedMethod.includes('2022-blake3') || normalizedMethod.includes('2022')) {
-        return randomBase64(32);
-    }
-    return randomString(32, `${ALPHA_NUM_CHARS}_-`);
-}
-
-function stringToUtf8Hex(value) {
-    const text = String(value || '');
-    if (typeof TextEncoder !== 'undefined') {
-        return Array.from(new TextEncoder().encode(text))
-            .map((byte) => byte.toString(16).padStart(2, '0'))
-            .join('');
-    }
-    return Array.from(text)
-        .map((char) => char.charCodeAt(0).toString(16).padStart(2, '0'))
-        .join('');
-}
-
-function randomMtprotoSecret(domain = DEFAULT_MTPROTO_FAKE_TLS_DOMAIN) {
-    return `ee${randomString(32, HEX_CHARS)}${stringToUtf8Hex(domain)}`;
-}
 
 function deepClone(value) {
     try {
@@ -327,15 +277,16 @@ export function createDefaultSettings(protocolKey = 'vmess') {
         };
     }
 
-    if (protocol === 'dokodemo-door') {
-        return { network: 'tcp,udp', address: '', port: '' };
+    if (protocol === 'dokodemo-door' || protocol === 'tunnel') {
+        return { rewriteAddress: '', portMap: {}, allowedNetwork: 'tcp,udp', followRedirect: false };
     }
 
-    if (protocol === 'socks') {
+    if (protocol === 'socks' || protocol === 'mixed') {
         return {
             auth: 'password',
             accounts: [{ user: randomString(10, ALPHA_NUM_CHARS), pass: randomString(10, ALPHA_NUM_CHARS) }],
             udp: false,
+            ip: '127.0.0.1',
         };
     }
 
@@ -346,39 +297,40 @@ export function createDefaultSettings(protocolKey = 'vmess') {
         };
     }
 
-    if (protocol === 'tunnel') {
-        return { address: '', port: '', portMap: [], network: 'tcp,udp', followRedirect: false };
-    }
-
-    if (protocol === 'mixed') {
+    if (protocol === 'wireguard') {
+        // Clients get their keys and tunnel address from the panel when they are added.
         return {
-            auth: 'password',
-            accounts: [{ user: randomString(10, ALPHA_NUM_CHARS), pass: randomString(10, ALPHA_NUM_CHARS) }],
-            udp: false,
-            ip: '127.0.0.1',
+            mtu: 1420,
+            secretKey: randomWireguardPrivateKey(),
+            peers: [],
+            clients: [createBaseClient()],
+            noKernelTun: false,
+            subnetIp: '10.0.0.0',
+            subnetCidr: 24,
         };
     }
 
-    if (protocol === 'wireguard') {
+    if (protocol === 'amneziawg') {
         return {
-            mtu: 1420,
-            secretKey: '',
-            peers: [{
-                publicKey: '',
-                allowedIPs: ['10.0.0.2/32'],
-                keepAlive: 0,
-            }],
-            noKernelTun: false,
-            reserved: [0, 0, 0],
-            jc: 4,
-            jmin: 40,
-            jmax: 70,
-            s1: 0,
-            s2: 0,
-            h1: 1,
-            h2: 2,
-            h3: 3,
-            h4: 4,
+            server: {
+                subnetIp: '10.8.1.0',
+                subnetCidr: 24,
+                primaryDns: '1.1.1.1',
+                secondaryDns: '8.8.8.8',
+                externalInterface: '',
+                ipv6Enabled: false,
+                ipv6Subnet: '',
+                ipv6ExternalInterface: '',
+                kernelMode: false,
+                jc: 5,
+                jmin: 10,
+                jmax: 50,
+                s1: 30,
+                s2: 45,
+                s3: 10,
+                s4: 5,
+            },
+            clients: [createBaseClient()],
         };
     }
 
@@ -389,50 +341,56 @@ export function createDefaultSettings(protocolKey = 'vmess') {
     if (protocol === 'mtproto') {
         return {
             fakeTlsDomain: DEFAULT_MTPROTO_FAKE_TLS_DOMAIN,
-            secret: randomMtprotoSecret(DEFAULT_MTPROTO_FAKE_TLS_DOMAIN),
-        };
-    }
-
-    if (protocol === 'hysteria') {
-        return {
-            up_mbps: 0,
-            down_mbps: 0,
-            obfs: '',
-            alpn: ['h3'],
-            recv_window_conn: 0,
-            recv_window: 0,
-            disable_mtu_discovery: false,
             clients: [{
-                auth_str: randomString(16, ALPHA_NUM_CHARS),
+                secret: randomMtprotoSecret(DEFAULT_MTPROTO_FAKE_TLS_DOMAIN),
                 ...createBaseClient(),
             }],
         };
     }
 
-    if (protocol === 'hysteria2' || protocol === 'hy2') {
+    if (protocol === 'hysteria' || protocol === 'hysteria2' || protocol === 'hy2') {
+        // 3x-ui runs Hysteria 2 only; s-ui reads up/down bandwidth from these keys.
         return {
-            up_mbps: 0,
-            down_mbps: 0,
-            ignore_client_bandwidth: false,
-            obfs: { type: '', password: '' },
+            version: 2,
             clients: [{
-                password: randomString(16, ALPHA_NUM_CHARS),
+                auth: randomString(16, ALPHA_NUM_CHARS),
                 ...createBaseClient(),
             }],
         };
     }
 
     if (protocol === 'tuic') {
+        const uuid = randomUuid();
         return {
-            users: [{
-                uuid: randomUuid(),
+            server: {
+                certificate: '',
+                private_key: '',
+                congestion_control: 'bbr',
+                alpn: ['h3'],
+                udp_relay_mode: 'native',
+                zero_rtt_handshake: false,
+                log_level: 'info',
+                max_idle_time: 15,
+                authentication_timeout: 3,
+                max_udp_relay_packet_size: 1500,
+                sni: '',
+            },
+            clients: [{
+                id: uuid,
+                uuid,
                 password: randomString(16, ALPHA_NUM_CHARS),
                 ...createBaseClient(),
             }],
-            congestion_control: 'bbr',
-            auth_timeout: '3s',
-            zero_rtt_handshake: false,
-            heartbeat: '10s',
+        };
+    }
+
+    if (protocol === 'masque') {
+        return {
+            address: ['10.14.0.1/24', 'fd14::1/64'],
+            clients: [{
+                password: randomString(16, ALPHA_NUM_CHARS),
+                ...createBaseClient(),
+            }],
         };
     }
 
@@ -520,7 +478,13 @@ export function createDefaultTransportSettings(network = 'tcp') {
             },
         };
     }
-    if (norm === 'udp' || norm === 'hysteria') {
+    if (norm === 'hysteria') {
+        return { hysteriaSettings: { version: 2, udpIdleTimeout: 60 } };
+    }
+    if (norm === 'masque') {
+        return { masqueSettings: { path: DEFAULT_MASQUE_PATH } };
+    }
+    if (norm === 'udp') {
         return {};
     }
     return { tcpSettings: { acceptProxyProtocol: false, header: { type: 'none' } } };
@@ -580,6 +544,7 @@ export function normalizeStreamForSubmission(rawStream, protocolKey) {
     if (network === 'quic' && hasKeys(source.quicSettings)) normalized.quicSettings = source.quicSettings;
     if (network === 'httpupgrade' && hasKeys(source.httpupgradeSettings)) normalized.httpupgradeSettings = source.httpupgradeSettings;
     if (network === 'xhttp' && hasKeys(source.xhttpSettings)) normalized.xhttpSettings = source.xhttpSettings;
+    if (network === 'masque' && hasKeys(source.masqueSettings)) normalized.masqueSettings = source.masqueSettings;
 
     if (security === 'tls') {
         normalized.tlsSettings = hasKeys(source.tlsSettings)
@@ -594,8 +559,12 @@ export function normalizeStreamForSubmission(rawStream, protocolKey) {
     if (hasKeys(source.finalmask) && Array.isArray(source.finalmask.udp) && source.finalmask.udp.length > 0) {
         normalized.finalmask = source.finalmask;
     }
-    if (hasKeys(source.hysteriaSettings)) {
+    if (network === 'hysteria' && hasKeys(source.hysteriaSettings)) {
         normalized.hysteriaSettings = source.hysteriaSettings;
+    }
+    if (QUIC_TLS_PROTOCOLS.has(protocol) && isObject(normalized.tlsSettings)) {
+        const alpn = Array.isArray(normalized.tlsSettings.alpn) ? normalized.tlsSettings.alpn : [];
+        if (!alpn.includes('h3')) normalized.tlsSettings = { ...normalized.tlsSettings, alpn: ['h3'] };
     }
     if (hasKeys(source.sockopt)) {
         normalized.sockopt = source.sockopt;
@@ -680,15 +649,7 @@ function normalizeSettingsNumericFields(parsedSettings: Record<string, any>, pro
     const normProto = String(protocolKey || '').toLowerCase();
     if (normProto === 'wireguard') {
         parsedSettings.mtu = fallbackNumericValue(parsedSettings.mtu, 1420);
-        parsedSettings.jc = fallbackNumericValue(parsedSettings.jc, 4);
-        parsedSettings.jmin = fallbackNumericValue(parsedSettings.jmin, 40);
-        parsedSettings.jmax = fallbackNumericValue(parsedSettings.jmax, 70);
-        parsedSettings.s1 = fallbackNumericValue(parsedSettings.s1, 0);
-        parsedSettings.s2 = fallbackNumericValue(parsedSettings.s2, 0);
-        parsedSettings.h1 = fallbackNumericValue(parsedSettings.h1, 1);
-        parsedSettings.h2 = fallbackNumericValue(parsedSettings.h2, 2);
-        parsedSettings.h3 = fallbackNumericValue(parsedSettings.h3, 3);
-        parsedSettings.h4 = fallbackNumericValue(parsedSettings.h4, 4);
+        if (parsedSettings.subnetCidr !== undefined) parsedSettings.subnetCidr = fallbackNumericValue(parsedSettings.subnetCidr, 24);
         if (Array.isArray(parsedSettings.peers)) {
             parsedSettings.peers = parsedSettings.peers.map((peer: any) => (
                 isObject(peer) ? { ...peer, keepAlive: fallbackNumericValue(peer.keepAlive, 0) } : peer
@@ -700,9 +661,21 @@ function normalizeSettingsNumericFields(parsedSettings: Record<string, any>, pro
         parsedSettings.down_mbps = fallbackNumericValue(parsedSettings.down_mbps, 0);
     }
     if (normProto === 'tunnel' || normProto === 'dokodemo-door') {
-        parsedSettings.port = fallbackNumericValue(parsedSettings.port, 0);
-        parsedSettings.timeout = fallbackNumericValue(parsedSettings.timeout, 0);
-        parsedSettings.userLevel = fallbackNumericValue(parsedSettings.userLevel, 0);
+        if (parsedSettings.rewritePort === '' || parsedSettings.rewritePort === null || Number(parsedSettings.rewritePort) === 0) {
+            delete parsedSettings.rewritePort;
+        } else if (parsedSettings.rewritePort !== undefined) {
+            parsedSettings.rewritePort = fallbackNumericValue(parsedSettings.rewritePort, 0);
+        }
+    }
+    if (normProto === 'amneziawg' && isObject(parsedSettings.server)) {
+        const server = parsedSettings.server;
+        for (const [key, fallback] of [['subnetCidr', 24], ['jc', 5], ['jmin', 10], ['jmax', 50], ['s1', 30], ['s2', 45], ['s3', 10], ['s4', 5]] as const) {
+            if (server[key] !== undefined) server[key] = fallbackNumericValue(server[key], fallback);
+        }
+        if (server.mtu === '' || server.mtu === null) delete server.mtu;
+    }
+    if (normProto === 'masque' && (parsedSettings.mtu === '' || parsedSettings.mtu === null)) {
+        delete parsedSettings.mtu;
     }
     if (normProto === 'vless') {
         if (Array.isArray(parsedSettings.fallbacks)) {
@@ -814,11 +787,12 @@ export function validateInboundPayload(protocol, port, stream, protocolSchema = 
         };
     }
 
+    // TLS without a certificate is allowed: the server fills in the node panel's
+    // own HTTPS certificate, or explains what to enter when the panel has none.
     if (security === 'tls') {
-        const serverName = String(stream?.tlsSettings?.serverName || '').trim();
-        const hasCertFiles = Array.isArray(stream?.tlsSettings?.certificates) && stream.tlsSettings.certificates.some((c) => c?.certificateFile || c?.keyFile);
-        const normProto = String(protocol || '').toLowerCase();
-        if (!serverName && !hasCertFiles && normProto !== 'hysteria' && normProto !== 'hysteria2' && normProto !== 'hy2' && normProto !== 'tuic') {
+        const certs = Array.isArray(stream?.tlsSettings?.certificates) ? stream.tlsSettings.certificates : [];
+        const halfFilled = certs.some((c) => Boolean(c?.certificateFile) !== Boolean(c?.keyFile));
+        if (halfFilled) {
             return { ok: false, msg: t('comp.inbounds.validationTlsSniRequired') };
         }
     }
@@ -877,7 +851,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
         targetAddressPlaceholder: 'e.g. 1.1.1.1 or example.com', targetPort: 'Target port (port)', network: 'Network', timeout: 'Timeout (seconds)', userLevel: 'User level',
         transport: 'Transport settings', sniffing: 'Traffic sniffing', tcpAdvanced: 'TCP advanced options', requestPath: 'Request Path (comma-separated)', wsAdvanced: 'WS advanced options',
         httpUpgradeAdvanced: 'HTTPUpgrade advanced options', serverNamePlaceholder: 'e.g. apple.com', echActions: 'ECH certificate actions', generate: 'Generate', clear: 'Clear',
-        certificateFirst: 'Certificate (first entry)', certificatePath: 'Certificate file path', privateKeyPath: 'Private key file path', certificateUsage: 'Certificate usage',
+        certificateFirst: 'Certificate (first entry)', certEmptyHint: 'Leave both paths empty to use the certificate the node panel itself serves HTTPS with. Paths are files on the node.', certEmptyPlaceholder: 'Empty = node panel certificate', certificatePath: 'Certificate file path', privateKeyPath: 'Private key file path', certificateUsage: 'Certificate usage',
         encipherment: 'encipherment (encryption)', verify: 'verify (client verification)', issue: 'issue (sub-certificate issuance)', generateKeys: 'Generate keys', targetWebsite: 'Target website',
         optionalBlank: 'Optional; usually left blank', mldsaActions: 'mldsa65 actions', noExternalProxy: 'No external proxy configured', trustedXff: 'Trusted XFF (comma-separated)',
         noUdpMask: 'No UDP mask configured', cancel: 'Cancel', saveConfig: 'Save configuration',
@@ -903,7 +877,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
         targetAddressPlaceholder: '如 1.1.1.1 或 example.com', targetPort: '目标端口 (port)', network: '网络 (network)', timeout: '超时（秒）', userLevel: '用户级别 (userLevel)',
         transport: '传输配置', sniffing: '流量嗅探 (Sniffing)', tcpAdvanced: 'TCP 高级开关', requestPath: 'Request Path（逗号分隔）', wsAdvanced: 'WS 高级开关',
         httpUpgradeAdvanced: 'HTTPUpgrade 高级开关', serverNamePlaceholder: '例如：apple.com', echActions: 'ECH 证书操作', generate: '生成', clear: '清空',
-        certificateFirst: '证书（第 1 条）', certificatePath: '证书文件路径', privateKeyPath: '私钥文件路径', certificateUsage: '证书用途',
+        certificateFirst: '证书（第 1 条）', certEmptyHint: '两个路径都留空时，自动使用节点面板自身的 HTTPS 证书。路径指节点服务器上的文件。', certEmptyPlaceholder: '留空 = 使用节点面板证书', certificatePath: '证书文件路径', privateKeyPath: '私钥文件路径', certificateUsage: '证书用途',
         encipherment: 'encipherment（加密）', verify: 'verify（验证客户端）', issue: 'issue（签发子证书）', generateKeys: '生成密钥', targetWebsite: '目标网站 (Target)',
         optionalBlank: '可选，通常留空', mldsaActions: 'mldsa65 操作', noExternalProxy: '未配置 external proxy', trustedXff: 'Trusted XFF（逗号分隔）',
         noUdpMask: '未配置 UDP mask', cancel: '取消', saveConfig: '保存配置',
@@ -1099,25 +1073,6 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
             draft.clients = [deepClone(seeded)];
         }
         return draft.clients[0];
-    };
-
-    const syncHysteriaClientSecret = (draft: any, nextSecret: string) => {
-        const client = ensurePrimaryClient(draft);
-        const isLegacyHysteriaV1 = normalizedProtocol === 'hysteria' && (
-            Object.prototype.hasOwnProperty.call(client, 'auth_str')
-            || (Number(draft.version || 0) !== 2
-                && !Object.prototype.hasOwnProperty.call(client, 'auth')
-                && !Object.prototype.hasOwnProperty.call(client, 'password'))
-        );
-        if (isLegacyHysteriaV1) {
-            client.auth_str = nextSecret;
-            if (Object.prototype.hasOwnProperty.call(client, 'auth')) client.auth = nextSecret;
-            if (Object.prototype.hasOwnProperty.call(client, 'password')) client.password = nextSecret;
-        } else {
-            client.password = nextSecret;
-            client.auth = nextSecret;
-            if (Object.prototype.hasOwnProperty.call(client, 'auth_str')) client.auth_str = nextSecret;
-        }
     };
 
     const protocolSchemas = useMemo(() => {
@@ -1350,15 +1305,11 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                         const rawTransports = Array.isArray(item?.supports?.transports)
                             ? item.supports.transports.map((tItem) => String(tItem || '').toLowerCase()).filter(Boolean)
                             : (fallbackItem?.supports?.transports || []);
-                        const transports = (key === 'hysteria' || key === 'hysteria2')
-                            ? Array.from(new Set([...rawTransports, 'udp', 'hysteria']))
-                            : rawTransports;
+                        const transports = rawTransports;
                         const rawSecurities = Array.isArray(item?.supports?.securities)
                             ? item.supports.securities.map((sItem) => String(sItem || '').toLowerCase()).filter(Boolean)
                             : (fallbackItem?.supports?.securities || []);
-                        const securities = (key === 'hysteria' || key === 'hysteria2')
-                            ? Array.from(new Set([...rawSecurities, 'tls', 'none']))
-                            : rawSecurities;
+                        const securities = rawSecurities;
                         return {
                             key,
                             label: String(item?.label || item?.key || '').trim() || String(item?.key || '').toUpperCase(),
@@ -2693,608 +2644,16 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                     </div>
                                 )}
 
-                                {(normalizedProtocol === 'hysteria' || normalizedProtocol === 'hysteria2' || normalizedProtocol === 'hy2') && (
-                                    <div className="border border-stroke-soft rounded-lg p-4 mb-4">
-                                        <h4 className="text-secondary text-sm font-bold mb-3">{deepCopy.hysteria2Params}</h4>
-                                        <div className="grid grid-cols-2 gap-4 mb-3">
-                                            <div className="form-group">
-                                                <label htmlFor="inbound-modal-upload-bandwidth" className="form-label">{deepCopy.uploadBandwidth}</label>
-                                                <input id="inbound-modal-upload-bandwidth" name="inboundModalUploadBandwidth"
-                                                    className="form-input"
-                                                    type="number"
-                                                    min={0}
-                                                    value={settingsObj?.up_mbps ?? 0}
-                                                    onChange={(e) => updateSettingsJson((draft) => {
-                                                        draft.up_mbps = parseOptionalNumberInput(e.target.value);
-                                                    })}
-                                                    onBlur={(e) => {
-                                                        if (e.target.value === '') {
-                                                            updateSettingsJson((draft) => {
-                                                                draft.up_mbps = 0;
-                                                            });
-                                                        }
-                                                    }}
-                                                />
-                                                <div className="text-xs text-muted mt-1">{deepCopy.unlimitedRecommended}</div>
-                                            </div>
-                                            <div className="form-group">
-                                                <label htmlFor="inbound-modal-download-bandwidth" className="form-label">{deepCopy.downloadBandwidth}</label>
-                                                <input id="inbound-modal-download-bandwidth" name="inboundModalDownloadBandwidth"
-                                                    className="form-input"
-                                                    type="number"
-                                                    min={0}
-                                                    value={settingsObj?.down_mbps ?? 0}
-                                                    onChange={(e) => updateSettingsJson((draft) => {
-                                                        draft.down_mbps = parseOptionalNumberInput(e.target.value);
-                                                    })}
-                                                    onBlur={(e) => {
-                                                        if (e.target.value === '') {
-                                                            updateSettingsJson((draft) => {
-                                                                draft.down_mbps = 0;
-                                                            });
-                                                        }
-                                                    }}
-                                                />
-                                                <div className="text-xs text-muted mt-1">{deepCopy.unlimitedRecommended}</div>
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-4 mb-3">
-                                            <div className="form-group">
-                                                <label htmlFor="inbound-modal-obfs-type" className="form-label">{deepCopy.obfsType}</label>
-                                                <select id="inbound-modal-obfs-type" name="inboundModalObfsType"
-                                                    className="form-select"
-                                                    value={String(settingsObj?.obfs?.type || '')}
-                                                    onChange={(e) => updateSettingsJson((draft) => {
-                                                        if (!draft.obfs || typeof draft.obfs !== 'object') draft.obfs = { type: '', password: '' };
-                                                        draft.obfs.type = e.target.value;
-                                                    })}
-                                                >
-                                                    <option value="">{deepCopy.disabled}</option>
-                                                    <option value="salamander">salamander</option>
-                                                </select>
-                                            </div>
-                                            <div className="form-group">
-                                                <label htmlFor="inbound-modal-obfs-password" className="form-label">{deepCopy.obfsPassword}</label>
-                                                <input id="inbound-modal-obfs-password" name="inboundModalObfsPassword"
-                                                    className="form-input font-mono"
-                                                    value={String(settingsObj?.obfs?.password || '')}
-                                                    placeholder={deepCopy.optionalClientMatch}
-                                                    onChange={(e) => updateSettingsJson((draft) => {
-                                                        if (!draft.obfs || typeof draft.obfs !== 'object') draft.obfs = { type: '', password: '' };
-                                                        draft.obfs.password = e.target.value;
-                                                    })}
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="form-group mb-3">
-                                            <label className="flex items-center gap-2 cursor-pointer text-sm">
-                                                <input name="inboundModalField7"
-                                                    type="checkbox"
-                                                    checked={Boolean(settingsObj?.ignore_client_bandwidth)}
-                                                    onChange={(e) => updateSettingsJson((draft) => {
-                                                        draft.ignore_client_bandwidth = e.target.checked;
-                                                    })}
-                                                />
-                                                {locale === 'en-US' ? 'Ignore Client Bandwidth (ignore_client_bandwidth)' : '忽略客户端带宽 (ignore_client_bandwidth)'}
-                                            </label>
-                                        </div>
-                                        <div className="form-group">
-                                            <label htmlFor="inbound-modal-client-password" className="form-label">{deepCopy.clientPassword}</label>
-                                            <div className="flex gap-2">
-                                                <input id="inbound-modal-client-password" name="inboundModalClientPassword"
-                                                    className="form-input font-mono"
-                                                    value={String(primaryClient?.password || primaryClient?.auth || primaryClient?.auth_str || '')}
-                                                    onChange={(e) => updateSettingsJson((draft) => {
-                                                        syncHysteriaClientSecret(draft, e.target.value);
-                                                    })}
-                                                />
-                                                <button
-                                                    type="button"
-                                                    className="btn btn-secondary btn-sm"
-                                                    title={deepCopy.randomPassword}
-                                                    onClick={() => updateSettingsJson((draft) => {
-                                                        syncHysteriaClientSecret(draft, randomString(16, ALPHA_NUM_CHARS));
-                                                    })}
-                                                >
-                                                    {locale === 'en-US' ? 'Random' : '随机'}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {normalizedProtocol === 'wireguard' && (
-                                    <div className="border border-stroke-soft rounded-lg p-4 mb-4">
-                                        <h4 className="text-secondary text-sm font-bold mb-3">{deepCopy.wireguardParams}</h4>
-                                        <div className="grid grid-cols-2 gap-4 mb-3">
-                                            <div className="form-group">
-                                                <label htmlFor="inbound-modal-mtu" className="form-label">MTU</label>
-                                                <input id="inbound-modal-mtu" name="inboundModalMtu"
-                                                    className="form-input"
-                                                    type="number"
-                                                    min={576}
-                                                    max={9000}
-                                                    value={settingsObj?.mtu ?? 1420}
-                                                    onChange={(e) => updateSettingsJson((draft) => {
-                                                        draft.mtu = parseOptionalNumberInput(e.target.value);
-                                                    })}
-                                                    onBlur={(e) => {
-                                                        if (e.target.value === '') {
-                                                            updateSettingsJson((draft) => {
-                                                                draft.mtu = 1420;
-                                                            });
-                                                        }
-                                                    }}
-                                                />
-                                            </div>
-                                            <div className="form-group">
-                                                <label className="flex items-center gap-2 cursor-pointer pt-6 text-sm">
-                                                    <input name="inboundModalField8"
-                                                        type="checkbox"
-                                                        checked={Boolean(settingsObj?.noKernelTun)}
-                                                        onChange={(e) => updateSettingsJson((draft) => {
-                                                            draft.noKernelTun = e.target.checked;
-                                                        })}
-                                                    />
-                                                    {deepCopy.noKernelTun}
-                                                </label>
-                                            </div>
-                                        </div>
-                                        <div className="form-group mb-3">
-                                            <label htmlFor="inbound-modal-server-key" className="form-label">{deepCopy.serverKey}</label>
-                                            <div className="flex gap-2">
-                                                <input id="inbound-modal-server-key" name="inboundModalServerKey"
-                                                    className="form-input font-mono"
-                                                    value={String(settingsObj?.secretKey || '')}
-                                                    onChange={(e) => updateSettingsJson((draft) => {
-                                                        draft.secretKey = e.target.value;
-                                                    })}
-                                                />
-                                            </div>
-                                            <div className="text-xs text-muted mt-1">{deepCopy.x25519PrivateKey}</div>
-                                        </div>
-
-                                        {/* AmneziaWG (AWG) Obfuscation Settings */}
-                                        <div className="border border-stroke-soft rounded-lg p-3 mb-3 bg-surface-subtle">
-                                            <div className="flex items-center justify-between mb-2">
-                                                <div>
-                                                    <span className="text-secondary text-xs font-bold">{deepCopy.awgParams}</span>
-                                                    <p className="text-xs text-muted mt-0.5">{deepCopy.awgHelp}</p>
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    className="btn btn-secondary btn-xs"
-                                                    onClick={() => updateSettingsJson((draft) => {
-                                                        draft.jc = Math.floor(Math.random() * 8) + 3;
-                                                        draft.jmin = Math.floor(Math.random() * 30) + 20;
-                                                        draft.jmax = Math.floor(Math.random() * 50) + 60;
-                                                        draft.s1 = Math.floor(Math.random() * 25) + 15;
-                                                        draft.s2 = Math.floor(Math.random() * 25) + 20;
-                                                        draft.h1 = Math.floor(Math.random() * 2000000000) + 1;
-                                                        draft.h2 = Math.floor(Math.random() * 2000000000) + 1;
-                                                        draft.h3 = Math.floor(Math.random() * 2000000000) + 1;
-                                                        draft.h4 = Math.floor(Math.random() * 2000000000) + 1;
-                                                        draft.reserved = [
-                                                            Math.floor(Math.random() * 256),
-                                                            Math.floor(Math.random() * 256),
-                                                            Math.floor(Math.random() * 256),
-                                                        ];
-                                                    })}
-                                                >
-                                                    {deepCopy.randomizeAwg}
-                                                </button>
-                                            </div>
-                                            <div className="grid grid-cols-3 gap-3 mb-2">
-                                                <div className="form-group">
-                                                    <label htmlFor="inbound-modal-jc-junk-count" className="form-label text-xs">Jc (Junk Count)</label>
-                                                    <input id="inbound-modal-jc-junk-count" name="inboundModalJcJunkCount"
-                                                        className="form-input text-xs"
-                                                        type="number"
-                                                        min={0}
-                                                        max={128}
-                                                        value={settingsObj?.jc ?? 4}
-                                                        onChange={(e) => updateSettingsJson((draft) => { draft.jc = parseOptionalNumberInput(e.target.value); })}
-                                                        onBlur={(e) => { if (e.target.value === '') updateSettingsJson((draft) => { draft.jc = 4; }); }}
-                                                    />
-                                                </div>
-                                                <div className="form-group">
-                                                    <label htmlFor="inbound-modal-jmin-min-bytes" className="form-label text-xs">Jmin (Min Bytes)</label>
-                                                    <input id="inbound-modal-jmin-min-bytes" name="inboundModalJminMinBytes"
-                                                        className="form-input text-xs"
-                                                        type="number"
-                                                        min={0}
-                                                        max={1500}
-                                                        value={settingsObj?.jmin ?? 40}
-                                                        onChange={(e) => updateSettingsJson((draft) => { draft.jmin = parseOptionalNumberInput(e.target.value); })}
-                                                        onBlur={(e) => { if (e.target.value === '') updateSettingsJson((draft) => { draft.jmin = 40; }); }}
-                                                    />
-                                                </div>
-                                                <div className="form-group">
-                                                    <label htmlFor="inbound-modal-jmax-max-bytes" className="form-label text-xs">Jmax (Max Bytes)</label>
-                                                    <input id="inbound-modal-jmax-max-bytes" name="inboundModalJmaxMaxBytes"
-                                                        className="form-input text-xs"
-                                                        type="number"
-                                                        min={0}
-                                                        max={1500}
-                                                        value={settingsObj?.jmax ?? 70}
-                                                        onChange={(e) => updateSettingsJson((draft) => { draft.jmax = parseOptionalNumberInput(e.target.value); })}
-                                                        onBlur={(e) => { if (e.target.value === '') updateSettingsJson((draft) => { draft.jmax = 70; }); }}
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-3 mb-2">
-                                                <div className="form-group">
-                                                    <label htmlFor="inbound-modal-s1-init-response-junk" className="form-label text-xs">S1 (Init Response Junk)</label>
-                                                    <input id="inbound-modal-s1-init-response-junk" name="inboundModalS1InitResponseJunk"
-                                                        className="form-input text-xs"
-                                                        type="number"
-                                                        min={0}
-                                                        max={1500}
-                                                        value={settingsObj?.s1 ?? 0}
-                                                        onChange={(e) => updateSettingsJson((draft) => { draft.s1 = parseOptionalNumberInput(e.target.value); })}
-                                                        onBlur={(e) => { if (e.target.value === '') updateSettingsJson((draft) => { draft.s1 = 0; }); }}
-                                                    />
-                                                </div>
-                                                <div className="form-group">
-                                                    <label htmlFor="inbound-modal-s2-cookie-junk" className="form-label text-xs">S2 (Cookie Junk)</label>
-                                                    <input id="inbound-modal-s2-cookie-junk" name="inboundModalS2CookieJunk"
-                                                        className="form-input text-xs"
-                                                        type="number"
-                                                        min={0}
-                                                        max={1500}
-                                                        value={settingsObj?.s2 ?? 0}
-                                                        onChange={(e) => updateSettingsJson((draft) => { draft.s2 = parseOptionalNumberInput(e.target.value); })}
-                                                        onBlur={(e) => { if (e.target.value === '') updateSettingsJson((draft) => { draft.s2 = 0; }); }}
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className="grid grid-cols-4 gap-2 mb-2">
-                                                <div className="form-group">
-                                                    <label htmlFor="inbound-modal-settings-obj-h1" className="form-label text-xs">H1</label>
-                                                    <input id="inbound-modal-settings-obj-h1" name="inboundModalSettingsObjH1"
-                                                        className="form-input text-xs font-mono"
-                                                        type="number"
-                                                        value={settingsObj?.h1 ?? 1}
-                                                        onChange={(e) => updateSettingsJson((draft) => { draft.h1 = parseOptionalNumberInput(e.target.value); })}
-                                                        onBlur={(e) => { if (e.target.value === '') updateSettingsJson((draft) => { draft.h1 = 1; }); }}
-                                                    />
-                                                </div>
-                                                <div className="form-group">
-                                                    <label htmlFor="inbound-modal-settings-obj-h2" className="form-label text-xs">H2</label>
-                                                    <input id="inbound-modal-settings-obj-h2" name="inboundModalSettingsObjH2"
-                                                        className="form-input text-xs font-mono"
-                                                        type="number"
-                                                        value={settingsObj?.h2 ?? 2}
-                                                        onChange={(e) => updateSettingsJson((draft) => { draft.h2 = parseOptionalNumberInput(e.target.value); })}
-                                                        onBlur={(e) => { if (e.target.value === '') updateSettingsJson((draft) => { draft.h2 = 2; }); }}
-                                                    />
-                                                </div>
-                                                <div className="form-group">
-                                                    <label htmlFor="inbound-modal-settings-obj-h3" className="form-label text-xs">H3</label>
-                                                    <input id="inbound-modal-settings-obj-h3" name="inboundModalSettingsObjH3"
-                                                        className="form-input text-xs font-mono"
-                                                        type="number"
-                                                        value={settingsObj?.h3 ?? 3}
-                                                        onChange={(e) => updateSettingsJson((draft) => { draft.h3 = parseOptionalNumberInput(e.target.value); })}
-                                                        onBlur={(e) => { if (e.target.value === '') updateSettingsJson((draft) => { draft.h3 = 3; }); }}
-                                                    />
-                                                </div>
-                                                <div className="form-group">
-                                                    <label htmlFor="inbound-modal-settings-obj-h4" className="form-label text-xs">H4</label>
-                                                    <input id="inbound-modal-settings-obj-h4" name="inboundModalSettingsObjH4"
-                                                        className="form-input text-xs font-mono"
-                                                        type="number"
-                                                        value={settingsObj?.h4 ?? 4}
-                                                        onChange={(e) => updateSettingsJson((draft) => { draft.h4 = parseOptionalNumberInput(e.target.value); })}
-                                                        onBlur={(e) => { if (e.target.value === '') updateSettingsJson((draft) => { draft.h4 = 4; }); }}
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className="form-group">
-                                                <label htmlFor="inbound-modal-0-0-0" className="form-label text-xs">Reserved [b0, b1, b2]</label>
-                                                <input id="inbound-modal-0-0-0" name="inboundModal000"
-                                                    className="form-input text-xs font-mono"
-                                                    value={(Array.isArray(settingsObj?.reserved) ? settingsObj.reserved : [0, 0, 0]).join(', ')}
-                                                    onChange={(e) => updateSettingsJson((draft) => {
-                                                        draft.reserved = e.target.value
-                                                            .split(',')
-                                                            .map((n) => Math.max(0, Math.min(255, Number(n.trim()) || 0)))
-                                                            .slice(0, 3);
-                                                        while (draft.reserved.length < 3) draft.reserved.push(0);
-                                                    })}
-                                                    placeholder="0, 0, 0"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div className="form-group">
-                                            <div className="flex items-center justify-between mb-2">
-                                                <span className="form-label">{deepCopy.peers}</span>
-                                                <button
-                                                    type="button"
-                                                    className="btn btn-secondary btn-xs"
-                                                    onClick={() => updateSettingsJson((draft) => {
-                                                        if (!Array.isArray(draft.peers)) draft.peers = [];
-                                                        draft.peers.push({
-                                                            publicKey: '',
-                                                            allowedIPs: ['0.0.0.0/0'],
-                                                            keepAlive: 0,
-                                                            reserved: [0, 0, 0],
-                                                        });
-                                                    })}
-                                                >
-                                                    {deepCopy.addPeer}
-                                                </button>
-                                            </div>
-                                            {(Array.isArray(settingsObj?.peers) ? settingsObj.peers : []).map((peer, peerIdx) => (
-                                                <div key={`wg-peer-${peerIdx}`} className="border border-stroke-soft rounded-lg p-3 mb-2">
-                                                    <div className="flex items-center justify-between mb-2">
-                                                        <span className="text-secondary text-xs font-bold">Peer #{peerIdx + 1}</span>
-                                                        <button
-                                                            type="button"
-                                                            className="btn btn-danger btn-xs"
-                                                            onClick={() => updateSettingsJson((draft) => {
-                                                                if (Array.isArray(draft.peers)) {
-                                                                    draft.peers.splice(peerIdx, 1);
-                                                                }
-                                                            })}
-                                                        >
-                                                            {deepCopy.delete}
-                                                        </button>
-                                                    </div>
-                                                    <div className="grid grid-cols-1 gap-2">
-                                                        <div className="form-group">
-                                                            <label htmlFor={`inbound-modal-peer-public-key-${peerIdx}`} className="form-label text-xs">PublicKey</label>
-                                                            <input id={`inbound-modal-peer-public-key-${peerIdx}`} name={`inboundModalPeerPublicKey-${peerIdx}`}
-                                                                className="form-input font-mono"
-                                                                value={String(peer?.publicKey || '')}
-                                                                onChange={(e) => updateSettingsJson((draft) => {
-                                                                    draft.peers[peerIdx].publicKey = e.target.value;
-                                                                })}
-                                                            />
-                                                        </div>
-                                                        <div className="grid grid-cols-2 gap-2">
-                                                            <div className="form-group">
-                                                                <label htmlFor={`inbound-modal-allowed-ips-${peerIdx}`} className="form-label text-xs">{deepCopy.allowedIps}</label>
-                                                                <input id={`inbound-modal-allowed-ips-${peerIdx}`} name={`inboundModalAllowedIps-${peerIdx}`}
-                                                                    className="form-input font-mono"
-                                                                    value={(Array.isArray(peer?.allowedIPs) ? peer.allowedIPs : ['0.0.0.0/0']).join(', ')}
-                                                                    onChange={(e) => updateSettingsJson((draft) => {
-                                                                        draft.peers[peerIdx].allowedIPs = e.target.value
-                                                                            .split(',')
-                                                                            .map((s) => s.trim())
-                                                                            .filter(Boolean);
-                                                                    })}
-                                                                />
-                                                            </div>
-                                                            <div className="form-group">
-                                                                <label htmlFor={`inbound-modal-keep-alive-${peerIdx}`} className="form-label text-xs">{deepCopy.keepAlive}</label>
-                                                                <input id={`inbound-modal-keep-alive-${peerIdx}`} name={`inboundModalKeepAlive-${peerIdx}`}
-                                                                    className="form-input"
-                                                                    type="number"
-                                                                    min={0}
-                                                                    value={peer?.keepAlive ?? 0}
-                                                                    onChange={(e) => updateSettingsJson((draft) => {
-                                                                        draft.peers[peerIdx].keepAlive = parseOptionalNumberInput(e.target.value);
-                                                                    })}
-                                                                    onBlur={(e) => {
-                                                                        if (e.target.value === '') {
-                                                                            updateSettingsJson((draft) => {
-                                                                                draft.peers[peerIdx].keepAlive = 0;
-                                                                            });
-                                                                        }
-                                                                    }}
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                        <div className="grid grid-cols-2 gap-2">
-                                                            <div className="form-group">
-                                                                <label htmlFor={`inbound-modal-pre-shared-key-${peerIdx}`} className="form-label text-xs">{deepCopy.preSharedKey}</label>
-                                                                <input id={`inbound-modal-pre-shared-key-${peerIdx}`} name={`inboundModalPreSharedKey-${peerIdx}`}
-                                                                    className="form-input font-mono"
-                                                                    value={String(peer?.preSharedKey || '')}
-                                                                    onChange={(e) => updateSettingsJson((draft) => {
-                                                                        draft.peers[peerIdx].preSharedKey = e.target.value;
-                                                                    })}
-                                                                />
-                                                            </div>
-                                                            <div className="form-group">
-                                                                <label htmlFor={`inbound-modal-0-0-0-2-${peerIdx}`} className="form-label text-xs">Reserved (peer.reserved)</label>
-                                                                <input id={`inbound-modal-0-0-0-2-${peerIdx}`} name={`inboundModal0002-${peerIdx}`}
-                                                                    className="form-input font-mono text-xs"
-                                                                    value={(Array.isArray(peer?.reserved) ? peer.reserved : [0, 0, 0]).join(', ')}
-                                                                    onChange={(e) => updateSettingsJson((draft) => {
-                                                                        draft.peers[peerIdx].reserved = e.target.value
-                                                                            .split(',')
-                                                                            .map((n) => Math.max(0, Math.min(255, Number(n.trim()) || 0)))
-                                                                            .slice(0, 3);
-                                                                        while (draft.peers[peerIdx].reserved.length < 3) draft.peers[peerIdx].reserved.push(0);
-                                                                    })}
-                                                                    placeholder="0, 0, 0"
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                            {(!Array.isArray(settingsObj?.peers) || settingsObj.peers.length === 0) && (
-                                                <div className="text-xs text-muted">{deepCopy.noPeers}</div>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {normalizedProtocol === 'mtproto' && (
-                                    <div className="border border-stroke-soft rounded-lg p-4 mb-4">
-                                        <h4 className="text-secondary text-sm font-bold mb-3">{deepCopy.mtprotoParams}</h4>
-                                        <div className="form-group mb-3">
-                                            <label htmlFor="inbound-modal-fake-tls-domain" className="form-label">{deepCopy.fakeTlsDomain}</label>
-                                            <input id="inbound-modal-fake-tls-domain" name="inboundModalFakeTlsDomain"
-                                                className="form-input font-mono"
-                                                value={String(settingsObj?.fakeTlsDomain || DEFAULT_MTPROTO_FAKE_TLS_DOMAIN)}
-                                                onChange={(e) => updateSettingsJson((draft) => {
-                                                    draft.fakeTlsDomain = e.target.value;
-                                                })}
-                                                placeholder={DEFAULT_MTPROTO_FAKE_TLS_DOMAIN}
-                                            />
-                                        </div>
-                                        <div className="form-group mb-3">
-                                            <label htmlFor="inbound-modal-mtproto-secret" className="form-label">{deepCopy.mtprotoSecret}</label>
-                                            <div className="flex gap-2">
-                                                <input id="inbound-modal-mtproto-secret" name="inboundModalMtprotoSecret"
-                                                    className="form-input font-mono text-xs"
-                                                    value={String(settingsObj?.secret || '')}
-                                                    onChange={(e) => updateSettingsJson((draft) => {
-                                                        draft.secret = e.target.value;
-                                                    })}
-                                                />
-                                                <button
-                                                    type="button"
-                                                    className="btn btn-secondary btn-sm whitespace-nowrap"
-                                                    onClick={() => updateSettingsJson((draft) => {
-                                                        draft.secret = randomMtprotoSecret(draft.fakeTlsDomain || DEFAULT_MTPROTO_FAKE_TLS_DOMAIN);
-                                                    })}
-                                                >
-                                                    {deepCopy.generateSecret}
-                                                </button>
-                                            </div>
-                                        </div>
-                                        {settingsObj?.secret && (
-                                            <div className="form-group p-3 rounded-md bg-surface-subtle border border-stroke-soft">
-                                                <span className="form-label text-xs font-semibold mb-1">{deepCopy.mtprotoPreview}</span>
-                                                <div className="flex items-center gap-2">
-                                                    <code className="text-xs font-mono break-all flex-1 select-all">
-                                                        {`tg://proxy?server=${(!listen || listen === '0.0.0.0' || listen === '::') ? 'YOUR_SERVER_IP' : listen.replace(/^\[(.*)\]$/, '$1')}&port=${port || 'PORT'}&secret=${settingsObj.secret}`}
-                                                    </code>
-                                                    <button
-                                                        type="button"
-                                                        className="btn btn-ghost btn-xs btn-icon"
-                                                        title={deepCopy.copyLink || 'Copy'}
-                                                        onClick={async () => {
-                                                            const hostPart = (!listen || listen === '0.0.0.0' || listen === '::') ? 'YOUR_SERVER_IP' : listen.replace(/^\[(.*)\]$/, '$1');
-                                                            const link = `tg://proxy?server=${hostPart}&port=${port || 'PORT'}&secret=${settingsObj.secret}`;
-                                                            const copied = await copyToClipboard(link);
-                                                            if (copied) {
-                                                                toast.success(deepCopy.linkCopied || t('comp.inbounds.idCopied'));
-                                                            } else {
-                                                                toast.error(t('comp.common.copyFailed'));
-                                                            }
-                                                        }}
-                                                    >
-                                                        <HiOutlineClipboard />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
-                                {(normalizedProtocol === 'tunnel' || normalizedProtocol === 'dokodemo-door') && (
-                                    <div className="border border-stroke-soft rounded-lg p-4 mb-4">
-                                        <h4 className="text-secondary text-sm font-bold mb-3">{deepCopy.tunnelParams}</h4>
-                                        <div className="grid grid-cols-2 gap-4 mb-3">
-                                            <div className="form-group">
-                                                <label htmlFor="inbound-modal-target-address" className="form-label">{deepCopy.targetAddress}</label>
-                                                <input id="inbound-modal-target-address" name="inboundModalTargetAddress"
-                                                    className="form-input"
-                                                    value={String(settingsObj?.address || '')}
-                                                    placeholder={deepCopy.targetAddressPlaceholder}
-                                                    onChange={(e) => updateSettingsJson((draft) => {
-                                                        draft.address = e.target.value;
-                                                    })}
-                                                />
-                                            </div>
-                                            <div className="form-group">
-                                                <label htmlFor="inbound-modal-target-port" className="form-label">{deepCopy.targetPort}</label>
-                                                <input id="inbound-modal-target-port" name="inboundModalTargetPort"
-                                                    className="form-input"
-                                                    type="number"
-                                                    min={1}
-                                                    max={65535}
-                                                    value={settingsObj?.port ?? 0}
-                                                    onChange={(e) => updateSettingsJson((draft) => {
-                                                        draft.port = parseOptionalNumberInput(e.target.value);
-                                                    })}
-                                                    onBlur={(e) => {
-                                                        if (e.target.value === '') {
-                                                            updateSettingsJson((draft) => {
-                                                                draft.port = 0;
-                                                            });
-                                                        }
-                                                    }}
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-4 mb-3">
-                                            <div className="form-group">
-                                                <label htmlFor="inbound-modal-network" className="form-label">{deepCopy.network}</label>
-                                                <select id="inbound-modal-network" name="inboundModalNetwork"
-                                                    className="form-select"
-                                                    value={String(settingsObj?.network || 'tcp,udp')}
-                                                    onChange={(e) => updateSettingsJson((draft) => {
-                                                        draft.network = e.target.value;
-                                                    })}
-                                                >
-                                                    <option value="tcp">tcp</option>
-                                                    <option value="udp">udp</option>
-                                                    <option value="tcp,udp">tcp + udp</option>
-                                                </select>
-                                            </div>
-                                            <div className="form-group">
-                                                <label htmlFor="inbound-modal-timeout" className="form-label">{deepCopy.timeout}</label>
-                                                <input id="inbound-modal-timeout" name="inboundModalTimeout"
-                                                    className="form-input"
-                                                    type="number"
-                                                    min={0}
-                                                    value={settingsObj?.timeout ?? 0}
-                                                    onChange={(e) => updateSettingsJson((draft) => {
-                                                        draft.timeout = parseOptionalNumberInput(e.target.value);
-                                                    })}
-                                                    onBlur={(e) => {
-                                                        if (e.target.value === '') {
-                                                            updateSettingsJson((draft) => {
-                                                                draft.timeout = 0;
-                                                            });
-                                                        }
-                                                    }}
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="form-group">
-                                                <label className="flex items-center gap-2 cursor-pointer text-sm">
-                                                    <input name="inboundModalField9"
-                                                        type="checkbox"
-                                                        checked={Boolean(settingsObj?.followRedirect)}
-                                                        onChange={(e) => updateSettingsJson((draft) => {
-                                                            draft.followRedirect = e.target.checked;
-                                                        })}
-                                                    />
-                                                    {deepCopy.followRedirect}
-                                                </label>
-                                            </div>
-                                            <div className="form-group">
-                                                <label htmlFor="inbound-modal-user-level" className="form-label">{deepCopy.userLevel}</label>
-                                                <input id="inbound-modal-user-level" name="inboundModalUserLevel"
-                                                    className="form-input"
-                                                    type="number"
-                                                    min={0}
-                                                    value={settingsObj?.userLevel ?? 0}
-                                                    onChange={(e) => updateSettingsJson((draft) => {
-                                                        draft.userLevel = parseOptionalNumberInput(e.target.value);
-                                                    })}
-                                                    onBlur={(e) => {
-                                                        if (e.target.value === '') {
-                                                            updateSettingsJson((draft) => {
-                                                                draft.userLevel = 0;
-                                                            });
-                                                        }
-                                                    }}
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
+                                <ProtocolSettingsPanel
+                                    protocol={normalizedProtocol}
+                                    settings={settingsObj}
+                                    updateSettings={updateSettingsJson}
+                                    stream={streamObj}
+                                    updateStream={updateStreamJson}
+                                    listen={listen}
+                                    port={port}
+                                    locale={locale}
+                                />
 
                                 {STREAM_PROTOCOLS.has(normalizedProtocol) && (
                                     <>
@@ -4231,6 +3590,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     <label htmlFor="inbound-modal-certificate-path" className="form-label">{deepCopy.certificatePath}</label>
                                                     <input id="inbound-modal-certificate-path" name="inboundModalCertificatePath"
                                                         className="form-input"
+                                                        placeholder={deepCopy.certEmptyPlaceholder}
                                                         value={String(streamObj?.tlsSettings?.certificates?.[0]?.certificateFile || '')}
                                                         onChange={(e) => updateStreamJson((draft) => {
                                                             draft.tlsSettings = draft.tlsSettings || {};
@@ -4245,6 +3605,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     <label htmlFor="inbound-modal-private-key-path" className="form-label">{deepCopy.privateKeyPath}</label>
                                                     <input id="inbound-modal-private-key-path" name="inboundModalPrivateKeyPath"
                                                         className="form-input"
+                                                        placeholder={deepCopy.certEmptyPlaceholder}
                                                         value={String(streamObj?.tlsSettings?.certificates?.[0]?.keyFile || '')}
                                                         onChange={(e) => updateStreamJson((draft) => {
                                                             draft.tlsSettings = draft.tlsSettings || {};
@@ -4256,6 +3617,7 @@ export default function InboundModal({ isOpen, onClose, editingInbound = null, o
                                                     />
                                                 </div>
                                             </div>
+                                            <div className="text-xs text-muted mt-1">{deepCopy.certEmptyHint}</div>
                                             <div className="flex gap-4 mt-2">
                                                 <div className="form-group flex-1">
                                                     <label htmlFor="inbound-modal-certificate-usage" className="form-label">{deepCopy.certificateUsage}</label>

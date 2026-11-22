@@ -395,7 +395,7 @@ describe('Wave 2 Frontend Modals, Scanner, Subscriptions & Xray Fixes', () => {
                         data: {
                             obj: {
                                 protocols: [
-                                    { key: 'hysteria2', label: 'Hysteria2', supports: { transports: ['udp'], securities: ['tls'] } },
+                                    { key: 'hysteria2', label: 'Hysteria2', supports: { transports: ['hysteria'], securities: ['tls'] } },
                                 ],
                             },
                         },

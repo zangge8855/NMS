@@ -19,6 +19,12 @@ import FormData from 'form-data';
 import { PANEL_TYPE_SUI } from './panelType.js';
 import { SUI_CLIENT_PROTOCOLS } from './clientProtocols.js';
 import { mergeCookieHeader } from './panelClient.js';
+import {
+    decodeX25519Key,
+    encodeRealityKey,
+    generateX25519KeyPair,
+    x25519PublicKeyFromPrivate,
+} from './xuiInboundNormalizer.js';
 
 // ---------------------------------------------------------------------------
 // Protocol knowledge
@@ -33,6 +39,53 @@ export const SUI_INBOUND_TYPES = [
     'hysteria', 'shadowtls', 'tuic', 'hysteria2', 'vless', 'anytls', 'tun', 'redirect',
     'tproxy', 'cloudflared',
 ];
+
+/** sing-box inbound types that take a TLS block. */
+const SUI_TLS_TYPES = new Set(['http', 'vmess', 'trojan', 'naive', 'hysteria', 'tuic', 'hysteria2', 'vless', 'anytls']);
+/** Types sing-box refuses to start without TLS. */
+const SUI_TLS_REQUIRED_TYPES = new Set(['naive', 'hysteria', 'tuic', 'hysteria2', 'anytls']);
+/** QUIC types: their TLS has to offer h3, and Reality does not apply. */
+const SUI_QUIC_TYPES = new Set(['hysteria', 'tuic', 'hysteria2']);
+/** Types sing-box refuses to start with an empty user list. */
+const SUI_CLIENT_REQUIRED_TYPES = new Set(['naive', 'shadowtls']);
+/** Types with a V2Ray transport block. */
+const SUI_TRANSPORT_TYPES = new Set(['vmess', 'trojan', 'vless']);
+
+/**
+ * Inbound options NMS edits, per type, under their sing-box names. The editor
+ * sends them in `settings` and reads them back from there; options not listed
+ * here stay as they are on the stored inbound.
+ */
+const SUI_SETTINGS_FIELDS: Record<string, string[]> = {
+    direct: ['network', 'override_address', 'override_port'],
+    shadowsocks: ['method', 'password', 'network'],
+    hysteria: ['up_mbps', 'down_mbps', 'obfs'],
+    hysteria2: ['up_mbps', 'down_mbps', 'obfs', 'masquerade', 'ignore_client_bandwidth'],
+    tuic: ['congestion_control', 'auth_timeout', 'zero_rtt_handshake', 'heartbeat'],
+    naive: ['quic_congestion_control'],
+    shadowtls: ['version', 'password', 'handshake', 'strict_mode'],
+    snell: ['version', 'psk', 'obfs_mode', 'mode'],
+    anytls: ['padding_scheme'],
+    tun: ['interface_name', 'address', 'mtu', 'stack', 'auto_route', 'strict_route', 'udp_timeout'],
+    tproxy: ['network'],
+    cloudflared: ['token', 'protocol', 'ha_connections'],
+};
+
+/** What the s-ui UI fills in for a new AnyTLS inbound. */
+export const SUI_ANYTLS_PADDING = [
+    'stop=8',
+    '0=30-30',
+    '1=100-400',
+    '2=400-500,c,500-1000,c,500-1000,c,500-1000,c,500-1000',
+    '3=9-9,500-1000',
+    '4=500-1000',
+    '5=500-1000',
+    '6=500-1000',
+    '7=500-1000',
+];
+
+const SUI_NO_CERT_MESSAGE = 'TLS needs a certificate: this s-ui node has no TLS profile with a certificate and no panel HTTPS certificate. '
+    + 'Enter the certificate and key file paths under Security, or add a TLS profile in s-ui first.';
 
 const UUID_CONFIG_KEYS = ['vless', 'vmess', 'tuic'];
 const PLAIN_PASSWORD_CONFIG_KEYS = ['trojan', 'hysteria2', 'anytls', 'tuic', 'naive', 'http', 'socks', 'mixed'];
@@ -872,9 +925,17 @@ export function createSuiClientFromXui(input: any = {}, inboundIds: number[] = [
 // Inbound conversion
 // ---------------------------------------------------------------------------
 
-function resolveTlsSecurity(inbound: any, tlsById: Map<number, any>): { security: string; tlsName: string; serverName: string } {
+interface ResolvedTls {
+    security: string;
+    tlsName: string;
+    serverName: string;
+    server: any;
+    client: any;
+}
+
+function resolveTlsSecurity(inbound: any, tlsById: Map<number, any>): ResolvedTls {
     const tlsId = toNonNegativeInt(inbound?.tls_id);
-    if (!tlsId) return { security: 'none', tlsName: '', serverName: '' };
+    if (!tlsId) return { security: 'none', tlsName: '', serverName: '', server: {}, client: {} };
     const tls = tlsById.get(tlsId);
     const serverConfig = parseMaybeJson(tls?.server, {}) || {};
     const security = serverConfig?.reality?.enabled ? 'reality' : 'tls';
@@ -882,6 +943,8 @@ function resolveTlsSecurity(inbound: any, tlsById: Map<number, any>): { security
         security,
         tlsName: normalizeText(tls?.name),
         serverName: normalizeText(serverConfig?.server_name),
+        server: serverConfig,
+        client: parseMaybeJson(tls?.client, {}) || {},
     };
 }
 
@@ -909,10 +972,31 @@ function buildXuiStreamSettings(inbound: any, tlsById: Map<number, any>): any {
         const hosts = Array.isArray(transport.host) ? transport.host : (transport.host ? [transport.host] : []);
         stream.httpSettings = { path: transport.path || '/', host: hosts.map((item: any) => normalizeText(item)).filter(Boolean) };
     }
+    // Enough of the TLS profile for the editor to show it, and for an unchanged
+    // save to recognise the profile and keep it (see resolveSuiInboundTls).
     if (tls.security === 'tls') {
-        stream.tlsSettings = { serverName: tls.serverName };
+        const tlsSettings: any = { serverName: tls.serverName };
+        if (Array.isArray(tls.server.alpn) && tls.server.alpn.length > 0) tlsSettings.alpn = tls.server.alpn;
+        const certificateFile = normalizeText(tls.server.certificate_path);
+        const keyFile = normalizeText(tls.server.key_path);
+        if (certificateFile || keyFile) tlsSettings.certificates = [{ certificateFile, keyFile }];
+        const fingerprint = normalizeText(tls.client?.utls?.fingerprint);
+        if (fingerprint) tlsSettings.settings = { fingerprint };
+        stream.tlsSettings = tlsSettings;
     } else if (tls.security === 'reality') {
-        stream.realitySettings = { serverNames: tls.serverName ? [tls.serverName] : [] };
+        const reality = tls.server.reality || {};
+        const handshake = reality.handshake || {};
+        const handshakeServer = normalizeText(handshake.server);
+        stream.realitySettings = {
+            serverNames: tls.serverName ? [tls.serverName] : [],
+            target: handshakeServer ? `${handshakeServer}:${toNonNegativeInt(handshake.server_port, 443) || 443}` : '',
+            privateKey: normalizeText(reality.private_key),
+            shortIds: Array.isArray(reality.short_id) ? reality.short_id.map((item: any) => normalizeText(item)).filter(Boolean) : [],
+            settings: {
+                publicKey: normalizeText(tls.client?.reality?.public_key),
+                fingerprint: normalizeText(tls.client?.utls?.fingerprint) || 'chrome',
+            },
+        };
     }
     return stream;
 }
@@ -938,32 +1022,17 @@ export function suiInboundToXuiInbound(inbound: any, clients: any[] = [], tls: a
     if (hasUsers) {
         settings.clients = attached.map((client) => suiClientToXuiClient(client, inbound));
     }
+    for (const field of SUI_SETTINGS_FIELDS[type] || []) {
+        const value = inbound?.[field];
+        if (value !== undefined && value !== null) settings[field] = cloneJson(value);
+    }
     if (type === 'shadowsocks') {
         settings.method = inbound?.method || '';
         settings.password = inbound?.password || '';
-        settings.network = 'tcp,udp';
+        settings.network = inbound?.network || 'tcp,udp';
     }
     if (type === 'vless') {
         settings.decryption = 'none';
-    }
-    if (type === 'hysteria' || type === 'hysteria2') {
-        if (inbound?.up_mbps !== undefined) settings.up_mbps = toNonNegativeInt(inbound.up_mbps);
-        if (inbound?.down_mbps !== undefined) settings.down_mbps = toNonNegativeInt(inbound.down_mbps);
-        if (inbound?.obfs && (typeof inbound.obfs === 'object' || typeof inbound.obfs === 'string')) settings.obfs = inbound.obfs;
-    }
-    if (type === 'tuic') {
-        if (inbound?.congestion_control) settings.congestion_control = inbound.congestion_control;
-        if (inbound?.udp_relay_mode) settings.udp_relay_mode = inbound.udp_relay_mode;
-    }
-    if (type === 'snell') {
-        if (inbound?.version !== undefined) settings.version = inbound.version;
-        if (inbound?.psk) settings.psk = inbound.psk;
-        if (inbound?.obfs_mode) settings.obfs_mode = inbound.obfs_mode;
-    }
-    if (type === 'shadowtls') {
-        if (inbound?.version !== undefined) settings.version = inbound.version;
-        if (inbound?.password) settings.password = inbound.password;
-        if (inbound?.handshake) settings.handshake = inbound.handshake;
     }
     if (Array.isArray(inbound?.addrs) && inbound.addrs.length > 0) {
         settings.addrs = inbound.addrs;
@@ -997,9 +1066,10 @@ export function suiInboundToXuiInbound(inbound: any, clients: any[] = [], tls: a
         sniffing: JSON.stringify({ enabled: false }),
         clientStats: attached.map((client) => suiClientStat(client, id)),
         panelType: PANEL_TYPE_SUI,
-        suiTlsId: toNonNegativeInt(inbound?.tls_id),
-        suiTlsName: tlsInfo.tlsName,
-        suiInbound: inbound,
+        // Read-only details. The request keys (suiTlsId, suiInbound) are named differently
+        // so that a caller echoing this object back with edits does not pin the old values.
+        suiTls: { id: toNonNegativeInt(inbound?.tls_id), name: tlsInfo.tlsName },
+        suiNative: inbound,
     };
 }
 
@@ -1047,15 +1117,24 @@ export function xuiInboundPayloadToSui(payload: any = {}, existing: any = null):
         return merged;
     }
 
-    const next: any = existing ? cloneJson(existing) : {};
+    const settings = parseMaybeJson(payload?.settings, {}) || {};
+    const stream = parseMaybeJson(payload?.streamSettings, null);
+    let next: any = existing ? cloneJson(existing) : {};
     delete next.users;
-    const protocol = normalizeText(payload?.protocol || payload?.type).toLowerCase();
+    const protocol = resolveSuiInboundType(payload, settings);
+    if (protocol && existing?.type && protocol !== existing.type) {
+        // A new type shares nothing but the listener with the old one; sing-box
+        // rejects options that belong to another type.
+        next = Object.fromEntries(Object.entries(next).filter(([key]) => SUI_KEEP_ON_TYPE_CHANGE.has(key)));
+    }
     if (protocol) next.type = protocol;
     if (!next.type) throw new FacadeHttpError(400, 'Inbound protocol is required');
     if (!SUI_INBOUND_TYPES.includes(next.type)) {
         throw new FacadeHttpError(400, `s-ui does not support the ${next.type} inbound type`);
     }
-    const tag = normalizeText(payload?.tag || payload?.remark);
+    // `remark` is the field the editors and the 3x-ui form API use; a read view echoed
+    // back also carries the old `tag`, so an edited remark must win over it.
+    const tag = normalizeText(payload?.remark || payload?.tag);
     if (tag) next.tag = tag;
     if (!next.tag) next.tag = `${next.type}-${toNonNegativeInt(payload?.port) || randomSeq(4)}`;
     if (payload?.listen !== undefined || !next.listen) next.listen = normalizeText(payload?.listen) || '::';
@@ -1071,40 +1150,446 @@ export function xuiInboundPayloadToSui(payload: any = {}, existing: any = null):
     }
     if (Array.isArray(payload?.addrs)) next.addrs = payload.addrs;
     if (!Array.isArray(next.addrs)) next.addrs = [];
-
-    const settings = parseMaybeJson(payload?.settings, {}) || {};
     if (Array.isArray(settings.addrs)) next.addrs = settings.addrs;
-    if (next.type === 'shadowsocks') {
-        if (settings.method) next.method = settings.method;
-        if (!next.method) next.method = '2022-blake3-aes-256-gcm';
-        if (settings.password) next.password = settings.password;
-        if (!next.password && String(next.method).startsWith('2022-')) {
-            next.password = randomBase64Key(next.method === SS16_METHOD ? 16 : 32);
-        }
-    } else if (next.type === 'hysteria' || next.type === 'hysteria2') {
-        if (settings.up_mbps !== undefined) next.up_mbps = toNonNegativeInt(settings.up_mbps);
-        if (settings.down_mbps !== undefined) next.down_mbps = toNonNegativeInt(settings.down_mbps);
-        if (settings.obfs && (typeof settings.obfs === 'object' || typeof settings.obfs === 'string')) next.obfs = settings.obfs;
-    } else if (next.type === 'tuic') {
-        if (settings.congestion_control) next.congestion_control = settings.congestion_control;
-        if (settings.udp_relay_mode) next.udp_relay_mode = settings.udp_relay_mode;
-    } else if (next.type === 'snell') {
-        if (settings.version !== undefined) next.version = settings.version;
-        if (settings.psk) next.psk = settings.psk;
-        if (settings.obfs_mode) next.obfs_mode = settings.obfs_mode;
-    }
 
-    const stream = parseMaybeJson(payload?.streamSettings, null);
-    if (stream && typeof stream === 'object') {
+    applySuiInboundSettings(next, settings, stream);
+
+    if (!SUI_TRANSPORT_TYPES.has(next.type)) {
+        delete next.transport;
+    } else if (stream && typeof stream === 'object') {
         const network = normalizeText(stream.network).toLowerCase();
         const build = TRANSPORT_FROM_XUI[network];
         if (build) {
             next.transport = build(stream);
-        } else if (network === 'tcp' || !network) {
+        } else if (!network || network === 'tcp' || network === 'raw') {
             delete next.transport;
+        } else {
+            throw new FacadeHttpError(400, `s-ui (sing-box) has no ${network} transport. Choose TCP, WebSocket, gRPC, HTTPUpgrade, HTTP or QUIC.`);
         }
     }
     return next;
+}
+
+/** Listener fields that survive a change of inbound type. */
+const SUI_KEEP_ON_TYPE_CHANGE = new Set([
+    'id', 'tag', 'enable', 'listen', 'listen_port', 'tls_id', 'addrs', 'out_json',
+    'tcp_fast_open', 'tcp_multi_path', 'udp_fragment', 'detour',
+]);
+
+/** The s-ui type for an editor payload; 3x-ui names are mapped to their sing-box equivalent. */
+function resolveSuiInboundType(payload: any, settings: any): string {
+    const type = normalizeText(payload?.protocol || payload?.type).toLowerCase();
+    if (type === 'hy2') return 'hysteria2';
+    if (type === 'tunnel' || type === 'dokodemo-door') return 'direct';
+    // 3x-ui's Hysteria is protocol version 2, which sing-box calls hysteria2.
+    if (type === 'hysteria' && Number(settings?.version) === 2) return 'hysteria2';
+    return type;
+}
+
+function hasOwn(target: any, key: string): boolean {
+    return Boolean(target) && Object.prototype.hasOwnProperty.call(target, key);
+}
+
+function normalizeSuiNetwork(target: any): void {
+    const network = normalizeText(target.network).toLowerCase();
+    if (network === 'tcp' || network === 'udp') target.network = network;
+    else delete target.network;
+}
+
+/** Salamander password from 3x-ui's `finalmask`; null when the stream says nothing about it. */
+function salamanderFromFinalmask(stream: any): string | null {
+    const udp = stream?.finalmask?.udp;
+    if (!Array.isArray(udp)) return null;
+    const mask = udp.find((item: any) => normalizeText(item?.type).toLowerCase() === 'salamander');
+    return mask ? normalizeText(mask?.settings?.password) : '';
+}
+
+/** 3x-ui's Hysteria masquerade in sing-box form, or null for none. */
+function suiMasqueradeFromXui(value: any): any {
+    if (!value) return null;
+    if (typeof value === 'string') return value.trim() || null;
+    const type = normalizeText(value.type).toLowerCase();
+    if (type === 'proxy') {
+        const url = normalizeText(value.url);
+        if (!url) return null;
+        return { type: 'proxy', url, ...((value.rewriteHost ?? value.rewrite_host) ? { rewrite_host: true } : {}) };
+    }
+    if (type === 'string') {
+        const status = toNonNegativeInt(value.statusCode ?? value.status_code);
+        return { type: 'string', content: String(value.content ?? ''), ...(status > 0 ? { status_code: status } : {}) };
+    }
+    if (type === 'file') {
+        const directory = normalizeText(value.dir ?? value.directory);
+        return directory ? { type: 'file', directory } : null;
+    }
+    return null;
+}
+
+function normalizeHandshake(value: any): any {
+    if (typeof value === 'string') {
+        const [server, port] = splitHostPort(value);
+        return { server, server_port: port };
+    }
+    const server = normalizeText(value?.server);
+    return { ...(value && typeof value === 'object' ? value : {}), server, server_port: toNonNegativeInt(value?.server_port, 443) || 443 };
+}
+
+/** `host:port` (IPv6 in brackets) into its parts; the port defaults to 443. */
+function splitHostPort(value: unknown): [string, number] {
+    const text = normalizeText(value);
+    if (!text) return ['', 443];
+    const bracketed = /^\[([^\]]+)\](?::(\d+))?$/.exec(text);
+    if (bracketed) return [bracketed[1], toNonNegativeInt(bracketed[2], 443) || 443];
+    const index = text.lastIndexOf(':');
+    if (index > 0 && text.indexOf(':') === index) {
+        return [text.slice(0, index), toNonNegativeInt(text.slice(index + 1), 443) || 443];
+    }
+    return [text, 443];
+}
+
+/**
+ * Copy the editor's settings onto an s-ui inbound and fill what sing-box needs
+ * to start it. Native s-ui option names win; 3x-ui shapes (finalmask, the
+ * TUIC server block, Tunnel rewrite fields) are read when those are absent.
+ */
+function applySuiInboundSettings(next: any, settings: any, stream: any): void {
+    const type = next.type;
+    for (const field of SUI_SETTINGS_FIELDS[type] || []) {
+        if (!hasOwn(settings, field)) continue;
+        const value = settings[field];
+        if (value === null || value === undefined || value === '') delete next[field];
+        else next[field] = cloneJson(value);
+    }
+
+    switch (type) {
+        case 'shadowsocks':
+            if (!next.method) next.method = '2022-blake3-aes-256-gcm';
+            if (!next.password && String(next.method).startsWith('2022-')) {
+                next.password = randomBase64Key(next.method === SS16_METHOD ? 16 : 32);
+            }
+            normalizeSuiNetwork(next);
+            break;
+        case 'hysteria':
+            // sing-box needs both speeds for Hysteria v1; 100 is what s-ui fills in.
+            for (const key of ['up_mbps', 'down_mbps']) {
+                const value = toNonNegativeInt(next[key]);
+                next[key] = value > 0 ? value : 100;
+            }
+            if (next.obfs && typeof next.obfs === 'object') next.obfs = normalizeText(next.obfs.password);
+            if (typeof next.obfs !== 'string' || !next.obfs) delete next.obfs;
+            break;
+        case 'hysteria2': {
+            for (const key of ['up_mbps', 'down_mbps']) {
+                const value = toNonNegativeInt(next[key]);
+                if (value > 0) next[key] = value;
+                else delete next[key];
+            }
+            if (!hasOwn(settings, 'obfs')) {
+                const mask = salamanderFromFinalmask(stream);
+                if (mask) next.obfs = { type: 'salamander', password: mask };
+                else if (mask === '') delete next.obfs;
+            }
+            if (typeof next.obfs === 'string') {
+                next.obfs = next.obfs ? { type: 'salamander', password: next.obfs } : null;
+            }
+            if (next.obfs && typeof next.obfs === 'object' && normalizeText(next.obfs.password)) {
+                next.obfs = { ...next.obfs, type: normalizeText(next.obfs.type) || 'salamander' };
+            } else {
+                delete next.obfs;
+            }
+            if (!hasOwn(settings, 'masquerade') && hasOwn(stream?.hysteriaSettings, 'masquerade')) {
+                const masquerade = suiMasqueradeFromXui(stream.hysteriaSettings.masquerade);
+                if (masquerade) next.masquerade = masquerade;
+                else delete next.masquerade;
+            }
+            if (next.masquerade && typeof next.masquerade === 'object' && !normalizeText(next.masquerade.type)) delete next.masquerade;
+            if (hasOwn(next, 'ignore_client_bandwidth')) next.ignore_client_bandwidth = next.ignore_client_bandwidth === true || next.ignore_client_bandwidth === 'true';
+            break;
+        }
+        case 'tuic': {
+            const server = settings?.server && typeof settings.server === 'object' ? settings.server : null;
+            if (server) {
+                if (!hasOwn(settings, 'congestion_control') && server.congestion_control) next.congestion_control = server.congestion_control;
+                if (!hasOwn(settings, 'zero_rtt_handshake') && server.zero_rtt_handshake !== undefined) next.zero_rtt_handshake = server.zero_rtt_handshake;
+                const authTimeout = toNonNegativeInt(server.authentication_timeout);
+                if (!hasOwn(settings, 'auth_timeout') && authTimeout > 0) next.auth_timeout = `${authTimeout}s`;
+            }
+            if (!['cubic', 'new_reno', 'bbr'].includes(next.congestion_control)) next.congestion_control = 'cubic';
+            if (hasOwn(next, 'zero_rtt_handshake')) next.zero_rtt_handshake = next.zero_rtt_handshake === true || next.zero_rtt_handshake === 'true';
+            // A client-side option; older NMS builds put it on the inbound, which sing-box rejects.
+            delete next.udp_relay_mode;
+            break;
+        }
+        case 'snell':
+            next.version = Number(next.version) === 5 ? 5 : 6;
+            if (Buffer.byteLength(normalizeText(next.psk)) < 12) next.psk = randomSeq(32);
+            if (next.version === 6) delete next.obfs_mode;
+            else delete next.mode;
+            break;
+        case 'shadowtls': {
+            const version = Number(next.version);
+            next.version = [1, 2, 3].includes(version) ? version : 3;
+            next.handshake = normalizeHandshake(next.handshake);
+            if (!next.handshake.server) {
+                throw new FacadeHttpError(400, 'ShadowTLS needs a handshake server, for example www.microsoft.com');
+            }
+            if (next.version === 2) {
+                if (!normalizeText(next.password)) next.password = randomSeq(16);
+            } else {
+                delete next.password;
+            }
+            if (hasOwn(next, 'strict_mode')) next.strict_mode = next.strict_mode === true || next.strict_mode === 'true';
+            break;
+        }
+        case 'anytls':
+            if (!Array.isArray(next.padding_scheme) || next.padding_scheme.length === 0) next.padding_scheme = [...SUI_ANYTLS_PADDING];
+            break;
+        case 'direct': {
+            // 3x-ui Tunnel fields, when the editor sent those.
+            const address = settings?.rewriteAddress ?? settings?.address;
+            if (!hasOwn(settings, 'override_address') && address !== undefined) {
+                if (normalizeText(address)) next.override_address = normalizeText(address);
+                else delete next.override_address;
+            }
+            const port = settings?.rewritePort ?? settings?.port;
+            if (!hasOwn(settings, 'override_port') && port !== undefined) next.override_port = port;
+            if (!hasOwn(settings, 'network') && settings?.allowedNetwork !== undefined) next.network = settings.allowedNetwork;
+            const overridePort = toNonNegativeInt(next.override_port);
+            if (overridePort > 0) next.override_port = overridePort;
+            else delete next.override_port;
+            normalizeSuiNetwork(next);
+            break;
+        }
+        case 'tproxy':
+            normalizeSuiNetwork(next);
+            break;
+        case 'tun':
+            if (!hasOwn(settings, 'interface_name') && normalizeText(settings?.name)) next.interface_name = normalizeText(settings.name);
+            if (!hasOwn(settings, 'mtu') && toNonNegativeInt(settings?.mtu) > 0) next.mtu = toNonNegativeInt(settings.mtu);
+            if (!next.stack) next.stack = 'system';
+            break;
+        case 'cloudflared':
+            if (!normalizeText(next.token)) {
+                throw new FacadeHttpError(400, 'Cloudflare Tunnel needs the tunnel token from the Cloudflare Zero Trust dashboard');
+            }
+            if (!next.protocol) next.protocol = 'auto';
+            break;
+        default:
+            break;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// TLS profiles for inbounds written from the NMS editor
+// ---------------------------------------------------------------------------
+
+/** What the editor asked for, read from a 3x-ui shaped stream. */
+interface WantedSuiTls {
+    reality: boolean;
+    serverName: string;
+    needsH3: boolean;
+    alpn: string[] | null;
+    fingerprint: string;
+    certPath: string;
+    keyPath: string;
+    certInline: string[];
+    keyInline: string[];
+    privateKey: string;
+    publicKey: string;
+    shortIds: string[];
+    handshakeServer: string;
+    handshakePort: number;
+}
+
+function textList(value: unknown): string[] {
+    const list = Array.isArray(value) ? value : String(value ?? '').split(',');
+    return list.map((item) => normalizeText(item)).filter(Boolean);
+}
+
+function pemLines(value: unknown): string[] {
+    const list = Array.isArray(value) ? value : String(value ?? '').split(/\r?\n/);
+    return list.map((item) => String(item ?? '').trim()).filter(Boolean);
+}
+
+export function readWantedSuiTls(type: string, security: string, stream: any = {}): WantedSuiTls {
+    const needsH3 = SUI_QUIC_TYPES.has(type);
+    const base: WantedSuiTls = {
+        reality: false, serverName: '', needsH3, alpn: null, fingerprint: '',
+        certPath: '', keyPath: '', certInline: [], keyInline: [],
+        privateKey: '', publicKey: '', shortIds: [], handshakeServer: '', handshakePort: 0,
+    };
+    if (security === 'reality') {
+        const reality = stream?.realitySettings || {};
+        const target = normalizeText(reality.target || reality.dest);
+        const [handshakeServer, handshakePort] = target ? splitHostPort(target) : ['', 0];
+        return {
+            ...base,
+            reality: true,
+            serverName: textList(reality.serverNames)[0] || '',
+            fingerprint: normalizeText(reality.settings?.fingerprint || reality.fingerprint),
+            privateKey: normalizeText(reality.privateKey),
+            publicKey: normalizeText(reality.settings?.publicKey || reality.publicKey),
+            shortIds: textList(reality.shortIds).filter((item) => /^[0-9a-f]{0,16}$/i.test(item)),
+            handshakeServer,
+            handshakePort,
+        };
+    }
+    const tls = stream?.tlsSettings || {};
+    const cert = Array.isArray(tls.certificates) ? (tls.certificates[0] || {}) : {};
+    const alpn = textList(tls.alpn);
+    return {
+        ...base,
+        serverName: normalizeText(tls.serverName),
+        alpn: needsH3 ? ['h3'] : (alpn.length > 0 ? alpn : null),
+        fingerprint: normalizeText(tls.settings?.fingerprint || tls.fingerprint),
+        certPath: normalizeText(cert.certificateFile),
+        keyPath: normalizeText(cert.keyFile),
+        certInline: pemLines(cert.certificate),
+        keyInline: pemLines(cert.key),
+    };
+}
+
+/** Whether an existing s-ui TLS profile already gives an inbound what the editor asked for. */
+export function suiTlsProfileMatches(profile: any, wanted: WantedSuiTls): boolean {
+    const server = parseMaybeJson(profile?.server, {}) || {};
+    if (server.enabled === false) return false;
+    const isReality = server?.reality?.enabled === true;
+    if (isReality !== wanted.reality) return false;
+    if (wanted.serverName && normalizeText(server.server_name) !== wanted.serverName) return false;
+    if (wanted.reality) {
+        if (wanted.needsH3) return false;
+        const reality = server.reality || {};
+        if (wanted.privateKey && normalizeText(reality.private_key) !== wanted.privateKey) return false;
+        if (wanted.handshakeServer && normalizeText(reality.handshake?.server) !== wanted.handshakeServer) return false;
+        if (wanted.handshakeServer && (toNonNegativeInt(reality.handshake?.server_port, 443) || 443) !== wanted.handshakePort) return false;
+        const ids = Array.isArray(reality.short_id) ? reality.short_id.map((item: any) => normalizeText(item)) : [];
+        return wanted.shortIds.every((id) => ids.includes(id));
+    }
+    const hasCert = Boolean(
+        normalizeText(server.certificate_path)
+        || (Array.isArray(server.certificate) && server.certificate.length > 0)
+        || normalizeText(server.certificate_provider)
+        || server.acme
+    );
+    if (!hasCert) return false;
+    if (wanted.certPath && normalizeText(server.certificate_path) !== wanted.certPath) return false;
+    if (wanted.keyPath && normalizeText(server.key_path) !== wanted.keyPath) return false;
+    if (wanted.certInline.length > 0 && JSON.stringify(pemLines(server.certificate)) !== JSON.stringify(wanted.certInline)) return false;
+    const alpn = Array.isArray(server.alpn) ? server.alpn.map((item: any) => normalizeText(item)) : [];
+    // sing-box offers h3 itself on QUIC inbounds whose profile sets no ALPN.
+    if (wanted.needsH3) return alpn.length === 0 || alpn.includes('h3');
+    // Go's TLS server fails the handshake when no ALPN protocol overlaps.
+    return alpn.length === 0 || alpn.includes('h2') || alpn.includes('http/1.1');
+}
+
+function realityKeysFor(privateKey: string, publicKey: string): { privateKey: string; publicKey: string } {
+    if (privateKey && publicKey) return { privateKey, publicKey };
+    const decoded = privateKey ? decodeX25519Key(privateKey) : null;
+    if (decoded) return { privateKey, publicKey: encodeRealityKey(x25519PublicKeyFromPrivate(decoded)) };
+    if (privateKey) throw new FacadeHttpError(400, 'The Reality private key is not a valid X25519 key; clear it to have one generated');
+    const pair = generateX25519KeyPair();
+    return { privateKey: encodeRealityKey(pair.privateKey), publicKey: encodeRealityKey(pair.publicKey) };
+}
+
+async function createSuiTlsProfile(ctx: FacadeContext, wanted: WantedSuiTls, tag: string, profiles: any[]): Promise<number> {
+    const server: any = { enabled: true };
+    const client: any = {};
+    if (wanted.serverName) server.server_name = wanted.serverName;
+    if (wanted.reality) {
+        const handshakeServer = wanted.handshakeServer || wanted.serverName;
+        if (!handshakeServer) throw new FacadeHttpError(400, 'Reality needs a target site, for example www.microsoft.com:443');
+        if (!server.server_name) server.server_name = handshakeServer;
+        const keys = realityKeysFor(wanted.privateKey, wanted.publicKey);
+        const shortIds = wanted.shortIds.length > 0 ? wanted.shortIds : [crypto.randomBytes(4).toString('hex')];
+        server.reality = {
+            enabled: true,
+            handshake: { server: handshakeServer, server_port: wanted.handshakePort || 443 },
+            private_key: keys.privateKey,
+            short_id: shortIds,
+        };
+        client.utls = { enabled: true, fingerprint: wanted.fingerprint || 'chrome' };
+        client.reality = { enabled: true, public_key: keys.publicKey, short_id: shortIds[0] };
+    } else {
+        server.alpn = wanted.needsH3 ? ['h3'] : (wanted.alpn || ['h2', 'http/1.1']);
+        server.min_version = '1.2';
+        server.max_version = '1.3';
+        if (Boolean(wanted.certPath) !== Boolean(wanted.keyPath)) {
+            throw new FacadeHttpError(400, 'Enter both the TLS certificate file and the key file, or leave both empty');
+        }
+        if (wanted.certPath) {
+            server.certificate_path = wanted.certPath;
+            server.key_path = wanted.keyPath;
+        } else if (wanted.certInline.length > 0 && wanted.keyInline.length > 0) {
+            server.certificate = wanted.certInline;
+            server.key = wanted.keyInline;
+        } else {
+            const panelSettings = await ctx.transport.request('GET', 'settings').catch(() => null);
+            const certFile = normalizeText(panelSettings?.webCertFile);
+            const keyFile = normalizeText(panelSettings?.webKeyFile);
+            if (!certFile || !keyFile) throw new FacadeHttpError(400, SUI_NO_CERT_MESSAGE);
+            server.certificate_path = certFile;
+            server.key_path = keyFile;
+            const domain = normalizeText(panelSettings?.webDomain);
+            if (!server.server_name && domain) server.server_name = domain;
+        }
+        if (wanted.fingerprint) client.utls = { enabled: true, fingerprint: wanted.fingerprint };
+    }
+    const taken = new Set(profiles.map((item) => normalizeText(item?.name)));
+    const base = `nms-${wanted.reality ? 'reality' : 'tls'}-${server.server_name || tag || randomSeq(4)}`.slice(0, 64);
+    let name = base;
+    for (let index = 2; taken.has(name); index += 1) name = `${base}-${index}`;
+    await saveObject(ctx.transport, 'tls', 'new', { name, server, client });
+    const created = (await fetchSummary(ctx.transport, 'tls')).find((item) => normalizeText(item?.name) === name);
+    if (!created) throw new FacadeHttpError(502, 'The TLS profile was not saved on the s-ui node');
+    return Number(created.id);
+}
+
+/**
+ * Pick the s-ui TLS profile for an inbound. s-ui keeps TLS in named profiles
+ * where 3x-ui keeps it inline, so the editor's TLS/Reality settings are matched
+ * against the node's profiles: the current one is kept when it still fits, a
+ * fitting one is reused, and otherwise one is created (with the panel's own
+ * HTTPS certificate when no certificate was entered).
+ */
+export async function resolveSuiInboundTls(ctx: FacadeContext, inbound: any, payload: any, existing: any): Promise<void> {
+    const type = normalizeText(inbound?.type).toLowerCase();
+    if (!SUI_TLS_TYPES.has(type)) {
+        inbound.tls_id = 0;
+        return;
+    }
+    const explicit = payload?.suiTlsId;
+    if (explicit !== undefined && explicit !== null && String(explicit).trim() !== '' && String(explicit) !== 'auto') {
+        const id = toNonNegativeInt(explicit);
+        if (id > 0 || !SUI_TLS_REQUIRED_TYPES.has(type)) {
+            inbound.tls_id = id;
+            return;
+        }
+    }
+    const stream = parseMaybeJson(payload?.streamSettings, null);
+    const hasStream = Boolean(stream && typeof stream === 'object');
+    if (!hasStream && existing && (toNonNegativeInt(existing.tls_id) > 0 || !SUI_TLS_REQUIRED_TYPES.has(type))) {
+        // Nothing about security in this request (a rename, a port change): keep what is stored.
+        return;
+    }
+    let security = normalizeText(stream?.security).toLowerCase();
+    if (SUI_QUIC_TYPES.has(type)) security = 'tls';
+    else if (SUI_TLS_REQUIRED_TYPES.has(type) && security !== 'reality') security = 'tls';
+    if (security !== 'tls' && security !== 'reality') {
+        inbound.tls_id = 0;
+        return;
+    }
+    const wanted = readWantedSuiTls(type, security, hasStream ? stream : {});
+    const profiles = await fetchSummary(ctx.transport, 'tls').catch(() => []);
+    const currentId = toNonNegativeInt(existing?.tls_id);
+    const current = currentId ? profiles.find((item) => Number(item?.id) === currentId) : null;
+    if (current && suiTlsProfileMatches(current, wanted)) {
+        inbound.tls_id = currentId;
+        return;
+    }
+    const reusable = profiles.find((item) => suiTlsProfileMatches(item, wanted));
+    inbound.tls_id = reusable
+        ? Number(reusable.id)
+        : await createSuiTlsProfile(ctx, wanted, normalizeText(inbound.tag), profiles);
 }
 
 // ---------------------------------------------------------------------------
@@ -1317,22 +1802,192 @@ async function handleGetInbound(ctx: FacadeContext, _req: FacadeRequest, match: 
     return ok(suiInboundToXuiInbound(inbound, snapshot.clients, snapshot.tls));
 }
 
+/** Clients listed in an editor payload, by name; entries without a name get a random one. */
+function payloadClients(payload: any): any[] | null {
+    const settings = parseMaybeJson(payload?.settings, {}) || {};
+    const list = Array.isArray(settings.clients) ? settings.clients : (Array.isArray(settings.users) ? settings.users : null);
+    if (!list) return null;
+    const seen = new Set<string>();
+    const result: any[] = [];
+    for (const raw of list) {
+        if (!raw || typeof raw !== 'object') continue;
+        const input = { ...raw };
+        input.email = normalizeText(input.email || input.name || input.username) || randomSeq(8);
+        const key = normalizeName(input.email);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        result.push(input);
+    }
+    return result;
+}
+
+interface ClientMembershipChange {
+    created: number[];
+    attached: any[];
+}
+
+/**
+ * Make sure every client named in the editor exists on the node. Existing
+ * clients keep their credentials (s-ui shares them across the client's
+ * inbounds); new ones take what the editor generated for this inbound.
+ */
+async function ensurePayloadClients(ctx: FacadeContext, inputs: any[], targetKeys: string[], change: ClientMembershipChange): Promise<any[]> {
+    if (inputs.length === 0) return [];
+    const summary = await fetchSummary(ctx.transport, 'clients');
+    const byName = new Map(summary.map((item) => [normalizeName(item?.name), item]));
+    const existingIds = inputs
+        .map((input) => byName.get(normalizeName(input.email)))
+        .filter(Boolean)
+        .map((item: any) => Number(item.id));
+    const existing = (await fetchFullObjects(ctx.transport, 'clients', existingIds)).map(normalizeSuiClient);
+    const existingByName = new Map(existing.map((client) => [normalizeName(client.name), client]));
+    const result: any[] = [];
+    for (const input of inputs) {
+        const found = existingByName.get(normalizeName(input.email));
+        if (found) {
+            result.push(found);
+            continue;
+        }
+        const client = createSuiClientFromXui(input, [], targetKeys);
+        await saveClient(ctx.transport, client, 'new');
+        const saved = await findClientByName(ctx.transport, client.name);
+        if (!saved) throw new FacadeHttpError(502, `client ${client.name} was not saved on the s-ui node`);
+        change.created.push(Number(saved.id));
+        result.push(saved);
+    }
+    return result;
+}
+
+async function rollbackClientChanges(ctx: FacadeContext, change: ClientMembershipChange, inboundId: number | null): Promise<void> {
+    for (const client of change.attached) {
+        if (!inboundId) break;
+        client.inbounds = client.inbounds.filter((id: number) => id !== inboundId);
+        await saveClient(ctx.transport, client, 'edit').catch(() => undefined);
+    }
+    for (const id of change.created) {
+        await saveObject(ctx.transport, 'clients', 'del', id).catch(() => undefined);
+    }
+}
+
+const CLIENT_FIELD_KEYS = ['enable', 'totalGB', 'expiryTime', 'reset', 'comment'];
+const CLIENT_CREDENTIAL_KEYS = ['id', 'password', 'auth', 'flow'];
+
+/** The fields of `input` that differ from what the node shows for this client on `inbound`. */
+function changedClientFields(client: any, inbound: any, input: any): Record<string, any> | null {
+    const shown = suiClientToXuiClient(client, inbound);
+    const changes: Record<string, any> = {};
+    for (const key of [...CLIENT_FIELD_KEYS, ...CLIENT_CREDENTIAL_KEYS]) {
+        if (input[key] === undefined || input[key] === null) continue;
+        if (CLIENT_CREDENTIAL_KEYS.includes(key) && normalizeText(input[key]) === '') continue;
+        const before = shown[key];
+        const after = input[key];
+        const same = typeof before === 'number'
+            ? Number(after) === before
+            : typeof before === 'boolean'
+                ? (after !== false && after !== 'false') === before
+                : normalizeText(after) === normalizeText(before);
+        if (!same) changes[key] = after;
+    }
+    return Object.keys(changes).length > 0 ? changes : null;
+}
+
 async function handleAddInbound(ctx: FacadeContext, req: FacadeRequest): Promise<FacadeResult> {
-    const inbound = xuiInboundPayloadToSui(req.body, null);
+    const body = req.body || {};
+    const inbound = xuiInboundPayloadToSui(body, null);
     delete inbound.id;
-    const initUsers = normalizeInboundIdList(parseMaybeJson(req.body?.suiInitUsers, []));
-    await saveObject(ctx.transport, 'inbounds', 'new', inbound, initUsers.length > 0 ? { initUsers: initUsers.join(',') } : {});
+    const native = parseMaybeJson(body.suiInbound, null);
+    if (!native || typeof native !== 'object') await resolveSuiInboundTls(ctx, inbound, body, null);
+
     const summary = await fetchSummary(ctx.transport, 'inbounds');
-    const created = summary.find((item) => normalizeText(item?.tag) === normalizeText(inbound.tag));
+    if (summary.some((item) => normalizeText(item?.tag) === normalizeText(inbound.tag))) {
+        throw new FacadeHttpError(409, `An inbound named ${inbound.tag} already exists on this s-ui node; pick another remark`);
+    }
+
+    const change: ClientMembershipChange = { created: [], attached: [] };
+    const initUsers = new Set(normalizeInboundIdList(parseMaybeJson(body.suiInitUsers, [])));
+    const inputs = payloadClients(body);
+    if (inputs && inboundHasUsers(inbound)) {
+        const clients = await ensurePayloadClients(ctx, inputs, suiConfigKeysForInbound(inbound), change);
+        for (const client of clients) initUsers.add(Number(client.id));
+    }
+    if (SUI_CLIENT_REQUIRED_TYPES.has(inbound.type) && inboundHasUsers(inbound) && initUsers.size === 0) {
+        throw new FacadeHttpError(400, `${inbound.type} inbounds need at least one client`);
+    }
+    try {
+        await saveObject(ctx.transport, 'inbounds', 'new', inbound, initUsers.size > 0 ? { initUsers: Array.from(initUsers).join(',') } : {});
+    } catch (error) {
+        await rollbackClientChanges(ctx, change, null);
+        throw error;
+    }
+    const after = await fetchSummary(ctx.transport, 'inbounds');
+    const created = after.find((item) => normalizeText(item?.tag) === normalizeText(inbound.tag));
     return ok(created ? { ...inbound, id: created.id } : inbound, 'Create successfully');
 }
 
 async function handleUpdateInbound(ctx: FacadeContext, req: FacadeRequest, match: RegExpMatchArray): Promise<FacadeResult> {
+    const body = req.body || {};
     const existing = await findInboundById(ctx.transport, safeDecode(match[1]));
     if (!existing) throw new FacadeHttpError(404, 'inbound not found');
-    const inbound = xuiInboundPayloadToSui(req.body, existing);
+    const inbound = xuiInboundPayloadToSui(body, existing);
     inbound.id = existing.id;
-    await saveObject(ctx.transport, 'inbounds', 'edit', inbound);
+    const native = parseMaybeJson(body.suiInbound, null);
+    if (!native || typeof native !== 'object') await resolveSuiInboundTls(ctx, inbound, body, existing);
+
+    const inboundId = Number(existing.id);
+    const inputs = payloadClients(body);
+    const change: ClientMembershipChange = { created: [], attached: [] };
+    const toDetach: any[] = [];
+    const toEdit: any[] = [];
+    if (inputs && inboundHasUsers(inbound)) {
+        const targetKeys = suiConfigKeysForInbound(inbound);
+        const snapshotClients = (await fetchSummary(ctx.transport, 'clients'));
+        const memberIds = normalizeInboundIdList(snapshotClients.map((item) => item?.id));
+        const all = (await fetchFullObjects(ctx.transport, 'clients', memberIds)).map(normalizeSuiClient);
+        const members = all.filter((client) => client.inbounds.includes(inboundId));
+        const wanted = new Set(inputs.map((input) => normalizeName(input.email)));
+        if (SUI_CLIENT_REQUIRED_TYPES.has(inbound.type) && wanted.size === 0) {
+            throw new FacadeHttpError(400, `${inbound.type} inbounds need at least one client`);
+        }
+        const clients = await ensurePayloadClients(ctx, inputs, targetKeys, change);
+        for (const [index, client] of clients.entries()) {
+            const input = inputs[index];
+            const isMember = client.inbounds.includes(inboundId);
+            const isNew = change.created.includes(Number(client.id));
+            const fields = isNew ? null : changedClientFields(client, inbound, input);
+            if (fields) {
+                const { id: _id, password: _pw, auth: _auth, flow: _flow, ...plain } = fields;
+                applyXuiClientFields(client, plain, null);
+                const credentials = { id: fields.id, password: fields.password ?? fields.auth, flow: fields.flow };
+                if (credentials.id || credentials.password || credentials.flow) {
+                    applyXuiCredentials(client.config, credentials, targetKeys);
+                    syncConfigIdentity(client.config, client.name);
+                }
+            }
+            if (!isMember) {
+                client.inbounds = [...client.inbounds, inboundId];
+                change.attached.push(client);
+            } else if (fields) {
+                toEdit.push(client);
+            }
+        }
+        for (const client of members) {
+            if (!wanted.has(normalizeName(client.name))) toDetach.push(client);
+        }
+    }
+
+    try {
+        // New members first, so a type that needs users (naive, ShadowTLS v3) starts with them.
+        for (const client of change.attached) await saveClient(ctx.transport, client, 'edit');
+        await saveObject(ctx.transport, 'inbounds', 'edit', inbound);
+    } catch (error) {
+        await rollbackClientChanges(ctx, change, inboundId);
+        throw error;
+    }
+    for (const client of toEdit) await saveClient(ctx.transport, client, 'edit');
+    for (const client of toDetach) {
+        client.inbounds = client.inbounds.filter((id: number) => id !== inboundId);
+        await saveClient(ctx.transport, client, 'edit');
+    }
     return ok(inbound, 'Update successfully');
 }
 

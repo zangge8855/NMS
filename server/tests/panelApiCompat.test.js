@@ -781,8 +781,10 @@ test('normalizeHysteriaInboundForXui maps hysteria2 to the 3x-ui v3 hysteria sha
     assert.deepEqual(stream.hysteriaSettings, { udpIdleTimeout: 60, version: 2 });
     assert.equal(stream.tlsSettings.serverName, 'h.example');
 
-    const v1 = { protocol: 'hysteria', settings: JSON.stringify({ version: 1, clients: [] }) };
-    assert.equal(normalizeHysteriaInboundForXui(v1), v1);
+    // Xray only runs Hysteria v2, so a v1-shaped payload is converted as well.
+    const v1 = normalizeHysteriaInboundForXui({ protocol: 'hysteria', settings: JSON.stringify({ version: 1, clients: [] }) });
+    assert.equal(JSON.parse(v1.settings).version, 2);
+    assert.equal(JSON.parse(v1.streamSettings).network, 'hysteria');
     const vless = { protocol: 'vless', settings: '{}' };
     assert.equal(normalizeHysteriaInboundForXui(vless), vless);
 });
