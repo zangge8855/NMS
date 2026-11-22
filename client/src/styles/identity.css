@@ -2825,7 +2825,7 @@ body {
 :root[data-theme] :is(
   .subscription-link-card--import-focus, .subscription-link-card-meta,
   .subscription-guide-step, .subscription-summary-item,
-  .subscription-inline-qr
+  .subscription-inline-qr:not(.subscription-user-pass-stub)
 ) {
   background: transparent !important;
   background-image: none !important;

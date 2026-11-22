@@ -206,6 +206,7 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
             currentNode: 'Current node ({id})',
             resetDetailsTarget: 'Target Email',
             resetDetailsScope: 'Scope',
+            resetDetailsAccount: 'Subscription account',
             userStepKicker: 'Flow',
             userStepTitle: 'Choose config',
             userStepText: 'Pick the format your client supports.',
@@ -279,6 +280,7 @@ function getSubscriptionCopy(locale = 'zh-CN', { userCount = 0, nodeCount = 0 } 
         currentNode: '当前节点 ({id})',
         resetDetailsTarget: '目标邮箱',
         resetDetailsScope: '范围',
+        resetDetailsAccount: '订阅账号',
         userStepKicker: '使用顺序',
         userStepTitle: '选择配置文件',
         userStepText: '选择你的客户端支持的格式。',
@@ -807,7 +809,9 @@ export default function Subscriptions() {
         const ok = await confirmAction({
             title: t('comp.subscriptions.resetTitle'),
             message: resetMessage,
-            details: `${ui.resetDetailsTarget}: ${normalizedEmail}\n${ui.resetDetailsScope}: ${scopeLabel}`,
+            details: isStaff
+                ? `${ui.resetDetailsTarget}: ${normalizedEmail}\n${ui.resetDetailsScope}: ${scopeLabel}`
+                : `${ui.resetDetailsAccount}: ${normalizedEmail}`,
             confirmText: t('comp.common.confirmReset'),
             tone: 'danger',
         });
