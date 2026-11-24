@@ -11,6 +11,7 @@ vi.mock('../../api/client', () => ({
     default: {
         get: vi.fn(),
         put: vi.fn(),
+        post: vi.fn(),
     },
 }));
 
@@ -531,5 +532,74 @@ describe('Servers', () => {
 
         expect(await screen.findByText('东京边缘节点')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: '新加坡边缘节点' })).not.toBeInTheDocument();
+    });
+
+    it('renders server country flags and supports country auto-detection in the server modal', async () => {
+        const user = userEvent.setup();
+        const addServer = vi.fn().mockResolvedValue({ id: 'server-new' });
+        (api.post as any).mockReset();
+        (api.post as any).mockResolvedValue({
+            data: {
+                success: true,
+                obj: {
+                    countryCode: 'JP',
+                    flag: '🇯🇵',
+                    source: 'geoip',
+                },
+            },
+        });
+
+        useServer.mockReturnValue({
+            servers: [{
+                id: 'server-1',
+                name: 'Edge-01',
+                countryCode: 'DE',
+                url: 'https://de.example.com',
+                basePath: '/xui',
+                username: 'nmsadmin',
+                group: 'production',
+                environment: 'prod',
+                health: 'healthy',
+                tags: [],
+                credentialStatus: 'configured',
+            }],
+            activeServerId: 'server-1',
+            selectServer: vi.fn(),
+            addServer,
+            addServersBatch: vi.fn(),
+            updateServer: vi.fn(),
+            removeServer: vi.fn(),
+            testConnection: vi.fn(),
+            fetchServers: vi.fn(),
+        });
+
+        renderWithRouter(<Servers />);
+        await waitForServerOrderLoad();
+
+        expect(document.querySelector('.country-flag')?.textContent).toBe('🇩🇪');
+
+        await user.click(screen.getByRole('button', { name: /添加服务器/ }));
+        const nameInput = document.getElementById('servers-servers-server-name') as HTMLInputElement;
+        expect(nameInput).toBeTruthy();
+        await user.type(nameInput, 'Edge JP');
+        await user.type(screen.getByPlaceholderText('例如：https://192.168.1.1:2053/Raw1UQnS7B23ivwIKI'), 'https://jp.example.com:2053');
+        await user.click(screen.getByRole('button', { name: /自动识别/ }));
+
+        await waitFor(() => {
+            expect(api.post).toHaveBeenCalledWith('/servers/detect-country', {
+                url: 'https://jp.example.com:2053',
+                name: 'Edge JP',
+            });
+        });
+
+        await user.type(screen.getByPlaceholderText('可填写面板生成的 API Token'), 'panel-token-jp');
+        await user.click(screen.getByRole('button', { name: '添加' }));
+
+        await waitFor(() => {
+            expect(addServer).toHaveBeenCalledWith(expect.objectContaining({
+                name: 'Edge JP',
+                countryCode: 'JP',
+            }));
+        });
     });
 });

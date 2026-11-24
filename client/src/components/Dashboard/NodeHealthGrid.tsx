@@ -8,8 +8,10 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatBytes, getErrorMessage } from '../../utils/format';
+import { resolveNodeFlag, resolveServerFlag } from '../../utils/accessGeo';
 import { useI18n } from '../../contexts/LanguageContext';
 import EmptyState from '../UI/EmptyState';
+import CountryFlag from '../UI/CountryFlag';
 import api from '../../api/client';
 import toast from 'react-hot-toast';
 import {
@@ -229,11 +231,15 @@ function NodeTile({ server, serverData, trend = [], showSparkline = false, ping 
                         : <HiOutlineXMark className="w-4 h-4 shrink-0" style={{ color: color.dot }} />
                     }
                     <div className="node-health-tile-heading">
-                        <span className="node-health-tile-name">{server.name}</span>
+                        <span className="node-health-tile-name">
+                            <CountryFlag flag={resolveServerFlag(server)} label={server.name} />
+                            {server.name}
+                        </span>
                         {remarkPreview.length > 0 && (
                             <div className="node-health-tile-remarks" title={remarksTitle}>
                                 {remarkPreview.map((remark: string) => (
                                     <span key={`${server.id}-${remark}`} className="node-health-tile-remark">
+                                        <CountryFlag flag={resolveNodeFlag(remark, server)} label={remark} />
                                         {remark}
                                     </span>
                                 ))}

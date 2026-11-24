@@ -109,6 +109,30 @@ const userRepository = {
     recordTwoFactorStep(id: string, step: number): boolean {
         return userStore.recordTwoFactorStep(id, step);
     },
+
+    listExtraClients(userId: string) {
+        return userStore.listExtraClients(userId);
+    },
+
+    addExtraClient(userId: string, binding: any) {
+        return userStore.addExtraClient(userId, binding);
+    },
+
+    updateExtraClient(userId: string, bindingId: string, patch: any) {
+        return userStore.updateExtraClient(userId, bindingId, patch);
+    },
+
+    removeExtraClient(userId: string, bindingId: string) {
+        return userStore.removeExtraClient(userId, bindingId);
+    },
+
+    removeExtraClientsByServerId(serverId: string) {
+        return userStore.removeExtraClientsByServerId(serverId);
+    },
+
+    findByExtraClientEmail(serverId: string, clientEmail: string) {
+        return userStore.findByExtraClientEmail(serverId, clientEmail);
+    },
 };
 
 export default userRepository;

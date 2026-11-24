@@ -79,6 +79,7 @@ export default function Login() {
     const [loginIdentifier, setLoginIdentifier] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [rememberMe, setRememberMe] = useState(true);
 
     // 2FA fields
     const [twoFactorChallengeToken, setTwoFactorChallengeToken] = useState('');
@@ -213,7 +214,7 @@ export default function Login() {
         }
         setLoading(true);
         try {
-            const result = await login(resolvedIdentifier, resolvedPassword);
+            const result = await login(resolvedIdentifier, resolvedPassword, { rememberMe });
             if (result.success) {
                 navigate('/', { replace: true });
             } else if (result.needTwoFactor) {
@@ -256,10 +257,12 @@ export default function Login() {
             const verifyRes = await api.post('/auth/passkey/login-verify', {
                 challengeSessionId,
                 response: asseResp,
+                rememberMe,
             });
             if (verifyRes.data?.success) {
                 clearAppSessionState();
-                setStoredToken(verifyRes.data.token);
+                const persistent = verifyRes.data.persistent !== undefined ? Boolean(verifyRes.data.persistent) : rememberMe;
+                setStoredToken(verifyRes.data.token, { persistent });
                 await refreshAuth();
                 navigate('/', { replace: true });
             } else {
@@ -298,7 +301,7 @@ export default function Login() {
         }
         setLoading(true);
         try {
-            const result = await loginTwoFactor(twoFactorChallengeToken, codeToSubmit, twoFactorUseBackup);
+            const result = await loginTwoFactor(twoFactorChallengeToken, codeToSubmit, twoFactorUseBackup, { rememberMe });
             if (result.success) {
                 navigate('/', { replace: true });
             } else {
@@ -316,7 +319,7 @@ export default function Login() {
         if (cleaned.length === 6 && !loading && twoFactorChallengeToken) {
             setError('');
             setLoading(true);
-            loginTwoFactor(twoFactorChallengeToken, cleaned, false)
+            loginTwoFactor(twoFactorChallengeToken, cleaned, false, { rememberMe })
                 .then((result) => {
                     if (result.success) {
                         navigate('/', { replace: true });
@@ -681,6 +684,20 @@ export default function Login() {
                                             </button>
                                         </div>
                                     </div>
+                                    <label className="login-remember-row" htmlFor="login-remember-me">
+                                        <input
+                                            id="login-remember-me"
+                                            type="checkbox"
+                                            checked={rememberMe}
+                                            onChange={(e) => setRememberMe(e.target.checked)}
+                                            disabled={loading}
+                                        />
+                                        <span>
+                                            {locale === 'en-US'
+                                                ? 'Keep me signed in (stays active after closing tab)'
+                                                : '保持登录状态（关闭标签页仍有效）'}
+                                        </span>
+                                    </label>
                                     <button
                                         type="submit"
                                         className="btn btn-primary w-full h-11 text-sm font-semibold login-submit-btn"

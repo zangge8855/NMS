@@ -10,6 +10,16 @@ export interface PasswordHashInfo {
     iterations?: number;
 }
 
+export interface UserExtraClientBinding {
+    id: string;
+    serverId: string;
+    inboundId: string;
+    clientEmail: string;
+    nodeLabel: string;
+    sourceClientEmail?: string;
+    createdAt: string;
+}
+
 export interface User {
     id: string;
     username: string;
@@ -21,6 +31,7 @@ export interface User {
     email?: string;
     subscriptionEmail?: string;
     subscriptionAliasPath?: string | null;
+    extraClients?: UserExtraClientBinding[];
     enabled?: boolean;
     groupId?: string | null;
     createdAt: number | string;
@@ -49,6 +60,7 @@ export interface SanitizedUser {
     email?: string;
     subscriptionEmail?: string;
     subscriptionAliasPath?: string | null;
+    extraClients?: UserExtraClientBinding[];
     enabled?: boolean;
     groupId?: string | null;
     createdAt: number | string;
@@ -62,6 +74,7 @@ export interface ServerNode {
     id: string;
     name: string;
     url: string;
+    countryCode?: string;
     username?: string;
     password?: string;
     apiKey?: string;

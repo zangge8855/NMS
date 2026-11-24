@@ -25,7 +25,18 @@ import {
     normalizeLimitIp,
 } from '../../utils/entitlements';
 import { generateSecurePassword } from '../../utils/crypto';
-import { mergeInboundClientStats, resolveClientQuota, resolveClientUsed, safeNumber } from '../../utils/inboundClients';
+import {
+    formatUsagePercentLabel,
+    getClientDedupKey,
+    mergeInboundClientStats,
+    resolveClientQuota,
+    resolveClientUsed,
+    resolveUsageBarWidth,
+    resolveUsagePercent,
+    resolveUsageTone,
+    safeNumber,
+} from '../../utils/inboundClients';
+import { resolveNodeFlag, resolveServerFlag } from '../../utils/accessGeo';
 import { buildOnlineMatchMap, countClientOnlineSessions } from '../../utils/clientPresence';
 import {
     applyManagedUsersSnapshot,
@@ -39,6 +50,7 @@ import { handleRovingTabKeyDown } from '../../utils/rovingTabs';
 import SubscriptionClientLinks from '../Subscriptions/SubscriptionClientLinks';
 import ModalShell from '../UI/ModalShell';
 import ActionsDropdown from '../UI/ActionsDropdown';
+import CountryFlag from '../UI/CountryFlag';
 import toast from 'react-hot-toast';
 import {
     HiOutlinePlusCircle,
@@ -158,8 +170,12 @@ function getUserStatus(user, clientCount, t) {
 
 function getEffectiveUserExpiry(user: any): number {
     if (user?.expiresAt) {
-        const t = new Date(user.expiresAt).getTime();
-        if (t > 0) return t;
+        const ts = new Date(user.expiresAt).getTime();
+        if (ts > 0) return ts;
+    }
+    if (user?.guestExpiresAt) {
+        const ts = new Date(user.guestExpiresAt).getTime();
+        if (ts > 0) return ts;
     }
     if (user?.expiryTime && Number(user.expiryTime) > 0) {
         return Number(user.expiryTime);
@@ -169,6 +185,12 @@ function getEffectiveUserExpiry(user: any): number {
         if (valid.length > 0) return Math.min(...valid);
     }
     return 0;
+}
+
+function resolveEffectiveTrafficLimit(user: any): number {
+    const clientLimit = safeNumber(user?.clientData?.totalLimit);
+    if (clientLimit > 0) return clientLimit;
+    return safeNumber(user?.trafficLimitBytes || user?.trafficLimit);
 }
 
 function formatExpiryLabel(expiryValues, t) {
@@ -215,8 +237,11 @@ function createEmptyUserClientData() {
 }
 
 function resolveTrackedUserEmails(user) {
+    const extraEmails = Array.isArray(user?.extraClients)
+        ? user.extraClients.map((item) => item?.clientEmail)
+        : [];
     return Array.from(new Set(
-        [user?.subscriptionEmail, user?.email]
+        [user?.subscriptionEmail, user?.email, ...extraEmails]
             .map((value) => normalizeEmail(value))
             .filter(Boolean)
     ));
@@ -585,6 +610,7 @@ export default function UsersHub() {
                 });
 
                 const supportedProtocolKeys = new Set(PROTOCOL_OPTIONS.map((p) => p.key));
+                const seenSuiClientKeys = new Set<string>();
                 inbounds.forEach((ib) => {
                     const protocol = String(ib.protocol || '').toLowerCase();
                     if (!supportedProtocolKeys.has(protocol)) return;
@@ -611,6 +637,7 @@ export default function UsersHub() {
                         key: ibKey,
                         serverId: server.id,
                         serverName: server.name,
+                        serverCountryCode: server.countryCode || '',
                         inboundId: ib.id,
                         remark: ib.remark || '',
                         protocol,
@@ -626,13 +653,20 @@ export default function UsersHub() {
                             emailMap.set(email, { count: 0, totalUsed: 0, totalUp: 0, totalDown: 0, totalLimit: 0, expiryValues: [], onlineSessions: 0 });
                         }
                         const entry = emailMap.get(email);
-                        const onlineSessions = countClientOnlineSessions(cl, protocol, onlineMatchMap);
+                        const suiDedupKey = getClientDedupKey(server.id, cl);
+                        const isDuplicateSui = Boolean(suiDedupKey && seenSuiClientKeys.has(suiDedupKey));
+                        if (suiDedupKey) {
+                            seenSuiClientKeys.add(suiDedupKey);
+                        }
                         entry.count += 1;
-                        entry.totalUsed += resolveClientUsed(cl);
-                        entry.totalUp += safeNumber(cl?.up);
-                        entry.totalDown += safeNumber(cl?.down);
-                        entry.totalLimit += resolveClientQuota(cl);
-                        entry.onlineSessions += onlineSessions;
+                        if (!isDuplicateSui) {
+                            const onlineSessions = countClientOnlineSessions(cl, protocol, onlineMatchMap);
+                            entry.totalUsed += resolveClientUsed(cl);
+                            entry.totalUp += safeNumber(cl?.up);
+                            entry.totalDown += safeNumber(cl?.down);
+                            entry.totalLimit += resolveClientQuota(cl);
+                            entry.onlineSessions += onlineSessions;
+                        }
                         if (Number(cl.expiryTime || 0) > 0) {
                             entry.expiryValues.push(Number(cl.expiryTime));
                         }
@@ -792,7 +826,7 @@ export default function UsersHub() {
         for (const user of allOrderedUsers) {
             if (user.status.key === 'active' || user.status.key === 'enabled') active++;
             if (user.status.key === 'disabled') disabled++;
-            const trafficLimit = safeNumber(user.trafficLimit || user.clientData?.totalLimit);
+            const trafficLimit = resolveEffectiveTrafficLimit(user);
             const trafficUsed = resolveClientUsed(user.clientData);
             if (trafficLimit > 0 && (trafficUsed / trafficLimit) >= 0.8) {
                 warningTraffic++;
@@ -821,7 +855,7 @@ export default function UsersHub() {
                 } else if (statusFilter === 'disabled') {
                     if (user.status.key !== 'disabled') return false;
                 } else if (statusFilter === 'warning_traffic') {
-                    const trafficLimit = safeNumber(user.trafficLimit || user.clientData?.totalLimit);
+                    const trafficLimit = resolveEffectiveTrafficLimit(user);
                     const trafficUsed = resolveClientUsed(user.clientData);
                     if (!(trafficLimit > 0 && (trafficUsed / trafficLimit) >= 0.8)) return false;
                 } else if (statusFilter === 'expiring') {
@@ -875,6 +909,9 @@ export default function UsersHub() {
     const inboundByKey = useMemo(() => new Map<string, any>(
         allInbounds.map((inbound: any) => [String(inbound?.key || ''), inbound])
     ), [allInbounds]);
+    const serverById = useMemo(() => new Map<string, any>(
+        servers.map((srv: any) => [String(srv?.id || '').trim(), srv])
+    ), [servers]);
     const groupMemberCandidates = useMemo(() => (
         users
             .filter((user) => user?.role !== 'admin' && canManageUserTarget(actorRole, user?.role))
@@ -1201,21 +1238,71 @@ export default function UsersHub() {
         );
     };
 
+    const renderUserTrafficCell = (user: any, variant: 'table' | 'mobile' = 'table') => {
+        if (user.statsPending) {
+            return <span className="text-xs text-muted">{syncingCopy.detail}</span>;
+        }
+        const totalUsed = resolveClientUsed(user.clientData);
+        const totalUp = safeNumber(user.clientData?.totalUp);
+        const totalDown = safeNumber(user.clientData?.totalDown);
+        const effectiveLimit = resolveEffectiveTrafficLimit(user);
+        const hasTrafficOrQuota = totalUsed > 0 || effectiveLimit > 0;
+        if (!hasTrafficOrQuota) {
+            return variant === 'mobile' ? t('comp.users.unusedTraffic') : '—';
+        }
+        const percentLabel = formatUsagePercentLabel(totalUsed, effectiveLimit);
+        const usagePercent = resolveUsagePercent(totalUsed, effectiveLimit);
+        const usageTone = resolveUsageTone(usagePercent);
+        const barWidth = resolveUsageBarWidth(totalUsed, effectiveLimit);
+
+        return (
+            <div className={`users-traffic-stack${variant === 'mobile' ? ' is-mobile' : ''}`}>
+                <div className="users-traffic-head font-mono">
+                    <span className="users-traffic-ratio">
+                        {effectiveLimit > 0
+                            ? `${formatBytes(totalUsed)}/${formatBytes(effectiveLimit)}`
+                            : `${formatBytes(totalUsed)}/∞`}
+                    </span>
+                    {percentLabel ? (
+                        <span className={`users-traffic-pct is-${usageTone}`}>{percentLabel}</span>
+                    ) : null}
+                </div>
+                {effectiveLimit > 0 ? (
+                    <div
+                        className="users-traffic-bar"
+                        role="progressbar"
+                        aria-valuenow={usagePercent ?? 0}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-label={`${formatBytes(totalUsed)} / ${formatBytes(effectiveLimit)} (${percentLabel})`}
+                    >
+                        <div
+                            className={`users-traffic-bar-fill is-${usageTone}`}
+                            style={{ width: `${barWidth}%` }}
+                        />
+                    </div>
+                ) : null}
+                <div className="users-traffic-split font-mono">
+                    <span className="text-success">↑{formatBytes(totalUp)}</span>
+                    <span className="text-info">↓{formatBytes(totalDown)}</span>
+                </div>
+            </div>
+        );
+    };
+
     const renderMobileUserCard = (user, index) => {
         const sequenceNumber = sequenceDirection === 'asc'
             ? index + 1
             : enrichedUsers.length - index;
         const displayEmail = user.email || user.subscriptionEmail || '';
+        const effectiveExpiry = getEffectiveUserExpiry(user);
         const userExpiryLabel = user.statsPending
             ? syncingCopy.detail
-            : user.clientData.count > 0
-            ? formatExpiryLabel(user.clientData.expiryValues, t)
-            : t('pages.usersHub.notProvisioned');
-        const userTrafficSummary = user.statsPending
-            ? syncingCopy.detail
-            : user.clientData.totalUsed
-            ? `↑${formatBytes(user.clientData.totalUp)} / ↓${formatBytes(user.clientData.totalDown)}`
-            : t('comp.users.unusedTraffic');
+            : effectiveExpiry > 0
+                ? formatDateOnly(effectiveExpiry)
+                : user.clientData.count > 0
+                    ? formatExpiryLabel(user.clientData.expiryValues, t)
+                    : t('pages.usersHub.notProvisioned');
         const groupLabel = user.groupName || userGroupMap.get(String(user.groupId || ''))?.name || '';
 
         return (
@@ -1271,12 +1358,14 @@ export default function UsersHub() {
                         </span>
                     </div>
                     <div className="users-mobile-metric">
-                        <span className="users-mobile-metric-label">{t('pages.usersHub.cols.traffic')}</span>
-                        <span className="users-mobile-metric-value">{userTrafficSummary}</span>
-                    </div>
-                    <div className="users-mobile-metric">
                         <span className="users-mobile-metric-label">{t('pages.usersHub.cols.expiry')}</span>
                         <span className="users-mobile-metric-value">{userExpiryLabel}</span>
+                    </div>
+                    <div className="users-mobile-metric users-mobile-metric--full">
+                        <span className="users-mobile-metric-label">{t('pages.usersHub.cols.traffic')}</span>
+                        <div className="users-mobile-metric-value users-mobile-metric-value--traffic">
+                            {renderUserTrafficCell(user, 'mobile')}
+                        </div>
                     </div>
                 </div>
 
@@ -2367,11 +2456,23 @@ export default function UsersHub() {
                                         : enrichedUsers.length - index;
                                     const displayEmail = user.email || user.subscriptionEmail || '';
                                     const groupLabel = user.groupName || userGroupMap.get(String(user.groupId || ''))?.name || '';
+                                    const effectiveExpiry = getEffectiveUserExpiry(user);
                                     const userExpiryLabel = user.statsPending
                                         ? syncingCopy.detail
-                                        : user.clientData.count > 0
-                                        ? formatExpiryLabel(user.clientData.expiryValues, t)
-                                        : t('pages.usersHub.notProvisioned');
+                                        : effectiveExpiry > 0
+                                            ? formatDateOnly(effectiveExpiry)
+                                            : user.clientData.count > 0
+                                                ? formatExpiryLabel(user.clientData.expiryValues, t)
+                                                : t('pages.usersHub.notProvisioned');
+                                    const effectiveLimit = resolveEffectiveTrafficLimit(user);
+                                    const totalUsed = resolveClientUsed(user.clientData);
+                                    const trafficTitle = user.statsPending
+                                        ? syncingCopy.detail
+                                        : (totalUsed > 0 || effectiveLimit > 0)
+                                            ? (effectiveLimit > 0
+                                                ? `${formatBytes(totalUsed)} / ${formatBytes(effectiveLimit)} (${formatUsagePercentLabel(totalUsed, effectiveLimit)})`
+                                                : t('comp.users.totalTrafficTitle', { total: formatBytes(totalUsed) }))
+                                            : '—';
                                     const canManageTarget = canManageUserTarget(actorRole, user.role);
                                     return (
                                         <tr
@@ -2432,21 +2533,9 @@ export default function UsersHub() {
                                                 <td
                                                     data-label={t('pages.usersHub.cols.traffic')}
                                                     className="table-cell-right users-traffic-cell"
-                                                    title={user.statsPending ? syncingCopy.detail : (user.clientData.totalUsed ? t('comp.users.totalTrafficTitle', { total: formatBytes(user.clientData.totalUsed) }) : '—')}
+                                                    title={trafficTitle}
                                                 >
-                                                    {user.statsPending ? (
-                                                        <span className="text-xs text-muted">{syncingCopy.detail}</span>
-                                                    ) : user.clientData.totalUsed ? (
-                                                        <div className="users-traffic-stack">
-                                                            <div className="users-traffic-total font-mono font-semibold text-xs leading-tight">
-                                                                {formatBytes(user.clientData.totalUsed)}
-                                                            </div>
-                                                            <div className="users-traffic-split flex items-center justify-end gap-1.5 text-[11px] opacity-85 leading-tight">
-                                                                <span className="text-success">↑{formatBytes(user.clientData.totalUp)}</span>
-                                                                <span className="text-info">↓{formatBytes(user.clientData.totalDown)}</span>
-                                                            </div>
-                                                        </div>
-                                                    ) : '—'}
+                                                    {renderUserTrafficCell(user, 'table')}
                                                 </td>
                                                 <td
                                                     data-label={t('pages.usersHub.cols.expiry')}
@@ -2611,21 +2700,31 @@ export default function UsersHub() {
                                     <div className="list-selection-container">
                                         {allInbounds.length === 0 ? (
                                             <EmptyState title={t('pages.usersHub.groups.modal.noAvailableInbounds')} size="compact" />
-                                        ) : allInbounds.map((inbound) => (
-                                            <label key={inbound.key} className="list-selection-item">
-                                                <input name="usersHubField3"
-                                                    type="checkbox"
-                                                    checked={groupAllowedInboundKeys.includes(inbound.key)}
-                                                    onChange={(e) => toggleGroupAllowedInbound(inbound.key, e.target.checked)}
-                                                    aria-label={`${t('pages.usersHub.groups.modal.assignAction')} ${inbound.remark || inbound.protocol}`}
-                                                />
-                                                <span className="list-selection-text">
-                                                    <span className="font-medium text-sm">{inbound.remark || inbound.protocol}</span>
-                                                    <span className="text-xs text-muted">{inbound.serverName}</span>
-                                                </span>
-                                                <span className="badge badge-neutral text-xs ml-auto">{inbound.protocol}:{inbound.port}</span>
-                                            </label>
-                                        ))}
+                                        ) : allInbounds.map((inbound) => {
+                                            const srv = serverById.get(String(inbound.serverId || '').trim()) || { name: inbound.serverName, countryCode: inbound.serverCountryCode };
+                                            const inboundName = inbound.remark || inbound.protocol;
+                                            return (
+                                                <label key={inbound.key} className="list-selection-item">
+                                                    <input name="usersHubField3"
+                                                        type="checkbox"
+                                                        checked={groupAllowedInboundKeys.includes(inbound.key)}
+                                                        onChange={(e) => toggleGroupAllowedInbound(inbound.key, e.target.checked)}
+                                                        aria-label={`${t('pages.usersHub.groups.modal.assignAction')} ${inboundName}`}
+                                                    />
+                                                    <span className="list-selection-text">
+                                                        <span className="font-medium text-sm">
+                                                            <CountryFlag flag={resolveNodeFlag(inboundName, srv)} label={inboundName} />
+                                                            {inboundName}
+                                                        </span>
+                                                        <span className="text-xs text-muted">
+                                                            <CountryFlag flag={resolveServerFlag(srv)} label={inbound.serverName} />
+                                                            {inbound.serverName}
+                                                        </span>
+                                                    </span>
+                                                    <span className="badge badge-neutral text-xs ml-auto">{inbound.protocol}:{inbound.port}</span>
+                                                </label>
+                                            );
+                                        })}
                                     </div>
                                 </div>
 
@@ -3066,6 +3165,7 @@ export default function UsersHub() {
                                                                     );
                                                                 }}
                                                             />
+                                                            <CountryFlag flag={resolveServerFlag(s)} label={s.name} />
                                                             {s.name}
                                                         </label>
                                                     ))}
@@ -3453,7 +3553,13 @@ export default function UsersHub() {
                                                                     });
                                                                 }}
                                                             />
-                                                            <span className="font-medium">{ib.serverName}</span>
+                                                            <span className="font-medium">
+                                                                <CountryFlag
+                                                                    flag={resolveServerFlag(serverById.get(String(ib.serverId || '').trim()) || { name: ib.serverName, countryCode: ib.serverCountryCode })}
+                                                                    label={ib.serverName}
+                                                                />
+                                                                {ib.serverName}
+                                                            </span>
                                                             <span className="text-muted">{ib.remark || ib.protocol}</span>
                                                             <span className="badge badge-neutral text-xs">{ib.protocol}:{ib.port}</span>
                                                             <span className="text-muted text-xs ml-auto">{t('comp.users.expiresAt')}{expiryLabel}</span>

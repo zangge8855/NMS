@@ -468,6 +468,7 @@ async function runManagedUserNodeSync(targetUser: any, actor: string = 'admin', 
         };
     }
     const emailAliases = buildManagedUserEmailAliases(targetUser, subscriptionEmail);
+    const extraClients = Array.isArray(targetUser?.extraClients) ? targetUser.extraClients : [];
 
     const targetServerIds = normalizeStringList(options.targetServerIds);
     const allServers = serverRepo.list();
@@ -482,13 +483,14 @@ async function runManagedUserNodeSync(targetUser: any, actor: string = 'admin', 
     const scopedPolicy = applyInboundRetryScope(effectivePolicy, options.targetInboundKeys);
 
     let clientSync = emptyClientSyncResult();
+    const shouldResetBeforeDeploy = enabled && options.includeDeploy === true;
     if (options.includeToggle === true) {
         try {
-            const shouldResetBeforeDeploy = enabled && options.includeDeploy === true;
             clientSync = await toggleClients(subscriptionEmail, shouldResetBeforeDeploy ? false : enabled, {
                 allServers: scopedServers,
                 policy: shouldResetBeforeDeploy ? null : scopedPolicy,
                 emailAliases,
+                ...(shouldResetBeforeDeploy ? {} : { extraClients }),
             });
         } catch (error: any) {
             clientSync = {
@@ -520,6 +522,27 @@ async function runManagedUserNodeSync(targetUser: any, actor: string = 'admin', 
                 failed: 1,
                 details: [{ status: 'failed', error: error.message || 'client-deploy-failed' }],
             };
+        }
+    }
+
+    if (options.includeToggle === true && shouldResetBeforeDeploy && extraClients.length > 0) {
+        try {
+            const extraSync = await toggleClients(subscriptionEmail, true, {
+                allServers: scopedServers,
+                policy: scopedPolicy,
+                extraClients,
+                onlyExtraClients: true,
+            });
+            clientSync.total += Number(extraSync?.total || 0);
+            clientSync.updated += Number(extraSync?.updated || 0);
+            clientSync.skipped += Number(extraSync?.skipped || 0);
+            clientSync.failed += Number(extraSync?.failed || 0);
+            if (Array.isArray(extraSync?.details) && extraSync.details.length > 0) {
+                clientSync.details.push(...extraSync.details);
+            }
+        } catch (error: any) {
+            clientSync.failed += 1;
+            clientSync.details.push({ status: 'failed', error: error.message || 'extra-client-toggle-failed' });
         }
     }
 
@@ -646,6 +669,7 @@ function stripSubscriptionAliasPath(user: any): any {
 function listUsers(deps: any = {}) {
     const userRepo = deps.userRepository || userRepository;
     const groupRepo = deps.userGroupRepository || userGroupRepository;
+    const policyRepo = deps.userPolicyRepository || userPolicyRepository;
     const groups = new Map(
         (typeof groupRepo.list === 'function' ? groupRepo.list() : [])
             .map((item: any) => [String(item?.id || '').trim(), item])
@@ -653,10 +677,23 @@ function listUsers(deps: any = {}) {
     return userRepo.list().map((item: any) => {
         const groupId = String(item?.groupId || '').trim();
         const group: any = groupId ? groups.get(groupId) : null;
+        const subscriptionEmail = resolveUserSubscriptionEmail(item);
+        const rawPolicy = subscriptionEmail && typeof policyRepo?.get === 'function'
+            ? policyRepo.get(subscriptionEmail)
+            : null;
+        const effectivePolicy = subscriptionEmail
+            ? resolveEffectivePolicy(item, rawPolicy, group)
+            : null;
+        const trafficLimitBytes = Math.max(0, Number(effectivePolicy?.trafficLimitBytes || 0));
+        const expiryTime = Math.max(0, Number(effectivePolicy?.expiryTime || 0));
         return stripSubscriptionAliasPath({
             ...item,
             groupId,
             groupName: group?.name || '',
+            trafficLimitBytes,
+            trafficLimit: trafficLimitBytes,
+            expiryTime,
+            extraClients: Array.isArray(item?.extraClients) ? item.extraClients : [],
         });
     });
 }
@@ -1331,6 +1368,7 @@ async function deleteManagedUser(id: string, deps: any = {}): Promise<any> {
         normalizeEmailInput(targetUser.email),
         resolveUserSubscriptionEmail(targetUser),
     ].filter(Boolean)));
+    const extraClients = Array.isArray(targetUser?.extraClients) ? targetUser.extraClients : [];
 
     const allServers = serverRepo.list();
     let preCleaned = false;
@@ -1340,9 +1378,20 @@ async function deleteManagedUser(id: string, deps: any = {}): Promise<any> {
     const runRemoteCleanup = async () => {
         const failedServerIds = new Set<string>();
         const cleanupDetails: any[] = [];
-        for (const email of cleanupEmails) {
+        const cleanupTargets = cleanupEmails.length > 0
+            ? cleanupEmails.map((email, index) => ({
+                email,
+                extraClients: index === 0 ? extraClients : [],
+            }))
+            : (extraClients.length > 0 ? [{ email: '', extraClients }] : []);
+
+        for (const target of cleanupTargets) {
+            const { email } = target;
             try {
-                const removal = await removeClients(email, { allServers });
+                const removal = await removeClients(email, {
+                    allServers,
+                    ...(target.extraClients.length > 0 ? { extraClients: target.extraClients } : {}),
+                });
                 clientCleanup.total += Number(removal?.total || 0);
                 clientCleanup.removed += Number(removal?.removed || 0);
                 clientCleanup.failed += Number(removal?.failed || 0);
@@ -1378,7 +1427,7 @@ async function deleteManagedUser(id: string, deps: any = {}): Promise<any> {
     };
 
     let cleanupDetails: any[] = [];
-    if (deps.force === false && cleanupEmails.length > 0 && allServers.length > 0) {
+    if (deps.force === false && (cleanupEmails.length > 0 || extraClients.length > 0) && allServers.length > 0) {
         preCleaned = true;
         cleanupDetails = await runRemoteCleanup();
         if (clientCleanup.failed > 0) {

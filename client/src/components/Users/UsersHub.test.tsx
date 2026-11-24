@@ -439,7 +439,8 @@ describe('UsersHub ordering', () => {
         expect(document.querySelector('.users-table')).toBeFalsy();
         await waitFor(() => {
             expect(screen.getByText('alice@example.com')).toBeInTheDocument();
-            expect(screen.getByText('↑10 B / ↓20 B')).toBeInTheDocument();
+            expect(screen.getByText('↑10 B')).toBeInTheDocument();
+            expect(screen.getByText('↓20 B')).toBeInTheDocument();
         });
         expect(screen.getByRole('button', { name: '详情' })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: '查看订阅' })).not.toBeInTheDocument();
@@ -740,5 +741,130 @@ describe('UsersHub ordering', () => {
 
         expect(within(doraRow).getByText('已停用')).toBeInTheDocument();
         expect(within(doraRow).queryByText('待审核')).not.toBeInTheDocument();
+    });
+
+    it('renders the 3-line traffic progress bar with ratio, <1% label, progressbar, and up/down split', async () => {
+        const hundredGb = 100 * 1024 * 1024 * 1024;
+        const upBytes = Math.round(50 * 1024 * 1024);
+        const downBytes = Math.round(36 * 1024 * 1024);
+
+        api.get.mockImplementation((url) => {
+            if (url === '/auth/users') {
+                return Promise.resolve({
+                    data: {
+                        obj: [{
+                            id: 'user-a',
+                            username: 'alice',
+                            email: 'alice@example.com',
+                            subscriptionEmail: 'alice@example.com',
+                            role: 'user',
+                            enabled: true,
+                            trafficLimitBytes: hundredGb,
+                            createdAt: '2026-03-10T00:00:00.000Z',
+                            extraClients: [{
+                                id: 'extra-1',
+                                serverId: 'server-a',
+                                inboundId: '101',
+                                clientEmail: 'alice@example.com-ip',
+                                nodeLabel: '纯净IP',
+                            }],
+                        }],
+                    },
+                });
+            }
+            if (url === '/panel/server-a/panel/api/inbounds/list') {
+                return Promise.resolve({
+                    data: {
+                        obj: [{
+                            id: 101,
+                            protocol: 'vless',
+                            enable: true,
+                            settings: JSON.stringify({
+                                clients: [
+                                    { id: 'uuid-1', email: 'alice@example.com', totalGB: hundredGb },
+                                    { id: 'uuid-2', email: 'alice@example.com-ip', totalGB: 20 * 1024 * 1024 * 1024 },
+                                ],
+                            }),
+                            clientStats: [
+                                { id: 'uuid-1', email: 'alice@example.com', up: upBytes, down: 0 },
+                                { id: 'uuid-2', email: 'alice@example.com-ip', up: 0, down: downBytes },
+                            ],
+                        }],
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<UsersHub />);
+
+        const aliceCell = await screen.findByText('alice');
+        const aliceRow = aliceCell.closest('tr');
+        if (!aliceRow) throw new Error('Missing Alice row');
+
+        await waitFor(() => {
+            expect(within(aliceRow).getByText('86 MB/120 GB')).toBeInTheDocument();
+            expect(within(aliceRow).getByText('<1%')).toBeInTheDocument();
+            expect(within(aliceRow).getByRole('progressbar')).toBeInTheDocument();
+            expect(within(aliceRow).getByText('↑50 MB')).toBeInTheDocument();
+            expect(within(aliceRow).getByText('↓36 MB')).toBeInTheDocument();
+        });
+    });
+
+    it('deduplicates shared s-ui clients across multiple inbounds so traffic is not double-counted', async () => {
+        api.get.mockImplementation((url) => {
+            if (url === '/auth/users') {
+                return Promise.resolve({
+                    data: {
+                        obj: [{
+                            id: 'user-sui',
+                            username: 'suiuser',
+                            email: 'sui@example.com',
+                            subscriptionEmail: 'sui@example.com',
+                            role: 'user',
+                            enabled: true,
+                            createdAt: '2026-03-10T00:00:00.000Z',
+                        }],
+                    },
+                });
+            }
+            if (url === '/panel/server-a/panel/api/inbounds/list') {
+                return Promise.resolve({
+                    data: {
+                        obj: [
+                            {
+                                id: 101,
+                                protocol: 'vless',
+                                enable: true,
+                                settings: JSON.stringify({
+                                    clients: [{ suiClientId: 77, id: 'sui-77', email: 'sui@example.com', totalGB: 1024 }],
+                                }),
+                                clientStats: [{ suiClientId: 77, id: 'sui-77', email: 'sui@example.com', up: 100, down: 200 }],
+                            },
+                            {
+                                id: 102,
+                                protocol: 'trojan',
+                                enable: true,
+                                settings: JSON.stringify({
+                                    clients: [{ suiClientId: 77, id: 'sui-77', email: 'sui@example.com', totalGB: 1024 }],
+                                }),
+                                clientStats: [{ suiClientId: 77, id: 'sui-77', email: 'sui@example.com', up: 100, down: 200 }],
+                            },
+                        ],
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        renderWithRouter(<UsersHub />);
+
+        const row = (await screen.findByText('suiuser')).closest('tr');
+        if (!row) throw new Error('Missing suiuser row');
+
+        await waitFor(() => {
+            expect(within(row).getByText('↑100 B')).toBeInTheDocument();
+            expect(within(row).getByText('↓200 B')).toBeInTheDocument();
+        });
     });
 });

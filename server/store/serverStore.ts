@@ -5,6 +5,7 @@ import config from '../config.js';
 import { mirrorStoreSnapshot } from './dbMirror.js';
 import { saveObjectAtomic } from './fileUtils.js';
 import { normalizePanelType } from '../lib/panelType.js';
+import { normalizeCountryCode } from '../lib/countryFlag.js';
 import { KNOWN_PUBLIC_SECRETS } from '../lib/runtimeEnv.js';
 
 const SERVERS_FILE = path.join(config.dataDir, 'servers.json');
@@ -282,12 +283,17 @@ class ServerStore {
         return tags.slice(0, 20);
     }
 
+    _normalizeCountryCode(value: unknown): string {
+        return normalizeCountryCode(value);
+    }
+
     _normalizeGovernanceFields(input: any = {}): any {
         return {
             group: this._normalizeGovernanceGroup(input.group),
             tags: this._normalizeGovernanceTags(input.tags),
             environment: this._normalizeGovernanceEnvironment(input.environment),
             health: this._normalizeGovernanceHealth(input.health),
+            countryCode: this._normalizeCountryCode(input.countryCode),
         };
     }
 
@@ -304,6 +310,7 @@ class ServerStore {
                 || JSON.stringify(merged.tags || []) !== JSON.stringify(server.tags || [])
                 || merged.environment !== server.environment
                 || merged.health !== server.health
+                || merged.countryCode !== server.countryCode
             ) {
                 changed = true;
             }
@@ -358,6 +365,7 @@ class ServerStore {
             tags: this._normalizeGovernanceTags(server.tags),
             environment: this._normalizeGovernanceEnvironment(server.environment),
             health: this._normalizeGovernanceHealth(server.health),
+            countryCode: this._normalizeCountryCode(server.countryCode),
             credentialStatus: this._resolveCredentialStatus(server.password, server.apiToken),
             createdAt: server.createdAt,
         };
@@ -381,6 +389,7 @@ class ServerStore {
             tags: this._normalizeGovernanceTags(server.tags),
             environment: this._normalizeGovernanceEnvironment(server.environment),
             health: this._normalizeGovernanceHealth(server.health),
+            countryCode: this._normalizeCountryCode(server.countryCode),
             password: panelPassword.value,
             apiToken: apiToken.value,
             apiTokenConfigured: apiToken.status !== 'unreadable' && Boolean(apiToken.value),
@@ -417,6 +426,7 @@ class ServerStore {
         tags,
         environment,
         health,
+        countryCode,
         sshPort,
         sshUsername,
         sshPassword,
@@ -428,6 +438,7 @@ class ServerStore {
             tags,
             environment,
             health,
+            countryCode,
         });
         const server = {
             id: crypto.randomUUID(),
@@ -466,6 +477,7 @@ class ServerStore {
             'tags',
             'environment',
             'health',
+            'countryCode',
             'password',
             'sshPort',
             'sshUsername',
@@ -508,6 +520,10 @@ class ServerStore {
                 }
                 if (key === 'health') {
                     this.servers[idx][key] = this._normalizeGovernanceHealth(data[key]);
+                    continue;
+                }
+                if (key === 'countryCode') {
+                    this.servers[idx][key] = this._normalizeCountryCode(data[key]);
                     continue;
                 }
                 if (key === 'panelType') {

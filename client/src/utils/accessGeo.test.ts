@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
+    countryCodeToFlag,
+    formatOptionWithFlag,
+    inferCountryCodeFromText,
     LOCAL_IP_LOCATION_LABEL,
+    normalizeCountryCode,
     regionCodeToFlag,
     resolveAccessCountry,
+    resolveNodeCountryEmoji,
+    resolveNodeFlag,
     resolveRegionCodeFromName,
+    resolveServerFlag,
 } from './accessGeo';
 
 describe('access geo helpers', () => {
@@ -39,5 +46,28 @@ describe('access geo helpers', () => {
         expect(regionCodeToFlag('us')).toBe('🇺🇸');
         expect(regionCodeToFlag('')).toBe('🌐');
         expect(regionCodeToFlag('XX')).toBe('🌐');
+    });
+
+    it('resolves server and node country flags strictly without false positives on ordinary words', () => {
+        expect(normalizeCountryCode('jp')).toBe('JP');
+        expect(normalizeCountryCode('XX')).toBe('');
+        expect(countryCodeToFlag('SG')).toBe('🇸🇬');
+
+        expect(inferCountryCodeFromText('东京 01')).toBe('JP');
+        expect(inferCountryCodeFromText('US-LAX-02')).toBe('US');
+        expect(inferCountryCodeFromText('HK1-VLESS')).toBe('HK');
+        expect(inferCountryCodeFromText('Node A')).toBe('');
+        expect(inferCountryCodeFromText('dev-cluster-status')).toBe('');
+        expect(inferCountryCodeFromText('local-backup-01')).toBe('');
+        expect(inferCountryCodeFromText('My VPS in Cloud')).toBe('');
+
+        expect(resolveNodeCountryEmoji('Node A')).toBe('🌐');
+        expect(resolveNodeCountryEmoji('德国法兰克福')).toBe('🇩🇪');
+        expect(resolveServerFlag({ name: 'Edge 01', countryCode: 'JP' })).toBe('🇯🇵');
+        expect(resolveServerFlag({ name: '新加坡边缘节点' })).toBe('🇸🇬');
+        expect(resolveNodeFlag('香港 IPLC', { name: 'US Relay', countryCode: 'US' })).toBe('🇭🇰');
+        expect(resolveNodeFlag('VLESS-443', { name: 'Edge 01', countryCode: 'JP' })).toBe('🇯🇵');
+        expect(formatOptionWithFlag('Tokyo 01', '🇯🇵')).toBe('🇯🇵 Tokyo 01');
+        expect(formatOptionWithFlag('🇯🇵 Tokyo 01', '🇯🇵')).toBe('🇯🇵 Tokyo 01');
     });
 });

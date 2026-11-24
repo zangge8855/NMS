@@ -1,6 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api, { getStoredToken, setStoredToken, clearStoredToken } from '../api/client';
+import api, {
+    AUTH_TOKEN_STORAGE_KEY,
+    clearStoredToken,
+    getStoredToken,
+    isSessionPersistent,
+    setStoredToken,
+} from '../api/client';
 import { DEFAULT_LOCALE, getLocaleMessage, VALID_LOCALES } from '../i18n/messages';
 import { clearAppSessionState } from '../utils/appBootstrap';
 import type { User } from '../types/index.ts';
@@ -18,8 +24,17 @@ export interface AuthContextType {
     loading: boolean;
     user: (User & Record<string, any>) | null;
     token: string | null;
-    login: (identifier: string, password: string) => Promise<{ success: boolean; msg?: string; needVerify?: boolean; email?: string; needTwoFactor?: boolean; challengeToken?: string }>;
-    loginTwoFactor: (challengeToken: string, code: string, useBackupCode?: boolean) => Promise<{ success: boolean; msg?: string; user?: any }>;
+    login: (
+        identifier: string,
+        password: string,
+        options?: { rememberMe?: boolean }
+    ) => Promise<{ success: boolean; msg?: string; needVerify?: boolean; email?: string; needTwoFactor?: boolean; challengeToken?: string }>;
+    loginTwoFactor: (
+        challengeToken: string,
+        code: string,
+        useBackupCode?: boolean,
+        options?: { rememberMe?: boolean }
+    ) => Promise<{ success: boolean; msg?: string; user?: any }>;
     logout: () => void;
     register: (username: string, email: string, password: string, inviteCode?: string) => Promise<any>;
     verifyEmail: (email: string, code: string) => Promise<any>;
@@ -57,9 +72,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const navigate = useNavigate();
 
     // Listen for session-expired events from the API interceptor
-    // to handle 401 redirects via React Router instead of full page reload.
+    // and cross-tab localStorage logout sync.
     useEffect(() => {
-        const handler = () => {
+        const handleSessionExpired = () => {
             clearStoredToken();
             clearAppSessionState();
             setToken(null);
@@ -67,8 +82,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser(null);
             navigate('/login', { replace: true });
         };
-        window.addEventListener('nms:session-expired', handler);
-        return () => window.removeEventListener('nms:session-expired', handler);
+        const handleStorageChange = (event: StorageEvent) => {
+            if (event.key !== AUTH_TOKEN_STORAGE_KEY && event.key !== null) return;
+            const currentToken = getStoredToken();
+            if (!currentToken) {
+                clearAppSessionState();
+                setToken(null);
+                setIsAuthenticated(false);
+                setUser(null);
+                navigate('/login', { replace: true });
+            } else {
+                setToken(currentToken);
+            }
+        };
+        window.addEventListener('nms:session-expired', handleSessionExpired);
+        window.addEventListener('storage', handleStorageChange);
+        return () => {
+            window.removeEventListener('nms:session-expired', handleSessionExpired);
+            window.removeEventListener('storage', handleStorageChange);
+        };
     }, [navigate]);
 
     const checkAuth = useCallback(async () => {
@@ -82,7 +114,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         try {
             const res = await api.get('/auth/check');
-            setToken(storedToken);
+            const refreshedToken = String(res.data?.token || '').trim();
+            if (refreshedToken) {
+                const persistent = isSessionPersistent() || res.data?.persistent === true;
+                setStoredToken(refreshedToken, { persistent });
+                setToken(refreshedToken);
+            } else {
+                setToken(storedToken);
+            }
             setIsAuthenticated(true);
             setUser(res.data?.user || null);
         } catch (error: any) {
@@ -95,8 +134,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 setUser(null);
             } else {
                 const decoded = decodeJwtPayload(storedToken);
+                const hasExp = decoded?.exp !== undefined && decoded?.exp !== null;
                 const exp = Number(decoded?.exp);
-                if (!decoded || !decoded.exp || !Number.isFinite(exp) || exp * 1000 <= Date.now()) {
+                const isNonExpiringPersistent = decoded?.persistent === true && !hasExp;
+                const isValidExp = hasExp && Number.isFinite(exp) && exp * 1000 > Date.now();
+                if (!decoded || (!isNonExpiringPersistent && !isValidExp)) {
                     clearStoredToken();
                     clearAppSessionState();
                     setToken(null);
@@ -128,12 +170,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, [checkAuth]);
 
     /** 登录 (username/email + password) */
-    const login = async (identifier: string, password: string) => {
+    const login = async (identifier: string, password: string, options: { rememberMe?: boolean } = {}) => {
+        const rememberMe = options.rememberMe !== false;
         try {
-            const res = await api.post('/auth/login', { identifier, username: identifier, password });
+            const res = await api.post('/auth/login', {
+                identifier,
+                username: identifier,
+                password,
+                rememberMe,
+            });
             if (res.data.success) {
                 clearAppSessionState();
-                setStoredToken(res.data.token);
+                const persistent = res.data.persistent !== undefined ? Boolean(res.data.persistent) : rememberMe;
+                setStoredToken(res.data.token, { persistent });
                 setToken(res.data.token);
                 setIsAuthenticated(true);
                 setUser(res.data.user || null);
@@ -169,12 +218,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     /** 完成 2FA 二次验证登录 */
-    const loginTwoFactor = async (challengeToken: string, code: string, useBackupCode: boolean = false) => {
+    const loginTwoFactor = async (
+        challengeToken: string,
+        code: string,
+        useBackupCode: boolean = false,
+        options: { rememberMe?: boolean } = {}
+    ) => {
+        const rememberMe = options.rememberMe !== false;
         try {
-            const res = await api.post('/auth/login/2fa', { challengeToken, code, useBackupCode });
+            const res = await api.post('/auth/login/2fa', {
+                challengeToken,
+                code,
+                useBackupCode,
+                rememberMe,
+            });
             if (res.data.success) {
                 clearAppSessionState();
-                setStoredToken(res.data.token);
+                const persistent = res.data.persistent !== undefined ? Boolean(res.data.persistent) : rememberMe;
+                setStoredToken(res.data.token, { persistent });
                 setToken(res.data.token);
                 setIsAuthenticated(true);
                 setUser(res.data.user || null);

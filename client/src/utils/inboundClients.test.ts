@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
     extractInboundClients,
+    formatUsagePercentLabel,
+    getClientDedupKey,
     mergeInboundClientStats,
     parseJsonObjectLike,
     resolveClientQuota,
     resolveClientUsed,
+    resolveUsageBarWidth,
     resolveUsagePercent,
     resolveUsageTone,
 } from './inboundClients';
@@ -182,5 +185,32 @@ describe('inbound client helpers', () => {
         expect(resolveUsageTone(75)).toBe('warning');
         expect(resolveUsageTone(95)).toBe('danger');
         expect(resolveUsageTone(null)).toBe('neutral');
+    });
+
+    it('formats tiny non-zero usage as <1% and applies a visible bar width floor', () => {
+        const hundredGb = 100 * 1024 * 1024 * 1024;
+        const eightySixMb = 86 * 1024 * 1024;
+
+        expect(formatUsagePercentLabel(eightySixMb, hundredGb)).toBe('<1%');
+        expect(formatUsagePercentLabel(0, hundredGb)).toBe('0%');
+        expect(formatUsagePercentLabel(50 * 1024 * 1024 * 1024, hundredGb)).toBe('50%');
+        expect(formatUsagePercentLabel(150 * 1024 * 1024 * 1024, hundredGb)).toBe('100%');
+        expect(formatUsagePercentLabel(eightySixMb, 0)).toBeNull();
+
+        expect(resolveUsageBarWidth(0, hundredGb)).toBe(0);
+        expect(resolveUsageBarWidth(eightySixMb, hundredGb)).toBe(2);
+        expect(resolveUsageBarWidth(50 * 1024 * 1024 * 1024, hundredGb)).toBe(50);
+        expect(resolveUsageBarWidth(150 * 1024 * 1024 * 1024, hundredGb)).toBe(100);
+        expect(resolveUsageBarWidth(eightySixMb, 0)).toBe(0);
+    });
+
+    it('deduplicates shared s-ui clients across inbounds while keeping distinct 3x-ui clients ungrouped', () => {
+        const suiA = getClientDedupKey('srv-1', { suiClientId: 42, email: 'alice@example.com' });
+        const suiB = getClientDedupKey('srv-1', { suiClientId: 42, email: 'alice@example.com' });
+        expect(suiA).toBe('sui:srv-1:42');
+        expect(suiA).toBe(suiB);
+
+        const xuiA = getClientDedupKey('srv-1', { id: 'uuid-1', email: 'alice@example.com' });
+        expect(xuiA).toBe('');
     });
 });

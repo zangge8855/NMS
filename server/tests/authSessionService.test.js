@@ -941,3 +941,130 @@ test('authSessionService localizes errors for en-US while keeping zh-CN defaults
         (err) => err.status === 401 && err.message === 'Current password is incorrect'
     );
 });
+
+test('createLoginSession issues persistent JWT when rememberMe=true and supports non-expiring TTL', async () => {
+    const repo = {
+        authenticate: async () => ({ id: 'u-persist', username: 'alice', role: 'admin' }),
+        getByUsername: () => ({
+            id: 'u-persist',
+            username: 'alice',
+            role: 'admin',
+            email: 'alice@example.com',
+            emailVerified: true,
+            enabled: true,
+            tokenVersion: 1,
+        }),
+    };
+
+    const signCalls = [];
+    const jwtSign = (payload, _secret, options) => {
+        signCalls.push({ payload, options });
+        return 'signed-jwt';
+    };
+
+    // rememberMe: true uses persistentExpiresIn and sets persistent: true
+    const persistentResult = await createLoginSession(
+        { username: 'alice', password: 'secret', rememberMe: true },
+        {
+            userRepository: repo,
+            jwtSign,
+            jwtConfig: { secret: 'sec', expiresIn: '24h', persistentExpiresIn: '365d' },
+        }
+    );
+    assert.equal(persistentResult.success, true);
+    assert.equal(persistentResult.persistent, true);
+    assert.equal(signCalls[0].payload.persistent, true);
+    assert.deepEqual(signCalls[0].options, { expiresIn: '365d' });
+
+    // Non-expiring persistent JWT ('never') omits expiresIn
+    await createLoginSession(
+        { username: 'alice', password: 'secret', rememberMe: true },
+        {
+            userRepository: repo,
+            jwtSign,
+            jwtConfig: { secret: 'sec', expiresIn: '24h', persistentExpiresIn: 'never' },
+        }
+    );
+    assert.equal(signCalls[1].payload.persistent, true);
+    assert.equal(signCalls[1].options, undefined);
+
+    // Explicit rememberMe: false uses regular session expiresIn without persistent claim
+    const tempResult = await createLoginSession(
+        { username: 'alice', password: 'secret', rememberMe: false },
+        {
+            userRepository: repo,
+            jwtSign,
+            jwtConfig: { secret: 'sec', expiresIn: '24h', persistentExpiresIn: '365d' },
+        }
+    );
+    assert.equal(tempResult.persistent, false);
+    assert.equal(signCalls[2].payload.persistent, undefined);
+    assert.deepEqual(signCalls[2].options, { expiresIn: '24h' });
+});
+
+test('validateSession returns a sliding refreshedToken for aged persistent tokens and skips fresh or non-expiring ones', () => {
+    const nowSec = Math.floor(Date.now() / 1000);
+    const repo = {
+        getById: () => ({
+            id: 'u-persist',
+            username: 'alice',
+            role: 'admin',
+            email: 'alice@example.com',
+            enabled: true,
+            tokenVersion: 1,
+        }),
+    };
+
+    // Aged >= 24h: issued 2 days ago, expires in 363 days -> triggers sliding refresh
+    const slidingResult = validateSession('Bearer old-persistent-jwt', {
+        userRepository: repo,
+        jwtVerify: () => ({
+            userId: 'u-persist',
+            username: 'alice',
+            role: 'admin',
+            tokenVersion: 1,
+            persistent: true,
+            iat: nowSec - 2 * 86400,
+            exp: nowSec + 363 * 86400,
+        }),
+        jwtSign: (payload, _secret, options) => `refreshed:${payload.username}:${options?.expiresIn}`,
+        jwtConfig: { secret: 'sec', expiresIn: '24h', persistentExpiresIn: '365d' },
+    });
+    assert.equal(slidingResult.persistent, true);
+    assert.equal(slidingResult.refreshedToken, 'refreshed:alice:365d');
+
+    // Fresh persistent token: issued 1 hour ago, expires in ~365 days -> no unnecessary refresh
+    const freshResult = validateSession('Bearer fresh-persistent-jwt', {
+        userRepository: repo,
+        jwtVerify: () => ({
+            userId: 'u-persist',
+            username: 'alice',
+            role: 'admin',
+            tokenVersion: 1,
+            persistent: true,
+            iat: nowSec - 3600,
+            exp: nowSec + 365 * 86400 - 3600,
+        }),
+        jwtSign: () => 'should-not-sign',
+        jwtConfig: { secret: 'sec', expiresIn: '24h', persistentExpiresIn: '365d' },
+    });
+    assert.equal(freshResult.persistent, true);
+    assert.equal(freshResult.refreshedToken, undefined);
+
+    // Non-expiring persistent token (no exp) -> no refresh needed
+    const neverExpireResult = validateSession('Bearer never-expire-jwt', {
+        userRepository: repo,
+        jwtVerify: () => ({
+            userId: 'u-persist',
+            username: 'alice',
+            role: 'admin',
+            tokenVersion: 1,
+            persistent: true,
+            iat: nowSec - 500 * 86400,
+        }),
+        jwtSign: () => 'should-not-sign',
+        jwtConfig: { secret: 'sec', expiresIn: '24h', persistentExpiresIn: 'never' },
+    });
+    assert.equal(neverExpireResult.persistent, true);
+    assert.equal(neverExpireResult.refreshedToken, undefined);
+});

@@ -88,7 +88,13 @@ async function updateClientEntitlement(payload: any = {}, actor: string = 'admin
 
     const clientIdentifier = resolveClientIdentifier(match, protocol);
     const email = requestedEmail || normalizeEmail(match.email);
-    if (mode === 'follow_policy' && !email) {
+    const extraOwner = usersRepository?.findByExtraClientEmail?.(serverId, match.email || email) || null;
+    const extraOwnerSubEmail = extraOwner
+        ? normalizeEmail(extraOwner.subscriptionEmail || extraOwner.email)
+        : '';
+    const policyEmail = extraOwnerSubEmail || email;
+
+    if (mode === 'follow_policy' && !policyEmail) {
         // Without an email there is no subscription policy to follow; falling
         // through would silently apply the global default policy record.
         throw createHttpError(
@@ -103,8 +109,11 @@ async function updateClientEntitlement(payload: any = {}, actor: string = 'admin
 
     const entitlement = mode === 'follow_policy'
         ? (() => {
-            const rawPolicy = policyRepository.get(email);
-            const user = usersRepository?.getBySubscriptionEmail?.(email) || usersRepository?.getByEmail?.(email) || null;
+            const rawPolicy = policyRepository.get(policyEmail);
+            const user = extraOwner
+                || usersRepository?.getBySubscriptionEmail?.(policyEmail)
+                || usersRepository?.getByEmail?.(policyEmail)
+                || null;
             const group = user?.groupId ? groupsRepository?.getById?.(user.groupId) : null;
             const policy = resolveEffectivePolicy(user, rawPolicy, group);
             return {
@@ -149,8 +158,12 @@ async function updateClientEntitlement(payload: any = {}, actor: string = 'admin
     }
 
     (deps.invalidateServerPanelSnapshotCache || invalidateServerPanelSnapshotCache)(serverId);
+    const invalidateSub = deps.invalidatePublicSubCache || invalidatePublicSubCache;
     if (email) {
-        (deps.invalidatePublicSubCache || invalidatePublicSubCache)(email);
+        invalidateSub(email);
+    }
+    if (extraOwnerSubEmail && extraOwnerSubEmail !== email) {
+        invalidateSub(extraOwnerSubEmail);
     }
 
     return {

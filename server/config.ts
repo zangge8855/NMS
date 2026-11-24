@@ -194,6 +194,7 @@ export interface AppConfig {
     jwt: {
         secret: string;
         expiresIn: string;
+        persistentExpiresIn: string;
     };
     auth: {
         adminUsername: string;
@@ -327,6 +328,7 @@ const config: AppConfig = {
     jwt: {
         secret: jwtSecret,
         expiresIn: process.env.JWT_EXPIRES_IN || '24h',
+        persistentExpiresIn: String(process.env.JWT_PERSISTENT_EXPIRES_IN || '365d').trim() || '365d',
     },
     auth: {
         adminUsername,

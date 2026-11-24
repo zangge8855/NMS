@@ -346,7 +346,7 @@
 }
 
 /* Dates and byte counts are figures; mono is kept for literal strings. */
-:root :is(.users-expiry-cell, .audit-event-time-cell, .users-traffic-total) {
+:root :is(.users-expiry-cell, .audit-event-time-cell, .users-traffic-total, .users-traffic-ratio, .users-traffic-pct) {
   font-family: var(--font-figure);
   font-variant-numeric: proportional-nums lining-nums;
   letter-spacing: 0;
@@ -2446,14 +2446,21 @@ body {
   }
 
   :root .users-table .users-select-column { width: 44px; }
-  :root .users-table .users-sequence-column { width: 60px; }
+  :root .users-table .users-sequence-column { width: 56px; }
   :root .users-table .users-identity-column { width: auto; min-width: 0; }
-  :root .users-table .users-status-column { width: 96px; }
-  :root .users-table .users-online-column { width: 92px; }
-  :root .users-table .users-node-count-column { width: 76px; }
-  :root .users-table .users-traffic-column { width: 140px; }
-  :root .users-table .users-expiry-column { width: 112px; }
+  :root .users-table .users-status-column { width: 92px; }
+  :root .users-table .users-online-column { width: 84px; }
+  :root .users-table .users-node-count-column { width: 68px; }
+  :root .users-table .users-traffic-column { width: 176px; }
+  :root .users-table .users-expiry-column { width: 104px; }
   :root .users-table .users-actions-column { width: 108px; }
+}
+
+@media (min-width: 1360px) {
+  :root .users-table .users-traffic-column { width: 196px; }
+}
+
+@media (min-width: 1101px) {
 
   :root .users-identity-copy {
     max-width: 100%;
@@ -3048,4 +3055,19 @@ body {
   border: 0 !important;
   border-block-start: 1px solid var(--border-color) !important;
   border-radius: 0 !important;
+}
+
+:root[data-theme] .users-mobile-metrics:has(.users-mobile-metric--full) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+:root[data-theme] .users-mobile-metrics:has(.users-mobile-metric--full) > .users-mobile-metric:nth-child(3) {
+  border-top: 0;
+  border-left: 1px solid var(--border-color);
+}
+
+:root[data-theme] .users-mobile-metrics > .users-mobile-metric--full {
+  grid-column: 1 / -1;
+  border-left: 0 !important;
+  border-top: 1px solid var(--border-color);
 }

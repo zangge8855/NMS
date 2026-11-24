@@ -4,6 +4,16 @@
 
 export type UserRole = 'admin' | 'operator' | 'auditor' | 'user';
 
+export interface UserExtraClientBinding {
+    id: string;
+    serverId: string;
+    inboundId: string;
+    clientEmail: string;
+    nodeLabel: string;
+    sourceClientEmail?: string;
+    createdAt: string;
+}
+
 export interface User {
     id: string;
     username: string;
@@ -13,9 +23,17 @@ export interface User {
     subscriptionAliasPath?: string | null;
     enabled?: boolean;
     groupId?: string | null;
+    groupName?: string;
+    trafficLimitBytes?: number;
+    trafficLimit?: number;
+    expiryTime?: number;
+    isGuest?: boolean;
+    guestExpiresAt?: string | null;
+    extraClients?: UserExtraClientBinding[];
     createdAt: number | string;
     updatedAt?: number | string;
     lastLogin?: number | string | null;
+    lastLoginAt?: number | string | null;
     twoFactorEnabled?: boolean;
 }
 
@@ -33,6 +51,7 @@ export interface ServerNode {
     cookie?: string;
     enabled: boolean;
     group?: string;
+    countryCode?: string;
     environment?: string;
     health?: string;
     panelType?: string;

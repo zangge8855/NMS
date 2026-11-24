@@ -21,6 +21,8 @@ import useFloatingPanel, { type ComputePositionParams } from '../../hooks/useFlo
 import { getManagedUsersSnapshotMeta } from '../../utils/managedUsersCache';
 import { SESSION_SNAPSHOT_EVENT } from '../../utils/sessionSnapshot';
 import { canMutateOperations, isAdminRole, isStaffRole } from '../../utils/permissions';
+import { resolveServerFlag } from '../../utils/accessGeo';
+import CountryFlag from '../UI/CountryFlag';
 import { hasOpenModal } from '../UI/ModalShell';
 
 const MAX_SEARCH_RESULTS = 10;
@@ -194,6 +196,7 @@ export default function Header({
                         kind: 'server',
                         id: serverId,
                         label,
+                        flag: resolveServerFlag(server),
                         section: copy.servers,
                         description: String(server?.url || server?.group || copy.serverMeta).trim(),
                         icon: HiOutlineServerStack,
@@ -203,6 +206,7 @@ export default function Header({
                             server?.name,
                             server?.url,
                             server?.group,
+                            server?.countryCode,
                             ...(Array.isArray(server?.tags) ? server.tags : []),
                             'server',
                             'node',
@@ -478,7 +482,10 @@ export default function Header({
                                     <ItemIcon />
                                 </span>
                                 <span className="header-search-item-copy">
-                                    <span className="header-search-item-label">{item.label}</span>
+                                    <span className="header-search-item-label">
+                                        {item.flag ? <CountryFlag flag={item.flag} label={item.label} /> : null}
+                                        {item.label}
+                                    </span>
                                     {item.description && item.description !== item.section ? (
                                         <span className="header-search-item-meta">{item.description}</span>
                                     ) : null}

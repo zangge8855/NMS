@@ -15,6 +15,13 @@ import { PANEL_TYPE_3XUI, isSuiServer, normalizePanelType } from '../../utils/pa
 import { showAggregateToast } from '../UI/AggregateToast';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../utils/format';
+import {
+    COMMON_COUNTRY_OPTIONS,
+    countryCodeToFlag,
+    resolveServerCountryCode,
+    resolveServerFlag,
+} from '../../utils/accessGeo';
+import CountryFlag from '../UI/CountryFlag';
 import { invalidateServerPanelDataCache } from '../../utils/serverPanelDataCache';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import api from '../../api/client';
@@ -28,6 +35,7 @@ import {
     HiOutlineEye,
     HiOutlineEyeSlash,
     HiOutlineXMark,
+    HiOutlineGlobeAlt,
 } from 'react-icons/hi2';
 import useMediaQuery from '../../hooks/useMediaQuery';
 import useServerTelemetry from '../../hooks/useServerTelemetry';
@@ -136,11 +144,13 @@ export default function Servers() {
         password: '',
         apiToken: '',
         group: '',
+        countryCode: '',
         tags: '',
         environment: 'unknown',
         health: 'unknown',
         panelType: PANEL_TYPE_3XUI,
     });
+    const [detectingCountry, setDetectingCountry] = useState(false);
     const [batchForm, setBatchForm] = useState({
         username: '',
         password: '',
@@ -212,11 +222,13 @@ export default function Servers() {
             password: '',
             apiToken: '',
             group: '',
+            countryCode: '',
             tags: '',
             environment: 'unknown',
             health: 'unknown',
             panelType: PANEL_TYPE_3XUI,
         });
+        setDetectingCountry(false);
         setEditingId(null);
         setShowForm(false);
     };
@@ -229,11 +241,13 @@ export default function Servers() {
             password: '',
             apiToken: '',
             group: '',
+            countryCode: '',
             tags: '',
             environment: 'unknown',
             health: 'unknown',
             panelType: PANEL_TYPE_3XUI,
         });
+        setDetectingCountry(false);
         setEditingId(null);
         setShowForm(true);
     };
@@ -370,6 +384,36 @@ export default function Servers() {
 
 
 
+    const handleDetectCountry = async () => {
+        if (detectingCountry) return;
+        const url = String(form.url || '').trim();
+        const name = String(form.name || '').trim();
+        if (!url && !name) {
+            toast.error(locale === 'en-US' ? 'Enter a panel URL or server name first' : '请先填写面板地址或服务器名称');
+            return;
+        }
+        setDetectingCountry(true);
+        try {
+            const res = await api.post('/servers/detect-country', { url, name });
+            const code = String(res.data?.obj?.countryCode || '').trim().toUpperCase();
+            if (code) {
+                setForm((prev) => ({ ...prev, countryCode: code }));
+                const flag = countryCodeToFlag(code);
+                toast.success(
+                    locale === 'en-US'
+                        ? `Detected country: ${flag ? `${flag} ` : ''}${code}`
+                        : `已识别地区：${flag ? `${flag} ` : ''}${code}`
+                );
+            } else {
+                toast.error(locale === 'en-US' ? 'Unable to detect country automatically' : '未能自动识别所属地区，请手动选择');
+            }
+        } catch (err) {
+            toast.error(getErrorMessage(err, locale === 'en-US' ? 'Country detection failed' : '地区识别失败', locale));
+        } finally {
+            setDetectingCountry(false);
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         const editingServer = editingId ? servers.find((item) => item.id === editingId) : null;
@@ -388,6 +432,7 @@ export default function Servers() {
                     .map((item) => item.trim())
                     .filter(Boolean),
                 group: String(form.group || '').trim(),
+                countryCode: String(form.countryCode || '').trim().toUpperCase(),
             };
             if (editingId) {
                 // Keep existing passwords and tokens if edit form leaves them blank.
@@ -465,6 +510,7 @@ export default function Servers() {
             password: '',
             apiToken: '',
             group: server.group || '',
+            countryCode: server.countryCode || '',
             tags: Array.isArray(server.tags) ? server.tags.join(', ') : '',
             environment: server.environment || 'unknown',
             health: server.health || 'unknown',
@@ -757,6 +803,7 @@ export default function Servers() {
                 server.username,
                 server.apiTokenConfigured ? 'api token bearer' : '',
                 server.group,
+                server.countryCode,
                 server.environment,
                 server.health,
                 liveStatus,
@@ -992,6 +1039,7 @@ export default function Servers() {
                         title={server.name}
                         onClick={(e) => { e.stopPropagation(); navigate(`/servers/${server.id}`); }}
                     >
+                        <CountryFlag flag={resolveServerFlag(server)} label={server.name} />
                         {server.name}
                     </button>
                 </div>
@@ -1314,7 +1362,10 @@ export default function Servers() {
                                                     title={server.name}
                                                     onClick={(e) => { e.stopPropagation(); navigate(`/servers/${server.id}`); }}
                                                 >
-                                                    <span className="server-card-name">{server.name}</span>
+                                                    <span className="server-card-name">
+                                                        <CountryFlag flag={resolveServerFlag(server)} label={server.name} />
+                                                        {server.name}
+                                                    </span>
                                                 </button>
                                                 <span
                                                     className={`badge servers-panel-badge ${isSuiServer(server) ? 'badge-info' : 'badge-neutral'}`}
@@ -1468,6 +1519,63 @@ export default function Servers() {
                                         <label htmlFor="servers-servers-panel-url" className="form-label">{t('comp.servers.panelUrl')} *</label>
                                         <input id="servers-servers-panel-url" name="serversServersPanelUrl" className="form-input" placeholder={t(isSuiServer(form) ? 'comp.servers.panelUrlPlaceholderSui' : 'comp.servers.panelUrlPlaceholder')}
                                             value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} required />
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="servers-country-code" className="form-label">
+                                            {locale === 'en-US' ? 'Country / Region (Flag)' : '国家 / 地区（国旗显示）'}
+                                        </label>
+                                        <div className="servers-country-row">
+                                            <select
+                                                id="servers-country-code"
+                                                name="serversCountryCode"
+                                                className="form-select"
+                                                value={form.countryCode}
+                                                onChange={(e) => setForm({ ...form, countryCode: e.target.value })}
+                                            >
+                                                <option value="">
+                                                    {(() => {
+                                                        const inferred = resolveServerCountryCode({
+                                                            name: form.name,
+                                                            group: form.group,
+                                                            tags: String(form.tags || '').split(',').map((s) => s.trim()).filter(Boolean),
+                                                        });
+                                                        const inferredFlag = inferred ? countryCodeToFlag(inferred) : '';
+                                                        if (locale === 'en-US') {
+                                                            return inferred
+                                                                ? `Auto from name (${inferredFlag} ${inferred})`
+                                                                : 'Auto from server name / tags';
+                                                        }
+                                                        return inferred
+                                                            ? `自动按名称识别（${inferredFlag} ${inferred}）`
+                                                            : '自动按名称/标签识别';
+                                                    })()}
+                                                </option>
+                                                {form.countryCode && !COMMON_COUNTRY_OPTIONS.some((opt) => opt.code === form.countryCode) ? (
+                                                    <option value={form.countryCode}>
+                                                        {`${countryCodeToFlag(form.countryCode)} ${form.countryCode}`.trim()}
+                                                    </option>
+                                                ) : null}
+                                                {COMMON_COUNTRY_OPTIONS.map((opt) => (
+                                                    <option key={opt.code} value={opt.code}>
+                                                        {`${opt.flag} ${locale === 'en-US' ? opt.en : opt.zh} (${opt.code})`}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <button
+                                                type="button"
+                                                className="btn btn-secondary btn-sm shrink-0"
+                                                onClick={handleDetectCountry}
+                                                disabled={detectingCountry || (!form.url.trim() && !form.name.trim())}
+                                            >
+                                                {detectingCountry ? <span className="spinner" /> : <HiOutlineGlobeAlt aria-hidden="true" />}
+                                                <span>{locale === 'en-US' ? 'Auto-detect' : '自动识别'}</span>
+                                            </button>
+                                        </div>
+                                        <div className="text-xs text-muted mt-1">
+                                            {locale === 'en-US'
+                                                ? 'When set explicitly, the country flag is also shown in subscription node names.'
+                                                : '显式指定地区后，控制台列表与订阅节点名称都会自动展示对应国旗。'}
+                                        </div>
                                     </div>
                                     <div className="grid-auto-220">
                                         <div className="form-group">

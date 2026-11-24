@@ -5,6 +5,7 @@ export { normalizeClientLocale, resolveActiveClientLocale, type ClientLocale };
 
 const TOKEN_KEY = 'nms_token';
 const LEGACY_TOKEN_KEY = 'xui_token';
+export const AUTH_TOKEN_STORAGE_KEY = TOKEN_KEY;
 
 function readLegacyToken(): string {
     const legacySessionValue = sessionStorage.getItem(LEGACY_TOKEN_KEY);
@@ -17,7 +18,7 @@ function readLegacyToken(): string {
 
     const legacyLocalValue = localStorage.getItem(LEGACY_TOKEN_KEY);
     if (legacyLocalValue) {
-        sessionStorage.setItem(TOKEN_KEY, legacyLocalValue);
+        localStorage.setItem(TOKEN_KEY, legacyLocalValue);
         localStorage.removeItem(LEGACY_TOKEN_KEY);
         return legacyLocalValue;
     }
@@ -29,20 +30,27 @@ export function getStoredToken(): string {
     const sessionValue = sessionStorage.getItem(TOKEN_KEY);
     if (sessionValue) return sessionValue;
 
-    const legacyValue = localStorage.getItem(TOKEN_KEY);
-    if (legacyValue) {
-        sessionStorage.setItem(TOKEN_KEY, legacyValue);
-        localStorage.removeItem(TOKEN_KEY);
-    }
-    if (legacyValue) return legacyValue;
+    const localValue = localStorage.getItem(TOKEN_KEY);
+    if (localValue) return localValue;
 
     return readLegacyToken();
 }
 
-export function setStoredToken(token: string): void {
+export function isSessionPersistent(): boolean {
+    if (sessionStorage.getItem(TOKEN_KEY)) return false;
+    return Boolean(localStorage.getItem(TOKEN_KEY));
+}
+
+export function setStoredToken(token: string, options: { persistent?: boolean } = {}): void {
     if (!token) return;
-    sessionStorage.setItem(TOKEN_KEY, token);
-    localStorage.removeItem(TOKEN_KEY);
+    const persistent = options.persistent !== false;
+    if (persistent) {
+        localStorage.setItem(TOKEN_KEY, token);
+        sessionStorage.removeItem(TOKEN_KEY);
+    } else {
+        sessionStorage.setItem(TOKEN_KEY, token);
+        localStorage.removeItem(TOKEN_KEY);
+    }
     sessionStorage.removeItem(LEGACY_TOKEN_KEY);
     localStorage.removeItem(LEGACY_TOKEN_KEY);
 }

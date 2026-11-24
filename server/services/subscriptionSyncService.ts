@@ -55,6 +55,65 @@ function findManagedClientByEmail(clients: any[] = [], emailCandidates: string[]
     return (Array.isArray(clients) ? clients : []).find((item) => wanted.has(normalizeEmailInput(item?.email))) || null;
 }
 
+function normalizeExtraClientsForInbound(extraClients: any = [], serverId: string = '', inboundId: unknown = ''): any[] {
+    if (!Array.isArray(extraClients) || extraClients.length === 0) return [];
+    const sid = String(serverId || '').trim();
+    const iid = String(inboundId ?? '').trim();
+    return extraClients.filter((binding: any) => {
+        if (!binding || typeof binding !== 'object') return false;
+        const bindingServerId = String(binding.serverId || '').trim();
+        const bindingInboundId = String(binding.inboundId || '').trim();
+        const bindingEmail = normalizeEmailInput(binding.clientEmail);
+        if (!bindingEmail) return false;
+        if (bindingServerId && bindingServerId !== sid) return false;
+        if (bindingInboundId && iid && bindingInboundId !== iid) return false;
+        return true;
+    });
+}
+
+function collectManagedClientsForInbound(
+    clients: any[] = [],
+    {
+        emailCandidates = [],
+        extraBindings = [],
+        onlyExtraClients = false,
+        protocol = '',
+    }: {
+        emailCandidates?: string[];
+        extraBindings?: any[];
+        onlyExtraClients?: boolean;
+        protocol?: string;
+    } = {}
+): Array<{ client: any; isExtra: boolean; binding: any | null }> {
+    const wantedPrimary = new Set(onlyExtraClients ? [] : collectManagedEmailCandidates('', emailCandidates));
+    const extraByEmail = new Map<string, any>();
+    (Array.isArray(extraBindings) ? extraBindings : []).forEach((binding) => {
+        const key = normalizeEmailInput(binding?.clientEmail);
+        if (key && !extraByEmail.has(key)) {
+            extraByEmail.set(key, binding);
+        }
+    });
+
+    const matched: Array<{ client: any; isExtra: boolean; binding: any | null }> = [];
+    const seen = new Set<string>();
+    for (const item of Array.isArray(clients) ? clients : []) {
+        const keyEmail = normalizeEmailInput(item?.email);
+        const isPrimary = !onlyExtraClients && Boolean(keyEmail) && wantedPrimary.has(keyEmail);
+        const matchedBinding = !isPrimary && Boolean(keyEmail) ? (extraByEmail.get(keyEmail) || null) : null;
+        if (!isPrimary && !matchedBinding) continue;
+
+        const dedupKey = `${resolveClientIdentifier(item, protocol)}:${keyEmail}`;
+        if (seen.has(dedupKey)) continue;
+        seen.add(dedupKey);
+        matched.push({
+            client: item,
+            isExtra: !isPrimary,
+            binding: matchedBinding,
+        });
+    }
+    return matched;
+}
+
 function shouldCanonicalizeManagedClientEmail(client: any = {}, canonicalEmail: string = ''): boolean {
     const normalizedCanonicalEmail = normalizeEmailInput(canonicalEmail);
     return Boolean(normalizedCanonicalEmail) && normalizeEmailInput(client?.email) !== normalizedCanonicalEmail;
@@ -678,6 +737,135 @@ async function rotateManagedSubscriptionCredentials(subscriptionEmail: string, p
         forceCredentialRotation: true,
     }, deps);
 
+    const usersRepo = deps.userRepository || userRepository;
+    const serversRepo = deps.serverRepository || serverRepository;
+    const overrideRepository = deps.overrideRepository || clientEntitlementOverrideRepository;
+    const listInbounds = deps.listPanelInbounds || listPanelInbounds;
+    const updateClient = deps.postUpdateClient || postUpdateClient;
+
+    const ownerUser = !Array.isArray(options.extraClients)
+        ? (usersRepo?.getBySubscriptionEmail?.(normalizedEmail) || usersRepo?.getByEmail?.(normalizedEmail) || null)
+        : null;
+    const rawExtraClients = Array.isArray(options.extraClients)
+        ? options.extraClients
+        : (Array.isArray(ownerUser?.extraClients) ? ownerUser.extraClients : []);
+    const targetServerFilter = String(options.serverId || '').trim();
+    const scopedExtraClients = targetServerFilter
+        ? rawExtraClients.filter((item: any) => String(item?.serverId || '').trim() === targetServerFilter)
+        : rawExtraClients;
+
+    if (scopedExtraClients.length > 0) {
+        const allServers = Array.isArray(options.allServers) ? options.allServers : serversRepo.list();
+        const serverMap = new Map(allServers.map((srv: any) => [String(srv?.id || '').trim(), srv]));
+        const byServer = new Map<string, any[]>();
+        scopedExtraClients.forEach((binding: any) => {
+            const sid = String(binding?.serverId || '').trim();
+            if (!sid) return;
+            const list = byServer.get(sid) || [];
+            list.push(binding);
+            byServer.set(sid, list);
+        });
+
+        for (const [serverId, bindings] of byServer.entries()) {
+            const server: any = serverMap.get(serverId);
+            if (!server) continue;
+            let panelContext: any;
+            try {
+                panelContext = await listInbounds(server.id);
+            } catch (error) {
+                deployment.failed += 1;
+                deployment.total += 1;
+                deployment.details.push({
+                    serverId: server.id,
+                    serverName: server.name,
+                    status: 'failed',
+                    error: redactCredentials(buildPanelListFailureMessage(error)),
+                });
+                continue;
+            }
+
+            const panelClient = panelContext.client;
+            const inbounds = Array.isArray(panelContext.inbounds) ? panelContext.inbounds : [];
+            for (const inbound of inbounds) {
+                const protocol = String(inbound.protocol || '').toLowerCase();
+                if (!isManagedClientProtocol(protocol, inbound)) continue;
+                const inboundBindings = normalizeExtraClientsForInbound(bindings, server.id, inbound.id);
+                if (inboundBindings.length === 0) continue;
+
+                const existingClients = parseInboundClients(inbound);
+                const matchedItems = collectManagedClientsForInbound(existingClients, {
+                    extraBindings: inboundBindings,
+                    onlyExtraClients: true,
+                    protocol,
+                });
+
+                for (const matched of matchedItems) {
+                    const match = matched.client;
+                    deployment.total += 1;
+                    try {
+                        const oldIdentifier = resolveClientIdentifier(match, protocol);
+                        const existingOverride = overrideRepository?.get?.(server.id, inbound.id, oldIdentifier) || null;
+                        const preservedEntitlement = existingOverride || {
+                            expiryTime: normalizeNonNegativeInt(match.expiryTime, 0),
+                            limitIp: normalizeNonNegativeInt(match.limitIp, 0),
+                            trafficLimitBytes: normalizeNonNegativeInt(match.totalGB, 0),
+                            speedLimitUp: normalizeNonNegativeInt(match.speedLimitUp, 0),
+                            speedLimitDown: normalizeNonNegativeInt(match.speedLimitDown, 0),
+                            tgId: Number(match.tgId) || 0,
+                            group: String(match.group || '').trim(),
+                            comment: String(match.comment || '').trim(),
+                            reset: Number(match.reset) || 0,
+                        };
+                        const freshExtraCredentials = createSharedCredentials();
+                        const rotatedClient = applyManagedCredentialsToClient(match, {
+                            email: String(match.email || '').trim(),
+                            protocol,
+                            inbound,
+                            sharedCredentials: freshExtraCredentials,
+                            entitlement: preservedEntitlement,
+                            resolveFlow: resolveDeployFlow,
+                        });
+                        rotatedClient.enable = match.enable !== false;
+
+                        await updateClient(panelClient, inbound.id, oldIdentifier, rotatedClient, { protocol });
+                        const nextIdentifier = resolveClientIdentifier(rotatedClient, protocol);
+                        if (existingOverride && nextIdentifier && nextIdentifier !== oldIdentifier) {
+                            overrideRepository.remove(server.id, String(inbound.id), oldIdentifier);
+                            overrideRepository.upsert({
+                                ...existingOverride,
+                                serverId: server.id,
+                                inboundId: String(inbound.id),
+                                clientIdentifier: nextIdentifier,
+                                email: String(match.email || '').trim(),
+                            }, 'credential-rotation');
+                        }
+                        markServerPanelSnapshotStale(server.id);
+                        deployment.updated += 1;
+                        deployment.details.push({
+                            serverId: server.id,
+                            serverName: server.name,
+                            inboundId: inbound.id,
+                            inboundRemark: inbound.remark || '',
+                            protocol,
+                            status: 'extra-credentials-rotated',
+                        });
+                    } catch (error: any) {
+                        deployment.failed += 1;
+                        deployment.details.push({
+                            serverId: server.id,
+                            serverName: server.name,
+                            inboundId: inbound.id,
+                            inboundRemark: inbound.remark || '',
+                            protocol,
+                            status: 'failed',
+                            error: redactCredentials(error.message),
+                        });
+                    }
+                }
+            }
+        }
+    }
+
     return {
         ...deployment,
         sharedCredentials,
@@ -686,11 +874,13 @@ async function rotateManagedSubscriptionCredentials(subscriptionEmail: string, p
 
 async function autoRemoveClients(subscriptionEmail: string, options: any = {}, deps: any = {}): Promise<any> {
     const servers = deps.serverRepository || serverRepository;
+    const overrideRepository = deps.overrideRepository || clientEntitlementOverrideRepository;
     const listInbounds = deps.listPanelInbounds || listPanelInbounds;
 
     const result: any = { total: 0, removed: 0, failed: 0, details: [] };
     const email = normalizeEmailInput(subscriptionEmail);
-    if (!email) return result;
+    const extraClients = Array.isArray(options.extraClients) ? options.extraClients : [];
+    if (!email && extraClients.length === 0) return result;
     const emailCandidates = collectManagedEmailCandidates(email, options.emailAliases);
 
     const allServers = Array.isArray(options.allServers) ? options.allServers : servers.list();
@@ -718,38 +908,50 @@ async function autoRemoveClients(subscriptionEmail: string, options: any = {}, d
             if (!isManagedClientProtocol(protocol, inbound)) continue;
 
             const existingClients = parseInboundClients(inbound);
-            const match = findManagedClientByEmail(existingClients, emailCandidates);
-            if (!match) continue;
+            const inboundExtraBindings = normalizeExtraClientsForInbound(extraClients, server.id, inbound.id);
+            const matchedItems = collectManagedClientsForInbound(existingClients, {
+                emailCandidates,
+                extraBindings: inboundExtraBindings,
+                onlyExtraClients: !email,
+                protocol,
+            });
+            if (matchedItems.length === 0) continue;
 
-            result.total += 1;
-            try {
-                const clientIdentifier = resolveClientIdentifier(match, protocol);
-                await postDeleteClientFromInboundCompat(client, inbound.id, clientIdentifier, {
-                    email: match.email,
-                    protocol,
-                    sourceClient: match,
-                });
-                markServerPanelSnapshotStale(server.id);
-                result.removed += 1;
-                result.details.push({
-                    serverId: server.id,
-                    serverName: server.name,
-                    inboundId: inbound.id,
-                    inboundRemark: inbound.remark || '',
-                    protocol,
-                    status: 'removed',
-                });
-            } catch (error: any) {
-                result.failed += 1;
-                result.details.push({
-                    serverId: server.id,
-                    serverName: server.name,
-                    inboundId: inbound.id,
-                    inboundRemark: inbound.remark || '',
-                    protocol,
-                    status: 'failed',
-                    error: redactCredentials(error.message),
-                });
+            for (const matched of matchedItems) {
+                const match = matched.client;
+                result.total += 1;
+                try {
+                    const clientIdentifier = resolveClientIdentifier(match, protocol);
+                    await postDeleteClientFromInboundCompat(client, inbound.id, clientIdentifier, {
+                        email: match.email,
+                        protocol,
+                        sourceClient: match,
+                    });
+                    if (clientIdentifier && typeof overrideRepository?.remove === 'function') {
+                        overrideRepository.remove(server.id, String(inbound.id), clientIdentifier);
+                    }
+                    markServerPanelSnapshotStale(server.id);
+                    result.removed += 1;
+                    result.details.push({
+                        serverId: server.id,
+                        serverName: server.name,
+                        inboundId: inbound.id,
+                        inboundRemark: inbound.remark || '',
+                        protocol,
+                        status: 'removed',
+                    });
+                } catch (error: any) {
+                    result.failed += 1;
+                    result.details.push({
+                        serverId: server.id,
+                        serverName: server.name,
+                        inboundId: inbound.id,
+                        inboundRemark: inbound.remark || '',
+                        protocol,
+                        status: 'failed',
+                        error: redactCredentials(error.message),
+                    });
+                }
             }
         }
     }
@@ -764,7 +966,9 @@ async function autoSetManagedClientsEnabled(subscriptionEmail: string, enabled: 
 
     const result: any = { total: 0, updated: 0, skipped: 0, failed: 0, details: [] };
     const email = normalizeEmailInput(subscriptionEmail);
-    if (!email) return result;
+    const extraClients = Array.isArray(options.extraClients) ? options.extraClients : [];
+    const onlyExtraClients = options.onlyExtraClients === true;
+    if (!email && extraClients.length === 0) return result;
     const emailCandidates = collectManagedEmailCandidates(email, options.emailAliases);
 
     const allServers = Array.isArray(options.allServers) ? options.allServers : servers.list();
@@ -792,12 +996,100 @@ async function autoSetManagedClientsEnabled(subscriptionEmail: string, enabled: 
             if (enabled && inbound.enable === false) continue;
 
             const existingClients = parseInboundClients(inbound);
-            const match = findManagedClientByEmail(existingClients, emailCandidates);
-            if (!match) continue;
+            const inboundExtraBindings = normalizeExtraClientsForInbound(extraClients, server.id, inbound.id);
+            const matchedItems = collectManagedClientsForInbound(existingClients, {
+                emailCandidates,
+                extraBindings: inboundExtraBindings,
+                onlyExtraClients,
+                protocol,
+            });
+            if (matchedItems.length === 0) continue;
 
-            result.total += 1;
-            if (enabled) {
-                if (scopedPolicy.serverScopeMode === 'none' || scopedPolicy.protocolScopeMode === 'none') {
+            for (const matched of matchedItems) {
+                const match = matched.client;
+                result.total += 1;
+                if (enabled) {
+                    if (scopedPolicy.serverScopeMode === 'none' || scopedPolicy.protocolScopeMode === 'none') {
+                        result.skipped += 1;
+                        result.details.push({
+                            serverId: server.id,
+                            serverName: server.name,
+                            inboundId: inbound.id,
+                            inboundRemark: inbound.remark || '',
+                            protocol,
+                            status: 'skipped',
+                            reason: 'blocked-by-policy',
+                        });
+                        continue;
+                    }
+                    if (scopedPolicy.serverScopeMode === 'selected' && !scopedPolicy.allowedServerIds.has(server.id)) {
+                        result.skipped += 1;
+                        result.details.push({
+                            serverId: server.id,
+                            serverName: server.name,
+                            inboundId: inbound.id,
+                            inboundRemark: inbound.remark || '',
+                            protocol,
+                            status: 'skipped',
+                            reason: 'server-not-allowed',
+                        });
+                        continue;
+                    }
+                    if (scopedPolicy.blockedServerIds.has(server.id)) {
+                        result.skipped += 1;
+                        result.details.push({
+                            serverId: server.id,
+                            serverName: server.name,
+                            inboundId: inbound.id,
+                            inboundRemark: inbound.remark || '',
+                            protocol,
+                            status: 'skipped',
+                            reason: 'server-blocked',
+                        });
+                        continue;
+                    }
+                    if (scopedPolicy.protocolScopeMode === 'selected' && !scopedPolicy.allowedProtocols.has(protocol)) {
+                        result.skipped += 1;
+                        result.details.push({
+                            serverId: server.id,
+                            serverName: server.name,
+                            inboundId: inbound.id,
+                            inboundRemark: inbound.remark || '',
+                            protocol,
+                            status: 'skipped',
+                            reason: 'protocol-not-allowed',
+                        });
+                        continue;
+                    }
+                    if (scopedPolicy.allowedInboundKeys.size > 0 && !scopedPolicy.allowedInboundKeys.has(`${server.id}:${inbound.id}`)) {
+                        result.skipped += 1;
+                        result.details.push({
+                            serverId: server.id,
+                            serverName: server.name,
+                            inboundId: inbound.id,
+                            inboundRemark: inbound.remark || '',
+                            protocol,
+                            status: 'skipped',
+                            reason: 'inbound-not-allowed',
+                        });
+                        continue;
+                    }
+                    if (scopedPolicy.blockedInboundKeys.has(`${server.id}:${inbound.id}`)) {
+                        result.skipped += 1;
+                        result.details.push({
+                            serverId: server.id,
+                            serverName: server.name,
+                            inboundId: inbound.id,
+                            inboundRemark: inbound.remark || '',
+                            protocol,
+                            status: 'skipped',
+                            reason: 'inbound-blocked',
+                        });
+                        continue;
+                    }
+                }
+                const needsEmailCanonicalization = !matched.isExtra && shouldCanonicalizeManagedClientEmail(match, email);
+                if ((match.enable !== false) === Boolean(enabled) && !needsEmailCanonicalization) {
                     result.skipped += 1;
                     result.details.push({
                         serverId: server.id,
@@ -806,119 +1098,42 @@ async function autoSetManagedClientsEnabled(subscriptionEmail: string, enabled: 
                         inboundRemark: inbound.remark || '',
                         protocol,
                         status: 'skipped',
-                        reason: 'blocked-by-policy',
+                        reason: enabled ? 'already-enabled' : 'already-disabled',
                     });
                     continue;
                 }
-                if (scopedPolicy.serverScopeMode === 'selected' && !scopedPolicy.allowedServerIds.has(server.id)) {
-                    result.skipped += 1;
-                    result.details.push({
-                        serverId: server.id,
-                        serverName: server.name,
-                        inboundId: inbound.id,
-                        inboundRemark: inbound.remark || '',
-                        protocol,
-                        status: 'skipped',
-                        reason: 'server-not-allowed',
-                    });
-                    continue;
-                }
-                if (scopedPolicy.blockedServerIds.has(server.id)) {
-                    result.skipped += 1;
-                    result.details.push({
-                        serverId: server.id,
-                        serverName: server.name,
-                        inboundId: inbound.id,
-                        inboundRemark: inbound.remark || '',
-                        protocol,
-                        status: 'skipped',
-                        reason: 'server-blocked',
-                    });
-                    continue;
-                }
-                if (scopedPolicy.protocolScopeMode === 'selected' && !scopedPolicy.allowedProtocols.has(protocol)) {
-                    result.skipped += 1;
-                    result.details.push({
-                        serverId: server.id,
-                        serverName: server.name,
-                        inboundId: inbound.id,
-                        inboundRemark: inbound.remark || '',
-                        protocol,
-                        status: 'skipped',
-                        reason: 'protocol-not-allowed',
-                    });
-                    continue;
-                }
-                if (scopedPolicy.allowedInboundKeys.size > 0 && !scopedPolicy.allowedInboundKeys.has(`${server.id}:${inbound.id}`)) {
-                    result.skipped += 1;
-                    result.details.push({
-                        serverId: server.id,
-                        serverName: server.name,
-                        inboundId: inbound.id,
-                        inboundRemark: inbound.remark || '',
-                        protocol,
-                        status: 'skipped',
-                        reason: 'inbound-not-allowed',
-                    });
-                    continue;
-                }
-                if (scopedPolicy.blockedInboundKeys.has(`${server.id}:${inbound.id}`)) {
-                    result.skipped += 1;
-                    result.details.push({
-                        serverId: server.id,
-                        serverName: server.name,
-                        inboundId: inbound.id,
-                        inboundRemark: inbound.remark || '',
-                        protocol,
-                        status: 'skipped',
-                        reason: 'inbound-blocked',
-                    });
-                    continue;
-                }
-            }
-            const needsEmailCanonicalization = shouldCanonicalizeManagedClientEmail(match, email);
-            if ((match.enable !== false) === Boolean(enabled) && !needsEmailCanonicalization) {
-                result.skipped += 1;
-                result.details.push({
-                    serverId: server.id,
-                    serverName: server.name,
-                    inboundId: inbound.id,
-                    inboundRemark: inbound.remark || '',
-                    protocol,
-                    status: 'skipped',
-                    reason: enabled ? 'already-enabled' : 'already-disabled',
-                });
-                continue;
-            }
 
-            try {
-                const clientIdentifier = resolveClientIdentifier(match, protocol);
-                await updateClient(client, inbound.id, clientIdentifier, {
-                    ...match,
-                    email: resolveManagedClientEmail(match, email),
-                    enable: Boolean(enabled),
-                });
-                markServerPanelSnapshotStale(server.id);
-                result.updated += 1;
-                result.details.push({
-                    serverId: server.id,
-                    serverName: server.name,
-                    inboundId: inbound.id,
-                    inboundRemark: inbound.remark || '',
-                    protocol,
-                    status: enabled ? 'enabled' : 'disabled',
-                });
-            } catch (error: any) {
-                result.failed += 1;
-                result.details.push({
-                    serverId: server.id,
-                    serverName: server.name,
-                    inboundId: inbound.id,
-                    inboundRemark: inbound.remark || '',
-                    protocol,
-                    status: 'failed',
-                    error: redactCredentials(error.message),
-                });
+                try {
+                    const clientIdentifier = resolveClientIdentifier(match, protocol);
+                    await updateClient(client, inbound.id, clientIdentifier, {
+                        ...match,
+                        email: matched.isExtra
+                            ? String(match.email || '').trim()
+                            : resolveManagedClientEmail(match, email),
+                        enable: Boolean(enabled),
+                    });
+                    markServerPanelSnapshotStale(server.id);
+                    result.updated += 1;
+                    result.details.push({
+                        serverId: server.id,
+                        serverName: server.name,
+                        inboundId: inbound.id,
+                        inboundRemark: inbound.remark || '',
+                        protocol,
+                        status: enabled ? 'enabled' : 'disabled',
+                    });
+                } catch (error: any) {
+                    result.failed += 1;
+                    result.details.push({
+                        serverId: server.id,
+                        serverName: server.name,
+                        inboundId: inbound.id,
+                        inboundRemark: inbound.remark || '',
+                        protocol,
+                        status: 'failed',
+                        error: redactCredentials(error.message),
+                    });
+                }
             }
         }
     }

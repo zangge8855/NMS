@@ -449,13 +449,14 @@ router.post('/login', async (req, res) => {
     res.json({
         success: true,
         token: result.token,
+        persistent: result.persistent === true,
         user: result.user,
     });
 });
 
 /**
  * GET /api/auth/check
- * 验证 JWT 是否有效, 返回用户信息
+ * 验证 JWT 是否有效, 返回用户信息（持久化登录在活跃访问时自动续期）
  */
 router.get('/check', (req, res) => {
     try {
@@ -463,6 +464,8 @@ router.get('/check', (req, res) => {
         res.json({
             success: true,
             user: result.user,
+            ...(result.refreshedToken ? { token: result.refreshedToken } : {}),
+            ...(result.persistent === true ? { persistent: true } : {}),
         });
     } catch {
         res.status(401).json({ success: false });
@@ -1311,7 +1314,12 @@ router.post('/login/2fa', (req, res) => {
         }
         clearLoginRate(clientIp, '2fa_challenge');
         appendSecurityAudit('login_two_factor_success', req, result.audit || {});
-        return res.json({ success: true, token: result.token, user: result.user });
+        return res.json({
+            success: true,
+            token: result.token,
+            persistent: result.persistent === true,
+            user: result.user,
+        });
     } catch (err) {
         recordLoginFailure(clientIp, '2fa_challenge');
         const error = toHttpError(err, 401, pickLocalizedText(locale, '2FA 验证失败', '2FA verification failed'));
@@ -1496,7 +1504,7 @@ router.post('/passkey/login-options', async (req, res) => {
 router.post('/passkey/login-verify', async (req, res) => {
     const locale = resolveRequestLocale(req);
     const clientIp = resolveClientIp(req);
-    const { challengeSessionId, response } = req.body || {};
+    const { challengeSessionId, response, rememberMe } = req.body || {};
     const passkeyRateState = getLoginRateState(clientIp, 'passkey');
     if (passkeyRateState.blocked) {
         appendSecurityAudit('login_rate_limited', req, { ip: clientIp, action: 'passkey_login' });
@@ -1577,7 +1585,10 @@ router.post('/passkey/login-verify', async (req, res) => {
         clearLoginRate(clientIp, 'passkey');
         clearLoginRate(clientIp, user.username);
 
-        const { token, user: sanitizedUser, audit } = createDirectUserSession(user);
+        const isPersistent = rememberMe !== false;
+        const { token, user: sanitizedUser, audit, persistent } = createDirectUserSession(user, {
+            rememberMe: isPersistent,
+        });
         appendSecurityAudit('login_passkey_success', req, {
             ip: clientIp,
             ...audit,
@@ -1589,6 +1600,7 @@ router.post('/passkey/login-verify', async (req, res) => {
             success: true,
             msg: pickLocalizedText(locale, 'Passkey 验证成功，登录成功', 'Passkey verified; signed in successfully'),
             token,
+            persistent: persistent === true,
             user: sanitizedUser,
         });
     } catch (err: any) {

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import api, {
     clearStoredToken,
     getStoredToken,
+    isSessionPersistent,
     setStoredToken,
     shouldClearSessionOnUnauthorized,
 } from './client';
@@ -12,25 +13,37 @@ describe('api client token storage', () => {
         localStorage.clear();
     });
 
-    it('migrates the legacy session token into the current key', () => {
+    it('migrates legacy session and local tokens in place without losing persistence', () => {
         sessionStorage.setItem('xui_token', 'legacy-session-token');
 
         expect(getStoredToken()).toBe('legacy-session-token');
         expect(sessionStorage.getItem('nms_token')).toBe('legacy-session-token');
         expect(sessionStorage.getItem('xui_token')).toBeNull();
-    });
+        expect(isSessionPersistent()).toBe(false);
 
-    it('moves the current local token into session storage', () => {
-        localStorage.setItem('nms_token', 'legacy-local-token');
+        sessionStorage.clear();
+        localStorage.setItem('xui_token', 'legacy-local-token');
 
         expect(getStoredToken()).toBe('legacy-local-token');
-        expect(sessionStorage.getItem('nms_token')).toBe('legacy-local-token');
-        expect(localStorage.getItem('nms_token')).toBeNull();
+        expect(localStorage.getItem('nms_token')).toBe('legacy-local-token');
+        expect(localStorage.getItem('xui_token')).toBeNull();
+        expect(sessionStorage.getItem('nms_token')).toBeNull();
+        expect(isSessionPersistent()).toBe(true);
     });
 
-    it('writes and clears the current token consistently', () => {
-        setStoredToken('current-token');
-        expect(sessionStorage.getItem('nms_token')).toBe('current-token');
+    it('preserves a persistent localStorage token across reads and supports session-only opt-out', () => {
+        setStoredToken('persistent-token');
+        expect(localStorage.getItem('nms_token')).toBe('persistent-token');
+        expect(sessionStorage.getItem('nms_token')).toBeNull();
+        expect(getStoredToken()).toBe('persistent-token');
+        expect(localStorage.getItem('nms_token')).toBe('persistent-token');
+        expect(isSessionPersistent()).toBe(true);
+
+        setStoredToken('session-only-token', { persistent: false });
+        expect(sessionStorage.getItem('nms_token')).toBe('session-only-token');
+        expect(localStorage.getItem('nms_token')).toBeNull();
+        expect(getStoredToken()).toBe('session-only-token');
+        expect(isSessionPersistent()).toBe(false);
 
         clearStoredToken();
         expect(sessionStorage.getItem('nms_token')).toBeNull();
