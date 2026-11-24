@@ -1947,7 +1947,7 @@ select {
   box-shadow: none;
   font-size: 13px;
   font-weight: 500;
-  transition: all var(--transition-fast, 150ms ease);
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .tab.active,

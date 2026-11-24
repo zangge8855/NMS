@@ -1,0 +1,938 @@
+/* ==========================================================================
+   NMS Architectural Design System Layer (Gemini Frontend Design)
+   Loaded last in main.tsx.
+
+   Visual Direction: "Precision Telemetry Instrument"
+   - Dark mode: Obsidian graphite surfaces stepped by tone + crisp verdigris-aqua signal.
+   - Light mode: Mineral alabaster workspace + deep obsidian structural navigation rail,
+     integrating the dark NMS mark cleanly into the masthead.
+   - Typography: Schibsted Grotesk (brand + figures) + Noto Sans SC (UI & prose);
+     IBM Plex Mono strictly for literal ports, URLs, keys, and logs.
+   - Zero nested card cages: toolbars sit directly on the canvas; multi-option
+     filters render as connected segmented controls; non-interactive metadata
+     reads as plain typography rather than decorative pill boxes.
+   ========================================================================== */
+
+:root {
+  --gd-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --gd-fast: 160ms;
+  --gd-normal: 200ms;
+}
+
+/* --------------------------------------------------------------------------
+   1. Dark Architectural Navigation Rail (Unified across Light & Dark modes)
+   -------------------------------------------------------------------------- */
+:root[data-theme] .sidebar {
+  background: var(--rail-bg);
+  border-inline-end: 1px solid var(--rail-border);
+  color: var(--rail-text);
+}
+
+:root[data-theme] .sidebar-logo {
+  position: relative;
+  min-height: 62px;
+  padding-inline: 18px 46px;
+  border-block-end: 1px solid var(--rail-border);
+}
+
+:root[data-theme] .sidebar.collapsed .sidebar-logo {
+  padding-inline: 12px;
+}
+
+:root[data-theme] .sidebar-logo-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+:root[data-theme] .sidebar .sidebar-logo-text,
+:root[data-theme] .sidebar .sidebar-logo-text-gradient {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--rail-text) !important;
+  background: none !important;
+  -webkit-text-fill-color: var(--rail-text) !important;
+}
+
+:root[data-theme] .sidebar-logo-subtitle {
+  color: var(--rail-text-muted);
+  font-size: 0.8125rem;
+}
+
+/* Tuck the sidebar collapse trigger flush inside the header rail rather than
+   floating a circle straddling the sidebar border. */
+:root[data-theme] .sidebar .sidebar-toggle {
+  position: absolute;
+  top: 17px;
+  right: 12px;
+  left: auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--rail-text-muted);
+  box-shadow: none;
+  transition: background-color var(--gd-fast) var(--gd-ease), color var(--gd-fast) var(--gd-ease), border-color var(--gd-fast) var(--gd-ease);
+}
+
+:root[data-theme] .sidebar .sidebar-toggle:hover {
+  background: var(--rail-hover);
+  color: var(--rail-text);
+  border-color: var(--rail-border);
+}
+
+:root[data-theme] .sidebar.collapsed .sidebar-toggle {
+  top: 68px;
+  right: 50%;
+  transform: translateX(50%);
+}
+
+:root[data-theme] .sidebar.collapsed .sidebar-nav {
+  padding-top: 38px;
+}
+
+:root[data-theme] .sidebar .nav-section + .nav-section {
+  border-block-start: 1px solid var(--rail-border);
+  padding-block-start: 14px;
+  margin-block-start: 12px;
+}
+
+:root[data-theme] .sidebar .nav-section-title {
+  color: var(--rail-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  padding-inline: 12px;
+  margin-block-end: 6px;
+}
+
+:root[data-theme] .sidebar .nav-item {
+  color: var(--rail-text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 9px 12px;
+  border-radius: 8px;
+  transition: background-color var(--gd-fast) var(--gd-ease), color var(--gd-fast) var(--gd-ease);
+}
+
+:root[data-theme] .sidebar .nav-item-icon {
+  color: var(--rail-text-muted);
+  transition: color var(--gd-fast) var(--gd-ease);
+}
+
+:root[data-theme] .sidebar .nav-item:hover:not(.active) {
+  background: var(--rail-hover);
+  color: var(--rail-text);
+}
+
+:root[data-theme] .sidebar .nav-item:hover:not(.active) .nav-item-icon {
+  color: var(--rail-text-secondary);
+}
+
+:root[data-theme] .sidebar .nav-item.active {
+  background: var(--rail-active-bg);
+  color: var(--rail-text);
+  font-weight: 600;
+}
+
+:root[data-theme] .sidebar .nav-item.active .nav-item-icon {
+  color: var(--rail-signal);
+}
+
+:root[data-theme] .sidebar .nav-item .active-glow {
+  background: var(--rail-signal);
+  width: 3px;
+  inset-block: 8px;
+}
+
+:root[data-theme] .sidebar .nav-badge {
+  background: rgba(240, 123, 116, 0.18);
+  color: #f69b95;
+  border: 1px solid rgba(240, 123, 116, 0.3);
+  font-size: 0.75rem;
+  font-weight: 600;
+  min-width: 20px;
+  height: 20px;
+  padding-inline: 6px;
+}
+
+:root[data-theme] .sidebar-utility {
+  border-block-start: 1px solid var(--rail-border);
+  padding: 12px;
+}
+
+:root[data-theme] .sidebar-user-avatar {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--rail-text);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+:root[data-theme] .sidebar-user-name {
+  color: var(--rail-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* Remove decorative pill capsule around role label in sidebar footer */
+:root[data-theme] .sidebar-user-badge {
+  display: inline-block;
+  padding: 0;
+  margin-top: 1px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--rail-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 450;
+  line-height: 1.3;
+}
+
+:root[data-theme] .sidebar .sidebar-logout {
+  color: var(--rail-text-secondary);
+}
+
+:root[data-theme] .sidebar .sidebar-logout:hover {
+  background: rgba(240, 123, 116, 0.12);
+  color: #f69b95;
+}
+
+:root[data-theme] .sidebar .sidebar-logout:hover .nav-item-icon {
+  color: #f69b95;
+}
+
+/* --------------------------------------------------------------------------
+   2. Header & Typography Discipline
+   -------------------------------------------------------------------------- */
+:root[data-theme] .header,
+:root[data-theme] .app-header {
+  min-height: 62px;
+  padding-inline: 28px;
+  background: color-mix(in srgb, var(--bg-canvas) 88%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-block-end: 1px solid var(--border-subtle);
+}
+
+:root[data-theme] .header-title {
+  font-family: var(--font-display);
+  font-size: 1.375rem;
+  font-weight: 680;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+  color: var(--text-primary);
+}
+
+/* Prevent top-right notification badge from clipping against viewport edge */
+:root[data-theme] .header .notification-trigger {
+  position: relative;
+  overflow: visible;
+  margin-inline-end: 4px;
+}
+
+:root[data-theme] .header .notification-count-badge {
+  top: 2px;
+  right: 2px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  font-size: 0.6875rem;
+  line-height: 1;
+  box-shadow: 0 0 0 2px var(--bg-canvas);
+}
+
+/* Quiet header utility actions on Dashboard (avoid bordered button wall) */
+:root[data-theme] .header-actions .btn.btn-secondary:not(.dashboard-refresh-btn):not(.notification-trigger) {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: var(--text-secondary);
+  font-weight: 500;
+  padding-inline: 10px;
+  box-shadow: none !important;
+  transition: background-color var(--gd-fast) var(--gd-ease), color var(--gd-fast) var(--gd-ease);
+}
+
+:root[data-theme] .header-actions .btn.btn-secondary:not(.dashboard-refresh-btn):not(.notification-trigger):hover {
+  background: var(--surface-hover) !important;
+  border-color: transparent !important;
+  color: var(--text-primary);
+}
+
+:root[data-theme] .header-actions .dashboard-refresh-btn {
+  background: var(--surface-panel) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-secondary) !important;
+  box-shadow: none !important;
+  transition: background-color var(--gd-fast) var(--gd-ease), border-color var(--gd-fast) var(--gd-ease), color var(--gd-fast) var(--gd-ease);
+}
+
+:root[data-theme] .header-actions .dashboard-refresh-btn.is-on {
+  border-color: var(--accent-primary-border) !important;
+  color: var(--text-primary) !important;
+}
+
+:root[data-theme] .header-actions .dashboard-refresh-btn:hover {
+  border-color: var(--border-color-hover) !important;
+  background: var(--surface-panel-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Remove synthetic pulsing "LIVE" animation on refresh dot */
+:root[data-theme] .pulse-dot,
+:root[data-theme] .dashboard-live-dot,
+:root[data-theme] .header .status-dot {
+  animation: none !important;
+  box-shadow: none !important;
+}
+
+/* Unified search input in header */
+:root[data-theme] .header-search {
+  background: var(--surface-panel);
+  border-color: var(--border-color);
+  border-radius: 8px;
+  transition: border-color var(--gd-fast) var(--gd-ease), background-color var(--gd-fast) var(--gd-ease);
+}
+
+:root[data-theme] .header-search:focus-within {
+  border-color: var(--border-focus);
+  background: var(--bg-input);
+}
+
+/* Typography discipline: section headings & metadata */
+:root[data-theme] :is(.card-title, .section-title, .panel-title) {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 640;
+  letter-spacing: -0.015em;
+  color: var(--text-primary);
+}
+
+:root[data-theme] .table thead th {
+  font-size: 0.8125rem;
+  font-weight: 560;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-muted);
+  padding-block: 11px;
+  border-block-end: 1px solid var(--border-color);
+}
+
+:root[data-theme] .table tbody td {
+  font-size: 0.875rem;
+  padding-block: 13px;
+}
+
+:root[data-theme] .form-label {
+  font-size: 0.8125rem;
+  font-weight: 560;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+   3. Architectural Login Stage (Full-bleed precision surface, zero generic void)
+   -------------------------------------------------------------------------- */
+:root[data-theme="dark"] .login-page {
+  background-color: #090c11;
+  background-image:
+    radial-gradient(64% 52% at 50% 0%, rgba(56, 217, 196, 0.085), transparent 72%),
+    linear-gradient(to right, rgba(203, 217, 232, 0.032) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(203, 217, 232, 0.032) 1px, transparent 1px);
+  background-size: 100% 100%, 48px 48px, 48px 48px;
+  background-position: 0 0, center center, center center;
+}
+
+:root[data-theme="light"] .login-page {
+  background-color: #eceff2;
+  background-image:
+    radial-gradient(64% 52% at 50% 0%, rgba(11, 120, 107, 0.075), transparent 72%),
+    linear-gradient(to right, rgba(15, 23, 34, 0.038) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 23, 34, 0.038) 1px, transparent 1px);
+  background-size: 100% 100%, 48px 48px, 48px 48px;
+  background-position: 0 0, center center, center center;
+}
+
+:root[data-theme] .login-top-actions {
+  top: 20px;
+  right: 24px;
+  gap: 6px;
+}
+
+:root[data-theme] .login-top-actions .theme-toggle-btn {
+  background: color-mix(in srgb, var(--surface-panel) 84%, transparent);
+  border: 1px solid var(--border-color);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: none;
+  transition: background-color var(--gd-fast) var(--gd-ease), border-color var(--gd-fast) var(--gd-ease), color var(--gd-fast) var(--gd-ease);
+}
+
+:root[data-theme] .login-top-actions .theme-toggle-btn:hover {
+  background: var(--surface-panel);
+  border-color: var(--border-color-hover);
+}
+
+:root[data-theme] .login-card.login-pass {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-lg) !important;
+}
+
+/* Precision instrument top edge accent */
+:root[data-theme] .login-card.login-pass::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  height: 2px;
+  background: var(--signal);
+  pointer-events: none;
+}
+
+:root[data-theme] .login-brand-row.login-pass-stub {
+  padding: 28px 32px 18px;
+  gap: 12px;
+  background: transparent;
+}
+
+:root[data-theme] .login-brand-mark {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+}
+
+:root[data-theme] .login-brand-name {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 720;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+}
+
+:root[data-theme] .login-pass-body {
+  padding: 6px 32px 32px;
+}
+
+:root[data-theme] .login-card .auth-tabs {
+  padding: 3px;
+  border-radius: 9px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  gap: 3px;
+}
+
+:root[data-theme="light"] .login-card .auth-tabs {
+  background: var(--bg-canvas);
+}
+
+:root[data-theme] .login-card .auth-tab {
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 560;
+  min-height: 36px;
+  border: 1px solid transparent;
+  transition: background-color var(--gd-fast) var(--gd-ease), color var(--gd-fast) var(--gd-ease), border-color var(--gd-fast) var(--gd-ease);
+}
+
+:root[data-theme] .login-card .auth-tab.active {
+  background: var(--surface-panel);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-xs);
+}
+
+:root[data-theme="dark"] .login-card .auth-tab.active {
+  background: var(--ink-raised);
+  border-color: var(--border-color-hover);
+}
+
+:root[data-theme] .login-card .form-input {
+  min-height: 44px;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+}
+
+:root[data-theme] .login-card .btn-primary {
+  min-height: 44px;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+:root[data-theme] .login-card .login-passkey-btn {
+  min-height: 42px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+}
+
+/* --------------------------------------------------------------------------
+   4. Dashboard: Visual Hierarchy Across KPIs, Traffic & Node Health
+   -------------------------------------------------------------------------- */
+/* Differentiate the primary KPI strip (row 1) from the traffic window strip (row 2)
+   so the dashboard has clear focal pacing rather than identical stamped boxes. */
+:root[data-theme] .dashboard-page .stats-grid:first-of-type {
+  border-color: var(--border-color);
+  background: var(--surface-panel);
+  border-radius: 12px;
+}
+
+:root[data-theme] .dashboard-page .stats-grid:first-of-type .dashboard-stat-card {
+  padding: 22px 24px;
+}
+
+:root[data-theme] .dashboard-page .stats-grid:first-of-type .dashboard-stat-card-value-text {
+  font-size: 2rem;
+  font-weight: 680;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+}
+
+:root[data-theme] .dashboard-page .stats-grid:first-of-type .dashboard-stat-card-label {
+  font-size: 0.8125rem;
+  font-weight: 560;
+  color: var(--text-muted);
+}
+
+/* Secondary traffic-window row sits slightly quieter & tighter */
+:root[data-theme] .dashboard-page .stats-grid + .stats-grid {
+  background: var(--surface-panel-soft);
+  border-color: var(--border-subtle);
+  border-radius: 12px;
+}
+
+:root[data-theme] .dashboard-page .stats-grid + .stats-grid .dashboard-stat-card {
+  padding: 18px 24px;
+}
+
+:root[data-theme] .dashboard-page .stats-grid + .stats-grid .dashboard-stat-card-value-text {
+  font-size: 1.625rem;
+  font-weight: 640;
+  letter-spacing: -0.03em;
+}
+
+/* Node Health toolbar: remove the nested card-in-card wrapper cage (.node-health-workbench)
+   and turn status counters into one connected segmented bar directly on the canvas. */
+:root[data-theme] .node-health-workbench {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  gap: 12px;
+  align-items: center;
+}
+
+:root[data-theme] .node-health-summary-strip {
+  display: inline-flex;
+  gap: 0 !important;
+  padding: 0 !important;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--surface-panel);
+  overflow: hidden;
+}
+
+:root[data-theme] .node-health-summary-item {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 7px 14px !important;
+  min-height: 36px;
+  gap: 8px;
+  font-size: 0.8125rem;
+}
+
+:root[data-theme] .node-health-summary-item + .node-health-summary-item {
+  border-inline-start: 1px solid var(--border-subtle) !important;
+}
+
+:root[data-theme] .node-health-summary-item strong {
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+:root[data-theme] .node-health-toolbar {
+  gap: 8px;
+}
+
+:root[data-theme] .node-health-search {
+  min-height: 36px;
+  font-size: 0.875rem;
+}
+
+:root[data-theme] .node-health-visible-count {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+/* Node health tiles: unify status indicators — clean semantic left edge stripe
+   for warning/danger tiles, plain semantic dot+text pill (no heavy fill box). */
+:root[data-theme] .node-health-tile {
+  position: relative;
+  border-radius: 10px;
+  padding: 18px 20px;
+  transition: border-color var(--gd-fast) var(--gd-ease), background-color var(--gd-fast) var(--gd-ease);
+}
+
+:root[data-theme] .node-health-tile[data-tone="warning"] {
+  border-inline-start: 3px solid var(--accent-warning);
+}
+
+:root[data-theme] .node-health-tile[data-tone="danger"] {
+  border-inline-start: 3px solid var(--accent-danger);
+}
+
+:root[data-theme] .node-health-tile:is([data-tone="warning"], [data-tone="danger"]) .node-health-tone-pill {
+  background: transparent !important;
+  border: 0 !important;
+  padding-inline: 0 !important;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+:root[data-theme] .node-health-tile[data-tone="warning"] .node-health-tone-pill {
+  color: var(--accent-warning) !important;
+}
+
+:root[data-theme] .node-health-tile[data-tone="danger"] .node-health-tone-pill {
+  color: var(--accent-danger) !important;
+}
+
+:root[data-theme] .node-health-tile-bar-track,
+:root[data-theme] .node-health-meter-track {
+  height: 4px;
+  border-radius: 999px;
+}
+
+/* --------------------------------------------------------------------------
+   5. Canvas-Anchored Toolbars (Eliminate Floating Card-Above-Table Cages)
+   -------------------------------------------------------------------------- */
+:root[data-theme] :is(
+  .servers-toolbar.glass-panel,
+  .users-toolbar.glass-panel,
+  .inbounds-toolbar.glass-panel,
+  .card.subscriptions-toolbar,
+  .logs-toolbar.glass-panel,
+  .audit-toolbar.glass-panel
+) {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  border-block-end: 1px solid var(--border-subtle) !important;
+  padding: 0 0 16px 0 !important;
+  margin-block-end: 18px !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   6. Connected Segmented Controls (Replace Floating Pill & Button Walls)
+   -------------------------------------------------------------------------- */
+/* UsersHub status filters: connected segmented bar instead of 6 capsule pills */
+:root[data-theme] .users-toolbar .filter-chips-bar {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0;
+  padding: 2px;
+  border-radius: 9px;
+  background: var(--surface-panel);
+  border: 1px solid var(--border-color);
+}
+
+:root[data-theme] .users-toolbar .filter-chip {
+  border: 0 !important;
+  border-radius: 7px !important;
+  background: transparent;
+  padding: 6px 11px;
+  min-height: 32px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: background-color var(--gd-fast) var(--gd-ease), color var(--gd-fast) var(--gd-ease);
+}
+
+:root[data-theme] .users-toolbar .filter-chip:hover:not(.active) {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+:root[data-theme] .users-toolbar .filter-chip.active {
+  background: var(--accent-primary-bg);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+:root[data-theme] .users-toolbar .filter-chip .filter-chip-count {
+  background: transparent !important;
+  padding: 0 !important;
+  min-width: auto;
+  font-family: var(--font-display);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+:root[data-theme] .users-toolbar .filter-chip.active .filter-chip-count {
+  color: var(--signal);
+}
+
+/* Subscriptions format switcher: connected segmented control instead of 5 separate buttons */
+:root[data-theme] .subscription-profile-switches {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px !important;
+  padding: 3px;
+  border-radius: 9px;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-color);
+}
+
+:root[data-theme="dark"] .subscription-profile-switches {
+  background: var(--ink-input);
+}
+
+:root[data-theme] .subscription-profile-switches .btn {
+  border: 1px solid transparent !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  color: var(--text-secondary) !important;
+  font-size: 0.8125rem;
+  font-weight: 540;
+  min-height: 32px;
+  padding: 5px 12px;
+  box-shadow: none !important;
+  transition: background-color var(--gd-fast) var(--gd-ease), color var(--gd-fast) var(--gd-ease), border-color var(--gd-fast) var(--gd-ease);
+}
+
+:root[data-theme] .subscription-profile-switches .btn:hover:not([aria-pressed="true"]) {
+  background: var(--surface-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+:root[data-theme] .subscription-profile-switches .btn[aria-pressed="true"] {
+  background: var(--surface-panel) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+  font-weight: 620;
+  box-shadow: var(--shadow-xs) !important;
+}
+
+:root[data-theme="dark"] .subscription-profile-switches .btn[aria-pressed="true"] {
+  background: var(--ink-raised) !important;
+  border-color: var(--accent-primary-border) !important;
+  color: var(--signal) !important;
+}
+
+/* --------------------------------------------------------------------------
+   7. Eliminate Decorative Non-Interactive Chips & Table Button Walls
+   -------------------------------------------------------------------------- */
+/* Servers toolbar summary: plain typographic metadata separated by middots */
+:root[data-theme] .servers-toolbar-summary {
+  gap: 0 !important;
+  align-items: center;
+}
+
+:root[data-theme] .servers-summary-pill {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  gap: 5px;
+  font-size: 0.8125rem;
+}
+
+:root[data-theme] .servers-summary-pill + .servers-summary-pill::before {
+  content: "·";
+  margin-inline: 10px;
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+:root[data-theme] .servers-summary-label {
+  color: var(--text-muted);
+  font-weight: 450;
+}
+
+:root[data-theme] .servers-summary-value {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-weight: 640;
+}
+
+/* Table metadata chips (panel type, server group/tags, inbound protocols,
+   subscription supported clients): plain typographic hierarchy, no gray boxes. */
+:root[data-theme] .servers-panel-badge,
+:root[data-theme] .server-card-tags > .badge,
+:root[data-theme] .inbounds-protocol-cell .badge,
+:root[data-theme] .subscription-current-profile-tools-list > .badge {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  min-height: auto !important;
+  box-shadow: none !important;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-muted) !important;
+}
+
+:root[data-theme] .servers-panel-badge,
+:root[data-theme] .inbounds-protocol-cell .badge {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--text-secondary) !important;
+}
+
+:root[data-theme] .servers-panel-badge.badge-info {
+  color: var(--signal) !important;
+}
+
+:root[data-theme] .server-card-tags {
+  gap: 4px 0 !important;
+  align-items: center;
+}
+
+:root[data-theme] .server-card-tags > .badge + .badge::before,
+:root[data-theme] .subscription-current-profile-tools-list > .badge + .badge::before {
+  content: "·";
+  margin-inline: 7px;
+  color: var(--text-muted);
+  opacity: 0.55;
+}
+
+:root[data-theme] .subscription-current-profile-tools-list {
+  gap: 0 !important;
+  align-items: center;
+}
+
+/* Quiet row actions in tables: borderless ghost controls until hovered/focused,
+   eliminating the wall of bordered buttons across every row. */
+:root[data-theme] .table tbody .table-row-actions :is(.btn-secondary, .btn-icon),
+:root[data-theme] .table tbody .actions-dropdown-trigger,
+:root[data-theme] .table tbody .table-cell-actions :is(.btn-secondary, .btn-icon) {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: var(--text-secondary);
+  box-shadow: none !important;
+  transition: background-color var(--gd-fast) var(--gd-ease), color var(--gd-fast) var(--gd-ease), border-color var(--gd-fast) var(--gd-ease);
+}
+
+:root[data-theme] .table tbody .table-row-actions :is(.btn-secondary, .btn-icon):hover,
+:root[data-theme] .table tbody .actions-dropdown-trigger:hover,
+:root[data-theme] .table tbody .table-cell-actions :is(.btn-secondary, .btn-icon):hover {
+  background: var(--surface-hover) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary);
+}
+
+/* Quiet secondary toolbar buttons so the single primary CTA leads cleanly */
+:root[data-theme] :is(.servers-toolbar, .users-toolbar, .inbounds-toolbar, .subscriptions-toolbar) .btn-secondary {
+  background: var(--surface-panel);
+  border-color: var(--border-color);
+  color: var(--text-secondary);
+  font-weight: 540;
+  transition: background-color var(--gd-fast) var(--gd-ease), color var(--gd-fast) var(--gd-ease), border-color var(--gd-fast) var(--gd-ease);
+}
+
+:root[data-theme] :is(.servers-toolbar, .users-toolbar, .inbounds-toolbar, .subscriptions-toolbar) .btn-secondary:hover {
+  background: var(--surface-panel-hover);
+  border-color: var(--border-color-hover);
+  color: var(--text-primary);
+}
+
+/* Consistent quiet status cells in tables */
+:root[data-theme] .table .badge.badge-neutral {
+  background: transparent !important;
+  border-color: transparent !important;
+  padding-inline: 0 !important;
+  color: var(--text-muted) !important;
+  font-weight: 500;
+}
+
+/* Clean table container framing */
+:root[data-theme] .table-container {
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--table-container-bg);
+}
+
+/* Clean cards & panels */
+:root[data-theme] .card {
+  border-radius: 12px;
+  border-color: var(--border-color);
+}
+
+/* --------------------------------------------------------------------------
+   8. Mobile & Reduced-Motion Polish
+   -------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  :root[data-theme] .header,
+  :root[data-theme] .app-header {
+    padding-inline: 16px;
+  }
+
+  :root[data-theme] .header-title {
+    font-size: 1.25rem;
+  }
+
+  /* Match compact mobile search trigger to quiet borderless header controls */
+  :root[data-theme] .header .header-search:not(.is-open) {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+
+  /* Eliminate nested card-in-card look on mobile stacked KPI grids */
+  :root[data-theme] .dashboard-page .stats-grid > .dashboard-stat-card {
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  :root[data-theme] .dashboard-page .stats-grid > .dashboard-stat-card + .dashboard-stat-card {
+    border-block-start: 1px solid var(--border-subtle) !important;
+  }
+
+  :root[data-theme] .login-brand-row.login-pass-stub {
+    padding: 24px 22px 14px;
+  }
+
+  :root[data-theme] .login-pass-body {
+    padding: 4px 22px 24px;
+  }
+
+  :root[data-theme] .node-health-summary-strip {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  :root[data-theme] .node-health-summary-item:nth-child(odd) {
+    border-inline-start: 0 !important;
+  }
+
+  :root[data-theme] .node-health-summary-item:nth-child(n+3) {
+    border-block-start: 1px solid var(--border-subtle) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

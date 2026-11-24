@@ -376,7 +376,7 @@
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--duration-fast) ease;
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
   white-space: nowrap;
 }
 

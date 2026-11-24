@@ -208,7 +208,7 @@ body {
 a {
   color: var(--accent-primary);
   text-decoration: none;
-  transition: all var(--transition-fast);
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 a:hover {
@@ -253,7 +253,7 @@ a:hover {
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-md);
   border-radius: var(--radius-lg);
-  transition: all var(--transition-base);
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .text-glow {
@@ -730,7 +730,7 @@ a:hover {
   cursor: pointer;
   z-index: 10;
   font-size: 12px;
-  transition: all var(--transition-fast);
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
   box-shadow: var(--shadow-sm);
 }
 
@@ -800,7 +800,7 @@ a:hover {
   font-size: 13px;
   white-space: nowrap;
   position: relative;
-  transition: all var(--transition-fast);
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
   border: 1px solid var(--stroke-soft);
   background: transparent;
 }
@@ -875,7 +875,7 @@ a:hover {
   justify-content: space-between;
   padding: 11px 12px;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
   gap: 10px;
   border-radius: var(--radius-lg);
 }
@@ -989,7 +989,7 @@ a:hover {
   padding: 24px;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  transition: all var(--transition-spring);
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
   position: relative;
   overflow: hidden;
   box-shadow: var(--shadow-md);
@@ -1070,7 +1070,7 @@ a:hover {
   font-weight: 500;
   font-size: 13px;
   cursor: pointer;
-  transition: all var(--transition-base);
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
   border: 1px solid transparent;
   user-select: none;
   transform-origin: center;
@@ -1166,7 +1166,7 @@ a:hover {
   background: rgba(255, 255, 255, 0.02);
   backdrop-filter: blur(8px);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-  transition: all var(--transition-spring);
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .btn-icon:hover {
@@ -1205,7 +1205,7 @@ a:hover {
   color: var(--text-primary);
   font-family: inherit;
   font-size: 14px;
-  transition: all var(--transition-fast);
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
@@ -1236,7 +1236,7 @@ input[type="radio"] {
   border-radius: 4px;
   cursor: pointer;
   position: relative;
-  transition: all var(--transition-fast);
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
   vertical-align: middle;
 }
 
@@ -1292,7 +1292,7 @@ input[type="radio"]:focus {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   box-shadow: var(--shadow-sm);
-  transition: all var(--transition-fast);
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .table {
@@ -1414,7 +1414,7 @@ input[type="radio"]:focus {
   font-size: 13px;
   font-weight: 600;
   color: var(--text-secondary);
-  transition: all var(--transition-fast);
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
   background: transparent;
   border: none;
 }
@@ -1500,7 +1500,7 @@ input[type="radio"]:focus {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all var(--transition-fast);
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .modal-close:hover {
@@ -2132,7 +2132,7 @@ input[type="radio"]:focus {
 }
 
 .transition-all {
-  transition: all var(--transition-fast);
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .duration-200 {
@@ -2449,7 +2449,7 @@ input[type="radio"]:focus {
   border-radius: var(--radius-md);
   background: var(--bg-input);
   border: 1px solid var(--border-color);
-  transition: all var(--transition-fast);
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .server-chip.active {
@@ -2711,7 +2711,7 @@ input[type="radio"]:focus {
     padding: 16px;
     margin-bottom: 12px;
     position: relative;
-    transition: all var(--transition-fast);
+    transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .table tr:hover {
@@ -3430,7 +3430,7 @@ input[type="radio"]:focus-visible {
 /* ── Count-up number animation helper ── */
 .number-animate {
   display: inline-block;
-  transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @keyframes pulse {
@@ -3464,7 +3464,7 @@ input[type="radio"]:focus-visible {
   color: var(--text-secondary);
   cursor: pointer;
   font-size: 12px;
-  transition: all var(--transition-fast);
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .theme-toggle-btn:hover {
@@ -3517,7 +3517,7 @@ input[type="radio"]:focus-visible {
   overflow: hidden;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  transition: all var(--transition-spring);
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .dashboard-stat-card::before {
@@ -3530,7 +3530,7 @@ input[type="radio"]:focus-visible {
   border-radius: 999px;
   background: var(--dashboard-tone, var(--accent-primary));
   opacity: 0.8;
-  transition: all var(--transition-spring);
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .dashboard-stat-card:hover::before {
@@ -3557,7 +3557,7 @@ input[type="radio"]:focus-visible {
   color: var(--dashboard-tone, var(--accent-primary));
   background: var(--dashboard-tone-bg, var(--accent-primary-bg));
   box-shadow: none !important;
-  transition: all var(--transition-spring);
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .dashboard-stat-card.clickable {
@@ -3593,7 +3593,7 @@ input[type="radio"]:focus-visible {
   cursor: pointer;
   text-align: left;
   backdrop-filter: blur(12px);
-  transition: all var(--transition-spring);
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .dashboard-quick-card[data-tone="info"] {
@@ -4150,7 +4150,7 @@ input[type="radio"]:focus-visible {
   font-size: 13px;
   font-weight: 600;
   color: var(--text-muted);
-  transition: all var(--transition-fast);
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
   background: transparent;
   border: none;
   text-align: center;
@@ -6223,7 +6223,7 @@ body::before {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   cursor: pointer;
-  transition: all var(--transition-spring);
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
   position: relative;
   overflow: hidden;
 }
@@ -6245,7 +6245,7 @@ body::before {
   opacity: 0.2;
   transform: scaleY(0.5);
   transform-origin: center;
-  transition: all var(--transition-spring);
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .node-health-tile:hover::before {
@@ -9188,7 +9188,7 @@ body::before {
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .settings-nav-item:hover,
@@ -13619,7 +13619,7 @@ input[type="radio"]:focus-visible {
   font-size: 13px;
   font-weight: 600;
   border-radius: 9px;
-  transition: all 0.2s ease;
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .subscription-profile-switches--user-stage .btn-primary {
