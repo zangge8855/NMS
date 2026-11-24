@@ -8,8 +8,8 @@ export default function AdvancedEditor({ locale = 'zh-CN', value, onSave, saving
             label={locale === 'en-US' ? 'Advanced Xray Template' : '高级 Xray 完整配置模板'}
             description={
                 locale === 'en-US'
-                    ? 'Update the entire Xray template configuration JSON block. Be extremely careful when saving.'
-                    : '更新完整 Xray 配置模板 JSON 块。保存时请务必谨慎！'
+                    ? 'Edit the full Xray template JSON. Review carefully before saving.'
+                    : '更新完整 Xray 配置模板 JSON，请谨慎保存。'
             }
             initialValue={value}
             onSave={onSave}

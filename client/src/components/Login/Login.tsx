@@ -64,11 +64,11 @@ export default function Login() {
             loginVerifyRequired: '请先完成邮箱验证',
             loginFailed: '登录失败',
             networkFailed: '连接失败，请检查网络',
-            registerSuccessPending: '注册成功！现在可以登录',
-            registerSuccessVerify: '注册成功！请查收邮箱验证码',
+            registerSuccessPending: '注册成功，请登录',
+            registerSuccessVerify: '注册成功，请查收邮箱验证码',
             registerFailed: '注册失败',
-            verifySuccess: '验证成功！请登录',
-            verifyFinished: '邮箱验证完成，现在可以登录了',
+            verifySuccess: '验证成功，请登录',
+            verifyFinished: '邮箱验证完成，请登录',
             verifyFailed: '验证失败',
             resendDone: '验证码已重新发送',
             sendFailed: '发送失败',
@@ -79,7 +79,6 @@ export default function Login() {
     const [loginIdentifier, setLoginIdentifier] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-    const [rememberMe, setRememberMe] = useState(true);
 
     // 2FA fields
     const [twoFactorChallengeToken, setTwoFactorChallengeToken] = useState('');
@@ -214,7 +213,7 @@ export default function Login() {
         }
         setLoading(true);
         try {
-            const result = await login(resolvedIdentifier, resolvedPassword, { rememberMe });
+            const result = await login(resolvedIdentifier, resolvedPassword);
             if (result.success) {
                 navigate('/', { replace: true });
             } else if (result.needTwoFactor) {
@@ -257,11 +256,11 @@ export default function Login() {
             const verifyRes = await api.post('/auth/passkey/login-verify', {
                 challengeSessionId,
                 response: asseResp,
-                rememberMe,
+                rememberMe: true,
             });
             if (verifyRes.data?.success) {
                 clearAppSessionState();
-                const persistent = verifyRes.data.persistent !== undefined ? Boolean(verifyRes.data.persistent) : rememberMe;
+                const persistent = verifyRes.data.persistent !== undefined ? Boolean(verifyRes.data.persistent) : true;
                 setStoredToken(verifyRes.data.token, { persistent });
                 await refreshAuth();
                 navigate('/', { replace: true });
@@ -301,7 +300,7 @@ export default function Login() {
         }
         setLoading(true);
         try {
-            const result = await loginTwoFactor(twoFactorChallengeToken, codeToSubmit, twoFactorUseBackup, { rememberMe });
+            const result = await loginTwoFactor(twoFactorChallengeToken, codeToSubmit, twoFactorUseBackup);
             if (result.success) {
                 navigate('/', { replace: true });
             } else {
@@ -319,7 +318,7 @@ export default function Login() {
         if (cleaned.length === 6 && !loading && twoFactorChallengeToken) {
             setError('');
             setLoading(true);
-            loginTwoFactor(twoFactorChallengeToken, cleaned, false, { rememberMe })
+            loginTwoFactor(twoFactorChallengeToken, cleaned, false)
                 .then((result) => {
                     if (result.success) {
                         navigate('/', { replace: true });
@@ -684,20 +683,6 @@ export default function Login() {
                                             </button>
                                         </div>
                                     </div>
-                                    <label className="login-remember-row" htmlFor="login-remember-me">
-                                        <input
-                                            id="login-remember-me"
-                                            type="checkbox"
-                                            checked={rememberMe}
-                                            onChange={(e) => setRememberMe(e.target.checked)}
-                                            disabled={loading}
-                                        />
-                                        <span>
-                                            {locale === 'en-US'
-                                                ? 'Keep me signed in (stays active after closing tab)'
-                                                : '保持登录状态（关闭标签页仍有效）'}
-                                        </span>
-                                    </label>
                                     <button
                                         type="submit"
                                         className="btn btn-primary w-full h-11 text-sm font-semibold login-submit-btn"

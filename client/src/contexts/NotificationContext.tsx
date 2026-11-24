@@ -295,8 +295,6 @@ export function NotificationProvider({ children, wsLastMessage, enabled = true }
                 // 弹出 toast 提示
                 const toastFn = notification.severity === 'critical'
                     ? toast.error
-                    : notification.severity === 'warning'
-                    ? (msg: any, opts: any) => toast(msg, { ...opts, icon: '⚠️' })
                     : toast;
                 const localized = resolveLocalizedNotificationText(notification);
                 toastFn(localized.title, { duration: 5000 });

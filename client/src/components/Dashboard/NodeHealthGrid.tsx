@@ -505,10 +505,10 @@ export default function NodeHealthGrid({ servers, serverStatuses, trendHistory =
                         className="btn btn-secondary btn-sm flex items-center gap-1"
                         onClick={handlePingAll}
                         disabled={pinging}
-                        title={locale === 'en-US' ? 'Test Latency for All Nodes' : '一键测试全部节点延迟'}
+                        title={locale === 'en-US' ? 'Test Latency for All Nodes' : '测试全部节点延迟'}
                     >
                         {pinging ? <HiOutlineArrowPath className="spinning w-3.5 h-3.5" /> : <HiOutlineBolt className="w-3.5 h-3.5" />}
-                        <span>{locale === 'en-US' ? 'Ping All' : '一键测速'}</span>
+                        <span>{locale === 'en-US' ? 'Ping All' : '全部测速'}</span>
                     </button>
                     <span className="node-health-visible-count">{shownLabel}</span>
                     {canToggle && (

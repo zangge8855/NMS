@@ -272,10 +272,10 @@ describe('Wave 2 client pages audit fixes', () => {
 
         // Ping-all fallback uses localized text in zh-CN
         await user.clear(searchInput);
-        const pingAllBtn = screen.getByRole('button', { name: /一键测速|Ping All/i });
+        const pingAllBtn = screen.getByRole('button', { name: /全部测速|Ping All/i });
         await user.click(pingAllBtn);
         await waitFor(() => {
-            expect(vi.mocked(toast.error)).toHaveBeenCalledWith('一键测速失败');
+            expect(vi.mocked(toast.error)).toHaveBeenCalledWith('全部测速失败');
         });
     });
 

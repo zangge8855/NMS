@@ -935,16 +935,16 @@ describe('UserDetail', () => {
 
         // 1. Open Clone Client modal from top button and submit
         await user.click(screen.getAllByRole('button', { name: /复制客户端/ })[0]);
-        expect(await screen.findByText('在单个服务器上复制客户端')).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: '复制客户端' })).toBeInTheDocument();
 
-        const labelInput = screen.getByLabelText('订阅节点后缀标签');
+        const labelInput = screen.getByLabelText('节点后缀');
         await user.clear(labelInput);
         await user.type(labelInput, '家宽IP');
-        const trafficInput = screen.getByLabelText('独立流量限额 (GB)');
+        const trafficInput = screen.getByLabelText('流量限额 (GB)');
         await user.clear(trafficInput);
         await user.type(trafficInput, '50');
 
-        await user.click(screen.getByRole('button', { name: '确认复制并加入订阅' }));
+        await user.click(screen.getByRole('button', { name: '确定' }));
 
         await waitFor(() => {
             expect(api.post).toHaveBeenCalledWith('/users/user-1/clients/clone', expect.objectContaining({
@@ -961,12 +961,12 @@ describe('UserDetail', () => {
         // 2. Open Independent Quota modal on the cloned row and save
         const quotaButtons = screen.getAllByRole('button', { name: /限额/ });
         await user.click(quotaButtons[1]);
-        expect(await screen.findByText('节点独立流量限额控制')).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: '节点限额' })).toBeInTheDocument();
 
         const quotaInput = screen.getByLabelText('流量限额 (GB)');
         await user.clear(quotaInput);
         await user.type(quotaInput, '30');
-        await user.click(screen.getByRole('button', { name: '保存独立限额' }));
+        await user.click(screen.getByRole('button', { name: '保存' }));
 
         await waitFor(() => {
             expect(api.put).toHaveBeenCalledWith('/clients/entitlement', expect.objectContaining({
@@ -980,7 +980,7 @@ describe('UserDetail', () => {
         });
 
         // 3. Delete the cloned client binding
-        await user.click(screen.getByTitle('删除此复制客户端'));
+        await user.click(screen.getByTitle('删除'));
         await waitFor(() => {
             expect(api.delete).toHaveBeenCalledWith('/users/user-1/clients/extra/extra-1');
         });

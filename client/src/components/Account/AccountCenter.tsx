@@ -17,9 +17,9 @@ function getAccountCopy(locale = 'zh-CN') {
         return {
             title: 'Account',
             profileTitle: 'Account Info',
-            profileSubtitle: 'Review the current login identity and confirm any change from the existing mailbox first.',
+            profileSubtitle: 'Verify your current email before changing your username or email.',
             passwordTitle: 'Password',
-            passwordSubtitle: 'Rotate the login password here and keep it aligned with the active password policy.',
+            passwordSubtitle: 'Update your login password.',
             username: 'Username',
             role: 'Role',
             email: 'Login Email',
@@ -62,9 +62,9 @@ function getAccountCopy(locale = 'zh-CN') {
     return {
         title: '账户',
         profileTitle: '账户信息',
-        profileSubtitle: '检查当前登录身份，并在修改前先通过旧邮箱完成验证码确认。',
+        profileSubtitle: '修改用户名或邮箱前需验证当前邮箱',
         passwordTitle: '登录密码',
-        passwordSubtitle: '在这里更新登录密码，并确保新密码符合当前密码策略。',
+        passwordSubtitle: '更新当前账号的登录密码',
         username: '用户名',
         role: '角色',
         email: '登录邮箱',
