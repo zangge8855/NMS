@@ -97,6 +97,33 @@ export function resolveUsagePercent(usedBytes: number, totalBytes: number): numb
     return Math.max(0, Math.min(100, Math.round((usedBytes / totalBytes) * 100)));
 }
 
+export function formatUsagePercentLabel(usedBytes: number, totalBytes: number): string | null {
+    if (!Number.isFinite(totalBytes) || totalBytes <= 0) return null;
+    const used = safeNumber(usedBytes);
+    if (used <= 0) return '0%';
+    const rawPercent = (used / totalBytes) * 100;
+    if (rawPercent > 0 && rawPercent < 1) return '<1%';
+    return `${Math.min(100, Math.round(rawPercent))}%`;
+}
+
+export function resolveUsageBarWidth(usedBytes: number, totalBytes: number): number {
+    if (!Number.isFinite(totalBytes) || totalBytes <= 0) return 0;
+    const used = safeNumber(usedBytes);
+    if (used <= 0) return 0;
+    const rawPercent = (used / totalBytes) * 100;
+    if (rawPercent > 0 && rawPercent < 2) return 2;
+    return Math.min(100, Math.round(rawPercent));
+}
+
+export function getClientDedupKey(serverId: string = '', client?: any): string {
+    const rawSuiClientId = client?.suiClientId;
+    const suiClientId = rawSuiClientId !== undefined && rawSuiClientId !== null && String(rawSuiClientId).trim() !== ''
+        ? String(rawSuiClientId).trim()
+        : '';
+    if (!suiClientId) return '';
+    return `sui:${String(serverId || '').trim()}:${suiClientId}`;
+}
+
 export type UsageTone = 'neutral' | 'danger' | 'warning' | 'success';
 
 export function resolveUsageTone(percent: number | null): UsageTone {

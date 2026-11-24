@@ -9,7 +9,7 @@ import { validateSubscriptionAliasPath } from '../lib/subscriptionAlias.js';
 import { isWeakAdminPassword } from '../lib/startupPreflight.js';
 import { mirrorStoreSnapshot } from './dbMirror.js';
 import { saveObjectAtomic } from './fileUtils.js';
-import type { User, SanitizedUser } from '../types/index.js';
+import type { User, SanitizedUser, UserExtraClientBinding } from '../types/index.js';
 
 const USERS_FILE = path.join(config.dataDir, 'users.json');
 
@@ -107,6 +107,37 @@ function normalizeGroupId(value: unknown): string {
     return String(value || '').trim();
 }
 
+function normalizeExtraClients(input: unknown): UserExtraClientBinding[] {
+    if (!Array.isArray(input)) return [];
+    const seen = new Set<string>();
+    const out: UserExtraClientBinding[] = [];
+    for (const item of input) {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
+        const serverId = String((item as any).serverId || '').trim().slice(0, 128);
+        const inboundId = String((item as any).inboundId || '').trim().slice(0, 128);
+        const clientEmail = String((item as any).clientEmail || '').trim().slice(0, 160);
+        if (!serverId || !inboundId || !clientEmail) continue;
+        const dedupeKey = `${serverId}::${inboundId}::${clientEmail.toLowerCase()}`;
+        if (seen.has(dedupeKey)) continue;
+        seen.add(dedupeKey);
+        const id = String((item as any).id || '').trim().slice(0, 128) || crypto.randomUUID();
+        const nodeLabel = String((item as any).nodeLabel || '').trim().slice(0, 64);
+        const sourceClientEmail = String((item as any).sourceClientEmail || '').trim().slice(0, 160);
+        const createdAt = String((item as any).createdAt || new Date().toISOString()).trim().slice(0, 64);
+        out.push({
+            id,
+            serverId,
+            inboundId,
+            clientEmail,
+            nodeLabel,
+            ...(sourceClientEmail ? { sourceClientEmail } : {}),
+            createdAt,
+        });
+        if (out.length >= 64) break;
+    }
+    return out;
+}
+
 class UserStore {
     users: any[];
 
@@ -158,6 +189,7 @@ class UserStore {
                     resetCodeAttempts: Math.max(0, Number(item?.resetCodeAttempts || 0) || 0),
                     profileVerifyAttempts: Math.max(0, Number(item?.profileVerifyAttempts || 0) || 0),
                     passkeys: Array.isArray(item.passkeys) ? item.passkeys : [],
+                    extraClients: normalizeExtraClients(item?.extraClients),
                 };
             });
         } catch (e: any) {
@@ -215,6 +247,7 @@ class UserStore {
                 createdAt: new Date().toISOString(),
                 lastLoginAt: null,
                 passkeys: [],
+                extraClients: [],
             });
             this._save();
             console.log(`  👤 Default admin user created (username: ${adminUsername})`);
@@ -228,6 +261,7 @@ class UserStore {
             email: normalizeEmailValue(u.email),
             subscriptionEmail: resolveSubscriptionEmail(u),
             subscriptionAliasPath: resolveSubscriptionAliasPath(u),
+            extraClients: normalizeExtraClients(u.extraClients),
             groupId: normalizeGroupId(u.groupId),
             emailVerified: !!u.emailVerified,
             role: u.role,
@@ -389,6 +423,7 @@ class UserStore {
             role: normalizedRole,
             createdAt: new Date().toISOString(),
             passkeys: [],
+            extraClients: normalizeExtraClients(payload.extraClients),
             // Guest passes: auth refuses panel login and the public subscription
             // route stops serving once guestExpiresAt has passed.
             ...(payload.isGuest === true ? {
@@ -404,6 +439,7 @@ class UserStore {
             email: user.email,
             subscriptionEmail: resolveSubscriptionEmail(user),
             subscriptionAliasPath: resolveSubscriptionAliasPath(user),
+            extraClients: normalizeExtraClients(user.extraClients),
             groupId: normalizeGroupId(user.groupId),
             emailVerified: user.emailVerified,
             enabled: user.enabled !== false,
@@ -918,6 +954,7 @@ class UserStore {
                     lastLoginAt: item.lastLoginAt ? String(item.lastLoginAt).slice(0, 64) : null,
                     ...(twoFactor ? { twoFactor } : {}),
                     passkeys,
+                    extraClients: normalizeExtraClients(item.extraClients),
                     ...(item.isGuest === true ? {
                         isGuest: true,
                         guestExpiresAt: String(item.guestExpiresAt || '').trim().slice(0, 64),
@@ -925,6 +962,111 @@ class UserStore {
                 };
             });
         this._ensureDefaultAdmin();
+    }
+
+    listExtraClients(userId: string): UserExtraClientBinding[] {
+        const user = this.getById(userId);
+        return normalizeExtraClients(user?.extraClients);
+    }
+
+    addExtraClient(userId: string, binding: Partial<UserExtraClientBinding>): UserExtraClientBinding | null {
+        const idx = this.users.findIndex((u) => u.id === userId);
+        if (idx === -1) return null;
+        const serverId = String(binding?.serverId || '').trim().slice(0, 128);
+        const inboundId = String(binding?.inboundId || '').trim().slice(0, 128);
+        const clientEmail = String(binding?.clientEmail || '').trim().slice(0, 160);
+        if (!serverId || !inboundId || !clientEmail) {
+            throw new Error('serverId, inboundId and clientEmail are required');
+        }
+        const existing = normalizeExtraClients(this.users[idx].extraClients);
+        const duplicate = existing.find(
+            (item) => item.serverId === serverId
+                && item.inboundId === inboundId
+                && item.clientEmail.toLowerCase() === clientEmail.toLowerCase()
+        );
+        if (duplicate) return duplicate;
+
+        const nextBinding: UserExtraClientBinding = {
+            id: String(binding?.id || '').trim().slice(0, 128) || crypto.randomUUID(),
+            serverId,
+            inboundId,
+            clientEmail,
+            nodeLabel: String(binding?.nodeLabel || '').trim().slice(0, 64),
+            ...(binding?.sourceClientEmail
+                ? { sourceClientEmail: String(binding.sourceClientEmail).trim().slice(0, 160) }
+                : {}),
+            createdAt: String(binding?.createdAt || new Date().toISOString()).trim().slice(0, 64),
+        };
+        this.users[idx].extraClients = normalizeExtraClients([...existing, nextBinding]);
+        this._save();
+        return nextBinding;
+    }
+
+    updateExtraClient(
+        userId: string,
+        bindingId: string,
+        patch: { nodeLabel?: string } = {}
+    ): UserExtraClientBinding | null {
+        const idx = this.users.findIndex((u) => u.id === userId);
+        if (idx === -1) return null;
+        const normalizedBindingId = String(bindingId || '').trim();
+        if (!normalizedBindingId) return null;
+        const list = normalizeExtraClients(this.users[idx].extraClients);
+        const targetIdx = list.findIndex((item) => item.id === normalizedBindingId);
+        if (targetIdx === -1) return null;
+
+        const updated: UserExtraClientBinding = {
+            ...list[targetIdx],
+            ...(patch.nodeLabel !== undefined
+                ? { nodeLabel: String(patch.nodeLabel || '').trim().slice(0, 64) }
+                : {}),
+        };
+        list[targetIdx] = updated;
+        this.users[idx].extraClients = list;
+        this._save();
+        return updated;
+    }
+
+    removeExtraClient(userId: string, bindingId: string): UserExtraClientBinding | null {
+        const idx = this.users.findIndex((u) => u.id === userId);
+        if (idx === -1) return null;
+        const normalizedBindingId = String(bindingId || '').trim();
+        if (!normalizedBindingId) return null;
+        const list = normalizeExtraClients(this.users[idx].extraClients);
+        const targetIdx = list.findIndex((item) => item.id === normalizedBindingId);
+        if (targetIdx === -1) return null;
+        const [removed] = list.splice(targetIdx, 1);
+        this.users[idx].extraClients = list;
+        this._save();
+        return removed;
+    }
+
+    removeExtraClientsByServerId(serverId: string): number {
+        const normalizedServerId = String(serverId || '').trim();
+        if (!normalizedServerId) return 0;
+        let removedCount = 0;
+        for (const user of this.users) {
+            const list = normalizeExtraClients(user.extraClients);
+            const next = list.filter((item) => item.serverId !== normalizedServerId);
+            if (next.length !== list.length) {
+                removedCount += list.length - next.length;
+                user.extraClients = next;
+            }
+        }
+        if (removedCount > 0) {
+            this._save();
+        }
+        return removedCount;
+    }
+
+    findByExtraClientEmail(serverId: string, clientEmail: string): any {
+        const normalizedServerId = String(serverId || '').trim();
+        const normalizedClientEmail = normalizeEmailValue(clientEmail);
+        if (!normalizedClientEmail) return null;
+        return this.users.find((u) => normalizeExtraClients(u.extraClients).some((item) => (
+            (!normalizedServerId || item.serverId === normalizedServerId)
+            && item.clientEmail.toLowerCase() === normalizedClientEmail
+        ))) || null;
     }
 }
 

@@ -62,6 +62,8 @@ import EmptyState from '../UI/EmptyState';
 import ListToolbar from '../UI/ListToolbar';
 import SkeletonTable from '../UI/SkeletonTable';
 import InboundRemarkPill from '../UI/InboundRemarkPill';
+import CountryFlag from '../UI/CountryFlag';
+import { formatOptionWithFlag, resolveNodeFlag, resolveServerFlag } from '../../utils/accessGeo';
 import useMediaQuery from '../../hooks/useMediaQuery';
 import { readSessionSnapshot, writeSessionSnapshot } from '../../utils/sessionSnapshot';
 import { fetchServerPanelData, invalidateServerPanelDataCache } from '../../utils/serverPanelDataCache';
@@ -250,6 +252,10 @@ export default function Inbounds() {
     const orderedServerOptions = useMemo(
         () => sortServersByOrder(servers, serverOrder),
         [servers, serverOrder]
+    );
+    const serverById = useMemo(
+        () => new Map(servers.map((srv) => [String(srv?.id || '').trim(), srv])),
+        [servers]
     );
 
     const sortVisibleInbounds = (items, orderMap, nextServerOrder = serverOrder) => sortInboundsByOrder(items, orderMap, {
@@ -1622,7 +1628,7 @@ export default function Inbounds() {
                         >
                             <option value="all">{t('pages.inbounds.toolbar.allServers', { count: servers.length })}</option>
                             {orderedServerOptions.map(s => (
-                                <option key={s.id} value={s.id}>{s.name}</option>
+                                <option key={s.id} value={s.id}>{formatOptionWithFlag(s.name, s)}</option>
                             ))}
                         </select>
                         </>
@@ -1887,6 +1893,10 @@ export default function Inbounds() {
                                                         <div className="inbounds-node-cell-inner">
                                                             <span className="badge badge-neutral inbounds-node-badge">
                                                                 <HiOutlineServer size={10} />
+                                                                <CountryFlag
+                                                                    flag={resolveServerFlag(serverById.get(String(ib.serverId || '').trim()) || { name: ib.serverName })}
+                                                                    label={ib.serverName}
+                                                                />
                                                                 <span className="inbounds-node-name" title={ib.serverName}>{ib.serverName}</span>
                                                             </span>
                                                             {showNodeMoveControls && isCompactLayout && renderNodeMoveControls('row')}
@@ -1972,7 +1982,12 @@ export default function Inbounds() {
                                                         }
                                                         return (
                                                             <div className="inbounds-remark-display">
-                                                                <InboundRemarkPill remark={ib.remark} protocol={ib.protocol} title={remarkTooltip} />
+                                                                <InboundRemarkPill
+                                                                    remark={ib.remark}
+                                                                    protocol={ib.protocol}
+                                                                    flag={resolveNodeFlag(ib.remark, serverById.get(String(ib.serverId || '').trim()) || { name: ib.serverName })}
+                                                                    title={remarkTooltip}
+                                                                />
                                                                 {hasDifferentPanelRemark && (
                                                                     <span className="inbounds-remark-origin-tag" title={remarkTooltip}>
                                                                         {t('comp.inbounds.remarkBadgeLabel')}

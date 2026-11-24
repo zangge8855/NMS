@@ -20,6 +20,7 @@ import { buildServerDetailSnapshot } from '../lib/serverDetailSnapshotService.js
 import { buildErrorSnapshot, getServerLogSnapshot, getServerLogSnapshots } from '../lib/serverLogsSnapshotService.js';
 import { invalidateServerPanelSnapshotCache } from '../lib/serverPanelSnapshotService.js';
 import { isReservedOrPrivateIp, stripIpv6Brackets } from '../lib/ipGeoResolver.js';
+import { countryCodeToFlag, inferCountryCodeFromText, normalizeCountryCode } from '../lib/countryFlag.js';
 import { pingServer } from '../lib/probe.js';
 import { fetchServerLogPayload as fetchServerLogResult, normalizeLogCount as normalizeRequestedLogCount, normalizeLogSource as normalizeRequestedLogSource } from '../services/panelLogsService.js';
 import { invalidatePublicSubCache } from './subscriptions.js';
@@ -134,6 +135,7 @@ function applyServerFilters(servers, query: any = {}) {
                 server.group,
                 server.environment,
                 server.health,
+                server.countryCode,
                 ...(Array.isArray(server.tags) ? server.tags : []),
             ]
                 .map((item) => String(item || '').toLowerCase())
@@ -630,12 +632,98 @@ router.get('/:id', (req, res) => {
     return res.json({ success: true, obj: server });
 });
 
+router.post('/detect-country', operatorOrAbove, async (req, res) => {
+    const rawUrl = String(req.body?.url || '').trim();
+    const rawName = String(req.body?.name || '').trim();
+    const fallbackCode = inferCountryCodeFromText(rawName);
+
+    let resolvedIp = '';
+    if (rawUrl) {
+        const splitTarget = splitPanelUrlAndBasePath(rawUrl, '/', { preferPathFromUrl: true });
+        const urlError = await validateServerUrl(splitTarget.url, {
+            allowPrivate: config.servers?.allowPrivateServerUrl === true,
+        });
+        if (!urlError) {
+            try {
+                const parsed = new URL(splitTarget.url);
+                const host = normalizeHostname(parsed.hostname);
+                if (net.isIP(host) !== 0) {
+                    resolvedIp = host;
+                } else {
+                    const looked = await dns.lookup(host, { family: 4 }).catch(() => dns.lookup(host));
+                    resolvedIp = String(looked?.address || '').trim();
+                }
+            } catch {
+                resolvedIp = '';
+            }
+        }
+    }
+
+    if (resolvedIp && !isPrivateAddress(resolvedIp)) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 3500);
+        try {
+            const response = await fetch(
+                `http://ip-api.com/json/${encodeURIComponent(resolvedIp)}?fields=status,countryCode,country,city`,
+                { signal: controller.signal }
+            );
+            if (response.ok) {
+                const data: any = await response.json();
+                const detected = normalizeCountryCode(data?.countryCode);
+                if (data?.status === 'success' && detected) {
+                    return res.json({
+                        success: true,
+                        obj: {
+                            countryCode: detected,
+                            flag: countryCodeToFlag(detected),
+                            country: String(data?.country || ''),
+                            city: String(data?.city || ''),
+                            ip: resolvedIp,
+                            source: 'ip',
+                        },
+                    });
+                }
+            }
+        } catch {
+            // Fall through to name-based inference below.
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+
+    if (fallbackCode) {
+        return res.json({
+            success: true,
+            obj: {
+                countryCode: fallbackCode,
+                flag: countryCodeToFlag(fallbackCode),
+                country: '',
+                city: '',
+                ip: resolvedIp,
+                source: 'name',
+            },
+        });
+    }
+
+    return res.json({
+        success: true,
+        obj: {
+            countryCode: '',
+            flag: '',
+            country: '',
+            city: '',
+            ip: resolvedIp,
+            source: 'none',
+        },
+    });
+});
+
 /**
  * POST /api/servers
  * Register a new 3x-ui or s-ui panel server.
  */
 router.post('/', operatorOrAbove, async (req, res) => {
-    const { name, url, basePath, panelType, username, password, apiToken, group, tags, environment, health } = req.body;
+    const { name, url, basePath, panelType, username, password, apiToken, group, tags, environment, health, countryCode } = req.body;
     const hasPasswordAuth = String(username || '').trim() && String(password || '');
     const hasApiTokenAuth = String(apiToken || '').trim();
     if (!url || (!hasPasswordAuth && !hasApiTokenAuth)) {
@@ -662,6 +750,7 @@ router.post('/', operatorOrAbove, async (req, res) => {
         tags,
         environment,
         health,
+        countryCode,
     });
     appendSecurityAudit('server_added', req, {
         serverId: server.id,
@@ -716,6 +805,7 @@ router.post('/batch', operatorOrAbove, async (req, res) => {
     const commonTags = common.tags;
     const commonEnvironment = common.environment;
     const commonHealth = common.health;
+    const commonCountryCode = common.countryCode;
 
     const existingKeySet = new Set(
         serverStore.getAll().map((server) => buildServerDedupeKey(server.url, server.basePath || '/', server.username))
@@ -737,6 +827,7 @@ router.post('/batch', operatorOrAbove, async (req, res) => {
         const tags = item.tags !== undefined ? item.tags : commonTags;
         const environment = item.environment !== undefined ? item.environment : commonEnvironment;
         const health = item.health !== undefined ? item.health : commonHealth;
+        const countryCode = item.countryCode !== undefined ? item.countryCode : commonCountryCode;
 
         if (!rawUrl) {
             results.push({
@@ -804,6 +895,7 @@ router.post('/batch', operatorOrAbove, async (req, res) => {
                 tags,
                 environment,
                 health,
+                countryCode,
             });
 
             existingKeySet.add(dedupeKey);
@@ -840,6 +932,7 @@ router.post('/batch', operatorOrAbove, async (req, res) => {
                 tags: Array.isArray(server.tags) ? server.tags : [],
                 environment: server.environment || 'unknown',
                 health: server.health || 'unknown',
+                countryCode: server.countryCode || '',
                 msg,
             });
         } catch (e) {
@@ -925,7 +1018,8 @@ router.put('/:id', operatorOrAbove, async (req, res) => {
         || current.url !== updated.url
         || current.basePath !== updated.basePath
         || current.name !== updated.name
-        || current.health !== updated.health) {
+        || current.health !== updated.health
+        || String(current.countryCode || '') !== String(updated.countryCode || '')) {
         // Cached inbounds/status/names belong to the previous server configuration.
         invalidateServerPanelSnapshotCache(updated.id);
         evictServerDashboardCaches(updated.id);
@@ -958,11 +1052,12 @@ router.delete('/:id', operatorOrAbove, (req, res) => {
     const actor = String(req.user?.username || req.user?.role || 'admin');
     const affectedPolicies = userPolicyStore.removeServerId(serverId, actor);
     const affectedGroups = userGroupStore.removeServerId(serverId, actor);
+    const removedExtraClients = userStore.removeExtraClientsByServerId(serverId);
     invalidateServerPanelSnapshotCache(serverId);
     evictServerDashboardCaches(serverId);
     evictServerStatusCaches(serverId);
     invalidatePublicSubCache();
-    appendSecurityAudit('server_deleted', req, { serverId, affectedPolicies, affectedGroups });
+    appendSecurityAudit('server_deleted', req, { serverId, affectedPolicies, affectedGroups, removedExtraClients });
     res.json({
         success: true,
         msg: 'Server removed',
@@ -970,6 +1065,7 @@ router.delete('/:id', operatorOrAbove, (req, res) => {
             serverId,
             affectedPolicies,
             affectedGroups,
+            removedExtraClients,
         },
     });
 });
@@ -1067,7 +1163,7 @@ router.post('/:id/test', operatorOrAbove, async (req, res) => {
     }
 });
 
-// ── Batch Update (labels, group, environment, tags) ───────
+// ── Batch Update (labels, group, environment, tags, countryCode) ───────
 router.patch('/batch', operatorOrAbove, (req, res) => {
     const { serverIds, updates } = req.body || {};
     if (!Array.isArray(serverIds) || serverIds.length === 0) {
@@ -1077,7 +1173,7 @@ router.patch('/batch', operatorOrAbove, (req, res) => {
         return res.status(400).json({ success: false, msg: 'updates is required' });
     }
 
-    const allowed = ['name', 'group', 'tags', 'environment', 'health', 'panelType'];
+    const allowed = ['name', 'group', 'tags', 'environment', 'health', 'panelType', 'countryCode'];
     const filteredUpdates = {};
     for (const key of allowed) {
         if (updates[key] !== undefined) filteredUpdates[key] = updates[key];

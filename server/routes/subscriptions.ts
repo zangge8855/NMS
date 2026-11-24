@@ -42,6 +42,7 @@ import {
 import systemSettingsStore from '../store/systemSettingsStore.js';
 import { rotateManagedSubscriptionCredentials } from '../services/subscriptionSyncService.js';
 import { pickRequestText } from '../lib/requestLocale.js';
+import { countryCodeToFlag, formatFlaggedLabel } from '../lib/countryFlag.js';
 
 const router = Router();
 
@@ -302,8 +303,21 @@ function buildSafeTag(inbound) {
     return remark || protocol;
 }
 
-function getTag(_server, inbound, _email) {
-    return buildSafeTag(inbound);
+function getTag(server, inbound, _email, extraBinding: any = null) {
+    let tag = buildSafeTag(inbound);
+    if (extraBinding) {
+        const suffix = sanitizeNodeLabel(extraBinding.nodeLabel)
+            || sanitizeNodeLabel(extraBinding.clientEmail)
+            || '2';
+        if (suffix && !tag.endsWith(suffix)) {
+            tag = `${tag} - ${suffix}`;
+        }
+    }
+    const explicitFlag = countryCodeToFlag(server?.countryCode);
+    if (explicitFlag) {
+        tag = formatFlaggedLabel(tag, explicitFlag);
+    }
+    return tag;
 }
 
 function sortInboundsForServer(serverId, inbounds: any[] = []) {
@@ -593,7 +607,7 @@ function applyTransportParams(params, stream) {
     }
 }
 
-function buildVmessLink({ server, inbound, client, stream, diagnostics }) {
+function buildVmessLink({ server, inbound, client, stream, diagnostics, extraBinding = null }: any) {
     const uuid = client.id || client.uuid;
     if (!uuid) {
         diagnostics.push('missing uuid');
@@ -611,7 +625,7 @@ function buildVmessLink({ server, inbound, client, stream, diagnostics }) {
     const rawScy = String(client.security || '').trim().toLowerCase();
     const vmessObj: Record<string, any> = {
         v: '2',
-        ps: getTag(server, inbound, client.email || ''),
+        ps: getTag(server, inbound, client.email || '', extraBinding),
         add: stripIpv6Brackets(getServerHost(server.url)),
         port: String(inbound.port),
         id: uuid,
@@ -664,7 +678,7 @@ function buildVmessLink({ server, inbound, client, stream, diagnostics }) {
     return `vmess://${Buffer.from(JSON.stringify(vmessObj)).toString('base64')}`;
 }
 
-function buildVlessLink({ server, inbound, client, stream, diagnostics }) {
+function buildVlessLink({ server, inbound, client, stream, diagnostics, extraBinding = null }: any) {
     const uuid = client.id || client.uuid;
     if (!uuid) {
         diagnostics.push('missing uuid');
@@ -737,11 +751,11 @@ function buildVlessLink({ server, inbound, client, stream, diagnostics }) {
         }
     }
 
-    const tag = encodeURIComponent(getTag(server, inbound, client.email || ''));
+    const tag = encodeURIComponent(getTag(server, inbound, client.email || '', extraBinding));
     return `vless://${encodeURIComponent(uuid)}@${getServerHost(server.url)}:${inbound.port}?${params.toString()}#${tag}`;
 }
 
-function buildTrojanLink({ server, inbound, client, stream, diagnostics }) {
+function buildTrojanLink({ server, inbound, client, stream, diagnostics, extraBinding = null }: any) {
     const password = client.password || client.id;
     if (!password) {
         diagnostics.push('missing password');
@@ -788,13 +802,13 @@ function buildTrojanLink({ server, inbound, client, stream, diagnostics }) {
         setParamIfPresent(params, 'pqv', pqv);
     }
 
-    const tag = encodeURIComponent(getTag(server, inbound, client.email || ''));
+    const tag = encodeURIComponent(getTag(server, inbound, client.email || '', extraBinding));
     return `trojan://${encodeURIComponent(password)}@${getServerHost(server.url)}:${inbound.port}?${params.toString()}#${tag}`;
 }
 
 const SS2022_EIH_METHODS = new Set(['2022-blake3-aes-128-gcm', '2022-blake3-aes-256-gcm']);
 
-function buildShadowsocksLink({ server, inbound, client, settings, diagnostics }) {
+function buildShadowsocksLink({ server, inbound, client, settings, diagnostics, extraBinding = null }: any) {
     const method = client.method || settings.method;
     const password = client.password;
     if (!method || !password) {
@@ -811,7 +825,7 @@ function buildShadowsocksLink({ server, inbound, client, settings, diagnostics }
         ? `${serverPassword}:${password}`
         : password;
     const userInfo = Buffer.from(`${method}:${combinedPassword}`).toString('base64url');
-    const tag = encodeURIComponent(getTag(server, inbound, client.email || ''));
+    const tag = encodeURIComponent(getTag(server, inbound, client.email || '', extraBinding));
     return `ss://${userInfo}@${getServerHost(server.url)}:${inbound.port}#${tag}`;
 }
 
@@ -821,7 +835,7 @@ function findUdpMask(stream, type) {
     return masks.find((mask) => mask && mask.type === type) || null;
 }
 
-function buildHysteria2Link({ server, inbound, client, settings, stream, diagnostics }) {
+function buildHysteria2Link({ server, inbound, client, settings, stream, diagnostics, extraBinding = null }: any) {
     const password = client.auth || client.password;
     if (!password) {
         diagnostics.push('missing hysteria2 password');
@@ -880,11 +894,11 @@ function buildHysteria2Link({ server, inbound, client, settings, stream, diagnos
     }
 
     const queryStr = params.toString();
-    const tag = encodeURIComponent(getTag(server, inbound, client.email || ''));
+    const tag = encodeURIComponent(getTag(server, inbound, client.email || '', extraBinding));
     return `hysteria2://${encodeURIComponent(password)}@${host}:${inbound.port}${queryStr ? `?${queryStr}` : ''}#${tag}`;
 }
 
-function buildTuicLink({ server, inbound, client, settings, stream, diagnostics }) {
+function buildTuicLink({ server, inbound, client, settings, stream, diagnostics, extraBinding = null }: any) {
     const uuid = client.uuid || client.id;
     const password = client.password;
     if (!uuid || !password) {
@@ -918,27 +932,27 @@ function buildTuicLink({ server, inbound, client, settings, stream, diagnostics 
     }
 
     const queryStr = params.toString();
-    const tag = encodeURIComponent(getTag(server, inbound, client.email || ''));
+    const tag = encodeURIComponent(getTag(server, inbound, client.email || '', extraBinding));
     return `tuic://${encodeURIComponent(uuid)}:${encodeURIComponent(password)}@${host}:${inbound.port}${queryStr ? `?${queryStr}` : ''}#${tag}`;
 }
 
-function buildClientLink({ server, inbound, client, settings, stream, diagnostics }) {
+function buildClientLink({ server, inbound, client, settings, stream, diagnostics, extraBinding = null }: any) {
     switch ((inbound.protocol || '').toLowerCase()) {
         case 'vmess':
-            return buildVmessLink({ server, inbound, client, stream, diagnostics });
+            return buildVmessLink({ server, inbound, client, stream, diagnostics, extraBinding });
         case 'vless':
-            return buildVlessLink({ server, inbound, client, stream, diagnostics });
+            return buildVlessLink({ server, inbound, client, stream, diagnostics, extraBinding });
         case 'trojan':
-            return buildTrojanLink({ server, inbound, client, stream, diagnostics });
+            return buildTrojanLink({ server, inbound, client, stream, diagnostics, extraBinding });
         case 'shadowsocks':
-            return buildShadowsocksLink({ server, inbound, client, settings, diagnostics });
+            return buildShadowsocksLink({ server, inbound, client, settings, diagnostics, extraBinding });
         // 3x-ui v3 stores Hysteria2 as `hysteria`; xray-core only runs version 2.
         case 'hysteria':
         case 'hysteria2':
         case 'hy2':
-            return buildHysteria2Link({ server, inbound, client, settings, stream, diagnostics });
+            return buildHysteria2Link({ server, inbound, client, settings, stream, diagnostics, extraBinding });
         case 'tuic':
-            return buildTuicLink({ server, inbound, client, settings, stream, diagnostics });
+            return buildTuicLink({ server, inbound, client, settings, stream, diagnostics, extraBinding });
         default:
             return null;
     }
@@ -1006,6 +1020,7 @@ async function collectNativeLinks({
     warnings,
     protocolScopeMode = 'all',
     allowedProtocols = new Set(),
+    subIdExtraLabels = new Map(),
 }: {
     client: any;
     subIds: any[];
@@ -1014,8 +1029,10 @@ async function collectNativeLinks({
     warnings: any[];
     protocolScopeMode?: string;
     allowedProtocols?: Set<string>;
+    subIdExtraLabels?: Map<string, string>;
 }) {
     const links = new Set();
+    const explicitFlag = countryCodeToFlag(serverMeta?.countryCode);
     for (const subId of subIds) {
         try {
             const response = await client.get(`/sub/${encodeURIComponent(subId)}`, {
@@ -1039,10 +1056,17 @@ async function collectNativeLinks({
                 continue;
             }
 
+            const extraSuffix = sanitizeNodeLabel(subIdExtraLabels.get(String(subId || '').trim()));
             parsed
                 .filter((line) => isNativeLinkAllowedByPolicy(line, protocolScopeMode, allowedProtocols))
                 .forEach((line) => {
-                    const label = `NODE-${links.size + 1}`;
+                    let label = `NODE-${links.size + 1}`;
+                    if (extraSuffix) {
+                        label = `${label} - ${extraSuffix}`;
+                    }
+                    if (explicitFlag) {
+                        label = formatFlaggedLabel(label, explicitFlag);
+                    }
                     links.add(rewriteNativeLinkLabel(line, label));
                 });
         } catch (error) {
@@ -1068,8 +1092,8 @@ function extractPanelShareLinks(entry) {
         .filter((link) => link && LINK_PATTERN.test(link));
 }
 
-function labelPanelShareLinks(inbound, shareLinks: string[] = []) {
-    const base = getTag(null, inbound, '');
+function labelPanelShareLinks(server, inbound, shareLinks: string[] = [], extraBinding: any = null) {
+    const base = getTag(server, inbound, '', extraBinding);
     return shareLinks.map((link, index) => rewriteNativeLinkLabel(link, index === 0 ? base : `${base}-${index + 1}`));
 }
 
@@ -1181,6 +1205,9 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options: any =
         const panelLinks = [];
         const subIds = new Set();
         const fallbackSubIds = new Set();
+        const subIdExtraLabels = new Map<string, string>();
+        const serverExtraClients = (Array.isArray(options.extraClients) ? options.extraClients : [])
+            .filter((item: any) => String(item?.serverId || '').trim() === String(serverMeta.id || '').trim());
 
         for (const inbound of inbounds) {
             if (
@@ -1198,7 +1225,15 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options: any =
             const clients = mergeInboundClientEntries(inbound);
 
             for (const entry of clients) {
-                if (normalizeEmail(entry.email) !== normalizedEmail) continue;
+                const entryEmail = normalizeEmail(entry.email);
+                const isPrimaryMatch = entryEmail === normalizedEmail;
+                const matchedExtraBinding = !isPrimaryMatch && entryEmail
+                    ? serverExtraClients.find((binding: any) => (
+                        normalizeEmail(binding?.clientEmail) === entryEmail
+                        && (!binding?.inboundId || String(binding.inboundId) === String(inbound.id))
+                    )) || null
+                    : null;
+                if (!isPrimaryMatch && !matchedExtraBinding) continue;
                 perServer.matchedClientsRaw += 1;
 
                 if (!isClientEnabled(entry)) {
@@ -1223,6 +1258,14 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options: any =
                 }
 
                 const shareLinks = extractPanelShareLinks(entry);
+                const trimmedSubId = entry.subId ? String(entry.subId).trim() : '';
+                if (trimmedSubId && matchedExtraBinding) {
+                    const extraLabel = sanitizeNodeLabel(matchedExtraBinding.nodeLabel)
+                        || sanitizeNodeLabel(matchedExtraBinding.clientEmail);
+                    if (extraLabel) {
+                        subIdExtraLabels.set(trimmedSubId, extraLabel);
+                    }
+                }
                 matchedEntries.push({
                     serverId: serverMeta.id,
                     inbound,
@@ -1231,16 +1274,17 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options: any =
                     settings,
                     stream,
                     shareLinks,
-                    subId: entry.subId ? String(entry.subId).trim() : '',
+                    extraBinding: matchedExtraBinding,
+                    subId: trimmedSubId,
                 });
                 if (shareLinks.length > 0 && mode !== 'reconstructed') {
-                    labelPanelShareLinks(inbound, shareLinks).forEach((link) => {
+                    labelPanelShareLinks(serverMeta, inbound, shareLinks, matchedExtraBinding).forEach((link) => {
                         panelLinks.push(link);
                         links.add(link);
                     });
                     continue;
                 }
-                if (entry.subId && !serverIsSui) subIds.add(String(entry.subId).trim());
+                if (trimmedSubId && !serverIsSui) subIds.add(trimmedSubId);
             }
         }
 
@@ -1276,6 +1320,7 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options: any =
                     settings: item.settings,
                     stream: item.stream,
                     diagnostics,
+                    extraBinding: item.extraBinding || null,
                 });
 
                 if (!link) {
@@ -1319,6 +1364,7 @@ async function collectByServer(serverMeta, normalizedEmail, mode, options: any =
                 warnings,
                 protocolScopeMode,
                 allowedProtocols,
+                subIdExtraLabels,
             });
             nativeLinks.forEach((link) => links.add(link));
         }
@@ -1446,8 +1492,17 @@ async function buildMergedLinksByEmail(email, options: any = {}) {
         };
     }
 
+    const subUser = userStore.getBySubscriptionEmail(normalizedEmail)
+        || userStore.getByEmail(normalizedEmail)
+        || null;
+    const extraClients = Array.isArray(subUser?.extraClients) ? subUser.extraClients : [];
+
     const collected = await Promise.all(
-        servers.map((serverMeta) => collectByServer(serverMeta, normalizedEmail, mode, { nowTs, policy }))
+        servers.map((serverMeta) => collectByServer(serverMeta, normalizedEmail, mode, {
+            nowTs,
+            policy,
+            extraClients,
+        }))
     );
 
     for (const item of collected) {
@@ -5000,6 +5055,7 @@ export {
     buildSingboxConfigFromLinks,
     buildSubscriptionUrls,
     buildXhttpExtra,
+    getTag,
     mergeInboundClientEntries,
     normalizeSubscriptionFormat,
     resolvePublicBase,

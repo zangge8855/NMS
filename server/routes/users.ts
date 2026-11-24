@@ -16,6 +16,11 @@ import { pickLocalizedText, resolveRequestLocale } from '../lib/requestLocale.js
 import config from '../config.js';
 import systemSettingsStore from '../store/systemSettingsStore.js';
 import { resolvePublicBase } from './subscriptions.js';
+import {
+    cloneUserClientOnServer,
+    removeUserExtraClientBinding,
+    updateUserExtraClientBinding,
+} from '../services/userClientCloneService.js';
 
 const SAFE_HOST_HEADER_RE = /^(?:\[[0-9a-fA-F:]+\]|[a-zA-Z0-9.-]+)(?::\d{1,5})?$/;
 
@@ -118,6 +123,9 @@ router.get('/:id/detail', auditorOrAbove, async (req: Request, res: Response) =>
         enabled: user.enabled !== false,
         createdAt: user.createdAt,
         lastLoginAt: user.lastLoginAt || null,
+        isGuest: Boolean(user.isGuest),
+        guestExpiresAt: user.guestExpiresAt || null,
+        extraClients: userStore.listExtraClients(user.id),
     };
 
     // Access policy
@@ -270,6 +278,117 @@ router.delete('/:id/tokens/:tid', operatorOrAbove, (req: Request, res: Response)
         revokedReason: result.revokedReason || 'admin-revoke',
     }, { outcome: 'success' });
     return res.json({ success: true, obj: result });
+});
+
+// POST /api/users/:id/clients/clone — clone/create an extra client on a single server for the same subscription
+router.post('/:id/clients/clone', operatorOrAbove, async (req: Request, res: Response) => {
+    const locale = resolveRequestLocale(req);
+    const user = userStore.getById(req.params.id);
+    if (!user) {
+        return res.status(404).json({ success: false, msg: pickLocalizedText(locale, '用户不存在', 'User not found') });
+    }
+    if (!assertOperatorCanManageUserTokens(req, res, user, locale)) {
+        return;
+    }
+    try {
+        const actor = (req as any).user?.username || 'admin';
+        const result = await cloneUserClientOnServer(req.params.id, req.body || {}, actor, { locale });
+        appendSecurityAudit('user_client_cloned', req, {
+            ...buildAuditTarget(user),
+            serverId: result.serverId,
+            serverName: result.serverName,
+            inboundId: result.inboundId,
+            inboundRemark: result.inboundRemark,
+            protocol: result.protocol,
+            clientEmail: result.clientEmail,
+            nodeLabel: result.binding?.nodeLabel || '',
+            trafficLimitBytes: result.entitlement?.trafficLimitBytes || 0,
+            expiryTime: result.entitlement?.expiryTime || 0,
+        });
+        return res.status(201).json({
+            success: true,
+            msg: pickLocalizedText(locale, '客户端已复制并加入用户订阅', 'Client cloned and linked to the user subscription'),
+            obj: result,
+        });
+    } catch (err: any) {
+        return res.status(err?.status || 400).json({
+            success: false,
+            msg: err?.message || pickLocalizedText(locale, '复制客户端失败', 'Failed to clone client'),
+        });
+    }
+});
+
+// PATCH /api/users/:id/clients/extra/:bindingId — update cloned client node label
+router.patch('/:id/clients/extra/:bindingId', operatorOrAbove, (req: Request, res: Response) => {
+    const locale = resolveRequestLocale(req);
+    const user = userStore.getById(req.params.id);
+    if (!user) {
+        return res.status(404).json({ success: false, msg: pickLocalizedText(locale, '用户不存在', 'User not found') });
+    }
+    if (!assertOperatorCanManageUserTokens(req, res, user, locale)) {
+        return;
+    }
+    try {
+        const updated = updateUserExtraClientBinding(req.params.id, req.params.bindingId, req.body || {}, { locale });
+        appendSecurityAudit('user_client_clone_updated', req, {
+            ...buildAuditTarget(user),
+            bindingId: updated.id,
+            serverId: updated.serverId,
+            inboundId: updated.inboundId,
+            clientEmail: updated.clientEmail,
+            nodeLabel: updated.nodeLabel,
+        });
+        return res.json({
+            success: true,
+            msg: pickLocalizedText(locale, '已更新节点标签', 'Node label updated'),
+            obj: updated,
+        });
+    } catch (err: any) {
+        return res.status(err?.status || 400).json({
+            success: false,
+            msg: err?.message || pickLocalizedText(locale, '更新失败', 'Failed to update'),
+        });
+    }
+});
+
+// DELETE /api/users/:id/clients/extra/:bindingId — delete cloned client from panel and user subscription
+router.delete('/:id/clients/extra/:bindingId', operatorOrAbove, async (req: Request, res: Response) => {
+    const locale = resolveRequestLocale(req);
+    const user = userStore.getById(req.params.id);
+    if (!user) {
+        return res.status(404).json({ success: false, msg: pickLocalizedText(locale, '用户不存在', 'User not found') });
+    }
+    if (!assertOperatorCanManageUserTokens(req, res, user, locale)) {
+        return;
+    }
+    try {
+        const result = await removeUserExtraClientBinding(req.params.id, req.params.bindingId, { locale });
+        appendSecurityAudit('user_client_clone_deleted', req, {
+            ...buildAuditTarget(user),
+            bindingId: result.removed?.id || req.params.bindingId,
+            serverId: result.removed?.serverId || '',
+            inboundId: result.removed?.inboundId || '',
+            clientEmail: result.removed?.clientEmail || '',
+            panelRemoved: result.panelRemoved,
+            panelWarning: result.panelWarning || '',
+        });
+        return res.json({
+            success: true,
+            msg: result.panelWarning
+                ? pickLocalizedText(
+                    locale,
+                    `已解除订阅绑定（面板清理提示：${result.panelWarning}）`,
+                    `Unlinked from subscription (panel warning: ${result.panelWarning})`
+                )
+                : pickLocalizedText(locale, '已删除复制客户端', 'Cloned client removed'),
+            obj: result,
+        });
+    } catch (err: any) {
+        return res.status(err?.status || 400).json({
+            success: false,
+            msg: err?.message || pickLocalizedText(locale, '删除复制客户端失败', 'Failed to delete cloned client'),
+        });
+    }
 });
 
 /**

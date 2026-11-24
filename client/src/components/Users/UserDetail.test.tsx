@@ -820,4 +820,169 @@ describe('UserDetail', () => {
             expect(within(actionGroup).getByRole('button', { name: '禁用该用户' })).toBeInTheDocument();
         });
     });
+
+    it('supports cloning a client on a single server, configuring independent traffic quota, and removing the cloned client', async () => {
+        const user = userEvent.setup();
+        useServer.mockReturnValue({
+            servers: [{ id: 'server-jp', name: 'Tokyo Edge', countryCode: 'JP' }],
+            loading: false,
+        });
+
+        const detailWithClone = buildUserDetailResponse(true, {
+            user: {
+                id: 'user-1',
+                username: 'alice',
+                email: 'alice@example.com',
+                subscriptionEmail: 'alice@example.com',
+                emailVerified: true,
+                role: 'user',
+                enabled: true,
+                createdAt: '2026-03-11T10:00:00.000Z',
+                lastLoginAt: '2026-03-11T11:00:00.000Z',
+                extraClients: [{
+                    id: 'extra-1',
+                    serverId: 'server-jp',
+                    inboundId: '101',
+                    clientEmail: 'alice@example.com-ip',
+                    nodeLabel: '纯净IP',
+                }],
+            },
+        });
+
+        api.get.mockImplementation((url) => {
+            if (url === '/users/user-1/detail') {
+                return Promise.resolve(detailWithClone);
+            }
+            if (url === '/panel/server-jp/panel/api/inbounds/list') {
+                return Promise.resolve({
+                    data: {
+                        obj: [{
+                            id: 101,
+                            remark: 'VLESS-443',
+                            protocol: 'vless',
+                            port: 443,
+                            enable: true,
+                            settings: JSON.stringify({
+                                clients: [
+                                    {
+                                        id: 'uuid-main',
+                                        email: 'alice@example.com',
+                                        enable: true,
+                                        totalGB: 100 * 1024 * 1024 * 1024,
+                                        expiryTime: 0,
+                                    },
+                                    {
+                                        id: 'uuid-pure',
+                                        email: 'alice@example.com-ip',
+                                        enable: true,
+                                        totalGB: 20 * 1024 * 1024 * 1024,
+                                        expiryTime: 0,
+                                    },
+                                ],
+                            }),
+                            clientStats: [
+                                { id: 'uuid-main', email: 'alice@example.com', up: 1024, down: 2048 },
+                                { id: 'uuid-pure', email: 'alice@example.com-ip', up: 512, down: 1024 },
+                            ],
+                        }],
+                    },
+                });
+            }
+            throw new Error(`Unexpected GET ${url}`);
+        });
+
+        api.post.mockImplementation((url, body) => {
+            if (url === '/users/user-1/clients/clone') {
+                return Promise.resolve({
+                    data: {
+                        success: true,
+                        obj: {
+                            binding: {
+                                id: 'extra-2',
+                                serverId: body.serverId,
+                                inboundId: body.inboundId,
+                                clientEmail: 'alice@example.com-home',
+                                nodeLabel: body.nodeLabel,
+                            },
+                            serverId: body.serverId,
+                            serverName: 'Tokyo Edge',
+                            inboundId: body.inboundId,
+                            inboundRemark: 'VLESS-443',
+                            protocol: 'vless',
+                            clientEmail: 'alice@example.com-home',
+                        },
+                    },
+                });
+            }
+            if (String(url || '').includes('/panel/api/inbounds/onlines')) {
+                return Promise.resolve({ data: { obj: [] } });
+            }
+            throw new Error(`Unexpected POST ${url}`);
+        });
+
+        api.put.mockResolvedValue({ data: { success: true } });
+        api.delete.mockResolvedValue({ data: { success: true } });
+
+        renderWithRouter(<UserDetail />, {
+            route: '/clients/user-1?tab=clients',
+            initialEntries: ['/clients/user-1?tab=clients'],
+        });
+
+        await screen.findByText('用户详情 · alice');
+        expect(await screen.findByText('纯净IP')).toBeInTheDocument();
+        expect(screen.getByText('alice@example.com-ip')).toBeInTheDocument();
+        expect(document.querySelector('.country-flag')?.textContent).toBe('🇯🇵');
+
+        // 1. Open Clone Client modal from top button and submit
+        await user.click(screen.getAllByRole('button', { name: /复制客户端/ })[0]);
+        expect(await screen.findByText('在单个服务器上复制客户端')).toBeInTheDocument();
+
+        const labelInput = screen.getByLabelText('订阅节点后缀标签');
+        await user.clear(labelInput);
+        await user.type(labelInput, '家宽IP');
+        const trafficInput = screen.getByLabelText('独立流量限额 (GB)');
+        await user.clear(trafficInput);
+        await user.type(trafficInput, '50');
+
+        await user.click(screen.getByRole('button', { name: '确认复制并加入订阅' }));
+
+        await waitFor(() => {
+            expect(api.post).toHaveBeenCalledWith('/users/user-1/clients/clone', expect.objectContaining({
+                serverId: 'server-jp',
+                inboundId: '101',
+                nodeLabel: '家宽IP',
+                trafficLimitBytes: 50 * 1024 * 1024 * 1024,
+            }));
+        });
+
+        expect(await screen.findByText('alice@example.com-home')).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: '完成' }));
+
+        // 2. Open Independent Quota modal on the cloned row and save
+        const quotaButtons = screen.getAllByRole('button', { name: /限额/ });
+        await user.click(quotaButtons[1]);
+        expect(await screen.findByText('节点独立流量限额控制')).toBeInTheDocument();
+
+        const quotaInput = screen.getByLabelText('流量限额 (GB)');
+        await user.clear(quotaInput);
+        await user.type(quotaInput, '30');
+        await user.click(screen.getByRole('button', { name: '保存独立限额' }));
+
+        await waitFor(() => {
+            expect(api.put).toHaveBeenCalledWith('/clients/entitlement', expect.objectContaining({
+                serverId: 'server-jp',
+                inboundId: '101',
+                clientIdentifier: 'uuid-pure',
+                email: 'alice@example.com-ip',
+                mode: 'override',
+                trafficLimitBytes: 30 * 1024 * 1024 * 1024,
+            }));
+        });
+
+        // 3. Delete the cloned client binding
+        await user.click(screen.getByTitle('删除此复制客户端'));
+        await waitFor(() => {
+            expect(api.delete).toHaveBeenCalledWith('/users/user-1/clients/extra/extra-1');
+        });
+    });
 });

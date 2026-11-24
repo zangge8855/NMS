@@ -1,8 +1,10 @@
 import React from 'react';
 import { useI18n } from '../../contexts/LanguageContext';
+import { formatOptionWithFlag } from '../../utils/accessGeo';
 
 function getServerLabel(server: any): string {
-    return String(server?.name || server?.url || server?.id || '').trim();
+    const raw = String(server?.name || server?.url || server?.id || '').trim();
+    return formatOptionWithFlag(raw, server);
 }
 
 export interface PageServerSelectorProps {

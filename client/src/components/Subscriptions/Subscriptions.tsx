@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import api from '../../api/client';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { formatBytes, formatDateOnly, getErrorMessage } from '../../utils/format';
+import { formatOptionWithFlag } from '../../utils/accessGeo';
 import { buildSubscriptionProfileBundle, findSubscriptionProfile } from '../../utils/subscriptionProfiles';
 import Header from '../Layout/Header';
 import { useServer } from '../../contexts/ServerContext';
@@ -1104,7 +1105,7 @@ export default function Subscriptions() {
                                     >
                                         <option value="all">{ui.allNodes}</option>
                                         {servers.map((server) => (
-                                            <option key={server.id} value={server.id}>{server.name}</option>
+                                            <option key={server.id} value={server.id}>{formatOptionWithFlag(server.name, server)}</option>
                                         ))}
                                     </select>
                                 </div>

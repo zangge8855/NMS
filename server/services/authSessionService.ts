@@ -122,9 +122,28 @@ function buildAuditUser(user: any, fallback: any = {}) {
     };
 }
 
+const NON_EXPIRING_JWT_VALUES = new Set(['never', '0', 'none', 'infinite', 'permanent']);
+const PERSISTENT_REFRESH_MIN_AGE_SECONDS = 24 * 60 * 60;
+
+function resolveRememberMeFlag(payload: any = {}): boolean {
+    if (payload?.rememberMe === true || payload?.persistent === true) return true;
+    return false;
+}
+
 function buildSignedToken(payload: any, deps: any = {}): string {
     const jwtConfig = deps.jwtConfig || config.jwt;
     const signer = deps.jwtSign || jwt.sign;
+    if (payload?.persistent === true) {
+        const persistentTtl = String(
+            jwtConfig.persistentExpiresIn ?? config.jwt?.persistentExpiresIn ?? '365d'
+        ).trim();
+        if (!persistentTtl || NON_EXPIRING_JWT_VALUES.has(persistentTtl.toLowerCase())) {
+            return signer(payload, jwtConfig.secret);
+        }
+        return signer(payload, jwtConfig.secret, {
+            expiresIn: persistentTtl,
+        });
+    }
     return signer(payload, jwtConfig.secret, {
         expiresIn: jwtConfig.expiresIn,
     });
@@ -137,6 +156,7 @@ function buildExpiryIso(ttlMinutes: unknown): string {
 async function createLoginSession(payload: any = {}, deps: any = {}): Promise<any> {
     const userRepo = deps.userRepository || userRepository;
     const authConfig = deps.authConfig || config.auth;
+    const rememberMe = resolveRememberMeFlag(payload);
     const loginIdentifier = resolveLoginIdentifier(payload);
     const password = typeof payload?.password === 'string' ? payload.password : '';
     const user = await userRepo.authenticate(loginIdentifier, password);
@@ -162,6 +182,7 @@ async function createLoginSession(payload: any = {}, deps: any = {}): Promise<an
                 role: 'admin',
                 username: legacyUsername || 'admin',
                 tokenVersion: Number(adminUser?.tokenVersion || 1),
+                ...(rememberMe ? { persistent: true } : {}),
             };
             if (adminUser?.id) tokenPayload.userId = adminUser.id;
 
@@ -181,6 +202,7 @@ async function createLoginSession(payload: any = {}, deps: any = {}): Promise<an
             return {
                 success: true,
                 token: buildSignedToken(tokenPayload, deps),
+                persistent: rememberMe,
                 user: buildSessionUser(adminUser, tokenPayload),
                 audit: {
                     ...buildAuditUser(adminUser, tokenPayload),
@@ -229,6 +251,7 @@ async function createLoginSession(payload: any = {}, deps: any = {}): Promise<an
         role: user.role,
         username: user.username,
         tokenVersion: Number(fullUser?.tokenVersion || 1),
+        ...(rememberMe ? { persistent: true } : {}),
     };
 
     const twoFactor = typeof userRepo.getTwoFactor === 'function'
@@ -247,6 +270,7 @@ async function createLoginSession(payload: any = {}, deps: any = {}): Promise<an
     return {
         success: true,
         token: buildSignedToken(tokenPayload, deps),
+        persistent: rememberMe,
         user: buildSessionUser(fullUser, tokenPayload),
         audit: {
             ...buildAuditUser(fullUser, tokenPayload),
@@ -264,6 +288,7 @@ function buildTwoFactorChallenge(tokenPayload: any, deps: any = {}): string {
             userId: tokenPayload.userId,
             username: tokenPayload.username,
             role: tokenPayload.role,
+            ...(tokenPayload.persistent === true ? { persistent: true } : {}),
         },
         jwtConfig.secret,
         {
@@ -371,15 +396,20 @@ function completeTwoFactorLogin(payload: any = {}, deps: any = {}): any {
     }
 
     clearTwoFactorFailures(stored.id);
+    const rememberMe = payload?.rememberMe !== undefined
+        ? resolveRememberMeFlag(payload)
+        : challenge?.persistent === true;
     const tokenPayload = {
         userId: stored.id,
         role: stored.role,
         username: stored.username,
         tokenVersion: Number(stored.tokenVersion || 1),
+        ...(rememberMe ? { persistent: true } : {}),
     };
     return {
         success: true,
         token: buildSignedToken(tokenPayload, deps),
+        persistent: rememberMe,
         user: buildSessionUser(stored, tokenPayload),
         audit: {
             ...buildAuditUser(stored, tokenPayload),
@@ -478,6 +508,18 @@ function getTwoFactorStatus(currentUser: any, deps: any = {}) {
     };
 }
 
+function shouldRefreshPersistentToken(decoded: any, nowSec: number = Math.floor(Date.now() / 1000)): boolean {
+    if (decoded?.persistent !== true) return false;
+    const exp = Number(decoded?.exp);
+    const iat = Number(decoded?.iat);
+    if (!Number.isFinite(exp) || exp <= 0) return false;
+    if (!Number.isFinite(iat) || iat <= 0) return true;
+    const ageSeconds = nowSec - iat;
+    if (ageSeconds >= PERSISTENT_REFRESH_MIN_AGE_SECONDS) return true;
+    const lifetime = Math.max(1, exp - iat);
+    return (exp - nowSec) < lifetime * 0.75;
+}
+
 function validateSession(authHeader: unknown, deps: any = {}) {
     const locale = normalizeAppLocale(deps?.locale, 'zh-CN');
     const unauthorizedMsg = pickLocalizedText(locale, '未授权', 'Unauthorized');
@@ -509,9 +551,21 @@ function validateSession(authHeader: unknown, deps: any = {}) {
             throw createHttpError(401, unauthorizedMsg);
         }
 
+        const refreshedToken = shouldRefreshPersistentToken(decoded)
+            ? buildSignedToken({
+                userId: stored.id,
+                role: stored.role,
+                username: stored.username,
+                tokenVersion: Number(stored.tokenVersion ?? 1),
+                persistent: true,
+            }, deps)
+            : '';
+
         return {
             decoded,
             user: buildSessionUser(stored, decoded),
+            ...(refreshedToken ? { refreshedToken } : {}),
+            ...(decoded.persistent === true ? { persistent: true } : {}),
         };
     } catch {
         throw createHttpError(401, unauthorizedMsg);
@@ -753,15 +807,18 @@ function createDirectUserSession(user: any, deps: any = {}): any {
     if (user.enabled === false) {
         throw createHttpError(403, pickLocalizedText(locale, '该账号已被停用', 'This account has been disabled'));
     }
+    const rememberMe = deps?.rememberMe === true || deps?.persistent === true;
     const tokenPayload = {
         userId: user.id,
         role: user.role,
         username: user.username,
         tokenVersion: Number(user?.tokenVersion || 1),
+        ...(rememberMe ? { persistent: true } : {}),
     };
     return {
         success: true,
         token: buildSignedToken(tokenPayload, deps),
+        persistent: rememberMe,
         user: buildSessionUser(user, tokenPayload),
         audit: {
             ...buildAuditUser(user, tokenPayload),

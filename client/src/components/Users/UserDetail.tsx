@@ -13,8 +13,30 @@ import BatchResultModal from '../Batch/BatchResultModal';
 import useAnimatedCounter from '../../hooks/useAnimatedCounter';
 import { formatBytes, formatDateOnly, formatDateTime, getErrorMessage } from '../../utils/format';
 import { attachBatchRiskToken } from '../../utils/riskConfirm';
-import { type AccessGeoDisplay, GEO_PLACEHOLDER, resolveAccessGeoDisplay } from '../../utils/accessGeo';
-import { mergeInboundClientStats, resolveClientUsed } from '../../utils/inboundClients';
+import {
+    type AccessGeoDisplay,
+    GEO_PLACEHOLDER,
+    countryCodeToFlag,
+    formatOptionWithFlag,
+    resolveAccessGeoDisplay,
+    resolveNodeFlag,
+    resolveServerFlag,
+} from '../../utils/accessGeo';
+import {
+    formatUsagePercentLabel,
+    getClientDedupKey,
+    mergeInboundClientStats,
+    resolveClientUsed,
+    resolveUsageBarWidth,
+    resolveUsagePercent,
+    resolveUsageTone,
+    safeNumber,
+} from '../../utils/inboundClients';
+import {
+    bytesToGigabytesInput,
+    gigabytesInputToBytes,
+    normalizeLimitIp,
+} from '../../utils/entitlements';
 import { buildOnlineMatchMap, countClientOnlineSessions } from '../../utils/clientPresence';
 import { isUnsupportedPanelClientIpsError, normalizePanelClientIps } from '../../utils/panelClientIps';
 import { buildSubscriptionProfileBundle, findSubscriptionProfile } from '../../utils/subscriptionProfiles';
@@ -28,6 +50,8 @@ import { useServer } from '../../contexts/ServerContext';
 import { canManageUserTarget, canMutateOperations, resolveOptionalAuthActor } from '../../utils/permissions';
 import SectionHeader from '../UI/SectionHeader';
 import ExpandableQRCode from '../UI/ExpandableQRCode';
+import CountryFlag from '../UI/CountryFlag';
+import InboundRemarkPill from '../UI/InboundRemarkPill';
 import useMediaQuery from '../../hooks/useMediaQuery';
 import { fetchServerPanelData, invalidateServerPanelDataCache } from '../../utils/serverPanelDataCache';
 import { invalidateManagedUsersCache } from '../../utils/managedUsersCache';
@@ -48,6 +72,10 @@ import {
     HiOutlinePencilSquare,
     HiOutlineGlobeAlt,
     HiOutlineXMark,
+    HiOutlineDocumentDuplicate,
+    HiOutlineAdjustmentsHorizontal,
+    HiOutlineTrash,
+    HiOutlineArrowTopRightOnSquare,
 } from 'react-icons/hi2';
 
 function normalizeInactiveReason(reason: any, locale = 'zh-CN') {
@@ -132,6 +160,14 @@ function resolveClientPresence(client, copy) {
     };
 }
 
+function toLocalDateTimeInput(timestamp: number): string {
+    const ts = Number(timestamp || 0);
+    if (!Number.isFinite(ts) || ts <= 0) return '';
+    const d = new Date(ts);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 function collectTrackedUserEmails(user) {
     return Array.from(new Set(
         [user?.subscriptionEmail, user?.email]
@@ -169,6 +205,9 @@ function getUserDetailCopy(locale = 'zh-CN') {
                 user_expiry_updated: 'Expiry Updated',
                 user_password_reset_by_admin: 'Password Reset by Admin',
                 user_policy_updated: 'User Policy Updated',
+                user_client_cloned: 'Client Cloned',
+                user_client_clone_updated: 'Cloned Client Updated',
+                user_client_clone_deleted: 'Cloned Client Deleted',
                 subscription_token_issued: 'Subscription Token Issued',
                 subscription_token_revoked: 'Subscription Token Revoked',
             },
@@ -336,6 +375,9 @@ function getUserDetailCopy(locale = 'zh-CN') {
             user_expiry_updated: '更新到期时间',
             user_password_reset_by_admin: '管理员重置密码',
             user_policy_updated: '更新用户策略',
+            user_client_cloned: '复制客户端节点',
+            user_client_clone_updated: '更新复制节点标签',
+            user_client_clone_deleted: '删除复制客户端',
             subscription_token_issued: '签发订阅令牌',
             subscription_token_revoked: '撤销订阅令牌',
         },
@@ -817,6 +859,35 @@ export default function UserDetail() {
     const [clientAdjustSaving, setClientAdjustSaving] = useState(false);
     const [batchResultData, setBatchResultData] = useState(null);
     const [batchResultTitle, setBatchResultTitle] = useState(locale === 'en-US' ? 'Batch Adjust Result' : '批量调整结果');
+    const [serverInboundsByServerId, setServerInboundsByServerId] = useState<Record<string, any[]>>({});
+    const [cloneModalOpen, setCloneModalOpen] = useState(false);
+    const [cloneSubmitting, setCloneSubmitting] = useState(false);
+    const [cloneLoadingInbounds, setCloneLoadingInbounds] = useState(false);
+    const [cloneResult, setCloneResult] = useState<any>(null);
+    const [cloneForm, setCloneForm] = useState({
+        serverId: '',
+        inboundId: '',
+        nodeLabel: '',
+        clientEmail: '',
+        trafficLimitGb: '0',
+        expiryDate: '',
+        limitIp: '0',
+        sourceClientEmail: '',
+        sourceClientIdentifier: '',
+    });
+    const [quotaModalTarget, setQuotaModalTarget] = useState<any>(null);
+    const [quotaForm, setQuotaForm] = useState({
+        trafficLimitGb: '0',
+        expiryDate: '',
+        limitIp: '0',
+    });
+    const [quotaSaving, setQuotaSaving] = useState(false);
+    const [deletingBindingId, setDeletingBindingId] = useState('');
+
+    const serverById = useMemo(
+        () => new Map(servers.map((srv: any) => [String(srv?.id || '').trim(), srv])),
+        [servers]
+    );
 
     const applyTab = (tabKey) => {
         const normalized = normalizeDetailTab(tabKey);
@@ -927,8 +998,10 @@ export default function UserDetail() {
         clientRequestIdRef.current = requestId;
         const preserveCurrent = options.preserveCurrent === true;
         const background = options.background === true;
-        const trackedEmails = collectTrackedUserEmails(detail?.user);
-        if (trackedEmails.length === 0) {
+        const targetUser = options.userOverride || detail?.user;
+        const trackedEmails = collectTrackedUserEmails(targetUser);
+        const extraBindings = Array.isArray(targetUser?.extraClients) ? targetUser.extraClients : [];
+        if (trackedEmails.length === 0 && extraBindings.length === 0) {
             if (!isMountedRef.current || requestId !== clientRequestIdRef.current) return;
             setClientData([]);
             setClientsFetched(true);
@@ -955,6 +1028,7 @@ export default function UserDetail() {
             }
             const emailSet = new Set(trackedEmails);
             const clients = [];
+            const nextInboundsByServer: Record<string, any[]> = {};
             const serverResults = await fetchServerPanelData(api, servers, {
                 includeOnlines: true,
                 force: options.force === true,
@@ -964,7 +1038,12 @@ export default function UserDetail() {
             serverResults.forEach((result) => {
                 const server = result.server;
                 const inbounds = Array.isArray(result?.inbounds) ? result.inbounds : [];
+                nextInboundsByServer[String(server.id || '')] = inbounds;
                 const onlineMatchMap = buildOnlineMatchMap(result?.onlines);
+                const serverExtraBindings = extraBindings.filter(
+                    (item: any) => String(item?.serverId || '').trim() === String(server.id || '').trim()
+                );
+
                 inbounds.forEach((ib) => {
                     const ibClients = mergeInboundClientStats(ib);
                     if (ibClients.length === 0) return;
@@ -973,7 +1052,15 @@ export default function UserDetail() {
                         // Match case-insensitively, but keep the panel's spelling: it is the
                         // case-sensitive client name sent back for adjust / IP / HWID actions.
                         const clientEmail = String(cl.email || '').trim();
-                        if (!emailSet.has(clientEmail.toLowerCase())) return;
+                        const normalizedClientEmail = clientEmail.toLowerCase();
+                        const isPrimary = Boolean(normalizedClientEmail) && emailSet.has(normalizedClientEmail);
+                        const matchedExtraBinding = !isPrimary && normalizedClientEmail
+                            ? serverExtraBindings.find((binding: any) => (
+                                String(binding?.clientEmail || '').trim().toLowerCase() === normalizedClientEmail
+                                && (!binding?.inboundId || String(binding.inboundId) === String(ib.id))
+                            )) || null
+                            : null;
+                        if (!isPrimary && !matchedExtraBinding) return;
                         const clientIdentifier = String(getClientIdentifier(cl, protocol) || '').trim();
                         clients.push({
                             serverId: server.id,
@@ -991,14 +1078,25 @@ export default function UserDetail() {
                             totalGB: Number(cl.totalGB) || 0,
                             limitIp: Number(cl.limitIp) || 0,
                             expiryTime: Number(cl.expiryTime) || 0,
+                            speedLimitUp: Number(cl.speedLimitUp) || 0,
+                            speedLimitDown: Number(cl.speedLimitDown) || 0,
+                            tgId: Number(cl.tgId) || 0,
+                            group: String(cl.group || ''),
+                            comment: String(cl.comment || ''),
+                            reset: Number(cl.reset) || 0,
+                            suiClientId: cl.suiClientId,
                             enable: cl.enable !== false,
                             onlineSessions: countClientOnlineSessions(cl, protocol, onlineMatchMap),
+                            isCloned: Boolean(matchedExtraBinding),
+                            bindingId: matchedExtraBinding?.id || '',
+                            nodeLabel: matchedExtraBinding?.nodeLabel || '',
                         });
                     });
                 });
             });
 
             if (!isMountedRef.current || requestId !== clientRequestIdRef.current) return;
+            setServerInboundsByServerId((prev) => ({ ...prev, ...nextInboundsByServer }));
             setClientData(clients);
             const checkedAtMs = Date.now();
             const nextLiveTrafficSnapshot = buildLiveTrafficSnapshot(
@@ -1109,6 +1207,252 @@ export default function UserDetail() {
         setClientAdjustSaving(false);
     };
 
+    const ensureServerInboundsLoaded = async (serverId: string): Promise<any[]> => {
+        const sid = String(serverId || '').trim();
+        if (!sid) return [];
+        const cached = serverInboundsByServerId[sid];
+        if (Array.isArray(cached) && cached.length > 0) {
+            return cached;
+        }
+        setCloneLoadingInbounds(true);
+        try {
+            const res = await api.get(`/panel/${encodeURIComponent(sid)}/panel/api/inbounds/list`);
+            const list = Array.isArray(res.data?.obj) ? res.data.obj : [];
+            if (isMountedRef.current) {
+                setServerInboundsByServerId((prev) => ({ ...prev, [sid]: list }));
+            }
+            return list;
+        } catch {
+            return Array.isArray(cached) ? cached : [];
+        } finally {
+            if (isMountedRef.current) {
+                setCloneLoadingInbounds(false);
+            }
+        }
+    };
+
+    const pickDefaultInboundId = (inbounds: any[] = [], preferredInboundId = ''): string => {
+        const preferred = String(preferredInboundId || '').trim();
+        if (preferred && inbounds.some((item) => String(item?.id) === preferred)) {
+            return preferred;
+        }
+        const enabledInbound = inbounds.find((item) => item?.enable !== false);
+        return enabledInbound ? String(enabledInbound.id) : (inbounds[0] ? String(inbounds[0].id) : '');
+    };
+
+    const openCloneModal = async (sourceClient: any = null) => {
+        const defaultServerId = String(sourceClient?.serverId || clientData[0]?.serverId || servers[0]?.id || '').trim();
+        const defaultLabel = locale === 'en-US' ? 'Clean IP' : '纯净IP';
+        const initialTrafficGb = sourceClient?.totalGB
+            ? bytesToGigabytesInput(sourceClient.totalGB)
+            : bytesToGigabytesInput(detail?.effectivePolicy?.trafficLimitBytes || detail?.policy?.trafficLimitBytes || 0);
+        const initialExpiry = sourceClient?.expiryTime
+            ? toLocalDateTimeInput(sourceClient.expiryTime)
+            : toLocalDateTimeInput(detail?.effectivePolicy?.expiryTime || detail?.policy?.expiryTime || 0);
+        const initialLimitIp = String(normalizeLimitIp(
+            sourceClient?.limitIp ?? detail?.effectivePolicy?.limitIp ?? detail?.policy?.limitIp ?? 0
+        ));
+
+        setCloneResult(null);
+        setCloneForm({
+            serverId: defaultServerId,
+            inboundId: String(sourceClient?.inboundId || ''),
+            nodeLabel: defaultLabel,
+            clientEmail: '',
+            trafficLimitGb: initialTrafficGb,
+            expiryDate: initialExpiry,
+            limitIp: initialLimitIp,
+            sourceClientEmail: String(sourceClient?.email || ''),
+            sourceClientIdentifier: String(sourceClient?.clientIdentifier || ''),
+        });
+        setCloneModalOpen(true);
+
+        if (defaultServerId) {
+            const loaded = await ensureServerInboundsLoaded(defaultServerId);
+            const resolvedInboundId = pickDefaultInboundId(loaded, sourceClient?.inboundId);
+            if (isMountedRef.current && resolvedInboundId) {
+                setCloneForm((prev) => (prev.serverId === defaultServerId ? { ...prev, inboundId: resolvedInboundId } : prev));
+            }
+        }
+    };
+
+    const closeCloneModal = () => {
+        setCloneModalOpen(false);
+        setCloneResult(null);
+    };
+
+    const handleCloneServerChange = async (nextServerId: string) => {
+        setCloneForm((prev) => ({
+            ...prev,
+            serverId: nextServerId,
+            inboundId: '',
+            sourceClientEmail: '',
+            sourceClientIdentifier: '',
+        }));
+        const loaded = await ensureServerInboundsLoaded(nextServerId);
+        const matchedRow = clientData.find((item) => String(item.serverId) === String(nextServerId));
+        const resolvedInboundId = pickDefaultInboundId(loaded, matchedRow?.inboundId);
+        if (isMountedRef.current) {
+            setCloneForm((prev) => (
+                prev.serverId === nextServerId
+                    ? {
+                        ...prev,
+                        inboundId: resolvedInboundId,
+                        sourceClientEmail: String(matchedRow?.email || ''),
+                        sourceClientIdentifier: String(matchedRow?.clientIdentifier || ''),
+                    }
+                    : prev
+            ));
+        }
+    };
+
+    const submitCloneClient = async (event: React.FormEvent) => {
+        event.preventDefault();
+        if (!detail?.user?.id || cloneSubmitting) return;
+        if (!cloneForm.serverId || !cloneForm.inboundId) {
+            toast.error(locale === 'en-US' ? 'Please select a server and inbound' : '请选择目标服务器和入站');
+            return;
+        }
+        setCloneSubmitting(true);
+        try {
+            const expiryTime = cloneForm.expiryDate ? new Date(cloneForm.expiryDate).getTime() : 0;
+            const res = await api.post(`/users/${encodeURIComponent(detail.user.id)}/clients/clone`, {
+                serverId: cloneForm.serverId,
+                inboundId: cloneForm.inboundId,
+                nodeLabel: cloneForm.nodeLabel.trim(),
+                clientEmail: cloneForm.clientEmail.trim() || undefined,
+                trafficLimitBytes: gigabytesInputToBytes(cloneForm.trafficLimitGb),
+                expiryTime: Number.isFinite(expiryTime) && expiryTime > 0 ? expiryTime : 0,
+                limitIp: normalizeLimitIp(cloneForm.limitIp),
+                sourceClientEmail: cloneForm.sourceClientEmail || undefined,
+                sourceClientIdentifier: cloneForm.sourceClientIdentifier || undefined,
+            });
+            if (res.data?.success) {
+                toast.success(res.data?.msg || (locale === 'en-US' ? 'Client cloned and added to subscription' : '客户端已复制并加入订阅'));
+                setCloneResult(res.data?.obj || null);
+                invalidateManagedUsersCache();
+                invalidateServerPanelDataCache();
+                const updatedDetail = await fetchDetail({ preserveCurrent: true });
+                await fetchClients({
+                    force: true,
+                    preserveCurrent: true,
+                    userOverride: updatedDetail?.user,
+                });
+                loadSubscription({ quiet: true });
+            } else {
+                toast.error(res.data?.msg || (locale === 'en-US' ? 'Failed to clone client' : '复制客户端失败'));
+            }
+        } catch (err) {
+            toast.error(getErrorMessage(err, locale === 'en-US' ? 'Failed to clone client' : '复制客户端失败', locale));
+        } finally {
+            if (isMountedRef.current) {
+                setCloneSubmitting(false);
+            }
+        }
+    };
+
+    const handleDeleteClonedClient = async (clientRow: any) => {
+        if (!detail?.user?.id || !clientRow?.bindingId || deletingBindingId) return;
+        const ok = await confirmAction({
+            title: locale === 'en-US' ? 'Remove Cloned Client' : '删除复制客户端',
+            message: locale === 'en-US'
+                ? `Delete cloned client "${clientRow.email}" on ${clientRow.serverName} and unlink it from this subscription?`
+                : `确定删除 ${clientRow.serverName} 上的复制客户端「${clientRow.email}」并从订阅中移除吗？`,
+            confirmText: t('comp.common.confirmDelete'),
+            tone: 'danger',
+        });
+        if (!ok) return;
+
+        setDeletingBindingId(clientRow.bindingId);
+        try {
+            const res = await api.delete(
+                `/users/${encodeURIComponent(detail.user.id)}/clients/extra/${encodeURIComponent(clientRow.bindingId)}`
+            );
+            if (res.data?.success) {
+                toast.success(res.data?.msg || (locale === 'en-US' ? 'Cloned client removed' : '已删除复制客户端'));
+                invalidateManagedUsersCache();
+                invalidateServerPanelDataCache();
+                const updatedDetail = await fetchDetail({ preserveCurrent: true });
+                await fetchClients({
+                    force: true,
+                    preserveCurrent: true,
+                    userOverride: updatedDetail?.user,
+                });
+                loadSubscription({ quiet: true });
+            } else {
+                toast.error(res.data?.msg || t('comp.common.deleteFailed'));
+            }
+        } catch (err) {
+            toast.error(getErrorMessage(err, t('comp.common.deleteFailed'), locale));
+        } finally {
+            if (isMountedRef.current) {
+                setDeletingBindingId('');
+            }
+        }
+    };
+
+    const openQuotaModal = (clientRow: any) => {
+        setQuotaModalTarget(clientRow);
+        setQuotaForm({
+            trafficLimitGb: bytesToGigabytesInput(clientRow?.totalGB || 0),
+            expiryDate: toLocalDateTimeInput(clientRow?.expiryTime || 0),
+            limitIp: String(normalizeLimitIp(clientRow?.limitIp || 0)),
+        });
+    };
+
+    const closeQuotaModal = () => {
+        setQuotaModalTarget(null);
+    };
+
+    const submitQuotaUpdate = async (mode: 'override' | 'follow_policy') => {
+        if (!quotaModalTarget || quotaSaving) return;
+        setQuotaSaving(true);
+        try {
+            const expiryTime = quotaForm.expiryDate ? new Date(quotaForm.expiryDate).getTime() : 0;
+            const res = await api.put('/clients/entitlement', {
+                serverId: quotaModalTarget.serverId,
+                inboundId: String(quotaModalTarget.inboundId),
+                clientIdentifier: quotaModalTarget.clientIdentifier || getClientIdentifier(quotaModalTarget, quotaModalTarget.protocol),
+                email: quotaModalTarget.email,
+                protocol: quotaModalTarget.protocol,
+                mode,
+                ...(mode === 'override'
+                    ? {
+                        trafficLimitBytes: gigabytesInputToBytes(quotaForm.trafficLimitGb),
+                        expiryTime: Number.isFinite(expiryTime) && expiryTime > 0 ? expiryTime : 0,
+                        limitIp: normalizeLimitIp(quotaForm.limitIp),
+                        speedLimitUp: Number(quotaModalTarget.speedLimitUp || 0),
+                        speedLimitDown: Number(quotaModalTarget.speedLimitDown || 0),
+                        tgId: Number(quotaModalTarget.tgId || 0),
+                        group: String(quotaModalTarget.group || ''),
+                        comment: String(quotaModalTarget.comment || ''),
+                        reset: Number(quotaModalTarget.reset || 0),
+                    }
+                    : {}),
+            });
+            if (res.data?.success) {
+                toast.success(
+                    mode === 'follow_policy'
+                        ? (locale === 'en-US' ? 'Restored to follow user policy' : '已恢复跟随用户策略')
+                        : (locale === 'en-US' ? 'Node traffic quota updated' : '节点流量与配额已更新')
+                );
+                closeQuotaModal();
+                invalidateManagedUsersCache();
+                invalidateServerPanelDataCache();
+                await fetchClients({ force: true, preserveCurrent: true });
+                loadSubscription({ quiet: true });
+            } else {
+                toast.error(res.data?.msg || copy.labels.actionFailed);
+            }
+        } catch (err) {
+            toast.error(getErrorMessage(err, copy.labels.actionFailed, locale));
+        } finally {
+            if (isMountedRef.current) {
+                setQuotaSaving(false);
+            }
+        }
+    };
+
     useEffect(() => {
         const snapshot = readUserDetailSnapshot(userId);
         preserveBootstrapClientsRef.current = snapshot?.clientsFetched === true;
@@ -1141,8 +1485,11 @@ export default function UserDetail() {
         };
     }, []);
 
+    const extraClientsSignature = Array.isArray(detail?.user?.extraClients)
+        ? detail.user.extraClients.map((item: any) => `${item?.id || ''}:${item?.nodeLabel || ''}`).join(',')
+        : '';
     const clientResetKey = detail
-        ? `${detail.user?.id || ''}|${detail.user?.email || ''}|${detail.user?.subscriptionEmail || ''}|${serverInventoryKey || ''}`
+        ? `${detail.user?.id || ''}|${detail.user?.email || ''}|${detail.user?.subscriptionEmail || ''}|${extraClientsSignature}|${serverInventoryKey || ''}`
         : '';
 
     useEffect(() => {
@@ -1307,7 +1654,15 @@ export default function UserDetail() {
 
     // Stats
     const totalTraffic = useMemo(() => {
-        return clientData.reduce((sum, c) => sum + resolveClientUsed(c), 0);
+        const seenSui = new Set<string>();
+        return clientData.reduce((sum, c) => {
+            const key = getClientDedupKey(c.serverId, c);
+            if (key) {
+                if (seenSui.has(key)) return sum;
+                seenSui.add(key);
+            }
+            return sum + resolveClientUsed(c);
+        }, 0);
     }, [clientData]);
     const liveTrafficSummaryText = liveTrafficSummary.ready
         ? `${formatBytes(liveTrafficSummary.totalPerSecond)}/s`
@@ -1610,6 +1965,60 @@ export default function UserDetail() {
     ];
     const rovingTabs = tabs.map((tabItem) => ({ id: tabItem.key }));
 
+    const canManageThisUser = canMutate && canManageUserTarget(actorRole, user.role);
+
+    const renderClientTrafficCell = (client: any, variant: 'table' | 'mobile' = 'table') => {
+        const used = resolveClientUsed(client);
+        const up = safeNumber(client?.up);
+        const down = safeNumber(client?.down);
+        const limit = safeNumber(client?.totalGB);
+        const percentLabel = formatUsagePercentLabel(used, limit);
+        const usagePercent = resolveUsagePercent(used, limit);
+        const usageTone = resolveUsageTone(usagePercent);
+        const barWidth = resolveUsageBarWidth(used, limit);
+
+        if (limit > 0) {
+            return (
+                <div className={`users-traffic-stack${variant === 'mobile' ? ' is-mobile' : ''}`}>
+                    <div className="users-traffic-head font-mono">
+                        <span className="users-traffic-ratio">{`${formatBytes(used)}/${formatBytes(limit)}`}</span>
+                        {percentLabel ? <span className={`users-traffic-pct is-${usageTone}`}>{percentLabel}</span> : null}
+                    </div>
+                    <div
+                        className="users-traffic-bar"
+                        role="progressbar"
+                        aria-valuenow={usagePercent ?? 0}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-label={`${formatBytes(used)} / ${formatBytes(limit)} (${percentLabel})`}
+                    >
+                        <div className={`users-traffic-bar-fill is-${usageTone}`} style={{ width: `${barWidth}%` }} />
+                    </div>
+                    <div className="users-traffic-split font-mono">
+                        <span className="text-success">↑{formatBytes(up)}</span>
+                        <span className="text-info">↓{formatBytes(down)}</span>
+                    </div>
+                </div>
+            );
+        }
+
+        if (used > 0) {
+            return (
+                <div className={`users-traffic-stack${variant === 'mobile' ? ' is-mobile' : ''}`}>
+                    <div className="users-traffic-head font-mono">
+                        <span className="users-traffic-ratio">{`${formatBytes(used)}/∞`}</span>
+                    </div>
+                    <div className="users-traffic-split font-mono">
+                        <span className="text-success">↑{formatBytes(up)}</span>
+                        <span className="text-info">↓{formatBytes(down)}</span>
+                    </div>
+                </div>
+            );
+        }
+
+        return <span className="cell-mono">{formatBytes(0)}</span>;
+    };
+
     const renderClientActionButton = (client, supportState) => {
         const clientIpUnsupported = supportState?.supported === false;
         const clientIpDisabled = !client.email || clientIpUnsupported;
@@ -1618,15 +2027,53 @@ export default function UserDetail() {
             : (clientIpUnsupported ? supportState.reason : copy.labels.viewNodeIp);
 
         return (
-            <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => loadClientIps(client)}
-                disabled={clientIpDisabled}
-                title={clientIpTitle}
-            >
-                <HiOutlineGlobeAlt /> {copy.labels.nodeIp}
-            </button>
+            <div className="user-detail-client-action-group">
+                {canManageThisUser && (
+                    <>
+                        <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => openCloneModal(client)}
+                            title={locale === 'en-US'
+                                ? 'Clone client on this server for independent routing & traffic quota'
+                                : '在此服务器复制独立客户端（用于纯净 IP 出站分流与独立流量限额）'}
+                        >
+                            <HiOutlineDocumentDuplicate /> {locale === 'en-US' ? 'Clone' : '复制'}
+                        </button>
+                        <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => openQuotaModal(client)}
+                            title={locale === 'en-US'
+                                ? 'Configure independent traffic quota & expiry for this node'
+                                : '单独设置此节点的流量限额与到期时间'}
+                        >
+                            <HiOutlineAdjustmentsHorizontal /> {locale === 'en-US' ? 'Quota' : '限额'}
+                        </button>
+                    </>
+                )}
+                <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => loadClientIps(client)}
+                    disabled={clientIpDisabled}
+                    title={clientIpTitle}
+                >
+                    <HiOutlineGlobeAlt /> {copy.labels.nodeIp}
+                </button>
+                {canManageThisUser && client.isCloned && client.bindingId && (
+                    <button
+                        type="button"
+                        className="btn btn-danger btn-sm"
+                        onClick={() => handleDeleteClonedClient(client)}
+                        disabled={deletingBindingId === client.bindingId}
+                        title={locale === 'en-US' ? 'Remove cloned client' : '删除此复制客户端'}
+                    >
+                        {deletingBindingId === client.bindingId ? <span className="spinner" /> : <HiOutlineTrash />}
+                        <span>{t('comp.common.delete')}</span>
+                    </button>
+                )}
+            </div>
         );
     };
 
@@ -1926,16 +2373,28 @@ export default function UserDetail() {
                         {/* Clients Tab */}
                         {activeTab === 'clients' && (
                             <div>
-                                {canMutate && clientData.length > 0 && (
-                                    <div className="flex justify-end gap-2 mb-3">
-                                        <button
-                                            type="button"
-                                            className="btn btn-secondary btn-sm"
-                                            onClick={() => setClientAdjustOpen(true)}
-                                            disabled={clientsLoading}
-                                        >
-                                            <HiOutlineCalendarDays /> {copy.labels.batchAdjustClients}
-                                        </button>
+                                {canManageThisUser && (servers.length > 0 || clientData.length > 0) && (
+                                    <div className="flex justify-end flex-wrap gap-2 mb-3">
+                                        {servers.length > 0 && (
+                                            <button
+                                                type="button"
+                                                className="btn btn-primary btn-sm"
+                                                onClick={() => openCloneModal(null)}
+                                                disabled={clientsLoading}
+                                            >
+                                                <HiOutlineDocumentDuplicate /> {locale === 'en-US' ? 'Clone Client' : '复制客户端'}
+                                            </button>
+                                        )}
+                                        {clientData.length > 0 && (
+                                            <button
+                                                type="button"
+                                                className="btn btn-secondary btn-sm"
+                                                onClick={() => setClientAdjustOpen(true)}
+                                                disabled={clientsLoading}
+                                            >
+                                                <HiOutlineCalendarDays /> {copy.labels.batchAdjustClients}
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                                 {Object.values(clientIpSupportByServer).some((item) => item?.supported === false) && (
@@ -1948,9 +2407,16 @@ export default function UserDetail() {
                                         title={copy.labels.noClientsTitle}
                                         subtitle={copy.labels.noClientsSubtitle}
                                         action={(
-                                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchClients({ force: true })}>
-                                                <HiOutlineArrowPath /> {copy.labels.refresh}
-                                            </button>
+                                            <div className="flex flex-wrap justify-center gap-2">
+                                                {canManageThisUser && servers.length > 0 && (
+                                                    <button type="button" className="btn btn-primary btn-sm" onClick={() => openCloneModal(null)}>
+                                                        <HiOutlineDocumentDuplicate /> {locale === 'en-US' ? 'Clone Client' : '复制客户端'}
+                                                    </button>
+                                                )}
+                                                <button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchClients({ force: true })}>
+                                                    <HiOutlineArrowPath /> {copy.labels.refresh}
+                                                </button>
+                                            </div>
                                         )}
                                     />
                                 ) : isCompactLayout ? (
@@ -1958,12 +2424,17 @@ export default function UserDetail() {
                                         {clientData.map((client, index) => {
                                             const supportState = clientIpSupportByServer[client.serverId];
                                             const presence = resolveClientPresence(client, copy);
+                                            const srv = serverById.get(String(client.serverId || '').trim()) || { name: client.serverName };
+                                            const remarkLabel = client.inboundRemark || String(client.inboundId || '');
                                             return (
-                                                <div key={`${client.serverId}-${client.inboundId || index}`} className="user-detail-client-card">
+                                                <div key={`${client.serverId}-${client.inboundId}-${client.email || index}`} className="user-detail-client-card">
                                                     <div className="user-detail-client-head">
                                                         <div className="user-detail-client-copy">
                                                             <div className="user-detail-client-title-row">
-                                                                <div className="user-detail-client-title">{client.serverName}</div>
+                                                                <div className="user-detail-client-title">
+                                                                    <CountryFlag flag={resolveServerFlag(srv)} label={client.serverName} />
+                                                                    {client.serverName}
+                                                                </div>
                                                                 <span
                                                                     className={`user-detail-presence${presence.online ? ' is-online' : ''}`}
                                                                     title={presence.detail || presence.label}
@@ -1973,7 +2444,27 @@ export default function UserDetail() {
                                                                     {presence.detail ? <span className="user-detail-presence-detail">{presence.detail}</span> : null}
                                                                 </span>
                                                             </div>
-                                                            <div className="user-detail-client-subtitle">{client.inboundRemark || client.inboundId}</div>
+                                                            <div className="user-detail-client-subtitle user-detail-inbound-stack">
+                                                                <InboundRemarkPill
+                                                                    remark={remarkLabel}
+                                                                    protocol={client.protocol}
+                                                                    flag={resolveNodeFlag(remarkLabel, srv)}
+                                                                />
+                                                                {client.isCloned && client.nodeLabel ? (
+                                                                    <span className="badge badge-info">{client.nodeLabel}</span>
+                                                                ) : null}
+                                                            </div>
+                                                            {client.isCloned && client.email ? (
+                                                                <div className="user-detail-cloned-email-row">
+                                                                    <code className="user-detail-cloned-email">{client.email}</code>
+                                                                    <CopyFeedbackButton
+                                                                        text={client.email}
+                                                                        successText={locale === 'en-US' ? 'Client email copied' : '已复制 3x-ui 客户端名'}
+                                                                        className="btn btn-ghost btn-xs btn-icon"
+                                                                        title={locale === 'en-US' ? 'Copy client email for 3x-ui routing rule' : '复制客户端名（用于 3x-ui 路由分流规则）'}
+                                                                    />
+                                                                </div>
+                                                            ) : null}
                                                         </div>
                                                         <span className={`badge ${client.enable ? 'badge-success' : 'badge-danger'}`}>
                                                             {client.enable ? copy.labels.enabled : copy.labels.disabled}
@@ -1984,9 +2475,11 @@ export default function UserDetail() {
                                                         <span className="user-detail-client-meta-pill">:{client.port}</span>
                                                     </div>
                                                     <div className="user-detail-client-metrics">
-                                                        <div className="user-detail-client-metric">
+                                                        <div className="user-detail-client-metric user-detail-client-metric--full">
                                                             <span className="user-detail-client-metric-label">{copy.labels.traffic}</span>
-                                                            <span className="user-detail-client-metric-value">{formatBytes(resolveClientUsed(client))}</span>
+                                                            <div className="user-detail-client-metric-value">
+                                                                {renderClientTrafficCell(client, 'mobile')}
+                                                            </div>
                                                         </div>
                                                         <div className="user-detail-client-metric">
                                                             <span className="user-detail-client-metric-label">{copy.labels.expiryTime}</span>
@@ -2020,11 +2513,16 @@ export default function UserDetail() {
                                                 {clientData.map((c, i) => {
                                                     const supportState = clientIpSupportByServer[c.serverId];
                                                     const presence = resolveClientPresence(c, copy);
+                                                    const srv = serverById.get(String(c.serverId || '').trim()) || { name: c.serverName };
+                                                    const remarkLabel = c.inboundRemark || String(c.inboundId || '');
                                                     return (
-                                                    <tr key={i}>
+                                                    <tr key={`${c.serverId}-${c.inboundId}-${c.email || i}`}>
                                                         <td data-label={copy.labels.server} className="user-detail-server-cell">
                                                             <div className="user-detail-server-stack">
-                                                                <span className="user-detail-server-name">{c.serverName}</span>
+                                                                <span className="user-detail-server-name">
+                                                                    <CountryFlag flag={resolveServerFlag(srv)} label={c.serverName} />
+                                                                    {c.serverName}
+                                                                </span>
                                                                 <span
                                                                     className={`user-detail-presence${presence.online ? ' is-online' : ''}`}
                                                                     title={presence.detail || presence.label}
@@ -2035,9 +2533,33 @@ export default function UserDetail() {
                                                                 </span>
                                                             </div>
                                                         </td>
-                                                        <td data-label={copy.labels.inbound}>{c.inboundRemark || c.inboundId}</td>
+                                                        <td data-label={copy.labels.inbound} className="user-detail-inbound-cell">
+                                                            <div className="user-detail-inbound-stack">
+                                                                <InboundRemarkPill
+                                                                    remark={remarkLabel}
+                                                                    protocol={c.protocol}
+                                                                    flag={resolveNodeFlag(remarkLabel, srv)}
+                                                                />
+                                                                {c.isCloned && c.nodeLabel ? (
+                                                                    <span className="badge badge-info">{c.nodeLabel}</span>
+                                                                ) : null}
+                                                            </div>
+                                                            {c.isCloned && c.email ? (
+                                                                <div className="user-detail-cloned-email-row">
+                                                                    <code className="user-detail-cloned-email">{c.email}</code>
+                                                                    <CopyFeedbackButton
+                                                                        text={c.email}
+                                                                        successText={locale === 'en-US' ? 'Client email copied' : '已复制 3x-ui 客户端名'}
+                                                                        className="btn btn-ghost btn-xs btn-icon"
+                                                                        title={locale === 'en-US' ? 'Copy client email for 3x-ui routing rule' : '复制客户端名（用于 3x-ui 路由分流规则）'}
+                                                                    />
+                                                                </div>
+                                                            ) : null}
+                                                        </td>
                                                         <td data-label={copy.labels.protocol} className="table-cell-center user-detail-protocol-cell"><span className="badge badge-neutral">{c.protocol}</span></td>
-                                                        <td data-label={copy.labels.traffic} className="table-cell-right cell-mono-right user-detail-traffic-cell">{formatBytes(resolveClientUsed(c))}</td>
+                                                        <td data-label={copy.labels.traffic} className="table-cell-right user-detail-traffic-cell">
+                                                            {renderClientTrafficCell(c, 'table')}
+                                                        </td>
                                                         <td data-label={copy.labels.expiryTime} className="table-cell-center cell-mono user-detail-expiry-cell">{c.expiryTime > 0 ? formatDateOnly(c.expiryTime, locale) : copy.labels.permanent}</td>
                                                         <td data-label={copy.labels.status} className="table-cell-center user-detail-status-cell"><span className={`badge ${c.enable ? 'badge-success' : 'badge-danger'}`}>{c.enable ? copy.labels.enabled : copy.labels.disabled}</span></td>
                                                         <td data-label={copy.labels.actions} className="table-cell-actions user-detail-actions-cell">
@@ -2171,6 +2693,395 @@ export default function UserDetail() {
                                 <button type="button" className="btn btn-secondary" onClick={() => setClientAdjustOpen(false)} disabled={clientAdjustSaving}>{t('comp.common.cancel')}</button>
                                 <button type="submit" className="btn btn-primary" disabled={clientAdjustSaving}>
                                     {clientAdjustSaving ? <span className="spinner" /> : t('comp.users.executeAdjust')}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </ModalShell>
+            )}
+
+            {canManageThisUser && cloneModalOpen && (
+                <ModalShell isOpen={cloneModalOpen} onClose={closeCloneModal}>
+                    <div className="modal modal-md" onClick={(event) => event.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3 className="modal-title">
+                                {locale === 'en-US' ? 'Clone Client on Single Server' : '在单个服务器上复制客户端'}
+                            </h3>
+                            <button
+                                type="button"
+                                className="modal-close"
+                                onClick={closeCloneModal}
+                                aria-label={t('comp.common.close')}
+                                title={t('comp.common.close')}
+                            >
+                                <HiOutlineXMark />
+                            </button>
+                        </div>
+                        {cloneResult ? (
+                            <div className="modal-body">
+                                <div className="user-detail-clone-result-box">
+                                    <div className="text-sm font-semibold mb-1">
+                                        {locale === 'en-US'
+                                            ? 'Cloned client created and added to the same subscription'
+                                            : '复制客户端已创建并自动加入同一订阅链接'}
+                                    </div>
+                                    <div className="text-xs text-muted mb-3">
+                                        {locale === 'en-US'
+                                            ? 'Copy the 3x-ui client name below and add it to the routing rule `user` field to route this second node through a clean/residential IP outbound.'
+                                            : '复制下方 3x-ui 客户端名，在面板或 Xray 路由规则的 user 字段中将其分流到纯净 IP 出站，即可在同一订阅中保留原服务器 IP 节点并新增纯净 IP 节点。'}
+                                    </div>
+                                    <div className="user-detail-clone-result-kv">
+                                        <span className="text-xs text-muted">
+                                            {locale === 'en-US' ? '3x-ui Client Name (for routing rule)' : '3x-ui 客户端名（路由分流 user）'}
+                                        </span>
+                                        <div className="user-detail-cloned-email-row mt-1">
+                                            <code className="user-detail-cloned-email user-detail-cloned-email--lg">
+                                                {cloneResult.clientEmail}
+                                            </code>
+                                            <CopyFeedbackButton
+                                                text={cloneResult.clientEmail || ''}
+                                                successText={locale === 'en-US' ? 'Client name copied' : '客户端名已复制'}
+                                                className="btn btn-secondary btn-xs"
+                                            >
+                                                {locale === 'en-US' ? 'Copy' : '复制'}
+                                            </CopyFeedbackButton>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 mt-3 text-xs text-muted">
+                                        <span>
+                                            {locale === 'en-US' ? 'Server: ' : '服务器：'}
+                                            <strong>{cloneResult.serverName || cloneResult.serverId}</strong>
+                                        </span>
+                                        <span>
+                                            {locale === 'en-US' ? 'Inbound: ' : '入站：'}
+                                            <strong>{cloneResult.inboundRemark || cloneResult.inboundId}</strong>
+                                        </span>
+                                        <span>
+                                            {locale === 'en-US' ? 'Quota: ' : '独立流量限额：'}
+                                            <strong>
+                                                {Number(cloneResult.entitlement?.trafficLimitBytes || 0) > 0
+                                                    ? formatBytes(cloneResult.entitlement.trafficLimitBytes)
+                                                    : copy.labels.unlimited}
+                                            </strong>
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="modal-footer px-0 pb-0 mt-4">
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary"
+                                        onClick={() => {
+                                            closeCloneModal();
+                                            navigate('/xray');
+                                        }}
+                                    >
+                                        <HiOutlineArrowTopRightOnSquare />
+                                        <span>{locale === 'en-US' ? 'Open Xray Routing' : '前往 Xray 分流配置'}</span>
+                                    </button>
+                                    <button type="button" className="btn btn-primary" onClick={closeCloneModal}>
+                                        {locale === 'en-US' ? 'Done' : '完成'}
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <form onSubmit={submitCloneClient}>
+                                <div className="modal-body">
+                                    <div className="mb-4 p-3 rounded bg-surface-soft border border-stroke-soft text-xs text-muted leading-relaxed">
+                                        {locale === 'en-US'
+                                            ? 'Creates an independent client on the selected server and merges it into this user’s single subscription with its own traffic quota. You can route this client to a clean/residential IP outbound in 3x-ui / Xray without affecting the original server IP node.'
+                                            : '在所选服务器上为该用户新增独立客户端，自动合并到当前用户的同一条订阅链接并支持独立流量限额控制。创建后可在 3x-ui / Xray 路由规则中按客户端名分流到纯净 IP 出站，原服务器 IP 节点保持不变。'}
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="user-detail-clone-server" className="form-label">
+                                            {copy.labels.server} *
+                                        </label>
+                                        <select
+                                            id="user-detail-clone-server"
+                                            className="form-select"
+                                            value={cloneForm.serverId}
+                                            onChange={(e) => handleCloneServerChange(e.target.value)}
+                                            required
+                                        >
+                                            <option value="">{locale === 'en-US' ? 'Select a server' : '请选择服务器'}</option>
+                                            {servers.map((srv: any) => (
+                                                <option key={srv.id} value={srv.id}>
+                                                    {formatOptionWithFlag(srv.name, srv)}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="user-detail-clone-inbound" className="form-label">
+                                            {copy.labels.inbound} *
+                                        </label>
+                                        <select
+                                            id="user-detail-clone-inbound"
+                                            className="form-select"
+                                            value={cloneForm.inboundId}
+                                            onChange={(e) => setCloneForm((prev) => ({ ...prev, inboundId: e.target.value }))}
+                                            disabled={!cloneForm.serverId || cloneLoadingInbounds}
+                                            required
+                                        >
+                                            <option value="">
+                                                {cloneLoadingInbounds
+                                                    ? (locale === 'en-US' ? 'Loading inbounds...' : '正在加载入站列表...')
+                                                    : (locale === 'en-US' ? 'Select an inbound' : '请选择目标入站')}
+                                            </option>
+                                            {(serverInboundsByServerId[cloneForm.serverId] || []).map((ib: any) => (
+                                                <option key={String(ib.id)} value={String(ib.id)}>
+                                                    {`${ib.remark || ib.protocol} (${String(ib.protocol || '').toUpperCase()}:${ib.port})`}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="grid-auto-220">
+                                        <div className="form-group">
+                                            <label htmlFor="user-detail-clone-label" className="form-label">
+                                                {locale === 'en-US' ? 'Subscription Node Suffix' : '订阅节点后缀标签'}
+                                            </label>
+                                            <input
+                                                id="user-detail-clone-label"
+                                                type="text"
+                                                className="form-input"
+                                                maxLength={48}
+                                                value={cloneForm.nodeLabel}
+                                                onChange={(e) => setCloneForm((prev) => ({ ...prev, nodeLabel: e.target.value }))}
+                                                placeholder={locale === 'en-US' ? 'Clean IP' : '纯净IP'}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label htmlFor="user-detail-clone-email" className="form-label">
+                                                {locale === 'en-US' ? 'Panel Client Name (Optional)' : '3x-ui 客户端名（留空自动生成）'}
+                                            </label>
+                                            <input
+                                                id="user-detail-clone-email"
+                                                type="text"
+                                                className="form-input font-mono"
+                                                maxLength={120}
+                                                value={cloneForm.clientEmail}
+                                                onChange={(e) => setCloneForm((prev) => ({ ...prev, clientEmail: e.target.value }))}
+                                                placeholder={`${user.subscriptionEmail || user.email || user.username}-pure`}
+                                            />
+                                        </div>
+                                    </div>
+                                    {(() => {
+                                        const selectedServer = serverById.get(String(cloneForm.serverId || '').trim());
+                                        const selectedInbound = (serverInboundsByServerId[cloneForm.serverId] || [])
+                                            .find((ib: any) => String(ib.id) === String(cloneForm.inboundId));
+                                        if (!selectedInbound) return null;
+                                        const baseName = String(selectedInbound.remark || selectedInbound.protocol || 'NODE').trim();
+                                        const suffix = cloneForm.nodeLabel.trim() || (locale === 'en-US' ? 'Clean IP' : '纯净IP');
+                                        const flag = selectedServer?.countryCode ? countryCodeToFlag(selectedServer.countryCode) : '';
+                                        const previewName = `${flag ? `${flag} ` : ''}${baseName} - ${suffix}`;
+                                        return (
+                                            <div className="text-xs text-muted mb-3">
+                                                {locale === 'en-US' ? 'Subscription node preview: ' : '订阅节点名称预览：'}
+                                                <strong className="text-primary">{previewName}</strong>
+                                            </div>
+                                        );
+                                    })()}
+                                    <div className="form-group">
+                                        <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
+                                            <label htmlFor="user-detail-clone-traffic" className="form-label mb-0">
+                                                {locale === 'en-US' ? 'Independent Traffic Quota (GB)' : '独立流量限额 (GB)'}
+                                            </label>
+                                            <div className="flex items-center gap-1 flex-wrap">
+                                                {[
+                                                    { label: copy.labels.unlimited, value: '0' },
+                                                    { label: '10 GB', value: '10' },
+                                                    { label: '50 GB', value: '50' },
+                                                    { label: '100 GB', value: '100' },
+                                                    { label: '500 GB', value: '500' },
+                                                ].map((preset) => (
+                                                    <button
+                                                        key={preset.value}
+                                                        type="button"
+                                                        className="btn btn-ghost btn-xs text-xs px-1.5 py-0.5"
+                                                        onClick={() => setCloneForm((prev) => ({ ...prev, trafficLimitGb: preset.value }))}
+                                                    >
+                                                        {preset.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <input
+                                            id="user-detail-clone-traffic"
+                                            type="number"
+                                            min="0"
+                                            step="0.5"
+                                            className="form-input"
+                                            value={cloneForm.trafficLimitGb}
+                                            onChange={(e) => setCloneForm((prev) => ({ ...prev, trafficLimitGb: e.target.value }))}
+                                        />
+                                        <div className="text-xs text-muted mt-1">
+                                            {locale === 'en-US' ? '0 means unlimited. Independent from the original node.' : '填 0 表示不限制，与原节点流量互不干扰。'}
+                                        </div>
+                                    </div>
+                                    <div className="grid-auto-220">
+                                        <div className="form-group">
+                                            <label htmlFor="user-detail-clone-expiry" className="form-label">
+                                                {copy.labels.expiryTime}
+                                            </label>
+                                            <input
+                                                id="user-detail-clone-expiry"
+                                                type="datetime-local"
+                                                className="form-input"
+                                                value={cloneForm.expiryDate}
+                                                onChange={(e) => setCloneForm((prev) => ({ ...prev, expiryDate: e.target.value }))}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label htmlFor="user-detail-clone-limit-ip" className="form-label">
+                                                {copy.labels.limitIp}
+                                            </label>
+                                            <input
+                                                id="user-detail-clone-limit-ip"
+                                                type="number"
+                                                min="0"
+                                                step="1"
+                                                className="form-input"
+                                                value={cloneForm.limitIp}
+                                                onChange={(e) => setCloneForm((prev) => ({ ...prev, limitIp: e.target.value }))}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="modal-footer">
+                                    <button type="button" className="btn btn-secondary" onClick={closeCloneModal} disabled={cloneSubmitting}>
+                                        {t('comp.common.cancel')}
+                                    </button>
+                                    <button type="submit" className="btn btn-primary" disabled={cloneSubmitting || !cloneForm.serverId || !cloneForm.inboundId}>
+                                        {cloneSubmitting ? <span className="spinner" /> : (locale === 'en-US' ? 'Create Cloned Client' : '确认复制并加入订阅')}
+                                    </button>
+                                </div>
+                            </form>
+                        )}
+                    </div>
+                </ModalShell>
+            )}
+
+            {canManageThisUser && quotaModalTarget && (
+                <ModalShell isOpen={Boolean(quotaModalTarget)} onClose={closeQuotaModal}>
+                    <div className="modal modal-md" onClick={(event) => event.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3 className="modal-title">
+                                {locale === 'en-US' ? 'Independent Node Traffic Quota' : '节点独立流量限额控制'}
+                            </h3>
+                            <button
+                                type="button"
+                                className="modal-close"
+                                onClick={closeQuotaModal}
+                                aria-label={t('comp.common.close')}
+                                title={t('comp.common.close')}
+                            >
+                                <HiOutlineXMark />
+                            </button>
+                        </div>
+                        <form
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                                void submitQuotaUpdate('override');
+                            }}
+                        >
+                            <div className="modal-body">
+                                <div className="mb-4 p-3 rounded bg-surface-soft border border-stroke-soft text-xs flex flex-col gap-1">
+                                    <div>
+                                        <span className="text-muted">{copy.labels.server}{locale === 'en-US' ? ': ' : '：'}</span>
+                                        <strong>
+                                            <CountryFlag
+                                                flag={resolveServerFlag(serverById.get(String(quotaModalTarget.serverId || '').trim()) || { name: quotaModalTarget.serverName })}
+                                                label={quotaModalTarget.serverName}
+                                            />
+                                            {quotaModalTarget.serverName}
+                                        </strong>
+                                    </div>
+                                    <div>
+                                        <span className="text-muted">{copy.labels.inbound}{locale === 'en-US' ? ': ' : '：'}</span>
+                                        <strong>{quotaModalTarget.inboundRemark || quotaModalTarget.inboundId}</strong>
+                                        {quotaModalTarget.nodeLabel ? <span className="badge badge-info ml-2">{quotaModalTarget.nodeLabel}</span> : null}
+                                    </div>
+                                    <div>
+                                        <span className="text-muted">{locale === 'en-US' ? 'Client: ' : '客户端名：'}</span>
+                                        <code className="font-mono">{quotaModalTarget.email}</code>
+                                    </div>
+                                </div>
+                                <div className="form-group">
+                                    <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
+                                        <label htmlFor="user-detail-quota-traffic" className="form-label mb-0">
+                                            {locale === 'en-US' ? 'Traffic Limit (GB)' : '流量限额 (GB)'}
+                                        </label>
+                                        <div className="flex items-center gap-1 flex-wrap">
+                                            {[
+                                                { label: copy.labels.unlimited, value: '0' },
+                                                { label: '10 GB', value: '10' },
+                                                { label: '50 GB', value: '50' },
+                                                { label: '100 GB', value: '100' },
+                                                { label: '500 GB', value: '500' },
+                                            ].map((preset) => (
+                                                <button
+                                                    key={preset.value}
+                                                    type="button"
+                                                    className="btn btn-ghost btn-xs text-xs px-1.5 py-0.5"
+                                                    onClick={() => setQuotaForm((prev) => ({ ...prev, trafficLimitGb: preset.value }))}
+                                                >
+                                                    {preset.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <input
+                                        id="user-detail-quota-traffic"
+                                        type="number"
+                                        min="0"
+                                        step="0.5"
+                                        className="form-input"
+                                        value={quotaForm.trafficLimitGb}
+                                        onChange={(e) => setQuotaForm((prev) => ({ ...prev, trafficLimitGb: e.target.value }))}
+                                    />
+                                </div>
+                                <div className="grid-auto-220">
+                                    <div className="form-group">
+                                        <label htmlFor="user-detail-quota-expiry" className="form-label">
+                                            {copy.labels.expiryTime}
+                                        </label>
+                                        <input
+                                            id="user-detail-quota-expiry"
+                                            type="datetime-local"
+                                            className="form-input"
+                                            value={quotaForm.expiryDate}
+                                            onChange={(e) => setQuotaForm((prev) => ({ ...prev, expiryDate: e.target.value }))}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="user-detail-quota-limit-ip" className="form-label">
+                                            {copy.labels.limitIp}
+                                        </label>
+                                        <input
+                                            id="user-detail-quota-limit-ip"
+                                            type="number"
+                                            min="0"
+                                            step="1"
+                                            className="form-input"
+                                            value={quotaForm.limitIp}
+                                            onChange={(e) => setQuotaForm((prev) => ({ ...prev, limitIp: e.target.value }))}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button
+                                    type="button"
+                                    className="btn btn-ghost btn-sm mr-auto"
+                                    onClick={() => void submitQuotaUpdate('follow_policy')}
+                                    disabled={quotaSaving}
+                                >
+                                    {locale === 'en-US' ? 'Follow User Policy' : '恢复跟随用户策略'}
+                                </button>
+                                <button type="button" className="btn btn-secondary" onClick={closeQuotaModal} disabled={quotaSaving}>
+                                    {t('comp.common.cancel')}
+                                </button>
+                                <button type="submit" className="btn btn-primary" disabled={quotaSaving}>
+                                    {quotaSaving ? <span className="spinner" /> : (locale === 'en-US' ? 'Save Quota' : '保存独立限额')}
                                 </button>
                             </div>
                         </form>

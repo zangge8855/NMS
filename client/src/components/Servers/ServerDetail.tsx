@@ -25,6 +25,8 @@ import { AUDIT_EVENT_LABELS } from '../../utils/auditEventLabels';
 import { handleRovingTabKeyDown } from '../../utils/rovingTabs';
 import SectionHeader from '../UI/SectionHeader';
 import InboundRemarkPill from '../UI/InboundRemarkPill';
+import CountryFlag from '../UI/CountryFlag';
+import { resolveNodeFlag, resolveServerFlag } from '../../utils/accessGeo';
 import {
     HiOutlineArrowLeft,
     HiOutlineArrowPath,
@@ -101,7 +103,7 @@ function parseInboundClientCount(inbound) {
     return extractInboundClients(inbound).length;
 }
 
-function ServerDetailInboundMobileList({ inbounds = [] }) {
+function ServerDetailInboundMobileList({ inbounds = [], server = null }: { inbounds?: any[]; server?: any }) {
     const { t } = useI18n();
     return (
         <div className="server-detail-mobile-list">
@@ -115,6 +117,7 @@ function ServerDetailInboundMobileList({ inbounds = [] }) {
                                     <InboundRemarkPill
                                         remark={ib.remark}
                                         protocol={ib.protocol}
+                                        flag={resolveNodeFlag(ib.remark, server)}
                                         title={ib.hasCustomRemark && ib.panelRemark !== ib.remark
                                             ? t('comp.inbounds.remarkCustomTooltip', { remark: ib.remark, panelRemark: ib.panelRemark || '—' })
                                             : undefined}
@@ -678,7 +681,10 @@ export default function ServerDetail() {
                             <HiOutlineServerStack />
                         </div>
                         <div className="user-profile-info">
-                            <div className="user-profile-name">{server.name}</div>
+                            <div className="user-profile-name">
+                                <CountryFlag flag={resolveServerFlag(server)} label={server.name} />
+                                {server.name}
+                            </div>
                             <div className="user-profile-email font-mono">{server.url}</div>
                             <div className="user-profile-badges">
                                 <span className={`badge ${healthBadge[effectiveHealth] || 'badge-neutral'}`}>
@@ -809,7 +815,7 @@ export default function ServerDetail() {
                                         )}
                                     />
                                 ) : isCompactLayout ? (
-                                    <ServerDetailInboundMobileList inbounds={inbounds} />
+                                    <ServerDetailInboundMobileList inbounds={inbounds} server={server} />
                                 ) : (
                                     <div className="table-container" role="region" aria-label={t('comp.common.dataTable')} tabIndex={0}>
                                         <table className="table server-detail-inbounds-table">
@@ -832,6 +838,7 @@ export default function ServerDetail() {
                                                                 <InboundRemarkPill
                                                                     remark={ib.remark}
                                                                     protocol={ib.protocol}
+                                                                    flag={resolveNodeFlag(ib.remark, server)}
                                                                     title={ib.hasCustomRemark && ib.panelRemark !== ib.remark
                                                                         ? t('comp.inbounds.remarkCustomTooltip', { remark: ib.remark, panelRemark: ib.panelRemark || '—' })
                                                                         : undefined}
