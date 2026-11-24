@@ -128,7 +128,7 @@ export default function Servers() {
                 setPingResults(res.data.results || {});
             }
         } catch (err) {
-            toast.error(getErrorMessage(err, locale === 'en-US' ? 'Ping all failed' : '一键测速失败', locale));
+            toast.error(getErrorMessage(err, locale === 'en-US' ? 'Ping all failed' : '全部测速失败', locale));
         } finally {
             setPingingAll(false);
         }
@@ -1199,7 +1199,7 @@ export default function Servers() {
                                 onClick={handlePingAll}
                                 disabled={pingingAll}
                             >
-                                {pingingAll ? <span className="spinner" /> : <HiOutlineSignal />} {t('pages.servers.toolbar.pingAll') || (locale === 'en-US' ? 'Ping All' : '一键测速')}
+                                {pingingAll ? <span className="spinner" /> : <HiOutlineSignal />} {t('pages.servers.toolbar.pingAll') || (locale === 'en-US' ? 'Ping All' : '全部测速')}
                             </button>
                             <button
                                 type="button"
@@ -1522,7 +1522,7 @@ export default function Servers() {
                                     </div>
                                     <div className="form-group">
                                         <label htmlFor="servers-country-code" className="form-label">
-                                            {locale === 'en-US' ? 'Country / Region (Flag)' : '国家 / 地区（国旗显示）'}
+                                            {locale === 'en-US' ? 'Country / Region' : '国家 / 地区'}
                                         </label>
                                         <div className="servers-country-row">
                                             <select
@@ -1541,13 +1541,9 @@ export default function Servers() {
                                                         });
                                                         const inferredFlag = inferred ? countryCodeToFlag(inferred) : '';
                                                         if (locale === 'en-US') {
-                                                            return inferred
-                                                                ? `Auto from name (${inferredFlag} ${inferred})`
-                                                                : 'Auto from server name / tags';
+                                                            return inferred ? `Auto (${inferredFlag} ${inferred})` : 'Auto';
                                                         }
-                                                        return inferred
-                                                            ? `自动按名称识别（${inferredFlag} ${inferred}）`
-                                                            : '自动按名称/标签识别';
+                                                        return inferred ? `自动（${inferredFlag} ${inferred}）` : '自动';
                                                     })()}
                                                 </option>
                                                 {form.countryCode && !COMMON_COUNTRY_OPTIONS.some((opt) => opt.code === form.countryCode) ? (
@@ -1568,13 +1564,8 @@ export default function Servers() {
                                                 disabled={detectingCountry || (!form.url.trim() && !form.name.trim())}
                                             >
                                                 {detectingCountry ? <span className="spinner" /> : <HiOutlineGlobeAlt aria-hidden="true" />}
-                                                <span>{locale === 'en-US' ? 'Auto-detect' : '自动识别'}</span>
+                                                <span>{locale === 'en-US' ? 'Detect' : '自动识别'}</span>
                                             </button>
-                                        </div>
-                                        <div className="text-xs text-muted mt-1">
-                                            {locale === 'en-US'
-                                                ? 'When set explicitly, the country flag is also shown in subscription node names.'
-                                                : '显式指定地区后，控制台列表与订阅节点名称都会自动展示对应国旗。'}
                                         </div>
                                     </div>
                                     <div className="grid-auto-220">

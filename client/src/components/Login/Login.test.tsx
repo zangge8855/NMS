@@ -129,14 +129,11 @@ describe('Login', () => {
         await user.click(screen.getByRole('button', { name: '登录' }));
 
         await waitFor(() => {
-            expect(loginMock).toHaveBeenCalledWith('alice@example.com', 'Pass1234!', { rememberMe: true });
+            expect(loginMock).toHaveBeenCalledWith('alice@example.com', 'Pass1234!');
         });
     });
 
-    it('sends rememberMe=false when the keep-signed-in checkbox is unchecked', async () => {
-        const user = userEvent.setup();
-        const loginMock = vi.fn().mockResolvedValue({ success: true });
-
+    it('does not render a keep-signed-in checkbox on the login form', async () => {
         (api.get as any).mockResolvedValue({
             data: {
                 obj: {
@@ -146,29 +143,12 @@ describe('Login', () => {
                 },
             },
         });
-        useAuthMock.mockReturnValue({
-            login: loginMock,
-            register: vi.fn(),
-            verifyEmail: vi.fn(),
-            resendCode: vi.fn(),
-            requestPasswordReset: vi.fn(),
-            resetPassword: vi.fn(),
-        });
 
         renderWithRouter(<Login />);
 
-        const rememberCheckbox = await screen.findByRole('checkbox', { name: /保持登录状态/ });
-        expect(rememberCheckbox).toBeChecked();
-        await user.click(rememberCheckbox);
-        expect(rememberCheckbox).not.toBeChecked();
-
-        await user.type(screen.getByPlaceholderText('请输入用户名或注册邮箱'), 'alice');
-        await user.type(screen.getByPlaceholderText('请输入密码'), 'Pass1234!');
-        await user.click(screen.getByRole('button', { name: '登录' }));
-
-        await waitFor(() => {
-            expect(loginMock).toHaveBeenCalledWith('alice', 'Pass1234!', { rememberMe: false });
-        });
+        await screen.findByPlaceholderText('请输入用户名或注册邮箱');
+        expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+        expect(screen.queryByText(/保持登录状态|Keep me signed in/i)).not.toBeInTheDocument();
     });
 
     it('transitions to 2FA challenge mode when login requires two-factor authentication', async () => {
@@ -219,7 +199,7 @@ describe('Login', () => {
         await user.type(screen.getByPlaceholderText('输入 6 位验证码'), '123456');
 
         await waitFor(() => {
-            expect(loginTwoFactorMock).toHaveBeenCalledWith('test-challenge-jwt', '123456', false, { rememberMe: true });
+            expect(loginTwoFactorMock).toHaveBeenCalledWith('test-challenge-jwt', '123456', false);
         });
     });
 
@@ -272,7 +252,7 @@ describe('Login', () => {
         await user.click(screen.getByRole('button', { name: '验证并登录' }));
 
         await waitFor(() => {
-            expect(loginTwoFactorMock).toHaveBeenCalledWith('test-challenge-jwt', 'BK12-3456-7890', true, { rememberMe: true });
+            expect(loginTwoFactorMock).toHaveBeenCalledWith('test-challenge-jwt', 'BK12-3456-7890', true);
         });
     });
 });

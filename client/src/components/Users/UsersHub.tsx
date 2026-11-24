@@ -1505,7 +1505,7 @@ export default function UsersHub() {
                 const subRes = await api.get(`/subscriptions/${encodeURIComponent(boundEmail)}`);
                 subscriptionPayload = subRes.data?.obj || null;
             } catch {
-                toast(t('comp.users.provisionLoadFailed'), { icon: '⚠️' });
+                toast(t('comp.users.provisionLoadFailed'));
             }
 
             setProvisionResult({
@@ -2117,7 +2117,7 @@ export default function UsersHub() {
             });
             if (res.data?.success && res.data?.obj) {
                 setGuestResult(res.data.obj);
-                toast.success(locale === 'en-US' ? 'Guest pass created!' : '临时访客试用码创建成功！');
+                toast.success(locale === 'en-US' ? 'Guest pass created' : '访客试用码已创建');
                 fetchData({ forceUsers: true });
             } else {
                 throw new Error(res.data?.msg || (locale === 'en-US' ? 'Failed to create guest pass' : '创建失败'));
@@ -3719,7 +3719,7 @@ export default function UsersHub() {
                                         className="btn btn-primary"
                                         disabled={guestCreating}
                                     >
-                                        {guestCreating ? <span className="spinner" /> : <><HiOutlineTicket /> {locale === 'en-US' ? 'Generate Pass' : '立即生成试用码'}</>}
+                                        {guestCreating ? <span className="spinner" /> : <><HiOutlineTicket /> {locale === 'en-US' ? 'Generate Pass' : '生成试用码'}</>}
                                     </button>
                                 </div>
                             </form>
@@ -3728,19 +3728,19 @@ export default function UsersHub() {
                                 <div className="modal-body space-y-4 pt-2 animate-fade-in">
                                     <div className="p-4 rounded-xl bg-success/10 border border-success/30 text-success text-xs font-semibold flex items-center gap-2">
                                         <HiOutlineCheck className="w-5 h-5 shrink-0" />
-                                        <span>{locale === 'en-US' ? 'Guest Pass generated successfully!' : '临时访客试用账号已生成！'}</span>
+                                        <span>{locale === 'en-US' ? 'Guest pass created' : '访客账号已生成'}</span>
                                     </div>
 
                                     <div className="p-4 rounded-xl bg-surface-panel border border-stroke-soft space-y-3 text-xs">
                                         <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-500 text-[11px] font-medium leading-relaxed">
                                             {locale === 'en-US'
-                                                ? '⚠️ Guest accounts are strictly restricted to proxy subscription traffic testing. Logging into the Web management panel is prohibited.'
-                                                : '⚠️ 访客账号受系统安全策略限制，仅限客户端订阅测速使用，禁止登录 Web 管理后台。'}
+                                                ? 'Guest accounts are limited to subscription access and cannot sign in to the panel.'
+                                                : '访客账号仅限订阅使用，无法登录管理后台。'}
                                         </div>
 
                                         {guestResult.subscriptionUrl && (
                                             <div className="space-y-1.5 pt-1">
-                                                <div className="text-muted font-semibold">{locale === 'en-US' ? 'One-Click Subscription URL' : '一键订阅链接'}</div>
+                                                <div className="text-muted font-semibold">{locale === 'en-US' ? 'Subscription URL' : '订阅链接'}</div>
                                                 <div className="flex gap-2">
                                                     <input name="usersHubGuestResultSubscriptionUrl" className="form-input font-mono text-xs" value={guestResult.subscriptionUrl} readOnly />
                                                     <button
@@ -3749,7 +3749,7 @@ export default function UsersHub() {
                                                         onClick={async () => {
                                                             const ok = await copyToClipboard(guestResult.subscriptionUrl);
                                                             if (ok) {
-                                                                toast.success(locale === 'en-US' ? 'Subscription URL copied!' : '订阅链接已复制到剪贴板！');
+                                                                toast.success(locale === 'en-US' ? 'Subscription URL copied' : '已复制订阅链接');
                                                             } else {
                                                                 toast.error(t('comp.common.copyFailed'));
                                                             }
@@ -3782,11 +3782,11 @@ export default function UsersHub() {
                                         className="btn btn-secondary"
                                         onClick={async () => {
                                             const copyText = locale === 'en-US'
-                                                ? `[NMS Temporary Guest Pass]\nSubscription URL: ${guestResult.subscriptionUrl || 'See panel'}\nID: ${guestResult.username}\nTraffic Limit: ${guestResult.trafficLimitGb}GB\nExpires At: ${guestResult.expiresAt}\n(Note: Proxy subscription only. Web management login is prohibited.)`
-                                                : `【NMS 临时访客测速节点】\n订阅链接: ${guestResult.subscriptionUrl || '见管理面板'}\n识别码: ${guestResult.username}\n流量上限: ${guestResult.trafficLimitGb}GB\n有效期至: ${guestResult.expiresAt}\n(注: 此凭证仅供客户端导入节点测试，禁止登录后台)`;
+                                                ? `[NMS Guest Pass]\nSubscription URL: ${guestResult.subscriptionUrl || 'See panel'}\nID: ${guestResult.username}\nTraffic Limit: ${guestResult.trafficLimitGb}GB\nExpires At: ${guestResult.expiresAt}\n(Subscription access only; panel login is disabled.)`
+                                                : `【NMS 临时访客节点】\n订阅链接: ${guestResult.subscriptionUrl || '见管理面板'}\n识别码: ${guestResult.username}\n流量上限: ${guestResult.trafficLimitGb}GB\n有效期至: ${guestResult.expiresAt}\n(仅限客户端导入订阅，无法登录后台)`;
                                             const ok = await copyToClipboard(copyText);
                                             if (ok) {
-                                                toast.success(locale === 'en-US' ? 'Trial credentials copied!' : '访客体验信息已复制到剪贴板！');
+                                                toast.success(locale === 'en-US' ? 'Guest pass copied' : '已复制访客信息');
                                             } else {
                                                 toast.error(t('comp.common.copyFailed'));
                                             }

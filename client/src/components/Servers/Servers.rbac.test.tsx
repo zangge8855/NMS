@@ -121,7 +121,7 @@ describe('Servers RBAC enforcement', () => {
         });
 
         expect(screen.getByRole('button', { name: '详情' })).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: '一键测速' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: '全部测速' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: '批量添加' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: '添加服务器' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: '全选' })).not.toBeInTheDocument();
@@ -156,7 +156,7 @@ describe('Servers RBAC enforcement', () => {
                 expect(screen.getByText('新加坡边缘节点')).toBeInTheDocument();
             });
 
-            expect(screen.getByRole('button', { name: '一键测速' })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: '全部测速' })).toBeInTheDocument();
             expect(screen.getByRole('button', { name: '批量添加' })).toBeInTheDocument();
             expect(screen.getByRole('button', { name: '添加服务器' })).toBeInTheDocument();
             expect(screen.getByRole('button', { name: '测试连接' })).toBeInTheDocument();

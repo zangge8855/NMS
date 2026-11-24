@@ -2034,9 +2034,7 @@ export default function UserDetail() {
                             type="button"
                             className="btn btn-secondary btn-sm"
                             onClick={() => openCloneModal(client)}
-                            title={locale === 'en-US'
-                                ? 'Clone client on this server for independent routing & traffic quota'
-                                : '在此服务器复制独立客户端（用于纯净 IP 出站分流与独立流量限额）'}
+                            title={locale === 'en-US' ? 'Clone client' : '复制客户端'}
                         >
                             <HiOutlineDocumentDuplicate /> {locale === 'en-US' ? 'Clone' : '复制'}
                         </button>
@@ -2044,9 +2042,7 @@ export default function UserDetail() {
                             type="button"
                             className="btn btn-secondary btn-sm"
                             onClick={() => openQuotaModal(client)}
-                            title={locale === 'en-US'
-                                ? 'Configure independent traffic quota & expiry for this node'
-                                : '单独设置此节点的流量限额与到期时间'}
+                            title={locale === 'en-US' ? 'Set quota' : '设置限额'}
                         >
                             <HiOutlineAdjustmentsHorizontal /> {locale === 'en-US' ? 'Quota' : '限额'}
                         </button>
@@ -2067,7 +2063,7 @@ export default function UserDetail() {
                         className="btn btn-danger btn-sm"
                         onClick={() => handleDeleteClonedClient(client)}
                         disabled={deletingBindingId === client.bindingId}
-                        title={locale === 'en-US' ? 'Remove cloned client' : '删除此复制客户端'}
+                        title={locale === 'en-US' ? 'Delete' : '删除'}
                     >
                         {deletingBindingId === client.bindingId ? <span className="spinner" /> : <HiOutlineTrash />}
                         <span>{t('comp.common.delete')}</span>
@@ -2459,9 +2455,9 @@ export default function UserDetail() {
                                                                     <code className="user-detail-cloned-email">{client.email}</code>
                                                                     <CopyFeedbackButton
                                                                         text={client.email}
-                                                                        successText={locale === 'en-US' ? 'Client email copied' : '已复制 3x-ui 客户端名'}
+                                                                        successText={locale === 'en-US' ? 'Client name copied' : '已复制客户端名'}
                                                                         className="btn btn-ghost btn-xs btn-icon"
-                                                                        title={locale === 'en-US' ? 'Copy client email for 3x-ui routing rule' : '复制客户端名（用于 3x-ui 路由分流规则）'}
+                                                                        title={locale === 'en-US' ? 'Copy client name' : '复制客户端名'}
                                                                     />
                                                                 </div>
                                                             ) : null}
@@ -2549,9 +2545,9 @@ export default function UserDetail() {
                                                                     <code className="user-detail-cloned-email">{c.email}</code>
                                                                     <CopyFeedbackButton
                                                                         text={c.email}
-                                                                        successText={locale === 'en-US' ? 'Client email copied' : '已复制 3x-ui 客户端名'}
+                                                                        successText={locale === 'en-US' ? 'Client name copied' : '已复制客户端名'}
                                                                         className="btn btn-ghost btn-xs btn-icon"
-                                                                        title={locale === 'en-US' ? 'Copy client email for 3x-ui routing rule' : '复制客户端名（用于 3x-ui 路由分流规则）'}
+                                                                        title={locale === 'en-US' ? 'Copy client name' : '复制客户端名'}
                                                                     />
                                                                 </div>
                                                             ) : null}
@@ -2705,7 +2701,7 @@ export default function UserDetail() {
                     <div className="modal modal-md" onClick={(event) => event.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title">
-                                {locale === 'en-US' ? 'Clone Client on Single Server' : '在单个服务器上复制客户端'}
+                                {locale === 'en-US' ? 'Clone Client' : '复制客户端'}
                             </h3>
                             <button
                                 type="button"
@@ -2721,18 +2717,16 @@ export default function UserDetail() {
                             <div className="modal-body">
                                 <div className="user-detail-clone-result-box">
                                     <div className="text-sm font-semibold mb-1">
-                                        {locale === 'en-US'
-                                            ? 'Cloned client created and added to the same subscription'
-                                            : '复制客户端已创建并自动加入同一订阅链接'}
+                                        {locale === 'en-US' ? 'Created' : '已创建'}
                                     </div>
                                     <div className="text-xs text-muted mb-3">
                                         {locale === 'en-US'
-                                            ? 'Copy the 3x-ui client name below and add it to the routing rule `user` field to route this second node through a clean/residential IP outbound.'
-                                            : '复制下方 3x-ui 客户端名，在面板或 Xray 路由规则的 user 字段中将其分流到纯净 IP 出站，即可在同一订阅中保留原服务器 IP 节点并新增纯净 IP 节点。'}
+                                            ? 'Use this client name in Xray routing rules.'
+                                            : '可在 Xray 路由规则中按此客户端名分流。'}
                                     </div>
                                     <div className="user-detail-clone-result-kv">
                                         <span className="text-xs text-muted">
-                                            {locale === 'en-US' ? '3x-ui Client Name (for routing rule)' : '3x-ui 客户端名（路由分流 user）'}
+                                            {locale === 'en-US' ? 'Client Name' : '客户端名'}
                                         </span>
                                         <div className="user-detail-cloned-email-row mt-1">
                                             <code className="user-detail-cloned-email user-detail-cloned-email--lg">
@@ -2757,7 +2751,7 @@ export default function UserDetail() {
                                             <strong>{cloneResult.inboundRemark || cloneResult.inboundId}</strong>
                                         </span>
                                         <span>
-                                            {locale === 'en-US' ? 'Quota: ' : '独立流量限额：'}
+                                            {locale === 'en-US' ? 'Quota: ' : '流量限额：'}
                                             <strong>
                                                 {Number(cloneResult.entitlement?.trafficLimitBytes || 0) > 0
                                                     ? formatBytes(cloneResult.entitlement.trafficLimitBytes)
@@ -2776,7 +2770,7 @@ export default function UserDetail() {
                                         }}
                                     >
                                         <HiOutlineArrowTopRightOnSquare />
-                                        <span>{locale === 'en-US' ? 'Open Xray Routing' : '前往 Xray 分流配置'}</span>
+                                        <span>{locale === 'en-US' ? 'Xray Routing' : 'Xray 路由'}</span>
                                     </button>
                                     <button type="button" className="btn btn-primary" onClick={closeCloneModal}>
                                         {locale === 'en-US' ? 'Done' : '完成'}
@@ -2786,11 +2780,6 @@ export default function UserDetail() {
                         ) : (
                             <form onSubmit={submitCloneClient}>
                                 <div className="modal-body">
-                                    <div className="mb-4 p-3 rounded bg-surface-soft border border-stroke-soft text-xs text-muted leading-relaxed">
-                                        {locale === 'en-US'
-                                            ? 'Creates an independent client on the selected server and merges it into this user’s single subscription with its own traffic quota. You can route this client to a clean/residential IP outbound in 3x-ui / Xray without affecting the original server IP node.'
-                                            : '在所选服务器上为该用户新增独立客户端，自动合并到当前用户的同一条订阅链接并支持独立流量限额控制。创建后可在 3x-ui / Xray 路由规则中按客户端名分流到纯净 IP 出站，原服务器 IP 节点保持不变。'}
-                                    </div>
                                     <div className="form-group">
                                         <label htmlFor="user-detail-clone-server" className="form-label">
                                             {copy.labels.server} *
@@ -2837,7 +2826,7 @@ export default function UserDetail() {
                                     <div className="grid-auto-220">
                                         <div className="form-group">
                                             <label htmlFor="user-detail-clone-label" className="form-label">
-                                                {locale === 'en-US' ? 'Subscription Node Suffix' : '订阅节点后缀标签'}
+                                                {locale === 'en-US' ? 'Node Suffix' : '节点后缀'}
                                             </label>
                                             <input
                                                 id="user-detail-clone-label"
@@ -2851,7 +2840,7 @@ export default function UserDetail() {
                                         </div>
                                         <div className="form-group">
                                             <label htmlFor="user-detail-clone-email" className="form-label">
-                                                {locale === 'en-US' ? 'Panel Client Name (Optional)' : '3x-ui 客户端名（留空自动生成）'}
+                                                {locale === 'en-US' ? 'Client Name (Optional)' : '客户端名（可选）'}
                                             </label>
                                             <input
                                                 id="user-detail-clone-email"
@@ -2875,7 +2864,7 @@ export default function UserDetail() {
                                         const previewName = `${flag ? `${flag} ` : ''}${baseName} - ${suffix}`;
                                         return (
                                             <div className="text-xs text-muted mb-3">
-                                                {locale === 'en-US' ? 'Subscription node preview: ' : '订阅节点名称预览：'}
+                                                {locale === 'en-US' ? 'Preview: ' : '节点名预览：'}
                                                 <strong className="text-primary">{previewName}</strong>
                                             </div>
                                         );
@@ -2883,7 +2872,7 @@ export default function UserDetail() {
                                     <div className="form-group">
                                         <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
                                             <label htmlFor="user-detail-clone-traffic" className="form-label mb-0">
-                                                {locale === 'en-US' ? 'Independent Traffic Quota (GB)' : '独立流量限额 (GB)'}
+                                                {locale === 'en-US' ? 'Traffic Limit (GB)' : '流量限额 (GB)'}
                                             </label>
                                             <div className="flex items-center gap-1 flex-wrap">
                                                 {[
@@ -2914,7 +2903,7 @@ export default function UserDetail() {
                                             onChange={(e) => setCloneForm((prev) => ({ ...prev, trafficLimitGb: e.target.value }))}
                                         />
                                         <div className="text-xs text-muted mt-1">
-                                            {locale === 'en-US' ? '0 means unlimited. Independent from the original node.' : '填 0 表示不限制，与原节点流量互不干扰。'}
+                                            {locale === 'en-US' ? '0 = unlimited' : '0 表示不限制'}
                                         </div>
                                     </div>
                                     <div className="grid-auto-220">
@@ -2951,7 +2940,7 @@ export default function UserDetail() {
                                         {t('comp.common.cancel')}
                                     </button>
                                     <button type="submit" className="btn btn-primary" disabled={cloneSubmitting || !cloneForm.serverId || !cloneForm.inboundId}>
-                                        {cloneSubmitting ? <span className="spinner" /> : (locale === 'en-US' ? 'Create Cloned Client' : '确认复制并加入订阅')}
+                                        {cloneSubmitting ? <span className="spinner" /> : (locale === 'en-US' ? 'Confirm' : '确定')}
                                     </button>
                                 </div>
                             </form>
@@ -2965,7 +2954,7 @@ export default function UserDetail() {
                     <div className="modal modal-md" onClick={(event) => event.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title">
-                                {locale === 'en-US' ? 'Independent Node Traffic Quota' : '节点独立流量限额控制'}
+                                {locale === 'en-US' ? 'Node Quota' : '节点限额'}
                             </h3>
                             <button
                                 type="button"
@@ -3075,13 +3064,13 @@ export default function UserDetail() {
                                     onClick={() => void submitQuotaUpdate('follow_policy')}
                                     disabled={quotaSaving}
                                 >
-                                    {locale === 'en-US' ? 'Follow User Policy' : '恢复跟随用户策略'}
+                                    {locale === 'en-US' ? 'Follow Policy' : '跟随策略'}
                                 </button>
                                 <button type="button" className="btn btn-secondary" onClick={closeQuotaModal} disabled={quotaSaving}>
                                     {t('comp.common.cancel')}
                                 </button>
                                 <button type="submit" className="btn btn-primary" disabled={quotaSaving}>
-                                    {quotaSaving ? <span className="spinner" /> : (locale === 'en-US' ? 'Save Quota' : '保存独立限额')}
+                                    {quotaSaving ? <span className="spinner" /> : (locale === 'en-US' ? 'Save' : '保存')}
                                 </button>
                             </div>
                         </form>

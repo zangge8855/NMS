@@ -76,20 +76,20 @@ export default function SubscriptionClientLinks({
     const copy = useMemo(() => (
         locale === 'en-US'
             ? {
-                sectionTitle: 'Pick one client for your device',
-                sectionCaption: 'Install it, then import the config you selected above.',
+                sectionTitle: 'Client Downloads',
+                sectionCaption: 'Install a client for your device, then import the config above.',
                 downloads: 'Client Downloads',
                 recommended: 'Recommended Config',
                 importMethod: 'Import Method',
-                copyAddress: 'If one-tap import is not available, just copy the address above.',
+                copyAddress: 'Copy the URL above to import manually.',
             }
             : {
-                sectionTitle: '按设备选一个客户端',
-                sectionCaption: '下载一个常用客户端就行。',
+                sectionTitle: '客户端下载',
+                sectionCaption: '按设备选择客户端下载并导入配置。',
                 downloads: '客户端下载',
                 recommended: '推荐配置文件',
                 importMethod: '导入方式',
-                copyAddress: '复制上面的地址导入就行。',
+                copyAddress: '可复制上方地址手动导入。',
             }
     ), [locale]);
     const quickActions = useMemo(() => (Array.isArray(bundle?.importActions)

@@ -188,7 +188,7 @@ export default function Inbounds() {
         limitSetTitle: 'Individual limits are set; click to edit', limitUnsetTitle: 'Set individual limits', bulkDelete: 'Batch Delete', addClient: 'Add Client',
     } : {
         limited: '已限制', copyCredential: '复制完整 ID / 密码', total: '总量', ipLimit: 'IP 限制', expiry: '到期时间', traffic: '上 / 下行',
-        noServersTitle: '请先在「服务器管理」添加节点', noServersSubtitle: '接入至少一台 3x-ui 或 s-ui 节点后，再统一维护入站和客户端。', goServers: '前往服务器管理',
+        noServersTitle: '请先在「服务器管理」添加节点', noServersSubtitle: '添加 3x-ui 或 s-ui 节点后即可管理入站和客户端。', goServers: '前往服务器管理',
         maskedCredential: 'ID / 密码（脱敏）', usedTraffic: '已用流量', status: '状态', actions: '操作', delete: '删除', reset: '重置',
         batchAdjust: '批量调整到期 / 流量', node: '节点', inbound: '入站', selectedUsers: '已选用户', selectedUsersCount: '已选 {count} 位用户', expiryDelta: '到期天数变化',
         expiryPlaceholder: '例如：30 或 -7', expiryHint: '正数延长，负数扣减；永不过期用户会跳过到期调整。', trafficDelta: '流量变化',
