@@ -23,6 +23,7 @@ import './styles/polish.css';
 import './styles/identity.css';
 import './styles/panel-features.css';
 import { buildSiteAssetPath, resolveSiteBasePath } from './utils/sitePath';
+import { reloadAfterChunkError } from './utils/lazyWithRetry';
 
 // Gracefully handle dynamic import chunk failures after new deployments
 if (typeof window !== 'undefined') {
@@ -30,15 +31,19 @@ if (typeof window !== 'undefined') {
         const key = 'nms_vite_preload_reload_attempt';
         const lastReload = Number(sessionStorage.getItem(key) || 0);
         if (Date.now() - lastReload > 10_000) {
+            event.preventDefault();
             sessionStorage.setItem(key, String(Date.now()));
-            window.location.reload();
+            void reloadAfterChunkError();
         }
     });
 
     if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
         window.addEventListener('load', () => {
             const scope = buildSiteAssetPath('/').replace(/\/?$/, '/');
-            navigator.serviceWorker.register(buildSiteAssetPath('/sw.js'), { scope }).catch(() => {});
+            navigator.serviceWorker.register(buildSiteAssetPath('/sw.js'), {
+                scope,
+                updateViaCache: 'none',
+            }).catch(() => {});
         });
     }
 }

@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'nms-shell-';
-const CACHE_NAME = `${CACHE_PREFIX}v4`;
+const CACHE_NAME = `${CACHE_PREFIX}v5`;
 // Hashed build assets accumulate across deployments; keep only the newest ones.
 const MAX_RUNTIME_ENTRIES = 80;
 // The app can be served below a custom access path, so every cached URL is
@@ -14,7 +14,37 @@ const STATIC_ASSETS = [
     `${SCOPE_PATH}theme-init.js`,
 ];
 const PROTECTED_URLS = new Set(STATIC_ASSETS.map((item) => new URL(item, self.location.origin).href));
-const STATIC_FILE_PATTERN = /\.(?:js|css|woff2?|png|svg|ico|webp|json)$/i;
+const STATIC_FILE_PATTERN = /\.(?:js|mjs|css|woff2?|png|svg|ico|webp|json)$/i;
+
+function matchesExpectedContentType(pathname, response) {
+    if (!response || !response.headers) return false;
+    const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+    const path = String(pathname || '').toLowerCase();
+
+    // Never cache or serve an HTML fallback/error document for non-HTML asset URLs.
+    if (/\.(?:js|mjs)$/.test(path)) {
+        return contentType.includes('javascript') || contentType.includes('ecmascript');
+    }
+    if (path.endsWith('.css')) {
+        return contentType.includes('text/css');
+    }
+    if (path.endsWith('.json')) {
+        return contentType.includes('json');
+    }
+    if (/\.(?:png|svg|ico|webp)$/.test(path)) {
+        return contentType.includes('image/');
+    }
+    if (/\.woff2?$/.test(path)) {
+        return !contentType.includes('text/html');
+    }
+    return true;
+}
+
+function isHtmlResponse(response) {
+    if (!response || !response.headers) return false;
+    const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+    return contentType.includes('text/html');
+}
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
@@ -39,6 +69,22 @@ self.addEventListener('activate', (event) => {
     );
 });
 
+self.addEventListener('message', (event) => {
+    const data = event.data;
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'NMS_CLEAR_CACHE') {
+        event.waitUntil(
+            caches.keys()
+                .then((keys) => Promise.all(
+                    keys
+                        .filter((key) => key.startsWith(CACHE_PREFIX))
+                        .map((key) => caches.delete(key))
+                ))
+                .catch(() => {})
+        );
+    }
+});
+
 // Cache keys come back in insertion order, so the first removable entries are the oldest.
 async function trimCache(cache) {
     const keys = await cache.keys();
@@ -49,8 +95,9 @@ async function trimCache(cache) {
     }
 }
 
-function storeResponse(request, response) {
+function storeResponse(request, response, pathname) {
     if (!response || response.status !== 200 || response.type !== 'basic') return;
+    if (pathname && !matchesExpectedContentType(pathname, response)) return;
     const clone = response.clone();
     caches.open(CACHE_NAME)
         .then((cache) => cache.put(request, clone).then(() => trimCache(cache)))
@@ -73,24 +120,46 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Network first with cache fallback for HTML navigations.
+    // Network first with cache fallback for HTML navigations; refresh the
+    // cached app shell whenever a fresh HTML response succeeds.
     if (request.mode === 'navigate') {
         event.respondWith(
-            fetch(request).catch(() => {
-                return caches.match(SHELL_URL).then((cached) => cached || caches.match(request));
-            })
+            fetch(request)
+                .then((response) => {
+                    if (response && response.status === 200 && response.type === 'basic' && isHtmlResponse(response)) {
+                        const clone = response.clone();
+                        caches.open(CACHE_NAME)
+                            .then((cache) => cache.put(SHELL_URL, clone))
+                            .catch(() => {});
+                    }
+                    return response;
+                })
+                .catch(() => {
+                    return caches.match(SHELL_URL).then((cached) => cached || caches.match(request));
+                })
         );
         return;
     }
 
-    // Content-hashed build output never changes: cache first.
+    // Content-hashed build output never changes: cache first, but validate
+    // Content-Type on both cached and network responses so an HTML fallback
+    // or transient proxy page can never poison a JS/CSS module entry.
     if (url.pathname.startsWith(`${SCOPE_PATH}assets/`)) {
         event.respondWith(
-            caches.match(request).then((cached) => {
-                if (cached) return cached;
-                return fetch(request).then((response) => {
-                    storeResponse(request, response);
-                    return response;
+            caches.open(CACHE_NAME).then((cache) => {
+                return cache.match(request).then((cached) => {
+                    if (cached && matchesExpectedContentType(url.pathname, cached)) {
+                        return cached;
+                    }
+                    if (cached) {
+                        cache.delete(request).catch(() => {});
+                    }
+                    return fetch(request)
+                        .then((response) => {
+                            storeResponse(request, response, url.pathname);
+                            return response;
+                        })
+                        .catch(() => Response.error());
                 });
             })
         );
@@ -103,10 +172,14 @@ self.addEventListener('fetch', (event) => {
         event.respondWith(
             fetch(request)
                 .then((response) => {
-                    storeResponse(request, response);
+                    storeResponse(request, response, url.pathname);
                     return response;
                 })
-                .catch(() => caches.match(request).then((cached) => cached || Response.error()))
+                .catch(() => caches.match(request).then((cached) => (
+                    cached && matchesExpectedContentType(url.pathname, cached)
+                        ? cached
+                        : Response.error()
+                )))
         );
     }
 });

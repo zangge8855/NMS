@@ -17,7 +17,12 @@ import CommandPalette from './components/UI/CommandPalette';
 import api from './api/client';
 import useWebSocket from './hooks/useWebSocket';
 import { applyAppBootstrapSnapshots } from './utils/appBootstrap';
-import { lazyWithRetry } from './utils/lazyWithRetry';
+import {
+    clearAppCachesAndUnregisterSw,
+    isChunkLoadError,
+    lazyWithRetry,
+    reloadAfterChunkError,
+} from './utils/lazyWithRetry';
 import { buildSiteAssetPath } from './utils/sitePath';
 import {
     canAccessSystemSettings,
@@ -71,25 +76,18 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
     componentDidCatch(error: Error, info: React.ErrorInfo) {
         console.error('[ErrorBoundary]', error, info?.componentStack);
-        const message = String(error?.message || '');
-        const isChunkError = (
-            message.includes('Failed to fetch dynamically imported module')
-            || message.includes('Loading chunk')
-            || message.includes('dynamically imported module')
-            || error?.name === 'ChunkLoadError'
-        );
-        if (isChunkError) {
+        if (isChunkLoadError(error)) {
             const reloadKey = 'nms_auto_reload_chunk_error';
             const lastAttempt = Number(sessionStorage.getItem(reloadKey) || 0);
             if (Date.now() - lastAttempt > 10_000) {
                 sessionStorage.setItem(reloadKey, String(Date.now()));
-                window.location.reload();
+                void reloadAfterChunkError();
             }
         }
     }
 
     handleReload = () => {
-        window.location.reload();
+        void reloadAfterChunkError({ resetRetryGuards: true });
     };
 
     handleGoHome = () => {
@@ -101,6 +99,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
             clearStoredToken();
             clearAppSessionState();
             sessionStorage.clear();
+            void clearAppCachesAndUnregisterSw();
         } catch {}
         window.location.href = buildSiteAssetPath('/login');
     };
@@ -114,11 +113,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
             const locale = typeof document !== 'undefined' && String(document.documentElement.lang || '').toLowerCase().startsWith('en') ? 'en-US' : 'zh-CN';
             const isEn = locale === 'en-US';
             const errorMessage = this.state.error?.message || '';
-            const isChunkError = (
-                errorMessage.includes('Failed to fetch dynamically imported module')
-                || errorMessage.includes('Loading chunk')
-                || errorMessage.includes('dynamically imported module')
-            );
+            const isChunkError = isChunkLoadError(this.state.error);
             const resolvedTitle = isChunkError
                 ? (isEn ? 'New Version Available' : '发现系统新版本')
                 : (this.props.fallbackTitle || getLocaleMessage(locale, 'comp.common.errorBoundaryTitle'));
