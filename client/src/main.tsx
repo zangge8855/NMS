@@ -22,6 +22,7 @@ import './styles/theme.css';
 import './styles/polish.css';
 import './styles/identity.css';
 import './styles/panel-features.css';
+import './styles/gemini-design.css';
 import { buildSiteAssetPath, resolveSiteBasePath } from './utils/sitePath';
 import { reloadAfterChunkError } from './utils/lazyWithRetry';
 

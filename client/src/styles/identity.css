@@ -1866,17 +1866,7 @@ body {
   background-size: 100% 100%;
 }
 
-/* 4. Constrain legacy "transition: all" to paint-light properties */
-:root :is(
-  .card,
-  .glass-panel,
-  .table-container,
-  .settings-panel,
-  .dashboard-stat-card,
-  .node-health-tile,
-  .server-card
-) {
-  transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease !important;
+/* 4. Constrain legacy "transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 :root :is(
