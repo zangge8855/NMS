@@ -529,6 +529,36 @@ export default function Login() {
     // ── Render ───────────────────────────────────────────────
     return (
         <div className={`login-page login-page--${mode}`}>
+            <svg
+                className="login-meridian-backdrop"
+                viewBox="0 0 1440 900"
+                preserveAspectRatio="xMidYMid slice"
+                aria-hidden="true"
+                focusable="false"
+            >
+                <defs>
+                    <radialGradient id="nmsLoginAura" cx="50%" cy="32%" r="58%">
+                        <stop offset="0%" stopColor="var(--signal)" stopOpacity="0.14" />
+                        <stop offset="48%" stopColor="var(--signal)" stopOpacity="0.035" />
+                        <stop offset="100%" stopColor="var(--signal)" stopOpacity="0" />
+                    </radialGradient>
+                </defs>
+                <rect width="1440" height="900" fill="url(#nmsLoginAura)" />
+                <g className="login-meridian-geometry" fill="none" stroke="currentColor">
+                    <polygon points="720,90 1030,270 1030,630 720,810 410,630 410,270" strokeWidth="1" opacity="0.11" />
+                    <polygon points="720,170 960,310 960,590 720,730 480,590 480,310" strokeWidth="0.9" opacity="0.08" />
+                    <line x1="0" y1="450" x2="1440" y2="450" strokeWidth="0.75" opacity="0.07" />
+                    <line x1="720" y1="0" x2="720" y2="900" strokeWidth="0.75" opacity="0.07" />
+                    <line x1="410" y1="270" x2="1030" y2="630" strokeWidth="0.75" opacity="0.055" />
+                    <line x1="1030" y1="270" x2="410" y2="630" strokeWidth="0.75" opacity="0.055" />
+                    <circle cx="720" cy="90" r="3.5" fill="var(--signal)" stroke="none" opacity="0.38" />
+                    <circle cx="1030" cy="270" r="3" fill="var(--signal)" stroke="none" opacity="0.28" />
+                    <circle cx="1030" cy="630" r="3" fill="var(--signal)" stroke="none" opacity="0.24" />
+                    <circle cx="720" cy="810" r="3.5" fill="var(--signal)" stroke="none" opacity="0.28" />
+                    <circle cx="410" cy="630" r="3" fill="var(--signal)" stroke="none" opacity="0.24" />
+                    <circle cx="410" cy="270" r="3" fill="var(--signal)" stroke="none" opacity="0.28" />
+                </g>
+            </svg>
             <div className="login-top-actions">
                 <button
                     type="button"

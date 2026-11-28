@@ -1147,7 +1147,6 @@ export default function Subscriptions() {
                                 <EmptyState
                                     title={isUserOnly ? (defaultIdentity ? ui.loadingAddress : ui.noAssignedLink) : ui.inputEmailHint}
                                     icon={<HiOutlineLink className="empty-state-svg" />}
-                                    surface
                                     action={isUserOnly ? (
                                         <button type="button" className="btn btn-secondary" onClick={() => loadSubscription()} disabled={subscriptionBusy || !defaultIdentity}>
                                             <HiOutlineArrowPath /> {ui.reload}

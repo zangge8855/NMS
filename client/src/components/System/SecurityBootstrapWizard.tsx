@@ -350,7 +350,6 @@ export default function SecurityBootstrapWizard() {
         <div ref={overlayRef} tabIndex={-1} className="security-bootstrap-overlay" role="dialog" aria-modal="true" aria-labelledby="security-bootstrap-title">
             <div className="security-bootstrap-shell">
                 <div className="security-bootstrap-copy">
-                    <div className="security-bootstrap-kicker">NMS Security</div>
                     <h2 id="security-bootstrap-title" className="security-bootstrap-title">{copy.title}</h2>
                     <p className="security-bootstrap-subtitle">{copy.subtitle}</p>
                     <div className="security-bootstrap-callout">
@@ -490,7 +489,7 @@ export default function SecurityBootstrapWizard() {
                         </button>
                         <button
                             type="submit"
-                            className="btn btn-danger"
+                            className="btn btn-primary"
                             disabled={!canSubmit || saving}
                         >
                             {saving ? copy.applying : copy.apply}

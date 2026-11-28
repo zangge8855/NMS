@@ -523,7 +523,7 @@ export default function NodeHealthGrid({ servers, serverStatuses, trendHistory =
                 </div>
             </div>
 
-            <div className={`node-health-grid ${expanded || normalizedQuery ? 'is-expanded' : 'is-compact'} ${denseMode ? 'is-dense' : ''}`}>
+            <div className={`node-health-grid ${expanded || normalizedQuery ? 'is-expanded' : 'is-compact'} ${denseMode ? 'is-dense' : ''} ${(hasStatuses ? visibleEntries.length : Math.min(safeServers.length, initialLimit)) === 2 || (hasStatuses ? visibleEntries.length : Math.min(safeServers.length, initialLimit)) === 4 ? 'node-health-grid--balanced-2' : ''}`}>
                 {hasStatuses ? (
                     visibleEntries.length > 0 ? (
                         visibleEntries.map(({ server, serverData }) => (

@@ -850,10 +850,10 @@ export default function Tools() {
             <Header title={t('pages.tools.title')} />
             <div className="page-content page-content--wide page-enter tools-page">
                 {/* Sub-nav Tabs */}
-                <div className="flex flex-wrap gap-2 mb-6 border-b border-stroke-soft pb-3">
+                <div className="tools-mode-tabs">
                     <button
                         type="button"
-                        className="btn btn-sm btn-secondary"
+                        className={`tools-mode-tab${activeTab === 'node' ? ' is-active' : ''}`}
                         aria-pressed={activeTab === 'node'}
                         onClick={() => setActiveTab('node')}
                     >
@@ -861,7 +861,7 @@ export default function Tools() {
                     </button>
                     <button
                         type="button"
-                        className="btn btn-sm btn-secondary"
+                        className={`tools-mode-tab${activeTab === 'ssl' ? ' is-active' : ''}`}
                         aria-pressed={activeTab === 'ssl'}
                         onClick={() => setActiveTab('ssl')}
                     >
@@ -869,7 +869,7 @@ export default function Tools() {
                     </button>
                     <button
                         type="button"
-                        className="btn btn-sm btn-secondary"
+                        className={`tools-mode-tab${activeTab === 'ip' ? ' is-active' : ''}`}
                         aria-pressed={activeTab === 'ip'}
                         onClick={() => setActiveTab('ip')}
                     >
